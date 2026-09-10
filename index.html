@@ -12,6 +12,12 @@
   <meta name="author" content="Bayan Software Systems">
   <meta name="theme-color" content="#070a13">
 
+  <!-- Security Headers & Hardening -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff">
+  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' https: data: blob: 'unsafe-inline' 'unsafe-eval'; frame-ancestors 'self';">
+
   <!-- Open Graph Meta Tags -->
   <meta property="og:title" content="بيان فاشن | نظام نقاط البيع وإدارة محلات الملابس والأحذية">
   <meta property="og:description" content="تحكم كامل في مصفوفة المقاسات والألوان، الفواتير السريعة، والمزامنة الشبكية بدون توقف.">
@@ -22,17 +28,20 @@
   <link rel="icon" type="image/png" href="assets/logo.png">
 
   <!-- Stylesheet -->
-  <link rel="stylesheet" href="css/style.css?v=1.1.2">
-  <!-- Anti-flash Theme Script: يمنع الوميض الداكن عند التحميل -->
+  <link rel="stylesheet" href="css/style.css?v=1.2.3">
+  <!-- Anti-flash Theme Script: يمنع الوميض الداكن عند التحميل بأمان كامل -->
   <script>
     (function() {
-      var saved = localStorage.getItem('bayan_website_theme');
-      // الافتراضي هو الوضع الفاتح للزوار الجدد
-      var theme = saved || 'light';
-      if (theme === 'light') {
+      try {
+        var saved = localStorage.getItem('bayan_website_theme');
+        var theme = (saved === 'dark') ? 'dark' : 'light';
+        if (theme === 'light') {
+          document.documentElement.setAttribute('data-theme', 'light');
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+        }
+      } catch (e) {
         document.documentElement.setAttribute('data-theme', 'light');
-      } else {
-        document.documentElement.removeAttribute('data-theme');
       }
     })();
   </script>
@@ -73,7 +82,6 @@
 
           <div class="nav-actions">
             <button class="theme-toggle-btn" id="themeToggleBtn" aria-label="تبديل المظهر" title="تفعيل الوضع الفاتح">☀️</button>
-            <button class="btn btn-gold open-download-modal-btn" id="navCtaTrial" data-platform="all">تحميل وتجربة مجانية</button>
             <button class="mobile-toggle-btn" id="mobileNavToggle" aria-label="فتح القائمة" aria-expanded="false">
               ☰
             </button>
@@ -242,24 +250,24 @@
           <div class="tabs-nav-wrapper">
             <div class="feature-tabs-nav" role="tablist">
               <button class="tab-btn active" data-tab="tab-matrix" role="tab" id="tabBtnMatrix">
-                <span>🎨</span>
-                <span>مصفوفة المقاسات والألوان</span>
+                <span class="tab-btn-icon">🎨</span>
+                <span class="tab-btn-text">مصفوفة المقاسات والألوان</span>
               </button>
               <button class="tab-btn" data-tab="tab-pos" role="tab" id="tabBtnPos">
-                <span>⚡</span>
-                <span>كاشير البيع السريع</span>
+                <span class="tab-btn-icon">⚡</span>
+                <span class="tab-btn-text">كاشير البيع السريع</span>
               </button>
               <button class="tab-btn" data-tab="tab-sync" role="tab" id="tabBtnSync">
-                <span>🌐</span>
-                <span>الربط الشبكي والتابلت</span>
+                <span class="tab-btn-icon">🌐</span>
+                <span class="tab-btn-text">الربط الشبكي والتابلت</span>
               </button>
               <button class="tab-btn" data-tab="tab-inventory" role="tab" id="tabBtnInventory">
-                <span>📦</span>
-                <span>المخازن والباركود</span>
+                <span class="tab-btn-icon">📦</span>
+                <span class="tab-btn-text">المخازن والباركود</span>
               </button>
               <button class="tab-btn" data-tab="tab-reports" role="tab" id="tabBtnReports">
-                <span>📊</span>
-                <span>الأرباح والتقارير المالية</span>
+                <span class="tab-btn-icon">📊</span>
+                <span class="tab-btn-text">الأرباح والتقارير المالية</span>
               </button>
             </div>
           </div>
@@ -284,14 +292,7 @@
                   <li class="feature-point-item">
                     <div class="point-icon">✓</div>
                     <div class="point-text">
-                      <strong>تنبيهات فورية عند وصول مقاس معين للحد الأدنى</strong>
-                      <span>تعرف فوراً على المقاسات التي نفدت من صالة العرض لإعادة طلبها من المخزن.</span>
-                    </div>
-                  </li>
-                  <li class="feature-point-item">
-                    <div class="point-icon">✓</div>
-                    <div class="point-text">
-                      <strong>دعم مقاسات الأحذية (38 - 46) والملابس (S إلى 5XL)</strong>
+                      <strong>تخصيص غير محدود للمقاسات والألوان</strong>
                       <span>مرونة تامة في إضافة أي تصنيف قياسات أو ألوان خاصة بماركتك.</span>
                     </div>
                   </li>
@@ -303,8 +304,6 @@
                     </div>
                   </li>
                 </ul>
-
-                <a href="#contact" class="btn btn-primary">طلب تجربة المصفوفة الآن</a>
               </div>
 
               <!-- Interactive Simulator for Matrix -->
@@ -332,14 +331,14 @@
 
                   <div class="matrix-demo-row">
                     <div class="item-color-name">
-                      <span class="color-dot" style="background:#3b82f6;"></span>
-                      <span>أزرق سماوي</span>
+                      <span class="color-dot" style="background:#1e3a8a;"></span>
+                      <span>كحلي ملكي</span>
                     </div>
                     <div class="sizes-stock-chips">
-                      <span class="size-pill interactive-stock-cell" data-color="BLU" data-size="S">6</span>
-                      <span class="size-pill interactive-stock-cell" data-color="BLU" data-size="M">7</span>
-                      <span class="size-pill interactive-stock-cell" data-color="BLU" data-size="L">4</span>
-                      <span class="size-pill interactive-stock-cell" data-color="BLU" data-size="XL">2</span>
+                      <span class="size-pill interactive-stock-cell" data-color="NVY" data-size="S">6</span>
+                      <span class="size-pill interactive-stock-cell" data-color="NVY" data-size="M">7</span>
+                      <span class="size-pill interactive-stock-cell" data-color="NVY" data-size="L">5</span>
+                      <span class="size-pill interactive-stock-cell" data-color="NVY" data-size="XL">3</span>
                     </div>
                   </div>
 
@@ -404,27 +403,34 @@
               <div class="feature-visual-box">
                 <div class="visual-box-header">
                   <div class="visual-title-badge">
-                    <span>⚡ شاشة الكاشير السريع (Fast Checkout)</span>
+                    <span>⚡ كاشير نقطة البيع السريع (Touch POS)</span>
                   </div>
-                  <span style="color: var(--emerald-light); font-weight: 800;">جاهز للطباعة 80mm</span>
+                  <span style="color: var(--emerald-light); font-weight: 800;">جاهز للعمل الفوري</span>
                 </div>
 
-                <div class="pos-order-ticket">
-                  <div class="pos-ticket-item">
-                    <span>👔 قميص كلاسيك إيطالي (كحلي - XL)</span>
-                    <strong class="pos-ticket-price">1 × 450 ج.م</strong>
+                <div class="pos-features-overview">
+                  <div class="pos-feature-card">
+                    <div class="pos-feature-card-main">
+                      <span class="pos-card-icon">⚡</span>
+                      <strong class="pos-card-title">طباعة حرارية فورية 80mm و 58mm</strong>
+                    </div>
+                    <span class="pos-card-tag tag-gold">أقل من ثانية</span>
                   </div>
-                  <div class="pos-ticket-item">
-                    <span>👖 بنطلون جينز كاجوال (رمادي - 34)</span>
-                    <strong class="pos-ticket-price">2 × 450 = 900 ج.م</strong>
+
+                  <div class="pos-feature-card">
+                    <div class="pos-feature-card-main">
+                      <span class="pos-card-icon">💳</span>
+                      <strong class="pos-card-title">طرق دفع متعددة (كاش، فيزا، إنستاباي)</strong>
+                    </div>
+                    <span class="pos-card-tag tag-green">مدعوم</span>
                   </div>
-                  <div class="pos-ticket-item">
-                    <span>🧥 جاكيت جلد طبيعي (أسود - L)</span>
-                    <strong class="pos-ticket-price">1 × 1,250 ج.م</strong>
-                  </div>
-                  <div class="pos-ticket-total">
-                    <span>إجمالي الفاتورة (3 أصناف):</span>
-                    <strong>2,600 ج.م</strong>
+
+                  <div class="pos-feature-card">
+                    <div class="pos-feature-card-main">
+                      <span class="pos-card-icon">⏸️</span>
+                      <strong class="pos-card-title">تعليق الفواتير واستدعاؤها السريع</strong>
+                    </div>
+                    <span class="pos-card-tag tag-blue">بضغطة واحدة</span>
                   </div>
                 </div>
               </div>
@@ -444,22 +450,22 @@
                   <li class="feature-point-item">
                     <div class="point-icon">✓</div>
                     <div class="point-text">
-                      <strong>كاشير متجول للبائعين في المعرض (Tablet POS)</strong>
-                      <span>البائع يستعلم عن مقاس الصنف في المخزن ويسجل الفاتورة للعميل وهو واقف معه.</span>
+                      <strong>ربط شاشات كاشير إضافية غير محدود</strong>
+                      <span>كل كاشير له خزنته المستقلة وتقفيل ورديته الخاصة بشكل دقيق.</span>
                     </div>
                   </li>
                   <li class="feature-point-item">
                     <div class="point-icon">✓</div>
                     <div class="point-text">
-                      <strong>مزامنة لحظية وتحديث الأرصدة تلقائياً</strong>
-                      <span>أي قطعة تباع على التابلت تخصم فوراً من كاشير الماستر وباقي الأجهزة.</span>
+                      <strong>تابلت البائع المتجول داخل المحل</strong>
+                      <span>البائع يتحرك في المعرض، يفحص المقاسات المتاحة ويسجل طلب الزبون فوراً.</span>
                     </div>
                   </li>
                   <li class="feature-point-item">
                     <div class="point-icon">✓</div>
                     <div class="point-text">
-                      <strong>أمان واستقلالية تامة عن انقطاع الإنترنت</strong>
-                      <span>سواء كان الإنترنت متصلاً أو مفصولاً، شغلك مستمر بأعلى كفاءة وسرعة.</span>
+                      <strong>عمل كامل بدون إنترنت (Local Offline Server)</strong>
+                      <span>لن تتعطل المبيعات أبداً في حال انقطاع النت بفضل المعمارية الداخلية.</span>
                     </div>
                   </li>
                 </ul>
@@ -477,7 +483,6 @@
                   <div class="master-server-node">
                     <span class="node-pulse-light"></span>
                     <strong>🖥️ جهاز كاشير الماستر (Master Hub Server)</strong>
-                    <div class="server-ip-badge">IP: 192.168.1.100 | قاعدة بيانات مركزية نشطة</div>
                   </div>
 
                   <div class="sync-flow-indicator">
@@ -503,7 +508,7 @@
                       <span class="node-pulse-light"></span>
                       <strong>💻 كاشير نقطة 2</strong>
                       <div class="client-dept">طابق الأحذية والكاشير الإضافي</div>
-                      <div class="client-status">متصل لحظياً | طابعة فواتير جاهزة</div>
+                      <div class="client-status">متصل بالشبكة المحلية</div>
                     </div>
                     <div class="client-node-box">
                       <span class="node-pulse-light"></span>
@@ -521,17 +526,17 @@
           <div class="tab-content-panel" id="tab-inventory" role="tabpanel">
             <div class="feature-showcase-grid">
               <div class="feature-text-block">
-                <h3>إدارة المخازن المتعددة، الجرد، وطباعة الباركود</h3>
+                <h3>إدارة المخازن المتعددة ومصمم الباركود الاحترافي</h3>
                 <p>
-                  وداعاً لعجز الجرد وسرقة البضائع؛ تابع مخزن الصالة ومخزن البدروم ومخازن الفروع بدقة متناهية، مع أذونات تحويل البضاعة والتسويات الجردية الذكية.
+                  إشراف كامل على كل قطعة ملابس منذ استلامها من المورد أو المصنع حتى بيعها للعميل، مع جرد باركود دقيق وتنبيهات فورية عند وصول أي مقاس أو لون لحد إعادة الطلب.
                 </p>
 
                 <ul class="feature-points-list">
                   <li class="feature-point-item">
                     <div class="point-icon">✓</div>
                     <div class="point-text">
-                      <strong>جرد بالباركود ومسدس الباركود اللاسلكي</strong>
-                      <span>قم بجرد مئات القطع في ساعات قليلة مع كشف فوري لنسب العجز أو الزيادة.</span>
+                      <strong>جرد مخزني بمسدس الباركود السريع</strong>
+                      <span>قارن الجرد الفعلي بالرصيد الدفتري بدون إيقاف حركة البيع إطلاقاً.</span>
                     </div>
                   </li>
                   <li class="feature-point-item">
@@ -549,8 +554,6 @@
                     </div>
                   </li>
                 </ul>
-
-                <a href="#contact" class="btn btn-primary">احصل على إدارة مخازن آمنة</a>
               </div>
 
               <div class="feature-visual-box">
@@ -660,8 +663,6 @@
                     </div>
                   </li>
                 </ul>
-
-                <a href="#contact" class="btn btn-primary">اكتشف تقارير بيان فاشن</a>
               </div>
 
               <div class="feature-visual-box">
@@ -914,7 +915,10 @@
                 </li>
               </ul>
 
-              <a href="#contact" class="btn btn-glass" style="width: 100%;">ابدأ التجربة المجانية</a>
+              <button type="button" class="btn btn-glass open-download-modal-btn" data-platform="windows" style="width: 100%;">
+                <span>تحميل وبدء التجربة مجاناً</span>
+                <span>📥</span>
+              </button>
             </div>
 
             <!-- Plan 2: Monthly (الباقة الأساسية) -->
@@ -957,7 +961,10 @@
                 </li>
               </ul>
 
-              <a href="#contact" class="btn btn-primary" style="width: 100%;">اشترك شهرياً (150 ج)</a>
+              <button type="button" class="btn btn-primary open-download-modal-btn" data-platform="windows" style="width: 100%;">
+                <span>تحميل واشتراك (150 ج)</span>
+                <span>📥</span>
+              </button>
             </div>
 
             <!-- Plan 3: Annual (الباقة المتقدمة - الأكثر طلباً وتوفيراً) -->
@@ -1006,7 +1013,10 @@
                 </li>
               </ul>
 
-              <a href="#contact" class="btn btn-gold" style="width: 100%;">اشترك سنوياً (وفر 600 ج)</a>
+              <button type="button" class="btn btn-gold open-download-modal-btn" data-platform="windows" style="width: 100%;">
+                <span>تحميل واشتراك سنوي (وفر 600 ج)</span>
+                <span>📥</span>
+              </button>
             </div>
 
             <!-- Plan 4: Lifetime (الباقة الاحترافية - اشتري دماغك) -->
@@ -1042,7 +1052,7 @@
                 </li>
                 <li class="plan-feature-item">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
-                  <span>دعم فني شامل وتدريب معتمد</span>
+                  <span>دعم فني شامل</span>
                 </li>
                 <li class="plan-feature-item">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
@@ -1054,7 +1064,10 @@
                 </li>
               </ul>
 
-              <a href="#contact" class="btn btn-primary" style="width: 100%;">امتلك نسختك للأبد (4000 ج)</a>
+              <button type="button" class="btn btn-primary open-download-modal-btn" data-platform="windows" style="width: 100%;">
+                <span>تحميل وامتلاك مدى الحياة (4000 ج)</span>
+                <span>📥</span>
+              </button>
             </div>
 
           </div>
@@ -1467,6 +1480,78 @@
               </div>
             </div>
 
+            <!-- New FAQ 3: أقسام البرنامج الـ 24 المعتمدة في الشاشة الرئيسية (مميز ومحاط بإطار ذهبي ملفت) -->
+            <div class="faq-item faq-item-highlighted">
+              <div class="faq-header">
+                <div class="faq-question-group">
+                  <span class="faq-featured-badge">⭐ دليل شامل وحصري</span>
+                  <span class="faq-question">ما هي أقسام وشاشات برنامج بيان فاشن الـ 24 الظاهرة في لوحة التحكم؟</span>
+                </div>
+                <span class="faq-icon-toggle">▼</span>
+              </div>
+              <div class="faq-body">
+                <div class="faq-content">
+                  يضم نظام بيان فاشن <strong>24 قسماً وشاشة متخصصة</strong> تغطي كافة جوانب إدارة متجرك ومصنعك بدقة متناهية، ومقسمة إلى فئات تشغيلية واضحة ومباشرة:
+                  
+                  <div class="faq-sections-categories" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin-top: 1rem;">
+                    
+                    <!-- 1. شاشات الكاشير ونقاط البيع اليومية -->
+                    <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 0.85rem 1rem;">
+                      <h4 style="color: var(--gold-light); font-size: 0.95rem; font-weight: 800; margin-bottom: 0.5rem;">🛒 الكاشير ونقاط البيع (POS)</h4>
+                      <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.9rem;">
+                        <li><strong>1. شاشة البيع:</strong> إصدار فواتير نقدية وإلكترونية وآجلة بالباركود.</li>
+                        <li><strong>2. مرتجع بيع:</strong> استرجاع أو تبديل صنف بالباركود القديم.</li>
+                        <li><strong>3. شراء:</strong> تسجيل فواتير المشتريات من الموردين والمصانع.</li>
+                        <li><strong>4. مرتجع شراء:</strong> إرجاع بضاعة تالفة أو مستبدلة للمورد.</li>
+                        <li><strong>5. اختصارات الكيبورد:</strong> مفاتيح سريعة لتسريع حركة البيع في الضغط.</li>
+                      </ul>
+                    </div>
+
+                    <!-- 2. الخزينة والمالية والمدفوعات -->
+                    <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 0.85rem 1rem;">
+                      <h4 style="color: var(--emerald-light); font-size: 0.95rem; font-weight: 800; margin-bottom: 0.5rem;">💰 النقدية والمالية والخزائن</h4>
+                      <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.9rem;">
+                        <li><strong>6. سند قبض:</strong> استلام أموال نقدية أو شيكات من عميل أو شريك.</li>
+                        <li><strong>7. سند صرف:</strong> سداد مصروفات تشغيل أو دفعات نقدية للموردين.</li>
+                        <li><strong>8. مراجعة الخزينة:</strong> جرد نقدية الدرج ومطابقتها مع المبيعات.</li>
+                        <li><strong>9. آلة حاسبة:</strong> حاسبة رقمية مدمجة وسريعة داخل الشاشة.</li>
+                      </ul>
+                    </div>
+
+                    <!-- 3. المخازن، البضاعة، والأرصدة -->
+                    <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 0.85rem 1rem;">
+                      <h4 style="color: #60a5fa; font-size: 0.95rem; font-weight: 800; margin-bottom: 0.5rem;">📦 المخازن والأصناف والباركود</h4>
+                      <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.9rem;">
+                        <li><strong>10. أرصدة المخازن:</strong> متابعة كمية كل مقاس ولون في كل مخزن.</li>
+                        <li><strong>11. حركة صنف:</strong> تتبع شامل لكل قطعة تم شراؤها أو بيعها.</li>
+                        <li><strong>12. تسوية مخزن:</strong> معالجة فروق الجرد الفعلي بدون تعطيل البيع.</li>
+                        <li><strong>13. تحويل المخزون:</strong> نقل البضائع بين المخزن الرئيسي وصالة العرض.</li>
+                        <li><strong>14. استعلام الأصناف:</strong> بحث ذكي فوري بالاسم، الكود، أو السعر.</li>
+                        <li><strong>15. إدارة الأسعار والمخازن:</strong> تعديل أسعار الجملة والقطاعي والعروض.</li>
+                        <li><strong>16. إضافة صنف جديد:</strong> تسجيل موديل بكافة ألوانه ومقاساته فوراً.</li>
+                        <li><strong>17. قسم البضاعة:</strong> جرد وبطاقات الأصناف والباركود الحراري.</li>
+                      </ul>
+                    </div>
+
+                    <!-- 4. الحسابات والعملاء والموردين -->
+                    <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 0.85rem 1rem;">
+                      <h4 style="color: #c084fc; font-size: 0.95rem; font-weight: 800; margin-bottom: 0.5rem;">👥 الحسابات، التقارير والإدارة</h4>
+                      <ul style="list-style: none; display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.9rem;">
+                        <li><strong>18. كشف حساب:</strong> كشف حساب تفصيلي لأي عميل أو مورد.</li>
+                        <li><strong>19. إضافة حساب جديد:</strong> تسجيل عميل، مورد، أو مندوب بيع.</li>
+                        <li><strong>20. قسم الحسابات:</strong> إدارة مديونيات العملاء ومستحقات الموردين.</li>
+                        <li><strong>21. أرشيف الفواتير:</strong> بحث واستعراض وطباعة الفواتير السابقة.</li>
+                        <li><strong>22. تقرير الحركة اليومية:</strong> ملخص حركة المبيعات والمصروفات بالوردية.</li>
+                        <li><strong>23. تحليل مبيعات:</strong> إحصائيات الأرباح والموديلات الأكثر طلباً.</li>
+                        <li><strong>24. الإعدادات:</strong> تخصيص بيانات المتجر، الطابعات، وصلاحيات المستخدمين.</li>
+                      </ul>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>
@@ -1491,7 +1576,7 @@
 
             <div class="contact-channels-grid">
               <!-- WhatsApp Card -->
-              <a href="https://wa.me/201006825905" target="_blank" class="contact-hub-card whatsapp">
+              <a href="https://wa.me/201006825905" target="_blank" rel="noopener noreferrer" class="contact-hub-card whatsapp">
                 <div class="contact-card-badge">الأسرع رداً ⚡</div>
                 <div class="contact-card-icon-wrap whatsapp">
                   <span>💬</span>
@@ -1650,6 +1735,11 @@
           
           <!-- Hidden Platform Input -->
           <input type="hidden" id="leadSelectedPlatform" name="platform" value="windows">
+          
+          <!-- Anti-Bot Honeypot Field (مصيدة للبوتات والسبام) -->
+          <div style="position: absolute; left: -9999px; top: -9999px; opacity: 0; pointer-events: none;" aria-hidden="true">
+            <input type="text" id="securityHoneypotField" name="security_hp_email" tabindex="-1" autocomplete="off">
+          </div>
 
           <!-- 1. Full Name -->
           <div class="form-group-item">
@@ -1663,6 +1753,7 @@
                 type="text" 
                 id="leadFullName" 
                 name="full_name" 
+                maxlength="60" 
                 class="input-smart-control" 
                 placeholder="اكتب اسمك ثلاثي هنا" 
                 required 
@@ -1684,6 +1775,7 @@
                 type="text" 
                 id="leadStoreName" 
                 name="store_name" 
+                maxlength="70"
                 class="input-smart-control" 
                 placeholder="اكتب اسم المحل أو النشاط التجاري" 
                 required
@@ -1747,6 +1839,7 @@
                   type="tel" 
                   id="leadPhoneNumber" 
                   name="phone_number" 
+                  maxlength="20"
                   class="input-smart-control phone-control" 
                   placeholder="أدخل رقم الهاتف" 
                   required
@@ -1787,9 +1880,9 @@
             <div class="ready-dl-item" id="readyBoxWindows">
               <div class="ready-dl-meta">
                 <div class="ready-dl-title">💻 نسخة الويندوز للكمبيوتر واللابتوب</div>
-                <div class="ready-dl-note">تشغيل فوري للكاشير ونقاط البيع</div>
+                <div class="ready-dl-note">إصدار v1.0.5 - تشغيل فوري للكاشير ونقاط البيع</div>
               </div>
-              <a href="#" class="btn btn-primary btn-direct-download" id="linkDownloadExe" download="bayan-pos-fashion-setup.exe">
+              <a href="https://github.com/ehabamr062-ux/bayan_fashion_website/releases/download/v1.0.5/Bayan.POS.Setup.1.0.5.exe" class="btn btn-primary btn-direct-download" id="linkDownloadExe" target="_blank" rel="noopener noreferrer" download="Bayan.POS.Setup.1.0.5.exe">
                 <span>تحميل (Windows .exe)</span>
                 <span>⬇</span>
               </a>
@@ -1797,11 +1890,11 @@
 
             <div class="ready-dl-item" id="readyBoxAndroid">
               <div class="ready-dl-meta">
-                <div class="ready-dl-title">📱 نسخة التابلت والأندرويد (PWA)</div>
-                <div class="ready-dl-note">شاشة بائعي الصالة والشاشات اللمسية</div>
+                <div class="ready-dl-title">📱 نسخة التابلت والأندرويد (PWA Web App)</div>
+                <div class="ready-dl-note">تشغيل فوري وسحابي لشاشات اللمس وبائعي الصالة</div>
               </div>
-              <a href="#" class="btn btn-secondary btn-direct-download" id="linkDownloadApk" download="bayan-pos-tablet.apk">
-                <span>تحميل (Android / PWA)</span>
+              <a href="https://ehabamr062-ux.github.io/bayan-pos-fashion/" class="btn btn-secondary btn-direct-download" id="linkDownloadApk" target="_blank" rel="noopener noreferrer">
+                <span>فتح التطبيق (تشغيل PWA)</span>
                 <span>📲</span>
               </a>
             </div>
@@ -1912,6 +2005,6 @@
   </div>
 
   <!-- Main JavaScript File -->
-  <script src="js/main.js?v=1.1.2"></script>
+  <script src="js/main.js?v=1.2.3"></script>
 </body>
 </html>

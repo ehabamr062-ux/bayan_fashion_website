@@ -485,8 +485,8 @@ function showUpdateNotification(newVersion) {
 /* --------------------------------------------------------------------------
    12. SMART DOWNLOAD & LEAD REGISTRATION MODAL WITH VALIDATION & GOOGLE SHEETS
    -------------------------------------------------------------------------- */
-// رابط جوجل شيت Web App التلقائي (يمكنك استبداله برابط Google Apps Script الخاص بك)
-window.BAYAN_GOOGLE_SHEET_WEBHOOK_URL = window.BAYAN_GOOGLE_SHEET_WEBHOOK_URL || '';
+// رابط جوجل شيت Web App التلقائي الخاص ببرنامج بيان فاشن
+window.BAYAN_GOOGLE_SHEET_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbwzsifgFLbSuFPsj4z22Gtp_Is3d5Zy6MphKW_IHydcesLqD6Vc0q8a4NgX7-oC16fn/exec';
 
 function initSmartDownloadModal() {
   const modalBackdrop = document.getElementById('downloadModalBackdrop');
@@ -686,17 +686,19 @@ function initSmartDownloadModal() {
       platformTitle.textContent = 'تحميل وتجربة منظومة بيان فاشن';
     }
 
-    // فحص هل العميل سجل مسبقاً بنفس الجهاز؟ (منع التكرار الذكي)
-    const existingRegistration = getExistingRegistration();
-    if (existingRegistration) {
-      showSuccessScreen(existingRegistration, true);
-    } else {
-      showFormScreen();
-    }
-
+    // فحص هل العميل سجل مسبقاً بنفس الجهاز؟ (منع التكرار الذكي عبر IndexedDB)
     modalBackdrop.classList.add('show');
     modalBackdrop.setAttribute('aria-hidden', 'false');
     document.body.style.overflow = 'hidden';
+
+    // فحص فوري وسريع لقاعدة بيانات IndexedDB
+    getExistingRegistration().then(existingRegistration => {
+      if (existingRegistration) {
+        showSuccessScreen(existingRegistration, true);
+      } else {
+        showFormScreen();
+      }
+    });
   }
 
   function closeModal() {
@@ -785,16 +787,34 @@ function initSmartDownloadModal() {
   }
 
   // معالجة إرسال النموذج (Submit)
+  // مؤقت للحد من السبام (Rate-Limiting Protection)
+  let lastSubmitTimestamp = 0;
+
   leadForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     clearAlert();
 
-    const fullName = inputFullName.value.trim();
-    const storeName = inputStoreName.value.trim();
-    const businessField = selectBusinessField.value;
-    const countryKey = selectCountryCode.value;
-    const rawPhone = inputPhoneNumber.value.trim();
-    const platform = leadPlatformInput.value || 'windows';
+    // 1. فحص مصيدة البوتات (Anti-Bot Honeypot)
+    const honeypot = document.getElementById('securityHoneypotField');
+    if (honeypot && honeypot.value.trim() !== '') {
+      console.warn('Spam bot detected and blocked.');
+      return;
+    }
+
+    // 2. حماية من الهجمات المتكررة (Rate Limiting - حد أدنى ثانيتين بين المحاولات)
+    const now = Date.now();
+    if (now - lastSubmitTimestamp < 2000) {
+      showAlert('يرجى الانتظار لحظات قليلة قبل تكرار المحاولة.', 'warning');
+      return;
+    }
+    lastSubmitTimestamp = now;
+
+    const fullName = sanitizeInput(inputFullName.value).substring(0, 60);
+    const storeName = sanitizeInput(inputStoreName.value).substring(0, 70);
+    const businessField = sanitizeInput(selectBusinessField.value).substring(0, 50);
+    const countryKey = sanitizeInput(selectCountryCode.value).substring(0, 10);
+    const rawPhone = inputPhoneNumber.value.trim().substring(0, 20);
+    const platform = sanitizeInput(leadPlatformInput.value || 'windows').substring(0, 20);
 
     // فحص الصلاحية لكل الحقول
     const isNameValid = validateField(inputFullName, () => fullName.length >= 3, 'errLeadFullName');
@@ -811,9 +831,9 @@ function initSmartDownloadModal() {
     const cleanPhone = conf.normalize(rawPhone);
     const fullPhoneFormatted = (conf.prefix ? conf.prefix + ' ' : '') + cleanPhone;
 
-    // 1. الدالة الذكية لمنع التكرار (Duplicate Prevention System)
+    // 3. الدالة الذكية لمنع التكرار (Duplicate Prevention System عبر IndexedDB)
     // منع تكرار نفس رقم الهاتف أو نفس المحل
-    const registeredDatabase = getStoredRegistrations();
+    const registeredDatabase = await getStoredRegistrations();
     const isDuplicatePhone = registeredDatabase.some(record => record.cleanPhone === cleanPhone);
 
     if (isDuplicatePhone) {
@@ -845,8 +865,8 @@ function initSmartDownloadModal() {
       userAgent: navigator.userAgent
     };
 
-    // 2. حفظ البيانات محلياً لمنع التكرار
-    saveLeadLocally(leadRecord);
+    // 2. حفظ البيانات في IndexedDB قاعدة بيانات المتصفح
+    await saveLeadLocally(leadRecord);
 
     // 3. إرسال البيانات إلى Google Sheets عبر الـ Webhook (إذا وُجد)
     try {
@@ -896,16 +916,78 @@ function initSmartDownloadModal() {
 
   function escapeHtml(str) {
     if (!str) return '';
-    return str
+    return String(str)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#039;');
+      .replace(/'/g, '&#039;')
+      .replace(/`/g, '&#x60;')
+      .replace(/\//g, '&#x2F;');
   }
 
-  // التخزين المحلي لمنع التكرار
-  function getStoredRegistrations() {
+  function sanitizeInput(str) {
+    if (!str) return '';
+    return String(str).trim().replace(/[<>'"`;\(\)\{\}\$]/g, '');
+  }
+
+  // =========================================================================
+  // نظام التخزين الاحترافي فائق القوة: IndexedDB (BayanLeadsDB)
+  // قاعدة بيانات حقيقية داخل المتصفح لا تُمسح مع الكاش وتتحمل ملايين السجلات
+  // =========================================================================
+  const IDB_NAME = 'BayanFashion_LeadsDB';
+  const IDB_VERSION = 1;
+  const IDB_STORE = 'leads';
+
+  function openBayanDatabase() {
+    return new Promise((resolve) => {
+      if (!window.indexedDB) {
+        resolve(null);
+        return;
+      }
+      const req = window.indexedDB.open(IDB_NAME, IDB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) {
+          const store = db.createObjectStore(IDB_STORE, { keyPath: 'cleanPhone' });
+          store.createIndex('registeredAt', 'registeredAt', { unique: false });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    });
+  }
+
+  // جلب كافة السجلات المسجلة من IndexedDB (مع التوافق مع localStorage)
+  async function getStoredRegistrations() {
+    try {
+      const db = await openBayanDatabase();
+      if (db) {
+        return new Promise((resolve) => {
+          const tx = db.transaction(IDB_STORE, 'readonly');
+          const store = tx.objectStore(IDB_STORE);
+          const req = store.getAll();
+          req.onsuccess = () => {
+            const results = req.result || [];
+            // دمج ذكي مع أي بيانات سابقة من localStorage
+            try {
+              const legacy = JSON.parse(localStorage.getItem('bayan_leads_db') || '[]');
+              legacy.forEach(item => {
+                if (!results.some(r => r.cleanPhone === item.cleanPhone)) {
+                  results.push(item);
+                }
+              });
+            } catch (e) {}
+            resolve(results);
+          };
+          req.onerror = () => resolve(getFallbackRegistrations());
+        });
+      }
+    } catch (e) {}
+    return getFallbackRegistrations();
+  }
+
+  function getFallbackRegistrations() {
     try {
       const data = localStorage.getItem('bayan_leads_db');
       return data ? JSON.parse(data) : [];
@@ -914,20 +996,33 @@ function initSmartDownloadModal() {
     }
   }
 
-  function getExistingRegistration() {
-    const list = getStoredRegistrations();
+  async function getExistingRegistration() {
+    const list = await getStoredRegistrations();
     return list.length > 0 ? list[list.length - 1] : null;
   }
 
-  function saveLeadLocally(record) {
+  async function saveLeadLocally(record) {
+    // 1. الحفظ في قاعدة بيانات IndexedDB
     try {
-      const currentList = getStoredRegistrations();
-      currentList.push(record);
+      const db = await openBayanDatabase();
+      if (db) {
+        const tx = db.transaction(IDB_STORE, 'readwrite');
+        const store = tx.objectStore(IDB_STORE);
+        store.put(record);
+      }
+    } catch (e) {
+      console.error('Error saving to IndexedDB:', e);
+    }
+
+    // 2. نسخة احتياطية إضافية في localStorage لضمان الأمان المضاعف
+    try {
+      const currentList = getFallbackRegistrations();
+      if (!currentList.some(r => r.cleanPhone === record.cleanPhone)) {
+        currentList.push(record);
+      }
       localStorage.setItem('bayan_leads_db', JSON.stringify(currentList));
       localStorage.setItem('bayan_registered_lead', JSON.stringify(record));
-    } catch (e) {
-      console.error('Error saving lead locally:', e);
-    }
+    } catch (e) {}
   }
 
   // دالة الإرسال إلى Google Sheets
