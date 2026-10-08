@@ -1,0 +1,95 @@
+{
+  "name": "bayan-pos-fashion",
+  "version": "4.5.0",
+  "description": "Bayan POS Fashion System",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "package": "electron-builder --win"
+  },
+  "build": {
+    "appId": "com.diamondvision.bayanpos",
+    "productName": "Bayan POS",
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "icon": "media/logo.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "compression": "maximum",
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false,
+      "deleteAppDataOnUninstall": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Bayan POS",
+      "installerIcon": "media/logo.ico",
+      "uninstallerIcon": "media/logo.ico",
+      "artifactName": "Bayan-POS-Setup-${version}.${ext}",
+      "differentialPackage": true
+    },
+    "portable": {
+      "artifactName": "Bayan-POS-${version}.${ext}"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "ehabamr062-ux",
+        "repo": "bayan_fashion_website",
+        "releaseType": "release"
+      }
+    ],
+    "files": [
+      "**/*",
+      "!.agents/**",
+      "!.git/**",
+      "!.vscode/**",
+      "!tools/**",
+      "!README.md",
+      "!*.bat",
+      "!**/*.map",
+      "!package-lock.json",
+      "!.hintrc",
+      "!service-worker.js",
+      "!manifest.json",
+      "!announcements.json",
+      "!mobile/**",
+      "!.kilo/**",
+      "!lib/dexie.js"
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "**/node_modules/better-sqlite3/**"
+    ]
+  },
+  "author": "Diamond Vision",
+  "license": "ISC",
+  "dependencies": {
+    "better-sqlite3": "^12.11.1",
+    "electron-updater": "^6.2.1",
+    "sql.js": "^1.14.2"
+  },
+  "devDependencies": {
+    "electron": "^32.2.8",
+    "electron-builder": "^24.13.3",
+    "fs-extra": "^11.3.5",
+    "javascript-obfuscator": "^5.4.3",
+    "png-to-ico": "^3.0.1"
+  }
+}
