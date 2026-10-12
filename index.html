@@ -7543,7 +7543,7 @@
                 <!-- حقل البحث الذكي -->
                 <div style="position: relative; display: flex; align-items: center;">
                     <input type="text" id="inquirySearchInput" placeholder="ابحث باسم الصنف أو الباركود..."
-                        oninput="handleInquirySearch(this.value)" onkeydown="handleInquirySearchKeyDown(event)"
+                        oninput="debouncedHandleInquirySearch(this.value)" onkeydown="handleInquirySearchKeyDown(event)"
                         style="width: 100%; padding: 12px 38px 12px 34px; outline: none; text-align: right;">
                     <span
                         style="position: absolute; right: 12px; font-size: 1.15rem; color: #94a3b8; pointer-events: none;">🔍</span>

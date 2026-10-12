@@ -3484,9 +3484,61 @@
             const tokens = q.split(/\s+/).filter(t => t.length > 0);
 
             const matchedList = [];
+            const barcodeMap = (typeof window.getBarcodeToProductMap === 'function') ? window.getBarcodeToProductMap() : null;
+            const codeMap = (typeof window.getCodeToProductMap === 'function') ? window.getCodeToProductMap() : null;
+            const directFound = new Set();
+
+            // ⚡ فحص فوري O(1) بالباركود أو الكود الدقيق قبل بدء الحلقة (0ms)
+            if (normQuery) {
+                if (barcodeMap && barcodeMap.has(normQuery)) {
+                    const p = barcodeMap.get(normQuery);
+                    if (p && !p.isDeleted) {
+                        directFound.add(p.id);
+                        matchedList.push({
+                            product: p,
+                            matchedVariant: (p.variants && Array.isArray(p.variants)) ? p.variants.find(v => v.barcode && String(v.barcode).trim().toLowerCase() === normQuery) || null : null,
+                            isExactName: false,
+                            isExactCode: false,
+                            isExactBarcode: true,
+                            isExactSize: false,
+                            isNameStartsWith: false,
+                            isNameWordMatch: false,
+                            isNameContains: false,
+                            isCodeStartsWith: false,
+                            isCodeContains: false,
+                            isBarcodeStartsWith: true,
+                            isBarcodeContains: true,
+                            isSizeContains: false
+                        });
+                    }
+                }
+                if (codeMap && codeMap.has(normQuery)) {
+                    const p = codeMap.get(normQuery);
+                    if (p && !p.isDeleted && !directFound.has(p.id)) {
+                        directFound.add(p.id);
+                        matchedList.push({
+                            product: p,
+                            matchedVariant: null,
+                            isExactName: false,
+                            isExactCode: true,
+                            isExactBarcode: false,
+                            isExactSize: false,
+                            isNameStartsWith: false,
+                            isNameWordMatch: false,
+                            isNameContains: false,
+                            isCodeStartsWith: true,
+                            isCodeContains: true,
+                            isBarcodeStartsWith: false,
+                            isBarcodeContains: false,
+                            isSizeContains: false
+                        });
+                    }
+                }
+            }
 
             for (const p of allProducts) {
                 if (!p || p.isDeleted) continue;
+                if (directFound.has(p.id)) continue;
 
                 const pRawName = String(p.name || '').trim();
                 const pName = cleanAr(pRawName);
@@ -3601,6 +3653,10 @@
                     isBarcodeContains: isBarcodeContains || isVariantBarcodeContains || isUnitBarcodeContains,
                     isSizeContains
                 });
+
+                if (matchedList.length >= 40) {
+                    break;
+                }
             }
 
             // 🥇 الترتيب الذكي الصارم: التطابق التام بالاسم أو الكود في القمة المطلقة (Rank #1)
@@ -3667,6 +3723,10 @@
             }
         }
         window.handleInquirySearch = handleInquirySearch;
+        const debouncedHandleInquirySearch = debounce(function(val) {
+            handleInquirySearch(val);
+        }, 240);
+        window.debouncedHandleInquirySearch = debouncedHandleInquirySearch;
         window.selectProductForInquiry = selectProductForInquiry;
 
         function renderInquiryProductList(products) {

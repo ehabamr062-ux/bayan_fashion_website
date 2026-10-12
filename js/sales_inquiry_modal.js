@@ -2208,10 +2208,14 @@
         });
     };
 
-    /**
-     * التحكم بالكيبورد (الأسهم للأعلى والأسفل، PgDn/PgUp، Home/End، زر Enter و Escape ومسح السكانر المباشر)
-     */
+    const prevSectionInquiryKeyDown = window.handleInquirySearchKeyDown;
     window.handleInquirySearchKeyDown = function (e) {
+        if (e && e.target && e.target.id === 'inquirySearchInput') {
+            if (typeof prevSectionInquiryKeyDown === 'function') {
+                return prevSectionInquiryKeyDown(e);
+            }
+        }
+
         const dropdown = document.getElementById('inquirySearchDropdown');
         const isDropdownOpen = dropdown && dropdown.style.display !== 'none' && inquirySearchResults.length > 0;
 
