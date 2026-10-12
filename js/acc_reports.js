@@ -574,15 +574,10 @@
         };
 
         async function generateDailyReport() {
-            if (typeof window.showSectionLoader === 'function') {
-                window.showSectionLoader('daily-report-section', 'جاري إعداد تقرير الحركة اليومية والدرج...', 'تحليل الحركات وتحديث الأرصدة');
-                await new Promise(r => setTimeout(r, 60));
-            }
-            try {
-                // 🔒 فحص وتطبيق قفل التاريخ على اليوم الحالي لمنع التلاعب
-                const isDateLocked = (typeof checkAndApplyDailyReportDateLock === 'function')
-                    ? checkAndApplyDailyReportDateLock()
-                    : false;
+            // 🔒 فحص وتطبيق قفل التاريخ على اليوم الحالي لمنع التلاعب
+            const isDateLocked = (typeof checkAndApplyDailyReportDateLock === 'function')
+                ? checkAndApplyDailyReportDateLock()
+                : false;
 
             // 🔒 فحص وتطبيق قفل المبالغ التلقائي على الموظف
             if (typeof checkAndApplyDailyReportAmountsLock === 'function') {
@@ -594,14 +589,25 @@
             const toDate = isDateLocked ? todayISO : (document.getElementById('reportDateTo')?.value || todayISO);
 
             if (!fromDate || !toDate) {
-                showToast("⚠️ يرجى تحديد الفترة الزمنية أولاً");
+                if (typeof showToast === 'function') showToast("⚠️ يرجى تحديد الفترة الزمنية أولاً");
                 return;
             }
 
-            // ⚡ جلب حركات الفترة المحددة من SQLite عند الطلب
-            if (typeof window.loadTransactionsForDateRange === 'function' && (fromDate < todayISO || toDate < todayISO)) {
+            // ⚡ فحص هل الفترة المطلوبة هي فترة ماضية تتطلب استدعاء أرشيف من قاعدة البيانات (مثل الأمس أو فترات سابقة)
+            const isPastRange = (fromDate < todayISO || toDate < todayISO);
+            let loaderShown = false;
+
+            // ⚡ جلب حركات الفترة المحددة من SQLite عند الطلب فقط للفترات السابقة مع إظهار مؤشر التحميل فقط عند الحاجة الفعلية
+            if (isPastRange && typeof window.loadTransactionsForDateRange === 'function') {
+                if (typeof window.showSectionLoader === 'function') {
+                    window.showSectionLoader('daily-report-section', 'جاري جلب حركات الفترة المحددة...', 'استدعاء البيانات من قاعدة البيانات');
+                    loaderShown = true;
+                    await new Promise(r => setTimeout(r, 20));
+                }
                 await window.loadTransactionsForDateRange(fromDate, toDate);
             }
+
+            try {
 
             // حفظ الفلاتر (Flexible Reports: Save Filters)
 
@@ -808,60 +814,97 @@
 
             const isTreasurySpecificNonCash = selectedTreasury !== 'all' && isNonCashMethod(selectedTreasury);
 
-            // 1. حساب الرصيد السابق الموحد لمجموع الحركات النقدية قبل تاريخ البداية عبر استعلام SQLite سريع ومفهرس
+            // 1. حساب الرصيد السابق الموحد لمجموع الحركات النقدية قبل تاريخ البداية مع تخزين كاش فوري
             let previousBalance = 0;
-            let priorGrouped = [];
+            let dbPriorCalculated = false;
+            const priorCacheKey = `${fromDate}_${selectedWarehouse}_${selectedTreasury}_${selectedUser}`;
 
-            if (window.BayanSQLite && window.BayanSQLite.db) {
+            if (window._cachedDailyReportPriorBalance && window._cachedDailyReportPriorBalance.key === priorCacheKey) {
+                previousBalance = window._cachedDailyReportPriorBalance.val;
+                dbPriorCalculated = true;
+            } else if (window.BayanSQLite && window.BayanSQLite.db) {
                 try {
-                    const stmt = window.BayanSQLite.db.prepare("SELECT type, method, total, paidAmount, remaining, warehouse, cashier, invoiceId FROM transactions WHERE dateISO < ?");
+                    // ⚡ تجميع فوري على مستوى محرك SQLite لكل فاتورة وحركة بدون سحب مصفوفات للرام وبدون إجهاد الذاكرة
+                    const sql = `
+                        SELECT 
+                            type, 
+                            MAX(method) as method, 
+                            MAX(warehouse) as warehouse, 
+                            MAX(cashier) as cashier, 
+                            MAX(paidAmount) as paid, 
+                            MAX(total) as total
+                        FROM transactions 
+                        WHERE dateISO < ?
+                        GROUP BY (CASE WHEN invoiceId IS NOT NULL AND TRIM(invoiceId) != '' AND invoiceId != '---' THEN invoiceId ELSE id END), type
+                    `;
+                    const stmt = window.BayanSQLite.db.prepare(sql);
                     stmt.bind([fromDate]);
-                    const dbPriorRows = [];
                     while (stmt.step()) {
                         const row = stmt.getAsObject();
-                        if (row) {
-                            if (!row.user && row.cashier) row.user = row.cashier;
-                            if (matchesSelectedWarehouse(row) && matchesSelectedTreasury(row) && matchesSelectedUser(row)) {
-                                dbPriorRows.push(row);
+                        if (!row) continue;
+                        if (!row.user && row.cashier) row.user = row.cashier;
+                        if (matchesSelectedWarehouse(row) && matchesSelectedTreasury(row) && matchesSelectedUser(row)) {
+                            const paid = parseFloat(row.paid) || 0;
+                            const total = parseFloat(row.total) || 0;
+                            const gType = row.type || '';
+                            const isNonCash = isNonCashMethod(row.method);
+
+                            // إذا تم اختيار خزينة بنكية محددة نحسب حركاتها، وإذا كان الكل أو كاش نحسب النقدية (درج الكاش)
+                            const countThisTx = isTreasurySpecificNonCash ? isNonCash : !isNonCash;
+
+                            if (countThisTx) {
+                                if (gType.includes('قبض')) {
+                                    previousBalance += total;
+                                } else if (gType.includes('صرف')) {
+                                    previousBalance -= total;
+                                } else if (gType.includes('بيع') && !gType.includes('مرتجع')) {
+                                    previousBalance += paid;
+                                } else if ((gType.includes('شراء') || gType.includes('مشتريات')) && !gType.includes('مرتجع')) {
+                                    previousBalance -= paid;
+                                } else if (gType.includes('مرتجع بيع')) {
+                                    previousBalance -= paid;
+                                } else if (gType.includes('مرتجع شراء')) {
+                                    previousBalance += paid;
+                                }
                             }
                         }
                     }
                     stmt.free();
-                    priorGrouped = getGroupedTransactions(dbPriorRows);
+                    dbPriorCalculated = true;
+                    window._cachedDailyReportPriorBalance = { key: priorCacheKey, val: previousBalance };
                 } catch (e) {
                     console.warn("DB prior balance notice:", e);
                 }
             }
-            if (priorGrouped.length === 0) {
+
+            // صمام أمان احتياطي فقط في حال عدم توفر SQLite
+            if (!dbPriorCalculated && typeof transactions !== 'undefined' && Array.isArray(transactions)) {
                 const priorRaw = transactions.filter(t => t.dateISO && t.dateISO < fromDate && matchesSelectedWarehouse(t) && matchesSelectedTreasury(t) && matchesSelectedUser(t));
-                priorGrouped = getGroupedTransactions(priorRaw);
-            }
+                const priorGrouped = getGroupedTransactions(priorRaw);
+                priorGrouped.forEach(g => {
+                    const paid = g.paid || 0;
+                    const total = g.total || 0;
+                    const gType = g.type || '';
+                    const isNonCash = isNonCashMethod(g.method);
+                    const countThisTx = isTreasurySpecificNonCash ? isNonCash : !isNonCash;
 
-            priorGrouped.forEach(g => {
-                const paid = g.paid || 0;
-                const total = g.total || 0;
-                const gType = g.type || '';
-                const isNonCash = isNonCashMethod(g.method);
-
-                // إذا تم اختيار خزينة بنكية محددة نحسب حركاتها، وإذا كان الكل أو كاش نحسب النقدية (درج الكاش)
-                const countThisTx = isTreasurySpecificNonCash ? isNonCash : !isNonCash;
-
-                if (countThisTx) {
-                    if (gType.includes('قبض')) {
-                        previousBalance += total;
-                    } else if (gType.includes('صرف')) {
-                        previousBalance -= total;
-                    } else if (gType.includes('بيع') && !gType.includes('مرتجع')) {
-                        previousBalance += paid;
-                    } else if ((gType.includes('شراء') || gType.includes('مشتريات')) && !gType.includes('مرتجع')) {
-                        previousBalance -= paid;
-                    } else if (gType.includes('مرتجع بيع')) {
-                        previousBalance -= paid;
-                    } else if (gType.includes('مرتجع شراء')) {
-                        previousBalance += paid;
+                    if (countThisTx) {
+                        if (gType.includes('قبض')) {
+                            previousBalance += total;
+                        } else if (gType.includes('صرف')) {
+                            previousBalance -= total;
+                        } else if (gType.includes('بيع') && !gType.includes('مرتجع')) {
+                            previousBalance += paid;
+                        } else if ((gType.includes('شراء') || gType.includes('مشتريات')) && !gType.includes('مرتجع')) {
+                            previousBalance -= paid;
+                        } else if (gType.includes('مرتجع بيع')) {
+                            previousBalance -= paid;
+                        } else if (gType.includes('مرتجع شراء')) {
+                            previousBalance += paid;
+                        }
                     }
-                }
-            });
+                });
+            }
 
             // 2. فلترة وتجميع حركات الفترة المحددة
             const periodAllRaw = transactions.filter(t => t.dateISO && t.dateISO >= fromDate && t.dateISO <= toDate && matchesSelectedWarehouse(t) && matchesSelectedUser(t));
@@ -1965,7 +2008,7 @@
 
             showToast(canViewProfits ? "✅ تم تحديث وتفصيل تقارير الحركة والأرباح بنجاح" : "✅ تم تحديث وتفصيل تقرير الحركة اليومية بنجاح");
         } finally {
-            if (typeof window.hideSectionLoader === 'function') {
+            if (loaderShown && typeof window.hideSectionLoader === 'function') {
                 window.hideSectionLoader('daily-report-section');
             }
         }
@@ -6171,56 +6214,49 @@
                 }
             }
 
-            // 3. فلترة البيانات الأساسية (حركات البيع ومرتجع البيع فقط)
-            let data = (window.transactions || []).filter(t => t.type && (t.type.includes('بيع') || t.type.includes('مرتجع بيع')));
+            // 3. فلترة البيانات الأساسية (حركات البيع ومرتجع البيع فقط) بتمريرة واحدة فائقة السرعة O(N)
+            const targetMethod = methodFilter !== 'all' ? methodFilter.toLowerCase() : null;
+            let data = (window.transactions || []).filter(t => {
+                if (!t || !t.type) return false;
+                const isSaleOrReturn = t.type.includes('بيع') || t.type.includes('مرتجع بيع');
+                if (!isSaleOrReturn) return false;
 
-            if (fromDate) data = data.filter(t => (t.dateISO || '') >= fromDate);
-            if (toDate) data = data.filter(t => (t.dateISO || '') <= toDate);
+                const dt = t.dateISO || '';
+                if (fromDate && dt < fromDate) return false;
+                if (toDate && dt > toDate) return false;
 
-            // فلتر البحث النصي الفوري
-            if (searchQuery) {
-                data = data.filter(t => {
+                if (accFilter !== 'all' && t.partner !== accFilter) return false;
+                if (whFilter !== 'all' && t.warehouse !== whFilter) return false;
+                if (userFilter !== 'all' && t.user !== userFilter) return false;
+
+                if (targetMethod) {
+                    const m = (t.method || '').toLowerCase();
+                    if (!m.includes(targetMethod) && !targetMethod.includes(m)) return false;
+                }
+
+                if (catFilter !== 'all') {
+                    const prod = getReportsProductQuick(t.product) || getReportsProductQuick(t.productId) || getReportsProductQuick(t.barcode);
+                    if (!prod || prod.category !== catFilter) return false;
+                }
+
+                if (searchQuery) {
                     const prod = (t.product || '').toLowerCase();
                     const partner = (t.partner || '').toLowerCase();
                     const invId = (t.invoiceId || '').toLowerCase();
                     const size = (t.size || '').toLowerCase();
                     const color = (t.color || '').toLowerCase();
                     const barcode = (t.barcode || '').toLowerCase();
-                    return prod.includes(searchQuery) ||
-                           partner.includes(searchQuery) ||
-                           invId.includes(searchQuery) ||
-                           size.includes(searchQuery) ||
-                           color.includes(searchQuery) ||
-                           barcode.includes(searchQuery);
-                });
-            }
+                    const matched = prod.includes(searchQuery) ||
+                                    partner.includes(searchQuery) ||
+                                    invId.includes(searchQuery) ||
+                                    size.includes(searchQuery) ||
+                                    color.includes(searchQuery) ||
+                                    barcode.includes(searchQuery);
+                    if (!matched) return false;
+                }
 
-            if (accFilter !== 'all') {
-                data = data.filter(t => t.partner === accFilter);
-            }
-
-            if (methodFilter !== 'all') {
-                data = data.filter(t => {
-                    const m = (t.method || '').toLowerCase();
-                    const target = methodFilter.toLowerCase();
-                    return m.includes(target) || target.includes(m);
-                });
-            }
-
-            if (catFilter !== 'all') {
-                data = data.filter(t => {
-                    const prod = getReportsProductQuick(t.product) || getReportsProductQuick(t.productId) || getReportsProductQuick(t.barcode);
-                    return prod && prod.category === catFilter;
-                });
-            }
-
-            if (whFilter !== 'all') {
-                data = data.filter(t => t.warehouse === whFilter);
-            }
-
-            if (userFilter !== 'all') {
-                data = data.filter(t => t.user === userFilter);
-            }
+                return true;
+            });
 
             // 4. فرز التاريخ والوقت
             data.sort((a, b) => {
@@ -7065,7 +7101,8 @@
                 toInput.value = '';
             }
 
-            const showLoader = (typeof window.showSectionLoader === 'function');
+            const isHistoricalQuery = (fromInput.value && fromInput.value < todayStr);
+            const showLoader = (isHistoricalQuery && typeof window.showSectionLoader === 'function');
             if (showLoader) {
                 window.showSectionLoader(null, 'جاري تحليل المبيعات والأرباح...', 'قراءة الحركات واحتساب المؤشرات المالية');
                 await new Promise(r => setTimeout(r, 45));
@@ -7304,40 +7341,41 @@
             }
             const searchQuery = (document.getElementById('anSearchInput')?.value || '').trim().toLowerCase();
 
-            let returns = (window.transactions || []).filter(t => t.type && t.type.includes('مرتجع بيع'));
-            if (fromDate) returns = returns.filter(t => (t.dateISO || '') >= fromDate);
-            if (toDate) returns = returns.filter(t => (t.dateISO || '') <= toDate);
+            // ⚡ فلترة مرتجعات البيع بتمريرة واحدة فائقة السرعة O(N)
+            const targetMethodRet = methodFilter !== 'all' ? methodFilter.toLowerCase() : null;
+            let returns = (window.transactions || []).filter(t => {
+                if (!t || !t.type || !t.type.includes('مرتجع بيع')) return false;
 
-            if (searchQuery) {
-                returns = returns.filter(t => {
-                    return (t.product || '').toLowerCase().includes(searchQuery) ||
-                           (t.partner || '').toLowerCase().includes(searchQuery) ||
-                           (t.invoiceId || '').toLowerCase().includes(searchQuery);
-                });
-            }
+                const dt = t.dateISO || '';
+                if (fromDate && dt < fromDate) return false;
+                if (toDate && dt > toDate) return false;
 
-            const accFilter = document.getElementById('anAccount')?.value || 'all';
-            const methodFilter = document.getElementById('anMethod')?.value || 'all';
-            const catFilter = document.getElementById('anCategory')?.value || 'all';
-            const whFilter = document.getElementById('anWarehouse')?.value || 'all';
-            const userFilter = document.getElementById('anUser')?.value || 'all';
+                if (accFilter !== 'all' && t.partner !== accFilter) return false;
+                if (whFilter !== 'all' && t.warehouse !== whFilter) return false;
+                if (userFilter !== 'all' && t.user !== userFilter) return false;
 
-            if (accFilter !== 'all') returns = returns.filter(t => t.partner === accFilter);
-            if (methodFilter !== 'all') {
-                returns = returns.filter(t => {
+                if (targetMethodRet) {
                     const m = (t.method || '').toLowerCase();
-                    const target = methodFilter.toLowerCase();
-                    return m.includes(target) || target.includes(m);
-                });
-            }
-            if (catFilter !== 'all') {
-                returns = returns.filter(t => {
+                    if (!m.includes(targetMethodRet) && !targetMethodRet.includes(m)) return false;
+                }
+
+                if (catFilter !== 'all') {
                     const prod = getReportsProductQuick(t.product) || getReportsProductQuick(t.productId) || getReportsProductQuick(t.barcode);
-                    return prod && prod.category === catFilter;
-                });
-            }
-            if (whFilter !== 'all') returns = returns.filter(t => t.warehouse === whFilter);
-            if (userFilter !== 'all') returns = returns.filter(t => t.user === userFilter);
+                    if (!prod || prod.category !== catFilter) return false;
+                }
+
+                if (searchQuery) {
+                    const prod = (t.product || '').toLowerCase();
+                    const partner = (t.partner || '').toLowerCase();
+                    const invId = (t.invoiceId || '').toLowerCase();
+                    const matched = prod.includes(searchQuery) ||
+                                    partner.includes(searchQuery) ||
+                                    invId.includes(searchQuery);
+                    if (!matched) return false;
+                }
+
+                return true;
+            });
 
             if (returns.length === 0) {
                 const salesCount = (window.transactions || []).filter(t => {

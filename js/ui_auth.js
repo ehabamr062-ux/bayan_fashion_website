@@ -454,16 +454,13 @@
                         updateNotifications();
                     };
 
-                    // 🚀 تشغيل محرك البيانات بالخلفية إن لم يكن بدأ بالفعل والانتقال الفوري
+                    // 🚀 تشغيل محرك البيانات بالخلفية إن لم يكن بدأ بالفعل والانتقال الفوري السلس
                     if (typeof window.startDataLoader === 'function') {
                         window.startDataLoader();
                     }
 
-                    if (window.loadDataPromise && window._isDataLoaderRunning) {
-                        window.loadDataPromise.then(() => proceedToTargetSection()).catch(() => proceedToTargetSection());
-                    } else {
-                        proceedToTargetSection();
-                    }
+                    // ⚡ انتقال فوري مباشر للواجهة الرئيسية أو نقطة البيع في أجزاء من الثانية (0ms)
+                    proceedToTargetSection();
                 } else {
                     failedLoginAttempts++;
                     if (failedLoginAttempts >= 5) {

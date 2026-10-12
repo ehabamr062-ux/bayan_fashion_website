@@ -401,6 +401,7 @@
                             nativeDb.pragma('synchronous = NORMAL');
                             nativeDb.pragma('temp_store = MEMORY');
                             nativeDb.pragma('cache_size = -64000');
+                            nativeDb.pragma('mmap_size = 268435456');
 
                             this.nativeDb = nativeDb;
                             this.db = new CompatibleDatabase(nativeDb);
@@ -757,6 +758,8 @@
                 CREATE INDEX IF NOT EXISTS idx_tx_partner ON transactions(partner);
                 CREATE INDEX IF NOT EXISTS idx_tx_invoiceId ON transactions(invoiceId);
                 CREATE INDEX IF NOT EXISTS idx_tx_type ON transactions(type);
+                CREATE INDEX IF NOT EXISTS idx_tx_date_type ON transactions(dateISO, type);
+                CREATE INDEX IF NOT EXISTS idx_tx_date_method ON transactions(dateISO, method);
             `);
 
             // 2.1 جدول بنود الفواتير الذكي والمفهرس لتسريع تقارير الأصناف التاريخية بنسبة 95%
@@ -788,6 +791,8 @@
                 CREATE INDEX IF NOT EXISTS idx_ti_date ON transaction_items(dateISO);
                 CREATE INDEX IF NOT EXISTS idx_ti_productName ON transaction_items(productName);
                 CREATE INDEX IF NOT EXISTS idx_ti_tx_id ON transaction_items(tx_id);
+                CREATE INDEX IF NOT EXISTS idx_ti_date_barcode ON transaction_items(dateISO, barcode);
+                CREATE INDEX IF NOT EXISTS idx_ti_date_type ON transaction_items(dateISO, type);
             `);
 
             // 3. جدول الحسابات (العملاء والموردين)

@@ -835,43 +835,50 @@
                 });
             }
 
-            // 🏢 تصفية حسب المخزن / الفرع المختار من التبويبات الأفقية
-            if (window.currentInvoicesWarehouseFilter && window.currentInvoicesWarehouseFilter !== 'all') {
-                const whFilter = window.currentInvoicesWarehouseFilter;
-                rawData = rawData.filter(t => (t.warehouse || 'المخزن الرئيسي') === whFilter);
-            }
-
-            if (searchId) {
-                rawData = rawData.filter(t => t.invoiceId && t.invoiceId.toString().includes(searchId));
-            }
+            // 🏢 ⚡ دمج فلاتر المخزن ورقم الفاتورة والشريك والصنف بتمريرة واحدة فائقة السرعة O(N)
+            const whFilter = (window.currentInvoicesWarehouseFilter && window.currentInvoicesWarehouseFilter !== 'all') ? window.currentInvoicesWarehouseFilter : null;
+            const cleanSearch = searchPartner ? cleanAr(searchPartner) : '';
+            let matchingSet = null;
+            let matchingAccountNames = null;
 
             if (searchPartner) {
-                const cleanSearch = cleanAr(searchPartner);
-                const matchingAccountNames = accounts.filter(acc => {
+                matchingAccountNames = accounts.filter(acc => {
                     const nameMatch = acc.name && cleanAr(acc.name).includes(cleanSearch);
                     const codeMatch = acc.code && acc.code.toString().toLowerCase().includes(searchPartner);
                     const phoneMatch = (acc.mobile && acc.mobile.toString().includes(searchPartner)) || (acc.landline && acc.landline.toString().includes(searchPartner));
                     return nameMatch || codeMatch || phoneMatch;
                 }).map(acc => cleanAr(acc.name));
-
-                const matchingSet = new Set(matchingAccountNames);
-
-                rawData = rawData.filter(t => {
-                    if (!t || !t.partner) return false;
-                    const pName = cleanAr(t.partner);
-                    if (pName.includes(cleanSearch)) return true;
-                    if (matchingSet.has(pName)) return true;
-                    for (let mIdx = 0; mIdx < matchingAccountNames.length; mIdx++) {
-                        const m = matchingAccountNames[mIdx];
-                        if (pName.includes(m) || m.includes(pName)) return true;
-                    }
-                    return false;
-                });
+                matchingSet = new Set(matchingAccountNames);
             }
 
-            if (searchProduct) {
-                const cleanProdQ = cleanAr(searchProduct);
-                rawData = rawData.filter(t => t.product && cleanAr(t.product).includes(cleanProdQ));
+            const cleanProdQ = searchProduct ? cleanAr(searchProduct) : '';
+
+            if (whFilter || searchId || searchPartner || cleanProdQ) {
+                rawData = rawData.filter(t => {
+                    if (!t) return false;
+                    if (whFilter && (t.warehouse || 'المخزن الرئيسي') !== whFilter) return false;
+                    if (searchId && (!t.invoiceId || !t.invoiceId.toString().includes(searchId))) return false;
+
+                    if (cleanProdQ && (!t.product || !cleanAr(t.product).includes(cleanProdQ))) return false;
+
+                    if (searchPartner) {
+                        if (!t.partner) return false;
+                        const pName = cleanAr(t.partner);
+                        let partnerMatched = pName.includes(cleanSearch) || matchingSet.has(pName);
+                        if (!partnerMatched) {
+                            for (let mIdx = 0; mIdx < matchingAccountNames.length; mIdx++) {
+                                const m = matchingAccountNames[mIdx];
+                                if (pName.includes(m) || m.includes(pName)) {
+                                    partnerMatched = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!partnerMatched) return false;
+                    }
+
+                    return true;
+                });
             }
 
             let finalData = [];

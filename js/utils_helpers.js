@@ -4604,32 +4604,27 @@ function populateWarehouseDropdowns() {
         } catch (e) {}
     }
 
-    // 3. من بيانات الأصناف والتشكيلات المخزنية
-    if (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
-        productsDB.forEach(p => {
-            if (!p) return;
+    // 3. صمام أمان احتياطي فقط إذا لم توجد أي مخازن مسجلة إطلاقاً
+    if (whList.length === 0 && typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
+        const sampleLimit = Math.min(productsDB.length, 300);
+        for (let i = 0; i < sampleLimit; i++) {
+            const p = productsDB[i];
+            if (!p) continue;
             if (p.warehouseStocks && typeof p.warehouseStocks === 'object') {
                 Object.keys(p.warehouseStocks).forEach(k => { if (k && !whList.includes(k)) whList.push(k); });
             }
-            if (p.variants && Array.isArray(p.variants)) {
-                p.variants.forEach(v => {
-                    if (v && v.warehouseStocks && typeof v.warehouseStocks === 'object') {
-                        Object.keys(v.warehouseStocks).forEach(k => { if (k && !whList.includes(k)) whList.push(k); });
-                    }
-                });
-            }
-        });
+        }
     }
 
-    // 4. من سجل الحركات والفواتير السابقة
-    if (typeof transactions !== 'undefined' && Array.isArray(transactions)) {
-        transactions.forEach(t => {
-            if (!t) return;
+    // 4. من سجل الحركات والفواتير السابقة إذا كانت القائمة لا تزال فارغة
+    if (whList.length === 0 && typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+        for (let i = 0; i < Math.min(transactions.length, 300); i++) {
+            const t = transactions[i];
+            if (!t) continue;
             if (t.warehouse && !whList.includes(t.warehouse)) whList.push(t.warehouse);
             if (t.sourceWarehouse && !whList.includes(t.sourceWarehouse)) whList.push(t.sourceWarehouse);
             if (t.toWarehouse && !whList.includes(t.toWarehouse)) whList.push(t.toWarehouse);
-            if (t.destWarehouse && !whList.includes(t.destWarehouse)) whList.push(t.destWarehouse);
-        });
+        }
     }
 
     // ضمان وجود المخزن الرئيسي كخيار افتراضي
@@ -4637,8 +4632,17 @@ function populateWarehouseDropdowns() {
         whList.unshift('المخزن الرئيسي');
     }
 
-    // تعبئة القائمة في تقرير الحركة اليومية
+    // فحص البصمة لمنع إعادة رندرة الـ DOM المتكررة إذا لم تتغير المخازن
+    const sig = whList.join('|');
     const dailySelect = document.getElementById('dailyReportWarehouseSelect');
+    const histSelect = document.getElementById('historyWarehouseFilter');
+
+    if (window._cachedWhListSignature === sig && dailySelect && dailySelect.options && dailySelect.options.length > 1) {
+        return;
+    }
+    window._cachedWhListSignature = sig;
+
+    // تعبئة القائمة في تقرير الحركة اليومية
     if (dailySelect) {
         const currentDailyVal = dailySelect.value || 'all';
         let dailyOpts = '<option value="all">🏢 كافة المخازن والفروع</option>';
@@ -4654,7 +4658,6 @@ function populateWarehouseDropdowns() {
     }
 
     // تعبئة القائمة في شاشة حركة الصنف
-    const histSelect = document.getElementById('historyWarehouseFilter');
     if (histSelect) {
         const currentHistVal = histSelect.value || 'all';
         let histOpts = '<option value="all">🏢 كافة المخازن</option>';

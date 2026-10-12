@@ -310,11 +310,11 @@ window.loadTransactionsForDateRange = async function(fromDate, toDate) {
         if (!window.db || !window.db.transactions) return;
         let q;
         if (fromDate && toDate) {
-            q = window.db.transactions.where('dateISO').between(fromDate, toDate, true, true);
+            q = window.db.transactions.where('dateISO').between(fromDate, toDate, true, true).limit(3000);
         } else if (fromDate) {
-            q = window.db.transactions.where('dateISO').aboveOrEqual(fromDate);
+            q = window.db.transactions.where('dateISO').aboveOrEqual(fromDate).limit(3000);
         } else if (toDate) {
-            q = window.db.transactions.where('dateISO').belowOrEqual(toDate);
+            q = window.db.transactions.where('dateISO').belowOrEqual(toDate).limit(3000);
         } else {
             // كل الفترات: جلب أحدث الحركات بأمان دون تجميد المتصفح
             q = window.db.transactions.orderBy('id').reverse().limit(1500);
@@ -1372,6 +1372,9 @@ window.scheduleNotificationsUpdate = scheduleNotificationsUpdate;
 // =========================================================================
 async function saveTransactionChanges({ newTransactions = [], modifiedTransactions = [], modifiedProducts = [], modifiedAccounts = [] } = {}) {
     if (!db) return;
+    if (newTransactions.length > 0 || modifiedTransactions.length > 0) {
+        window._cachedDailyReportPriorBalance = null;
+    }
     return runDbSaveTask(async () => {
         try {
             const tablesToUse = [];
