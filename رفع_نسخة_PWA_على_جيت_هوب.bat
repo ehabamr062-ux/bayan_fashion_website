@@ -16,7 +16,7 @@ git remote set-url origin https://github.com/ehabamr062-ux/bayan_fashion_website
 echo.
 echo [2/3] Adding all files and creating commit...
 git add -A
-git commit -m "Update v4.5.0: PWA web release and optimizations"
+git commit -m "Update PWA release and optimizations"
 
 echo.
 echo [3/3] Uploading files to GitHub...
