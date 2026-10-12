@@ -380,7 +380,7 @@
     <div class="container">
         <!-- الرأس -->
         <div class="header">
-            <span class="badge">⚙️ أداة الاختبار والتحمل الرسمية - نظام بَيَان POS (v4.5.1)</span>
+            <span class="badge">⚙️ أداة الاختبار والتحمل الرسمية - نظام بَيَان POS (v4.5.2)</span>
             <h1>توليد ملف نسخة احتياطية مخصصة لاختبار الأداء والسرعة</h1>
             <p class="subtitle">
                 تحكم بالكامل في أعداد البيانات التي تريد توليدها. اكتب أي أرقام تختارها في المربعات الخمسة بالأسفل، وسيتم تجهيز ملف JSON رسمي متوافق 100% مع نظام بيان جاهز للاستيراد الفوري.
@@ -881,9 +881,9 @@
             updateUI(94, 'جاري تجميع وهيكلة ملف النسخة الاحتياطية الموحد (JSON Stream)...');
             await new Promise(r => setTimeout(r, 20));
 
-            // الهيكل الرسمي لنظام بيان POS v4.5.1
+            // الهيكل الرسمي لنظام بيان POS v4.5.2
             const backupPayload = {
-                version: "4.5.1",
+                version: "4.5.2",
                 backupDate: new Date().toISOString(),
                 hwid: "CUSTOM_STRESS_TEST_OFFLINE_DEVICE",
                 deviceMachineId: "CUSTOM_STRESS_TEST_OFFLINE_DEVICE",

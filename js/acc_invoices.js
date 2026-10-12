@@ -681,8 +681,11 @@
                 _invoicesSearchDebounceTimer = null;
             }
 
-            const showLoader = (typeof transactions !== 'undefined' && Array.isArray(transactions) && transactions.length > 800 && !isLoadMore);
-            if (showLoader && typeof window.showSectionLoader === 'function') {
+            // ⏳ إظهار مؤشر التحميل المركزي الموحد (الساعة الرملية) عند تحميل أو تصفية الفواتير
+            const invSec = document.getElementById('invoices-section');
+            const isInvActive = !invSec || !invSec.classList.contains('hidden');
+            const showLoader = (typeof window.showSectionLoader === 'function' && !isLoadMore && isInvActive);
+            if (showLoader) {
                 window.showSectionLoader(null, 'جاري تحميل وتصفية الفواتير...', 'معالجة السجلات المالية وتحديث الفهرس');
                 await new Promise(r => setTimeout(r, 45));
             }
@@ -1196,9 +1199,20 @@
                 invoiceItems = invoiceItems.filter(t => t.type && !t.type.includes('قبض') && !t.type.includes('صرف'));
             }
             
-            // ⚡ إذا لم تكن في الذاكرة (فاتورة قديمة)، نستدعيها من SQLite فوراً
+            // ⚡ إذا لم تكن في الذاكرة (فاتورة قديمة)، نستدعيها من SQLite فوراً مع إظهار مؤشر التحميل
             if (invoiceItems.length === 0 && typeof window.ensureInvoiceLoaded === 'function') {
-                await window.ensureInvoiceLoaded(invoiceId);
+                const showInvLoader = (typeof window.showSectionLoader === 'function');
+                if (showInvLoader) {
+                    window.showSectionLoader(null, 'جاري استدعاء بنود الفاتورة...', 'قراءة الأصناف والتفاصيل من قاعدة البيانات');
+                    await new Promise(r => setTimeout(r, 40));
+                }
+                try {
+                    await window.ensureInvoiceLoaded(invoiceId);
+                } finally {
+                    if (showInvLoader && typeof window.hideSectionLoader === 'function') {
+                        window.hideSectionLoader();
+                    }
+                }
                 invoiceItems = transactions.filter(t => {
                     const hasInvId = t.invoiceId != null && t.invoiceId !== '';
                     if (hasInvId) {

@@ -200,8 +200,8 @@ async function renderInventoryTable(isLoadMore = false) {
     const search = cleanAr(rawSearch);
     const catFilter = document.getElementById('invCategoryFilter')?.value || 'all';
 
-    const showLoader = (!rawSearch && typeof productsDB !== 'undefined' && Array.isArray(productsDB) && productsDB.length > 1000 && (window.inventoryRenderLimit > 200 || !isLoadMore));
-    if (showLoader && typeof window.showSectionLoader === 'function') {
+    const showLoader = (!rawSearch && !isLoadMore && typeof window.showSectionLoader === 'function');
+    if (showLoader) {
         window.showSectionLoader(null, 'جاري قراءة وتجهيز الأصناف...', 'تحميل بيانات وتشكيلات الـ 50 ألف صنف');
         await new Promise(r => setTimeout(r, 45));
     }
@@ -840,8 +840,8 @@ async function renderWarehouseReportTable(isSearchTrigger = false) {
 
     if (!head || !body) return;
 
-    const showLoader = (typeof productsDB !== 'undefined' && Array.isArray(productsDB) && productsDB.length > 500 && !isSearchTrigger);
-    if (showLoader && typeof window.showSectionLoader === 'function') {
+    const showLoader = (!isSearchTrigger && typeof window.showSectionLoader === 'function');
+    if (showLoader) {
         window.showSectionLoader(null, 'جاري جرد أرصدة المخازن...', 'احتساب كميات وتكاليف البضاعة في الفروع');
         await new Promise(r => setTimeout(r, 45));
     }

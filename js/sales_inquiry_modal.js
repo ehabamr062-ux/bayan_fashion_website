@@ -1411,8 +1411,8 @@
      */
     window.setInquiryTab = async function (tabName) {
         currentInquiryTab = tabName;
-        const showLoader = (tabName === 'history' && typeof transactions !== 'undefined' && Array.isArray(transactions) && transactions.length > 500);
-        if (showLoader && typeof window.showSectionLoader === 'function') {
+        const showLoader = (tabName === 'history' && typeof window.showSectionLoader === 'function');
+        if (showLoader) {
             window.showSectionLoader(null, 'جاري استدعاء حركة الصنف...', 'فرز وتحليل سجل الحركات التاريخية');
             await new Promise(r => setTimeout(r, 45));
         }

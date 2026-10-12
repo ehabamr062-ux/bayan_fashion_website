@@ -1183,8 +1183,8 @@ function openPriceAdjustmentModal() {
 window.openPriceAdjustmentModal = openPriceAdjustmentModal;
 
 async function initPriceAdjustmentFiltersAndData(selectedIds = []) {
-    const showLoader = (typeof productsDB !== 'undefined' && Array.isArray(productsDB) && productsDB.length > 500);
-    if (showLoader && typeof window.showSectionLoader === 'function') {
+    const showLoader = (typeof window.showSectionLoader === 'function');
+    if (showLoader) {
         window.showSectionLoader(null, 'جاري فتح منصة تعديل الأسعار...', 'تحضير المقاسات وتشكيلات الموديلات وقوائم الأسعار');
         await new Promise(r => setTimeout(r, 45));
     }

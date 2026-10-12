@@ -670,8 +670,8 @@
 
             const searchInputEl = document.getElementById('accSearchName');
             const hasSearch = searchInputEl && searchInputEl.value.trim().length > 0;
-            const showLoader = (typeof transactions !== 'undefined' && Array.isArray(transactions) && transactions.length > 1000 && !isLoadMore && !hasSearch);
-            if (showLoader && typeof window.showSectionLoader === 'function') {
+            const showLoader = (typeof window.showSectionLoader === 'function' && !isLoadMore && !hasSearch);
+            if (showLoader) {
                 window.showSectionLoader(null, 'جاري فحص أرصدة ومديونيات الحسابات...', 'مطابقة الحركات وتحديث الأرصدة المالية');
                 await new Promise(r => setTimeout(r, 45));
             }
@@ -1580,8 +1580,8 @@
             const acc = accounts.find(a => a.id === targetId);
             if (!acc) return;
 
-            const showLoader = (typeof transactions !== 'undefined' && Array.isArray(transactions) && transactions.length > 500);
-            if (showLoader && typeof window.showSectionLoader === 'function') {
+            const showLoader = (typeof window.showSectionLoader === 'function');
+            if (showLoader) {
                 window.showSectionLoader(null, 'جاري إعداد كشف الحساب...', 'تحليل الحركات ومطابقة الأرصدة والمديونيات');
                 await new Promise(r => setTimeout(r, 45));
             }
