@@ -57,7 +57,7 @@
             initLogin();
         }
         if (typeof window.startDataLoader === 'function') {
-            setTimeout(() => window.startDataLoader(), 300);
+            window.startDataLoader();
         }
     } catch(e) {
         console.warn("Instant login display notice:", e);

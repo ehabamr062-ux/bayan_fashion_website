@@ -1230,7 +1230,7 @@
             setInterval(() => {
                 window.checkCloudAnnouncements();
             }, 15 * 60 * 1000);
-        }, 2000);
+        }, 75000);
     };
 
     if (document.readyState === 'complete' || document.readyState === 'interactive') {

@@ -12,11 +12,8 @@ function getEffectiveTrialInvoicesCount() {
     }
     let storedMax = parseInt((typeof getStore === 'function' ? getStore('bayan_trial_max_invoices') : null) || '0', 10);
 
-    // إذا كان المخزن يسبق الفعلي برقم واحد (ناتج عن زيادة سابقة بالخطأ storedMax + 1)، يتم مزامنته مع الفعلي
-    if (storedMax === actualCount + 1 && typeof setStore === 'function') {
-        storedMax = actualCount;
-        setStore('bayan_trial_max_invoices', String(actualCount));
-    } else if (actualCount > storedMax && typeof setStore === 'function') {
+    // 🔒 صمام أمان: عداد فواتير التجربة تصاعدي دائماً ولا ينقص بحذف الفواتير
+    if (actualCount > storedMax && typeof setStore === 'function') {
         storedMax = actualCount;
         setStore('bayan_trial_max_invoices', String(actualCount));
     }
@@ -274,14 +271,10 @@ window.checkRemoteUnblockNow = async function (btnElement) {
 };
 
 window.unblockDeviceLocally = function () {
-    if (typeof setStore === 'function') {
-        setStore('bayan_remote_blocked', 'false');
-        setStore('bayan_remote_block_msg', '');
+    console.warn("🔒 [Security] تم إلغاء وتعطيل فك الحظر المحلي لحماية النظام. قرار فك الحظر يتم مركزياً من خادم الإدارة فقط.");
+    if (typeof showToast === 'function') {
+        showToast('🔒 فك الحظر يتم مركزياً من إدارة النظام فقط.', 'warning');
     }
-    if (typeof window.SubscriptionHistoryManager !== 'undefined' && typeof window.SubscriptionHistoryManager.renderTable === 'function') {
-        window.SubscriptionHistoryManager.renderTable();
-    }
-    if (typeof showToast === 'function') showToast('✅ تم فك الحظر واستعادة صلاحية النظام بنجاح!', 'success');
 };
 
 // دالة الفحص اللحظي المباشر لأوامر المطور بضغطة زر
@@ -646,10 +639,21 @@ window.SubscriptionHistoryManager = {
 
 function showSubscription() {
     const modal = document.getElementById('subscriptionModal');
-    if (modal) modal.classList.remove('hidden');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.style.setProperty('display', 'flex', 'important');
+    }
     const closeBtn = document.getElementById('closeSubBtn');
     if (closeBtn) closeBtn.style.display = 'flex';
 
+    // ⚡ تفريغ خيط المعالجة فوراً لتظهر النافذة للمستخدم في 0ms بدون أي تعليق
+    setTimeout(() => {
+        _populateSubscriptionModalDetails();
+    }, 10);
+}
+window.showSubscription = showSubscription;
+
+function _populateSubscriptionModalDetails() {
     // حساب فواتير التجربة مرة واحدة فقط واستخدام نفس النتيجة في كامل الدالة لمنع تكرار الفحص الثقيل
     const invoiceCount = getEffectiveTrialInvoicesCount();
 
@@ -816,23 +820,15 @@ function showSubscription() {
         window.syncSubscriptionPricingDisplay();
     }
 }
+window._populateSubscriptionModalDetails = _populateSubscriptionModalDetails;
 
 function activateFreeMonth() {
-    const alreadyUsed = getStore('bayan_free_month_used');
-    if (alreadyUsed === 'true') {
-        alert('⚠️ تم استخدام الشهر المجاني مسبقاً على هذا الجهاز.\nللاستمرار يرجى الاشتراك في إحدى الباقات.');
-        return;
+    const msg = 'ℹ️ لتفعيل أو تجديد الاشتراك، يرجى إدخال كود التفعيل المعتمد الصادر من إدارة النظام.';
+    if (typeof showToast === 'function') {
+        showToast(msg, 'info');
+    } else {
+        alert(msg);
     }
-    const fakeStart = new Date();
-    fakeStart.setDate(fakeStart.getDate() - (7 - 30));
-    setStore('bayan_install_date', fakeStart.toISOString());
-    setStore('bayan_free_month_used', 'true');
-    const modal = document.getElementById('subscriptionModal');
-    if (modal) modal.classList.add('hidden');
-    setTimeout(() => {
-        alert('🎉 تم تفعيل نسخة الشهر المجاني بنجاح!\n✅ لديك الآن 30 يوماً كاملاً لتجربة كامل مميزات نظام بَيَان المتكامل.\nاستمتع ونورنا! 🚀');
-        location.reload();
-    }, 300);
 }
 
 function showMyPlanDetails() {
@@ -1943,7 +1939,11 @@ window.isCloudSyncAllowed = function () {
         return false;
     }
 
-    // 4. التحقق من ترخيص ميزة المزامنة السحابية
+    // 4. التحقق من ترخيص ميزة المزامنة السحابية (حظر باقات الأوفلاين حظراً قاطعاً)
+    if (currentPlan.includes('أوفلاين') || currentPlan.toLowerCase().includes('offline')) {
+        return false; // باقة أوفلاين صريحة - ممنوع المزامنة السحابية نهائياً
+    }
+
     const isExplicitCloud = currentPlan.includes('سحاب') || currentPlan.includes('Cloud');
     const isCloudStoreLicensed = (typeof getStore === 'function') && (getStore('bayan_cloud_sync_licensed') === 'true');
 
@@ -1979,6 +1979,10 @@ window.getCloudSyncStatus = function () {
     const isPlanValid = (typeof window.isSubscriptionValid === 'function') ? window.isSubscriptionValid() : true;
     if (!isPlanValid) {
         return { allowed: false, reason: 'expired', label: '🔒 اشتراك منتهي' };
+    }
+
+    if (currentPlan.includes('أوفلاين') || currentPlan.toLowerCase().includes('offline')) {
+        return { allowed: false, reason: 'offline_tier', label: '🔒 غير مفعلة (ترخيص أوفلاين محلي)' };
     }
 
     const isExplicitCloud = currentPlan.includes('سحاب') || currentPlan.includes('Cloud');

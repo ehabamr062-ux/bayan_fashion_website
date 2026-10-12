@@ -1825,7 +1825,7 @@
                 }
 
                 return await new Promise((resolve) => {
-                    const timer = setTimeout(() => resolve(false), 3500);
+                    const timer = setTimeout(() => resolve(false), 60000);
                     try {
                         const tx = db.transaction('sqlite_blob', 'readwrite');
                         const store = tx.objectStore('sqlite_blob');
@@ -1866,7 +1866,7 @@
                 if (!db) return null;
 
                 return await new Promise((resolve) => {
-                    const timer = setTimeout(() => resolve(null), 3500);
+                    const timer = setTimeout(() => resolve(null), 60000);
                     try {
                         const tx = db.transaction('sqlite_blob', 'readonly');
                         const store = tx.objectStore('sqlite_blob');
@@ -2004,7 +2004,7 @@
                     console.warn("⚠️ [SQLite] Write watchdog triggered - resetting write lock.");
                     this._isWriting = false;
                 }
-            }, 6000);
+            }, 60000);
 
             this._writePromise = (async () => {
                 try {

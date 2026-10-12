@@ -643,6 +643,11 @@
                 ].find(c => c.s === currentTab.type);
 
                 if (cfg) {
+                    // إذا كان قسم البيع يستعرض فاتورة قديمة، نمنع المؤقت من تغيير التاريخ والوقت
+                    if (cfg.s === 'sales' && window._posCurrentNavState && window._posCurrentNavState.invoiceId) {
+                        return;
+                    }
+
                     const dEl = document.getElementById(cfg.d);
                     const tEl = document.getElementById(cfg.t);
 
@@ -2683,6 +2688,13 @@
                 return false;
             }
             const cleanEntered = String(enteredPin).trim();
+
+            // 🔒 تحقق آمن ومباشر من قاعدة البيانات أولاً لمنع كشف رمز المدير في ذاكرة الكاشير
+            if (window.BayanSecurity && typeof window.BayanSecurity.verifyAdminPin === 'function') {
+                const isSecuredAuth = await window.BayanSecurity.verifyAdminPin(cleanEntered);
+                if (isSecuredAuth) return true;
+            }
+
             const isValidAdmin = admins.some(a => {
                 if (!a || !a.pin) return false;
                 if (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function') {
@@ -3435,12 +3447,16 @@
             const productListEl = document.getElementById('inquiryProductList');
             if (!productListEl) return;
 
-            if (products.length === 0) {
+            if (!Array.isArray(products) || products.length === 0) {
                 productListEl.innerHTML = '<div style="text-align: center; color: #94a3b8; padding: 20px; font-size: 0.9rem; font-weight: 800;">⚠️ لا توجد نتائج مطابقة</div>';
                 return;
             }
 
-            productListEl.innerHTML = products.map(p => `
+            // 🚀 حماية فائقة للذاكرة والـ DOM: عرض أول 60 صنف بحد أقصى لمنع استهلاك الرام وسلاسة حركة الماوس
+            const MAX_INQUIRY_DISPLAY = 60;
+            const displayProducts = products.length > MAX_INQUIRY_DISPLAY ? products.slice(0, MAX_INQUIRY_DISPLAY) : products;
+
+            let html = displayProducts.map(p => `
                 <div class="inquiry-product-item ${(currentSectionInquiryProduct && (currentSectionInquiryProduct.id === p.id || currentSectionInquiryProduct.id == p.id)) ? 'active' : ''}" id="inquiry-item-${p.id}" onclick="selectProductForInquiry(${p.id})">
                     <div style="display: flex; flex-direction: column; gap: 4px; text-align: right;">
                         <div class="name" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
@@ -3453,6 +3469,14 @@
                     <span style="font-size: 0.95rem; font-weight: 900; color: #047857; background: #ecfdf5; border: 1px solid #a7f3d0; padding: 4px 8px; border-radius: 8px; white-space: nowrap; font-family: monospace;">${parseFloat(p.price || 0).toFixed(2)} ج.م</span>
                 </div>
             `).join('');
+
+            if (products.length > MAX_INQUIRY_DISPLAY) {
+                html += `<div style="text-align: center; color: #64748b; padding: 10px; font-size: 0.8rem; font-weight: bold; background: #f8fafc; border-radius: 8px; margin: 8px 0; border: 1px dashed #cbd5e1;">
+                    🔍 معروض أول ${MAX_INQUIRY_DISPLAY} صنف من أصل ${products.length.toLocaleString('ar-EG')} صنف. يرجى كتابة اسم أو باركود للتحديد بدقة.
+                </div>`;
+            }
+
+            productListEl.innerHTML = html;
         }
 
         function selectProductForInquiry(productId, targetVariant = null) {

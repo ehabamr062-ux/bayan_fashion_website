@@ -1384,7 +1384,7 @@
                 });
             }
 
-            const hasVariants = !isFinancial && (
+            const hasVariants = !isFinancial && !(typeof document !== 'undefined' && document.body.classList.contains('bayan-variants-disabled')) && (
                 items.some(i => (i.size || i.selectedSize || i.color || i.selectedColor)) ||
                 (typeof document !== 'undefined' && document.body.classList.contains('bayan-variants-enabled'))
             );

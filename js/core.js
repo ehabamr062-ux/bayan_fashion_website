@@ -510,7 +510,7 @@ async function loadData() {
     try {
         await Promise.race([
             db.open(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('db.open timeout after 3s')), 3000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error('db.open timeout after 30s')), 30000))
         ]);
     } catch (openError) {
         console.warn("⚠️ [SQLite] ملاحظة فتح قاعدة البيانات:", openError.message || openError);

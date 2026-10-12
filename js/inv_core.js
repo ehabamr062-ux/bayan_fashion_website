@@ -161,7 +161,16 @@ window.handleInventorySearchKeyDown = function(e) {
 window.inventoryRenderLimit = 100;
 window.loadMoreInventory = function(step) {
     if (step === 0) {
-        window.inventoryRenderLimit = Infinity;
+        const MAX_SAFE_CEILING = 300;
+        const total = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB.length : 0;
+        if (total > MAX_SAFE_CEILING) {
+            window.inventoryRenderLimit = MAX_SAFE_CEILING;
+            if (typeof showToast === 'function') {
+                showToast(`⚡ تم عرض أول ${MAX_SAFE_CEILING} صنف لحماية سرعة جهازك. استخدم شريط البحث للوصول الفوري لأي صنف.`, 'info');
+            }
+        } else {
+            window.inventoryRenderLimit = Infinity;
+        }
     } else {
         window.inventoryRenderLimit = (window.inventoryRenderLimit || 100) + step;
     }
@@ -194,7 +203,7 @@ function renderInventoryTable(isLoadMore = false) {
     if (rawSearch === '' && typeof updateCategoryFilterOptions === 'function') updateCategoryFilterOptions();
 
     if (!isLoadMore && !rawSearch) {
-        window.inventoryRenderLimit = window.inventoryRenderLimit || 100;
+        window.inventoryRenderLimit = 100;
     }
     const renderLimit = rawSearch ? 200 : (window.inventoryRenderLimit || 100);
 
@@ -565,7 +574,7 @@ function shareWarehouseReport(platform) {
         warehouses.forEach(w => {
             let iCount = 0, qSum = 0, vSum = 0;
             productsDB.forEach(p => {
-                const st = getWarehouseStock(p.name, w.name);
+                const st = getWarehouseStock(p, w.name);
                 if (st !== 0) {
                     iCount++; qSum += st;
                     vSum += (st * (parseFloat(p.cost) || 0));
@@ -932,7 +941,7 @@ function renderWarehouseReportTable(isSearchTrigger = false) {
 
         if (typeof warehouses !== 'undefined') {
             warehouses.forEach((w, wIdx) => {
-                const st = getWarehouseStock(p.name, w.name, sDate, eDate);
+                const st = getWarehouseStock(p, w.name, sDate, eDate);
                 rowQty += st;
                 if (warehouseStats[wIdx]) {
                     warehouseStats[wIdx].qty += st;
@@ -968,7 +977,7 @@ function renderWarehouseReportTable(isSearchTrigger = false) {
         if (typeof warehouses !== 'undefined') {
             warehouses.forEach((w) => {
                 const colClass = getSafeWhClass(w.name);
-                const st = getWarehouseStock(p.name, w.name, sDate, eDate);
+                const st = getWarehouseStock(p, w.name, sDate, eDate);
                 rowQty += st;
 
                 warehouseCols += `<td class="${colClass} num-cell" style="font-weight:900; color:${st < 0 ? '#ef4444' : (st > 0 ? '#10b981' : '#94a3b8')}; border-left: 1px solid #f1f5f9;">${st}</td>`;
@@ -1919,6 +1928,29 @@ function getLiveProductWhStock(p, targetWH) {
     return 0;
 }
 
+let _prodByNameMap = null;
+let _prodByNameMapLen = 0;
+
+function getProductFromCache(productName) {
+    if (!productName) return null;
+    if (typeof productName === 'object') return productName;
+    const pDB = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
+    if (!_prodByNameMap || _prodByNameMapLen !== pDB.length) {
+        _prodByNameMap = new Map();
+        for (let i = 0; i < pDB.length; i++) {
+            const prod = pDB[i];
+            if (prod && prod.name) {
+                _prodByNameMap.set(prod.name, prod);
+                const trimmed = prod.name.trim();
+                if (trimmed !== prod.name) _prodByNameMap.set(trimmed, prod);
+            }
+        }
+        _prodByNameMapLen = pDB.length;
+    }
+    const clean = String(productName).trim();
+    return _prodByNameMap.get(productName) || _prodByNameMap.get(clean) || null;
+}
+
 function getWarehouseStock(productName, warehouseName, startDate = null, endDate = null) {
     if (!productName) return 0;
     const targetWH = (warehouseName || (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) || 'المخزن الرئيسي').trim();
@@ -1927,8 +1959,11 @@ function getWarehouseStock(productName, warehouseName, startDate = null, endDate
     if (typeof productName === 'object' && productName !== null) {
         p = productName;
     } else {
-        const cleanName = String(productName).trim();
-        p = productsDB.find(prod => prod && (prod.name === productName || prod.name?.trim() === cleanName));
+        p = getProductFromCache(productName);
+        if (!p) {
+            const cleanName = String(productName).trim();
+            p = productsDB.find(prod => prod && (prod.name === productName || prod.name?.trim() === cleanName));
+        }
     }
     if (!p) return 0;
 

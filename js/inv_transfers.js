@@ -907,7 +907,8 @@ var transferItemsBatch = window.transferItemsBatch;
             transferSearchSelectedIndex = -1;
 
             // إذا كان للصنف تشكيلات مقاسات وألوان، نفتح نافذة المقاس واللون فوراً
-            if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
+            const isVariantsAllowed = !document.body.classList.contains('bayan-variants-disabled');
+            if (isVariantsAllowed && p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
                 if (typeof showVariantSelectionModal === 'function') {
                     showVariantSelectionModal(p, 'transfer');
                     return;

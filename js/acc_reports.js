@@ -1249,33 +1249,39 @@
 
             const totalNetVfMovement = ((sales.vodafoneCash || 0) + (purchasesReturn.vodafoneCash || 0) + (receipts.vodafoneCash || 0)) - ((salesReturn.vodafoneCash || 0) + (purchases.vodafoneCash || 0) + (disbursements.vodafoneCash || 0));
 
+            // فحص إعداد فصل الجملة عن التجزئة من الإعدادات العامة
+            const reportSettings = JSON.parse(getStore('pos_settings') || '{}');
+            const splitWholesaleRetail = reportSettings.splitWholesaleRetailReports !== undefined ? !!reportSettings.splitWholesaleRetailReports : true;
+
             let opsHtml = '';
-            if (opsCfg.retailSales !== false) {
-                opsHtml += `
-                <tr style="background: rgba(16, 185, 129, 0.08); font-weight: 800;">
-                    <td>🛍️ مبيعات التجزئة (قطاعي)</td>
-                    <td style="text-align:center;">${retailSales.count}</td>
-                    <td style="color:#059669; font-weight:900; text-align:center;">${retailSales.total.toFixed(2)}</td>
-                    <td style="color:#059669; font-weight:800; text-align:center;">${retailSales.cash.toFixed(2)}</td>
-                    <td style="color:#2563eb; font-weight:800; text-align:center;">${(retailSales.vodafoneCash || 0).toFixed(2)}</td>
-                    <td style="color:#d97706; text-align:center;">${retailSales.credit.toFixed(2)}</td>
-                </tr>`;
-            }
-            if (opsCfg.wholesaleSales !== false) {
-                opsHtml += `
-                <tr style="background: rgba(59, 130, 246, 0.08); font-weight: 800;">
-                    <td>📦 مبيعات الجملة</td>
-                    <td style="text-align:center;">${wholesaleSales.count}</td>
-                    <td style="color:#2563eb; font-weight:900; text-align:center;">${wholesaleSales.total.toFixed(2)}</td>
-                    <td style="color:#059669; font-weight:800; text-align:center;">${wholesaleSales.cash.toFixed(2)}</td>
-                    <td style="color:#2563eb; font-weight:800; text-align:center;">${(wholesaleSales.vodafoneCash || 0).toFixed(2)}</td>
-                    <td style="color:#d97706; text-align:center;">${wholesaleSales.credit.toFixed(2)}</td>
-                </tr>`;
+            if (splitWholesaleRetail) {
+                if (opsCfg.retailSales !== false) {
+                    opsHtml += `
+                    <tr style="background: rgba(16, 185, 129, 0.08); font-weight: 800;">
+                        <td>🛍️ مبيعات التجزئة (قطاعي)</td>
+                        <td style="text-align:center;">${retailSales.count}</td>
+                        <td style="color:#059669; font-weight:900; text-align:center;">${retailSales.total.toFixed(2)}</td>
+                        <td style="color:#059669; font-weight:800; text-align:center;">${retailSales.cash.toFixed(2)}</td>
+                        <td style="color:#2563eb; font-weight:800; text-align:center;">${(retailSales.vodafoneCash || 0).toFixed(2)}</td>
+                        <td style="color:#d97706; text-align:center;">${retailSales.credit.toFixed(2)}</td>
+                    </tr>`;
+                }
+                if (opsCfg.wholesaleSales !== false) {
+                    opsHtml += `
+                    <tr style="background: rgba(59, 130, 246, 0.08); font-weight: 800;">
+                        <td>📦 مبيعات الجملة</td>
+                        <td style="text-align:center;">${wholesaleSales.count}</td>
+                        <td style="color:#2563eb; font-weight:900; text-align:center;">${wholesaleSales.total.toFixed(2)}</td>
+                        <td style="color:#059669; font-weight:800; text-align:center;">${wholesaleSales.cash.toFixed(2)}</td>
+                        <td style="color:#2563eb; font-weight:800; text-align:center;">${(wholesaleSales.vodafoneCash || 0).toFixed(2)}</td>
+                        <td style="color:#d97706; text-align:center;">${wholesaleSales.credit.toFixed(2)}</td>
+                    </tr>`;
+                }
             }
             if (opsCfg.totalSales !== false) {
                 opsHtml += `
                 <tr style="background: #f8fafc; font-weight: 900; border-top: 1px dashed #cbd5e1;">
-                    <td>🛒 إجمالي المبيعات العامة (تجزئة + جملة)</td>
+                    <td>🛒 إجمالي المبيعات العامة${splitWholesaleRetail ? ' (تجزئة + جملة)' : ''}</td>
                     <td style="text-align:center;">${sales.count}</td>
                     <td style="color:#0f172a; font-size:1.05rem; text-align:center;">${sales.total.toFixed(2)}</td>
                     <td style="color:#059669; font-weight:900; text-align:center;">${sales.cash.toFixed(2)}</td>
@@ -1614,11 +1620,57 @@
             const vfNet = vfEntry.netTotal || 0;
             const totalVfOps = (vfEntry.salesCount || 0) + (vfEntry.returnsCount || 0) + (vfEntry.receiptsCount || 0) + (vfEntry.disbursementsCount || 0) + (vfEntry.purchasesCount || 0) + (vfEntry.purchasesReturnCount || 0);
 
-            // 2. تحديث الحاوية الديناميكية لباقي وسائل الدفع والمحافظ (إنستاباي / فيزا / أورانج كاش .. إلخ)
+            // حساب الأرباح المفصلة (أرباح قطاعي - أرباح جملة - مرتجعات - الصافي العام) لاستخدامها في الشارات العلوية وجدول الأرباح
+            let retailGrossProfit = 0;
+            let wholesaleGrossProfit = 0;
+            let returnSalesProfitLost = 0;
+
+            currentRaw.forEach(t => {
+                if (t.invoiceId && t.profit !== undefined && t.profit !== '-') {
+                    const pVal = parseFloat(t.profit) || 0;
+                    if (t.type.includes('بيع') && !t.type.includes('مرتجع')) {
+                        if (t.priceLevel === 'wholesale') {
+                            wholesaleGrossProfit += pVal;
+                        } else {
+                            retailGrossProfit += pVal;
+                        }
+                    } else if (t.type.includes('مرتجع بيع')) {
+                        returnSalesProfitLost += Math.abs(pVal);
+                    }
+                }
+            });
+
+            const totalGrossProfit = retailGrossProfit + wholesaleGrossProfit;
+            const netProfit = totalGrossProfit - returnSalesProfitLost;
+            const canViewProfits = (typeof hasPermission === 'function') ? hasPermission('general_profits') : true;
+
+            // 2. تحديث الحاوية الديناميكية للشارات العلوية (كروت التجزئة والجملة + وسائل الدفع والمحافظ)
             const dynamicBadgesContainer = document.getElementById('dailyDynamicPaymentBadges');
             if (dynamicBadgesContainer) {
+                let badgesHtml = '';
+                // إذا كان خيار فصل الجملة والتجزئة مفعلاً في الإعدادات، نعرض كروت مستقلة لمبيعات التجزئة وأرباحها والجملة وأرباحها
+                if (splitWholesaleRetail) {
+                    if (retailSales.count > 0 || retailSales.total > 0) {
+                        const rProfitStr = (canViewProfits && retailGrossProfit !== 0) ? ` • ربح: ${retailGrossProfit.toFixed(2)}` : '';
+                        badgesHtml += `
+                        <div class="daily-method-badge" title="${isDailyHidden ? '🛍️ مبيعات التجزئة (مخفية ومحمية)' : `مبيعات التجزئة (القطاعي): ${retailSales.total.toFixed(2)} ج.م (${retailSales.count} فاتورة)${rProfitStr ? ` - أرباح التجزئة: ${retailGrossProfit.toFixed(2)} ج.م` : ''}`}"
+                            style="font-size: 0.88rem; color: #fff; font-weight: 800; background: linear-gradient(135deg, #059669, #047857); padding: 6px 14px; border-radius: 20px; box-shadow: 0 3px 10px rgba(5,150,105,0.25); border: 1px solid rgba(255,255,255,0.15); display: inline-flex; align-items: center; gap: 6px;">
+                            <span>🛍️ مبيعات التجزئة:</span> <span class="daily-method-val">${retailSales.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> ج.م
+                            ${(canViewProfits && retailGrossProfit !== 0) ? `<span style="font-size: 0.78rem; background: rgba(0,0,0,0.2); padding: 2px 7px; border-radius: 10px; margin-right: 2px;">📈 ربح: <span class="daily-method-val">${retailGrossProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></span>` : ''}
+                        </div>`;
+                    }
+                    if (wholesaleSales.count > 0 || wholesaleSales.total > 0) {
+                        const wProfitStr = (canViewProfits && wholesaleGrossProfit !== 0) ? ` • ربح: ${wholesaleGrossProfit.toFixed(2)}` : '';
+                        badgesHtml += `
+                        <div class="daily-method-badge" title="${isDailyHidden ? '📦 مبيعات الجملة (مخفية ومحمية)' : `مبيعات الجملة: ${wholesaleSales.total.toFixed(2)} ج.م (${wholesaleSales.count} فاتورة)${wProfitStr ? ` - أرباح الجملة: ${wholesaleGrossProfit.toFixed(2)} ج.م` : ''}`}"
+                            style="font-size: 0.88rem; color: #fff; font-weight: 800; background: linear-gradient(135deg, #2563eb, #1d4ed8); padding: 6px 14px; border-radius: 20px; box-shadow: 0 3px 10px rgba(37,99,235,0.25); border: 1px solid rgba(255,255,255,0.15); display: inline-flex; align-items: center; gap: 6px;">
+                            <span>📦 مبيعات الجملة:</span> <span class="daily-method-val">${wholesaleSales.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> ج.م
+                            ${(canViewProfits && wholesaleGrossProfit !== 0) ? `<span style="font-size: 0.78rem; background: rgba(0,0,0,0.2); padding: 2px 7px; border-radius: 10px; margin-right: 2px;">📈 ربح: <span class="daily-method-val">${wholesaleGrossProfit.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></span>` : ''}
+                        </div>`;
+                    }
+                }
                 if (nonCashMethodsList.length > 0) {
-                    dynamicBadgesContainer.innerHTML = nonCashMethodsList.map(pm => {
+                    badgesHtml += nonCashMethodsList.map(pm => {
                         const pmNet = (pm.salesTotal + (pm.receiptsTotal || 0) + (pm.purchasesReturnTotal || 0)) - ((pm.returnsTotal || 0) + (pm.disbursementsTotal || 0) + (pm.purchasesTotal || 0));
                         const pmTotalOps = (pm.salesCount || 0) + (pm.returnsCount || 0) + (pm.receiptsCount || 0) + (pm.disbursementsCount || 0) + (pm.purchasesCount || 0) + (pm.purchasesReturnCount || 0);
                         const safeName = (pm.name || '').replace(/'/g, "\\'");
@@ -1632,9 +1684,8 @@
                         </div>
                     `;
                     }).join('');
-                } else {
-                    dynamicBadgesContainer.innerHTML = '';
                 }
+                dynamicBadgesContainer.innerHTML = badgesHtml;
             }
 
             const lastUpdateEl = document.getElementById('reportLastUpdate');
@@ -1794,31 +1845,6 @@
             }
             treasuryBody.innerHTML = trHtml;
 
-            // حساب الأرباح المفصلة (أرباح قطاعي - أرباح جملة - مرتجعات - الصافي العام)
-            let retailGrossProfit = 0;
-            let wholesaleGrossProfit = 0;
-            let returnSalesProfitLost = 0;
-
-            currentRaw.forEach(t => {
-                if (t.invoiceId && t.profit !== undefined && t.profit !== '-') {
-                    const pVal = parseFloat(t.profit) || 0;
-                    if (t.type.includes('بيع') && !t.type.includes('مرتجع')) {
-                        if (t.priceLevel === 'wholesale') {
-                            wholesaleGrossProfit += pVal;
-                        } else {
-                            retailGrossProfit += pVal;
-                        }
-                    } else if (t.type.includes('مرتجع بيع')) {
-                        returnSalesProfitLost += Math.abs(pVal);
-                    }
-                }
-            });
-
-            const totalGrossProfit = retailGrossProfit + wholesaleGrossProfit;
-            const netProfit = totalGrossProfit - returnSalesProfitLost;
-
-            const canViewProfits = (typeof hasPermission === 'function') ? hasPermission('general_profits') : true;
-
             const profitCard = document.getElementById('dailyReportProfitSummaryCard');
             if (profitCard) {
                 profitCard.style.setProperty('display', canViewProfits ? '' : 'none', 'important');
@@ -1827,19 +1853,31 @@
             const profitBody = document.getElementById('profitSummaryBody');
             if (profitBody) {
                 if (canViewProfits) {
-                    profitBody.innerHTML = `
-                        <tr style="background:rgba(16, 185, 129, 0.08);">
-                            <td>🛍️ أرباح مبيعات التجزئة (قطاعي)</td>
-                            <td style="color:#059669; font-weight:900; font-size:1.05rem;">${retailGrossProfit.toFixed(2)} ج.م</td>
-                        </tr>
-                        <tr style="background:rgba(59, 130, 246, 0.08);">
-                            <td>📦 أرباح مبيعات الجملة</td>
-                            <td style="color:#2563eb; font-weight:900; font-size:1.05rem;">${wholesaleGrossProfit.toFixed(2)} ج.م</td>
-                        </tr>
-                        <tr style="background:rgba(39, 174, 96, 0.05); border-top:1px dashed #cbd5e1;">
-                            <td>📈 إجمالي أرباح المبيعات المشتركة</td>
-                            <td style="color:var(--main-green); font-weight:900; font-size:1.1rem;">${totalGrossProfit.toFixed(2)} ج.م</td>
-                        </tr>
+                    let profitRows = '';
+                    if (splitWholesaleRetail) {
+                        profitRows += `
+                            <tr style="background:rgba(16, 185, 129, 0.08);">
+                                <td>🛍️ أرباح مبيعات التجزئة (قطاعي)</td>
+                                <td style="color:#059669; font-weight:900; font-size:1.05rem;">${retailGrossProfit.toFixed(2)} ج.م</td>
+                            </tr>
+                            <tr style="background:rgba(59, 130, 246, 0.08);">
+                                <td>📦 أرباح مبيعات الجملة</td>
+                                <td style="color:#2563eb; font-weight:900; font-size:1.05rem;">${wholesaleGrossProfit.toFixed(2)} ج.م</td>
+                            </tr>
+                            <tr style="background:rgba(39, 174, 96, 0.05); border-top:1px dashed #cbd5e1;">
+                                <td>📈 إجمالي أرباح المبيعات المشتركة</td>
+                                <td style="color:var(--main-green); font-weight:900; font-size:1.1rem;">${totalGrossProfit.toFixed(2)} ج.م</td>
+                            </tr>
+                        `;
+                    } else {
+                        profitRows += `
+                            <tr style="background:rgba(39, 174, 96, 0.05);">
+                                <td>📈 إجمالي أرباح المبيعات</td>
+                                <td style="color:var(--main-green); font-weight:900; font-size:1.1rem;">${totalGrossProfit.toFixed(2)} ج.م</td>
+                            </tr>
+                        `;
+                    }
+                    profitRows += `
                         <tr style="background:rgba(239, 68, 68, 0.05);">
                             <td>📉 إجمالي أرباح مرتجعات البيع</td>
                             <td style="color:#ef4444; font-weight:900; font-size:1.1rem;">-${returnSalesProfitLost.toFixed(2)} ج.م</td>
@@ -1849,6 +1887,7 @@
                             <td style="color:${netProfit >= 0 ? 'var(--main-purple)' : '#ef4444'}; font-size:1.35rem; text-shadow:0 1px 2px rgba(0,0,0,0.1);">${netProfit.toFixed(2)} ج.م</td>
                         </tr>
                     `;
+                    profitBody.innerHTML = profitRows;
                 } else {
                     profitBody.innerHTML = '';
                 }
@@ -6015,11 +6054,16 @@
             const whFilter = document.getElementById('anWarehouse')?.value || 'all';
             const userFilter = document.getElementById('anUser')?.value || 'all';
 
-            // 2. تحديث وتعبئة القوائم الديناميكية
+            // 2. تحديث وتعبئة القوائم الديناميكية بدون إنشاء مصفوفات وسيطة تستهلك الذاكرة
             const accSelect = document.getElementById('anAccount');
             if (accSelect && accSelect.options.length <= 1) {
-                const partners = [...new Set((window.transactions || []).map(t => t.partner).filter(p => p && p !== '-'))].sort();
-                partners.forEach(p => {
+                const partnerSet = new Set();
+                const txs = window.transactions || [];
+                for (let i = 0; i < txs.length; i++) {
+                    const p = txs[i]?.partner;
+                    if (p && p !== '-') partnerSet.add(p);
+                }
+                Array.from(partnerSet).sort().forEach(p => {
                     const opt = document.createElement('option');
                     opt.value = p;
                     opt.innerText = `👤 ${p}`;
@@ -6033,9 +6077,15 @@
                 if (typeof getPaymentMethods === 'function') {
                     dynamicMethods = getPaymentMethods().filter(m => m.active !== false).map(m => m.name);
                 }
-                const txMethods = [...new Set((window.transactions || []).map(t => t.method).filter(m => m && m !== '-'))];
-                const allMethods = [...new Set([...dynamicMethods, ...txMethods, 'نقدي', 'آجل'])];
-                allMethods.forEach(m => {
+                const methodSet = new Set(dynamicMethods);
+                const txs = window.transactions || [];
+                for (let i = 0; i < txs.length; i++) {
+                    const m = txs[i]?.method;
+                    if (m && m !== '-') methodSet.add(m);
+                }
+                methodSet.add('نقدي');
+                methodSet.add('آجل');
+                methodSet.forEach(m => {
                     const opt = document.createElement('option');
                     opt.value = m;
                     opt.innerText = `💳 ${m}`;
@@ -6045,8 +6095,13 @@
 
             const catSelect = document.getElementById('anCategory');
             if (catSelect && catSelect.options.length <= 1) {
-                const cats = [...new Set((window.productsDB || []).map(p => p.category).filter(c => c && c.trim()))].sort();
-                cats.forEach(c => {
+                const catSet = new Set();
+                const pDB = window.productsDB || [];
+                for (let i = 0; i < pDB.length; i++) {
+                    const c = pDB[i]?.category;
+                    if (c && c.trim()) catSet.add(c.trim());
+                }
+                Array.from(catSet).sort().forEach(c => {
                     const opt = document.createElement('option');
                     opt.value = c;
                     opt.innerText = `📦 ${c}`;
@@ -6056,8 +6111,10 @@
 
             const whSelect = document.getElementById('anWarehouse');
             if (whSelect && whSelect.options.length <= 1) {
-                const warehouses = [...new Set((window.transactions || []).map(t => t.warehouse).filter(w => w && w !== '-'))].sort();
-                warehouses.forEach(w => {
+                const whList = (typeof warehouses !== 'undefined' && Array.isArray(warehouses) && warehouses.length > 0)
+                    ? warehouses.map(w => w.name)
+                    : ['المخزن الرئيسي'];
+                whList.forEach(w => {
                     const opt = document.createElement('option');
                     opt.value = w;
                     opt.innerText = `🏢 ${w}`;
@@ -6067,8 +6124,13 @@
 
             const userSelect = document.getElementById('anUser');
             if (userSelect && userSelect.options.length <= 1) {
-                const users = [...new Set((window.transactions || []).map(t => t.user).filter(u => u && u !== '-'))].sort();
-                users.forEach(u => {
+                const userSet = new Set();
+                const txs = window.transactions || [];
+                for (let i = 0; i < txs.length; i++) {
+                    const u = txs[i]?.user;
+                    if (u && u !== '-') userSet.add(u);
+                }
+                Array.from(userSet).sort().forEach(u => {
                     const opt = document.createElement('option');
                     opt.value = u;
                     opt.innerText = `🧑‍💼 ${u}`;

@@ -249,7 +249,7 @@ async function selectProductToHeader(productId) {
     if (!product) return;
 
     // إذا كان الصنف تشكيلة فاشون بها مقاسات أو ألوان، نفتح نافذة المقاسات واللون فوراً لاختيارها أولاً
-    const isVariantsActive = document.body.classList.contains('bayan-variants-enabled') || (product.variants && product.variants.length > 0);
+    const isVariantsActive = !document.body.classList.contains('bayan-variants-disabled') && (document.body.classList.contains('bayan-variants-enabled') || (product.variants && product.variants.length > 0));
     if (isVariantsActive && product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
         const resultsDiv = document.getElementById('searchResults');
         if (resultsDiv) resultsDiv.style.display = 'none';
@@ -685,7 +685,7 @@ async function handleSearchEnter(query, event, forceAdd = false) {
 
     if (pInDB) {
         // إذا كان للموديل مقاسات وألوان ونظام المقاسات مفعل، نفتح نافذة الاختيار السريع
-        const isVariantsActive = document.body.classList.contains('bayan-variants-enabled') || (pInDB.variants && pInDB.variants.length > 0);
+        const isVariantsActive = !document.body.classList.contains('bayan-variants-disabled') && (document.body.classList.contains('bayan-variants-enabled') || (pInDB.variants && pInDB.variants.length > 0));
         if (isVariantsActive && pInDB.variants && Array.isArray(pInDB.variants) && pInDB.variants.length > 0) {
             showVariantSelectionModal(pInDB, 'sales');
             if (resultsDiv) resultsDiv.style.display = 'none';
@@ -872,7 +872,7 @@ function addToCart(productId, preSelectedUnit = null, preSelectedVariant = null)
     }
 
     // إذا لم يكن هناك مقاس محدد مسبقاً وكان للمنتج مقاسات وألوان، نفتح نافذة الاختيار السريع
-    const isVariantsActive = document.body.classList.contains('bayan-variants-enabled') || (product.variants && product.variants.length > 0);
+    const isVariantsActive = !document.body.classList.contains('bayan-variants-disabled') && (document.body.classList.contains('bayan-variants-enabled') || (product.variants && product.variants.length > 0));
     if (isVariantsActive && !effVariant && product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
         showVariantSelectionModal(product, 'sales');
         return false;
@@ -945,7 +945,35 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
         }
     }
 
-    const maxAvailInUnit = availBaseStock / factor;
+    // في وضع التعديل: استرداد الكمية الأصلية المحجوزة في الفاتورة لهذا الصنف وتشكيلته لإتاحتها
+    let originalQtyInInvoice = 0;
+    if (typeof isEditMode !== 'undefined' && isEditMode && typeof editingOriginalItems !== 'undefined' && Array.isArray(editingOriginalItems)) {
+        const cleanAttrPre = (val) => {
+            const s = String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+            if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
+            return s;
+        };
+        const cPreSize = cleanAttrPre(vSize);
+        const cPreColor = cleanAttrPre(vColor);
+
+        const matchedOriginals = editingOriginalItems.filter(orig => {
+            const origName = orig.product || orig.name || '';
+            const origId = (orig.productId != null && orig.productId !== '') ? orig.productId : orig.id;
+            const isProdMatch = (origName && (origName === product.name || origName === product.id)) || 
+                                (origId != null && (String(origId) === String(product.id) || String(origId) === String(product.name)));
+            if (!isProdMatch) return false;
+
+            const oSize = cleanAttrPre(orig.selectedSize || orig.size);
+            const oColor = cleanAttrPre(orig.selectedColor || orig.color);
+            return oSize === cPreSize && oColor === cPreColor;
+        });
+        matchedOriginals.forEach(orig => {
+            const origFactor = parseFloat(orig.unitFactor) || 1;
+            originalQtyInInvoice += (parseFloat(orig.qty) || 0) * origFactor;
+        });
+    }
+
+    const maxAvailInUnit = (availBaseStock + originalQtyInInvoice) / factor;
 
     // دالة مساعدة لمعايرة المقاسات والألوان وتوحيد القيم الافتراضية
     const cleanAttr = (val) => {
@@ -1009,8 +1037,8 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
     const newAdditionBaseQty = hQty * factor;
     const totalRequestedBaseQty = currentInCartBaseQty + newAdditionBaseQty;
 
-    // 🛑 منع صارم: رفض الإضافة فوراً إذا تجاوز الإجمالي التراكمي في السلة رصيد المخزن المتاح
-    if (totalRequestedBaseQty > availBaseStock) {
+    // 🛑 منع صارم: رفض الإضافة فوراً إذا تجاوز الإجمالي التراكمي في السلة رصيد المخزن المتاح + الكمية المحجوزة أصلاً في الفاتورة
+    if (totalRequestedBaseQty > (availBaseStock + originalQtyInInvoice)) {
         const varInfo = effVariant ? ` [${[effVariant.size, effVariant.color].filter(x => x && x !== 'قياسي' && x !== 'موحد').join(' - ')}]` : '';
         const maxAvailStr = maxAvailInUnit <= 0 ? '0' : maxAvailInUnit.toFixed(2).replace(/\.?0+$/, '');
         const currentInCartDisplay = (currentInCartBaseQty / factor).toFixed(2).replace(/\.?0+$/, '');
@@ -1023,6 +1051,7 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
 
     if (existingItem) {
         existingItem.qty = parseFloat((existingItem.qty + hQty).toFixed(3));
+        if (typeof markPosInvoiceModified === 'function') markPosInvoiceModified();
         const isPriceLocked = (typeof currentUser !== 'undefined' && currentUser && currentUser.lockPriceEdit);
         const canEditPrice = !isPriceLocked && ((typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin') 
             || (typeof hasPermission === 'function' && hasPermission('docs_price_edit')));
@@ -1158,6 +1187,7 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
             taxType: product.taxType || 'none',
             taxRate: product.taxRate || 0
         });
+        if (typeof markPosInvoiceModified === 'function') markPosInvoiceModified();
     }
 
     renderCart();
@@ -1471,9 +1501,12 @@ function updateItemUnit(index, unitName, cartType = 'sales') {
 
         item.unitFactor = parseFloat(unit.factor) || 1;
 
-        if (cartType === 'sales') renderCart();
-
-        else renderPurchaseCart_Finalized_V3();
+        if (cartType === 'sales') {
+            if (typeof markPosInvoiceModified === 'function') markPosInvoiceModified();
+            renderCart();
+        } else {
+            renderPurchaseCart_Finalized_V3();
+        }
 
     }
 
@@ -1482,8 +1515,8 @@ function updateItemUnit(index, unitName, cartType = 'sales') {
 function removeFromCart(index) {
     if (isEditMode && !checkPermission('docs_edit')) return;
     const item = cart[index];
-    if (item) addToTrash('draft_item', item, `حذف من فاتورة بيع(مسودة): ${item.name} - الكمية: ${item.qty}`);
     cart.splice(index, 1);
+    if (typeof markPosInvoiceModified === 'function') markPosInvoiceModified();
 
     // إزالة صورة الموديل أو التحديث لآخر صنف باقي فور الحذف
     if (cart.length === 0) {
@@ -1508,6 +1541,7 @@ function updateQty(index, newQty) {
         showToast("⚠️ يرجى إدخال كمية صحيحة أكبر من الصفر!", "warning");
         return renderCart();
     }
+    if (typeof markPosInvoiceModified === 'function') markPosInvoiceModified();
 
     const product = productsDB.find(p => p.id === item.id || p.name === item.name);
     if (product) {
@@ -1527,13 +1561,24 @@ function updateQty(index, newQty) {
         // في وضع تعديل فاتورة قديمة: إضافة الكمية الأصلية المحجوزة بالفاتورة إلى الرصيد المتاح
         let originalQtyInInvoice = 0;
         if (typeof isEditMode !== 'undefined' && isEditMode && typeof editingOriginalItems !== 'undefined' && Array.isArray(editingOriginalItems)) {
-            const sSize = item.selectedSize || item.size || '';
-            const sColor = item.selectedColor || item.color || '';
-            const matchedOriginal = editingOriginalItems.find(orig => 
-                (orig.product === item.name || orig.productId === item.id || (product && (orig.product === product.name || orig.productId === product.id))) &&
-                (!sSize || orig.selectedSize === sSize || orig.size === sSize) &&
-                (!sColor || orig.selectedColor === sColor || orig.color === sColor)
-            );
+            const cleanAttr = (val) => {
+                const s = String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+                if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
+                return s;
+            };
+            const sSize = cleanAttr(item.selectedSize || item.size);
+            const sColor = cleanAttr(item.selectedColor || item.color);
+            const matchedOriginal = editingOriginalItems.find(orig => {
+                const origName = orig.product || orig.name || '';
+                const origId = (orig.productId != null && orig.productId !== '') ? orig.productId : orig.id;
+                const isProdMatch = (origName && (origName === item.name || (product && origName === product.name))) ||
+                                    (origId != null && (String(origId) === String(item.id) || (product && String(origId) === String(product.id))));
+                if (!isProdMatch) return false;
+
+                const oSize = cleanAttr(orig.selectedSize || orig.size);
+                const oColor = cleanAttr(orig.selectedColor || orig.color);
+                return oSize === sSize && oColor === sColor;
+            });
             if (matchedOriginal) {
                 const origFactor = parseFloat(matchedOriginal.unitFactor) || 1;
                 originalQtyInInvoice = (parseFloat(matchedOriginal.qty) || 0) * origFactor;
@@ -1653,16 +1698,39 @@ function updateCartPrice(index, newPrice) {
     }
 
     item.price = parsedPrice;
+    if (typeof markPosInvoiceModified === 'function') markPosInvoiceModified();
     renderCart();
 }
 
 function resetBill() {
     cart = [];
     isEditMode = false;
+    window.isEditMode = false;
     editingInvoiceId = null;
+    window.editingInvoiceId = null;
     editingOriginalDate = null;
+    window.editingOriginalDate = null;
     editingInvoiceType = null;
+    window.editingInvoiceType = null;
+    editingOriginalPartner = null;
+    window.editingOriginalPartner = null;
     editingOriginalItems = [];
+    window.editingOriginalItems = [];
+
+    window._posCurrentNavState = { invoiceId: null, dateISO: null, id: null };
+    window._posInvoiceModified = false;
+    if (typeof tabStates !== 'undefined' && typeof activeTabId !== 'undefined' && tabStates[activeTabId]) {
+        tabStates[activeTabId].viewingInvoiceId = null;
+        tabStates[activeTabId].posNavState = null;
+        tabStates[activeTabId].invoiceModified = false;
+        tabStates[activeTabId].isEditMode = false;
+        tabStates[activeTabId].editingInvoiceId = null;
+        tabStates[activeTabId].editingInvoiceType = null;
+        tabStates[activeTabId].editingOriginalItems = [];
+    }
+    if (typeof updateActiveTabTitle === 'function') {
+        updateActiveTabTitle('عميل نقدي', 'بيع');
+    }
 
     const mainSaveBtn = document.querySelector('#sales-section .btn-save');
 
@@ -1719,6 +1787,10 @@ function resetBill() {
     }
 
     renderCart();
+
+    if (typeof updatePosNavUIState === 'function') {
+        updatePosNavUIState(null);
+    }
 
     // تحديث رقم الفاتورة في المربع الأخضر
 
@@ -2299,7 +2371,7 @@ function calculateTotals(subTotalParam) {
         if (typeof showToast === 'function') showToast("⚠️ لا يمكن إدخال قيمة إضافة أو ضريبة بالسالب!", "warning");
     }
 
-    const taxType = (document.getElementById('taxType') && document.getElementById('taxType').value) ? document.getElementById('taxType').value : 'perc';
+    const taxType = (document.getElementById('taxType') && document.getElementById('taxType').value) ? document.getElementById('taxType').value : 'val';
 
     // 🛑 فحص الأمان: منع تجاوز أقصى نسبة إضافة مصرح بها
     if (canTax && maxAdditionPerc > 0 && maxAdditionPerc < 100) {
@@ -2601,11 +2673,25 @@ async function saveBill(force = false, accountChecked = false) {
             // في وضع التعديل: استرداد إجمالي الكمية الأصلية المحجوزة في الفاتورة لهذا الصنف وتشكيلته لإتاحتها
             let originalQtyInInvoice = 0;
             if (typeof isEditMode !== 'undefined' && isEditMode && typeof editingOriginalItems !== 'undefined' && Array.isArray(editingOriginalItems)) {
-                const matchedOriginals = editingOriginalItems.filter(orig => 
-                    (orig.product === p.name || orig.productId === p.id || (orig.productId && orig.productId == p.id)) &&
-                    (!sSize || (orig.selectedSize || orig.size || '').trim() === sSize) &&
-                    (!sColor || (orig.selectedColor || orig.color || '').trim() === sColor)
-                );
+                const cleanAttr = (val) => {
+                    const s = String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+                    if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
+                    return s;
+                };
+                const cSize = cleanAttr(sSize);
+                const cColor = cleanAttr(sColor);
+
+                const matchedOriginals = editingOriginalItems.filter(orig => {
+                    const origName = orig.product || orig.name || '';
+                    const origId = (orig.productId != null && orig.productId !== '') ? orig.productId : orig.id;
+                    const isProdMatch = (origName && (origName === p.name || origName === p.id)) ||
+                                        (origId != null && (String(origId) === String(p.id) || String(origId) === String(p.name)));
+                    if (!isProdMatch) return false;
+
+                    const oSize = cleanAttr(orig.selectedSize || orig.size);
+                    const oColor = cleanAttr(orig.selectedColor || orig.color);
+                    return oSize === cSize && oColor === cColor;
+                });
                 matchedOriginals.forEach(orig => {
                     const origFactor = parseFloat(orig.unitFactor) || 1;
                     originalQtyInInvoice += (parseFloat(orig.qty) || 0) * origFactor;
@@ -2915,6 +3001,19 @@ async function saveBill(force = false, accountChecked = false) {
 
         const ratio = subTotal > 0 ? (currentTotal / subTotal) : 1;
 
+        // حساب الرصيد السابق للعميل عند لحظة إصدار الفاتورة لتسجيله بشكل دائم مع رأس الفاتورة
+        let prevBalance = 0;
+        const currentCust = (document.getElementById('customerName')?.value || '').trim();
+        if (currentCust && !window.isGenericCashPartner(currentCust)) {
+            if (typeof getHistoricalPartnerBalance === 'function') {
+                prevBalance = getHistoricalPartnerBalance(currentCust, newInvoiceId);
+            } else if (typeof getAccountBalance === 'function') {
+                prevBalance = getAccountBalance(currentCust, newInvoiceId);
+            }
+        } else if (document.getElementById('prevBalanceDisplay')) {
+            prevBalance = parseFloat(document.getElementById('prevBalanceDisplay').innerText) || 0;
+        }
+
         // 3. خصم الكميات الجديدة من المخزن وتسجيل العمليات
 
         let accumulatedItemsTotal = 0;
@@ -3044,6 +3143,8 @@ async function saveBill(force = false, accountChecked = false) {
                 invoiceTax: (idx === 0) ? (parseFloat(document.getElementById('taxInput')?.value) || 0) : 0,
                 invoiceTaxType: (idx === 0) ? (document.getElementById('taxType')?.value || 'val') : 'val',
                 invoiceGrandTotal: (idx === 0) ? currentTotal : 0,
+                prevBalance: (idx === 0) ? prevBalance : 0,
+                currentBalance: (idx === 0) ? (prevBalance + (currentTotal - tendered)) : 0,
                 warehouse: activeWH,
                 terminal: terminalName,
                 terminalLetter: tInfo.terminalLetter,
@@ -3104,7 +3205,6 @@ async function saveBill(force = false, accountChecked = false) {
                 paidValue = 0;
             }
 
-            let prevBalance = 0;
             if (customer && !window.isGenericCashPartner(customer)) {
                 if (typeof getHistoricalPartnerBalance === 'function') {
                     prevBalance = getHistoricalPartnerBalance(customer, newInvoiceId);
@@ -3194,10 +3294,10 @@ async function saveBill(force = false, accountChecked = false) {
 
         resetBill();
 
-        // 🖨️ إرسال أمر الطباعة التلقائي المباشر
+        // 🖨️ إرسال أمر الطباعة التلقائي المباشر (صامت تماماً وفوري دون أي نوافذ)
         if (shouldAutoPrint && autoPrintInvoiceData && typeof printInvoice === 'function') {
             setTimeout(() => {
-                printInvoice(autoPrintInvoiceData);
+                printInvoice(autoPrintInvoiceData, { silent: true });
             }, 100);
         }
 
@@ -3700,20 +3800,18 @@ function toggleQuickItems() {
     if (container.style.display === 'none') {
         container.style.display = 'flex';
         if (btn) {
-            btn.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
-            btn.style.borderColor = '#b45309';
-            btn.style.color = '#000';
-            btn.innerHTML = '<span>🖼️</span> <span>صور الموديلات</span>';
+            btn.classList.remove('is-hidden');
+            btn.title = 'صور الموديلات: معروضة (انقر للإخفاء)';
+            btn.innerHTML = '<span class="pos-model-toggle-icon">🖼️</span>';
         }
         if (tableContainer) tableContainer.style.flex = '1.5';
         setStore('showQuickItems', 'true');
     } else {
         container.style.display = 'none';
         if (btn) {
-            btn.style.background = '#64748b';
-            btn.style.borderColor = '#475569';
-            btn.style.color = '#fff';
-            btn.innerHTML = '<span>🖼️</span> <span>صور الموديلات</span>';
+            btn.classList.add('is-hidden');
+            btn.title = 'صور الموديلات: مخفية (انقر للإظهار)';
+            btn.innerHTML = '<span class="pos-model-toggle-icon">🖼️</span>';
         }
         if (tableContainer) tableContainer.style.flex = '1';
         setStore('showQuickItems', 'false');
@@ -3734,10 +3832,9 @@ setTimeout(() => {
         if (container) {
             container.style.display = 'none';
             if (btn) {
-                btn.style.background = '#64748b';
-                btn.style.borderColor = '#475569';
-                btn.style.color = '#fff';
-                btn.innerHTML = '<span>🖼️</span> <span>صور الموديلات</span>';
+                btn.classList.add('is-hidden');
+                btn.title = 'صور الموديلات: مخفية (انقر للإظهار)';
+                btn.innerHTML = '<span class="pos-model-toggle-icon">🖼️</span>';
             }
             if (tableContainer) tableContainer.style.flex = '1';
         }
@@ -3756,21 +3853,27 @@ function updatePOSAutoPrintUI(isEnabled) {
     const btn = document.getElementById('posAutoPrintToggleBtn');
     const textEl = document.getElementById('posAutoPrintText');
     const iconEl = document.getElementById('posAutoPrintIcon');
-    if (!btn || !textEl) return;
+    if (!btn) return;
+
+    // إزالة أي أنماط داخلية لضمان عمل كلاسات CSS بحرية وسلاسة
+    btn.style.background = '';
+    btn.style.borderColor = '';
+    btn.style.color = '';
+    btn.style.boxShadow = '';
 
     if (isEnabled) {
-        btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-        btn.style.borderColor = '#059669';
-        btn.style.color = '#ffffff';
-        btn.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.3)';
-        textEl.innerText = 'طباعة تلقائية: مفعلة ⚡';
+        btn.classList.add('is-active');
+        btn.classList.remove('is-disabled');
+        btn.setAttribute('aria-checked', 'true');
+        btn.title = 'الطباعة التلقائية: مفعلة ⚡ (انقر للإيقاف)';
+        if (textEl) textEl.innerText = 'طباعة تلقائية: مفعلة ⚡';
         if (iconEl) iconEl.innerText = '🖨️';
     } else {
-        btn.style.background = '#f8fafc';
-        btn.style.borderColor = '#cbd5e1';
-        btn.style.color = '#64748b';
-        btn.style.boxShadow = 'none';
-        textEl.innerText = 'طباعة تلقائية: معطلة';
+        btn.classList.remove('is-active');
+        btn.classList.add('is-disabled');
+        btn.setAttribute('aria-checked', 'false');
+        btn.title = 'الطباعة التلقائية: معطلة (انقر للتشغيل)';
+        if (textEl) textEl.innerText = 'طباعة تلقائية: معطلة';
         if (iconEl) iconEl.innerText = '🖨️';
     }
 }
@@ -3796,3 +3899,771 @@ window.isPOSAutoPrintEnabled = isPOSAutoPrintEnabled;
 setTimeout(() => {
     updatePOSAutoPrintUI(isPOSAutoPrintEnabled());
 }, 400);
+
+// =========================================================================
+// 🧭 محرك التنقل والبحث عن الفواتير في شاشة البيع (Sales Invoice Navigation Engine)
+// =========================================================================
+
+let _posNavBusy = false;
+window._posCurrentNavState = { invoiceId: null, dateISO: null, id: null };
+window._posInvoiceModified = false;
+
+/**
+ * تسجيل وتحديث حالة تعديل الفاتورة المستعرضة
+ */
+function markPosInvoiceModified() {
+    window._posInvoiceModified = true;
+    if (typeof tabStates !== 'undefined' && typeof activeTabId !== 'undefined' && tabStates[activeTabId]) {
+        tabStates[activeTabId].invoiceModified = true;
+    }
+}
+window.markPosInvoiceModified = markPosInvoiceModified;
+
+/**
+ * تفعيل مراقبة الحقول لضبط حالة التعديل تلقائياً عند تغيير أي مدخل يدوي
+ */
+function initPosInvoiceModifiedListeners() {
+    const fieldIds = ['customerName', 'discountInput', 'taxInput', 'salesNotes', 'tenderedAmount', 'salesPriceLevel', 'discountType', 'taxType', 'sales-sectionPaymentMethodSelect', 'salesPaymentMethodSelect'];
+    fieldIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && !el._posModAttached) {
+            el._posModAttached = true;
+            el.addEventListener('input', () => {
+                markPosInvoiceModified();
+            });
+            el.addEventListener('change', () => {
+                markPosInvoiceModified();
+            });
+        }
+    });
+}
+
+/**
+ * تحديث حالة التنقل
+ */
+function updatePosNavUIState(invoiceId) {
+    if (!invoiceId) {
+        window._posCurrentNavState = { invoiceId: null, dateISO: null, id: null };
+        window._posInvoiceModified = false;
+    }
+}
+
+/**
+ * تنفيذ استعلام مباشر ومحدد على SQLite بدون استدعاء كلي
+ */
+function posQueryDirect(sql, params = []) {
+    if (window.BayanSQLite && window.BayanSQLite.db) {
+        try {
+            const stmt = window.BayanSQLite.db.prepare(sql);
+            if (params && params.length > 0) stmt.bind(params);
+            const results = [];
+            while (stmt.step()) {
+                results.push(stmt.getAsObject());
+            }
+            stmt.free();
+            return results;
+        } catch (e) {
+            console.warn("⚠️ [posNav] SQLite direct query notice:", e);
+        }
+    }
+    return null;
+}
+
+/**
+ * تأكيد التفريغ إذا كانت السلة الحالية تحتوي على أصناف غير محفوظة
+ */
+function confirmIfCartHasItems(targetInvoiceId) {
+    return new Promise((resolve) => {
+        if (!cart || cart.length === 0) {
+            resolve(true);
+            return;
+        }
+        if (window._posCurrentNavState && String(window._posCurrentNavState.invoiceId) === String(targetInvoiceId)) {
+            resolve(true);
+            return;
+        }
+        // إذا كان المستخدم يستعرض فاتورة سابقة بدون أي تعديل، الانتقال يكون فورياً وسلساً دون تنبيه
+        if (window._posCurrentNavState && window._posCurrentNavState.invoiceId && !window._posInvoiceModified) {
+            resolve(true);
+            return;
+        }
+
+        if (typeof showCustomAlert === 'function') {
+            showCustomAlert({
+                type: 'question',
+                titleText: '⚠️ أصناف في السلة',
+                msg: 'يوجد أصناف في سلة البيع الحالية غير محفوظة.\nهل تريد تفريغ السلة والانتقال لعرض الفاتورة؟',
+                showCancel: true,
+                confirmText: 'نعم، انتقل',
+                cancelText: 'إلغاء',
+                onConfirm: () => resolve(true),
+                onCancel: () => resolve(false)
+            });
+        } else {
+            resolve(confirm('يوجد أصناف في سلة البيع الحالية غير محفوظة. هل تريد تفريغ السلة والانتقال؟'));
+        }
+    });
+}
+
+/**
+ * تحميل الفاتورة المحددة وعرض بنودها في شاشة البيع بدون أي تأثير على المخزن أو الخزينة
+ */
+async function loadInvoiceToSalesPOS(targetInvoiceId) {
+    if (!targetInvoiceId) return;
+    const sId = String(targetInvoiceId).trim();
+    const cleanId = sId.replace(/^[#\s]+/, '');
+
+    // فحص الأصناف الحالية غير المحفوظة
+    const canProceed = await confirmIfCartHasItems(sId);
+    if (!canProceed) return;
+
+    // تثبيت الحالة النشطة في شريط التنقل مبكراً لضمان دقة حسابات الرصيد السابق أثناء تحميل السلة
+    window._posCurrentNavState = {
+        invoiceId: cleanId,
+        dateISO: null,
+        id: null
+    };
+
+    let rows = [];
+
+    // 1. استدعاء الفاتورة لضمان وجودها بالذاكرة عبر المحول المركزي
+    if (typeof window.ensureInvoiceLoaded === 'function') {
+        try { await window.ensureInvoiceLoaded(cleanId); } catch (e) { }
+    }
+
+    // 2. البحث في الذاكرة (window.transactions) بدقة واحترافية: المطابقة الصارمة برقم الفاتورة أولاً لمنع خلط الحركات
+    if (window.transactions && Array.isArray(window.transactions)) {
+        const matchingByInvId = window.transactions.filter(t => {
+            if (!t) return false;
+            const invId = (t.invoiceId != null && t.invoiceId !== '' && t.invoiceId !== '---') ? String(t.invoiceId).trim() : null;
+            if (invId && (invId === sId || invId === cleanId)) {
+                const tType = String(t.type || '');
+                return (tType.includes('بيع') || tType.includes('مبيعات')) && !tType.includes('مرتجع') && !tType.includes('قبض') && !tType.includes('صرف');
+            }
+            return false;
+        });
+
+        if (matchingByInvId.length > 0) {
+            rows = matchingByInvId;
+        } else {
+            // حل بديل فقط إذا لم يكن للسجل invoiceId صريح
+            rows = window.transactions.filter(t => {
+                if (!t) return false;
+                const hasInvId = (t.invoiceId != null && t.invoiceId !== '' && t.invoiceId !== '---');
+                if (!hasInvId && (String(t.id) === sId || String(t.id) === cleanId)) {
+                    const tType = String(t.type || '');
+                    return (tType.includes('بيع') || tType.includes('مبيعات')) && !tType.includes('مرتجع') && !tType.includes('قبض') && !tType.includes('صرف');
+                }
+                return false;
+            });
+        }
+    }
+
+    // 3. إذا لم تكن في الذاكرة، استعلام مباشر ومحدد من SQLite برقم الفاتورة حصراً
+    if (rows.length === 0) {
+        const numId = Number(cleanId);
+        const sqlInv = "SELECT * FROM transactions WHERE (invoiceId = ? OR invoiceId = ? OR CAST(invoiceId AS TEXT) = ? OR CAST(invoiceId AS INTEGER) = ?) AND (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' ORDER BY id ASC;";
+        let dbRows = posQueryDirect(sqlInv, [sId, cleanId, cleanId, isNaN(numId) ? -1 : numId]);
+
+        if (!dbRows || dbRows.length === 0) {
+            const sqlFallback = "SELECT * FROM transactions WHERE id = ? AND (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') AND (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' LIMIT 1;";
+            dbRows = posQueryDirect(sqlFallback, [cleanId]);
+        }
+
+        if (dbRows && dbRows.length > 0) {
+            rows = dbRows.map(row => {
+                if (row.raw_json) {
+                    try {
+                        const parsed = JSON.parse(row.raw_json);
+                        return Object.assign({}, row, parsed);
+                    } catch (e) { }
+                }
+                return row;
+            });
+        }
+    }
+
+    // 4. فحص جدول بنود الفواتير (transaction_items) إن وجد
+    if (rows.length === 0 || !rows.some(r => (r.product || r.productName || r.name))) {
+        const tiSql = "SELECT * FROM transaction_items WHERE invoiceId = ? OR invoiceId = ? OR CAST(invoiceId AS TEXT) = ? ORDER BY id ASC;";
+        const tiRows = posQueryDirect(tiSql, [sId, cleanId, cleanId]);
+        if (tiRows && tiRows.length > 0) {
+            const head = rows[0] || {};
+            rows = tiRows.map(ti => {
+                let parsed = {};
+                if (ti.raw_json) {
+                    try { parsed = JSON.parse(ti.raw_json); } catch (e) { }
+                }
+                return Object.assign({
+                    invoiceId: ti.invoiceId,
+                    product: ti.productName || parsed.product,
+                    qty: ti.qty,
+                    price: ti.price,
+                    selectedSize: ti.size || parsed.selectedSize,
+                    selectedColor: ti.color || parsed.selectedColor,
+                    unit: parsed.unit || 'قطعة',
+                    unitFactor: parsed.unitFactor || 1,
+                    partner: head.partner || ti.partner
+                }, parsed, ti);
+            });
+        }
+    }
+
+    // تصفية البنود الحقيقية واستبعاد أسطر المقبوضات أو الأسطر الفارغة بدون اسم صنف
+    const validItems = rows.filter(x => {
+        const pName = (x.product || x.productName || x.name || '').trim();
+        if (!pName || pName === 'صنف غير محدد') return false;
+        return true;
+    });
+
+    if (validItems.length === 0 && rows.length === 0) {
+        if (typeof showToast === 'function') showToast(`⚠️ لم يتم العثور على الفاتورة #${cleanId}`, 'error');
+        return;
+    }
+
+    // استخراج بيانات رأس الفاتورة
+    const head = rows.find(x => x.isInvoiceHead) || rows[0] || {};
+    const partnerName = head.partner || head.customer || 'عميل نقدي';
+    const paymentMethod = String(head.method || head.paymentMethod || 'نقدي').trim();
+    const paidValue = head.paidAmount !== undefined ? parseFloat(head.paidAmount) : (head.paid !== undefined ? parseFloat(head.paid) : 0);
+
+    // -------------------------------------------------------------------------
+    // 🏷️ استخراج ذكي وشامل لبيانات الخصم والإضافة للفاتورة (الجديدة والقديمة)
+    // -------------------------------------------------------------------------
+    const rawItemsSubTotal = validItems.reduce((sum, it) => sum + ((parseFloat(it.qty) || 1) * (parseFloat(it.price) || 0)), 0);
+
+    const recordedGrandTotal = parseFloat(
+        head.invoiceGrandTotal != null ? head.invoiceGrandTotal :
+        (head.finalTotal != null ? head.finalTotal :
+        (head.grandTotal != null ? head.grandTotal :
+        (head.total != null ? head.total :
+        ((head.paidAmount !== undefined ? parseFloat(head.paidAmount) : 0) + (head.remaining !== undefined ? parseFloat(head.remaining) : 0)))))
+    ) || 0;
+
+    const sumLinesDiscount = rows.reduce((s, r) => s + (parseFloat(r.discount) || 0), 0);
+    const sumLinesAddition = rows.reduce((s, r) => s + (parseFloat(r.addition != null ? r.addition : (r.tax || 0)) || 0), 0);
+
+    // --- أ) استخراج الخصم ---
+    let detectedDisc = 0;
+    let detectedDiscType = 'val';
+
+    // أولوية 1: فحص الحقول الصريحة المباشرة في رأس الفاتورة
+    if (head.invoiceDiscount != null && parseFloat(head.invoiceDiscount) > 0) {
+        detectedDisc = parseFloat(head.invoiceDiscount);
+        detectedDiscType = head.invoiceDiscountType || 'val';
+    } else if (head.discountAmount != null && parseFloat(head.discountAmount) > 0) {
+        detectedDisc = parseFloat(head.discountAmount);
+        detectedDiscType = head.invoiceDiscountType || head.discountType || 'val';
+    } else if (head.discountVal != null && parseFloat(head.discountVal) > 0) {
+        detectedDisc = parseFloat(head.discountVal);
+        detectedDiscType = head.invoiceDiscountType || head.discountType || 'val';
+    }
+    
+    // أولوية 2: فحص أي سطر في الفاتورة يحمل invoiceDiscount
+    if (!detectedDisc) {
+        const rowWithInvDisc = rows.find(r => r.invoiceDiscount != null && parseFloat(r.invoiceDiscount) > 0);
+        if (rowWithInvDisc) {
+            detectedDisc = parseFloat(rowWithInvDisc.invoiceDiscount);
+            detectedDiscType = rowWithInvDisc.invoiceDiscountType || 'val';
+        }
+    }
+
+    // أولوية 3: فحص حقل discount المباشر في رأس الفاتورة للفواتير المسجلة قديماً
+    if (!detectedDisc && head.discount != null && parseFloat(head.discount) > 0) {
+        detectedDisc = parseFloat(head.discount);
+        detectedDiscType = head.discountType || head.invoiceDiscountType || 'val';
+    }
+
+    // أولوية 4: فحص مجموع خصومات السطور إذا كانت موزعة على الأصناف
+    if (!detectedDisc && sumLinesDiscount > 0.001) {
+        detectedDisc = Number(sumLinesDiscount.toFixed(2));
+        detectedDiscType = 'val';
+    }
+
+    // أولوية 5: فرق الحساب المنطقي (مجموع الأصناف - الإجمالي الفعلي للفاتورة)
+    if (!detectedDisc && rawItemsSubTotal > 0 && recordedGrandTotal > 0 && (rawItemsSubTotal - recordedGrandTotal) > 0.005) {
+        detectedDisc = Number((rawItemsSubTotal - recordedGrandTotal).toFixed(2));
+        detectedDiscType = 'val';
+    }
+
+    // تطبيع نوع الخصم (val أو perc)
+    let finalDiscType = 'val';
+    const rawDtStr = String(detectedDiscType || '').toLowerCase().trim();
+    if (rawDtStr.includes('perc') || rawDtStr.includes('%') || rawDtStr.includes('نسب')) {
+        finalDiscType = 'perc';
+    } else {
+        finalDiscType = 'val';
+    }
+    const discountVal = detectedDisc;
+    const discountTypeVal = finalDiscType;
+
+    // --- ب) استخراج الإضافة / الضريبة ---
+    let detectedTax = 0;
+    let detectedTaxType = 'val';
+
+    // أولوية 1: فحص الحقول الصريحة للإضافة في رأس الفاتورة
+    if (head.invoiceTax != null && parseFloat(head.invoiceTax) > 0) {
+        detectedTax = parseFloat(head.invoiceTax);
+        detectedTaxType = head.invoiceTaxType || 'val';
+    } else if (head.invoiceExtra != null && parseFloat(head.invoiceExtra) > 0) {
+        detectedTax = parseFloat(head.invoiceExtra);
+        detectedTaxType = head.invoiceExtraType || head.invoiceTaxType || 'val';
+    } else if (head.tax != null && parseFloat(head.tax) > 0) {
+        detectedTax = parseFloat(head.tax);
+        detectedTaxType = head.taxType || 'val';
+    } else if (head.addition != null && parseFloat(head.addition) > 0) {
+        detectedTax = parseFloat(head.addition);
+        detectedTaxType = head.additionType || head.taxType || 'val';
+    } else if (head.extra != null && parseFloat(head.extra) > 0) {
+        detectedTax = parseFloat(head.extra);
+        detectedTaxType = head.extraType || head.taxType || 'val';
+    }
+
+    // أولوية 2: فحص أي سطر في الفاتورة يحمل invoiceTax أو invoiceExtra
+    if (!detectedTax) {
+        const rowWithTax = rows.find(r => (r.invoiceTax != null && parseFloat(r.invoiceTax) > 0) || (r.invoiceExtra != null && parseFloat(r.invoiceExtra) > 0));
+        if (rowWithTax) {
+            detectedTax = parseFloat(rowWithTax.invoiceTax != null ? rowWithTax.invoiceTax : rowWithTax.invoiceExtra);
+            detectedTaxType = rowWithTax.invoiceTaxType || rowWithTax.invoiceExtraType || 'val';
+        }
+    }
+
+    // أولوية 3: فحص مجموع إضافات السطور
+    if (!detectedTax && sumLinesAddition > 0.001) {
+        detectedTax = Number(sumLinesAddition.toFixed(2));
+        detectedTaxType = 'val';
+    }
+
+    // أولوية 4: فرق الحساب المنطقي (الإجمالي الفعلي - مجموع الأصناف) إذا لم يكن هناك خصم
+    if (!detectedTax && rawItemsSubTotal > 0 && recordedGrandTotal > 0 && (recordedGrandTotal - rawItemsSubTotal) > 0.005 && detectedDisc === 0) {
+        detectedTax = Number((recordedGrandTotal - rawItemsSubTotal).toFixed(2));
+        detectedTaxType = 'val';
+    }
+
+    // تطبيع نوع الإضافة (val أو perc)
+    let finalTaxType = 'val';
+    const rawTtStr = String(detectedTaxType || '').toLowerCase().trim();
+    if (rawTtStr.includes('perc') || rawTtStr.includes('%') || rawTtStr.includes('نسب')) {
+        finalTaxType = 'perc';
+    } else {
+        finalTaxType = 'val';
+    }
+    const taxVal = detectedTax;
+    const taxTypeVal = finalTaxType;
+
+    const notesVal = rows.find(t => t.notes)?.notes || head.notes || '';
+    const dateVal = head.dateISO || (head.date ? head.date.split(' ')[0] : new Date().toLocaleDateString('en-CA'));
+    const timeVal = head.timeISO || head.time || (head.date && head.date.split(' ')[1]) || new Date().toTimeString().slice(0, 5);
+
+    // تحويل البنود إلى سلة البيع بكامل تفاصيل المقاس واللون والوحدة
+    cart = validItems.map(it => {
+        const prodTitle = it.product || it.productName || it.name || 'صنف';
+        const p = (typeof productsDB !== 'undefined' && Array.isArray(productsDB))
+            ? productsDB.find(x => x.name === prodTitle || (it.barcode && x.barcode === it.barcode)) : null;
+        const u = (p && p.units)
+            ? p.units.find(un => un.unitName === it.unit) : null;
+        return {
+            id: p ? p.id : (it.productId || it.id || (Date.now() + Math.random())),
+            productId: p ? p.id : (it.productId || null),
+            product: prodTitle,
+            name: prodTitle,
+            code: it.code || (p ? p.code : (it.barcode || '')),
+            qty: parseFloat(it.qty || 1),
+            price: parseFloat(it.price || 0),
+            unit: it.unit || 'قطعة',
+            unitFactor: parseFloat(it.unitFactor) || (u ? (parseFloat(u.factor) || 1) : 1),
+            selectedUnit: u || it.unit || 'قطعة',
+            selectedSize: it.selectedSize || it.size || '',
+            selectedColor: it.selectedColor || it.color || '',
+            size: it.selectedSize || it.size || '',
+            color: it.selectedColor || it.color || '',
+            warehouse: it.warehouse || head.warehouse || activeWH,
+            type: it.type || head.type || 'بيع 📤',
+            units: p ? (p.units || []) : []
+        };
+    });
+
+    // تعبئة حقول الواجهة
+    const custInp = document.getElementById('customerName');
+    if (custInp) custInp.value = partnerName;
+    if (typeof updateHeaderPartnerInfo === 'function') updateHeaderPartnerInfo();
+
+    // تثبيت التاريخ والوقت مع قفل الحقول بعلامة data-touched لمنع مؤقت الساعة من الكتابة فوقهما
+    const dEl = document.getElementById('salesDate');
+    if (dEl) {
+        dEl.value = dateVal;
+        dEl.setAttribute('data-touched', 'true');
+        dEl.dataset.touched = 'true';
+    }
+    const tEl = document.getElementById('salesTime');
+    if (tEl) {
+        tEl.value = timeVal;
+        tEl.setAttribute('data-touched', 'true');
+        tEl.dataset.touched = 'true';
+    }
+
+    if (document.getElementById('salesBadgeID')) {
+        document.getElementById('salesBadgeID').innerText = cleanId;
+    }
+
+    const discInp = document.getElementById('discountInput');
+    if (discInp) discInp.value = discountVal;
+    const discType = document.getElementById('discountType');
+    if (discType) discType.value = discountTypeVal;
+
+    const taxInp = document.getElementById('taxInput');
+    if (taxInp) taxInp.value = taxVal;
+    const taxType = document.getElementById('taxType');
+    if (taxType) taxType.value = taxTypeVal;
+
+    const tendInp = document.getElementById('tenderedAmount');
+    if (tendInp) tendInp.value = paidValue;
+
+    const notesInp = document.getElementById('salesNotes');
+    if (notesInp) notesInp.value = notesVal;
+
+    // ضبط طريقة الدفع بدقة
+    const methodSelect = document.getElementById('sales-sectionPaymentMethodSelect') || document.getElementById('salesPaymentMethodSelect');
+    if (methodSelect) {
+        const matched = Array.from(methodSelect.options).find(o => o.value === paymentMethod || o.text.trim() === paymentMethod);
+        if (matched) {
+            methodSelect.value = matched.value;
+        } else if (paymentMethod.includes('كاش') || paymentMethod.includes('نقدي')) {
+            const cashOpt = Array.from(methodSelect.options).find(o => o.value.includes('كاش') || o.value.includes('نقدي'));
+            if (cashOpt) methodSelect.value = cashOpt.value;
+        }
+    }
+
+    // إعادة رسم السلة وحساب الإجماليات
+    renderCart();
+
+    // تفعيل وضع التعديل (Edit Mode) للفاتورة المستعرضة بكافة بياناتها الأصلية
+    isEditMode = true;
+    window.isEditMode = true;
+    editingInvoiceId = cleanId;
+    window.editingInvoiceId = cleanId;
+    editingInvoiceType = 'بيع';
+    window.editingInvoiceType = 'بيع';
+
+    editingOriginalDate = {
+        full: head.date || `${dateVal} ${timeVal}`,
+        iso: dateVal,
+        time: timeVal
+    };
+    window.editingOriginalDate = editingOriginalDate;
+    editingOriginalPartner = partnerName;
+    window.editingOriginalPartner = partnerName;
+    editingOriginalMethod = paymentMethod;
+    window.editingOriginalMethod = paymentMethod;
+    editingOriginalUser = head.user || (rows[0] ? rows[0].user : '') || (window.currentUser ? window.currentUser.name : '-');
+    window.editingOriginalUser = editingOriginalUser;
+
+    // حفظ نسخة من الأصناف الأصلية لحساب الفروق المخزنية والسماح بالحفظ دون منع البيع بالسالب
+    editingOriginalItems = JSON.parse(JSON.stringify(cart));
+    window.editingOriginalItems = editingOriginalItems;
+
+    // تلوين وتحويل زر الحفظ إلى: ✏️ حفظ تعديل #X
+    const mainSaveBtn = document.querySelector('#sales-section .btn-save');
+    if (mainSaveBtn) {
+        mainSaveBtn.style.background = '#e67e22';
+        mainSaveBtn.innerHTML = `<span>✏️ حفظ تعديل #${cleanId}</span><span class="shortcut">F9</span>`;
+    }
+
+    // تثبيت الحالة النشطة في شريط التنقل
+    window._posCurrentNavState = {
+        invoiceId: cleanId,
+        dateISO: head.dateISO || dateVal,
+        id: head.id || (rows[0] ? rows[0].id : null)
+    };
+    window._posInvoiceModified = false;
+
+    // مزامنة حالة التبويب النشط لحفظ العرض عند التبديل
+    if (typeof tabStates !== 'undefined' && typeof activeTabId !== 'undefined' && tabStates[activeTabId]) {
+        tabStates[activeTabId].viewingInvoiceId = cleanId;
+        tabStates[activeTabId].posNavState = { ...window._posCurrentNavState };
+        tabStates[activeTabId].invoiceModified = false;
+        tabStates[activeTabId].isEditMode = true;
+        tabStates[activeTabId].editingInvoiceId = cleanId;
+        tabStates[activeTabId].editingInvoiceType = 'بيع';
+        tabStates[activeTabId].editingOriginalItems = editingOriginalItems;
+        tabStates[activeTabId].editingOriginalDate = editingOriginalDate;
+        tabStates[activeTabId].editingOriginalPartner = partnerName;
+        tabStates[activeTabId].badgeId = cleanId;
+        tabStates[activeTabId].date = dateVal;
+        tabStates[activeTabId].time = timeVal;
+        tabStates[activeTabId].dateTouched = true;
+        tabStates[activeTabId].timeTouched = true;
+        tabStates[activeTabId].discount = discountVal;
+        tabStates[activeTabId].discountType = discountTypeVal;
+        tabStates[activeTabId].tax = taxVal;
+        tabStates[activeTabId].taxType = taxTypeVal;
+    }
+
+    if (typeof updateActiveTabTitle === 'function') {
+        updateActiveTabTitle(partnerName, `تعديل #${cleanId}`);
+    }
+
+    if (typeof initPosInvoiceModifiedListeners === 'function') {
+        initPosInvoiceModifiedListeners();
+    }
+
+    if (typeof showToast === 'function') {
+        showToast(`📖 تم عرض الفاتورة #${cleanId} بنجاح`, 'info');
+    }
+}
+
+/**
+ * 1. 🔍 البحث عن فاتورة محددة
+ */
+async function posSearchSpecificInvoice() {
+    if (_posNavBusy) return;
+
+    let searchVal = '';
+    if (typeof window.showCustomPrompt === 'function') {
+        searchVal = await window.showCustomPrompt('🔍 أدخل رقم أو كود فاتورة البيع للبحث:', '', 'text');
+    } else {
+        searchVal = prompt('🔍 أدخل رقم أو كود فاتورة البيع للبحث:');
+    }
+
+    if (!searchVal || !String(searchVal).trim()) return;
+    searchVal = String(searchVal).trim();
+    const cleanVal = searchVal.replace(/^[#\s]+/, '');
+
+    _posNavBusy = true;
+    try {
+        let foundInvoiceId = null;
+        const numVal = Number(cleanVal);
+
+        // 1. بحث محدد وفوري برقم الفاتورة الصريح
+        const sql1 = "SELECT invoiceId FROM transactions WHERE (invoiceId = ? OR invoiceId = ? OR CAST(invoiceId AS TEXT) = ? OR CAST(invoiceId AS INTEGER) = ?) AND (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' LIMIT 1;";
+        const rows1 = posQueryDirect(sql1, [searchVal, cleanVal, cleanVal, isNaN(numVal) ? -1 : numVal]);
+        if (rows1 && rows1.length > 0 && rows1[0].invoiceId) {
+            foundInvoiceId = rows1[0].invoiceId;
+        } else {
+            // بحث مرن LIKE
+            const sql2 = "SELECT invoiceId FROM transactions WHERE (invoiceId LIKE ? OR invoiceId LIKE ?) AND (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' ORDER BY id DESC LIMIT 1;";
+            const rows2 = posQueryDirect(sql2, [`%${cleanVal}%`, `%${searchVal}%`]);
+            if (rows2 && rows2.length > 0 && rows2[0].invoiceId) {
+                foundInvoiceId = rows2[0].invoiceId;
+            }
+        }
+
+        // صمام أمان بديل من الذاكرة
+        if (!foundInvoiceId && window.transactions && Array.isArray(window.transactions)) {
+            const memMatch = window.transactions.find(t => {
+                if (!t) return false;
+                const invId = (t.invoiceId != null && t.invoiceId !== '' && t.invoiceId !== '---') ? String(t.invoiceId).trim() : '';
+                const tType = String(t.type || '');
+                if (!((tType.includes('بيع') || tType.includes('مبيعات')) && !tType.includes('مرتجع') && !tType.includes('قبض') && !tType.includes('صرف'))) return false;
+                return invId === searchVal || invId === cleanVal || invId.includes(cleanVal);
+            });
+            if (memMatch) foundInvoiceId = memMatch.invoiceId || memMatch.id;
+        }
+
+        if (!foundInvoiceId) {
+            if (typeof showToast === 'function') {
+                showToast(`⚠️ لم يتم العثور على فاتورة بيع برقم: ${searchVal}`, 'warning');
+            } else {
+                alert(`⚠️ لم يتم العثور على فاتورة بيع برقم: ${searchVal}`);
+            }
+            return;
+        }
+
+        await loadInvoiceToSalesPOS(foundInvoiceId);
+    } finally {
+        _posNavBusy = false;
+    }
+}
+
+/**
+ * 2. ⏮️ الانتقال إلى أول فاتورة مسجلة
+ */
+async function posNavigateFirstInvoice() {
+    if (_posNavBusy) return;
+    _posNavBusy = true;
+    try {
+        let foundInvoiceId = null;
+
+        // استعلام أقدم فاتورة بيع مباشرة من SQLite بحد أقصى سجل واحد
+        const sql = "SELECT invoiceId FROM transactions WHERE (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' AND invoiceId IS NOT NULL AND invoiceId != '' AND invoiceId != '---' ORDER BY dateISO ASC, id ASC LIMIT 1;";
+        const rows = posQueryDirect(sql);
+        if (rows && rows.length > 0 && rows[0].invoiceId) {
+            foundInvoiceId = rows[0].invoiceId;
+        }
+
+        // صمام أمان بديل من الذاكرة
+        if (!foundInvoiceId && window.transactions && Array.isArray(window.transactions)) {
+            const salesTxs = window.transactions
+                .filter(t => t && t.invoiceId && (String(t.type || '').includes('بيع') || String(t.type || '').includes('مبيعات')) && !String(t.type || '').includes('مرتجع') && !String(t.type || '').includes('قبض') && !String(t.type || '').includes('صرف'))
+                .sort((a, b) => (a.dateISO || '').localeCompare(b.dateISO || '') || (a.id || 0) - (b.id || 0));
+            if (salesTxs.length > 0) foundInvoiceId = salesTxs[0].invoiceId;
+        }
+
+        if (!foundInvoiceId) {
+            if (typeof showToast === 'function') showToast('⚠️ لا توجد فواتير بيع مسجلة في النظام', 'warning');
+            return;
+        }
+
+        if (window._posCurrentNavState && String(window._posCurrentNavState.invoiceId) === String(foundInvoiceId)) {
+            if (typeof showToast === 'function') showToast('ℹ️ أنت بالفعل عند أول فاتورة مسجلة', 'info');
+            return;
+        }
+
+        await loadInvoiceToSalesPOS(foundInvoiceId);
+    } finally {
+        _posNavBusy = false;
+    }
+}
+
+/**
+ * 3. ◀️ الانتقال إلى الفاتورة السابقة
+ */
+async function posNavigatePrevInvoice() {
+    if (_posNavBusy) return;
+    _posNavBusy = true;
+    try {
+        let foundInvoiceId = null;
+        const currentNav = window._posCurrentNavState;
+
+        if (currentNav && currentNav.invoiceId) {
+            const cleanId = String(currentNav.invoiceId).trim().replace(/^[#\s]+/, '');
+            let currMinId = currentNav.id;
+            let currDateISO = currentNav.dateISO;
+
+            const metaSql = "SELECT MIN(id) as minId, dateISO FROM transactions WHERE (invoiceId = ? OR invoiceId = ? OR CAST(invoiceId AS TEXT) = ?) AND (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%';";
+            const metaRows = posQueryDirect(metaSql, [currentNav.invoiceId, cleanId, cleanId]);
+            if (metaRows && metaRows.length > 0 && metaRows[0].minId != null) {
+                currMinId = metaRows[0].minId;
+                if (metaRows[0].dateISO) currDateISO = metaRows[0].dateISO;
+            }
+
+            // استعلام الفاتورة السابقة فورياً من SQLite مع LIMIT 1
+            const sql = "SELECT invoiceId FROM transactions WHERE (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' AND invoiceId IS NOT NULL AND invoiceId != '' AND invoiceId != '---' AND invoiceId != ? AND invoiceId != ? AND (dateISO < ? OR (dateISO = ? AND id < ?)) ORDER BY dateISO DESC, id DESC LIMIT 1;";
+            const rows = posQueryDirect(sql, [currentNav.invoiceId, cleanId, currDateISO, currDateISO, currMinId]);
+            if (rows && rows.length > 0 && rows[0].invoiceId) {
+                foundInvoiceId = rows[0].invoiceId;
+            }
+        } else {
+            // شاشة جديدة فارغة: الفاتورة السابقة تعني أحدث فاتورة مسجلة في النظام
+            const sql = "SELECT invoiceId FROM transactions WHERE (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' AND invoiceId IS NOT NULL AND invoiceId != '' AND invoiceId != '---' ORDER BY dateISO DESC, id DESC LIMIT 1;";
+            const rows = posQueryDirect(sql);
+            if (rows && rows.length > 0 && rows[0].invoiceId) {
+                foundInvoiceId = rows[0].invoiceId;
+            }
+        }
+
+        // صمام أمان بديل من الذاكرة
+        if (!foundInvoiceId && window.transactions && Array.isArray(window.transactions)) {
+            const curId = currentNav ? String(currentNav.invoiceId).replace(/^[#\s]+/, '') : null;
+            const salesTxs = window.transactions
+                .filter(t => t && t.invoiceId && (String(t.type || '').includes('بيع') || String(t.type || '').includes('مبيعات')) && !String(t.type || '').includes('مرتجع') && !String(t.type || '').includes('قبض') && !String(t.type || '').includes('صرف'))
+                .sort((a, b) => (b.dateISO || '').localeCompare(a.dateISO || '') || (b.id || 0) - (a.id || 0));
+
+            // تجميع الفواتير الفريدة
+            const uniqueInvoices = [];
+            const seen = new Set();
+            for (const t of salesTxs) {
+                const iId = String(t.invoiceId).trim();
+                if (iId && !seen.has(iId)) {
+                    seen.add(iId);
+                    uniqueInvoices.push(t);
+                }
+            }
+
+            if (!curId && uniqueInvoices.length > 0) {
+                foundInvoiceId = uniqueInvoices[0].invoiceId;
+            } else if (curId) {
+                const curIdx = uniqueInvoices.findIndex(t => String(t.invoiceId) === String(curId));
+                if (curIdx >= 0 && curIdx < uniqueInvoices.length - 1) {
+                    foundInvoiceId = uniqueInvoices[curIdx + 1].invoiceId;
+                }
+            }
+        }
+
+        if (!foundInvoiceId) {
+            if (typeof showToast === 'function') {
+                showToast(currentNav && currentNav.invoiceId ? 'ℹ️ هذه أول فاتورة مسجلة، لا توجد فواتير سابقة' : '⚠️ لا توجد فواتير سابقة مسجلة', 'info');
+            }
+            return;
+        }
+
+        await loadInvoiceToSalesPOS(foundInvoiceId);
+    } finally {
+        _posNavBusy = false;
+    }
+}
+
+/**
+ * 4. ▶️ الانتقال إلى الفاتورة التالية
+ */
+async function posNavigateNextInvoice() {
+    if (_posNavBusy) return;
+    _posNavBusy = true;
+    try {
+        const currentNav = window._posCurrentNavState;
+        if (!currentNav || !currentNav.invoiceId) {
+            if (typeof showToast === 'function') showToast('ℹ️ أنت بالفعل في شاشة فاتورة جديدة', 'info');
+            return;
+        }
+
+        let foundInvoiceId = null;
+        const cleanId = String(currentNav.invoiceId).trim().replace(/^[#\s]+/, '');
+        let currMaxId = currentNav.id;
+        let currDateISO = currentNav.dateISO;
+
+        const metaSql = "SELECT MAX(id) as maxId, dateISO FROM transactions WHERE (invoiceId = ? OR invoiceId = ? OR CAST(invoiceId AS TEXT) = ?) AND (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%';";
+        const metaRows = posQueryDirect(metaSql, [currentNav.invoiceId, cleanId, cleanId]);
+        if (metaRows && metaRows.length > 0 && metaRows[0].maxId != null) {
+            currMaxId = metaRows[0].maxId;
+            if (metaRows[0].dateISO) currDateISO = metaRows[0].dateISO;
+        }
+
+        // استعلام الفاتورة التالية فورياً من SQLite مع LIMIT 1
+        const sql = "SELECT invoiceId FROM transactions WHERE (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' AND invoiceId IS NOT NULL AND invoiceId != '' AND invoiceId != '---' AND invoiceId != ? AND invoiceId != ? AND (dateISO > ? OR (dateISO = ? AND id > ?)) ORDER BY dateISO ASC, id ASC LIMIT 1;";
+        const rows = posQueryDirect(sql, [currentNav.invoiceId, cleanId, currDateISO, currDateISO, currMaxId]);
+        if (rows && rows.length > 0 && rows[0].invoiceId) {
+            foundInvoiceId = rows[0].invoiceId;
+        }
+
+        // صمام أمان بديل من الذاكرة
+        if (!foundInvoiceId && window.transactions && Array.isArray(window.transactions)) {
+            const salesTxs = window.transactions
+                .filter(t => t && t.invoiceId && (String(t.type || '').includes('بيع') || String(t.type || '').includes('مبيعات')) && !String(t.type || '').includes('مرتجع') && !String(t.type || '').includes('قبض') && !String(t.type || '').includes('صرف'))
+                .sort((a, b) => (a.dateISO || '').localeCompare(b.dateISO || '') || (a.id || 0) - (b.id || 0));
+
+            // تجميع الفواتير الفريدة
+            const uniqueInvoices = [];
+            const seen = new Set();
+            for (const t of salesTxs) {
+                const iId = String(t.invoiceId).trim();
+                if (iId && !seen.has(iId)) {
+                    seen.add(iId);
+                    uniqueInvoices.push(t);
+                }
+            }
+
+            const curIdx = uniqueInvoices.findIndex(t => String(t.invoiceId) === String(cleanId));
+            if (curIdx >= 0 && curIdx < uniqueInvoices.length - 1) {
+                foundInvoiceId = uniqueInvoices[curIdx + 1].invoiceId;
+            }
+        }
+
+        if (!foundInvoiceId) {
+            if (typeof showToast === 'function') showToast('ℹ️ أنت بالفعل عند أحدث فاتورة مسجلة', 'info');
+            return;
+        }
+
+        await loadInvoiceToSalesPOS(foundInvoiceId);
+    } finally {
+        _posNavBusy = false;
+    }
+}
+
+// تصدير الدوال للنافذة العامة
+window.posSearchSpecificInvoice = posSearchSpecificInvoice;
+window.posNavigateFirstInvoice = posNavigateFirstInvoice;
+window.posNavigatePrevInvoice = posNavigatePrevInvoice;
+window.posNavigateNextInvoice = posNavigateNextInvoice;
+window.loadInvoiceToSalesPOS = loadInvoiceToSalesPOS;
+window.updatePosNavUIState = updatePosNavUIState;
+

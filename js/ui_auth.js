@@ -361,24 +361,6 @@
                 const isPinValid = (pin === foundUser.pin || pin === expectedPin || (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function' && window.BayanSecurity.verifyPin(pin, foundUser.pin)));
 
                 if (isPinValid) {
-                    // 🚀 ضمان بدء واكتمال تحميل كافة بيانات النظام قبل فتح واجهة المبيعات
-                    if (typeof window.startDataLoader === 'function') {
-                        window.startDataLoader();
-                    }
-                    if (window.loadDataPromise) {
-                        const submitBtn = document.querySelector('#standardLoginForm button.login-btn-glow') || document.querySelector('#loginModal button[onclick*="attemptLogin"]');
-                        const origBtnHtml = submitBtn ? submitBtn.innerHTML : '';
-                        if (submitBtn && window._isDataLoaderRunning) {
-                            submitBtn.disabled = true;
-                            submitBtn.innerHTML = '<span>⏳ جاري تجهيز النظام...</span>';
-                        }
-                        try { await window.loadDataPromise; } catch(e) { console.warn("loadData await:", e); }
-                        if (submitBtn && origBtnHtml) {
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = origBtnHtml;
-                        }
-                    }
-
                     // نجاح الدخول: إعادة تعيين عداد المحاولات الخاطئة وحفظها دائماً
                     setLoginLockoutState(0, 0);
 
@@ -409,15 +391,36 @@
                     // ✅ أمان: نحفظ في SQLite حصراً - الدور والصلاحيات تُحمَّل من DB
                     currentUser = { ...foundUser, warehouseName: whName };
                     window.currentUser = currentUser;
+
+                    // 🔒 حماية فولاذية: إذا كان الحساب كاشير، نحجب رموز PIN للمدراء من الذاكرة تماماً
+                    if (foundUser.role !== 'admin' && !foundUser.isAdmin) {
+                        delete currentUser.pin;
+                        if (Array.isArray(window.users)) {
+                            window.users = window.users.map(u => {
+                                if (u && (u.role === 'admin' || u.id === 1 || u.id === '1')) {
+                                    return { ...u, pin: '••••' };
+                                }
+                                return u;
+                            });
+                        }
+                    }
+
                     // 🔒 حفظ اسم المستخدم والمستودع فقط في الجلسة دون حفظ الـ PIN لمنع أي تسريب
                     if (typeof setStore === 'function') {
                         setStore('pos_session_user', JSON.stringify({ userName: foundUser.name, warehouseName: whName }));
                     }
 
-                    document.getElementById('loginModal').classList.add('hidden');
+                    // ⚡ إغلاق فوري لشاشة تسجيل الدخول في رمشة عين (0ms) دون أي تأخير معطل
+                    const loginModalEl = document.getElementById('loginModal');
+                    if (loginModalEl) {
+                        loginModalEl.classList.add('hidden');
+                        loginModalEl.style.display = 'none';
+                    }
                     document.body.classList.remove('is-logged-out'); // إظهار عناصر البرنامج
-                    document.getElementById('currentUserDisplay').innerHTML = `<span style="opacity: 0.8;">👤</span><span>${currentUser.name} (${currentUser.role === 'admin' ? 'مدير' : 'موظف'})</span>`;
-                    document.getElementById('currentWarehouseName').innerText = `📦 ${whName}`;
+                    const userDisplay = document.getElementById('currentUserDisplay');
+                    if (userDisplay) userDisplay.innerHTML = `<span style="opacity: 0.8;">👤</span><span>${currentUser.name} (${currentUser.role === 'admin' ? 'مدير' : 'موظف'})</span>`;
+                    const whDisplay = document.getElementById('currentWarehouseName');
+                    if (whDisplay) whDisplay.innerText = `📦 ${whName}`;
                     if (typeof window.updateHeaderWarehouseSelect === 'function') window.updateHeaderWarehouseSelect();
                     document.getElementById('loginUsernameInput').value = '';
                     document.getElementById('loginPinInput').value = '';
@@ -429,24 +432,38 @@
                     if (wpBar) wpBar.classList.add('hidden');
                     if (infoWidget) infoWidget.classList.add('hidden');
 
-                    const settingsObj = JSON.parse(getStore('pos_settings') || '{}');
-                    const bType = settingsObj.businessType || 'clothing';
-                    const shouldGoSales = (settingsObj.directToSalesOnLogin !== undefined)
-                        ? !!settingsObj.directToSalesOnLogin
-                        : (bType === 'clothing');
+                    // الانتقال للقسم المطلوب فور جاهزية البيانات بسلاسة تامة دون تجميد
+                    const proceedToTargetSection = () => {
+                        const settingsObj = JSON.parse(getStore('pos_settings') || '{}');
+                        const bType = settingsObj.businessType || 'clothing';
+                        const shouldGoSales = (settingsObj.directToSalesOnLogin !== undefined)
+                            ? !!settingsObj.directToSalesOnLogin
+                            : (bType === 'clothing');
 
-                    if (shouldGoSales && typeof switchSection === 'function') {
-                        switchSection('sales');
-                        setTimeout(() => {
-                            const searchEl = document.getElementById('itemSearch') || document.getElementById('salesSearch');
-                            if (searchEl) searchEl.focus();
-                        }, 250);
-                    } else if (typeof switchSection === 'function') {
-                        switchSection('dashboard');
+                        if (shouldGoSales && typeof switchSection === 'function') {
+                            switchSection('sales');
+                            setTimeout(() => {
+                                const searchEl = document.getElementById('itemSearch') || document.getElementById('salesSearch');
+                                if (searchEl) searchEl.focus();
+                            }, 100);
+                        } else if (typeof switchSection === 'function') {
+                            switchSection('dashboard');
+                        }
+                        if (typeof applyPermissions === 'function') applyPermissions();
+                        if (typeof updateDashboardPermissions === 'function') updateDashboardPermissions();
+                        updateNotifications();
+                    };
+
+                    // 🚀 تشغيل محرك البيانات بالخلفية إن لم يكن بدأ بالفعل والانتقال الفوري
+                    if (typeof window.startDataLoader === 'function') {
+                        window.startDataLoader();
                     }
-                    if (typeof applyPermissions === 'function') applyPermissions();
-                    if (typeof updateDashboardPermissions === 'function') updateDashboardPermissions();
-                    updateNotifications();
+
+                    if (window.loadDataPromise && window._isDataLoaderRunning) {
+                        window.loadDataPromise.then(() => proceedToTargetSection()).catch(() => proceedToTargetSection());
+                    } else {
+                        proceedToTargetSection();
+                    }
                 } else {
                     failedLoginAttempts++;
                     if (failedLoginAttempts >= 5) {

@@ -34,6 +34,20 @@ const trashManager = {
     async loadTrash() {
         try {
             window.trashBin = await db.trash.toArray();
+
+            // 🧹 تنظيف فوري وصامت لأي بنود مسودات فواتير قديمة دخلت السلة بالخطأ
+            const legacyDraftIds = (window.trashBin || [])
+                .filter(t => t && (t.type === 'draft_item' || String(t.label || '').includes('مسودة')))
+                .map(t => Number(t.id) || t.id);
+
+            if (legacyDraftIds.length > 0 && window.db && window.db.trash) {
+                try {
+                    await window.db.trash.bulkDelete(legacyDraftIds);
+                    const legacyDraftSet = new Set(legacyDraftIds.map(String));
+                    window.trashBin = window.trashBin.filter(t => !legacyDraftSet.has(String(t.id)));
+                } catch(cleanErr) {}
+            }
+
             // Parse originalData if it's stringified
             window.trashBin = window.trashBin.map(t => {
                 if (typeof t.originalData === 'string') {
@@ -125,7 +139,11 @@ const trashManager = {
 
         try {
             if (window.db && window.db.trash) {
-                await window.db.trash.bulkAdd(trashItems);
+                if (typeof window.db.trash.bulkPut === 'function') {
+                    await window.db.trash.bulkPut(trashItems);
+                } else if (typeof window.db.trash.bulkAdd === 'function') {
+                    await window.db.trash.bulkAdd(trashItems);
+                }
             }
             if (!window.trashBin) window.trashBin = [];
             window.trashBin.push(...trashItems);
@@ -515,7 +533,7 @@ const trashManager = {
         try {
             registerPurgedTrashId(id);
             if (item) registerPurgedTrashId(`${item.type}_${item.label}_${item.deletedAt}`);
-            await db.trash.delete(id);
+            await db.trash.delete(Number(id) || id);
             await this.loadTrash();
             if (typeof saveData === 'function') await saveData();
             if (typeof logAuditAction === 'function') {
@@ -569,7 +587,16 @@ window.emptyTrash = () => trashManager.emptyTrash();
 window.trashRenderLimit = 50;
 window.loadMoreTrash = function(step) {
     if (step === 0) {
-        window.trashRenderLimit = Infinity;
+        const MAX_SAFE_CEILING = 300;
+        const total = (typeof trashManager !== 'undefined' && Array.isArray(trashManager.trashItems)) ? trashManager.trashItems.length : 0;
+        if (total > MAX_SAFE_CEILING) {
+            window.trashRenderLimit = MAX_SAFE_CEILING;
+            if (typeof showToast === 'function') {
+                showToast(`⚡ تم عرض أول ${MAX_SAFE_CEILING} عنصر محذوف لحماية سرعة جهازك.`, 'info');
+            }
+        } else {
+            window.trashRenderLimit = Infinity;
+        }
     } else {
         window.trashRenderLimit = (window.trashRenderLimit || 50) + step;
     }

@@ -634,7 +634,16 @@
         window.accountsRenderLimit = 50;
         window.loadMoreAccounts = function(step) {
             if (step === 0) {
-                window.accountsRenderLimit = Infinity;
+                const MAX_SAFE_CEILING = 300;
+                const total = (typeof window.accounts !== 'undefined' && Array.isArray(window.accounts)) ? window.accounts.length : 0;
+                if (total > MAX_SAFE_CEILING) {
+                    window.accountsRenderLimit = MAX_SAFE_CEILING;
+                    if (typeof showToast === 'function') {
+                        showToast(`⚡ تم عرض أول ${MAX_SAFE_CEILING} حساب لحماية سرعة جهازك. استخدم البحث السريع للوصول الفوري.`, 'info');
+                    }
+                } else {
+                    window.accountsRenderLimit = Infinity;
+                }
             } else {
                 window.accountsRenderLimit = (window.accountsRenderLimit || 50) + step;
             }
@@ -1451,7 +1460,9 @@
             if (matched.length === 0) {
                 dropdown.innerHTML = '<div style="padding: 12px; color: #94a3b8; text-align: center; font-weight: bold;">⚠️ لا توجد حسابات مطابقة</div>';
             } else {
-                matched.forEach(acc => {
+                const MAX_STMT_DISPLAY = 30;
+                const displayMatched = matched.length > MAX_STMT_DISPLAY ? matched.slice(0, MAX_STMT_DISPLAY) : matched;
+                displayMatched.forEach(acc => {
                     const div = document.createElement('div');
                     div.style.cssText = 'padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #f1f5f9; color: #1e293b; font-weight: bold; transition: 0.15s; display: flex; justify-content: space-between; align-items: center;';
                     const codeBadge = acc.code ? `<span style="font-size:0.8rem; background:#e2e8f0; color:#475569; padding:2px 7px; border-radius:4px; font-family:monospace;">#${acc.code}</span>` : '';
@@ -1465,6 +1476,12 @@
                     };
                     dropdown.appendChild(div);
                 });
+                if (matched.length > MAX_STMT_DISPLAY) {
+                    const moreDiv = document.createElement('div');
+                    moreDiv.style.cssText = 'padding: 8px; text-align: center; color: #64748b; font-size: 0.8rem; font-weight: bold; background: #f8fafc; border-top: 1px dashed #cbd5e1;';
+                    moreDiv.textContent = `🔍 معروض ${MAX_STMT_DISPLAY} من أصل ${matched.length} حساب... يرجى كتابة حروف أكثر للتحديد`;
+                    dropdown.appendChild(moreDiv);
+                }
             }
             dropdown.style.display = 'block';
         };

@@ -7,13 +7,10 @@
             const backBtn = document.getElementById('confirmBackBtn');
 
             if (yesBtn) {
-                yesBtn.onclick = function () {
+                yesBtn.onclick = async function () {
                     if (!pendingCloseSection) return;
 
                     if (pendingCloseSection === 'ALL_OVERALL_RELOAD') {
-                        // حفظ الكل وإعادة التحميل - لمحاكاة الـ Refresh
-                        // هنا نكتفي بالقول أنه من الصعب تقنياً حفظ الكل في دورة واحدة وإعادة التحميل،
-                        // لذا سنعرض رسالة تخبره بضرورة الحفظ اليدوي أو مجرد إعادة تحميل
                         location.reload();
                         return;
                     }
@@ -22,20 +19,25 @@
                     if (!tab) { closeConfirmModal(); return; }
 
                     let saved = false;
-                    if (tab.type === 'sales') saved = saveBill();
-                    else if (tab.type === 'purchase') saved = savePurchase();
-                    else if (tab.type === 'receipt') saved = saveReceipt();
-                    else if (tab.type === 'disbursement') saved = saveDisbursement();
-                    else if (tab.type === 'sales-return') saved = saveSalesReturn();
-                    else if (tab.type === 'purchase-return') saved = savePurchaseReturn();
-                    else if (tab.type === 'adjustment') saved = saveAdjustment();
-                    else if (tab.type === 'barcode-print') {
-                        if (typeof printBarcodeQueue === 'function') {
-                            printBarcodeQueue();
+                    try {
+                        if (tab.type === 'sales') saved = await saveBill();
+                        else if (tab.type === 'purchase') saved = (typeof savePurchase === 'function') ? await savePurchase() : false;
+                        else if (tab.type === 'receipt') saved = (typeof saveReceipt === 'function') ? saveReceipt() : false;
+                        else if (tab.type === 'disbursement') saved = (typeof saveDisbursement === 'function') ? saveDisbursement() : false;
+                        else if (tab.type === 'sales-return') saved = (typeof saveSalesReturn === 'function') ? saveSalesReturn() : false;
+                        else if (tab.type === 'purchase-return') saved = (typeof savePurchaseReturn === 'function') ? savePurchaseReturn() : false;
+                        else if (tab.type === 'adjustment') saved = (typeof saveAdjustment === 'function') ? saveAdjustment() : false;
+                        else if (tab.type === 'barcode-print') {
+                            if (typeof printBarcodeQueue === 'function') {
+                                printBarcodeQueue();
+                            }
+                            saved = true;
                         }
-                        saved = true;
+                        else saved = true;
+                    } catch (e) {
+                        console.error("❌ خطأ أثناء حفظ التبويب قبل الإغلاق:", e);
+                        saved = false;
                     }
-                    else saved = true;
 
                     if (saved) {
                         actuallyCloseTab(pendingCloseSection);
@@ -48,7 +50,13 @@
                 noBtn.onclick = function () {
                     if (pendingCloseSection === 'ALL_OVERALL_RELOAD') {
                         location.reload();
-                    } else if (pendingCloseSection) {
+                        return;
+                    }
+                    if (pendingCloseSection) {
+                        const tabToClose = openTabs.find(t => t.id === pendingCloseSection);
+                        if (tabToClose && tabToClose.type === 'sales' && activeTabId === pendingCloseSection) {
+                            if (typeof resetBill === 'function') resetBill();
+                        }
                         actuallyCloseTab(pendingCloseSection);
                     }
                     closeConfirmModal();
@@ -67,8 +75,10 @@
             if (modal) modal.classList.add('hidden');
             const yesBtn = document.getElementById('confirmYesBtn');
             const noBtn = document.getElementById('confirmNoBtn');
+            const backBtn = document.getElementById('confirmBackBtn');
             if (yesBtn) yesBtn.innerText = 'نعم';
             if (noBtn) noBtn.innerText = 'لا';
+            if (backBtn) backBtn.innerText = 'تراجع';
             pendingCloseSection = null;
         }
 
@@ -76,16 +86,19 @@
             const modal = document.getElementById('confirmModal');
             if (modal) {
                 let label = 'الفاتورة';
-                const tab = openTabs.find(t => t.id === (tabId || pendingCloseSection));
+                const targetTabId = tabId || pendingCloseSection;
+                const tab = openTabs.find(t => t.id === targetTabId);
                 const msgEl = modal.querySelector('p');
                 const yesBtn = document.getElementById('confirmYesBtn');
                 const noBtn = document.getElementById('confirmNoBtn');
+                const backBtn = document.getElementById('confirmBackBtn');
 
-                if (tabId === 'ALL_OVERALL_RELOAD') {
+                if (targetTabId === 'ALL_OVERALL_RELOAD') {
                     label = 'كافة التبويبات والمتابعة في التحديث';
                     if (msgEl) msgEl.innerText = `هل تريد حفظ ${label}؟`;
                     if (yesBtn) yesBtn.innerText = 'نعم';
                     if (noBtn) noBtn.innerText = 'لا';
+                    if (backBtn) backBtn.innerText = 'تراجع';
                 } else if (tab && tab.type === 'barcode-print') {
                     const count = (typeof window.getBpQueueCount === 'function') ? window.getBpQueueCount() : '';
                     const countStr = count ? `(${count} صنف مسجل)` : '';
@@ -94,11 +107,33 @@
                     }
                     if (yesBtn) yesBtn.innerText = '🖨️ طباعة وإغلاق';
                     if (noBtn) noBtn.innerText = '🗑️ إغلاق وتفريغ';
+                    if (backBtn) backBtn.innerText = '↩️ تراجع';
+                } else if (tab && tab.type === 'sales') {
+                    const state = tabStates[tab.id];
+                    const invId = (state && state.editingInvoiceId) || (state && state.viewingInvoiceId) || (window._posCurrentNavState && window._posCurrentNavState.invoiceId) || window.editingInvoiceId;
+                    const isEdit = Boolean(invId && ((state && state.isEditMode) || window.isEditMode));
+
+                    if (isEdit) {
+                        if (msgEl) {
+                            msgEl.innerHTML = `⚠️ توجد تعديلات غير محفوظة على فاتورة البيع رقم <b style="color:#d97706;">#${invId}</b>.<br><span style="font-size:0.92rem; color:#475569; font-weight:700; margin-top:6px; display:inline-block;">هل تريد حفظ التعديلات الآن أم إغلاق التبويب وتجاهلها؟</span>`;
+                        }
+                        if (yesBtn) yesBtn.innerText = '💾 حفظ التعديلات';
+                        if (noBtn) noBtn.innerText = '🗑️ إغلاق وتجاهل';
+                        if (backBtn) backBtn.innerText = '↩️ تراجع';
+                    } else {
+                        if (msgEl) {
+                            msgEl.innerHTML = `⚠️ توجد بيانات وأصناف غير محفوظة في الفاتورة.<br><span style="font-size:0.92rem; color:#475569; font-weight:700; margin-top:6px; display:inline-block;">هل تريد حفظ الفاتورة أولاً أم إغلاق التبويب وتجاهل البيانات؟</span>`;
+                        }
+                        if (yesBtn) yesBtn.innerText = '💾 حفظ الفاتورة';
+                        if (noBtn) noBtn.innerText = '🗑️ إغلاق وتجاهل';
+                        if (backBtn) backBtn.innerText = '↩️ تراجع';
+                    }
                 } else {
                     label = tab ? (tab.label || tab.type) : 'الفاتورة';
-                    if (msgEl) msgEl.innerText = `هل تريد حفظ ${label}؟`;
-                    if (yesBtn) yesBtn.innerText = 'نعم';
-                    if (noBtn) noBtn.innerText = 'لا';
+                    if (msgEl) msgEl.innerText = `هل تريد حفظ بيانات ${label}؟`;
+                    if (yesBtn) yesBtn.innerText = '💾 حفظ';
+                    if (noBtn) noBtn.innerText = '🗑️ إغلاق وتجاهل';
+                    if (backBtn) backBtn.innerText = '↩️ تراجع';
                 }
                 modal.classList.remove('hidden');
             }
@@ -121,7 +156,10 @@
                 const isActive = (activeTabId === tab.id);
 
                 if (isActive) {
-                    if (type === 'sales' && cart.length > 0) return true;
+                    if (type === 'sales') {
+                        const isBrowsingClean = Boolean(window._posCurrentNavState && window._posCurrentNavState.invoiceId && !window._posInvoiceModified);
+                        if (!isBrowsingClean && cart.length > 0) return true;
+                    }
                     if (type === 'purchase' && purchaseCart.length > 0) return true;
                     if (type === 'sales-return' && returnCart.length > 0) return true;
                     if (type === 'purchase-return' && purReturnCart.length > 0) return true;
@@ -133,7 +171,12 @@
                     }
                     if (type === 'barcode-print' && typeof window.hasBpQueueItems === 'function' && window.hasBpQueueItems()) return true;
                 } else if (state) {
-                    if (state.cart && state.cart.length > 0) return true;
+                    if (type === 'sales') {
+                        const isBrowsingClean = Boolean(state.viewingInvoiceId && !state.invoiceModified);
+                        if (!isBrowsingClean && state.cart && state.cart.length > 0) return true;
+                    } else if (state.cart && state.cart.length > 0) {
+                        return true;
+                    }
                     if ((type === 'receipt' || type === 'disbursement') && parseFloat(state.amount) > 0) return true;
                 }
                 if (!isActive && type === 'barcode-print' && typeof window.hasBpQueueItems === 'function' && window.hasBpQueueItems()) return true;
@@ -410,6 +453,41 @@
                 }
             }
 
+            // 🧹 تفريغ الذاكرة وتنظيف الـ DOM عند مغادرة أي قسم ضخم (Automatic Memory & DOM Trimming)
+            try {
+                const prevTab = openTabs.find(t => t.id === activeTabId) || (activeTabId ? { type: activeTabId } : null);
+                if (prevTab && prevTab.type !== targetTab.type) {
+                    const pType = prevTab.type;
+                    if (pType === 'inventory') {
+                        window.inventoryRenderLimit = 100;
+                        const tbody = document.getElementById('inventoryTableBody');
+                        if (tbody && tbody.children.length > 100) tbody.innerHTML = '';
+                    } else if (pType === 'accounts') {
+                        window.accountsRenderLimit = 50;
+                        const tbody = document.getElementById('accountsTableBody');
+                        if (tbody && tbody.children.length > 50) tbody.innerHTML = '';
+                    } else if (pType === 'invoices') {
+                        window.invoicesRenderLimit = 100;
+                        const tbody = document.getElementById('invoicesTableBody');
+                        if (tbody && tbody.children.length > 100) tbody.innerHTML = '';
+                    } else if (pType === 'history') {
+                        window.historyRenderLimit = 500;
+                        const tbody = document.getElementById('historyTableBody');
+                        if (tbody && tbody.children.length > 200) tbody.innerHTML = '';
+                    } else if (pType === 'trash') {
+                        window.trashRenderLimit = 50;
+                        const tbody = document.getElementById('trashTableBody');
+                        if (tbody && tbody.children.length > 50) tbody.innerHTML = '';
+                    } else if (pType === 'warehouse-report') {
+                        if (window.wrRenderState) window.wrRenderState.limit = 100;
+                        const tbody = document.querySelector('#warehouseReportTable tbody') || document.getElementById('wrTableBody');
+                        if (tbody && tbody.children.length > 100) tbody.innerHTML = '';
+                    }
+                }
+            } catch (errCleanup) {
+                console.warn('Memory cleanup error on tab switch:', errCleanup);
+            }
+
             activeTabId = targetTab.id;
 
             // 🛡️ صمام الأمان لمنع تجميد الشاشة: إغلاق أي نوافذ منبثقة أو طبقات حجب شفافة عائمة عند الانتقال لأي تبويب
@@ -577,7 +655,12 @@
 
                         // تحديث أرقام الفواتير (رقم ف) عند الفتح لأول مرة
                         if (config.s === 'sales') {
-                            if (!isCurrentlyEditing) {
+                            const savedState = tabStates[targetTab.id];
+                            if (savedState && savedState.viewingInvoiceId) {
+                                if (document.getElementById('salesBadgeID')) document.getElementById('salesBadgeID').innerText = savedState.badgeId || savedState.viewingInvoiceId;
+                            } else if (window._posCurrentNavState && window._posCurrentNavState.invoiceId) {
+                                if (document.getElementById('salesBadgeID')) document.getElementById('salesBadgeID').innerText = window._posCurrentNavState.invoiceId;
+                            } else if (!isCurrentlyEditing) {
                                 const count = typeof getNextSequence === 'function' ? getNextSequence('بيع') : 1;
                                 if (document.getElementById('salesBadgeID')) document.getElementById('salesBadgeID').innerText = count;
                             }
@@ -708,7 +791,11 @@
                         editingInvoiceId: editingInvoiceId || window.editingInvoiceId || null,
                         editingOriginalDate: editingOriginalDate || window.editingOriginalDate || null,
                         editingInvoiceType: editingInvoiceType || window.editingInvoiceType || null,
-                        editingOriginalItems: Array.isArray(editingOriginalItems) ? [...editingOriginalItems] : []
+                        editingOriginalItems: Array.isArray(editingOriginalItems) ? [...editingOriginalItems] : [],
+                        viewingInvoiceId: window._posCurrentNavState?.invoiceId || null,
+                        posNavState: window._posCurrentNavState ? { ...window._posCurrentNavState } : null,
+                        invoiceModified: Boolean(window._posInvoiceModified),
+                        badgeId: document.getElementById('salesBadgeID')?.innerText || ''
                     };
                 }
                 // حفظ بيانات المشتريات
@@ -990,6 +1077,21 @@
                     editingOriginalItems = Array.isArray(state.editingOriginalItems) ? [...state.editingOriginalItems] : [];
                     window.editingOriginalItems = editingOriginalItems;
 
+                    // استعادة حالة استعراض الفواتير في شاشة البيع
+                    if (state.viewingInvoiceId) {
+                        window._posCurrentNavState = state.posNavState || { invoiceId: state.viewingInvoiceId, dateISO: state.date, id: null };
+                        window._posInvoiceModified = Boolean(state.invoiceModified);
+                        if (document.getElementById('salesBadgeID')) {
+                            document.getElementById('salesBadgeID').innerText = state.badgeId || state.viewingInvoiceId;
+                        }
+                    } else {
+                        window._posCurrentNavState = { invoiceId: null, dateISO: null, id: null };
+                        window._posInvoiceModified = false;
+                        if (state.badgeId && !isEditMode) {
+                            if (document.getElementById('salesBadgeID')) document.getElementById('salesBadgeID').innerText = state.badgeId;
+                        }
+                    }
+
                     applyRestoredDateTime('salesDate', 'salesTime', state, isEditMode, editingOriginalDate);
 
                     // استعادة طريقة الدفع بدقة وأمان لمنع فراغ القائمة
@@ -1014,7 +1116,10 @@
 
                     updateActiveTabTitle(state.customer, isEditMode ? `تعديل #${editingInvoiceId}` : 'بيع');
                 } else {
-                    if (!window.isEditMode) {
+                    // تبويب جديد كلياً: تصفير كامل وجذري دائماً للشاشة والسلة
+                    if (typeof resetBill === 'function') {
+                        resetBill();
+                    } else {
                         cart = [];
                         isEditMode = false;
                         window.isEditMode = false;
@@ -1026,14 +1131,15 @@
                         window.editingInvoiceType = null;
                         editingOriginalItems = [];
                         window.editingOriginalItems = [];
+                        window._posCurrentNavState = { invoiceId: null, dateISO: null, id: null };
+                        window._posInvoiceModified = false;
                         document.getElementById('customerName').value = '';
                         document.getElementById('tenderedAmount').value = '';
                         document.getElementById('discountInput').value = '0';
                         document.getElementById('taxInput').value = '0';
                         applyRestoredDateTime('salesDate', 'salesTime', null, false, null);
-                    } else {
-                        applyRestoredDateTime('salesDate', 'salesTime', null, true, window.editingOriginalDate);
                     }
+                    updateActiveTabTitle('عميل نقدي', 'بيع');
                 }
 
                 // تمييز أو إعادة تعيين زر الحفظ
@@ -1041,7 +1147,7 @@
                 if (salesSaveBtn) {
                     if (isEditMode) {
                         salesSaveBtn.style.background = 'var(--main-orange, #f59e0b)';
-                        salesSaveBtn.innerHTML = '<span>💾 حفظ التعديلات</span><span class="shortcut">F9</span>';
+                        salesSaveBtn.innerHTML = `<span>✏️ حفظ تعديل #${editingInvoiceId || ''}</span><span class="shortcut">F9</span>`;
                     } else {
                         salesSaveBtn.style.background = '';
                         salesSaveBtn.innerHTML = '<span>✅ حفظ الفاتورة</span><span class="shortcut">F9</span>';
@@ -1701,7 +1807,12 @@
                 const type = currentTab.type;
 
                 if (activeTabId === tabId) {
-                    if (type === 'sales' && (cart.length > 0 || document.getElementById('customerName').value.trim() !== '')) hasData = true;
+                    if (type === 'sales') {
+                        const isBrowsingClean = Boolean(window._posCurrentNavState && window._posCurrentNavState.invoiceId && !window._posInvoiceModified);
+                        if (!isBrowsingClean && (cart.length > 0 || document.getElementById('customerName').value.trim() !== '')) {
+                            hasData = true;
+                        }
+                    }
                     if (type === 'purchase' && (purchaseCart.length > 0 || document.getElementById('supplierName').value.trim() !== '')) hasData = true;
                     if (type === 'sales-return' && returnCart.length > 0) hasData = true;
                     if (type === 'purchase-return' && purReturnCart.length > 0) hasData = true;
@@ -1713,7 +1824,12 @@
                         if (parseFloat(document.getElementById(amId).value) > 0 || document.getElementById(partnerId).value.trim() !== '') hasData = true;
                     }
                 } else if (state) {
-                    if (state.cart && state.cart.length > 0) hasData = true;
+                    if (type === 'sales') {
+                        const isBrowsingClean = Boolean(state.viewingInvoiceId && !state.invoiceModified);
+                        if (!isBrowsingClean && state.cart && state.cart.length > 0) hasData = true;
+                    } else if (state.cart && state.cart.length > 0) {
+                        hasData = true;
+                    }
                     if ((type === 'receipt' || type === 'disbursement') && parseFloat(state.amount) > 0) {
                         hasData = true;
                     }
@@ -1741,6 +1857,44 @@
                     window.clearBpQueueSilently();
                 }
             }
+            if (closingTab && closingTab.type === 'sales') {
+                const otherSalesTab = openTabs.find(t => t.id !== tabId && t.type === 'sales');
+                if (!otherSalesTab || activeTabId === tabId) {
+                    if (typeof resetBill === 'function') {
+                        resetBill();
+                    }
+                }
+            }
+
+            // تفريغ DOM عند إغلاق الأقسام ذات الجداول الضخمة لإنعاش الذاكرة فوراً
+            if (closingTab) {
+                const cType = closingTab.type;
+                if (cType === 'inventory') {
+                    window.inventoryRenderLimit = 100;
+                    const tbody = document.getElementById('inventoryTableBody');
+                    if (tbody) tbody.innerHTML = '';
+                } else if (cType === 'accounts') {
+                    window.accountsRenderLimit = 50;
+                    const tbody = document.getElementById('accountsTableBody');
+                    if (tbody) tbody.innerHTML = '';
+                } else if (cType === 'invoices') {
+                    window.invoicesRenderLimit = 100;
+                    const tbody = document.getElementById('invoicesTableBody');
+                    if (tbody) tbody.innerHTML = '';
+                } else if (cType === 'history') {
+                    window.historyRenderLimit = 500;
+                    const tbody = document.getElementById('historyTableBody');
+                    if (tbody) tbody.innerHTML = '';
+                } else if (cType === 'trash') {
+                    window.trashRenderLimit = 50;
+                    const tbody = document.getElementById('trashTableBody');
+                    if (tbody) tbody.innerHTML = '';
+                } else if (cType === 'warehouse-report') {
+                    if (window.wrRenderState) window.wrRenderState.limit = 100;
+                    const tbody = document.querySelector('#warehouseReportTable tbody') || document.getElementById('wrTableBody');
+                    if (tbody) tbody.innerHTML = '';
+                }
+            }
 
             const index = openTabs.findIndex(t => t.id === tabId);
             if (index > -1) {
@@ -1753,6 +1907,10 @@
                     const nextTab = openTabs[nextIndex] || openTabs[0];
                     if (nextTab) {
                         switchSection(nextTab.type, true, nextTab.id);
+                    } else {
+                        if (typeof switchSection === 'function') {
+                            switchSection('dashboard');
+                        }
                     }
                 }
             }
@@ -1799,60 +1957,11 @@
         window.closeCurrentSectionTab = closeCurrentSectionTab;
 
         function hideCloseWarning() {
-            const modal = document.getElementById('confirmModal');
-            if (modal) modal.classList.add('hidden');
-            const yesBtn = document.getElementById('confirmYesBtn');
-            const noBtn = document.getElementById('confirmNoBtn');
-            if (yesBtn) yesBtn.innerText = 'نعم';
-            if (noBtn) noBtn.innerText = 'لا';
-            pendingCloseSection = null;
+            closeConfirmModal();
         }
 
         function initConfirmModal() {
-            const backBtn = document.getElementById('confirmBackBtn');
-            const noBtn = document.getElementById('confirmNoBtn');
-            const yesBtn = document.getElementById('confirmYesBtn');
-
-            if (backBtn) backBtn.onclick = hideCloseWarning;
-
-            if (noBtn) {
-                noBtn.onclick = () => {
-                    actuallyCloseTab(pendingCloseSection);
-                    hideCloseWarning();
-                };
-            }
-
-            if (yesBtn) {
-                yesBtn.onclick = () => {
-                    if (pendingCloseSection) {
-                        const tabToSave = openTabs.find(t => t.id === pendingCloseSection);
-                        if (tabToSave) {
-                            switchSection(tabToSave.type, false, tabToSave.id);
-                            let saved = false;
-                            const type = tabToSave.type;
-                            if (type === 'sales') saved = saveBill();
-                            else if (type === 'purchase') saved = savePurchase();
-                            else if (type === 'sales-return') saved = saveSalesReturn();
-                            else if (type === 'purchase-return') saved = savePurchaseReturn();
-                            else if (type === 'adjustment') saved = saveAdjustment();
-                            else if (type === 'receipt') saved = saveReceipt();
-                            else if (type === 'disbursement') saved = saveDisbursement();
-                            else if (type === 'barcode-print') {
-                                if (typeof printBarcodeQueue === 'function') {
-                                    printBarcodeQueue();
-                                }
-                                saved = true;
-                            }
-                            if (saved) {
-                                actuallyCloseTab(pendingCloseSection);
-                                hideCloseWarning();
-                            } else {
-                                hideCloseWarning();
-                            }
-                        }
-                    }
-                };
-            }
+            initConfirmModalHandlers();
         }
 
         window.switchSection = switchSection;

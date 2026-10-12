@@ -269,7 +269,7 @@ app.whenReady().then(() => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
 
-    // فحص التحديثات تلقائياً بعد 5 ثوانٍ من تشغيل التطبيق (مع التحقق الصارم من سياسة التجميد)
+    // فحص التحديثات تلقائياً بهدوء بعد 75 ثانية من تشغيل التطبيق لضمان استقرار شاشة البيع وعدم تعليق مدخلات الكاشير
     setTimeout(() => {
         if (typeof isAutoUpdatesFrozenOnDisk === 'function' && isAutoUpdatesFrozenOnDisk()) {
             console.log('[Updater] 🔒 تخطي الفحص التلقائي عند بدء التشغيل: التحديثات مجمدة تماماً بناءً على اختيار العميل.');
@@ -280,7 +280,7 @@ app.whenReady().then(() => {
                 console.warn('Auto check for updates failed (safe to ignore if offline):', err.message);
             });
         }
-    }, 5000);
+    }, 75000);
 });
 
 app.on('window-all-closed', function () {
@@ -482,6 +482,122 @@ ipcMain.handle('launch-anydesk', async (event, code) => {
         console.error('Error launching AnyDesk:', err);
         return { success: false, error: err.message };
     }
+});
+
+// =========================================================================
+// 🖨️ نظام الطباعة الصامتة المباشرة للإيصالات والفواتير (Direct Silent Printing)
+// =========================================================================
+ipcMain.handle('get-system-printers', async (event) => {
+    try {
+        const win = BrowserWindow.fromWebContents(event.sender) || mainWindow;
+        if (!win || win.isDestroyed()) return [];
+        const printers = await win.webContents.getPrintersAsync();
+        return printers || [];
+    } catch (err) {
+        console.warn('[Printers] get-system-printers error:', err.message);
+        return [];
+    }
+});
+
+ipcMain.handle('print-receipt-silent', async (event, payload) => {
+    return new Promise(async (resolve) => {
+        let printWin = null;
+        let resolved = false;
+
+        const cleanup = (res) => {
+            if (!resolved) {
+                resolved = true;
+                if (printWin && !printWin.isDestroyed()) {
+                    try { printWin.destroy(); } catch (e) {}
+                }
+                resolve(res);
+            }
+        };
+
+        const timeoutTimer = setTimeout(() => {
+            cleanup({ success: false, error: 'Print operation timed out' });
+        }, 12000);
+
+        try {
+            const { html, printerName } = payload || {};
+            if (!html || typeof html !== 'string') {
+                clearTimeout(timeoutTimer);
+                return cleanup({ success: false, error: 'No invoice HTML provided' });
+            }
+
+            printWin = new BrowserWindow({
+                show: false,
+                width: 350,
+                height: 600,
+                autoHideMenuBar: true,
+                webPreferences: {
+                    nodeIntegration: false,
+                    contextIsolation: true,
+                    sandbox: true
+                }
+            });
+
+            printWin.webContents.on('did-fail-load', (_e, code, desc) => {
+                clearTimeout(timeoutTimer);
+                cleanup({ success: false, error: desc || 'Failed to load receipt HTML' });
+            });
+
+            printWin.webContents.on('did-finish-load', async () => {
+                try {
+                    let targetDevice = (printerName && String(printerName).trim()) || '';
+
+                    // إذا لم يتم تحديد طابعة محددة بالاسم، البحث الذكي عن طابعة الكاشير والإيصالات الحرارية (مثل XP-80C)
+                    if (!targetDevice) {
+                        try {
+                            const printers = await printWin.webContents.getPrintersAsync();
+                            const receiptPrinter = printers.find(p => /XP-80|80C|Xprinter|POS|Receipt|Thermal|Cashier/i.test(p.name));
+                            if (receiptPrinter) {
+                                targetDevice = receiptPrinter.name;
+                            } else {
+                                const defaultPrinter = printers.find(p => p.isDefault);
+                                if (defaultPrinter) targetDevice = defaultPrinter.name;
+                            }
+                        } catch (pe) {
+                            console.warn('[Print Silent] getPrintersAsync fallback notice:', pe.message);
+                        }
+                    }
+
+                    const printOptions = {
+                        silent: true,
+                        printBackground: true,
+                        margins: { marginType: 'none' }
+                    };
+
+                    if (targetDevice) {
+                        printOptions.deviceName = targetDevice;
+                    }
+
+                    console.log(`[Print Silent] 🖨️ Printing silently to: "${targetDevice || 'Default Printer'}"`);
+
+                    printWin.webContents.print(printOptions, (success, failureReason) => {
+                        clearTimeout(timeoutTimer);
+                        if (!success) {
+                            console.warn('[Print Silent] Print failed:', failureReason);
+                            cleanup({ success: false, error: failureReason });
+                        } else {
+                            console.log('[Print Silent] Print job sent successfully ✅');
+                            cleanup({ success: true, deviceName: targetDevice });
+                        }
+                    });
+                } catch (printErr) {
+                    clearTimeout(timeoutTimer);
+                    cleanup({ success: false, error: printErr.message });
+                }
+            });
+
+            printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+
+        } catch (err) {
+            clearTimeout(timeoutTimer);
+            console.error('[Print Silent] Handler error:', err);
+            cleanup({ success: false, error: err.message });
+        }
+    });
 });
 
 // تشفير وتوقيع التراخيص

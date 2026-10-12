@@ -103,6 +103,27 @@
             return String(plain).trim() === cleanEntered;
         },
 
+        // 🔒 التحقق الآمن والمباشر من رمز PIN المدير من قاعدة البيانات دون كشفه في الذاكرة
+        verifyAdminPin: async function (enteredPin) {
+            if (enteredPin === null || enteredPin === undefined || String(enteredPin).trim() === '') return false;
+            const clean = String(enteredPin).trim();
+            const targetDb = window.db || window.bayanDB;
+            if (targetDb && targetDb.users && typeof targetDb.users.toArray === 'function') {
+                try {
+                    const allUsers = await targetDb.users.toArray();
+                    const admins = (allUsers || []).filter(u => u && (u.role === 'admin' || u.id === 1 || u.id === '1') && !u.isFrozen);
+                    for (const a of admins) {
+                        if (a && a.pin && this.verifyPin(clean, a.pin)) {
+                            return true;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('[Security] verifyAdminPin db query notice:', e);
+                }
+            }
+            return false;
+        },
+
         // التحقق من سلامة الجلسة وصلاحية المستخدم
         validateSession: function () {
             const user = window.currentUser;

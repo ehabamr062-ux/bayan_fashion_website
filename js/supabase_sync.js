@@ -35,8 +35,8 @@
                 const plan = (typeof window.getBayanPlan === 'function') 
                     ? window.getBayanPlan() 
                     : (localStorage.getItem('bayan_current_plan') || '');
-                if (!plan || plan.includes('مجانية') || plan.includes('تجريب')) return false;
-                const isCloud = plan.includes('سحاب') || plan.includes('Cloud') || (localStorage.getItem('bayan_cloud_sync_licensed') === 'true');
+                if (!plan || plan.includes('مجانية') || plan.includes('تجريب') || plan.includes('أوفلاين') || plan.toLowerCase().includes('offline')) return false;
+                const isCloud = plan.includes('سحاب') || plan.includes('Cloud');
                 return Boolean(isCloud);
             } catch (e) {
                 return false;

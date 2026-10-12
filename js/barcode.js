@@ -524,7 +524,8 @@ const BayanBarcode = (function () {
                 return;
             } else {
                 // الصنف الأب
-                if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+                const isVariantsAllowed = !document.body.classList.contains('bayan-variants-disabled');
+                if (isVariantsAllowed && product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
                     if (typeof showVariantSelectionModal === 'function') {
                         showVariantSelectionModal(product, 'sales');
                     }
@@ -575,7 +576,8 @@ const BayanBarcode = (function () {
                 clearAndFocusSearch('purchaseSearch');
                 return;
             } else {
-                if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+                const isVariantsAllowed = !document.body.classList.contains('bayan-variants-disabled');
+                if (isVariantsAllowed && product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
                     if (typeof showVariantSelectionModal === 'function') {
                         showVariantSelectionModal(product, 'purchase');
                     }
@@ -598,7 +600,8 @@ const BayanBarcode = (function () {
         // 3. شاشة تسوية المخزون (Stock Adjustments)
         // ══════════════════════════════════════════════════════════
         if (targetScreen === 'adjustment') {
-            if (product.variants && Array.isArray(product.variants) && product.variants.length > 0 && !variant) {
+            const isVariantsAllowed = !document.body.classList.contains('bayan-variants-disabled');
+            if (isVariantsAllowed && product.variants && Array.isArray(product.variants) && product.variants.length > 0 && !variant) {
                 if (typeof showVariantSelectionModal === 'function') {
                     showVariantSelectionModal(product, 'adj');
                 }
@@ -661,7 +664,8 @@ const BayanBarcode = (function () {
         // 4. شاشة تحويل المخازن (Warehouse Transfers)
         // ══════════════════════════════════════════════════════════
         if (targetScreen === 'transfer') {
-            if (product.variants && Array.isArray(product.variants) && product.variants.length > 0 && !variant) {
+            const isVariantsAllowed = !document.body.classList.contains('bayan-variants-disabled');
+            if (isVariantsAllowed && product.variants && Array.isArray(product.variants) && product.variants.length > 0 && !variant) {
                 if (typeof showVariantSelectionModal === 'function') {
                     showVariantSelectionModal(product, 'transfer');
                 }
@@ -746,7 +750,8 @@ const BayanBarcode = (function () {
         // 5. شاشة مرتجع المبيعات (Sales Returns)
         // ══════════════════════════════════════════════════════════
         if (targetScreen === 'salesReturn') {
-            if (product.variants && Array.isArray(product.variants) && product.variants.length > 0 && !variant) {
+            const isVariantsAllowed = !document.body.classList.contains('bayan-variants-disabled');
+            if (isVariantsAllowed && product.variants && Array.isArray(product.variants) && product.variants.length > 0 && !variant) {
                 if (typeof showVariantSelectionModal === 'function') {
                     showVariantSelectionModal(product, 'salesReturn');
                 }
@@ -799,7 +804,8 @@ const BayanBarcode = (function () {
         // 6. شاشة مرتجع المشتريات (Purchase Returns)
         // ══════════════════════════════════════════════════════════
         if (targetScreen === 'purchaseReturn') {
-            if (product.variants && Array.isArray(product.variants) && product.variants.length > 0 && !variant) {
+            const isVariantsAllowed = !document.body.classList.contains('bayan-variants-disabled');
+            if (isVariantsAllowed && product.variants && Array.isArray(product.variants) && product.variants.length > 0 && !variant) {
                 if (typeof showVariantSelectionModal === 'function') {
                     showVariantSelectionModal(product, 'purReturn');
                 }
@@ -882,7 +888,10 @@ const BayanBarcode = (function () {
                     ? (keyIntervals.reduce((a, b) => a + b, 0) / keyIntervals.length)
                     : 100;
 
-                const isFastScanner = avgInterval < SCAN_THRESHOLD_MS || buffer.length >= 8;
+                // إذا كان التركيز داخل حقل إدخال عادي، يجب أن تكون سرعة الإدخال سريعة جداً كالسكانر (< 50ms) ولا نعتمد فقط على طول النص لمنع اعتراض كتابة المستخدم
+                const isFastScanner = isStandardInput
+                    ? (avgInterval < SCAN_THRESHOLD_MS)
+                    : (avgInterval < SCAN_THRESHOLD_MS || buffer.length >= 8);
 
                 const scanned = buffer;
                 buffer = '';
@@ -1146,7 +1155,8 @@ window.dispatchSearchBarcode = function(code, context) {
 
     // 1. إذا كان الباركود دولي عام للموديل وله مقاسات وألوان:
     // تفتح نافذة المقاسات والألوان فوراً وتلقائياً دون عرض قائمة نتائج البحث
-    if (!variant && product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+    const isBarcodeVariantsAllowed = !document.body.classList.contains('bayan-variants-disabled');
+    if (isBarcodeVariantsAllowed && !variant && product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
         if (context === 'sales') cleanSearchUI('productSearch', 'searchResults');
         else if (context === 'purchase') cleanSearchUI('purchaseSearch', 'purchaseSearchResults');
         else if (context === 'adj') cleanSearchUI('adjSearch', 'adjSearchResults');

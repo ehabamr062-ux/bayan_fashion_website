@@ -167,7 +167,16 @@ window.historyRenderLimit = 500;
 
 window.loadMoreHistory = function(step) {
     if (step === 0) {
-        window.historyRenderLimit = Infinity;
+        const MAX_SAFE_CEILING = 300;
+        const total = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions.length : 0;
+        if (total > MAX_SAFE_CEILING) {
+            window.historyRenderLimit = MAX_SAFE_CEILING;
+            if (typeof showToast === 'function') {
+                showToast(`⚡ تم عرض أول ${MAX_SAFE_CEILING} حركة لحماية سرعة جهازك. استخدم فلتر الفترة أو شريط البحث للوصول الفوري لأي حركة.`, 'info');
+            }
+        } else {
+            window.historyRenderLimit = Infinity;
+        }
     } else {
         window.historyRenderLimit = (window.historyRenderLimit || 500) + step;
     }

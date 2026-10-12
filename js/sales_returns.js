@@ -1945,7 +1945,8 @@ function selectReturnProductToHeader(productId, type) {
     if (resultsDiv) resultsDiv.style.display = 'none';
 
     // إذا كان للصنف تشكيلات مقاسات وألوان، نفتح نافذة المقاس واللون فوراً
-    if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+    const isVariantsAllowed = !document.body.classList.contains('bayan-variants-disabled');
+    if (isVariantsAllowed && product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
         if (typeof showVariantSelectionModal === 'function') {
             showVariantSelectionModal(product, type === 'sales' ? 'salesReturn' : 'purReturn');
             return;

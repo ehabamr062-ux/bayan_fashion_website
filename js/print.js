@@ -203,13 +203,16 @@ function buildInvoiceDocumentHTML(invoiceData) {
         // تفاصيل المقاس واللون للملابس والفاشون (حجم صغير مضغوط بدون هوامش زائدة، بحبر أسود فاحم صريح)
         const sVal = String(item.size || item.selectedSize || (item.selectedVariant && item.selectedVariant.size) || '').trim();
         const cVal = String(item.color || item.selectedColor || (item.selectedVariant && item.selectedVariant.color) || '').trim();
+        const isPrintVariantsDisabled = (typeof document !== 'undefined' && document.body && document.body.classList.contains('bayan-variants-disabled'));
         let fashionText = '';
-        if (sVal && sVal !== '-' && sVal !== 'عام' && cVal && cVal !== '-' && cVal !== 'عام') {
-            fashionText = `(مقاس: ${escapePrintHtml(sVal)} | لون: ${escapePrintHtml(cVal)})`;
-        } else if (sVal && sVal !== '-' && sVal !== 'عام') {
-            fashionText = `(مقاس: ${escapePrintHtml(sVal)})`;
-        } else if (cVal && cVal !== '-' && cVal !== 'عام') {
-            fashionText = `(لون: ${escapePrintHtml(cVal)})`;
+        if (!isPrintVariantsDisabled) {
+            if (sVal && sVal !== '-' && sVal !== 'عام' && cVal && cVal !== '-' && cVal !== 'عام') {
+                fashionText = `(مقاس: ${escapePrintHtml(sVal)} | لون: ${escapePrintHtml(cVal)})`;
+            } else if (sVal && sVal !== '-' && sVal !== 'عام') {
+                fashionText = `(مقاس: ${escapePrintHtml(sVal)})`;
+            } else if (cVal && cVal !== '-' && cVal !== 'عام') {
+                fashionText = `(لون: ${escapePrintHtml(cVal)})`;
+            }
         }
         const fashionDetails = fashionText ? `<div style="font-size:0.82em; color:#000000 !important; font-weight:900; line-height:1.1; margin-top:1px;">${fashionText}</div>` : '';
 
@@ -239,13 +242,16 @@ function buildInvoiceDocumentHTML(invoiceData) {
         // تفاصيل المقاس واللون للملابس والفاشون
         const sVal = String(item.size || item.selectedSize || (item.selectedVariant && item.selectedVariant.size) || '').trim();
         const cVal = String(item.color || item.selectedColor || (item.selectedVariant && item.selectedVariant.color) || '').trim();
+        const isPrintVariantsDisabledCompact = (typeof document !== 'undefined' && document.body && document.body.classList.contains('bayan-variants-disabled'));
         let fashionText = '';
-        if (sVal && sVal !== '-' && sVal !== 'عام' && cVal && cVal !== '-' && cVal !== 'عام') {
-            fashionText = `(مقاس: ${escapePrintHtml(sVal)} | لون: ${escapePrintHtml(cVal)})`;
-        } else if (sVal && sVal !== '-' && sVal !== 'عام') {
-            fashionText = `(مقاس: ${escapePrintHtml(sVal)})`;
-        } else if (cVal && cVal !== '-' && cVal !== 'عام') {
-            fashionText = `(لون: ${escapePrintHtml(cVal)})`;
+        if (!isPrintVariantsDisabledCompact) {
+            if (sVal && sVal !== '-' && sVal !== 'عام' && cVal && cVal !== '-' && cVal !== 'عام') {
+                fashionText = `(مقاس: ${escapePrintHtml(sVal)} | لون: ${escapePrintHtml(cVal)})`;
+            } else if (sVal && sVal !== '-' && sVal !== 'عام') {
+                fashionText = `(مقاس: ${escapePrintHtml(sVal)})`;
+            } else if (cVal && cVal !== '-' && cVal !== 'عام') {
+                fashionText = `(لون: ${escapePrintHtml(cVal)})`;
+            }
         }
         const fashionDetails = fashionText ? `<div style="font-size:0.80em; color:#000000 !important; font-weight:900; line-height:1.1;">${fashionText}</div>` : '';
 
@@ -309,76 +315,117 @@ function buildInvoiceDocumentHTML(invoiceData) {
 }
 window.buildInvoiceDocumentHTML = buildInvoiceDocumentHTML;
 
-function printInvoice(invoiceData) {
+async function printInvoice(invoiceData, options = {}) {
     const rendered = buildInvoiceDocumentHTML(invoiceData);
     const content = rendered.content;
     const pageWidth = rendered.pageWidth;
     const docTitle = rendered.docTitle;
     const shopName = rendered.shopName;
+    const isSilent = (options && options.silent === true);
 
-    // فتح نافذة طباعة مستقلة - نفس أسلوب تقرير الحركة اليومية
+    const baseUrl = (typeof window !== 'undefined' && window.location && window.location.href)
+        ? window.location.href.split('/').slice(0, -1).join('/') + '/'
+        : '';
+
+    const fullHtml = `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <base href="${baseUrl}">
+    <title>${docTitle} - ${shopName}</title>
+    <style>
+        @page { margin: 0; size: ${pageWidth} auto; }
+        *, *::before, *::after { box-sizing: border-box !important; }
+        html, body {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            max-width: ${pageWidth} !important;
+            font-family: 'Arial', 'Segoe UI', Tahoma, sans-serif;
+            text-align: right;
+            direction: rtl;
+            color: #000;
+            background: #fff;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+        table {
+            box-sizing: border-box !important;
+            border-collapse: collapse !important;
+        }
+        table th, table td {
+            color: #000 !important;
+            box-sizing: border-box !important;
+        }
+        @media print {
+            .no-print { display: none !important; }
+            body {
+                padding: 0 !important;
+                margin: 0 auto !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    ${isSilent ? '' : `
+    <div class="no-print" style="text-align: center; margin-bottom: 15px; padding: 10px; background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
+        <button onclick="window.print()" style="background: #2563eb; color: white; padding: 10px 25px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">🖨️ طباعة الآن</button>
+        <button onclick="window.close()" style="background: #ef4444; color: white; padding: 10px 25px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-right: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">❌ إغلاق</button>
+    </div>
+    `}
+    ${content}
+    ${isSilent ? '' : `
+    <script>
+        window.onload = function() {
+            setTimeout(function() {
+                window.focus();
+                window.print();
+            }, 250);
+        };
+    </script>
+    `}
+</body>
+</html>`;
+
+    // 1. ⚡ الطباعة الصامتة المباشرة في بيئة Electron (فورياً وبدون أي نوافذ منبثقة)
+    if (isSilent && typeof window !== 'undefined' && window.require) {
+        try {
+            const electron = window.require('electron');
+            if (electron && electron.ipcRenderer) {
+                const targetPrinter = (typeof getStore === 'function' ? getStore('bayan_receipt_printer') : '') || '';
+                const result = await electron.ipcRenderer.invoke('print-receipt-silent', {
+                    html: fullHtml,
+                    printerName: targetPrinter
+                });
+
+                if (result && result.success) {
+                    console.log('✅ [Print Silent] تم إرسال الفاتورة بنجاح إلى الطابعة.');
+                    if (typeof showToast === 'function') {
+                        showToast('🖨️ جاري خروج الفاتورة من الطابعة مباشرة...', 'info');
+                    }
+                    return true;
+                } else {
+                    console.warn('⚠️ [Print Silent] فشل الإرسال الصامت:', result ? result.error : 'unknown');
+                    if (typeof showToast === 'function') {
+                        showToast('⚠️ تعذر إرسال الفاتورة للطابعة الصامتة، يمكنك الطباعة يدوياً عبر F4', 'warning');
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('Silent print electron fallback notice:', e);
+        }
+    }
+
+    // 2. الطباعة العادية بنظام المعاينة (أو كبديل آمن في المتصفح)
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
         alert('⚠️ يرجى السماح بفتح النوافذ المنبثقة لإتمام الطباعة');
-        return;
+        return false;
     }
 
-    printWindow.document.write(`
-        <html dir="rtl" lang="ar">
-        <head>
-            <base href="${window.location.href.split('/').slice(0, -1).join('/') + '/'}">
-            <title>${docTitle} - ${shopName}</title>
-            <style>
-                @page { margin: 0; size: ${pageWidth} auto; }
-                *, *::before, *::after { box-sizing: border-box !important; }
-                html, body {
-                    margin: 0 !important;
-                    padding: 0 !important;
-                    width: 100% !important;
-                    max-width: ${pageWidth} !important;
-                    font-family: 'Arial', 'Segoe UI', Tahoma, sans-serif;
-                    text-align: right;
-                    direction: rtl;
-                    color: #000;
-                    background: #fff;
-                    -webkit-print-color-adjust: exact !important;
-                    print-color-adjust: exact !important;
-                }
-                table {
-                    box-sizing: border-box !important;
-                    border-collapse: collapse !important;
-                }
-                table th, table td {
-                    color: #000 !important;
-                    box-sizing: border-box !important;
-                }
-                @media print {
-                    .no-print { display: none !important; }
-                    body {
-                        padding: 0 !important;
-                        margin: 0 auto !important;
-                    }
-                }
-            </style>
-        </head>
-        <body>
-            <div class="no-print" style="text-align: center; margin-bottom: 15px; padding: 10px; background: #f8fafc; border-bottom: 2px solid #e2e8f0;">
-                <button onclick="window.print()" style="background: #2563eb; color: white; padding: 10px 25px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">🖨️ طباعة الآن</button>
-                <button onclick="window.close()" style="background: #ef4444; color: white; padding: 10px 25px; font-size: 18px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; margin-right: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">❌ إغلاق</button>
-            </div>
-            ${content}
-            <script>
-                window.onload = function() {
-                    setTimeout(function() {
-                        window.focus();
-                        window.print();
-                    }, 250);
-                };
-            </script>
-        </body>
-        </html>
-    `);
+    printWindow.document.write(fullHtml);
     printWindow.document.close();
+    return true;
 }
 
 function savePrintTemplate(templateName) {

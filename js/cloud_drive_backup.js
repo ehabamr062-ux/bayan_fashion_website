@@ -345,7 +345,7 @@
             const scope = encodeURIComponent('https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email');
             const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&access_type=offline&prompt=consent&scope=${scope}`;
 
-            // 1. تشغيل خادم طوارئ محلي على 127.0.0.1:4545 في بيئة Electron إذا لم يكن server_hub قيد التشغيل
+            // 1. تشغيل خادم محلي مؤقت على 127.0.0.1:4545 في بيئة Electron لاستقبال كود تفويض Google Drive فوراً
             if (typeof window.require !== 'undefined') {
                 try {
                     const http = window.require('http');
@@ -400,7 +400,7 @@
                         } catch (e) {}
                         res.writeHead(404); res.end();
                     });
-                    tempServer.on('error', () => {}); // البورت مشغول مسبقاً بواسطة server_hub - طبيعي ومثالي
+                    tempServer.on('error', () => {}); // تجاوز أي تعارض مؤقت في البورت تلقائياً
                     tempServer.listen(4545, '127.0.0.1');
                     setTimeout(() => { try { tempServer.close(); } catch(e){} }, 180000);
                 } catch (e) {}

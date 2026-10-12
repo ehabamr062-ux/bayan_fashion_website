@@ -3019,9 +3019,19 @@ body.dark-mode select:not(.login-select) option {
    ========================================================================= */
 body.bayan-variants-disabled .col-variant-size,
 body.bayan-variants-disabled .col-variant-color,
+body.bayan-variants-disabled .col-adj-size,
+body.bayan-variants-disabled .col-adj-color,
+body.bayan-variants-disabled th.col-variant-size,
+body.bayan-variants-disabled th.col-variant-color,
+body.bayan-variants-disabled td.col-variant-size,
+body.bayan-variants-disabled td.col-variant-color,
 body.bayan-variants-disabled #inquiryVariantsCard,
 body.bayan-variants-disabled .variant-only-element,
-body.bayan-variants-disabled #bayanVariantPickerOverlay {
+body.bayan-variants-disabled #bayanVariantPickerOverlay,
+body.bayan-variants-disabled #tab-btn-variants,
+body.bayan-variants-disabled #tab-variants,
+body.bayan-variants-disabled #variantPriceSyncPromptBanner,
+body.bayan-variants-disabled .variant-badge-pill {
     display: none !important;
 }
 

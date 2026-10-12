@@ -1375,8 +1375,33 @@
         }
     }
 
+    function openBpPriceTagOrientationModal() {
+        closeBpPrintChoiceModal();
+        const modal = document.getElementById('bpPriceTagOrientationModal');
+        if (modal) {
+            modal.classList.remove('hidden');
+            modal.style.display = 'flex';
+        } else {
+            confirmBpPrint('price_only_horizontal');
+        }
+    }
+
+    function closeBpPriceTagOrientationModal() {
+        const modal = document.getElementById('bpPriceTagOrientationModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.style.display = 'none';
+        }
+    }
+
+    function backToBpPrintChoiceModal() {
+        closeBpPriceTagOrientationModal();
+        openBpPrintChoiceModal();
+    }
+
     function confirmBpPrint(mode = 'standard') {
         closeBpPrintChoiceModal();
+        closeBpPriceTagOrientationModal();
 
         // تحويل عناصر القائمة المجهزة إلى الصيغة المعتمدة لدوال الطباعة
         const targets = bpQueue.map(item => ({
@@ -1389,11 +1414,19 @@
             copies: parseInt(item.copies, 10) || 1
         }));
 
-        if (mode === 'price_only') {
+        if (mode === 'price_only' || mode === 'price_only_horizontal') {
             if (typeof window.executePriceTagPrinting === 'function') {
-                window.executePriceTagPrinting(targets, 1);
+                window.executePriceTagPrinting(targets, 1, 'horizontal');
             } else if (typeof executePriceTagPrinting === 'function') {
-                executePriceTagPrinting(targets, 1);
+                executePriceTagPrinting(targets, 1, 'horizontal');
+            } else {
+                if (typeof showToast === 'function') showToast("⚠️ دالة طباعة تيكت السعر غير متاحة!", "error");
+            }
+        } else if (mode === 'price_only_vertical') {
+            if (typeof window.executePriceTagPrinting === 'function') {
+                window.executePriceTagPrinting(targets, 1, 'vertical');
+            } else if (typeof executePriceTagPrinting === 'function') {
+                executePriceTagPrinting(targets, 1, 'vertical');
             } else {
                 if (typeof showToast === 'function') showToast("⚠️ دالة طباعة تيكت السعر غير متاحة!", "error");
             }
@@ -1559,6 +1592,9 @@
     window.printBarcodeQueue = printBarcodeQueue;
     window.openBpPrintChoiceModal = openBpPrintChoiceModal;
     window.closeBpPrintChoiceModal = closeBpPrintChoiceModal;
+    window.openBpPriceTagOrientationModal = openBpPriceTagOrientationModal;
+    window.closeBpPriceTagOrientationModal = closeBpPriceTagOrientationModal;
+    window.backToBpPrintChoiceModal = backToBpPrintChoiceModal;
     window.confirmBpPrint = confirmBpPrint;
     window.clearBpQueue = clearBpQueue;
     window.clearBpQueueSilently = clearBpQueueSilently;

@@ -636,7 +636,7 @@
             border: 1px solid rgba(255, 255, 255, 0.2) !important;
             border-radius: 10px !important;
             color: #ffffff !important;
-            font-weight: 800;
+            font-weight: 900 !important;
             cursor: pointer;
             display: flex !important;
             flex-direction: column !important;
@@ -652,6 +652,7 @@
             overflow: hidden;
             box-sizing: border-box !important;
             white-space: nowrap !important;
+            -webkit-font-smoothing: antialiased !important;
         }
 
         .action-btn > span:first-child,
@@ -664,6 +665,9 @@
             justify-content: center;
             gap: 3px;
             white-space: nowrap !important;
+            color: #ffffff !important;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45) !important;
+            -webkit-font-smoothing: antialiased !important;
         }
 
         .action-btn * {
@@ -716,14 +720,17 @@
             font-size: 0.65rem !important;
             margin-top: 1px !important;
             padding: 1px 6px !important;
-            background: rgba(0, 0, 0, 0.22) !important;
+            background: rgba(0, 0, 0, 0.42) !important;
             border-radius: 5px !important;
-            border: 1px solid rgba(255, 255, 255, 0.25) !important;
-            font-weight: 800 !important;
+            border: 1px solid rgba(255, 255, 255, 0.35) !important;
+            font-weight: 900 !important;
+            color: #ffffff !important;
             letter-spacing: 0.3px !important;
             line-height: 1.1 !important;
             display: inline-block !important;
             white-space: nowrap !important;
+            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.6) !important;
+            -webkit-font-smoothing: antialiased !important;
         }
 
         /* محاكاة للمنتجات (للتجربة) */
@@ -2340,4 +2347,408 @@
         .pos-search-row:hover div[style*="background"] {
             background: rgba(255, 255, 255, 0.15) !important;
             border-color: rgba(255, 255, 255, 0.35) !important;
+        }
+
+        /* ========================================================================= */
+        /* 🖨️ ويدجت الطباعة التلقائية المدمج والرأسي (Vertical Compact Auto-Print Widget) */
+        /* ========================================================================= */
+        .pos-auto-print-widget {
+            display: inline-flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 2px !important;
+            padding: 2px 5px !important;
+            height: 34px !important;
+            width: 44px !important;
+            min-width: 44px !important;
+            max-width: 44px !important;
+            background: #ffffff !important;
+            border: 1.5px solid #cbd5e1 !important;
+            border-radius: 8px !important;
+            cursor: pointer !important;
+            user-select: none !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            box-sizing: border-box !important;
+            outline: none !important;
+            margin: 0 !important;
+        }
+
+        .pos-auto-print-widget:hover {
+            transform: translateY(-1px) !important;
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08) !important;
+        }
+
+        .pos-auto-print-widget:active {
+            transform: scale(0.95) !important;
+        }
+
+        /* 1. مربع الأيقونة الصغير والأنيق في الأعلى */
+        .pos-auto-print-icon-box {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 22px !important;
+            height: 15px !important;
+            border-radius: 4px !important;
+            background: #f8fafc !important;
+            border: 1px solid #e2e8f0 !important;
+            transition: all 0.2s ease !important;
+            line-height: 1 !important;
+            box-sizing: border-box !important;
+        }
+
+        .pos-auto-print-icon-box #posAutoPrintIcon {
+            font-size: 0.78rem !important;
+            line-height: 1 !important;
+            display: inline-block !important;
+            filter: drop-shadow(0 1px 1px rgba(0,0,0,0.05));
+        }
+
+        .pos-auto-print-widget:hover .pos-auto-print-icon-box #posAutoPrintIcon {
+            transform: scale(1.1);
+        }
+
+        /* 2. مفتاح التشغيل والإيقاف (Toggle Switch) في الأسفل */
+        .pos-auto-print-switch {
+            width: 26px !important;
+            height: 11px !important;
+            background: #94a3b8 !important;
+            border-radius: 20px !important;
+            position: relative !important;
+            transition: background-color 0.25s ease, box-shadow 0.25s ease !important;
+            display: flex !important;
+            align-items: center !important;
+            box-sizing: border-box !important;
+        }
+
+        .pos-auto-print-knob {
+            width: 7px !important;
+            height: 7px !important;
+            background: #ffffff !important;
+            border-radius: 50% !important;
+            position: absolute !important;
+            top: 2px !important;
+            left: 2px !important;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease !important;
+        }
+
+        /* حالة التفعيل (Active) - لون أخضر واضح */
+        .pos-auto-print-widget.is-active {
+            border-color: #10b981 !important;
+            background: #f0fdf4 !important;
+            box-shadow: 0 1px 5px rgba(16, 185, 129, 0.2) !important;
+        }
+
+        .pos-auto-print-widget.is-active .pos-auto-print-icon-box {
+            background: #dcfce7 !important;
+            border-color: #86efac !important;
+        }
+
+        .pos-auto-print-widget.is-active .pos-auto-print-switch {
+            background: #10b981 !important;
+            box-shadow: 0 0 5px rgba(16, 185, 129, 0.4) !important;
+        }
+
+        .pos-auto-print-widget.is-active .pos-auto-print-knob {
+            transform: translateX(15px) !important;
+        }
+
+        /* حالة الإيقاف (Disabled) - لون رمادي واضح */
+        .pos-auto-print-widget.is-disabled {
+            border-color: #cbd5e1 !important;
+            background: #f8fafc !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+        }
+
+        .pos-auto-print-widget.is-disabled .pos-auto-print-icon-box {
+            background: #f1f5f9 !important;
+            border-color: #e2e8f0 !important;
+        }
+
+        .pos-auto-print-widget.is-disabled .pos-auto-print-switch {
+            background: #94a3b8 !important;
+            box-shadow: none !important;
+        }
+
+        .pos-auto-print-widget.is-disabled .pos-auto-print-knob {
+            transform: translateX(0) !important;
+        }
+
+        /* الوضع الليلي (Dark Mode) */
+        body.dark-mode .pos-auto-print-widget {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+        }
+
+        body.dark-mode .pos-auto-print-widget.is-active {
+            background: rgba(16, 185, 129, 0.12) !important;
+            border-color: #059669 !important;
+        }
+
+        body.dark-mode .pos-auto-print-widget.is-active .pos-auto-print-icon-box {
+            background: rgba(16, 185, 129, 0.25) !important;
+            border-color: #059669 !important;
+        }
+
+        body.dark-mode .pos-auto-print-widget.is-disabled {
+            background: #0f172a !important;
+            border-color: #334155 !important;
+        }
+
+        body.dark-mode .pos-auto-print-widget.is-disabled .pos-auto-print-icon-box {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+        }
+
+        body.dark-mode .pos-auto-print-widget.is-disabled .pos-auto-print-switch {
+            background: #64748b !important;
+        }
+
+        /* ========================================================================= */
+        /* 🖼️ زر أيقونة صور الموديلات المدمج (Compact Model Image Toggle Button) */
+        /* ========================================================================= */
+        .pos-model-img-toggle-btn {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            height: 34px !important;
+            width: 36px !important;
+            min-width: 36px !important;
+            max-width: 36px !important;
+            border-radius: 8px !important;
+            border: 1.5px solid #b45309 !important;
+            background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+            color: #ffffff !important;
+            cursor: pointer !important;
+            user-select: none !important;
+            box-shadow: 0 2px 6px rgba(217, 119, 6, 0.25) !important;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            box-sizing: border-box !important;
+            outline: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .pos-model-img-toggle-btn:hover {
+            transform: translateY(-1px) !important;
+            box-shadow: 0 3px 8px rgba(217, 119, 6, 0.35) !important;
+        }
+
+        .pos-model-img-toggle-btn:active {
+            transform: scale(0.95) !important;
+        }
+
+        .pos-model-img-toggle-btn .pos-model-toggle-icon {
+            font-size: 1.15rem !important;
+            line-height: 1 !important;
+            display: inline-block !important;
+            filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.15));
+            transition: transform 0.2s ease !important;
+        }
+
+        .pos-model-img-toggle-btn:hover .pos-model-toggle-icon {
+            transform: scale(1.1);
+        }
+
+        /* حالة الإخفاء (Hidden / Inactive) */
+        .pos-model-img-toggle-btn.is-hidden {
+            background: #f1f5f9 !important;
+            border-color: #cbd5e1 !important;
+            color: #64748b !important;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+        }
+
+        .pos-model-img-toggle-btn.is-hidden .pos-model-toggle-icon {
+            filter: grayscale(1);
+            opacity: 0.6;
+        }
+
+        /* الوضع الليلي Dark Mode */
+        body.dark-mode .pos-model-img-toggle-btn {
+            border-color: #d97706 !important;
+        }
+
+        body.dark-mode .pos-model-img-toggle-btn.is-hidden {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+            color: #94a3b8 !important;
+        }
+
+        /* ========================================================================= */
+        /* 📐 القائمة المدمجة في أقصى يسار ملخص البيع (Compact Far-Left Tools Stack) */
+        /* ========================================================================= */
+        .pos-compact-left-stack {
+            width: 250px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 5px;
+            border-right: 1.5px dashed #cbd5e1;
+            padding-right: 8px;
+            box-sizing: border-box;
+        }
+
+        .pos-compact-tool-item {
+            display: flex !important;
+            align-items: center !important;
+            background: #ffffff !important;
+            border: 1.5px solid #cbd5e1 !important;
+            border-radius: 7px !important;
+            padding: 0 8px !important;
+            height: 28px !important;
+            box-sizing: border-box !important;
+            transition: all 0.2s ease !important;
+        }
+
+        .pos-compact-tool-item:focus-within {
+            border-color: #3b82f6 !important;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15) !important;
+        }
+
+        .pos-compact-tool-item input {
+            border: none !important;
+            outline: none !important;
+            background: transparent !important;
+            width: 100% !important;
+            font-size: 0.82rem !important;
+            font-weight: 800 !important;
+            color: #0f172a !important;
+            font-family: 'Cairo', sans-serif !important;
+            padding: 0 !important;
+            height: auto !important;
+        }
+
+        .pos-compact-tool-item input::placeholder {
+            color: #64748b !important;
+            font-weight: 700 !important;
+            opacity: 0.95 !important;
+        }
+
+        .pos-compact-tool-item select {
+            background: transparent !important;
+            color: #0f172a !important;
+            border: none !important;
+            font-weight: 900 !important;
+            cursor: pointer !important;
+            outline: none !important;
+            font-size: 0.82rem !important;
+            font-family: inherit !important;
+            width: 100% !important;
+            padding: 0 !important;
+            height: auto !important;
+        }
+
+        body.dark-mode .pos-compact-left-stack {
+            border-right-color: #334155 !important;
+        }
+
+        body.dark-mode .pos-compact-tool-item {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+        }
+
+        body.dark-mode .pos-compact-tool-item input,
+        body.dark-mode .pos-compact-tool-item select {
+            color: #f1f5f9 !important;
+        }
+
+        /* ========================================================================= */
+        /* ✒️ تشبيع الحبر والوضوح العالي لمدخلات وشارات الشريط العلوي للبيع */
+        /* ========================================================================= */
+        .header-input-unified {
+            color: #0f172a !important;
+            font-weight: 900 !important;
+        }
+
+        .header-input-unified::placeholder,
+        .customer-input::placeholder {
+            color: #475569 !important;
+            font-weight: 800 !important;
+            opacity: 0.95 !important;
+        }
+
+        .header-label-badge {
+            font-weight: 900 !important;
+            letter-spacing: 0.2px;
+        }
+
+        /* ========================================================================= */
+        /* 🧭 أزرار التنقل والبحث عن الفواتير في شريط أدوات البيع (POS Invoices Navigation) */
+        /* ========================================================================= */
+        .pos-custom-actions-bar {
+            display: flex !important;
+            gap: 6px !important;
+            align-items: center !important;
+            flex: 1 !important;
+            overflow-x: auto !important;
+            scrollbar-width: none !important;
+        }
+
+        .pos-custom-actions-bar::-webkit-scrollbar {
+            display: none !important;
+        }
+
+        .pos-nav-action-btn {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            height: 34px !important;
+            width: 36px !important;
+            min-width: 36px !important;
+            max-width: 36px !important;
+            border-radius: 8px !important;
+            border: 1.5px solid #b45309 !important;
+            background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+            color: #ffffff !important;
+            cursor: pointer !important;
+            user-select: none !important;
+            box-shadow: 0 2px 6px rgba(217, 119, 6, 0.25) !important;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            box-sizing: border-box !important;
+            outline: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .pos-nav-action-btn:hover {
+            transform: translateY(-1px) !important;
+            box-shadow: 0 3px 8px rgba(217, 119, 6, 0.38) !important;
+            background: linear-gradient(135deg, #fbbf24, #d97706) !important;
+        }
+
+        .pos-nav-action-btn:active {
+            transform: scale(0.95) !important;
+        }
+
+        .pos-nav-action-btn:disabled {
+            opacity: 0.55 !important;
+            cursor: not-allowed !important;
+            transform: none !important;
+        }
+
+        .pos-nav-action-btn .pos-nav-icon {
+            font-size: 1.15rem !important;
+            line-height: 1 !important;
+            display: inline-block !important;
+            filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.2));
+            transition: transform 0.2s ease !important;
+        }
+
+        .pos-nav-action-btn:hover .pos-nav-icon {
+            transform: scale(1.12) !important;
+        }
+
+        /* الوضع الليلي Dark Mode */
+        body.dark-mode .pos-nav-action-btn {
+            border-color: #d97706 !important;
+            background: linear-gradient(135deg, #b45309, #78350f) !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35) !important;
+        }
+
+        body.dark-mode .pos-nav-action-btn:hover {
+            background: linear-gradient(135deg, #d97706, #92400e) !important;
         }

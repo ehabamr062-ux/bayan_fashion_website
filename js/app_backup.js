@@ -222,13 +222,14 @@ window.restoreDataFromContent = async function (jsonContent, fileName = '', isEm
                         await db.users.clear();
                     }
 
-                    const CHUNK_SIZE = 50;
-                    for (let i = 0; i < cleanProducts.length; i += CHUNK_SIZE) {
-                        await db.products.bulkPut(cleanProducts.slice(i, i + CHUNK_SIZE));
+                    const PROD_CHUNK = 500;
+                    for (let i = 0; i < cleanProducts.length; i += PROD_CHUNK) {
+                        await db.products.bulkPut(cleanProducts.slice(i, i + PROD_CHUNK));
                     }
 
-                    for (let i = 0; i < cleanTransactions.length; i += 100) {
-                        await db.transactions.bulkPut(cleanTransactions.slice(i, i + 100));
+                    const TX_CHUNK = 500;
+                    for (let i = 0; i < cleanTransactions.length; i += TX_CHUNK) {
+                        await db.transactions.bulkPut(cleanTransactions.slice(i, i + TX_CHUNK));
                     }
 
                     if (cleanAccounts.length > 0) await db.accounts.bulkPut(cleanAccounts);
@@ -550,6 +551,28 @@ window.restoreDataFromContent = async function (jsonContent, fileName = '', isEm
                                 console.warn("License signature regeneration notice:", licSignErr);
                             }
                         }
+                    }
+                }
+
+                if (titleEl) {
+                    titleEl.innerHTML = `<span style="color: #6366f1; font-weight: bold;">💾 جاري حفظ وتثبيت قاعدة البيانات...</span>`;
+                }
+                if (subEl) {
+                    subEl.innerHTML = `يرجى الانتظار ثوانٍ لتثبيت كافة الجداول في الذاكرة الدائمة...`;
+                }
+
+                // 💾 طلب إذن التخزين الدائم بالمتصفح لمنع حذفه
+                if (navigator.storage && navigator.storage.persist) {
+                    try { await navigator.storage.persist(); } catch (pErr) {}
+                }
+
+                // 💾 ضمان حفظ وتصدير قاعدة البيانات فورياً وتثبيتها في القرص/المتصفح قبل أي إعادة تحميل
+                if (window.BayanSQLite) {
+                    if (typeof window.BayanSQLite.persistNow === 'function') {
+                        await window.BayanSQLite.persistNow(true);
+                    }
+                    if (typeof window.BayanSQLite.flush === 'function') {
+                        await window.BayanSQLite.flush();
                     }
                 }
 

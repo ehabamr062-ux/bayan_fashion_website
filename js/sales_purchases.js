@@ -29,23 +29,50 @@ function updateHeaderPartnerInfo() {
 
                 sBalance.innerText = bal.toFixed(2);
 
-                // رصيد سابق في شاشة المبيعات
+                // رصيد سابق في شاشة المبيعات (حساب الرصيد السابق الحقيقي المستثنى منه الفاتورة الحالية المعروضة/المعدلة لمنع التكرار المزدوج)
+                let priorBal = bal;
+                let activeSalesInvId = null;
+                if (window.editingInvoiceId) {
+                    activeSalesInvId = String(window.editingInvoiceId).trim();
+                } else if (window._posCurrentNavState && window._posCurrentNavState.invoiceId) {
+                    activeSalesInvId = String(window._posCurrentNavState.invoiceId).trim();
+                } else if (typeof tabStates !== 'undefined' && typeof activeTabId !== 'undefined' && tabStates[activeTabId] && tabStates[activeTabId].viewingInvoiceId) {
+                    activeSalesInvId = String(tabStates[activeTabId].viewingInvoiceId).trim();
+                }
+
+                if (activeSalesInvId && !window.isGenericCashPartner(name)) {
+                    const allTx = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+                    const headTx = allTx.find(t => String(t.invoiceId) === String(activeSalesInvId) && (t.isInvoiceHead || (t.type && (t.type.includes('بيع') || t.type.includes('مبيعات')))));
+                    if (headTx && headTx.prevBalance !== undefined && headTx.prevBalance !== null && !isNaN(parseFloat(headTx.prevBalance))) {
+                        priorBal = parseFloat(headTx.prevBalance);
+                    } else if (typeof getHistoricalPartnerBalance === 'function') {
+                        priorBal = getHistoricalPartnerBalance(name, activeSalesInvId);
+                    } else if (typeof getAccountBalance === 'function') {
+                        priorBal = getAccountBalance(name, activeSalesInvId);
+                    }
+                }
 
                 if (document.getElementById('prevBalanceDisplay')) {
 
-                    document.getElementById('prevBalanceDisplay').innerText = bal.toFixed(2);
+                    document.getElementById('prevBalanceDisplay').innerText = priorBal.toFixed(2);
+
+                    // تلوين الرصيد السابق بالحبر الأسود العريض (أو أحمر عريض للدائن)
+                    if (priorBal < -0.001) {
+                        document.getElementById('prevBalanceDisplay').style.color = '#dc2626';
+                    } else {
+                        document.getElementById('prevBalanceDisplay').style.color = '#000000';
+                    }
+                    document.getElementById('prevBalanceDisplay').style.fontWeight = '900';
 
                     // استدعاء الحساب لتحديث الإجمالي الكلي
-
                     if (typeof calculateTotals === 'function') calculateTotals();
 
                 }
 
-                // تلوين الرصيد (أخضر للمديونية "عليه"، أحمر للدائن "له") حسب طلب المستخدم
-
-                sBalance.style.color = (bal > 0) ? 'var(--main-green)' : (bal < 0 ? '#c0392b' : 'white');
-
-                sBalance.parentElement.style.backgroundColor = (bal > 0) ? 'rgba(39, 174, 96, 0.2)' : (bal < 0 ? 'rgba(192, 57, 43, 0.2)' : '#444');
+                // تلوين الرصيد بحبر عريض وواضح جداً (أخضر للمدين، أحمر للدائن، أسود للصفر)
+                sBalance.style.fontWeight = '900';
+                sBalance.style.color = (bal > 0) ? '#15803d' : (bal < 0 ? '#dc2626' : '#000000');
+                sBalance.parentElement.style.backgroundColor = (bal > 0) ? '#dcfce7' : (bal < 0 ? '#fee2e2' : '#fef2f2');
 
             }
 
@@ -56,16 +83,17 @@ function updateHeaderPartnerInfo() {
             if (sBalance) {
 
                 sBalance.innerText = '0.00';
-
-                sBalance.style.color = 'white';
-
-                sBalance.parentElement.style.backgroundColor = '#444';
+                sBalance.style.color = '#000000';
+                sBalance.style.fontWeight = '900';
+                sBalance.parentElement.style.backgroundColor = '#fef2f2';
 
             }
 
             if (document.getElementById('prevBalanceDisplay')) {
 
                 document.getElementById('prevBalanceDisplay').innerText = '0.00';
+                document.getElementById('prevBalanceDisplay').style.color = '#000000';
+                document.getElementById('prevBalanceDisplay').style.fontWeight = '900';
 
                 if (typeof calculateTotals === 'function') calculateTotals();
 
@@ -99,9 +127,31 @@ function updateHeaderPartnerInfo() {
 
                 pBalance.innerText = bal.toFixed(2);
 
+                let priorPurBal = bal;
+                let activePurInvId = null;
+                if (window.editingInvoiceId && (window.editingInvoiceType === 'شراء' || String(window.editingInvoiceType || '').includes('شراء'))) {
+                    activePurInvId = String(window.editingInvoiceId).trim();
+                } else if (document.getElementById('purchaseBadgeID')) {
+                    const badgeTxt = document.getElementById('purchaseBadgeID').innerText.trim();
+                    if (badgeTxt && badgeTxt !== '---' && !badgeTxt.includes('جديد')) {
+                        const allTx = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+                        if (allTx.some(t => String(t.invoiceId) === badgeTxt && t.type && t.type.includes('شراء'))) {
+                            activePurInvId = badgeTxt;
+                        }
+                    }
+                }
+
+                if (activePurInvId && !window.isGenericCashPartner(name)) {
+                    if (typeof getHistoricalPartnerBalance === 'function') {
+                        priorPurBal = getHistoricalPartnerBalance(name, activePurInvId);
+                    } else if (typeof getAccountBalance === 'function') {
+                        priorPurBal = getAccountBalance(name, activePurInvId);
+                    }
+                }
+
                 if (document.getElementById('purchasePrevBalanceDisplay')) {
 
-                    document.getElementById('purchasePrevBalanceDisplay').innerText = bal.toFixed(2);
+                    document.getElementById('purchasePrevBalanceDisplay').innerText = priorPurBal.toFixed(2);
 
                     if (typeof calculatePurchaseTotals === 'function') calculatePurchaseTotals();
 
@@ -184,7 +234,8 @@ async function selectProductToPurchaseHeader(productId) {
     if (resultsDiv) resultsDiv.style.display = 'none';
 
     // إذا كان للصنف تشكيلات مقاسات وألوان، نفتح نافذة المقاس واللون الموحدة فوراً
-    if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+    const isVariantsAllowed = !document.body.classList.contains('bayan-variants-disabled');
+    if (isVariantsAllowed && product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
         if (typeof showVariantSelectionModal === 'function') {
             showVariantSelectionModal(product, 'purchase');
             return;
@@ -504,7 +555,8 @@ async function handlePurchaseSearchEnter(query, event, forceAdd = false) {
             document.getElementById('purchaseSearchResults').style.display = 'none';
             document.getElementById('purchaseSearch').focus();
         } else {
-            if (pMatch.variants && Array.isArray(pMatch.variants) && pMatch.variants.length > 0) {
+            const isVariantsAllowed = !document.body.classList.contains('bayan-variants-disabled');
+            if (isVariantsAllowed && pMatch.variants && Array.isArray(pMatch.variants) && pMatch.variants.length > 0) {
                 const resultsDiv = document.getElementById('purchaseSearchResults');
                 if (resultsDiv) resultsDiv.style.display = 'none';
                 if (typeof showVariantSelectionModal === 'function') {
@@ -647,7 +699,8 @@ function addToPurchaseCart(id, unitName = null, manualQty = null, manualCost = n
         return;
     }
 
-    if (product.variants && product.variants.length > 0 && !effVariant) {
+    const isVariantsAllowed = !document.body.classList.contains('bayan-variants-disabled');
+    if (isVariantsAllowed && product.variants && product.variants.length > 0 && !effVariant) {
         showVariantSelectionModal(product, 'purchase');
         return;
     }
@@ -1215,7 +1268,6 @@ function updatePurchaseItemUnit(idx, unitName) {
 function removePurchaseItem(index) {
     if (isEditMode && !checkPermission('docs_edit')) return;
     const item = purchaseCart[index];
-    if (item) addToTrash('draft_item', item, `حذف من فاتورة شراء (مسودة): ${item.name}`);
     purchaseCart.splice(index, 1);
     renderPurchaseCart_Finalized_V3();
 }

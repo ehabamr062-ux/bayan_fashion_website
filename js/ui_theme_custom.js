@@ -502,9 +502,11 @@ function updateSubscriptionUI(hwid, plan, daysLeft) {
                     showSubscription();
                 } else {
                     modal.classList.remove('hidden');
+                    modal.style.setProperty('display', 'flex', 'important');
                 }
             } else {
                 modal.classList.add('hidden');
+                modal.style.setProperty('display', 'none', 'important');
             }
         }
 

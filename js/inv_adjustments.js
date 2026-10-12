@@ -335,7 +335,8 @@ function handleAdjSearchEnter(query, event) {
     }
 
     if (pMatch) {
-        if (pMatch.variants && Array.isArray(pMatch.variants) && pMatch.variants.length > 0) {
+        const isVariantsAllowed = !document.body.classList.contains('bayan-variants-disabled');
+        if (isVariantsAllowed && pMatch.variants && Array.isArray(pMatch.variants) && pMatch.variants.length > 0) {
             const resultsDiv = document.getElementById('adjSearchResults');
             if (resultsDiv) resultsDiv.style.display = 'none';
             if (typeof showVariantSelectionModal === 'function') {
@@ -424,7 +425,7 @@ function handleAdjSearch(query) {
                     ${filtered.map(p => {
                         const priceVal = (typeof window.getEffectiveAdjustmentPrice === 'function') ? window.getEffectiveAdjustmentPrice(p) : (parseFloat(p.price) || 0);
                         const activeWhName = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
-                        const stockVal = typeof getWarehouseStock === 'function' ? getWarehouseStock(p.name, activeWhName) : (parseFloat(p.stock) || 0);
+                        const stockVal = typeof getWarehouseStock === 'function' ? getWarehouseStock(p, activeWhName) : (parseFloat(p.stock) || 0);
                         const sizesList = (p.variants && Array.isArray(p.variants)) 
                             ? [...new Set(p.variants.map(v => String(v.size || '').trim()).filter(s => s && s !== '-' && s !== 'موحد' && s !== 'قياسي'))] 
                             : [];
@@ -435,7 +436,8 @@ function handleAdjSearch(query) {
                             <div class="pos-search-row adj-search-row" onclick="
                                 document.getElementById('adjSearchResults').style.display='none';
                                 const pSelected = productsDB.find(x => x.id === ${p.id});
-                                if (pSelected && pSelected.variants && pSelected.variants.length > 0) {
+                                const isVarAllowed = !document.body.classList.contains('bayan-variants-disabled');
+                                if (isVarAllowed && pSelected && pSelected.variants && pSelected.variants.length > 0) {
                                     showVariantSelectionModal(pSelected, 'adj');
                                 } else if (typeof showUnitSelectionModal === 'function' && ${p.units && p.units.length > 1}) {
                                     showUnitSelectionModal(pSelected, 'adjustment');
@@ -738,7 +740,6 @@ function updateAdjItemUnit(idx, unitName) {
 
 function removeAdjItem(index) {
     const item = window.adjCart[index];
-    if (typeof addToTrash === 'function') addToTrash('draft_item', item, `حذف من تسوية الجرد: ${item.name}`);
     window.adjCart.splice(index, 1);
     renderAdjTable();
 }
@@ -1120,71 +1121,36 @@ function openPriceAdjustmentModal() {
             modal.style.setProperty('display', 'flex', 'important');
         }
 
-        const allProds = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
-
-        const catSelect = document.getElementById('priceAdjCategory');
-        if (catSelect) {
-            catSelect.innerHTML = '<option value="all">📁 كافة الأقسام</option>';
-            const cats = [...new Set(allProds.map(p => p.category).filter(c => c))];
-            cats.forEach(c => {
-                catSelect.innerHTML += `<option value="${c}">${c}</option>`;
-            });
-            catSelect.value = 'all';
+        // 🟢 شاشة تحميل خضراء ملكية فورية (0ms) بأيقونة الساعة الرملية وتأثير نبض راقٍ
+        const tbody = document.getElementById('priceAdjustmentTableBody');
+        if (tbody) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="15" style="text-align:center; padding: 60px 20px; background: #ffffff;">
+                        <div style="display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border: 2px solid #86efac; padding: 26px 40px; border-radius: 18px; box-shadow: 0 10px 30px rgba(16, 185, 129, 0.12); max-width: 540px;">
+                            <div style="width: 58px; height: 58px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #059669); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35);">
+                                ⏳
+                            </div>
+                            <div style="color: #065f46; font-size: 1.2rem; font-weight: 900;">
+                                جاري تجهيز وتحميل بيانات الأسعار والمخازن...
+                            </div>
+                            <div style="color: #047857; font-size: 0.88rem; font-weight: 700;">
+                                يرجى الانتظار لحظات، يتم إعداد تشكيلات الموديلات بدقة فائقة ⚡
+                            </div>
+                        </div>
+                    </td>
+                </tr>
+            `;
         }
-
-        const typeSelect = document.getElementById('priceAdjTypeFilter');
-        if (typeSelect) typeSelect.value = 'all';
-
-        const stockSelect = document.getElementById('priceAdjStockFilter');
-        if (stockSelect) stockSelect.value = 'all';
-
-        // فلتر المقاسات التفاعلي
-        const sizeSelect = document.getElementById('priceAdjSizeFilter');
-        if (sizeSelect) {
-            sizeSelect.innerHTML = '<option value="all">📏 كافة المقاسات</option>';
-            const allSizes = new Set();
-            allProds.forEach(p => {
-                if (p.variants && Array.isArray(p.variants)) {
-                    p.variants.forEach(v => {
-                        if (v.size && String(v.size).trim() && String(v.size).trim() !== '-') {
-                            allSizes.add(String(v.size).trim());
-                        }
-                    });
-                }
-            });
-            [...allSizes].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })).forEach(sz => {
-                sizeSelect.innerHTML += `<option value="${sz}">${sz}</option>`;
-            });
-            sizeSelect.value = 'all';
-        }
-
-        // فلتر الألوان التفاعلي
-        const colorSelect = document.getElementById('priceAdjColorFilter');
-        if (colorSelect) {
-            colorSelect.innerHTML = '<option value="all">🎨 كافة الألوان</option>';
-            const allColors = new Set();
-            allProds.forEach(p => {
-                if (p.variants && Array.isArray(p.variants)) {
-                    p.variants.forEach(v => {
-                        if (v.color && String(v.color).trim() && String(v.color).trim() !== 'افتراضي') {
-                            allColors.add(String(v.color).trim());
-                        }
-                    });
-                }
-            });
-            [...allColors].sort().forEach(col => {
-                colorSelect.innerHTML += `<option value="${col}">${col}</option>`;
-            });
-            colorSelect.value = 'all';
-        }
-
-        const selectedIds = Array.from(window.selectedInventoryIds || []);
-        loadPriceAdjustmentData(selectedIds);
 
         if (document.getElementById('priceAdjBulkPercent')) {
             document.getElementById('priceAdjBulkPercent').value = '0';
         }
+        if (document.getElementById('priceAdjSearch')) {
+            document.getElementById('priceAdjSearch').value = '';
+        }
 
+        window.priceAdjDisplayLimit = 50;
         window.priceAdjUndoStack = [];
         if (typeof updateUndoButtonState === 'function') updateUndoButtonState();
 
@@ -1202,15 +1168,81 @@ function openPriceAdjustmentModal() {
             });
         }
 
-        if (typeof applyPriceAdjColumnVisibility === 'function') {
-            setTimeout(applyPriceAdjColumnVisibility, 100);
-        }
+        const selectedIds = Array.from(window.selectedInventoryIds || []);
+
+        // ⚡ تفريغ خيط المعالجة فوراً (Yield Event Loop) ليرى المستخدم النافذة مفتوحة في 0ms دون أي تجميد للزر
+        setTimeout(() => {
+            initPriceAdjustmentFiltersAndData(selectedIds);
+        }, 16);
+
     } catch (err) {
         console.error("خطأ أثناء فتح منصة تعديل الأسعار:", err);
         if (typeof showToast === 'function') showToast("حدث خطأ أثناء فتح منصة تعديل الأسعار: " + err.message, "error");
     }
 }
 window.openPriceAdjustmentModal = openPriceAdjustmentModal;
+
+function initPriceAdjustmentFiltersAndData(selectedIds = []) {
+    try {
+        const allProds = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
+
+        // 1. فلتر الأقسام (تجميع فوري وسريع)
+        const catSelect = document.getElementById('priceAdjCategory');
+        if (catSelect) {
+            const cats = [...new Set(allProds.map(p => p.category).filter(Boolean))].sort();
+            catSelect.innerHTML = '<option value="all">📁 كافة الأقسام</option>' + cats.map(c => `<option value="${c}">${c}</option>`).join('');
+            catSelect.value = 'all';
+        }
+
+        const typeSelect = document.getElementById('priceAdjTypeFilter');
+        if (typeSelect) typeSelect.value = 'all';
+
+        const stockSelect = document.getElementById('priceAdjStockFilter');
+        if (stockSelect) stockSelect.value = 'all';
+
+        // 2. فلتر المقاسات والألوان (مسح واحد فائق السرعة O(N) بدلاً من مسحين)
+        const sizeSelect = document.getElementById('priceAdjSizeFilter');
+        const colorSelect = document.getElementById('priceAdjColorFilter');
+
+        const allSizes = new Set();
+        const allColors = new Set();
+        for (let i = 0; i < allProds.length; i++) {
+            const p = allProds[i];
+            if (p.variants && Array.isArray(p.variants)) {
+                for (let j = 0; j < p.variants.length; j++) {
+                    const v = p.variants[j];
+                    if (v.size && String(v.size).trim() && String(v.size).trim() !== '-') {
+                        allSizes.add(String(v.size).trim());
+                    }
+                    if (v.color && String(v.color).trim() && String(v.color).trim() !== 'افتراضي') {
+                        allColors.add(String(v.color).trim());
+                    }
+                }
+            }
+        }
+
+        if (sizeSelect) {
+            const sortedSizes = [...allSizes].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+            sizeSelect.innerHTML = '<option value="all">📏 كافة المقاسات</option>' + sortedSizes.map(sz => `<option value="${sz}">${sz}</option>`).join('');
+            sizeSelect.value = 'all';
+        }
+
+        if (colorSelect) {
+            const sortedColors = [...allColors].sort();
+            colorSelect.innerHTML = '<option value="all">🎨 كافة الألوان</option>' + sortedColors.map(col => `<option value="${col}">${col}</option>`).join('');
+            colorSelect.value = 'all';
+        }
+
+        loadPriceAdjustmentData(selectedIds);
+
+        if (typeof applyPriceAdjColumnVisibility === 'function') {
+            setTimeout(applyPriceAdjColumnVisibility, 50);
+        }
+    } catch (err) {
+        console.error("Error in initPriceAdjustmentFiltersAndData:", err);
+    }
+}
+window.initPriceAdjustmentFiltersAndData = initPriceAdjustmentFiltersAndData;
 
 function closePriceAdjustmentModal() {
     const modal = document.getElementById('priceAdjustmentModal');
@@ -1226,12 +1258,14 @@ function closePriceAdjustmentModal() {
     window.priceAdjData = [];
     window.priceAdjCurrentFiltered = null;
     window.priceAdjUndoStack = [];
+    window.priceAdjDisplayLimit = 50;
     if (typeof updateUndoButtonState === 'function') updateUndoButtonState();
 }
 window.closePriceAdjustmentModal = closePriceAdjustmentModal;
 
 window.priceAdjData = window.priceAdjData || [];
 window.priceAdjCurrentFiltered = null;
+window.priceAdjDisplayLimit = 50;
 
 function loadPriceAdjustmentData(selectedIds = []) {
     const tbody = document.getElementById('priceAdjustmentTableBody');
@@ -1269,9 +1303,9 @@ function loadPriceAdjustmentData(selectedIds = []) {
                 const catMatch = (catQ === 'all') || (p.category === catQ);
                 return (nameMatch || codeMatch || barcodeMatch || variantMatch) && catMatch;
             });
-            if (targets.length > 500) targets = targets.slice(0, 500);
         } else {
-            targets = allProds;
+            // حماية الذاكرة والـ DOM: عند فتح النافذة بدون فلترة محددة، تحميل أول 250 صنف لتسريع الاستجابة الفورية
+            targets = allProds.length > 250 ? allProds.slice(0, 250) : allProds;
         }
 
         window.priceAdjData = [];
@@ -1301,7 +1335,7 @@ function loadPriceAdjustmentData(selectedIds = []) {
             // حساب الرصيد الحي الفعلي للصنف في المخزن النشط
             let liveStock = 0;
             if (typeof getWarehouseStock === 'function') {
-                const st = getWarehouseStock(itemName, activeWH);
+                const st = getWarehouseStock(p, activeWH);
                 if (st !== undefined && !isNaN(st)) liveStock = Number(st);
             } else if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
                 liveStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
@@ -1418,6 +1452,7 @@ function loadPriceAdjustmentData(selectedIds = []) {
             }
         });
 
+        window.priceAdjDisplayLimit = 50;
         renderPriceAdjustmentTable();
         updatePriceAdjStats();
 
@@ -1429,6 +1464,12 @@ function loadPriceAdjustmentData(selectedIds = []) {
         tbody.innerHTML = `<tr><td colspan="15" style="text-align:center; padding:50px; color:#ef4444; font-weight:bold;">❌ حدث خطأ أثناء المعالجة: ${err.message}</td></tr>`;
     }
 }
+
+function loadMorePriceAdjItems() {
+    window.priceAdjDisplayLimit = (window.priceAdjDisplayLimit || 50) + 50;
+    renderPriceAdjustmentTable(window.priceAdjCurrentFiltered);
+}
+window.loadMorePriceAdjItems = loadMorePriceAdjItems;
 
 function renderPriceAdjustmentTable(filteredData = null) {
     const tbody = document.getElementById('priceAdjustmentTableBody');
@@ -1444,8 +1485,11 @@ function renderPriceAdjustmentTable(filteredData = null) {
         return;
     }
 
+    const limit = window.priceAdjDisplayLimit || 50;
+    const itemsToShow = dataToRender.slice(0, limit);
+
     let htmlBuffer = [];
-    dataToRender.forEach((p, renderIndex) => {
+    itemsToShow.forEach((p, renderIndex) => {
         const originalIndex = window.priceAdjData.indexOf(p);
         const costVal = parseFloat(p.avgBuyPrice) || 0;
         const retailVal = parseFloat(p.retail) || 0;
@@ -1557,6 +1601,21 @@ function renderPriceAdjustmentTable(filteredData = null) {
             </tr>
         `);
     });
+
+    if (dataToRender.length > limit) {
+        htmlBuffer.push(`
+            <tr id="priceAdjLoadMoreRow" style="background: #f8fafc; border-top: 2px solid #e2e8f0;">
+                <td colspan="15" style="text-align: center; padding: 14px 20px;">
+                    <button type="button" onclick="loadMorePriceAdjItems()" 
+                        style="padding: 9px 24px; background: linear-gradient(135deg, #059669, #10b981); color: white; border: none; border-radius: 10px; font-weight: 900; font-size: 0.92rem; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); transition: 0.2s; display: inline-flex; align-items: center; gap: 10px;"
+                        onmouseover="this.style.transform='translateY(-1px)';" onmouseout="this.style.transform='translateY(0)';">
+                        <span>⚡ عرض المزيد من الموديلات (+50)</span>
+                        <span style="background: rgba(255,255,255,0.22); padding: 3px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 800;">معروض ${itemsToShow.length} من أصل ${dataToRender.length}</span>
+                    </button>
+                </td>
+            </tr>
+        `);
+    }
 
     tbody.innerHTML = htmlBuffer.join('');
 
@@ -2339,6 +2398,7 @@ function handlePriceAdjSearch() {
 
     const isFiltered = query !== '' || cat !== 'all' || stockFilter !== 'all' || typeFilter !== 'all' || sizeFilter !== 'all' || colorFilter !== 'all';
     window.priceAdjCurrentFiltered = isFiltered ? filtered : null;
+    window.priceAdjDisplayLimit = 50; // ⚡ إعادة ضبط سقف العرض إلى 50 عند كل بحث أو فلترة لسرعة استجابة لحظية
     renderPriceAdjustmentTable(filtered);
     updatePriceAdjStats();
 }
@@ -2839,12 +2899,17 @@ window.applyPriceAdjColumnVisibility = function() {
         if (saved) hiddenCols = JSON.parse(saved);
     } catch(e) {}
 
+    // ⚡ خروج سريع بـ 0ms إذا لم تكن هناك أي أعمدة مخفية
+    if (!hiddenCols || hiddenCols.length === 0) return;
+
     priceAdjColumnsList.forEach(col => {
-        const isVisible = !hiddenCols.includes(String(col.id));
-        const cells = document.querySelectorAll(`.col-adj-${col.id}`);
-        cells.forEach(c => {
-            c.style.display = isVisible ? '' : 'none';
-        });
+        const isHidden = hiddenCols.includes(String(col.id));
+        if (isHidden) {
+            const cells = document.querySelectorAll(`.col-adj-${col.id}`);
+            cells.forEach(c => {
+                c.style.display = 'none';
+            });
+        }
     });
 };
 

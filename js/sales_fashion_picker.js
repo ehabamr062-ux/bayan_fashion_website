@@ -337,6 +337,24 @@ function buildVariantGroupsHtml(product, context, mode = 'by_color') {
 function showVariantSelectionModal(product, context = 'sales') {
     closeVariantSelectionModal(); // إغلاق أي نافذة قديمة وتنظيف المستمعات
 
+    if (document.body.classList.contains('bayan-variants-disabled')) {
+        // إذا كان نظام المقاسات والألوان معطلاً من الإعدادات، يتم إضافة الصنف مباشرة دون فتح النافذة
+        if (context === 'sales' && typeof addToCart === 'function') {
+            addToCart(product.id);
+        } else if (context === 'purchase' && typeof addToPurchaseCart === 'function') {
+            addToPurchaseCart(product.id);
+        } else if (context === 'salesReturn' && typeof addToReturnCart === 'function') {
+            addToReturnCart(product.id);
+        } else if (context === 'purReturn' && typeof addToPurReturnCart === 'function') {
+            addToPurReturnCart(product.id);
+        } else if (context === 'adj' && typeof addAdjItem === 'function') {
+            addAdjItem(product.id);
+        } else if (context === 'transfer' && typeof addTransferItem === 'function') {
+            addTransferItem(product.id);
+        }
+        return;
+    }
+
     const variants = product.variants || [];
     if (variants.length === 0) {
         addToCart(product.id);

@@ -229,6 +229,7 @@
             for (let i = 0; i < txs.length; i++) {
                 const t = txs[i];
                 if (!t || !t.partner) continue;
+                t.originalIndex = i;
                 const pClean = cleanArabicCached(t.partner);
                 if (!pClean) continue;
                 let list = index.get(pClean);
@@ -417,19 +418,35 @@
             const allTrans = (typeof transactions !== 'undefined' ? transactions : []);
 
             let cutoffIdx = allTrans.length;
+            let targetInvHead = null;
             if (beforeIndex !== null && beforeIndex !== undefined && beforeIndex >= 0) {
                 cutoffIdx = beforeIndex;
             } else if (invoiceId) {
                 const firstIdx = allTrans.findIndex(t => String(t.invoiceId) === String(invoiceId));
                 if (firstIdx !== -1) {
                     cutoffIdx = firstIdx;
+                    targetInvHead = allTrans[firstIdx];
                 }
             }
 
             const partnerIndex = ensurePartnerTransactionsIndex();
             const partnerAllTxs = partnerIndex.get(targetNameClean) || [];
 
+            const targetDateStr = targetInvHead ? (targetInvHead.dateISO || (targetInvHead.date ? targetInvHead.date.split(' ')[0] : '')) : '';
+            const targetTimeStr = targetInvHead ? (targetInvHead.timeISO || (targetInvHead.date && targetInvHead.date.includes(' ') ? targetInvHead.date.split(' ')[1] : '00:00')) : '';
+            const targetDateTime = (targetDateStr && targetTimeStr) ? `${targetDateStr} ${targetTimeStr}` : targetDateStr;
+
             const priorTrans = partnerAllTxs.filter(t => {
+                if (invoiceId && String(t.invoiceId) === String(invoiceId)) {
+                    return false; // لا يمكن أن تكون الفاتورة الحالية جزءاً من الرصيد السابق لنفسها
+                }
+                if (targetDateTime) {
+                    const tDate = t.dateISO || (t.date ? t.date.split(' ')[0] : '');
+                    const tTime = t.timeISO || (t.date && t.date.includes(' ') ? t.date.split(' ')[1] : '00:00');
+                    const tDateTime = (tDate && tTime) ? `${tDate} ${tTime}` : tDate;
+                    if (tDateTime && tDateTime < targetDateTime) return true;
+                    if (tDateTime && tDateTime > targetDateTime) return false;
+                }
                 const origIdx = (t.originalIndex !== undefined) ? t.originalIndex : allTrans.indexOf(t);
                 return origIdx < cutoffIdx;
             });
@@ -641,7 +658,16 @@
 
         window.loadMoreInvoices = function(step) {
             if (step === 0) {
-                window.invoicesRenderLimit = Infinity;
+                const MAX_SAFE_CEILING = 300;
+                const total = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions.length : 0;
+                if (total > MAX_SAFE_CEILING) {
+                    window.invoicesRenderLimit = MAX_SAFE_CEILING;
+                    if (typeof showToast === 'function') {
+                        showToast(`⚡ تم عرض أول ${MAX_SAFE_CEILING} فاتورة لحماية سرعة جهازك. استخدم فلتر التاريخ أو البحث السريع للوصول الفوري.`, 'info');
+                    }
+                } else {
+                    window.invoicesRenderLimit = Infinity;
+                }
             } else {
                 window.invoicesRenderLimit = (window.invoicesRenderLimit || 100) + step;
             }
@@ -656,7 +682,7 @@
             }
 
             if (!isLoadMore) {
-                window.invoicesRenderLimit = window.invoicesRenderLimit || 100;
+                window.invoicesRenderLimit = 100;
             }
 
             const searchId = (document.getElementById('invoicesSearchId')?.value || '').toLowerCase();
@@ -2409,7 +2435,12 @@
             oldItems.forEach(item => {
                 if (!item || typeof productsDB === 'undefined' || !Array.isArray(productsDB)) return;
 
-                const p = productsDB.find(p => p && (p.name === item.product || p.id === item.productId || p.id === item.product));
+                const p = productsDB.find(p => p && (
+                    p.name === item.product || p.name === item.name ||
+                    (item.productId != null && String(p.id) === String(item.productId)) ||
+                    (item.id != null && String(p.id) === String(item.id)) ||
+                    (item.product && String(p.id) === String(item.product))
+                ));
                 if (p) {
                     let factor = parseFloat(item.unitFactor) || 1;
                     if (item.unit && p.units && Array.isArray(p.units)) {
@@ -2461,7 +2492,11 @@
                         const sSize = String(item.selectedSize || item.size || '').trim();
                         const sColor = String(item.selectedColor || item.color || '').trim();
                         if (sSize || sColor) {
-                            const cleanV = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+                            const cleanV = (s) => {
+                                const str = String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+                                if (!str || str === 'قياسي' || str === 'موحد' || str === 'عام' || str === '-') return '';
+                                return str;
+                            };
                             const cSize = cleanV(sSize);
                             const cColor = cleanV(sColor);
                             const matchedVar = p.variants.find(v => 

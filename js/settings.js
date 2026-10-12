@@ -160,21 +160,32 @@ function selectBusinessType(type) {
     const hiddenInput = document.getElementById('appBusinessType');
     if (hiddenInput) hiddenInput.value = 'clothing';
 
-    // ضبط الخيارات التلقائية لنشاط الملابس
+    // ضبط الخيارات لنشاط الملابس مع احترام الإعداد المحفوظ مسبقاً
+    const settings = JSON.parse(getStore('pos_settings') || '{}');
     const variantsCheck = document.getElementById('enableVariantsMatrix');
-    if (variantsCheck) variantsCheck.checked = true;
+    if (variantsCheck) {
+        variantsCheck.checked = (settings.enableVariantsMatrix !== undefined) ? !!settings.enableVariantsMatrix : true;
+    }
 
     applyBusinessTypeUI();
 }
 
 function applyBusinessTypeUI() {
     const settings = JSON.parse(getStore('pos_settings') || '{}');
-    const enableVariants = true;
+    const variantsCheck = document.getElementById('enableVariantsMatrix');
+    const enableVariants = (settings.enableVariantsMatrix !== undefined)
+        ? !!settings.enableVariantsMatrix
+        : (variantsCheck ? variantsCheck.checked : true);
     const sectionsMap = settings.visibleDashboardSections || null;
 
-    // 1. تفعيل مصفوفة المقاسات والألوان دائماً في نسخة الفاشون
-    document.body.classList.add('bayan-variants-enabled');
-    document.body.classList.remove('bayan-variants-disabled');
+    // 1. تفعيل أو تعطيل مصفوفة المقاسات والألوان وفقاً للإعدادات
+    if (enableVariants) {
+        document.body.classList.add('bayan-variants-enabled');
+        document.body.classList.remove('bayan-variants-disabled');
+    } else {
+        document.body.classList.remove('bayan-variants-enabled');
+        document.body.classList.add('bayan-variants-disabled');
+    }
 
     // 2. تطبيق إظهار وإخفاء كل قسم بشكل دقيق ونظيف
     const allKnownSections = [
@@ -334,9 +345,31 @@ function loadSettings() {
     if (settings.enableVariantsMatrix !== undefined && document.getElementById('enableVariantsMatrix')) {
         document.getElementById('enableVariantsMatrix').checked = settings.enableVariantsMatrix;
     }
+    const varChk = document.getElementById('enableVariantsMatrix');
+    if (varChk && !varChk._boundSync) {
+        varChk._boundSync = true;
+        varChk.addEventListener('change', () => {
+            const currentSettings = JSON.parse(getStore('pos_settings') || '{}');
+            currentSettings.enableVariantsMatrix = varChk.checked;
+            setStore('pos_settings', JSON.stringify(currentSettings));
+            applyBusinessTypeUI();
+        });
+    }
+
     if (settings.splitWholesaleRetailReports !== undefined && document.getElementById('splitWholesaleRetailReports')) {
         document.getElementById('splitWholesaleRetailReports').checked = settings.splitWholesaleRetailReports;
     }
+    const splitChk = document.getElementById('splitWholesaleRetailReports');
+    if (splitChk && !splitChk._boundSync) {
+        splitChk._boundSync = true;
+        splitChk.addEventListener('change', () => {
+            const currentSettings = JSON.parse(getStore('pos_settings') || '{}');
+            currentSettings.splitWholesaleRetailReports = splitChk.checked;
+            setStore('pos_settings', JSON.stringify(currentSettings));
+            if (typeof generateDailyReport === 'function') generateDailyReport();
+        });
+    }
+
     if (settings.enableSimpleStaffDashboard !== undefined && document.getElementById('enableSimpleStaffDashboard')) {
         document.getElementById('enableSimpleStaffDashboard').checked = settings.enableSimpleStaffDashboard;
     }
@@ -848,7 +881,7 @@ function renderUsersTable() {
                 </td>
                 <td style="padding: 14px 16px; text-align: center;">
                     <span style="font-family: monospace; letter-spacing: 2px; font-weight: 900; font-size: 1.05rem; background: #f8fafc; padding: 5px 12px; border-radius: 8px; border: 2px solid #cbd5e1; color: #000000;">
-                        ${(u.role === 'admin' && !isSuperAdmin) ? '••••' : u.pin}
+                        ${(u.role === 'admin' || isSuperAdmin) ? '••••' : (u.pin || '••••')}
                     </span>
                 </td>
                 <td style="padding: 14px 16px; text-align: center;">${nfcBadge}</td>
