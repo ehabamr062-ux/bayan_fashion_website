@@ -579,11 +579,36 @@ async function handleSearchEnter(query, event, forceAdd = false) {
 
     const resultsDiv = document.getElementById('searchResults');
 
-    // 1. بحث فوري في باركود تشكيلات المقاسات والألوان (Variant Barcode Match)
+    // ⚡ فحص فوري فائق السرعة O(1) عبر الفهرس المباشر للباركود والكود وتشكيلات المقاسات (0ms)
     let matchingVariant = null;
     let pInDB = null;
 
-    if (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
+    const barcodeMap = (typeof window.getBarcodeToProductMap === 'function') ? window.getBarcodeToProductMap() : null;
+    const codeMap = (typeof window.getCodeToProductMap === 'function') ? window.getCodeToProductMap() : null;
+    const cleanLower = cleanQuery.toLowerCase();
+    const normClean = (typeof window.normalizeSearchQuery === 'function') ? window.normalizeSearchQuery(cleanQuery) : cleanLower;
+
+    if (barcodeMap) {
+        const directProd = barcodeMap.get(cleanLower) || (normClean ? barcodeMap.get(normClean) : null);
+        if (directProd && !directProd.isDeleted) {
+            pInDB = directProd;
+            if (pInDB.variants && Array.isArray(pInDB.variants)) {
+                matchingVariant = pInDB.variants.find(v => v.barcode && (String(v.barcode).trim().toLowerCase() === cleanLower || (normClean && String(v.barcode).trim() === normClean))) || null;
+            }
+        }
+    }
+    if (!pInDB && codeMap) {
+        const directProd = codeMap.get(cleanLower) || (normClean ? codeMap.get(normClean) : null);
+        if (directProd && !directProd.isDeleted) {
+            pInDB = directProd;
+            if (pInDB.variants && Array.isArray(pInDB.variants)) {
+                matchingVariant = pInDB.variants.find(v => v.code && (String(v.code).trim().toLowerCase() === cleanLower || (normClean && String(v.code).trim() === normClean))) || null;
+            }
+        }
+    }
+
+    // 1. بحث احتياطي في باركود تشكيلات المقاسات والألوان (في حال لم يكن في الفهرس)
+    if (!pInDB && typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
         pInDB = productsDB.find(p => {
             if (p.variants && Array.isArray(p.variants)) {
                 const vFound = p.variants.find(v => v.barcode && String(v.barcode).trim() === cleanQuery);

@@ -24,7 +24,218 @@
         }
         window.sanitizeInput = sanitizeInput;
 
-        // دالة التأخير (Debounce) لتحسين الأداء عند الكتابة في خانات البحث
+        // ============================================================
+        // ⏳ محرك مؤشر التحميل المركزي الموحد (Unified Section Loader Engine)
+        // ============================================================
+        window.showSectionLoader = function(targetIdOrEl, title = 'جاري معالجة وتجهيز البيانات...', subtitle = 'يرجى الانتظار لحين اكتمال التحميل') {
+            try {
+                let targetEl = null;
+                if (typeof targetIdOrEl === 'string') {
+                    targetEl = document.getElementById(targetIdOrEl);
+                } else if (targetIdOrEl && targetIdOrEl.nodeType) {
+                    targetEl = targetIdOrEl;
+                }
+                if (!targetEl) targetEl = document.body;
+
+                const existing = targetEl.querySelector(':scope > .bayan-section-loader-overlay');
+                if (existing) existing.remove();
+
+                if (targetEl !== document.body) {
+                    const computedPos = window.getComputedStyle(targetEl).position;
+                    if (computedPos === 'static') {
+                        targetEl.style.position = 'relative';
+                    }
+                }
+
+                const overlay = document.createElement('div');
+                overlay.className = 'bayan-section-loader-overlay';
+                const isGlobal = (targetEl === document.body);
+
+                overlay.style.cssText = `
+                    position: ${isGlobal ? 'fixed' : 'absolute'};
+                    inset: 0;
+                    z-index: ${isGlobal ? '99999999' : '9999'};
+                    background: rgba(15, 23, 42, 0.72);
+                    backdrop-filter: blur(8px);
+                    -webkit-backdrop-filter: blur(8px);
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 14px;
+                    color: #ffffff;
+                    font-family: inherit;
+                    direction: rtl;
+                    text-align: center;
+                    padding: 20px;
+                    border-radius: ${isGlobal ? '0' : '16px'};
+                    opacity: 0;
+                    transition: opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+                    pointer-events: auto;
+                `;
+
+                overlay.innerHTML = `
+                    <div style="background: rgba(30, 41, 59, 0.94); border: 1.5px solid rgba(16, 185, 129, 0.45); border-radius: 20px; padding: 24px 32px; box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 25px rgba(16, 185, 129, 0.15); display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 420px; width: 90%;">
+                        <div style="position: relative; width: 54px; height: 54px; display: flex; align-items: center; justify-content: center;">
+                            <div style="position: absolute; inset: 0; border: 3px solid rgba(16, 185, 129, 0.2); border-top-color: #10b981; border-radius: 50%; animation: bayanLoaderSpin 0.9s linear infinite;"></div>
+                            <span style="font-size: 1.6rem; animation: bayanLoaderPulse 1.5s ease-in-out infinite;">⏳</span>
+                        </div>
+                        <div style="font-size: 1.05rem; font-weight: 900; color: #ffffff; line-height: 1.4;">
+                            ${title}
+                        </div>
+                        ${subtitle ? `<div style="font-size: 0.82rem; color: #94a3b8; font-weight: 700; line-height: 1.4;">${subtitle}</div>` : ''}
+                    </div>
+                `;
+
+                if (!document.getElementById('bayanLoaderKeyframes')) {
+                    const style = document.createElement('style');
+                    style.id = 'bayanLoaderKeyframes';
+                    style.innerHTML = `
+                        @keyframes bayanLoaderSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+                        @keyframes bayanLoaderPulse { 0%, 100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.1); opacity: 1; } }
+                    `;
+                    document.head.appendChild(style);
+                }
+
+                targetEl.appendChild(overlay);
+                requestAnimationFrame(() => { overlay.style.opacity = '1'; });
+
+                overlay._autoDismissTimer = setTimeout(() => {
+                    window.hideSectionLoader(targetEl);
+                }, 20000);
+
+                return overlay;
+            } catch (err) {
+                console.warn("showSectionLoader err:", err);
+            }
+        };
+
+        window.hideSectionLoader = function(targetIdOrEl) {
+            try {
+                let targetEl = null;
+                if (typeof targetIdOrEl === 'string') {
+                    targetEl = document.getElementById(targetIdOrEl);
+                } else if (targetIdOrEl && targetIdOrEl.nodeType) {
+                    targetEl = targetIdOrEl;
+                }
+                if (!targetEl) targetEl = document.body;
+
+                const overlay = targetEl.querySelector(':scope > .bayan-section-loader-overlay');
+                if (!overlay) return;
+
+                if (overlay._autoDismissTimer) clearTimeout(overlay._autoDismissTimer);
+                overlay.style.opacity = '0';
+                setTimeout(() => {
+                    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                }, 220);
+            } catch (err) {
+                console.warn("hideSectionLoader err:", err);
+            }
+        };
+
+        window.withSectionLoader = async function(targetIdOrEl, asyncFn, title, subtitle) {
+            window.showSectionLoader(targetIdOrEl, title, subtitle);
+            await new Promise(r => setTimeout(r, 40));
+            try {
+                return await asyncFn();
+            } finally {
+                window.hideSectionLoader(targetIdOrEl);
+            }
+        };
+
+        // ============================================================
+        // 🚀 الفهرس فائق السرعة للبحث اللحظي المباشر (O(1) Direct Lookup Index)
+        // ============================================================
+        const _barcodeToProductMap = new Map();
+        const _codeToProductMap = new Map();
+        let _productIndexVersion = 0;
+
+        function rebuildProductFastIndex() {
+            try {
+                const list = (typeof productsDB !== 'undefined' && Array.isArray(productsDB))
+                    ? productsDB
+                    : (window.productsDB || []);
+                _barcodeToProductMap.clear();
+                _codeToProductMap.clear();
+
+                for (let i = 0; i < list.length; i++) {
+                    const p = list[i];
+                    if (!p || p.isDeleted) continue;
+
+                    if (p.barcode) {
+                        const bStr = String(p.barcode).trim();
+                        if (bStr) {
+                            _barcodeToProductMap.set(bStr.toLowerCase(), p);
+                            const normB = normalizeSearchQuery(bStr);
+                            if (normB) _barcodeToProductMap.set(normB, p);
+                        }
+                    }
+
+                    if (p.code) {
+                        const cStr = String(p.code).trim();
+                        if (cStr) {
+                            _codeToProductMap.set(cStr.toLowerCase(), p);
+                            const normC = normalizeSearchQuery(cStr);
+                            if (normC) _codeToProductMap.set(normC, p);
+                        }
+                    }
+                    if (p.modelCode || p.model_code || p.model) {
+                        const mStr = String(p.modelCode || p.model_code || p.model).trim();
+                        if (mStr) {
+                            _codeToProductMap.set(mStr.toLowerCase(), p);
+                            const normM = normalizeSearchQuery(mStr);
+                            if (normM) _codeToProductMap.set(normM, p);
+                        }
+                    }
+                    if (p.id != null) {
+                        _codeToProductMap.set(String(p.id), p);
+                    }
+
+                    if (p.variants && Array.isArray(p.variants)) {
+                        for (let j = 0; j < p.variants.length; j++) {
+                            const v = p.variants[j];
+                            if (!v) continue;
+                            if (v.barcode) {
+                                const vbStr = String(v.barcode).trim();
+                                if (vbStr) {
+                                    _barcodeToProductMap.set(vbStr.toLowerCase(), p);
+                                    const normVb = normalizeSearchQuery(vbStr);
+                                    if (normVb) _barcodeToProductMap.set(normVb, p);
+                                }
+                            }
+                            if (v.code) {
+                                const vcStr = String(v.code).trim();
+                                if (vcStr) {
+                                    _codeToProductMap.set(vcStr.toLowerCase(), p);
+                                    const normVc = normalizeSearchQuery(vcStr);
+                                    if (normVc) _codeToProductMap.set(normVc, p);
+                                }
+                            }
+                        }
+                    }
+                }
+                _productIndexVersion++;
+            } catch (e) {
+                console.warn("rebuildProductFastIndex err:", e);
+            }
+        }
+        window.rebuildProductFastIndex = rebuildProductFastIndex;
+        window.getBarcodeToProductMap = () => {
+            const list = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
+            if (_barcodeToProductMap.size === 0 && list.length > 0) {
+                rebuildProductFastIndex();
+            }
+            return _barcodeToProductMap;
+        };
+        window.getCodeToProductMap = () => {
+            const list = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
+            if (_codeToProductMap.size === 0 && list.length > 0) {
+                rebuildProductFastIndex();
+            }
+            return _codeToProductMap;
+        };
+
+        // دالة التأخير (Debounce) الذكية والمحسنة لتحسين الأداء عند الكتابة في خانات البحث
         function debounce(func, wait) {
             let timeout;
             return function(...args) {
@@ -33,14 +244,14 @@
             };
         }
 
-        // --- النسخ المؤجلة (Debounced Versions) للوظائف المكثفة ---
-        const debouncedHandleSearch = debounce((val) => { if (typeof handleSearch === 'function') handleSearch(val); }, 120);
-        const debouncedHandleReturnSearch = debounce((val, type) => { if (typeof handleReturnSearch === 'function') handleReturnSearch(val, type); }, 200);
-        const debouncedHandleCustomerSearch = debounce((val) => { if (typeof handleCustomerSearch === 'function') handleCustomerSearch(val); }, 150);
+        // --- النسخ المؤجلة (Debounced Versions) للوظائف المكثفة بتوقيت متوازن (240ms) ---
+        const debouncedHandleSearch = debounce((val) => { if (typeof handleSearch === 'function') handleSearch(val); }, 240);
+        const debouncedHandleReturnSearch = debounce((val, type) => { if (typeof handleReturnSearch === 'function') handleReturnSearch(val, type); }, 240);
+        const debouncedHandleCustomerSearch = debounce((val) => { if (typeof handleCustomerSearch === 'function') handleCustomerSearch(val); }, 180);
         const debouncedRenderInventoryTable = debounce(() => { if (typeof renderInventoryTable === 'function') renderInventoryTable(); }, 250);
-        const debouncedHandlePriceAdjSearch = debounce(() => { if (typeof handlePriceAdjSearch === 'function') handlePriceAdjSearch(); }, 200);
-        const debouncedHandleSupplierSearch = debounce((val) => { if (typeof handleSupplierSearch === 'function') handleSupplierSearch(val); }, 150);
-        const debouncedHandlePurchaseSearch = debounce((val) => { if (typeof handlePurchaseSearch === 'function') handlePurchaseSearch(val); }, 120);
+        const debouncedHandlePriceAdjSearch = debounce(() => { if (typeof handlePriceAdjSearch === 'function') handlePriceAdjSearch(); }, 220);
+        const debouncedHandleSupplierSearch = debounce((val) => { if (typeof handleSupplierSearch === 'function') handleSupplierSearch(val); }, 180);
+        const debouncedHandlePurchaseSearch = debounce((val) => { if (typeof handlePurchaseSearch === 'function') handlePurchaseSearch(val); }, 240);
 
         window.debouncedHandleSearch = debouncedHandleSearch;
         window.debouncedHandleReturnSearch = debouncedHandleReturnSearch;
@@ -148,6 +359,16 @@
             const lowerQuery = rawQuery.toLowerCase();
             if (!normQuery) return [];
 
+            // ⚡ 1. التحقق الفوري المباشر عبر خريطة الفهرس (O(1) Map - 0ms) للأكواد والباركود
+            if (_barcodeToProductMap.size === 0) {
+                rebuildProductFastIndex();
+            }
+            const exactProduct = _barcodeToProductMap.get(normQuery) || _barcodeToProductMap.get(lowerQuery) ||
+                                 _codeToProductMap.get(normQuery) || _codeToProductMap.get(lowerQuery);
+            if (exactProduct && (options.filterDeleted === false || !exactProduct.isDeleted)) {
+                return [exactProduct];
+            }
+
             // استخراج نص الاستعلام بعد حذف بادئات مثل "مقاس" أو "نمرة" للبحث الدقيق بالمقاس
             const queryWithoutSize = normQuery.replace(/^(مقاس|نمرة|نمره|size)\s*/i, '').trim();
 
@@ -156,8 +377,11 @@
                     ? productsDB 
                     : (window.productsDB || []));
 
-            // إذا لم يتم تحديد حد صريح، نعرض جميع النتائج بلا استثناء وبدون تقييد بـ 50 أو غيره
-            const limit = (options.limit && typeof options.limit === 'number' && options.limit > 0) ? options.limit : Infinity;
+            // الحد الأقصى الافتراضي لعدد النتائج (40 صنف لسرعة المعالجة الفائقة)
+            const limit = (options.limit && typeof options.limit === 'number' && options.limit > 0) 
+                ? options.limit 
+                : (options.limit === 0 || options.limit === Infinity ? Infinity : 40);
+            const maxCollect = (limit === Infinity) ? Infinity : Math.min(limit * 3, 120);
             const scored = [];
 
             for (let i = 0; i < list.length; i++) {
@@ -282,6 +506,8 @@
 
                 if (score > 0) {
                     scored.push({ item: p, score: score });
+                    // إيقاف التكرار فور جمع عدد كافٍ من النتائج المطابقة لسرعة خارقة وتوفير المعالج
+                    if (scored.length >= maxCollect) break;
                 }
             }
 

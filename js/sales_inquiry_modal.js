@@ -253,7 +253,7 @@
                         <div style="margin-bottom: 12px; flex-shrink: 0;">
                             <input type="text" id="inquiryLiveSearch" placeholder="🔍 اكتب اسم الصنف، كود الموديل، المقاس (مثل: 38)، أو امسح الباركود..."
                                 style="width: 100%; height: 50px; border-radius: 14px; border: 3px solid #047857; padding: 0 20px; font-size: 1.1rem; font-weight: 900; color: #000000; outline: none; box-sizing: border-box; background: #ffffff; box-shadow: inset 0 2px 6px rgba(0,0,0,0.05);"
-                                oninput="window.handleInquiryLiveSearch(this.value)"
+                                oninput="window.debouncedHandleInquiryLiveSearch(this.value)"
                                 onkeydown="window.handleInquirySearchKeyDown(event)"
                                 autocomplete="off">
                         </div>
@@ -330,7 +330,7 @@
                         <div style="position: relative; width: 280px; max-width: 42%;">
                             <input type="text" id="inquiryLiveSearch" placeholder="🔍 تبديل صنف (بحث/سكانر)..."
                                 style="width: 100%; height: 38px; border-radius: 10px; border: 2.5px solid #047857; background: #ffffff; color: #000000; padding: 0 12px; font-size: 0.95rem; font-weight: 900; outline: none; box-sizing: border-box; box-shadow: 0 2px 8px rgba(0,0,0,0.15);"
-                                oninput="window.handleInquiryLiveSearch(this.value)"
+                                oninput="window.debouncedHandleInquiryLiveSearch(this.value)"
                                 onkeydown="window.handleInquirySearchKeyDown(event)"
                                 autocomplete="off">
                             <div id="inquirySearchDropdown" style="position: absolute; top: 44px; right: 0; left: 0; background: #ffffff; border: 2.5px solid #047857; border-radius: 12px; max-height: 240px; overflow-y: auto; z-index: 100; display: none; box-shadow: 0 12px 30px rgba(0,0,0,0.3);" class="fast-scrollbar"></div>
@@ -1615,13 +1615,77 @@
 
         const effectiveQuery = extractedQuery || qClean;
         const effectiveNorm = normalizeDigits(effectiveQuery).trim().toLowerCase();
-        const tokens = effectiveQuery.split(/\s+/).filter(t => t.length > 0);
-
         const results = [];
+        const barcodeMap = (typeof window.getBarcodeToProductMap === 'function') ? window.getBarcodeToProductMap() : null;
+        const codeMap = (typeof window.getCodeToProductMap === 'function') ? window.getCodeToProductMap() : null;
+        const directFound = new Set();
+
+        // ⚡ فحص فوري فائق السرعة O(1) بالباركود أو الكود الدقيق قبل بدء الحلقة (0ms)
+        if (effectiveNorm) {
+            if (barcodeMap && barcodeMap.has(effectiveNorm)) {
+                const p = barcodeMap.get(effectiveNorm);
+                if (p && !p.isDeleted) {
+                    directFound.add(p.id);
+                    results.push({
+                        product: p,
+                        matchType: 'barcode',
+                        matchedDetail: (String(p.barcode || '').trim() === effectiveNorm ? `باركود مطابق: ${p.barcode}` : `باركود مطابق: ${effectiveNorm}`),
+                        matchedBarcode: effectiveNorm,
+                        matchedSize: '',
+                        matchedColor: '',
+                        isExactName: false,
+                        isExactCode: false,
+                        isExactBarcode: true,
+                        isExactSize: false,
+                        isExactColor: false,
+                        isNameStartsWith: false,
+                        isNameWordMatch: false,
+                        isNameContains: false,
+                        isCodeStartsWith: false,
+                        isCodeContains: false,
+                        isBarcodeStartsWith: true,
+                        isBarcodeContains: true,
+                        isSizeContains: false,
+                        isColorContains: false,
+                        isCompoundMatch: false
+                    });
+                }
+            }
+            if (codeMap && codeMap.has(effectiveNorm)) {
+                const p = codeMap.get(effectiveNorm);
+                if (p && !p.isDeleted && !directFound.has(p.id)) {
+                    directFound.add(p.id);
+                    results.push({
+                        product: p,
+                        matchType: 'code',
+                        matchedDetail: `كود مطابق: ${p.code || p.id}`,
+                        matchedBarcode: p.barcode || '',
+                        matchedSize: '',
+                        matchedColor: '',
+                        isExactName: false,
+                        isExactCode: true,
+                        isExactBarcode: false,
+                        isExactSize: false,
+                        isExactColor: false,
+                        isNameStartsWith: false,
+                        isNameWordMatch: false,
+                        isNameContains: false,
+                        isCodeStartsWith: true,
+                        isCodeContains: true,
+                        isBarcodeStartsWith: false,
+                        isBarcodeContains: false,
+                        isSizeContains: false,
+                        isColorContains: false,
+                        isCompoundMatch: false
+                    });
+                }
+            }
+        }
 
         for (const p of productsDB) {
             if (!p) continue;
             if (p.isDeleted) continue;
+            if (directFound.has(p.id)) continue;
 
             const pRawName = String(p.name || '').trim();
             const pName = cleanArabic(pRawName);
@@ -1926,6 +1990,10 @@
                 isColorContains,
                 isCompoundMatch
             });
+
+            if (results.length >= 45) {
+                break;
+            }
         }
 
         // 🥇 الترتيب الذكي الصارم: التطابق التام بالاسم أو الكود يأتي أولاً بلا منازع (Rank #1)
@@ -2232,6 +2300,18 @@
                 window.closeFastItemInquiryModal();
             }
         }
+    };
+
+    // ⚡ محرك البحث المؤجل لمودال الاستعلام لحماية سلاسة الكتابة في الكيبورد
+    let _inquirySearchDebounceTimer = null;
+    window.debouncedHandleInquiryLiveSearch = function (query) {
+        if (_inquirySearchDebounceTimer) clearTimeout(_inquirySearchDebounceTimer);
+        _inquirySearchDebounceTimer = setTimeout(() => {
+            _inquirySearchDebounceTimer = null;
+            if (typeof window.handleInquiryLiveSearch === 'function') {
+                window.handleInquiryLiveSearch(query);
+            }
+        }, 240);
     };
 
     /**

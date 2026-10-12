@@ -489,18 +489,47 @@ async function handlePurchaseSearchEnter(query, event, forceAdd = false) {
         if (window.dispatchSearchBarcode(cleanQuery, 'purchase')) return;
     }
 
-    // 1. بحث فوري دقيق في باركود تشكيلات المقاسات والألوان (Variant Barcode Match)
+    // ⚡ فحص فوري فائق السرعة O(1) عبر الفهرس المباشر للباركود والكود وتشكيلات المقاسات (0ms)
     let matchingVariant = null;
-    let pMatch = productsDB.find(p => {
-        if (p.variants && Array.isArray(p.variants)) {
-            const vFound = p.variants.find(v => v.barcode && String(v.barcode).trim() === cleanQuery);
-            if (vFound) {
-                matchingVariant = vFound;
-                return true;
+    let pMatch = null;
+
+    const barcodeMap = (typeof window.getBarcodeToProductMap === 'function') ? window.getBarcodeToProductMap() : null;
+    const codeMap = (typeof window.getCodeToProductMap === 'function') ? window.getCodeToProductMap() : null;
+    const cleanLower = cleanQuery.toLowerCase();
+    const normClean = (typeof window.normalizeSearchQuery === 'function') ? window.normalizeSearchQuery(cleanQuery) : cleanLower;
+
+    if (barcodeMap) {
+        const directProd = barcodeMap.get(cleanLower) || (normClean ? barcodeMap.get(normClean) : null);
+        if (directProd && !directProd.isDeleted) {
+            pMatch = directProd;
+            if (pMatch.variants && Array.isArray(pMatch.variants)) {
+                matchingVariant = pMatch.variants.find(v => v.barcode && (String(v.barcode).trim().toLowerCase() === cleanLower || (normClean && String(v.barcode).trim() === normClean))) || null;
             }
         }
-        return false;
-    });
+    }
+    if (!pMatch && codeMap) {
+        const directProd = codeMap.get(cleanLower) || (normClean ? codeMap.get(normClean) : null);
+        if (directProd && !directProd.isDeleted) {
+            pMatch = directProd;
+            if (pMatch.variants && Array.isArray(pMatch.variants)) {
+                matchingVariant = pMatch.variants.find(v => v.code && (String(v.code).trim().toLowerCase() === cleanLower || (normClean && String(v.code).trim() === normClean))) || null;
+            }
+        }
+    }
+
+    // 1. بحث احتياطي في باركود تشكيلات المقاسات والألوان (في حال لم يكن بالفهرس)
+    if (!pMatch && typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
+        pMatch = productsDB.find(p => {
+            if (p.variants && Array.isArray(p.variants)) {
+                const vFound = p.variants.find(v => v.barcode && String(v.barcode).trim() === cleanQuery);
+                if (vFound) {
+                    matchingVariant = vFound;
+                    return true;
+                }
+            }
+            return false;
+        });
+    }
 
     if (pMatch && matchingVariant) {
         addToPurchaseCart(pMatch.id, null, null, matchingVariant);

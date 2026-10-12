@@ -646,7 +646,7 @@
 
         // ⚡ محرك تأخير ذكي للبحث فائق السرعة (Search Debounce) لمنع أي بطء أو تكرار عمليات الفلترة مع البيانات الضخمة
         let _invoicesSearchDebounceTimer = null;
-        window.debouncedRenderInvoicesTable = function(delay = 140) {
+        window.debouncedRenderInvoicesTable = function(delay = 240) {
             if (_invoicesSearchDebounceTimer) {
                 clearTimeout(_invoicesSearchDebounceTimer);
             }
@@ -720,8 +720,10 @@
             const typeFilter = document.getElementById('invoicesTypeFilter').value;
 
             // الحفاظ على الفهرس الأصلي للعملية بدون استهلاك الذاكرة أو استنساخ آلاف الكائنات
-            for (let i = 0; i < transactions.length; i++) {
-                transactions[i].originalIndex = i;
+            if (transactions.length > 0 && transactions[0].originalIndex === undefined) {
+                for (let i = 0; i < transactions.length; i++) {
+                    transactions[i].originalIndex = i;
+                }
             }
             let rawData = transactions;
 

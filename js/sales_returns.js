@@ -3595,15 +3595,11 @@ async function confirmReturnItemsSelection() {
 
 // --- تحويل وظائف البحث لوظائف مؤجلة (Debounced) لتحسين سرعة البرنامج ---
 
-if (typeof debounce === 'function') {
-
+if (typeof debounce === 'function' && !window.debouncedHandleSearch) {
     const originalHandleSearch = handleSearch;
-
     handleSearch = debounce(function (query) {
-
         originalHandleSearch(query);
-
-    }, 300);
+    }, 240);
 
     const originalHandlePurchaseSearch = handlePurchaseSearch;
 

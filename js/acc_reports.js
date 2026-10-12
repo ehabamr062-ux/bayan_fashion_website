@@ -574,10 +574,15 @@
         };
 
         async function generateDailyReport() {
-            // 🔒 فحص وتطبيق قفل التاريخ على اليوم الحالي لمنع التلاعب
-            const isDateLocked = (typeof checkAndApplyDailyReportDateLock === 'function')
-                ? checkAndApplyDailyReportDateLock()
-                : false;
+            if (typeof window.showSectionLoader === 'function') {
+                window.showSectionLoader('daily-report-section', 'جاري إعداد تقرير الحركة اليومية والدرج...', 'تحليل الحركات وتحديث الأرصدة');
+                await new Promise(r => setTimeout(r, 25));
+            }
+            try {
+                // 🔒 فحص وتطبيق قفل التاريخ على اليوم الحالي لمنع التلاعب
+                const isDateLocked = (typeof checkAndApplyDailyReportDateLock === 'function')
+                    ? checkAndApplyDailyReportDateLock()
+                    : false;
 
             // 🔒 فحص وتطبيق قفل المبالغ التلقائي على الموظف
             if (typeof checkAndApplyDailyReportAmountsLock === 'function') {
@@ -809,20 +814,13 @@
 
             if (window.BayanSQLite && window.BayanSQLite.db) {
                 try {
-                    const stmt = window.BayanSQLite.db.prepare("SELECT type, method, total, paidAmount, remaining, warehouse, cashier, invoiceId, raw_json FROM transactions WHERE dateISO < ?");
+                    const stmt = window.BayanSQLite.db.prepare("SELECT type, method, total, paidAmount, remaining, warehouse, cashier, invoiceId FROM transactions WHERE dateISO < ?");
                     stmt.bind([fromDate]);
                     const dbPriorRows = [];
                     while (stmt.step()) {
                         const row = stmt.getAsObject();
                         if (row) {
                             if (!row.user && row.cashier) row.user = row.cashier;
-                            if (row.raw_json) {
-                                try {
-                                    const parsed = JSON.parse(row.raw_json);
-                                    if (parsed.user) row.user = parsed.user;
-                                    if (parsed.isInvoiceHead !== undefined) row.isInvoiceHead = parsed.isInvoiceHead;
-                                } catch(jsonErr) {}
-                            }
                             if (matchesSelectedWarehouse(row) && matchesSelectedTreasury(row) && matchesSelectedUser(row)) {
                                 dbPriorRows.push(row);
                             }
@@ -1966,7 +1964,12 @@
             }
 
             showToast(canViewProfits ? "✅ تم تحديث وتفصيل تقارير الحركة والأرباح بنجاح" : "✅ تم تحديث وتفصيل تقرير الحركة اليومية بنجاح");
+        } finally {
+            if (typeof window.hideSectionLoader === 'function') {
+                window.hideSectionLoader('daily-report-section');
+            }
         }
+    }
 
         async function showDailyPaymentMethodBreakdown(methodName, entry) {
             if (typeof isDailyReportAmountsProtected === 'function' && isDailyReportAmountsProtected()) {
