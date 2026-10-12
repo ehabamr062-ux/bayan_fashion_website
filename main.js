@@ -86,6 +86,23 @@ function createWindow() {
 
     win.loadFile(path.join(__dirname, 'index.html'));
 
+    // 🔒 تحصين أمان النوافذ والروابط الخارجية (Electron Security Hardening)
+    win.webContents.setWindowOpenHandler(({ url }) => {
+        if (/^https?:|^mailto:|^tel:|^anydesk:/i.test(url)) {
+            shell.openExternal(url);
+        }
+        return { action: 'deny' };
+    });
+
+    win.webContents.on('will-navigate', (event, url) => {
+        if (!url.startsWith('file://')) {
+            event.preventDefault();
+            if (/^https?:|^mailto:|^tel:|^anydesk:/i.test(url)) {
+                shell.openExternal(url);
+            }
+        }
+    });
+
     // منع اختصارات لوحة المفاتيح الخاصة بالـ Console والـ Reload + توجيه اختصار Ctrl+N لفتح فاتورة بيع جديدة بأمان
     win.webContents.on('before-input-event', (event, input) => {
         const key = input.key.toLowerCase();
@@ -172,13 +189,13 @@ function createWindow() {
             return;
         }
 
-        // صمام أمان زمني في حال تعليق الريندرر (3.5 ثوانٍ كحد أقصى لمنع أي بطء في النظام)
+        // صمام أمان زمني في حال تعليق الريندرر (10 ثوانٍ كحد أقصى لمنع تعليق النظام في القواعد الضخمة)
         if (global.quitTimeout) clearTimeout(global.quitTimeout);
         global.quitTimeout = setTimeout(() => {
             console.warn('⚠️ Backup before quit timeout reached, forcing exit...');
             isQuitting = true;
             app.exit(0);
-        }, 3500);
+        }, 10000);
     });
 
     win.on('closed', () => {
@@ -187,6 +204,19 @@ function createWindow() {
             app.exit(0);
         }
     });
+
+// 🔒 استقبال إشارة إتمام النسخ الاحتياطي والخروج فوراً
+ipcMain.on('proceed-quit', () => {
+    if (global.quitTimeout) clearTimeout(global.quitTimeout);
+    isQuitting = true;
+    app.exit(0);
+});
+
+// 🔒 استقبال إشارة إلغاء الإغلاق لوجود بيانات غير محفوظة
+ipcMain.on('cancel-quit', () => {
+    if (global.quitTimeout) clearTimeout(global.quitTimeout);
+    console.log('ℹ️ [Main] تم إلغاء إغلاق البرنامج لوجود بيانات غير محفوظة في أحد التبويبات.');
+});
 
     // إدارة التحميلات الآمنة
     win.webContents.session.on('will-download', (event, item, webContents) => {

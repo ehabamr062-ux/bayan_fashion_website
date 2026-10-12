@@ -405,6 +405,13 @@ async function renderHistoryTable(filterName = null) {
     const tbody = document.getElementById('historyTableBody');
     if (!tbody) return;
 
+    const showLoader = (typeof transactions !== 'undefined' && Array.isArray(transactions) && transactions.length > 500);
+    if (showLoader && typeof window.showSectionLoader === 'function') {
+        window.showSectionLoader(null, 'جاري تجميع سجل حركة الصنف...', 'تحليل الحركات واحتساب الأرصدة التراكمية');
+        await new Promise(r => setTimeout(r, 45));
+    }
+
+    try {
     const fromDate = document.getElementById('historyDateFrom')?.value;
     const toDate = document.getElementById('historyDateTo')?.value;
     const typeFilter = document.getElementById('historyTypeFilter')?.value;
@@ -725,6 +732,11 @@ async function renderHistoryTable(filterName = null) {
 
     if (typeof applyHistoryColumnVisibility === 'function') {
         applyHistoryColumnVisibility();
+    }
+    } finally {
+        if (showLoader && typeof window.hideSectionLoader === 'function') {
+            window.hideSectionLoader();
+        }
     }
 }
 

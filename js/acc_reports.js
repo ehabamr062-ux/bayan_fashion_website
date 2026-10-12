@@ -7065,12 +7065,23 @@
                 toInput.value = '';
             }
 
-            if (typeof window.loadTransactionsForDateRange === 'function' && (fromInput.value || toInput.value)) {
-                await window.loadTransactionsForDateRange(fromInput.value, toInput.value);
+            const showLoader = (typeof window.showSectionLoader === 'function');
+            if (showLoader) {
+                window.showSectionLoader(null, 'جاري تحليل المبيعات والأرباح...', 'قراءة الحركات واحتساب المؤشرات المالية');
+                await new Promise(r => setTimeout(r, 45));
             }
+            try {
+                if (typeof window.loadTransactionsForDateRange === 'function' && (fromInput.value || toInput.value)) {
+                    await window.loadTransactionsForDateRange(fromInput.value, toInput.value);
+                }
 
-            renderAnalysisTable();
-            if (typeof saveCurrentTabState === 'function') saveCurrentTabState();
+                await renderAnalysisTable();
+                if (typeof saveCurrentTabState === 'function') saveCurrentTabState();
+            } finally {
+                if (showLoader && typeof window.hideSectionLoader === 'function') {
+                    window.hideSectionLoader();
+                }
+            }
         }
         window.applyAnalysisPeriodFilter = applyAnalysisPeriodFilter;
 

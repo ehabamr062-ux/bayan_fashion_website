@@ -321,6 +321,7 @@ const trashManager = {
                     if (typeof productsDB !== 'undefined') productsDB = window.productsDB;
                 }
                 if (typeof renderInventoryTable === 'function') renderInventoryTable();
+                if (typeof window.rebuildProductFastIndex === 'function') window.rebuildProductFastIndex();
             } else if (itemType === 'transaction' || itemType === 'invoice' || itemType === 'sale' || itemType === 'purchase') {
                 const itemsToRestore = Array.isArray(data) ? data : (data.items ? data.items : [data]);
                 for (const t of itemsToRestore) {

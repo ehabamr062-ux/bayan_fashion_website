@@ -681,9 +681,15 @@
                 _invoicesSearchDebounceTimer = null;
             }
 
-            if (!isLoadMore) {
-                window.invoicesRenderLimit = 100;
+            const showLoader = (typeof transactions !== 'undefined' && Array.isArray(transactions) && transactions.length > 800 && !isLoadMore);
+            if (showLoader && typeof window.showSectionLoader === 'function') {
+                window.showSectionLoader(null, 'جاري تحميل وتصفية الفواتير...', 'معالجة السجلات المالية وتحديث الفهرس');
+                await new Promise(r => setTimeout(r, 45));
             }
+            try {
+                if (!isLoadMore) {
+                    window.invoicesRenderLimit = 100;
+                }
 
             const searchId = (document.getElementById('invoicesSearchId')?.value || '').toLowerCase();
             const fromDate = document.getElementById('invoicesDateFrom')?.value || '';
@@ -1137,6 +1143,11 @@
             }
 
             tbody.innerHTML = rowsHtml || '<tr><td colspan="13" style="text-align:center; padding:20px;">لا توجد بيانات تطابق البحث</td></tr>';
+            } finally {
+                if (showLoader && typeof window.hideSectionLoader === 'function') {
+                    window.hideSectionLoader();
+                }
+            }
         }
 
         // دالة لعرض تفاصيل الفاتورة في تنبيه أو نافذة

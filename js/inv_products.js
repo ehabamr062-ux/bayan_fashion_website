@@ -440,8 +440,11 @@ async function saveNewItem(mode = 'save') {
         warehouseStocks,
         unit: units.length > 0 ? units[0].unitName : "قطعة",
         image: resolvedImage,
-        isQuick: document.getElementById('isQuickItem') ? document.getElementById('isQuickItem').checked : false
+        isQuick: document.getElementById('isQuickItem') ? document.getElementById('isQuickItem').checked : false,
+        updatedAt: Date.now()
     };
+    delete newItem._searchTokens;
+    delete newItem._searchTokensVer;
 
     if (typeof currentEditingProductId !== 'undefined' && currentEditingProductId) {
         const idx = productsDB.findIndex(p => p.id === currentEditingProductId);
@@ -453,6 +456,7 @@ async function saveNewItem(mode = 'save') {
         await db.products.add(newItem);
     }
 
+    if (typeof window.rebuildProductFastIndex === 'function') window.rebuildProductFastIndex();
     if (typeof invalidateStockCache === 'function') invalidateStockCache();
     if (typeof window.invalidateStockCache === 'function') window.invalidateStockCache();
     if (typeof updateNotifications === 'function') updateNotifications();

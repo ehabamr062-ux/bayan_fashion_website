@@ -1182,7 +1182,12 @@ function openPriceAdjustmentModal() {
 }
 window.openPriceAdjustmentModal = openPriceAdjustmentModal;
 
-function initPriceAdjustmentFiltersAndData(selectedIds = []) {
+async function initPriceAdjustmentFiltersAndData(selectedIds = []) {
+    const showLoader = (typeof productsDB !== 'undefined' && Array.isArray(productsDB) && productsDB.length > 500);
+    if (showLoader && typeof window.showSectionLoader === 'function') {
+        window.showSectionLoader(null, 'جاري فتح منصة تعديل الأسعار...', 'تحضير المقاسات وتشكيلات الموديلات وقوائم الأسعار');
+        await new Promise(r => setTimeout(r, 45));
+    }
     try {
         const allProds = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
 
@@ -1240,6 +1245,10 @@ function initPriceAdjustmentFiltersAndData(selectedIds = []) {
         }
     } catch (err) {
         console.error("Error in initPriceAdjustmentFiltersAndData:", err);
+    } finally {
+        if (showLoader && typeof window.hideSectionLoader === 'function') {
+            window.hideSectionLoader();
+        }
     }
 }
 window.initPriceAdjustmentFiltersAndData = initPriceAdjustmentFiltersAndData;
@@ -2606,6 +2615,11 @@ async function savePriceAdjustments() {
 
     if (typeof showToast === 'function') showToast("🔄 جاري حفظ التعديلات وتحديث قاعدة البيانات...", 'info');
 
+    if (typeof window.showSectionLoader === 'function') {
+        window.showSectionLoader(null, 'جاري تطبيق وتحديث الأسعار...', 'حفظ الأسعار وتحديث الفهارس وقاعدة البيانات');
+        await new Promise(r => setTimeout(r, 45));
+    }
+
     try {
         const dataToSave = [...window.priceAdjData];
         if (!Array.isArray(productsDB)) productsDB = [];
@@ -2693,6 +2707,9 @@ async function savePriceAdjustments() {
             alert("❌ حدث خطأ أثناء الحفظ: " + error.message);
         }
     } finally {
+        if (typeof window.hideSectionLoader === 'function') {
+            window.hideSectionLoader();
+        }
         if (saveBtn) {
             saveBtn.disabled = false;
             saveBtn.style.opacity = '1';

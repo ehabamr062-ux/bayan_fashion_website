@@ -980,6 +980,7 @@ async function saveSalesReturn(force = false, accountChecked = false) {
 
         });
 
+        const affectedOriginalTransactions = [];
         if (originalInvoiceId && originalInvoiceId !== '---') {
 
             transactions.forEach(t => {
@@ -987,6 +988,7 @@ async function saveSalesReturn(force = false, accountChecked = false) {
                 if (t.invoiceId == originalInvoiceId && t.type.includes('بيع') && !t.type.includes('مرتجع')) {
 
                     t.is_returned = true;
+                    affectedOriginalTransactions.push(t);
 
                 }
 
@@ -1003,6 +1005,7 @@ async function saveSalesReturn(force = false, accountChecked = false) {
             }
             await window.saveTransactionChanges({
                 newTransactions: newReturnRows,
+                modifiedTransactions: affectedOriginalTransactions,
                 modifiedProducts: affectedProducts,
                 modifiedAccounts: affectedAccountsList
             });
@@ -1713,6 +1716,7 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
 
         });
 
+        const affectedOriginalTransactions = [];
         if (originalInvoiceId && originalInvoiceId !== '---') {
 
             transactions.forEach(t => {
@@ -1720,6 +1724,7 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
                 if (t.invoiceId == originalInvoiceId && t.type.includes('شراء') && !t.type.includes('مرتجع')) {
 
                     t.is_returned = true;
+                    affectedOriginalTransactions.push(t);
 
                 }
 
@@ -1731,6 +1736,7 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
         if (typeof window.saveTransactionChanges === 'function') {
             await window.saveTransactionChanges({
                 newTransactions: newPurReturnRows,
+                modifiedTransactions: affectedOriginalTransactions,
                 modifiedProducts: affectedProducts
             });
         } else {

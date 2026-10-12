@@ -1409,9 +1409,20 @@
     /**
      * تغيير التبويب النشط
      */
-    window.setInquiryTab = function (tabName) {
+    window.setInquiryTab = async function (tabName) {
         currentInquiryTab = tabName;
-        renderInquiryModal();
+        const showLoader = (tabName === 'history' && typeof transactions !== 'undefined' && Array.isArray(transactions) && transactions.length > 500);
+        if (showLoader && typeof window.showSectionLoader === 'function') {
+            window.showSectionLoader(null, 'جاري استدعاء حركة الصنف...', 'فرز وتحليل سجل الحركات التاريخية');
+            await new Promise(r => setTimeout(r, 45));
+        }
+        try {
+            renderInquiryModal();
+        } finally {
+            if (showLoader && typeof window.hideSectionLoader === 'function') {
+                window.hideSectionLoader();
+            }
+        }
     };
 
     /**

@@ -664,12 +664,19 @@
             renderAccountsTable();
         };
 
-        function renderAccountsTable(isLoadMore = false) {
-
+        async function renderAccountsTable(isLoadMore = false) {
             const tbody = document.getElementById('accountsTableBody');
-
             if (!tbody) return;
 
+            const searchInputEl = document.getElementById('accSearchName');
+            const hasSearch = searchInputEl && searchInputEl.value.trim().length > 0;
+            const showLoader = (typeof transactions !== 'undefined' && Array.isArray(transactions) && transactions.length > 1000 && !isLoadMore && !hasSearch);
+            if (showLoader && typeof window.showSectionLoader === 'function') {
+                window.showSectionLoader(null, 'جاري فحص أرصدة ومديونيات الحسابات...', 'مطابقة الحركات وتحديث الأرصدة المالية');
+                await new Promise(r => setTimeout(r, 45));
+            }
+
+            try {
             if (!isLoadMore) {
                 window.accountsRenderLimit = 50;
             }
@@ -1036,7 +1043,11 @@
                 `;
                 tbody.appendChild(loadMoreTr);
             }
-
+            } finally {
+                if (showLoader && typeof window.hideSectionLoader === 'function') {
+                    window.hideSectionLoader();
+                }
+            }
         }
 
         function selectAccountRow(id) {
@@ -1569,6 +1580,13 @@
             const acc = accounts.find(a => a.id === targetId);
             if (!acc) return;
 
+            const showLoader = (typeof transactions !== 'undefined' && Array.isArray(transactions) && transactions.length > 500);
+            if (showLoader && typeof window.showSectionLoader === 'function') {
+                window.showSectionLoader(null, 'جاري إعداد كشف الحساب...', 'تحليل الحركات ومطابقة الأرصدة والمديونيات');
+                await new Promise(r => setTimeout(r, 45));
+            }
+
+            try {
             selectedAccountID = acc.id;
             window.selectedAccountID = acc.id;
 
@@ -1993,6 +2011,11 @@
             window.currentStmtInvoiceId = null;
             if (document.getElementById('statement-section')?.classList.contains('hidden')) {
                 switchSection('statement');
+            }
+            } finally {
+                if (showLoader && typeof window.hideSectionLoader === 'function') {
+                    window.hideSectionLoader();
+                }
             }
         }
 

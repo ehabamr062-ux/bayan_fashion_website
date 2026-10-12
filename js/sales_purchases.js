@@ -996,6 +996,7 @@ async function fastQuickAddProduct(name, context) {
         await db.products.add(newItem);
 
         productsDB.push(newItem);
+        if (typeof window.rebuildProductFastIndex === 'function') window.rebuildProductFastIndex();
 
         if (context === 'purchase') {
 

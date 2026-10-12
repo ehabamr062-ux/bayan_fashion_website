@@ -1254,7 +1254,7 @@
             if (!this.db || !item) return null;
             try {
                 // ضمان صحة معرف السجل (حماية من datatype mismatch في الجداول ذات المعرف الرقمي INTEGER PRIMARY KEY)
-                if (tableName !== 'settings' && tableName !== 'products') {
+                if (tableName !== 'settings') {
                     if (item.id === undefined || item.id === null || item.id === '') {
                         item.id = this.getNextAutoId();
                     } else if (typeof item.id === 'string') {

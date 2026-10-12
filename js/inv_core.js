@@ -177,7 +177,7 @@ window.loadMoreInventory = function(step) {
     renderInventoryTable(true);
 };
 
-function renderInventoryTable(isLoadMore = false) {
+async function renderInventoryTable(isLoadMore = false) {
     const tbody = document.getElementById('inventoryTableBody');
     if (!tbody) return;
 
@@ -200,6 +200,13 @@ function renderInventoryTable(isLoadMore = false) {
     const search = cleanAr(rawSearch);
     const catFilter = document.getElementById('invCategoryFilter')?.value || 'all';
 
+    const showLoader = (!rawSearch && typeof productsDB !== 'undefined' && Array.isArray(productsDB) && productsDB.length > 1000 && (window.inventoryRenderLimit > 200 || !isLoadMore));
+    if (showLoader && typeof window.showSectionLoader === 'function') {
+        window.showSectionLoader(null, 'جاري قراءة وتجهيز الأصناف...', 'تحميل بيانات وتشكيلات الـ 50 ألف صنف');
+        await new Promise(r => setTimeout(r, 45));
+    }
+
+    try {
     if (rawSearch === '' && typeof updateCategoryFilterOptions === 'function') updateCategoryFilterOptions();
 
     if (!isLoadMore && !rawSearch) {
@@ -496,6 +503,11 @@ function renderInventoryTable(isLoadMore = false) {
             };
         }
     }, 100);
+    } finally {
+        if (showLoader && typeof window.hideSectionLoader === 'function') {
+            window.hideSectionLoader();
+        }
+    }
 }
 
 async function updateQuickPrices() {
@@ -819,7 +831,7 @@ window.applyWarehouseReportCustomFilter = function() {
     if (typeof saveCurrentTabState === 'function') saveCurrentTabState();
 };
 
-function renderWarehouseReportTable(isSearchTrigger = false) {
+async function renderWarehouseReportTable(isSearchTrigger = false) {
     const head = document.getElementById('wrTableHead');
     const body = document.getElementById('wrTableBody');
     const summaryContainer = document.getElementById('wrSummaryCards');
@@ -828,7 +840,13 @@ function renderWarehouseReportTable(isSearchTrigger = false) {
 
     if (!head || !body) return;
 
-    const canViewProfits = (typeof hasPermission === 'function') ? hasPermission('general_profits') : true;
+    const showLoader = (typeof productsDB !== 'undefined' && Array.isArray(productsDB) && productsDB.length > 500 && !isSearchTrigger);
+    if (showLoader && typeof window.showSectionLoader === 'function') {
+        window.showSectionLoader(null, 'جاري جرد أرصدة المخازن...', 'احتساب كميات وتكاليف البضاعة في الفروع');
+        await new Promise(r => setTimeout(r, 45));
+    }
+    try {
+        const canViewProfits = (typeof hasPermission === 'function') ? hasPermission('general_profits') : true;
     const canViewCost = (typeof hasPermission === 'function') ? hasPermission('docs_purchase_price') : true;
 
     if (!canViewCost) {
@@ -1133,6 +1151,11 @@ function renderWarehouseReportTable(isSearchTrigger = false) {
             `;
         });
         summaryContainer.innerHTML = cardsHTML;
+    }
+    } finally {
+        if (showLoader && typeof window.hideSectionLoader === 'function') {
+            window.hideSectionLoader();
+        }
     }
 }
 

@@ -1370,12 +1370,12 @@ window.scheduleNotificationsUpdate = scheduleNotificationsUpdate;
 // تحفظ فقط أسطر الفاتورة الجديدة والأصناف المتأثرة دون إعادة كتابة قاعدة البيانات بالكامل
 // ومؤمنة بواسطة طابور الحفظ (Queue Coordinator) لمنع أي تضارب مع الحفظ الشامل
 // =========================================================================
-async function saveTransactionChanges({ newTransactions = [], modifiedProducts = [], modifiedAccounts = [] } = {}) {
+async function saveTransactionChanges({ newTransactions = [], modifiedTransactions = [], modifiedProducts = [], modifiedAccounts = [] } = {}) {
     if (!db) return;
     return runDbSaveTask(async () => {
         try {
             const tablesToUse = [];
-            if (newTransactions.length > 0 && db.transactions) tablesToUse.push(db.transactions);
+            if ((newTransactions.length > 0 || modifiedTransactions.length > 0) && db.transactions) tablesToUse.push(db.transactions);
             if (modifiedProducts.length > 0 && db.products) tablesToUse.push(db.products);
             if (modifiedAccounts.length > 0 && db.accounts) tablesToUse.push(db.accounts);
 
@@ -1389,6 +1389,11 @@ async function saveTransactionChanges({ newTransactions = [], modifiedProducts =
                         newTransactions.forEach((t, i) => { if (!t.id) t.id = keys[i]; });
                     }
                     if (typeof updateEntitySignatures === 'function') updateEntitySignatures('transactions', newTransactions);
+                }
+                // 1.1 تحديث المعاملات القائمة (مثل علامة الإرجاع is_returned)
+                if (modifiedTransactions.length > 0 && db.transactions) {
+                    await db.transactions.bulkPut(modifiedTransactions, { allKeys: true });
+                    if (typeof updateEntitySignatures === 'function') updateEntitySignatures('transactions', modifiedTransactions);
                 }
                 // 2. تحديث الأصناف التي تأثرت كمياتها أو أسعارها فقط
                 if (modifiedProducts.length > 0 && db.products) {
@@ -1450,7 +1455,7 @@ async function saveTransactionChanges({ newTransactions = [], modifiedProducts =
 
             // 🌐 إرسال التحديث الجزئي لسيرفر الشبكة فورياً وبأعلى كفاءة وخفة (Delta Sync)
             if (window.BayanNetworkHub && typeof window.BayanNetworkHub.onDeltaSaved === 'function') {
-                window.BayanNetworkHub.onDeltaSaved({ newTransactions, modifiedProducts, modifiedAccounts });
+                window.BayanNetworkHub.onDeltaSaved({ newTransactions, modifiedTransactions, modifiedProducts, modifiedAccounts });
             } else if (window.BayanNetworkHub && typeof window.BayanNetworkHub.onDataSaved === 'function') {
                 window.BayanNetworkHub.onDataSaved();
             }
