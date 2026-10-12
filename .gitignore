@@ -12,6 +12,6 @@ Thumbs.db
 .vscode/
 .idea/
 .agents/
-*.backup.*
-tools/
+!tools/
+!tools/generate_stress_test_backup.html
 .kilo/

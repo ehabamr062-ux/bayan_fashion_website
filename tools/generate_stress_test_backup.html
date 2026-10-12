@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>أداة توليد نسخة احتياطية مخصصة وضخمة للاختبار - بَيَان POS</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-hover: #4f46e5;
+            --bg: #0b0f19;
+            --card-bg: #111827;
+            --input-bg: #1f2937;
+            --text: #f9fafb;
+            --text-muted: #9ca3af;
+            --border: #374151;
+            --accent: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --sky: #0ea5e9;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Cairo', system-ui, -apple-system, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            background-image: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.15) 0%, transparent 60%);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .container {
+            background: var(--card-bg);
+            border: 1.5px solid var(--border);
+            border-radius: 24px;
+            max-width: 920px;
+            width: 100%;
+            padding: 36px;
+            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 28px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(99, 102, 241, 0.15);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            padding: 6px 16px;
+            border-radius: 30px;
+            font-size: 0.85rem;
+            font-weight: 800;
+            margin-bottom: 12px;
+        }
+
+        h1 {
+            font-size: 1.9rem;
+            font-weight: 900;
+            margin-bottom: 10px;
+            color: #ffffff;
+            letter-spacing: -0.5px;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            max-width: 720px;
+            margin: 0 auto;
+        }
+
+        /* نماذج جاهزة وسريعة */
+        .section-label {
+            font-size: 0.92rem;
+            font-weight: 800;
+            color: #cbd5e1;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .presets-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+            margin-bottom: 26px;
+        }
+
+        .preset-card {
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 14px;
+            padding: 14px 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            user-select: none;
+        }
+
+        .preset-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            background: #243247;
+        }
+
+        .preset-card.active {
+            border-color: var(--accent);
+            background: rgba(16, 185, 129, 0.12);
+            box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
+        }
+
+        .preset-card h3 {
+            font-size: 0.98rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+            color: #fff;
+        }
+
+        .preset-card .desc {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            line-height: 1.4;
+            font-weight: 600;
+        }
+
+        /* مربعات الإدخال المخصصة */
+        .boxes-card {
+            background: #0f172a;
+            border: 1.5px solid #1e293b;
+            border-radius: 18px;
+            padding: 22px;
+            margin-bottom: 24px;
+        }
+
+        .fields-grid-5 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 16px;
+        }
+
+        .field-group {
+            background: #182234;
+            border: 1.5px solid #2d3d54;
+            border-radius: 14px;
+            padding: 14px 16px;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .field-group:focus-within {
+            border-color: var(--sky);
+            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2);
+            background: #1c283d;
+        }
+
+        .field-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .field-label {
+            font-size: 0.88rem;
+            color: #e2e8f0;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .field-hint {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .input-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .field-input {
+            width: 100%;
+            background: #0b1120;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 10px 14px;
+            color: #38bdf8;
+            font-size: 1.35rem;
+            font-weight: 900;
+            outline: none;
+            transition: border 0.2s;
+            text-align: center;
+        }
+
+        .field-input:focus {
+            border-color: var(--sky);
+        }
+
+        .quick-steppers {
+            display: flex;
+            gap: 4px;
+        }
+
+        .step-btn {
+            background: #253349;
+            border: 1px solid #3b4e68;
+            color: #94a3b8;
+            padding: 6px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.75rem;
+            font-weight: 700;
+            transition: 0.15s;
+        }
+
+        .step-btn:hover {
+            background: #334460;
+            color: #fff;
+        }
+
+        /* ملخص الحجم والوقت المتوقع */
+        .estimation-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+            background: rgba(14, 165, 233, 0.08);
+            border: 1px solid rgba(14, 165, 233, 0.25);
+            border-radius: 12px;
+            padding: 12px 18px;
+            margin-bottom: 22px;
+            font-size: 0.88rem;
+            font-weight: 700;
+        }
+
+        .est-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #e0f2fe;
+        }
+
+        .est-val {
+            color: #38bdf8;
+            font-weight: 900;
+        }
+
+        /* زر التوليد */
+        .generate-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #4f46e5 0%, #0ea5e9 100%);
+            color: white;
+            border: none;
+            border-radius: 16px;
+            padding: 18px;
+            font-size: 1.25rem;
+            font-weight: 900;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            box-shadow: 0 10px 30px rgba(79, 70, 229, 0.4);
+        }
+
+        .generate-btn:hover {
+            opacity: 0.95;
+            transform: translateY(-2px);
+            box-shadow: 0 15px 35px rgba(14, 165, 233, 0.4);
+        }
+
+        .generate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* شريط التقدم */
+        .progress-box {
+            display: none;
+            margin-top: 24px;
+            background: #0f172a;
+            border: 1.5px solid #1e293b;
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .progress-text {
+            font-size: 0.95rem;
+            font-weight: 800;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 14px;
+            background: #1e293b;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid #334155;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #10b981, #06b6d4, #6366f1);
+            border-radius: 8px;
+            transition: width 0.15s ease;
+        }
+
+        .progress-details {
+            margin-top: 10px;
+            font-size: 0.8rem;
+            color: #94a3b8;
+            display: flex;
+            justify-content: space-between;
+            font-weight: 600;
+        }
+
+        /* صندوق الإرشادات */
+        .instructions-box {
+            margin-top: 24px;
+            background: rgba(245, 158, 11, 0.08);
+            border: 1px solid rgba(245, 158, 11, 0.25);
+            border-radius: 14px;
+            padding: 16px 20px;
+            font-size: 0.88rem;
+            color: #fde68a;
+            line-height: 1.65;
+        }
+
+        .instructions-box ol {
+            padding-right: 20px;
+            margin-top: 8px;
+        }
+
+        .instructions-box li {
+            margin-bottom: 4px;
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 20px; border-radius: 18px; }
+            h1 { font-size: 1.45rem; }
+            .fields-grid-5 { grid-template-columns: 1fr; }
+            .estimation-bar { flex-direction: column; align-items: flex-start; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- الرأس -->
+        <div class="header">
+            <span class="badge">⚙️ أداة الاختبار والتحمل الرسمية - نظام بَيَان POS (v4.5.1)</span>
+            <h1>توليد ملف نسخة احتياطية مخصصة لاختبار الأداء والسرعة</h1>
+            <p class="subtitle">
+                تحكم بالكامل في أعداد البيانات التي تريد توليدها. اكتب أي أرقام تختارها في المربعات الخمسة بالأسفل، وسيتم تجهيز ملف JSON رسمي متوافق 100% مع نظام بيان جاهز للاستيراد الفوري.
+            </p>
+        </div>
+
+        <!-- نماذج سريعة جاهزة -->
+        <div class="section-label">
+            <span>⚡ نماذج مقترحة سريعة (أو اختر أرقامك المخصصة مباشرة بالأسفل):</span>
+        </div>
+        <div class="presets-grid">
+            <div class="preset-card active" onclick="applyPreset(3000, 5000, 500, 2, 3, 3, this)">
+                <h3>⚡ خفيف ومتوازن</h3>
+                <div class="desc">
+                    3,000 صنف • 5,000 فاتورة<br>
+                    500 عميل • 2 مخزن • 3 كاشير
+                </div>
+            </div>
+            <div class="preset-card" onclick="applyPreset(10000, 20000, 1500, 3, 5, 4, this)">
+                <h3>🚀 متجر كبير نشط</h3>
+                <div class="desc">
+                    10,000 صنف • 20,000 فاتورة<br>
+                    1,500 عميل • 3 مخازن • 5 كاشير
+                </div>
+            </div>
+            <div class="preset-card" onclick="applyPreset(25000, 50000, 3000, 5, 8, 4, this)">
+                <h3>🔥 سلسلة فروع ضخمة</h3>
+                <div class="desc">
+                    25,000 صنف • 50,000 فاتورة<br>
+                    3,000 عميل • 5 مخازن • 8 كاشير
+                </div>
+            </div>
+            <div class="preset-card" onclick="applyPreset(50000, 100000, 5000, 8, 12, 5, this)">
+                <h3>💥 اختبار أقصى طاقة (Titan)</h3>
+                <div class="desc">
+                    50,000 صنف • 100,000 فاتورة<br>
+                    5,000 عميل • 8 مخازن • 12 كاشير
+                </div>
+            </div>
+        </div>
+
+        <!-- المربعات الخمسة المخصصة -->
+        <div class="boxes-card">
+            <div class="section-label" style="margin-bottom: 16px;">
+                <span>🎯 المربعات الخمسة للبيانات (اكتب أو عدّل الأرقام التي تريدها بحرية تامة):</span>
+            </div>
+
+            <div class="fields-grid-5">
+                <!-- 1. عدد الأصناف -->
+                <div class="field-group">
+                    <div class="field-header">
+                        <label class="field-label" for="inputProds">
+                            <span>👗</span> عدد أصناف الأزياء
+                        </label>
+                        <span class="field-hint">موديلات بباركود وتصنيفات</span>
+                    </div>
+                    <div class="input-row">
+                        <input type="number" id="inputProds" class="field-input" value="3000" min="10" max="150000" oninput="updateEstimates(); clearPresetActive();">
+                    </div>
+                    <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
+                        <button type="button" class="step-btn" onclick="adjustValue('inputProds', 1000)">+1,000</button>
+                        <button type="button" class="step-btn" onclick="adjustValue('inputProds', 5000)">+5,000</button>
+                        <button type="button" class="step-btn" onclick="adjustValue('inputProds', 10000)">+10,000</button>
+                    </div>
+                </div>
+
+                <!-- 2. عدد الفواتير والعمليات -->
+                <div class="field-group">
+                    <div class="field-header">
+                        <label class="field-label" for="inputTxs">
+                            <span>🧾</span> عدد الفواتير والحركات
+                        </label>
+                        <span class="field-hint">مبيعات ومشتريات ونقدي/آجل</span>
+                    </div>
+                    <div class="input-row">
+                        <input type="number" id="inputTxs" class="field-input" value="5000" min="10" max="250000" oninput="updateEstimates(); clearPresetActive();">
+                    </div>
+                    <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
+                        <button type="button" class="step-btn" onclick="adjustValue('inputTxs', 2000)">+2,000</button>
+                        <button type="button" class="step-btn" onclick="adjustValue('inputTxs', 10000)">+10,000</button>
+                        <button type="button" class="step-btn" onclick="adjustValue('inputTxs', 25000)">+25,000</button>
+                    </div>
+                </div>
+
+                <!-- 3. عدد العملاء والموردين -->
+                <div class="field-group">
+                    <div class="field-header">
+                        <label class="field-label" for="inputAccounts">
+                            <span>👥</span> عدد العملاء والموردين
+                        </label>
+                        <span class="field-hint">حسابات بأرصدة وهواتف</span>
+                    </div>
+                    <div class="input-row">
+                        <input type="number" id="inputAccounts" class="field-input" value="500" min="5" max="30000" oninput="updateEstimates(); clearPresetActive();">
+                    </div>
+                    <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
+                        <button type="button" class="step-btn" onclick="adjustValue('inputAccounts', 200)">+200</button>
+                        <button type="button" class="step-btn" onclick="adjustValue('inputAccounts', 1000)">+1,000</button>
+                        <button type="button" class="step-btn" onclick="adjustValue('inputAccounts', 2500)">+2,500</button>
+                    </div>
+                </div>
+
+                <!-- 4. عدد المخازن والفروع -->
+                <div class="field-group">
+                    <div class="field-header">
+                        <label class="field-label" for="inputWarehouses">
+                            <span>🏬</span> عدد المخازن والفروع
+                        </label>
+                        <span class="field-hint">وتوزيع الأرصدة عليها</span>
+                    </div>
+                    <div class="input-row">
+                        <input type="number" id="inputWarehouses" class="field-input" value="2" min="1" max="25" oninput="updateEstimates(); clearPresetActive();">
+                    </div>
+                    <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
+                        <button type="button" class="step-btn" onclick="adjustValue('inputWarehouses', 1)">+1</button>
+                        <button type="button" class="step-btn" onclick="adjustValue('inputWarehouses', 3)">+3</button>
+                        <button type="button" class="step-btn" onclick="adjustValue('inputWarehouses', 5)">+5</button>
+                    </div>
+                </div>
+
+                <!-- 5. عدد المستخدمين والكاشيرات -->
+                <div class="field-group">
+                    <div class="field-header">
+                        <label class="field-label" for="inputUsers">
+                            <span>👤</span> عدد الكاشيرات والمستخدمين
+                        </label>
+                        <span class="field-hint">بصلاحيات وأرقام سرية PIN</span>
+                    </div>
+                    <div class="input-row">
+                        <input type="number" id="inputUsers" class="field-input" value="3" min="1" max="50" oninput="updateEstimates(); clearPresetActive();">
+                    </div>
+                    <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
+                        <button type="button" class="step-btn" onclick="adjustValue('inputUsers', 1)">+1</button>
+                        <button type="button" class="step-btn" onclick="adjustValue('inputUsers', 2)">+2</button>
+                        <button type="button" class="step-btn" onclick="adjustValue('inputUsers', 5)">+5</button>
+                    </div>
+                </div>
+
+                <!-- خيار إضافي: تشكيلات المقاسات والألوان لكل صنف -->
+                <div class="field-group" style="background: #141d2d; border-color: #27354a;">
+                    <div class="field-header">
+                        <label class="field-label" for="inputVariants">
+                            <span>🎨</span> المقاسات والألوان لكل صنف
+                        </label>
+                        <span class="field-hint">تشكيلة أزياء باركود لكل موديل</span>
+                    </div>
+                    <div class="input-row">
+                        <input type="number" id="inputVariants" class="field-input" value="3" min="1" max="10" oninput="updateEstimates(); clearPresetActive();" style="color: #a7f3d0;">
+                    </div>
+                    <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
+                        <button type="button" class="step-btn" onclick="adjustValue('inputVariants', 1)">+1</button>
+                        <button type="button" class="step-btn" onclick="adjustValue('inputVariants', 2)">+2</button>
+                        <button type="button" class="step-btn" onclick="setVariantsDefault()">3 مقاسات (افتراضي)</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- شريط التقدير اللحظي -->
+        <div class="estimation-bar">
+            <div class="est-item">
+                <span>📦 إجمالي السجلات:</span>
+                <span id="estRecords" class="est-val">8,505 سجل</span>
+            </div>
+            <div class="est-item">
+                <span>💾 الحجم التقديري للملف:</span>
+                <span id="estSize" class="est-val">~4.5 MB</span>
+            </div>
+            <div class="est-item">
+                <span>⏱️ زمن التوليد المتوقع:</span>
+                <span id="estTime" class="est-val">~1 إلى 2 ثانية</span>
+            </div>
+        </div>
+
+        <!-- زر البدء -->
+        <button class="generate-btn" id="generateBtn" onclick="startGeneration()">
+            <span>🚀 بدء توليد وحزم ملف النسخة الاحتياطية المخصصة الآن</span>
+        </button>
+
+        <!-- شريط التقدم -->
+        <div class="progress-box" id="progressBox">
+            <div class="progress-text">
+                <span id="statusLabel">جاري تحضير المحرك...</span>
+                <span id="percentLabel" style="color: #38bdf8;">0%</span>
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+            <div class="progress-details">
+                <span id="speedLabel">معالجة فورية داخل المتصفح</span>
+                <span id="recordsDoneLabel">0 منجز</span>
+            </div>
+        </div>
+
+        <!-- تعليمات الاستخدام -->
+        <div class="instructions-box">
+            <b>💡 كيف تستخدم هذا الملف في برنامج بَيَان؟</b>
+            <ol>
+                <li>بمجرد الضغط على الزر، سيقوم المتصفح بتوليد وحفظ ملف بصيغة <code>.json</code> مباشرة على جهازك.</li>
+                <li>افتح برنامج <b>بَيَان POS</b> واذهب إلى: <b>الإعدادات ⚙️ ⬅️ البيانات والنسخ الاحتياطي 💾 ⬅️ استعادة نسخة احتياطية</b>.</li>
+                <li>اختر الملف الذي تم تحميله، وسيتم استيراد كافة الأصناف والفواتير والحسابات والمخازن فوراً لتجربة سرعة وكفاءة البرنامج!</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        const categories = [
+            'قمصان كاجوال رجالي', 'قمصان كلاسيك فاخرة', 'بنطلونات جينز سليم', 'بنطلونات جبردين وقماش',
+            'تيشرتات أوفر سايز صيفي', 'تيشرتات بولو قطن', 'فساتين سواريه وسهرة', 'فساتين كاجوال صيفي',
+            'بدل وبليزرات رجالي', 'أحذية جلد كاجوال', 'أحذية رياضية سنيكرز', 'عبايات استقبال وطرح',
+            'إكسسوارات وأحزمة جلد', 'ملابس أطفال أولادي', 'ملابس أطفال بناتي'
+        ];
+
+        const sizes = ['S', 'M', 'L', 'XL', '2XL', '3XL', '38', '40', '42', '44', '46', '48'];
+        const colors = ['أسود', 'أبيض', 'كحلي', 'رمادي ملانج', 'بيج صحراوي', 'زيتي غامق', 'نبيتي شتوي', 'كشمير ناعم', 'أزرق بترولي', 'هافان جملي', 'موف هادئ'];
+        
+        const partnerNames = [
+            'أحمد محمود الشناوي', 'محمد عبد الله خليل', 'إسلام فتحي حسن', 'ياسر إبراهيم النجار', 'كريم عادل الدسوقي',
+            'سارة أحمد فاروق', 'ميادة سمير غانم', 'نورهان سعيد علام', 'شركة الفارس للأقمشة الفاخرة', 'مصنع النور للأزياء الجاهزة',
+            'مكتب الأندلس لتوريدات الملابس', 'محلات مكة فاشون سنتر', 'مؤسسة الصفوة تكستايل', 'المهندس طارق منصور',
+            'سعد حسني البحراوي', 'شركة الرواد للملابس القطنية', 'مؤسسة براند إكس للأزياء', 'وكالة النيل للموضة'
+        ];
+
+        const paymentMethods = ['نقدي', 'فيزا / بطاقة بنكية', 'فودافون كاش / إنستاباي', 'آجل (حساب عميل)'];
+
+        function applyPreset(prods, txs, accs, whs, users, vars, card) {
+            document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
+            if (card) card.classList.add('active');
+            document.getElementById('inputProds').value = prods;
+            document.getElementById('inputTxs').value = txs;
+            document.getElementById('inputAccounts').value = accs;
+            document.getElementById('inputWarehouses').value = whs;
+            document.getElementById('inputUsers').value = users;
+            document.getElementById('inputVariants').value = vars;
+            updateEstimates();
+        }
+
+        function clearPresetActive() {
+            document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
+        }
+
+        function adjustValue(inputId, delta) {
+            const input = document.getElementById(inputId);
+            let val = parseInt(input.value, 10) || 0;
+            val = Math.max(parseInt(input.min, 10) || 1, val + delta);
+            input.value = val;
+            clearPresetActive();
+            updateEstimates();
+        }
+
+        function setVariantsDefault() {
+            document.getElementById('inputVariants').value = 3;
+            clearPresetActive();
+            updateEstimates();
+        }
+
+        function updateEstimates() {
+            const prods = parseInt(document.getElementById('inputProds').value, 10) || 0;
+            const txs = parseInt(document.getElementById('inputTxs').value, 10) || 0;
+            const accs = parseInt(document.getElementById('inputAccounts').value, 10) || 0;
+            const whs = parseInt(document.getElementById('inputWarehouses').value, 10) || 0;
+            const users = parseInt(document.getElementById('inputUsers').value, 10) || 0;
+            const vars = parseInt(document.getElementById('inputVariants').value, 10) || 3;
+
+            const totalRecords = prods + txs + accs + whs + users;
+            document.getElementById('estRecords').innerText = totalRecords.toLocaleString() + ' سجل';
+
+            // حجم تقديري: الصنف بمتغيراته ~650 بايت، الفاتورة ببندها ~500 بايت، الحساب ~250 بايت
+            const approxBytes = (prods * (400 + vars * 90)) + (txs * 520) + (accs * 260) + (whs * 200) + (users * 200);
+            const mb = (approxBytes / (1024 * 1024)).toFixed(1);
+            document.getElementById('estSize').innerText = `~${mb} MB`;
+
+            // تقدير الوقت
+            if (totalRecords < 10000) {
+                document.getElementById('estTime').innerText = '~1 إلى 2 ثانية';
+            } else if (totalRecords < 40000) {
+                document.getElementById('estTime').innerText = '~2 إلى 5 ثوانٍ';
+            } else if (totalRecords < 100000) {
+                document.getElementById('estTime').innerText = '~6 إلى 12 ثانية';
+            } else {
+                document.getElementById('estTime').innerText = '~15 إلى 30 ثانية';
+            }
+        }
+
+        // تحديث أولي
+        updateEstimates();
+
+        async function startGeneration() {
+            const numProds = Math.max(1, parseInt(document.getElementById('inputProds').value, 10) || 3000);
+            const numTxs = Math.max(1, parseInt(document.getElementById('inputTxs').value, 10) || 5000);
+            const numAccs = Math.max(1, parseInt(document.getElementById('inputAccounts').value, 10) || 500);
+            const numWhs = Math.max(1, parseInt(document.getElementById('inputWarehouses').value, 10) || 2);
+            const numUsers = Math.max(1, parseInt(document.getElementById('inputUsers').value, 10) || 3);
+            const varCountPerProd = Math.max(1, Math.min(10, parseInt(document.getElementById('inputVariants').value, 10) || 3));
+
+            const btn = document.getElementById('generateBtn');
+            const progressBox = document.getElementById('progressBox');
+            const progressBar = document.getElementById('progressBar');
+            const statusLabel = document.getElementById('statusLabel');
+            const percentLabel = document.getElementById('percentLabel');
+            const recordsDoneLabel = document.getElementById('recordsDoneLabel');
+
+            btn.disabled = true;
+            progressBox.style.display = 'block';
+
+            function updateUI(pct, text, doneText = '') {
+                progressBar.style.width = pct + '%';
+                percentLabel.innerText = Math.round(pct) + '%';
+                statusLabel.innerText = text;
+                if (doneText) recordsDoneLabel.innerText = doneText;
+            }
+
+            await new Promise(r => setTimeout(r, 60));
+
+            // 1. توليد المخازن والفروع
+            updateUI(2, 'جاري إنشاء المخازن والفروع...');
+            const warehouses = [];
+            for (let w = 1; w <= numWhs; w++) {
+                warehouses.push({
+                    id: w,
+                    name: (w === 1) ? 'المخزن الرئيسي (الفرع العام)' : `فرع / مخزن ${w}`,
+                    address: (w === 1) ? 'المقر الرئيسي - وسط البلد' : `الفرع التجاري رقم ${w}`
+                });
+            }
+
+            // 2. توليد المستخدمين والكاشيرات
+            updateUI(4, 'جاري إعداد حسابات الكاشيرات والمستخدمين...');
+            const users = [];
+            for (let u = 1; u <= numUsers; u++) {
+                const isAdmin = (u === 1);
+                users.push({
+                    id: u,
+                    name: isAdmin ? 'المدير العام (أدمن)' : `كاشير وردية (${u})`,
+                    pin: String(1000 + u),
+                    role: isAdmin ? 'admin' : 'cashier',
+                    warehouse: warehouses[(u - 1) % warehouses.length].name
+                });
+            }
+
+            // 3. توليد العملاء والموردين
+            updateUI(8, 'جاري توليد قائمة الحسابات والعملاء والموردين...', `0 من أصل ${numAccs} حساب`);
+            await new Promise(r => setTimeout(r, 20));
+
+            const accounts = [];
+            for (let i = 1; i <= numAccs; i++) {
+                const isSupplier = (i % 6 === 0);
+                const baseName = partnerNames[(i - 1) % partnerNames.length];
+                const accName = `${baseName} (#${i})`;
+                const initBal = (i % 3 === 0) ? (Math.floor(Math.random() * 25) * 100) : 0;
+                accounts.push({
+                    id: i,
+                    name: accName,
+                    code: 'ACC-' + String(i).padStart(5, '0'),
+                    type: isSupplier ? 'supplier' : 'client',
+                    mobile: '010' + Math.floor(10000000 + Math.random() * 90000000),
+                    balance: initBal,
+                    debit: isSupplier ? 0 : initBal,
+                    credit: isSupplier ? initBal : 0,
+                    address: (i % 2 === 0) ? 'القاهرة' : 'الإسكندرية'
+                });
+            }
+
+            updateUI(18, 'اكتملت الحسابات! جاري توليد مصفوفة الأصناف وتشكيلات الأزياء...', `${numAccs} حساب مكتمل`);
+            await new Promise(r => setTimeout(r, 20));
+
+            // 4. توليد الأصناف مع تشكيلة المقاسات والألوان وتوزيعها على المخازن
+            const products = [];
+            const prodChunk = 2000;
+            const mainWarehouseName = warehouses[0].name;
+
+            for (let i = 1; i <= numProds; i++) {
+                const cat = categories[(i - 1) % categories.length];
+                const pName = `موديل ${cat} - كود ${1000 + i}`;
+                const baseCost = Math.floor(90 + Math.random() * 450);
+                const basePrice = Math.floor(baseCost * (1.25 + Math.random() * 0.45));
+                const baseWholesale = Math.floor(baseCost * 1.15);
+
+                const variants = [];
+                let totalStock = 0;
+                const whDistribution = {};
+                warehouses.forEach(w => whDistribution[w.name] = 0);
+
+                for (let v = 0; v < varCountPerProd; v++) {
+                    const sz = sizes[(i + v) % sizes.length];
+                    const cl = colors[(i * 2 + v) % colors.length];
+                    const st = Math.floor(4 + Math.random() * 25);
+                    totalStock += st;
+
+                    const varWhStocks = {};
+                    warehouses.forEach((w, wIdx) => {
+                        const portion = (wIdx === 0) ? Math.ceil(st * 0.6) : Math.floor(st * 0.4 / (warehouses.length - 1 || 1));
+                        varWhStocks[w.name] = portion;
+                        whDistribution[w.name] += portion;
+                    });
+
+                    variants.push({
+                        size: sz,
+                        color: cl,
+                        stock: st,
+                        barcode: `622${String(i).padStart(6, '0')}${v}`,
+                        price: basePrice,
+                        cost: baseCost,
+                        wholesale: baseWholesale,
+                        warehouseStocks: varWhStocks
+                    });
+                }
+
+                products.push({
+                    id: i,
+                    name: pName,
+                    barcode: `622${String(i).padStart(7, '0')}`,
+                    category: cat,
+                    unit: 'قطعة',
+                    cost: baseCost,
+                    price: basePrice,
+                    wholesale: baseWholesale,
+                    stock: totalStock,
+                    variants: variants,
+                    warehouseStocks: whDistribution,
+                    minStockAlert: 5
+                });
+
+                if (i % prodChunk === 0 || i === numProds) {
+                    const pct = 18 + Math.round((i / numProds) * 40);
+                    updateUI(pct, `جاري توليد الأصناف (${i.toLocaleString()} من أصل ${numProds.toLocaleString()})...`, `${i.toLocaleString()} صنف`);
+                    await new Promise(r => setTimeout(r, 0));
+                }
+            }
+
+            updateUI(60, 'تم توليد كافة الأصناف بنجاح! جاري بناء فواتير البيع والشراء والعمليات...', `${numProds.toLocaleString()} صنف مكتمل`);
+            await new Promise(r => setTimeout(r, 20));
+
+            // 5. توليد الفواتير والحركات والعمليات
+            const transactions = [];
+            const txChunk = 2500;
+            const today = new Date();
+
+            for (let i = 1; i <= numTxs; i++) {
+                const daysAgo = Math.floor(Math.random() * 240);
+                const txDate = new Date(today.getTime() - daysAgo * 24 * 60 * 60 * 1000);
+                const dateISO = txDate.toISOString().split('T')[0];
+                const time = String(Math.floor(10 + Math.random() * 12)).padStart(2, '0') + ':' + String(Math.floor(Math.random() * 59)).padStart(2, '0');
+
+                const chosenProd = products[(i * 3) % products.length];
+                const chosenAcc = accounts[(i * 2) % accounts.length];
+                const chosenWh = warehouses[i % warehouses.length];
+                const chosenUser = users[i % users.length];
+
+                const isSale = (i % 6 !== 0); // 83% فواتير بيع و 17% شراء
+                const qty = 1 + (i % 4);
+                const price = isSale ? chosenProd.price : chosenProd.cost;
+                const total = qty * price;
+                const method = paymentMethods[i % paymentMethods.length];
+                const isPaid = (method !== 'آجل (حساب عميل)');
+
+                transactions.push({
+                    id: i,
+                    invoiceId: 100000 + i,
+                    dateISO: dateISO,
+                    time: time,
+                    type: isSale ? 'فاتورة بيع' : 'فاتورة شراء',
+                    partner: chosenAcc.name,
+                    total: total,
+                    paidAmount: isPaid ? total : 0,
+                    remaining: isPaid ? 0 : total,
+                    method: method,
+                    cashier: chosenUser.name,
+                    warehouse: chosenWh.name,
+                    product: chosenProd.name,
+                    barcode: chosenProd.barcode,
+                    qty: qty,
+                    price: price,
+                    cost: chosenProd.cost,
+                    items: [
+                        {
+                            productId: chosenProd.id,
+                            productName: chosenProd.name,
+                            barcode: chosenProd.barcode,
+                            qty: qty,
+                            price: price,
+                            cost: chosenProd.cost,
+                            total: total,
+                            warehouse: chosenWh.name
+                        }
+                    ]
+                });
+
+                if (i % txChunk === 0 || i === numTxs) {
+                    const pct = 60 + Math.round((i / numTxs) * 32);
+                    updateUI(pct, `جاري توليد الفواتير (${i.toLocaleString()} من أصل ${numTxs.toLocaleString()})...`, `${i.toLocaleString()} فاتورة`);
+                    await new Promise(r => setTimeout(r, 0));
+                }
+            }
+
+            updateUI(94, 'جاري تجميع وهيكلة ملف النسخة الاحتياطية الموحد (JSON Stream)...');
+            await new Promise(r => setTimeout(r, 20));
+
+            // الهيكل الرسمي لنظام بيان POS v4.5.1
+            const backupPayload = {
+                version: "4.5.1",
+                backupDate: new Date().toISOString(),
+                hwid: "CUSTOM_STRESS_TEST_OFFLINE_DEVICE",
+                deviceMachineId: "CUSTOM_STRESS_TEST_OFFLINE_DEVICE",
+                products: products,
+                transactions: transactions,
+                accounts: accounts,
+                trash: [],
+                treasuryAudit: [],
+                auditLogs: [],
+                warehouses: warehouses,
+                wallpapers: [],
+                inventoryCategories: categories,
+                paymentMethods: paymentMethods,
+                globalUnits: [{ name: 'قطعة', factor: 1 }, { name: 'دربل / طقم', factor: 2 }],
+                settings: {
+                    businessName: "متجر الأزياء التجريبي لاختبار الأداء والسرعة",
+                    shopPhone1: "01000000000",
+                    businessType: "clothing",
+                    directToSalesOnLogin: true
+                },
+                users: users
+            };
+
+            updateUI(98, 'جاري إنشاء وتجهيز ملف التحميل...');
+            await new Promise(r => setTimeout(r, 30));
+
+            const jsonString = JSON.stringify(backupPayload);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `bayan_backup_${numProds}_items_${numTxs}_invoices.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            updateUI(100, `🎉 تم التوليد بنجاح! تم تحميل ملف يحتوي على (${numProds.toLocaleString()} صنف، ${numTxs.toLocaleString()} فاتورة، ${numAccs.toLocaleString()} حساب، ${numWhs} مخازن، ${numUsers} كاشيرات).`, 'تم الاكتمال بنجاح');
+            btn.disabled = false;
+        }
+    </script>
+</body>
+</html>
