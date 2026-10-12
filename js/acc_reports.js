@@ -576,7 +576,7 @@
         async function generateDailyReport() {
             if (typeof window.showSectionLoader === 'function') {
                 window.showSectionLoader('daily-report-section', 'جاري إعداد تقرير الحركة اليومية والدرج...', 'تحليل الحركات وتحديث الأرصدة');
-                await new Promise(r => setTimeout(r, 25));
+                await new Promise(r => setTimeout(r, 60));
             }
             try {
                 // 🔒 فحص وتطبيق قفل التاريخ على اليوم الحالي لمنع التلاعب

@@ -29,61 +29,53 @@
         // ============================================================
         window.showSectionLoader = function(targetIdOrEl, title = 'جاري معالجة وتجهيز البيانات...', subtitle = 'يرجى الانتظار لحين اكتمال التحميل') {
             try {
-                let targetEl = null;
-                if (typeof targetIdOrEl === 'string') {
-                    targetEl = document.getElementById(targetIdOrEl);
-                } else if (targetIdOrEl && targetIdOrEl.nodeType) {
-                    targetEl = targetIdOrEl;
-                }
-                if (!targetEl) targetEl = document.body;
-
-                const existing = targetEl.querySelector(':scope > .bayan-section-loader-overlay');
-                if (existing) existing.remove();
-
-                if (targetEl !== document.body) {
-                    const computedPos = window.getComputedStyle(targetEl).position;
-                    if (computedPos === 'static') {
-                        targetEl.style.position = 'relative';
-                    }
-                }
+                // إزالة أي لودر قديم موجود في الصفحة فوراً لمنع أي تكرار
+                document.querySelectorAll('.bayan-section-loader-overlay').forEach(el => {
+                    if (el._autoDismissTimer) clearTimeout(el._autoDismissTimer);
+                    try { el.remove(); } catch(e) {}
+                });
 
                 const overlay = document.createElement('div');
                 overlay.className = 'bayan-section-loader-overlay';
-                const isGlobal = (targetEl === document.body);
 
                 overlay.style.cssText = `
-                    position: ${isGlobal ? 'fixed' : 'absolute'};
-                    inset: 0;
-                    z-index: ${isGlobal ? '99999999' : '9999'};
-                    background: rgba(15, 23, 42, 0.72);
-                    backdrop-filter: blur(8px);
-                    -webkit-backdrop-filter: blur(8px);
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    gap: 14px;
-                    color: #ffffff;
-                    font-family: inherit;
-                    direction: rtl;
-                    text-align: center;
-                    padding: 20px;
-                    border-radius: ${isGlobal ? '0' : '16px'};
+                    position: fixed !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    right: 0 !important;
+                    bottom: 0 !important;
+                    width: 100vw !important;
+                    height: 100vh !important;
+                    z-index: 99999999 !important;
+                    background: rgba(15, 23, 42, 0.78) !important;
+                    backdrop-filter: blur(10px) !important;
+                    -webkit-backdrop-filter: blur(10px) !important;
+                    display: flex !important;
+                    flex-direction: column !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    gap: 16px !important;
+                    color: #ffffff !important;
+                    font-family: 'Cairo', system-ui, -apple-system, sans-serif !important;
+                    direction: rtl !important;
+                    text-align: center !important;
+                    padding: 20px !important;
+                    margin: 0 !important;
                     opacity: 0;
-                    transition: opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1);
-                    pointer-events: auto;
+                    transition: opacity 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                    pointer-events: auto !important;
                 `;
 
                 overlay.innerHTML = `
-                    <div style="background: rgba(30, 41, 59, 0.94); border: 1.5px solid rgba(16, 185, 129, 0.45); border-radius: 20px; padding: 24px 32px; box-shadow: 0 20px 50px rgba(0,0,0,0.5), 0 0 25px rgba(16, 185, 129, 0.15); display: flex; flex-direction: column; align-items: center; gap: 12px; max-width: 420px; width: 90%;">
-                        <div style="position: relative; width: 54px; height: 54px; display: flex; align-items: center; justify-content: center;">
-                            <div style="position: absolute; inset: 0; border: 3px solid rgba(16, 185, 129, 0.2); border-top-color: #10b981; border-radius: 50%; animation: bayanLoaderSpin 0.9s linear infinite;"></div>
-                            <span style="font-size: 1.6rem; animation: bayanLoaderPulse 1.5s ease-in-out infinite;">⏳</span>
+                    <div style="background: rgba(15, 23, 42, 0.96); border: 2.5px solid #10b981; border-radius: 24px; padding: 30px 42px; box-shadow: 0 25px 60px rgba(0,0,0,0.6), 0 0 35px rgba(16, 185, 129, 0.35); display: flex; flex-direction: column; align-items: center; gap: 14px; max-width: 440px; width: 92%; margin: auto;">
+                        <div style="position: relative; width: 66px; height: 66px; display: flex; align-items: center; justify-content: center;">
+                            <div style="position: absolute; inset: 0; border: 4px solid rgba(16, 185, 129, 0.25); border-top-color: #10b981; border-radius: 50%; animation: bayanLoaderSpin 0.85s linear infinite;"></div>
+                            <span style="font-size: 2.1rem; animation: bayanLoaderPulse 1.4s ease-in-out infinite; line-height: 1;">⏳</span>
                         </div>
-                        <div style="font-size: 1.05rem; font-weight: 900; color: #ffffff; line-height: 1.4;">
+                        <div style="font-size: 1.15rem; font-weight: 900; color: #ffffff; line-height: 1.4; letter-spacing: -0.2px;">
                             ${title}
                         </div>
-                        ${subtitle ? `<div style="font-size: 0.82rem; color: #94a3b8; font-weight: 700; line-height: 1.4;">${subtitle}</div>` : ''}
+                        ${subtitle ? `<div style="font-size: 0.88rem; color: #a7f3d0; font-weight: 700; line-height: 1.4;">${subtitle}</div>` : ''}
                     </div>
                 `;
 
@@ -92,17 +84,17 @@
                     style.id = 'bayanLoaderKeyframes';
                     style.innerHTML = `
                         @keyframes bayanLoaderSpin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-                        @keyframes bayanLoaderPulse { 0%, 100% { transform: scale(1); opacity: 0.85; } 50% { transform: scale(1.1); opacity: 1; } }
+                        @keyframes bayanLoaderPulse { 0%, 100% { transform: scale(1); opacity: 0.88; } 50% { transform: scale(1.12); opacity: 1; } }
                     `;
                     document.head.appendChild(style);
                 }
 
-                targetEl.appendChild(overlay);
+                document.body.appendChild(overlay);
                 requestAnimationFrame(() => { overlay.style.opacity = '1'; });
 
                 overlay._autoDismissTimer = setTimeout(() => {
-                    window.hideSectionLoader(targetEl);
-                }, 20000);
+                    window.hideSectionLoader();
+                }, 15000);
 
                 return overlay;
             } catch (err) {
@@ -112,22 +104,18 @@
 
         window.hideSectionLoader = function(targetIdOrEl) {
             try {
-                let targetEl = null;
-                if (typeof targetIdOrEl === 'string') {
-                    targetEl = document.getElementById(targetIdOrEl);
-                } else if (targetIdOrEl && targetIdOrEl.nodeType) {
-                    targetEl = targetIdOrEl;
-                }
-                if (!targetEl) targetEl = document.body;
+                const overlays = document.querySelectorAll('.bayan-section-loader-overlay');
+                if (!overlays || overlays.length === 0) return;
 
-                const overlay = targetEl.querySelector(':scope > .bayan-section-loader-overlay');
-                if (!overlay) return;
-
-                if (overlay._autoDismissTimer) clearTimeout(overlay._autoDismissTimer);
-                overlay.style.opacity = '0';
-                setTimeout(() => {
-                    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
-                }, 220);
+                overlays.forEach(overlay => {
+                    if (overlay._autoDismissTimer) clearTimeout(overlay._autoDismissTimer);
+                    overlay.style.opacity = '0';
+                    setTimeout(() => {
+                        try {
+                            if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+                        } catch(e) {}
+                    }, 220);
+                });
             } catch (err) {
                 console.warn("hideSectionLoader err:", err);
             }
@@ -284,7 +272,7 @@
         window.normalizeSearchQuery = normalizeSearchQuery;
 
         function getProductSearchTokens(p) {
-            const currentVer = p.editDate || p.updatedAt || p.price || 1;
+            const currentVer = String(p.editDate || p.updatedAt || '') + '_' + String(p.price || '') + '_' + String(p.name || '') + '_' + String(p.barcode || '');
             if (p._searchTokens && p._searchTokensVer === currentVer) {
                 return p._searchTokens;
             }
@@ -2584,6 +2572,7 @@
                     if (typeof saveData === 'function') await saveData();
 
                     renderInventoryTable();
+                    if (typeof rebuildProductFastIndex === 'function') rebuildProductFastIndex();
                     if (typeof updateInventorySelectionUI === 'function') updateInventorySelectionUI();
                     showToast(`⚡ تم حذف ونقل (${targetIds.length}) صنف إلى سلة المحذوفات بنجاح فوراً!`, "success");
                 } catch (err) {
