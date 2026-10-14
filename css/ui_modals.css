@@ -3828,6 +3828,42 @@ body.dark-mode .usr-perm-tab-btn.active {
 /* ========================================================================= */
 /* 💎 لوحة وإدارة تعديل وتسعير الموديلات الفاخرة (Price Adjustment Workspace) */
 /* ========================================================================= */
+#price-adjustment-section {
+    display: flex !important;
+    flex-direction: column !important;
+    direction: rtl;
+    text-align: right;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: calc(100vh - 65px) !important;
+    min-height: calc(100vh - 65px) !important;
+    padding: 8px 16px 12px !important;
+    background: transparent;
+    color: #0f172a;
+    box-sizing: border-box !important;
+    font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+    gap: 8px;
+    overflow: hidden !important;
+    flex: 1;
+}
+
+#price-adjustment-section.hidden {
+    display: none !important;
+}
+
+.price-adj-workspace {
+    width: 100%;
+    height: 100%;
+    background: #f8fafc;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 14px;
+    border: 1.5px solid #cbd5e1;
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+    animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 #priceAdjustmentModal {
     animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }

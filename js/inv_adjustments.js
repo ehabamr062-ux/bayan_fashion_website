@@ -1111,36 +1111,20 @@ function applyFractionalDiscount(type) {
 // ============================================================
 // 🏷️ المنصة الشاملة لتسعير وتكاليف الملابس والتشكيلات (Fashion & Price Management)
 // ============================================================
-function openPriceAdjustmentModal() {
+function openPriceAdjustmentModal(selectedIds) {
     try {
-        if (typeof currentUser !== 'undefined' && currentUser && typeof checkPermission === 'function' && !checkPermission('stock_edit')) return;
-
-        const modal = document.getElementById('priceAdjustmentModal');
-        if (modal) {
-            modal.classList.remove('hidden');
-            modal.style.setProperty('display', 'flex', 'important');
+        if (typeof currentUser !== 'undefined' && currentUser && typeof checkPermission === 'function' && !checkPermission('stock_edit')) {
+            if (typeof showToast === 'function') showToast('⛔ عذراً، لا تمتلك صلاحية لتعديل الأسعار والمخازن', 'error');
+            return;
         }
 
-        // 🟢 شاشة تحميل خضراء ملكية فورية (0ms) بأيقونة الساعة الرملية وتأثير نبض راقٍ
-        const tbody = document.getElementById('priceAdjustmentTableBody');
-        if (tbody) {
-            tbody.innerHTML = `
-                <tr>
-                    <td colspan="15" style="text-align:center; padding: 60px 20px; background: #ffffff;">
-                        <div style="display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border: 2px solid #86efac; padding: 26px 40px; border-radius: 18px; box-shadow: 0 10px 30px rgba(16, 185, 129, 0.12); max-width: 540px;">
-                            <div style="width: 58px; height: 58px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #059669); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35);">
-                                ⏳
-                            </div>
-                            <div style="color: #065f46; font-size: 1.2rem; font-weight: 900;">
-                                جاري تجهيز وتحميل بيانات الأسعار والمخازن...
-                            </div>
-                            <div style="color: #047857; font-size: 0.88rem; font-weight: 700;">
-                                يرجى الانتظار لحظات، يتم إعداد تشكيلات الموديلات بدقة فائقة ⚡
-                            </div>
-                        </div>
-                    </td>
-                </tr>
-            `;
+        const ids = (selectedIds && Array.isArray(selectedIds) && selectedIds.length > 0)
+            ? selectedIds
+            : Array.from(window.selectedInventoryIds || []);
+
+        if (ids.length > 0) {
+            window._priceAdjTargetIds = ids;
+            window._priceAdjNeedsRefresh = true;
         }
 
         if (document.getElementById('priceAdjBulkPercent')) {
@@ -1157,8 +1141,13 @@ function openPriceAdjustmentModal() {
         if (!window._priceAdjUndoKeyAttached) {
             window._priceAdjUndoKeyAttached = true;
             document.addEventListener('keydown', (e) => {
-                const modal = document.getElementById('priceAdjustmentModal');
-                if (!modal || modal.classList.contains('hidden') || modal.style.display === 'none') return;
+                if (typeof activeTabId !== 'undefined' && typeof openTabs !== 'undefined') {
+                    const currentTab = openTabs.find(t => t.id === activeTabId);
+                    if (!currentTab || currentTab.type !== 'price-adjustment') return;
+                } else {
+                    const sec = document.getElementById('price-adjustment-section') || document.getElementById('priceAdjustmentModal');
+                    if (!sec || sec.classList.contains('hidden') || sec.style.display === 'none') return;
+                }
                 if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
                     const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
                     if (activeTag === 'input' || activeTag === 'textarea') return;
@@ -1168,12 +1157,16 @@ function openPriceAdjustmentModal() {
             });
         }
 
-        const selectedIds = Array.from(window.selectedInventoryIds || []);
-
-        // ⚡ تفريغ خيط المعالجة فوراً (Yield Event Loop) ليرى المستخدم النافذة مفتوحة في 0ms دون أي تجميد للزر
-        setTimeout(() => {
-            initPriceAdjustmentFiltersAndData(selectedIds);
-        }, 16);
+        if (typeof switchSection === 'function') {
+            switchSection('price-adjustment');
+        } else {
+            const sec = document.getElementById('price-adjustment-section') || document.getElementById('priceAdjustmentModal');
+            if (sec) {
+                sec.classList.remove('hidden');
+                sec.style.setProperty('display', 'flex', 'important');
+            }
+            initPriceAdjustmentFiltersAndData(ids);
+        }
 
     } catch (err) {
         console.error("خطأ أثناء فتح منصة تعديل الأسعار:", err);
@@ -1183,11 +1176,28 @@ function openPriceAdjustmentModal() {
 window.openPriceAdjustmentModal = openPriceAdjustmentModal;
 
 async function initPriceAdjustmentFiltersAndData(selectedIds = []) {
-    const showLoader = (typeof window.showSectionLoader === 'function');
-    if (showLoader) {
-        window.showSectionLoader(null, 'جاري فتح منصة تعديل الأسعار...', 'تحضير المقاسات وتشكيلات الموديلات وقوائم الأسعار');
-        await new Promise(r => setTimeout(r, 45));
+    const tbody = document.getElementById('priceAdjustmentTableBody');
+    if (tbody && (!tbody.children.length || tbody.innerText.includes('جاري تجهيز'))) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="15" style="text-align:center; padding: 60px 20px; background: #ffffff;">
+                    <div style="display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; background: linear-gradient(135deg, #f0fdf4, #ecfdf5); border: 2px solid #86efac; padding: 26px 40px; border-radius: 18px; box-shadow: 0 10px 30px rgba(16, 185, 129, 0.12); max-width: 540px;">
+                        <div style="width: 58px; height: 58px; border-radius: 50%; background: linear-gradient(135deg, #10b981, #059669); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35);">
+                            ⏳
+                        </div>
+                        <div style="color: #065f46; font-size: 1.2rem; font-weight: 900;">
+                            جاري تجهيز وتحميل بيانات الأسعار والمخازن...
+                        </div>
+                        <div style="color: #047857; font-size: 0.88rem; font-weight: 700;">
+                            يرجى الانتظار لحظات، يتم إعداد تشكيلات الموديلات بدقة فائقة ⚡
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
     }
+    await new Promise(r => setTimeout(r, 16));
+
     try {
         const allProds = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
 
@@ -1245,19 +1255,18 @@ async function initPriceAdjustmentFiltersAndData(selectedIds = []) {
         }
     } catch (err) {
         console.error("Error in initPriceAdjustmentFiltersAndData:", err);
-    } finally {
-        if (showLoader && typeof window.hideSectionLoader === 'function') {
-            window.hideSectionLoader();
-        }
     }
 }
 window.initPriceAdjustmentFiltersAndData = initPriceAdjustmentFiltersAndData;
 
-function closePriceAdjustmentModal() {
+function closePriceAdjustmentModal(silent = false) {
     const modal = document.getElementById('priceAdjustmentModal');
     if (modal) {
-        modal.style.setProperty('display', 'none', 'important');
         modal.classList.add('hidden');
+    }
+    const sec = document.getElementById('price-adjustment-section');
+    if (sec) {
+        sec.classList.add('hidden');
     }
     if (typeof closeFashionVariantsPriceModal === 'function') closeFashionVariantsPriceModal();
     if (document.getElementById('priceAdjSearch')) document.getElementById('priceAdjSearch').value = '';
@@ -1269,6 +1278,24 @@ function closePriceAdjustmentModal() {
     window.priceAdjUndoStack = [];
     window.priceAdjDisplayLimit = 50;
     if (typeof updateUndoButtonState === 'function') updateUndoButtonState();
+
+    const tbody = document.getElementById('priceAdjustmentTableBody');
+    if (tbody) tbody.innerHTML = '';
+
+    if (!silent) {
+        if (typeof activeTabId !== 'undefined' && typeof openTabs !== 'undefined') {
+            const currentTab = openTabs.find(t => t.id === activeTabId);
+            if (currentTab && currentTab.type === 'price-adjustment') {
+                if (typeof actuallyCloseTab === 'function') {
+                    actuallyCloseTab(activeTabId);
+                    return;
+                }
+            }
+        }
+        if (typeof switchSection === 'function') {
+            switchSection('dashboard');
+        }
+    }
 }
 window.closePriceAdjustmentModal = closePriceAdjustmentModal;
 

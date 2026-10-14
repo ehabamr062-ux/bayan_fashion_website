@@ -2423,7 +2423,7 @@
                     style="display: flex; gap: 10px; flex: 1; align-items: stretch; min-width: 0;">
                     <div class="dm-mid-tile dm-sec-price-mgmt"
                         style="background: linear-gradient(135deg, #1e293b, #0f172a); border: 1.5px solid #38bdf8; color: white; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; cursor: pointer; transition: 0.3s; border-radius: 15px; padding: 10px; text-align: center; flex: 1; height: 95px; min-width: 0; box-shadow: 0 4px 15px rgba(56,189,248,0.15);"
-                        onclick="openPriceAdjustmentModal()" data-perm="stock_edit"
+                        onclick="switchSection('price-adjustment')" data-perm="stock_edit"
                         onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 25px rgba(56,189,248,0.3)';"
                         onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px rgba(56,189,248,0.15)';">
                         <span class="icon" style="margin-bottom: 3px; color: #38bdf8;"><svg width="26" height="26"
@@ -6430,7 +6430,7 @@
                     style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #f1f5f9; border-radius: 9px; padding: 9px 12px; font-weight: 800; cursor: pointer; transition: 0.2s;">
                     <span>📜 حركة صنف</span>
                 </button>
-                <button id="priceAdjBtn" class="v-btn btn-inv-prices" onclick="openPriceAdjustmentModal()"
+                <button id="priceAdjBtn" class="v-btn btn-inv-prices" onclick="switchSection('price-adjustment')"
                     style="background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); color: #f1f5f9; border-radius: 9px; padding: 9px 12px; font-weight: 800; cursor: pointer; transition: 0.2s; position: relative;">
                     <span>💵 تعديل الأسعار المجمّع</span>
                     <span id="priceAdjSelectCount"
@@ -14702,6 +14702,283 @@
         <div id="bp-print-container"></div>
     </div>
 
+    <!-- ================= 🏷️ قسم تعديل وتحديث الأسعار والمخازن كـ تبويب كامل (Price Adjustment Section) ================= -->
+    <div id="price-adjustment-section" class="section-view hidden">
+        <div id="priceAdjustmentModal" class="price-adj-workspace">
+
+            <!-- 👑 هيدر ثابت عالي الوضوح -->
+            <div
+                style="background: linear-gradient(135deg, #0f172a, #1e293b); padding: 10px 22px; min-height: 56px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 15px; border-bottom: 2px solid #3b82f6; box-shadow: 0 4px 20px rgba(0,0,0,0.25); border-radius: 12px 12px 0 0;">
+                <div style="display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0;">
+                    <div
+                        style="background: linear-gradient(135deg, #3b82f6, #2563eb); width: 42px; height: 42px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-size: 1.35rem; color: #fff; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);">
+                        🏷️
+                    </div>
+                    <div style="min-width: 0;">
+                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                            <h2
+                                style="color: #ffffff; margin: 0; font-size: 1.2rem; font-weight: 900; letter-spacing: -0.3px; white-space: nowrap;">
+                                المنصة الشاملة لإدارة وتسعير الموديلات
+                            </h2>
+                            <span
+                                style="background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid #3b82f6; padding: 2px 10px; border-radius: 8px; font-size: 0.78rem; font-weight: 800; white-space: nowrap;">
+                                👗 Fashion Matrix
+                            </span>
+                        </div>
+                        <span
+                            style="color: #94a3b8; font-size: 0.78rem; font-weight: 700; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px;">
+                            ⚡ تحكم فوري في أسعار الموديلات والمقاسات والألوان وتطبيق الخصومات وهوامش الربح
+                        </span>
+                    </div>
+                </div>
+
+                <!-- أزرار التحكم العلوية -->
+                <div style="display: flex; gap: 10px; align-items: center; flex-shrink: 0;">
+                    <button type="button" onclick="switchSection('dashboard')"
+                        style="height: 38px; padding: 0 16px; background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.2); border-radius: 9px; color: white; cursor: pointer; font-weight: 800; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; transition: 0.2s;"
+                        onmouseover="this.style.background='rgba(255,255,255,0.16)'"
+                        onmouseout="this.style.background='rgba(255,255,255,0.08)'"
+                        title="العودة للشاشة الرئيسية">
+                        <span>↩️</span> الرئيسية
+                    </button>
+                    <button type="button" onclick="openPriceAdjColumnModal()"
+                        style="height: 38px; padding: 0 16px; background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.2); border-radius: 9px; color: white; cursor: pointer; font-weight: 800; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; transition: 0.2s;"
+                        onmouseover="this.style.background='rgba(255,255,255,0.16)'"
+                        onmouseout="this.style.background='rgba(255,255,255,0.08)'"
+                        title="تخصيص وإظهار/إخفاء أعمدة جدول الأسعار">
+                        <span>⚙️</span> تخصيص الأعمدة
+                    </button>
+                    <button type="button" onclick="closePriceAdjustmentModal()"
+                        style="height: 38px; padding: 0 18px; background: linear-gradient(135deg, #ef4444, #dc2626); border: none; border-radius: 9px; color: white; cursor: pointer; font-size: 0.88rem; font-weight: 900; transition: 0.2s; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(220,38,38,0.3); flex-shrink: 0;"
+                        onmouseover="this.style.transform='translateY(-1px)';"
+                        onmouseout="this.style.transform='translateY(0)';"
+                        title="إغلاق تبويب تعديل الأسعار">
+                        <span>✕ إغلاق التبويب</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 🔍 شريط الأدوات والفلترة والبحث المتقدم والتطبيق الجماعي -->
+            <div
+                style="background: #ffffff; padding: 10px 20px; min-height: 52px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: 1.5px solid #e2e8f0; flex-wrap: wrap; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
+
+                <div style="display: flex; gap: 8px; flex: 1; min-width: 380px; align-items: center; flex-wrap: wrap;">
+                    <!-- محرك البحث السريع -->
+                    <div style="position: relative; flex: 1.2; min-width: 220px;">
+                        <span
+                            style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.95rem; color: #3b82f6; pointer-events: none;">🔍</span>
+                        <input type="text" id="priceAdjSearch" placeholder="ابحث باسم الموديل، الكود، الباركود..."
+                            style="width: 100%; height: 38px; padding: 0 35px 0 12px; border-radius: 10px; border: 1.5px solid #cbd5e1; font-weight: 800; background: #ffffff; outline: none; color: #0f172a; font-size: 0.88rem; box-sizing: border-box; transition: 0.2s;"
+                            onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59, 130, 246, 0.15)';"
+                            onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';"
+                            oninput="debouncedHandlePriceAdjSearch()">
+                    </div>
+
+                    <!-- فلترة التصنيف -->
+                    <select id="priceAdjCategory" onchange="debouncedHandlePriceAdjSearch()"
+                        style="height: 38px; width: 135px; border-radius: 10px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-weight: 800; background: #ffffff; color: #0f172a; cursor: pointer; font-size: 0.84rem; outline: none; transition: 0.2s;"
+                        onfocus="this.style.borderColor='#3b82f6';" onblur="this.style.borderColor='#cbd5e1';">
+                        <option value="all">📁 كافة الأقسام</option>
+                    </select>
+
+                    <!-- فلترة نوع الصنف -->
+                    <select id="priceAdjTypeFilter" onchange="debouncedHandlePriceAdjSearch()"
+                        style="height: 38px; width: 150px; border-radius: 10px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-weight: 800; background: #ffffff; color: #0f172a; cursor: pointer; font-size: 0.84rem; outline: none; transition: 0.2s;"
+                        onfocus="this.style.borderColor='#3b82f6';" onblur="this.style.borderColor='#cbd5e1';">
+                        <option value="all">🏷️ كافة الأنواع</option>
+                        <option value="variants">👗 موديلات ملابس بتشكيلات</option>
+                        <option value="regular">📦 أصناف عادية فردية</option>
+                    </select>
+
+                    <!-- فلترة المقاس -->
+                    <select id="priceAdjSizeFilter" onchange="debouncedHandlePriceAdjSearch()"
+                        style="height: 38px; width: 130px; border-radius: 10px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-weight: 800; background: #ffffff; color: #0f172a; cursor: pointer; font-size: 0.84rem; outline: none; transition: 0.2s;"
+                        onfocus="this.style.borderColor='#3b82f6';" onblur="this.style.borderColor='#cbd5e1';">
+                        <option value="all">📏 كافة المقاسات</option>
+                    </select>
+
+                    <!-- فلترة اللون -->
+                    <select id="priceAdjColorFilter" onchange="debouncedHandlePriceAdjSearch()"
+                        style="height: 38px; width: 125px; border-radius: 10px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-weight: 800; background: #ffffff; color: #0f172a; cursor: pointer; font-size: 0.84rem; outline: none; transition: 0.2s;"
+                        onfocus="this.style.borderColor='#3b82f6';" onblur="this.style.borderColor='#cbd5e1';">
+                        <option value="all">🎨 كافة الألوان</option>
+                    </select>
+
+                    <!-- فلترة المخزون -->
+                    <select id="priceAdjStockFilter" onchange="debouncedHandlePriceAdjSearch()"
+                        style="height: 38px; width: 115px; border-radius: 10px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-weight: 800; background: #ffffff; color: #0f172a; cursor: pointer; font-size: 0.84rem; outline: none; transition: 0.2s;"
+                        onfocus="this.style.borderColor='#3b82f6';" onblur="this.style.borderColor='#cbd5e1';">
+                        <option value="all">📦 الرصيد: الكل</option>
+                        <option value="in">✅ متوفر فقط</option>
+                        <option value="out">❌ رصيد صفري</option>
+                    </select>
+                </div>
+
+                <!-- ⚡ باكدج أدوات التغيير الجماعي بالنسب المئوية -->
+                <div
+                    style="display: flex; gap: 8px; background: #f8fafc; padding: 4px 12px; border-radius: 12px; border: 1.5px solid #cbd5e1; align-items: center; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
+                    <span style="font-weight: 900; color: #0f172a; font-size: 0.82rem; white-space: nowrap;">⚡ تطبيق
+                        جماعي:</span>
+                    <select id="priceAdjBulkTarget"
+                        style="height: 34px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-weight: 800; background: #ffffff; color: #0f172a; padding: 0 8px; cursor: pointer; font-size: 0.82rem; outline: none;">
+                        <option value="retail">🛍️ سعر القطاعي</option>
+                        <option value="wholesale">📦 سعر الجملة</option>
+                        <option value="both">⚡ القطاعي والجملة معاً</option>
+                    </select>
+                    <div style="display: flex; align-items: center; position: relative;">
+                        <input type="number" id="priceAdjBulkPercent" placeholder="%" value="0" min="0" step="0.5"
+                            style="width: 58px; height: 34px; border: 1.5px solid #cbd5e1; border-radius: 8px; text-align: center; font-weight: 900; background: white; color: #0f172a; font-size: 0.88rem; box-sizing: border-box; outline: none;">
+                    </div>
+                    <button type="button" onclick="applyBulkPriceAdjustment(1)"
+                        style="height: 34px; padding: 0 14px; background: linear-gradient(135deg, #059669, #047857); color: #fff; border: none; border-radius: 8px; font-weight: 900; cursor: pointer; font-size: 0.82rem; box-shadow: 0 2px 6px rgba(5,150,105,0.25); transition: 0.2s;"
+                        onmouseover="this.style.transform='translateY(-1px)';"
+                        onmouseout="this.style.transform='translateY(0)';" title="زيادة بنسبة مئوية">+ زيادة %</button>
+                    <button type="button" onclick="applyBulkPriceAdjustment(-1)"
+                        style="height: 34px; padding: 0 14px; background: linear-gradient(135deg, #e11d48, #be123c); color: #fff; border: none; border-radius: 8px; font-weight: 900; cursor: pointer; font-size: 0.82rem; box-shadow: 0 2px 6px rgba(225,29,72,0.25); transition: 0.2s;"
+                        onmouseover="this.style.transform='translateY(-1px)';"
+                        onmouseout="this.style.transform='translateY(0)';" title="خفض بنسبة مئوية">- خفض %</button>
+                    <button type="button" id="priceAdjUndoBtn" onclick="undoLastPriceAdjustment()" disabled
+                        style="height: 34px; padding: 0 14px; background: #64748b; color: #fff; border: none; border-radius: 8px; font-weight: 900; cursor: not-allowed; font-size: 0.82rem; opacity: 0.5; transition: 0.2s; display: inline-flex; align-items: center; gap: 5px;"
+                        title="تراجع عن آخر زيادة أو خفض واسترجاع الأسعار السابقة (Ctrl+Z)">
+                        <span>↩️ تراجع</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 📊 جدول الموديلات والأصناف بملء الشاشة مع التمرير السلس -->
+            <div
+                style="flex: 1; overflow-y: auto; overflow-x: auto; padding: 0; background: #ffffff; scroll-behavior: smooth;">
+                <table class="invoice-table"
+                    style="width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1150px;">
+                    <thead
+                        style="position: sticky; top: 0; z-index: 25; background: linear-gradient(135deg, #0f172a, #1e293b); color: white; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
+                        <tr>
+                            <th class="col-adj-1"
+                                style="width: 45px; text-align:center; padding: 10px 4px; border-bottom: 2px solid #3b82f6;">
+                                #</th>
+                            <th class="col-adj-image"
+                                style="width: 70px; min-width: 65px; text-align:center; border-bottom: 2px solid #3b82f6;">
+                                الصورة</th>
+                            <th class="col-adj-internal"
+                                style="width: 75px; color: #94a3b8; text-align:center; border-bottom: 2px solid #3b82f6;">
+                                الداخلي</th>
+                            <th class="col-adj-2"
+                                style="width: 85px; text-align:center; border-bottom: 2px solid #3b82f6;">
+                                كود الصنف</th>
+                            <th class="col-adj-3"
+                                style="text-align: right; min-width: 200px; padding: 10px 12px; border-bottom: 2px solid #3b82f6;">
+                                اسم الموديل / الصنف</th>
+                            <th class="col-adj-fashion"
+                                style="width: 175px; text-align:center; background: #1e293b; color: #fde047; border-bottom: 2px solid #3b82f6;">
+                                المقاسات والتشكيلات</th>
+                            <th class="col-adj-4"
+                                style="width: 110px; text-align:center; border-bottom: 2px solid #3b82f6;">
+                                الباركود</th>
+                            <th class="col-adj-6"
+                                style="width: 80px; text-align:center; border-bottom: 2px solid #3b82f6;">
+                                الوحدة</th>
+                            <th class="col-adj-12"
+                                style="width: 110px; color: #93c5fd; text-align:center; border-bottom: 2px solid #3b82f6;"
+                                title="متوسط التكلفة محسوب آلياً من فواتير الشراء (للقراءة فقط لمنع الأخطاء)">
+                                متوسط التكلفة 🔒</th>
+                            <th class="col-adj-11"
+                                style="width: 95px; color: #fca5a5; text-align:center; border-bottom: 2px solid #3b82f6;">
+                                آخر شراء</th>
+                            <th class="col-adj-13"
+                                style="width: 115px; color: #fff; text-align:center; border-bottom: 2px solid #3b82f6;">
+                                سعر الجملة</th>
+                            <th class="col-adj-10"
+                                style="width: 115px; color: #fff; text-align:center; border-bottom: 2px solid #3b82f6;">
+                                سعر القطاعي</th>
+                            <th class="col-adj-profit"
+                                style="width: 85px; color: #86efac; text-align:center; border-bottom: 2px solid #3b82f6;">
+                                الربح %</th>
+                            <th class="col-adj-min"
+                                style="width: 95px; color: #f87171; text-align:center; border-bottom: 2px solid #3b82f6;">
+                                أدنى سعر</th>
+                            <th class="col-adj-9"
+                                style="width: 85px; text-align:center; border-bottom: 2px solid #3b82f6;">
+                                الرصيد الكلي</th>
+                        </tr>
+                    </thead>
+                    <tbody id="priceAdjustmentTableBody" style="font-size: 0.9rem;"></tbody>
+                </table>
+            </div>
+
+            <!-- 📌 شريط الإحصائيات والأوامر السفلية المطور -->
+            <div
+                style="background: #ffffff; padding: 10px 24px; min-height: 52px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; gap: 15px; border-top: 1.5px solid #cbd5e1; flex-wrap: wrap; border-radius: 0 0 12px 12px;">
+
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <div
+                        style="background: #f8fafc; padding: 6px 16px; border-radius: 12px; border: 1.5px solid #e2e8f0; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
+                        <span style="display: block; font-size: 0.72rem; color: #64748b; font-weight: 800;">📦 الموديلات
+                            المعروضة</span>
+                        <div id="priceAdjCount" style="font-size: 1.2rem; font-weight: 900; color: #0f172a;">0</div>
+                    </div>
+
+                    <div
+                        style="background: #eff6ff; padding: 6px 16px; border-radius: 12px; border: 1.5px solid #bfdbfe; text-align: center; box-shadow: 0 1px 3px rgba(37,99,235,0.04);">
+                        <span style="display: block; font-size: 0.72rem; color: #1d4ed8; font-weight: 800;">👗 إجمالي
+                            المقاسات والألوان</span>
+                        <div id="priceAdjVariantsCount" style="font-size: 1.2rem; font-weight: 900; color: #1e40af;">0
+                        </div>
+                    </div>
+
+                    <div
+                        style="text-align: center; background: #fff7ed; padding: 6px 16px; border-radius: 12px; border: 1.5px solid #fed7aa; box-shadow: 0 1px 3px rgba(194,65,12,0.04);">
+                        <span style="display: block; font-size: 0.72rem; color: #c2410c; font-weight: 800;">💰 رأس المال
+                            (تكلفة)</span>
+                        <div style="display: flex; align-items: baseline; gap: 4px; color: #9a3412;">
+                            <span id="priceAdjTotalCost" style="font-size: 1.2rem; font-weight: 900;">0.00</span>
+                            <small style="font-weight: 800; font-size: 0.75rem;">ج.م</small>
+                        </div>
+                    </div>
+
+                    <div
+                        style="text-align: center; background: #ecfdf5; padding: 6px 16px; border-radius: 12px; border: 1.5px solid #a7f3d0; box-shadow: 0 1px 3px rgba(5,150,105,0.04);">
+                        <span style="display: block; font-size: 0.72rem; color: #047857; font-weight: 800;">💵 إجمالي
+                            البيع (قطاعي)</span>
+                        <div style="display: flex; align-items: baseline; gap: 4px; color: #065f46;">
+                            <span id="priceAdjTotalSale" style="font-size: 1.2rem; font-weight: 900;">0.00</span>
+                            <small style="font-weight: 800; font-size: 0.75rem;">ج.م</small>
+                        </div>
+                    </div>
+
+                    <div
+                        style="text-align: center; background: #f5f3ff; padding: 6px 16px; border-radius: 12px; border: 1.5px solid #ddd6fe; box-shadow: 0 1px 3px rgba(109,40,217,0.04);">
+                        <span style="display: block; font-size: 0.72rem; color: #6d28d9; font-weight: 800;">📈 إجمالي
+                            الربح التقديري</span>
+                        <div style="display: flex; align-items: baseline; gap: 4px; color: #5b21b6;">
+                            <span id="priceAdjTotalProfit" style="font-size: 1.2rem; font-weight: 900;">0.00</span>
+                            <small style="font-weight: 800; font-size: 0.75rem;">ج.م</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 10px; align-items: center; flex-shrink: 0;">
+                    <button type="button" onclick="exportPriceAdjToExcel()"
+                        style="padding: 0 16px; height: 38px; background: linear-gradient(135deg, #059669, #047857); color: white; border: none; border-radius: 9px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; box-shadow: 0 2px 6px rgba(5,150,105,0.25); transition: 0.2s;"
+                        onmouseover="this.style.transform='translateY(-1px)';"
+                        onmouseout="this.style.transform='translateY(0)';">
+                        <span>📊</span> تصدير Excel
+                    </button>
+                    <button type="button" onclick="closePriceAdjustmentModal()"
+                        style="padding: 0 16px; height: 38px; background: #f1f5f9; border: 1.5px solid #cbd5e1; border-radius: 9px; color: #475569; font-weight: 800; cursor: pointer; font-size: 0.85rem; transition: 0.2s;"
+                        onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
+                        إلغاء التراجع
+                    </button>
+                    <button type="button" id="savePriceAdjBtn" onclick="savePriceAdjustments();"
+                        style="padding: 0 24px; height: 38px; background: linear-gradient(135deg, #2563eb, #1d4ed8); border: none; border-radius: 9px; color: white; font-weight: 900; cursor: pointer; font-size: 0.92rem; box-shadow: 0 3px 12px rgba(37,99,235,0.3); transition: 0.2s;"
+                        onmouseover="this.style.transform='translateY(-1px)'"
+                        onmouseout="this.style.transform='translateY(0)'">
+                        💾 حفظ كافة التعديلات
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- نافذة إضافة صنف جديد (Bayan Style Professional) -->
     <div id="newItemModal" class="modal-overlay hidden"
         style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(6px);">
@@ -16261,6 +16538,13 @@
                         onclick="switchSection('barcode-print'); document.getElementById('quickNavModal').classList.add('hidden');">
                         <div class="icon-box" style="font-size: 1.6rem; margin-bottom: 2px;">🏷️</div>
                         <span class="label" style="font-size: 0.9rem; font-weight: 900;">طباعة الباركود</span>
+                    </div>
+
+                    <!-- 13. كارت: تعديل وتحديث الأسعار -->
+                    <div class="nav-card-premium" style="--accent: #38bdf8; padding: 10px 8px; border-radius: 12px;"
+                        onclick="switchSection('price-adjustment'); document.getElementById('quickNavModal').classList.add('hidden');">
+                        <div class="icon-box" style="font-size: 1.6rem; margin-bottom: 2px;">🏷️</div>
+                        <span class="label" style="font-size: 0.9rem; font-weight: 900;">تعديل الأسعار</span>
                     </div>
 
                 </div>
@@ -19245,278 +19529,7 @@
         </div>
     </div>
 
-    <!-- 👑 المنصة الشاملة لإدارة وتسعير الموديلات والملابس (Full-Screen Workspace) -->
-    <div id="priceAdjustmentModal" class="hidden"
-        style="position: fixed; inset: 0; width: 100vw; height: 100vh; background: #0f172a; z-index: 99999; display: none; flex-direction: column; overflow: hidden; font-family: 'Cairo', sans-serif; direction: rtl;">
 
-        <div
-            style="width: 100%; height: 100%; background: #f8fafc; display: flex; flex-direction: column; overflow: hidden;">
-
-            <!-- 👑 هيدر ثابت عالي الوضوح -->
-            <div
-                style="background: linear-gradient(135deg, #0f172a, #1e293b); padding: 12px 24px; min-height: 60px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 15px; border-bottom: 2px solid #3b82f6; box-shadow: 0 4px 20px rgba(0,0,0,0.25);">
-                <div style="display: flex; align-items: center; gap: 14px; flex: 1; min-width: 0;">
-                    <div
-                        style="background: linear-gradient(135deg, #3b82f6, #2563eb); width: 44px; height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border-radius: 12px; font-size: 1.4rem; color: #fff; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35);">
-                        🏷️
-                    </div>
-                    <div style="min-width: 0;">
-                        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                            <h2
-                                style="color: #ffffff; margin: 0; font-size: 1.25rem; font-weight: 900; letter-spacing: -0.3px; white-space: nowrap;">
-                                المنصة الشاملة لإدارة وتسعير الموديلات
-                            </h2>
-                            <span
-                                style="background: rgba(59, 130, 246, 0.2); color: #93c5fd; border: 1px solid #3b82f6; padding: 2px 10px; border-radius: 8px; font-size: 0.78rem; font-weight: 800; white-space: nowrap;">
-                                👗 Fashion Matrix
-                            </span>
-                        </div>
-                        <span
-                            style="color: #94a3b8; font-size: 0.8rem; font-weight: 700; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 1px;">
-                            ⚡ تحكم فوري في أسعار الموديلات والمقاسات والألوان وتطبيق الخصومات وهوامش الربح
-                        </span>
-                    </div>
-                </div>
-
-                <!-- أزرار التحكم العلوية -->
-                <div style="display: flex; gap: 10px; align-items: center; flex-shrink: 0;">
-                    <button type="button" onclick="openPriceAdjColumnModal()"
-                        style="height: 38px; padding: 0 16px; background: rgba(255,255,255,0.08); border: 1.5px solid rgba(255,255,255,0.2); border-radius: 9px; color: white; cursor: pointer; font-weight: 800; font-size: 0.85rem; display: flex; align-items: center; gap: 6px; transition: 0.2s;"
-                        onmouseover="this.style.background='rgba(255,255,255,0.16)'"
-                        onmouseout="this.style.background='rgba(255,255,255,0.08)'"
-                        title="تخصيص وإظهار/إخفاء أعمدة جدول الأسعار">
-                        <span>⚙️</span> تخصيص الأعمدة
-                    </button>
-
-                    <button type="button" onclick="closePriceAdjustmentModal()"
-                        style="height: 38px; padding: 0 20px; background: linear-gradient(135deg, #ef4444, #dc2626); border: none; border-radius: 9px; color: white; cursor: pointer; font-size: 0.9rem; font-weight: 900; transition: 0.2s; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(220,38,38,0.3); flex-shrink: 0;"
-                        onmouseover="this.style.transform='translateY(-1px)';"
-                        onmouseout="this.style.transform='translateY(0)';">
-                        <span>✕ خروج</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- 🔍 شريط الأدوات والفلترة والبحث المتقدم والتطبيق الجماعي -->
-            <div
-                style="background: #ffffff; padding: 10px 20px; min-height: 52px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; border-bottom: 1.5px solid #e2e8f0; flex-wrap: wrap; box-shadow: 0 2px 8px rgba(0,0,0,0.02);">
-
-                <div style="display: flex; gap: 8px; flex: 1; min-width: 380px; align-items: center; flex-wrap: wrap;">
-                    <!-- محرك البحث السريع -->
-                    <div style="position: relative; flex: 1.2; min-width: 220px;">
-                        <span
-                            style="position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-size: 0.95rem; color: #3b82f6; pointer-events: none;">🔍</span>
-                        <input type="text" id="priceAdjSearch" placeholder="ابحث باسم الموديل، الكود، الباركود..."
-                            style="width: 100%; height: 38px; padding: 0 35px 0 12px; border-radius: 10px; border: 1.5px solid #cbd5e1; font-weight: 800; background: #ffffff; outline: none; color: #0f172a; font-size: 0.88rem; box-sizing: border-box; transition: 0.2s;"
-                            onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59, 130, 246, 0.15)';"
-                            onblur="this.style.borderColor='#cbd5e1'; this.style.boxShadow='none';"
-                            oninput="debouncedHandlePriceAdjSearch()">
-                    </div>
-
-                    <!-- فلترة التصنيف -->
-                    <select id="priceAdjCategory" onchange="debouncedHandlePriceAdjSearch()"
-                        style="height: 38px; width: 135px; border-radius: 10px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-weight: 800; background: #ffffff; color: #0f172a; cursor: pointer; font-size: 0.84rem; outline: none; transition: 0.2s;"
-                        onfocus="this.style.borderColor='#3b82f6';" onblur="this.style.borderColor='#cbd5e1';">
-                        <option value="all">📁 كافة الأقسام</option>
-                    </select>
-
-                    <!-- فلترة نوع الصنف -->
-                    <select id="priceAdjTypeFilter" onchange="debouncedHandlePriceAdjSearch()"
-                        style="height: 38px; width: 150px; border-radius: 10px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-weight: 800; background: #ffffff; color: #0f172a; cursor: pointer; font-size: 0.84rem; outline: none; transition: 0.2s;"
-                        onfocus="this.style.borderColor='#3b82f6';" onblur="this.style.borderColor='#cbd5e1';">
-                        <option value="all">🏷️ كافة الأنواع</option>
-                        <option value="variants">👗 موديلات ملابس بتشكيلات</option>
-                        <option value="regular">📦 أصناف عادية فردية</option>
-                    </select>
-
-                    <!-- فلترة المقاس -->
-                    <select id="priceAdjSizeFilter" onchange="debouncedHandlePriceAdjSearch()"
-                        style="height: 38px; width: 130px; border-radius: 10px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-weight: 800; background: #ffffff; color: #0f172a; cursor: pointer; font-size: 0.84rem; outline: none; transition: 0.2s;"
-                        onfocus="this.style.borderColor='#3b82f6';" onblur="this.style.borderColor='#cbd5e1';">
-                        <option value="all">📏 كافة المقاسات</option>
-                    </select>
-
-                    <!-- فلترة اللون -->
-                    <select id="priceAdjColorFilter" onchange="debouncedHandlePriceAdjSearch()"
-                        style="height: 38px; width: 125px; border-radius: 10px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-weight: 800; background: #ffffff; color: #0f172a; cursor: pointer; font-size: 0.84rem; outline: none; transition: 0.2s;"
-                        onfocus="this.style.borderColor='#3b82f6';" onblur="this.style.borderColor='#cbd5e1';">
-                        <option value="all">🎨 كافة الألوان</option>
-                    </select>
-
-                    <!-- فلترة المخزون -->
-                    <select id="priceAdjStockFilter" onchange="debouncedHandlePriceAdjSearch()"
-                        style="height: 38px; width: 115px; border-radius: 10px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-weight: 800; background: #ffffff; color: #0f172a; cursor: pointer; font-size: 0.84rem; outline: none; transition: 0.2s;"
-                        onfocus="this.style.borderColor='#3b82f6';" onblur="this.style.borderColor='#cbd5e1';">
-                        <option value="all">📦 الرصيد: الكل</option>
-                        <option value="in">✅ متوفر فقط</option>
-                        <option value="out">❌ رصيد صفري</option>
-                    </select>
-                </div>
-
-                <!-- ⚡ باكدج أدوات التغيير الجماعي بالنسب المئوية -->
-                <div
-                    style="display: flex; gap: 8px; background: #f8fafc; padding: 4px 12px; border-radius: 12px; border: 1.5px solid #cbd5e1; align-items: center; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.03);">
-                    <span style="font-weight: 900; color: #0f172a; font-size: 0.82rem; white-space: nowrap;">⚡ تطبيق
-                        جماعي:</span>
-                    <select id="priceAdjBulkTarget"
-                        style="height: 34px; border: 1.5px solid #cbd5e1; border-radius: 8px; font-weight: 800; background: #ffffff; color: #0f172a; padding: 0 8px; cursor: pointer; font-size: 0.82rem; outline: none;">
-                        <option value="retail">🛍️ سعر القطاعي</option>
-                        <option value="wholesale">📦 سعر الجملة</option>
-                        <option value="both">⚡ القطاعي والجملة معاً</option>
-                    </select>
-                    <div style="display: flex; align-items: center; position: relative;">
-                        <input type="number" id="priceAdjBulkPercent" placeholder="%" value="0" min="0" step="0.5"
-                            style="width: 58px; height: 34px; border: 1.5px solid #cbd5e1; border-radius: 8px; text-align: center; font-weight: 900; background: white; color: #0f172a; font-size: 0.88rem; box-sizing: border-box; outline: none;">
-                    </div>
-                    <button type="button" onclick="applyBulkPriceAdjustment(1)"
-                        style="height: 34px; padding: 0 14px; background: linear-gradient(135deg, #059669, #047857); color: #fff; border: none; border-radius: 8px; font-weight: 900; cursor: pointer; font-size: 0.82rem; box-shadow: 0 2px 6px rgba(5,150,105,0.25); transition: 0.2s;"
-                        onmouseover="this.style.transform='translateY(-1px)';"
-                        onmouseout="this.style.transform='translateY(0)';" title="زيادة بنسبة مئوية">+ زيادة %</button>
-                    <button type="button" onclick="applyBulkPriceAdjustment(-1)"
-                        style="height: 34px; padding: 0 14px; background: linear-gradient(135deg, #e11d48, #be123c); color: #fff; border: none; border-radius: 8px; font-weight: 900; cursor: pointer; font-size: 0.82rem; box-shadow: 0 2px 6px rgba(225,29,72,0.25); transition: 0.2s;"
-                        onmouseover="this.style.transform='translateY(-1px)';"
-                        onmouseout="this.style.transform='translateY(0)';" title="خفض بنسبة مئوية">- خفض %</button>
-                    <button type="button" id="priceAdjUndoBtn" onclick="undoLastPriceAdjustment()" disabled
-                        style="height: 34px; padding: 0 14px; background: #64748b; color: #fff; border: none; border-radius: 8px; font-weight: 900; cursor: not-allowed; font-size: 0.82rem; opacity: 0.5; transition: 0.2s; display: inline-flex; align-items: center; gap: 5px;"
-                        title="تراجع عن آخر زيادة أو خفض واسترجاع الأسعار السابقة (Ctrl+Z)">
-                        <span>↩️ تراجع</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- 📊 جدول الموديلات والأصناف بملء الشاشة مع التمرير السلس -->
-            <div
-                style="flex: 1; overflow-y: auto; overflow-x: auto; padding: 0; background: #ffffff; scroll-behavior: smooth;">
-                <table class="invoice-table"
-                    style="width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1150px;">
-                    <thead
-                        style="position: sticky; top: 0; z-index: 25; background: linear-gradient(135deg, #0f172a, #1e293b); color: white; box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
-                        <tr>
-                            <th class="col-adj-1"
-                                style="width: 45px; text-align:center; padding: 10px 4px; border-bottom: 2px solid #3b82f6;">
-                                #</th>
-                            <th class="col-adj-image"
-                                style="width: 70px; min-width: 65px; text-align:center; border-bottom: 2px solid #3b82f6;">
-                                الصورة</th>
-                            <th class="col-adj-internal"
-                                style="width: 75px; color: #94a3b8; text-align:center; border-bottom: 2px solid #3b82f6;">
-                                الداخلي</th>
-                            <th class="col-adj-2"
-                                style="width: 85px; text-align:center; border-bottom: 2px solid #3b82f6;">
-                                كود الصنف</th>
-                            <th class="col-adj-3"
-                                style="text-align: right; min-width: 200px; padding: 10px 12px; border-bottom: 2px solid #3b82f6;">
-                                اسم الموديل / الصنف</th>
-                            <th class="col-adj-fashion"
-                                style="width: 175px; text-align:center; background: #1e293b; color: #fde047; border-bottom: 2px solid #3b82f6;">
-                                المقاسات والتشكيلات</th>
-                            <th class="col-adj-4"
-                                style="width: 110px; text-align:center; border-bottom: 2px solid #3b82f6;">
-                                الباركود</th>
-                            <th class="col-adj-6"
-                                style="width: 80px; text-align:center; border-bottom: 2px solid #3b82f6;">
-                                الوحدة</th>
-                            <th class="col-adj-12"
-                                style="width: 110px; color: #93c5fd; text-align:center; border-bottom: 2px solid #3b82f6;"
-                                title="متوسط التكلفة محسوب آلياً من فواتير الشراء (للقراءة فقط لمنع الأخطاء)">
-                                متوسط التكلفة 🔒</th>
-                            <th class="col-adj-11"
-                                style="width: 95px; color: #fca5a5; text-align:center; border-bottom: 2px solid #3b82f6;">
-                                آخر شراء</th>
-                            <th class="col-adj-13"
-                                style="width: 115px; color: #fff; text-align:center; border-bottom: 2px solid #3b82f6;">
-                                سعر الجملة</th>
-                            <th class="col-adj-10"
-                                style="width: 115px; color: #fff; text-align:center; border-bottom: 2px solid #3b82f6;">
-                                سعر القطاعي</th>
-                            <th class="col-adj-profit"
-                                style="width: 85px; color: #86efac; text-align:center; border-bottom: 2px solid #3b82f6;">
-                                الربح %</th>
-                            <th class="col-adj-min"
-                                style="width: 95px; color: #f87171; text-align:center; border-bottom: 2px solid #3b82f6;">
-                                أدنى سعر</th>
-                            <th class="col-adj-9"
-                                style="width: 85px; text-align:center; border-bottom: 2px solid #3b82f6;">
-                                الرصيد الكلي</th>
-                        </tr>
-                    </thead>
-                    <tbody id="priceAdjustmentTableBody" style="font-size: 0.9rem;"></tbody>
-                </table>
-            </div>
-
-            <!-- 📌 شريط الإحصائيات والأوامر السفلية المطور -->
-            <div
-                style="background: #ffffff; padding: 10px 24px; min-height: 52px; flex-shrink: 0; display: flex; justify-content: space-between; align-items: center; gap: 15px; border-top: 1.5px solid #cbd5e1; flex-wrap: wrap;">
-
-                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
-                    <div
-                        style="background: #f8fafc; padding: 6px 16px; border-radius: 12px; border: 1.5px solid #e2e8f0; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.02);">
-                        <span style="display: block; font-size: 0.72rem; color: #64748b; font-weight: 800;">📦 الموديلات
-                            المعروضة</span>
-                        <div id="priceAdjCount" style="font-size: 1.2rem; font-weight: 900; color: #0f172a;">0</div>
-                    </div>
-
-                    <div
-                        style="background: #eff6ff; padding: 6px 16px; border-radius: 12px; border: 1.5px solid #bfdbfe; text-align: center; box-shadow: 0 1px 3px rgba(37,99,235,0.04);">
-                        <span style="display: block; font-size: 0.72rem; color: #1d4ed8; font-weight: 800;">👗 إجمالي
-                            المقاسات والألوان</span>
-                        <div id="priceAdjVariantsCount" style="font-size: 1.2rem; font-weight: 900; color: #1e40af;">0
-                        </div>
-                    </div>
-
-                    <div
-                        style="text-align: center; background: #fff7ed; padding: 6px 16px; border-radius: 12px; border: 1.5px solid #fed7aa; box-shadow: 0 1px 3px rgba(194,65,12,0.04);">
-                        <span style="display: block; font-size: 0.72rem; color: #c2410c; font-weight: 800;">💰 رأس المال
-                            (تكلفة)</span>
-                        <div style="display: flex; align-items: baseline; gap: 4px; color: #9a3412;">
-                            <span id="priceAdjTotalCost" style="font-size: 1.2rem; font-weight: 900;">0.00</span>
-                            <small style="font-weight: 800; font-size: 0.75rem;">ج.م</small>
-                        </div>
-                    </div>
-
-                    <div
-                        style="text-align: center; background: #ecfdf5; padding: 6px 16px; border-radius: 12px; border: 1.5px solid #a7f3d0; box-shadow: 0 1px 3px rgba(5,150,105,0.04);">
-                        <span style="display: block; font-size: 0.72rem; color: #047857; font-weight: 800;">💵 إجمالي
-                            البيع (قطاعي)</span>
-                        <div style="display: flex; align-items: baseline; gap: 4px; color: #065f46;">
-                            <span id="priceAdjTotalSale" style="font-size: 1.2rem; font-weight: 900;">0.00</span>
-                            <small style="font-weight: 800; font-size: 0.75rem;">ج.م</small>
-                        </div>
-                    </div>
-
-                    <div
-                        style="text-align: center; background: #f5f3ff; padding: 6px 16px; border-radius: 12px; border: 1.5px solid #ddd6fe; box-shadow: 0 1px 3px rgba(109,40,217,0.04);">
-                        <span style="display: block; font-size: 0.72rem; color: #6d28d9; font-weight: 800;">📈 إجمالي
-                            الربح التقديري</span>
-                        <div style="display: flex; align-items: baseline; gap: 4px; color: #5b21b6;">
-                            <span id="priceAdjTotalProfit" style="font-size: 1.2rem; font-weight: 900;">0.00</span>
-                            <small style="font-weight: 800; font-size: 0.75rem;">ج.م</small>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="display: flex; gap: 10px; align-items: center; flex-shrink: 0;">
-                    <button type="button" onclick="exportPriceAdjToExcel()"
-                        style="padding: 0 16px; height: 38px; background: linear-gradient(135deg, #059669, #047857); color: white; border: none; border-radius: 9px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; box-shadow: 0 2px 6px rgba(5,150,105,0.25); transition: 0.2s;"
-                        onmouseover="this.style.transform='translateY(-1px)';"
-                        onmouseout="this.style.transform='translateY(0)';">
-                        <span>📊</span> تصدير Excel
-                    </button>
-                    <button type="button" onclick="closePriceAdjustmentModal()"
-                        style="padding: 0 16px; height: 38px; background: #f1f5f9; border: 1.5px solid #cbd5e1; border-radius: 9px; color: #475569; font-weight: 800; cursor: pointer; font-size: 0.85rem; transition: 0.2s;"
-                        onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">
-                        إلغاء التراجع
-                    </button>
-                    <button type="button" onclick="savePriceAdjustments();"
-                        style="padding: 0 24px; height: 38px; background: linear-gradient(135deg, #2563eb, #1d4ed8); border: none; border-radius: 9px; color: white; font-weight: 900; cursor: pointer; font-size: 0.92rem; box-shadow: 0 3px 12px rgba(37,99,235,0.3); transition: 0.2s;"
-                        onmouseover="this.style.transform='translateY(-1px)'"
-                        onmouseout="this.style.transform='translateY(0)'">
-                        💾 حفظ كافة التعديلات
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- 👗 نافذة مصفوفة تسعير المقاسات والألوان الفاخرة (Fashion Variant Price Matrix Modal) -->
     <div id="fashionVariantPriceModal" class="hidden"

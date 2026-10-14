@@ -329,6 +329,11 @@
                     if (typeof showToast === 'function') showToast('⛔ عذراً، لا تمتلك صلاحية للوصول لمراجعة الخزينة', 'error');
                     return;
                 }
+            } else if (sectionType === 'price-adjustment') {
+                if (typeof checkPermission === 'function' && !checkPermission('stock_edit')) {
+                    if (typeof showToast === 'function') showToast('⛔ عذراً، لا تمتلك صلاحية لتعديل الأسعار والمخازن', 'error');
+                    return;
+                }
             }
 
             // 1. حفظ الحالة الحالية للتبويب النشط حالياً قبل الانتقال مع حماية شاملة ضد أي استثناءات
@@ -361,7 +366,7 @@
                     'sales', 'purchase', 'receipt', 'disbursement',
                     'sales-return', 'purchase-return', 'inventory',
                     'accounts', 'daily-report', 'history', 'invoices',
-                    'analysis', 'item-history', 'adjustment', 'reports-hub', 'warehouse-report', 'product-inquiry', 'statement', 'treasury-audit', 'barcode-print'
+                    'analysis', 'item-history', 'adjustment', 'reports-hub', 'warehouse-report', 'product-inquiry', 'statement', 'treasury-audit', 'barcode-print', 'price-adjustment'
                 ];
 
                 // التحقق من صلاحية كل قسم بشكل مستقل ودقيق
@@ -385,6 +390,8 @@
                     if (!checkPermission('stock_inquiry')) return;
                 } else if (sectionType === 'inventory' || sectionType === 'barcode-print') {
                     if (!checkPermission('stock_view')) return;
+                } else if (sectionType === 'price-adjustment') {
+                    if (!checkPermission('stock_edit')) return;
                 } else if (sectionType === 'statement') {
                     if (!checkPermission('accounts_statement')) return;
                 } else if (sectionType === 'accounts') {
@@ -421,13 +428,18 @@
                             'reports-hub': 'مركز التقارير', 'warehouse-report': 'أرصدة المخازن',
                             'product-inquiry': 'استعلام الأصناف',
                             'statement': 'كشف حساب', 'treasury-audit': '💰 مراجعة الخزينة',
-                            'barcode-print': '🏷️ طباعة الباركود'
+                            'barcode-print': '🏷️ طباعة الباركود',
+                            'price-adjustment': 'تعديل الأسعار'
                         };
+
+                        const tabLabel = (sectionType === 'price-adjustment')
+                            ? 'تعديل الأسعار'
+                            : `${labels[sectionType] || sectionType} ${tabCounters[sectionType]}`;
 
                         targetTab = {
                             id: newId,
                             type: sectionType,
-                            label: `${labels[sectionType] || sectionType} ${tabCounters[sectionType]}`
+                            label: tabLabel
                         };
                         openTabs.push(targetTab);
                     }
@@ -494,7 +506,7 @@
             try {
                 const openModalsToClose = [
                     'confirmModal', 'alertModal', 'quickNavModal', 'profitModal',
-                    'priceAdjustmentModal', 'newItemModal', 'newAccountModal', 'searchInvoiceModal',
+                    'newItemModal', 'newAccountModal', 'searchInvoiceModal',
                     'customAlertModal', 'bayanCustomModal', 'editInvoiceModal', 'unitManagerModal',
                     'drawerAuditClosingModal', 'transferOrderModal'
                 ];
@@ -613,6 +625,18 @@
                 }
                 if (targetTab.type === 'statement') {
                     if (typeof initStatementSection === 'function') initStatementSection();
+                }
+                if (targetTab.type === 'price-adjustment') {
+                    const priceBody = document.getElementById('priceAdjustmentTableBody');
+                    if (!priceBody || priceBody.children.length === 0 || window._priceAdjNeedsRefresh) {
+                        const targetIds = window._priceAdjTargetIds || [];
+                        window._priceAdjTargetIds = null;
+                        window._priceAdjNeedsRefresh = false;
+                        if (typeof initPriceAdjustmentFiltersAndData === 'function') {
+                            initPriceAdjustmentFiltersAndData(targetIds);
+                        }
+                    }
+                    instantFocusInput('priceAdjSearch');
                 }
 
                 // --- تحديث التاريخ والوقت تلقائياً عند فتح الأقسام المالية ---
@@ -1634,7 +1658,11 @@
                 'settings': '⚙️ الإعدادات',
                 'adjustment': '⚖️ تسوية',
                 'reports-hub': '📈 مركز التقارير',
-                'product-inquiry': '🔍 استعلام'
+                'product-inquiry': '🔍 استعلام',
+                'barcode-print': '🏷️ طباعة الباركود',
+                'statement': '📑 كشف حساب',
+                'treasury-audit': '💰 مراجعة الخزينة',
+                'price-adjustment': '🏷️ تعديل الأسعار'
             };
 
             tabBar.innerHTML = '';
@@ -1844,6 +1872,15 @@
                 }
             }
 
+            // التحقق من وجود تعديلات أسعار لم تحفظ بعد في منصة الأسعار
+            if (currentTab.type === 'price-adjustment') {
+                if (window.priceAdjUndoStack && window.priceAdjUndoStack.length > 0) {
+                    pendingCloseSection = tabId;
+                    showCloseWarning(tabId);
+                    return;
+                }
+            }
+
             const financialTypes = ['sales', 'purchase', 'receipt', 'disbursement', 'sales-return', 'purchase-return', 'adjustment'];
             if (financialTypes.includes(currentTab.type)) {
                 let hasData = false;
@@ -1937,6 +1974,10 @@
                     if (window.wrRenderState) window.wrRenderState.limit = 100;
                     const tbody = document.querySelector('#warehouseReportTable tbody') || document.getElementById('wrTableBody');
                     if (tbody) tbody.innerHTML = '';
+                } else if (cType === 'price-adjustment') {
+                    if (typeof closePriceAdjustmentModal === 'function') {
+                        closePriceAdjustmentModal(true);
+                    }
                 }
             }
 
