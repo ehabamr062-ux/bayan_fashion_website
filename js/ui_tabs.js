@@ -762,7 +762,13 @@
                     if (typeof populateWarehouseDropdowns === 'function') populateWarehouseDropdowns();
                     if (typeof populatePaymentMethodSelects === 'function') populatePaymentMethodSelects();
                     if (typeof checkAndApplyDailyReportAmountsLock === 'function') checkAndApplyDailyReportAmountsLock();
-                    generateDailyReport();
+                    if (typeof window.shouldRefreshDailyReportOnTabSwitch === 'function' && !window.shouldRefreshDailyReportOnTabSwitch()) {
+                        // ⚡ التقرير جاهز ومطابق بالذاكرة ولم تحدث أي فواتير جديدة، انتقال فوري 0ms بدون تحميل
+                        return;
+                    }
+                    if (typeof generateDailyReport === 'function') {
+                        generateDailyReport(false);
+                    }
                 }
                 if (targetTab.type === 'statement') {
                     if (typeof loadSelectedAccountStatement === 'function') loadSelectedAccountStatement();

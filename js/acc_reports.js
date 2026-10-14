@@ -573,7 +573,43 @@
             }
         };
 
-        async function generateDailyReport() {
+        // ⚡ فحص فوري ذكي لمنع إعادة التحميل غير المبرر عند التبديل بين التبويبات (Instant 0ms Tab Switching)
+        window.shouldRefreshDailyReportOnTabSwitch = function() {
+            try {
+                // 1. إذا لم يتم بناء التقرير بعد في الواجهة
+                const opsBody = document.getElementById('opsSummaryBody');
+                if (!opsBody || opsBody.children.length === 0) return true;
+
+                // 2. إذا طرأت أي حركة جديدة أو تعديل أو حذف في أي قسم
+                if (window._dailyReportNeedsRefresh) return true;
+
+                // 3. مقارنة قيم الفلاتر الحالية بآخر قيم تم توليد التقرير بها
+                const last = window._dailyReportLastRenderState;
+                if (!last) return true;
+
+                const curFrom = document.getElementById('reportDateFrom')?.value || '';
+                const curTo = document.getElementById('reportDateTo')?.value || '';
+                const curWh = document.getElementById('dailyReportWarehouseSelect')?.value || 'all';
+                const curTr = document.getElementById('dailyReportTreasurySelect')?.value || 'all';
+                const curUsr = document.getElementById('dailyReportUserSelect')?.value || 'all';
+
+                if (last.fromDate !== curFrom ||
+                    last.toDate !== curTo ||
+                    last.warehouse !== curWh ||
+                    last.treasury !== curTr ||
+                    last.user !== curUsr) {
+                    return true;
+                }
+
+                return false;
+            } catch (e) {
+                return true;
+            }
+        };
+
+        async function generateDailyReport(isUserTriggered = false) {
+            window.generateDailyReport = generateDailyReport;
+
             // 🔒 فحص وتطبيق قفل التاريخ على اليوم الحالي لمنع التلاعب
             const isDateLocked = (typeof checkAndApplyDailyReportDateLock === 'function')
                 ? checkAndApplyDailyReportDateLock()
@@ -593,18 +629,32 @@
                 return;
             }
 
-            // ⚡ فحص هل الفترة المطلوبة هي فترة ماضية تتطلب استدعاء أرشيف من قاعدة البيانات (مثل الأمس أو فترات سابقة)
-            const isPastRange = (fromDate < todayISO || toDate < todayISO);
+            // ⚡ حساب الفارق الزمني بين بداية ونهاية الفترة
+            let diffDays = 0;
+            try {
+                const fromMs = new Date(fromDate).getTime();
+                const toMs = new Date(toDate).getTime();
+                diffDays = Math.round(Math.abs(toMs - fromMs) / (1000 * 60 * 60 * 24));
+            } catch (dErr) {}
+
+            // ⚡ فحص الذاكرة المخبأة للفترة لتفادي تكرار الاستعلام من قاعدة البيانات إذا تم جلبها بالفعل
+            const rangeKey = `${fromDate}_${toDate}`;
+            const isAlreadyLoadedInMemory = (window._loadedTxDateRanges && window._loadedTxDateRanges.has(rangeKey) && !window._dailyReportNeedsRefresh);
+
+            // ⚡ إظهار نافذة التحميل ولفت النظر فقط في التقارير الكبيرة جداً (مثل تقرير العام الكلي الشامل أو فترات تتجاوز 45 يوماً) وعند عدم توفر البيانات مسبقاً بالذاكرة
+            // أما الفترات اليومية والعادية (اليوم، الأمس، الأسبوع، الفترات المحدودة) فلا تظهر أي نافذة مزعجة وتُجلب بسلاسة وفورية في الخلفية
+            const isMassiveArchiveRange = (diffDays > 45 || fromDate < '2025-01-01' || (!fromDate && !toDate));
             let loaderShown = false;
 
-            // ⚡ جلب حركات الفترة المحددة من SQLite عند الطلب فقط للفترات السابقة مع إظهار مؤشر التحميل فقط عند الحاجة الفعلية
-            if (isPastRange && typeof window.loadTransactionsForDateRange === 'function') {
-                if (typeof window.showSectionLoader === 'function') {
-                    window.showSectionLoader('daily-report-section', 'جاري جلب حركات الفترة المحددة...', 'استدعاء البيانات من قاعدة البيانات');
+            if (typeof window.loadTransactionsForDateRange === 'function' && !isAlreadyLoadedInMemory) {
+                if (isMassiveArchiveRange && typeof window.showSectionLoader === 'function') {
+                    window.showSectionLoader('daily-report-section', 'جاري جلب حركات الأرشيف السنوي...', 'استدعاء بيانات الأرشيف العام من قاعدة البيانات');
                     loaderShown = true;
                     await new Promise(r => setTimeout(r, 20));
                 }
                 await window.loadTransactionsForDateRange(fromDate, toDate);
+                if (!window._loadedTxDateRanges) window._loadedTxDateRanges = new Set();
+                window._loadedTxDateRanges.add(rangeKey);
             }
 
             try {
@@ -840,14 +890,25 @@
                     const stmt = window.BayanSQLite.db.prepare(sql);
                     stmt.bind([fromDate]);
                     while (stmt.step()) {
-                        const row = stmt.getAsObject();
-                        if (!row) continue;
-                        if (!row.user && row.cashier) row.user = row.cashier;
+                        const rowVals = stmt.get();
+                        if (!rowVals) continue;
+                        const gType = rowVals[0] || '';
+                        const rMethod = rowVals[1] || '';
+                        const rWarehouse = rowVals[2] || '';
+                        const rCashier = rowVals[3] || '';
+                        const paid = parseFloat(rowVals[4]) || 0;
+                        const total = parseFloat(rowVals[5]) || 0;
+
+                        const row = {
+                            type: gType,
+                            method: rMethod,
+                            warehouse: rWarehouse,
+                            user: rCashier,
+                            cashier: rCashier
+                        };
+
                         if (matchesSelectedWarehouse(row) && matchesSelectedTreasury(row) && matchesSelectedUser(row)) {
-                            const paid = parseFloat(row.paid) || 0;
-                            const total = parseFloat(row.total) || 0;
-                            const gType = row.type || '';
-                            const isNonCash = isNonCashMethod(row.method);
+                            const isNonCash = isNonCashMethod(rMethod);
 
                             // إذا تم اختيار خزينة بنكية محددة نحسب حركاتها، وإذا كان الكل أو كاش نحسب النقدية (درج الكاش)
                             const countThisTx = isTreasurySpecificNonCash ? isNonCash : !isNonCash;
@@ -2006,7 +2067,20 @@
                 updateDrawerAuditPanelUI(previousBalance, netCashMovement, finalCashBalance, selectedUser);
             }
 
-            showToast(canViewProfits ? "✅ تم تحديث وتفصيل تقارير الحركة والأرباح بنجاح" : "✅ تم تحديث وتفصيل تقرير الحركة اليومية بنجاح");
+            // 🔒 حفظ حالة آخر عملية عرض للتقرير مع توقيتها لإتاحة التبديل الفوري بين التبويبات دون تأخير (0ms)
+            window._dailyReportLastRenderState = {
+                fromDate: fromDate,
+                toDate: toDate,
+                warehouse: selectedWarehouse,
+                treasury: selectedTreasury,
+                user: selectedUser,
+                timestamp: Date.now()
+            };
+            window._dailyReportNeedsRefresh = false;
+
+            if (isUserTriggered) {
+                showToast(canViewProfits ? "✅ تم تحديث وتفصيل تقارير الحركة والأرباح بنجاح" : "✅ تم تحديث وتفصيل تقرير الحركة اليومية بنجاح");
+            }
         } finally {
             if (loaderShown && typeof window.hideSectionLoader === 'function') {
                 window.hideSectionLoader('daily-report-section');

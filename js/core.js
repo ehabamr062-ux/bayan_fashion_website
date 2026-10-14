@@ -1405,6 +1405,9 @@ async function saveTransactionChanges({ newTransactions = [], modifiedTransactio
     if (!db) return;
     if (newTransactions.length > 0 || modifiedTransactions.length > 0) {
         window._cachedDailyReportPriorBalance = null;
+        window._dailyReportNeedsRefresh = true;
+        window._bayanLastDataChangeTime = Date.now();
+        if (window._loadedTxDateRanges) window._loadedTxDateRanges.clear();
     }
     return runDbSaveTask(async () => {
         try {

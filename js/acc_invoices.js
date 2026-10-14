@@ -2964,8 +2964,11 @@
 
                         if (typeof invalidateStockCache === 'function') invalidateStockCache();
                         if (typeof window.invalidateStockCache === 'function') window.invalidateStockCache();
-                        if (typeof window.invalidateAccountBalancesCache === 'function') window.invalidateAccountBalancesCache();
                         window.accountBalancesCache = {};
+                        window._dailyReportNeedsRefresh = true;
+                        window._cachedDailyReportPriorBalance = null;
+                        window._bayanLastDataChangeTime = Date.now();
+                        if (window._loadedTxDateRanges) window._loadedTxDateRanges.clear();
 
                         renderInvoicesTable();
 
