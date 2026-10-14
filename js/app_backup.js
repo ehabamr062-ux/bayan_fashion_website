@@ -1002,29 +1002,7 @@ window.compileBayanBackupPayload = async function() {
     }
     productsData = (productsData || []).filter(p => p && typeof p === 'object' && p.id != null);
 
-    // 📸 ضغط وتحسين صور الأصناف الكبيرة تلقائياً لتخفيض حجم ملف النسخة الاحتياطية بنسبة تصل إلى 90%
-    if (typeof window.compressBase64Image === 'function') {
-        let anyCompressed = false;
-        for (let i = 0; i < productsData.length; i++) {
-            const p = productsData[i];
-            if (p && p.image && typeof p.image === 'string' && p.image.length > 35000) {
-                try {
-                    const newImg = await window.compressBase64Image(p.image, 320, 320, 0.75);
-                    if (newImg && newImg.length < p.image.length) {
-                        p.image = newImg;
-                        anyCompressed = true;
-                    }
-                } catch(e) {}
-            }
-        }
-        // حفظ الأصناف المضغوطة في قاعدة البيانات لتخفيف قاعدة البيانات للأبد وتسريع المرات القادمة
-        if (anyCompressed && typeof db !== 'undefined' && db && db.products) {
-            db.products.bulkPut(productsData).catch(() => {});
-            if (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
-                window.productsDB = productsData;
-            }
-        }
-    }
+    // تم تخطي إعادة ضغط الصور الدورية هنا لمنع أي تجميد للواجهة مع قواعد البيانات الكبيرة (50 ألف صنف)
 
     let transactionsData = [];
     try {
@@ -1244,15 +1222,7 @@ window.executeAutoBackupToFile = async function(silent = false, isManual = false
         try { await window.BayanSQLite.flush(); } catch(fErr) {}
     }
 
-    const data = await window.compileBayanBackupPayload();
-    setStore('pos_last_backup_time', Date.now());
-    
-    let success = false;
-    let savedFilePath = '';
-    let backupDirDisplay = '';
-    let finalFileName = '';
-
-    // 1. المحاولة الأولى: الحفظ المباشر عبر IPC في بيئة ديسكتوب (Electron)
+    // 1. فحص توفر بيئة إلكترون (Electron)
     let ipc = null;
     try {
         if (typeof window !== 'undefined' && window.require) {
@@ -1261,6 +1231,34 @@ window.executeAutoBackupToFile = async function(silent = false, isManual = false
             ipc = require('electron').ipcRenderer;
         }
     } catch (e) {}
+
+    // ⚡ حل جذري لتجميد النظام (1-2 دقيقة): في النسخ التلقائي في بيئة Electron، يتم نسخ ملف SQLite مباشرة في 0.05 ثانية
+    // دون الحاجة لتسلسل 50 ألف صنف ومئات آلاف الحركات في الرام عبر JSON
+    if (ipc && typeof ipc.invoke === 'function' && !isManual && window.BayanSQLite) {
+        try {
+            const directRes = await ipc.invoke('save-sqlite-direct-backup', { isManual: false });
+            if (directRes && directRes.success) {
+                setStore('pos_last_backup_time', Date.now());
+                console.log("⚡ [Ultra-Fast Backup] تم النسخ الاحتياطي التلقائي الفوري لملف الداتابيز بنجاح في أجزاء من الثانية:", directRes.filePath);
+                try {
+                    const settings = JSON.parse(getStore('pos_settings') || '{}');
+                    const maxBackups = parseInt(settings.maxBackupFiles) || 100;
+                    await ipc.invoke('rotate-backups', maxBackups);
+                } catch(rotErr) {}
+                return true;
+            }
+        } catch(directErr) {
+            console.warn("Direct SQLite backup fallback:", directErr);
+        }
+    }
+
+    const data = await window.compileBayanBackupPayload();
+    setStore('pos_last_backup_time', Date.now());
+    
+    let success = false;
+    let savedFilePath = '';
+    let backupDirDisplay = '';
+    let finalFileName = '';
 
     if (ipc && typeof ipc.invoke === 'function') {
         try {

@@ -585,7 +585,11 @@
                 } else if (targetTab.type === 'purchase') {
                     instantFocusInput('purchaseSearch');
                 } else if (targetTab.type === 'adjustment') {
-                    if (typeof renderAdjTable === 'function') renderAdjTable();
+                    const adjBody = document.getElementById('adjTableBody');
+                    if (!adjBody || adjBody.children.length === 0 || window._adjNeedsRefresh) {
+                        if (typeof renderAdjTable === 'function') renderAdjTable();
+                        window._adjNeedsRefresh = false;
+                    }
                     instantFocusInput('adjSearch');
                 }
                 if (typeof BayanBarcode !== 'undefined' && typeof BayanBarcode.autoFocusActiveInput === 'function') {
@@ -593,10 +597,20 @@
                     requestAnimationFrame(() => BayanBarcode.autoFocusActiveInput());
                 }
                 if (targetTab.type === 'inventory') {
-                    renderInventoryTable();
+                    const invBody = document.getElementById('inventoryTableBody');
+                    if (!invBody || invBody.children.length === 0 || window._inventoryNeedsRefresh) {
+                        renderInventoryTable();
+                        window._inventoryNeedsRefresh = false;
+                    }
                     instantFocusInput('invSearchInput');
                 }
-                if (targetTab.type === 'accounts') renderAccountsTable();
+                if (targetTab.type === 'accounts') {
+                    const accBody = document.getElementById('accountsTableBody');
+                    if (!accBody || accBody.children.length === 0 || window._accountsNeedsRefresh) {
+                        renderAccountsTable();
+                        window._accountsNeedsRefresh = false;
+                    }
+                }
                 if (targetTab.type === 'statement') {
                     if (typeof initStatementSection === 'function') initStatementSection();
                 }
@@ -733,29 +747,45 @@
                 });
 
                 if (targetTab.type === 'invoices') {
-                    if (typeof initInvoicesColumns === 'function') initInvoicesColumns();
-                    renderInvoicesTable();
+                    const invTbody = document.getElementById('invoicesTableBody');
+                    if (!invTbody || invTbody.children.length === 0 || window._invoicesNeedsRefresh) {
+                        if (typeof initInvoicesColumns === 'function') initInvoicesColumns();
+                        renderInvoicesTable();
+                        window._invoicesNeedsRefresh = false;
+                    }
                 }
                 if (targetTab.type === 'analysis') {
-                    const anVal = document.getElementById('anPeriodFilter')?.value;
-                    if (anVal && typeof applyAnalysisPeriodFilter === 'function' && anVal !== 'custom') {
-                        applyAnalysisPeriodFilter(anVal);
-                    } else if (typeof renderAnalysisTable === 'function') {
-                        renderAnalysisTable();
+                    const anBody = document.getElementById('analysisTableBody');
+                    if (!anBody || anBody.children.length === 0 || window._analysisNeedsRefresh) {
+                        const anVal = document.getElementById('anPeriodFilter')?.value;
+                        if (anVal && typeof applyAnalysisPeriodFilter === 'function' && anVal !== 'custom') {
+                            applyAnalysisPeriodFilter(anVal);
+                        } else if (typeof renderAnalysisTable === 'function') {
+                            renderAnalysisTable();
+                        }
+                        window._analysisNeedsRefresh = false;
                     }
                 }
                 if (targetTab.type === 'warehouse-report') {
-                    const wrVal = document.getElementById('wrPeriodFilter')?.value || 'total';
-                    if (typeof applyWarehouseReportPeriodFilter === 'function') applyWarehouseReportPeriodFilter(wrVal);
-                    else renderWarehouseReportTable();
+                    const wrBody = document.getElementById('warehouseReportTableBody') || document.getElementById('wrTableBody');
+                    if (!wrBody || wrBody.children.length === 0 || window._wrNeedsRefresh) {
+                        const wrVal = document.getElementById('wrPeriodFilter')?.value || 'total';
+                        if (typeof applyWarehouseReportPeriodFilter === 'function') applyWarehouseReportPeriodFilter(wrVal);
+                        else renderWarehouseReportTable();
+                        window._wrNeedsRefresh = false;
+                    }
                 }
                 if (targetTab.type === 'history') {
                     if (typeof populateWarehouseDropdowns === 'function') populateWarehouseDropdowns();
-                    const hVal = document.getElementById('historyPeriodFilter')?.value;
-                    if (hVal && typeof applyHistoryPeriodFilter === 'function' && hVal !== 'custom') {
-                        applyHistoryPeriodFilter(hVal);
-                    } else {
-                        renderHistoryTable();
+                    const hBody = document.getElementById('historyTableBody');
+                    if (!hBody || hBody.children.length === 0 || window._historyNeedsRefresh) {
+                        const hVal = document.getElementById('historyPeriodFilter')?.value;
+                        if (hVal && typeof applyHistoryPeriodFilter === 'function' && hVal !== 'custom') {
+                            applyHistoryPeriodFilter(hVal);
+                        } else {
+                            renderHistoryTable();
+                        }
+                        window._historyNeedsRefresh = false;
                     }
                 }
                 if (targetTab.type === 'daily-report') {

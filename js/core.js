@@ -1406,8 +1406,20 @@ async function saveTransactionChanges({ newTransactions = [], modifiedTransactio
     if (newTransactions.length > 0 || modifiedTransactions.length > 0) {
         window._cachedDailyReportPriorBalance = null;
         window._dailyReportNeedsRefresh = true;
+        window._invoicesNeedsRefresh = true;
+        window._historyNeedsRefresh = true;
+        window._accountsNeedsRefresh = true;
+        window._analysisNeedsRefresh = true;
+        window._wrNeedsRefresh = true;
+        window._adjNeedsRefresh = true;
         window._bayanLastDataChangeTime = Date.now();
         if (window._loadedTxDateRanges) window._loadedTxDateRanges.clear();
+    }
+    if (modifiedProducts.length > 0) {
+        window._inventoryNeedsRefresh = true;
+    }
+    if (modifiedAccounts.length > 0) {
+        window._accountsNeedsRefresh = true;
     }
     return runDbSaveTask(async () => {
         try {

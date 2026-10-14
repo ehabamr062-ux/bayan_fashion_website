@@ -200,7 +200,7 @@ async function renderInventoryTable(isLoadMore = false) {
     const search = cleanAr(rawSearch);
     const catFilter = document.getElementById('invCategoryFilter')?.value || 'all';
 
-    const showLoader = (!rawSearch && !isLoadMore && typeof window.showSectionLoader === 'function');
+    const showLoader = (!rawSearch && !isLoadMore && typeof window.showSectionLoader === 'function' && (!tbody.children || tbody.children.length === 0));
     if (showLoader) {
         window.showSectionLoader(null, 'جاري قراءة وتجهيز الأصناف...', 'تحميل بيانات وتشكيلات الـ 50 ألف صنف');
         await new Promise(r => setTimeout(r, 45));

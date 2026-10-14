@@ -701,7 +701,8 @@
             // ⏳ إظهار مؤشر التحميل المركزي الموحد (الساعة الرملية) عند تحميل أو تصفية الفواتير
             const invSec = document.getElementById('invoices-section');
             const isInvActive = !invSec || !invSec.classList.contains('hidden');
-            const showLoader = (typeof window.showSectionLoader === 'function' && !isLoadMore && isInvActive);
+            const tbody = document.getElementById('invoicesTableBody');
+            const showLoader = (typeof window.showSectionLoader === 'function' && !isLoadMore && isInvActive && (!tbody || !tbody.children || tbody.children.length === 0));
             if (showLoader) {
                 window.showSectionLoader(null, 'جاري تحميل وتصفية الفواتير...', 'معالجة السجلات المالية وتحديث الفهرس');
                 await new Promise(r => setTimeout(r, 45));
@@ -2966,6 +2967,12 @@
                         if (typeof window.invalidateStockCache === 'function') window.invalidateStockCache();
                         window.accountBalancesCache = {};
                         window._dailyReportNeedsRefresh = true;
+                        window._invoicesNeedsRefresh = true;
+                        window._historyNeedsRefresh = true;
+                        window._accountsNeedsRefresh = true;
+                        window._inventoryNeedsRefresh = true;
+                        window._analysisNeedsRefresh = true;
+                        window._wrNeedsRefresh = true;
                         window._cachedDailyReportPriorBalance = null;
                         window._bayanLastDataChangeTime = Date.now();
                         if (window._loadedTxDateRanges) window._loadedTxDateRanges.clear();

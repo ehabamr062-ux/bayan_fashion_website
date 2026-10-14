@@ -405,7 +405,7 @@ async function renderHistoryTable(filterName = null) {
     const tbody = document.getElementById('historyTableBody');
     if (!tbody) return;
 
-    const showLoader = (typeof window.showSectionLoader === 'function');
+    const showLoader = (typeof window.showSectionLoader === 'function' && (!tbody.children || tbody.children.length === 0));
     if (showLoader) {
         window.showSectionLoader(null, 'جاري تجميع سجل حركة الصنف...', 'تحليل الحركات واحتساب الأرصدة التراكمية');
         await new Promise(r => setTimeout(r, 45));

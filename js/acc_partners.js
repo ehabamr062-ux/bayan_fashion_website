@@ -670,7 +670,7 @@
 
             const searchInputEl = document.getElementById('accSearchName');
             const hasSearch = searchInputEl && searchInputEl.value.trim().length > 0;
-            const showLoader = (typeof window.showSectionLoader === 'function' && !isLoadMore && !hasSearch);
+            const showLoader = (typeof window.showSectionLoader === 'function' && !isLoadMore && !hasSearch && (!tbody.children || tbody.children.length === 0));
             if (showLoader) {
                 window.showSectionLoader(null, 'جاري فحص أرصدة ومديونيات الحسابات...', 'مطابقة الحركات وتحديث الأرصدة المالية');
                 await new Promise(r => setTimeout(r, 45));

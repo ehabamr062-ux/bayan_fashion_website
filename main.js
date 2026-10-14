@@ -869,6 +869,39 @@ ipcMain.handle('save-backup-data', async (_e, payload) => {
     }
 });
 
+// ⚡ نسخ احتياطي فوري ومباشر لملف قاعدة البيانات SQLite (في 0.05 ثانية وبدون أي استهلاك للرام)
+ipcMain.handle('save-sqlite-direct-backup', async (_e, payload) => {
+    try {
+        if (!fs.existsSync(backupDir)) {
+            fs.mkdirSync(backupDir, { recursive: true });
+        }
+        const pad = (n) => String(n).padStart(2, '0');
+        const d = new Date();
+        const timestamp = `${d.getFullYear()}_${pad(d.getMonth()+1)}_${pad(d.getDate())}__${pad(d.getHours())}_${pad(d.getMinutes())}_${pad(d.getSeconds())}`;
+        const prefix = payload?.isManual ? 'backup_pos_manual_' : 'backup_pos_auto_';
+        const fileName = `${prefix}${timestamp}.db`;
+        const filePath = path.join(backupDir, fileName);
+
+        const os = require('os');
+        const sqliteOriginalPath = path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db');
+        if (fs.existsSync(sqliteOriginalPath)) {
+            await fs.promises.copyFile(sqliteOriginalPath, filePath);
+            if (payload?.isManual) {
+                try {
+                    const desktopDir = app.getPath('desktop');
+                    const desktopFilePath = path.join(desktopDir, fileName);
+                    await fs.promises.copyFile(sqliteOriginalPath, desktopFilePath);
+                } catch(dErr) {}
+            }
+            return { success: true, filePath, fileName, backupDir };
+        }
+        return { success: false, error: 'SQLite database file not found' };
+    } catch (err) {
+        console.error("save-sqlite-direct-backup error:", err);
+        return { success: false, error: err.message };
+    }
+});
+
 // فتح مجلد النسخ الاحتياطية بـ shell.openPath() أو explorer.exe المباشر
 ipcMain.handle('open-backup-folder', async () => {
     try {
