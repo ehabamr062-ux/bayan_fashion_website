@@ -28,7 +28,7 @@ function escapePrintHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
-function generateOfflineInvoiceQR(text, size = 110) {
+function generateOfflineInvoiceQR(text, size = 110, fallbackText = '') {
     try {
         if (typeof QRCode !== 'undefined' && text) {
             const tempDiv = document.createElement('div');
@@ -37,7 +37,7 @@ function generateOfflineInvoiceQR(text, size = 110) {
             
             // تنظيف النص وتأمينه لمنع أي تجاوز لحجم الـ QR Code
             const cleanText = String(text).trim();
-            const safeText = cleanText.length > 250 ? cleanText.substring(0, 250) : cleanText;
+            const safeText = cleanText.length > 200 ? cleanText.substring(0, 200) : cleanText;
 
             const correctLvl = (typeof QRCode !== 'undefined' && QRCode.CorrectLevel && QRCode.CorrectLevel.L !== undefined) 
                 ? QRCode.CorrectLevel.L 
@@ -70,9 +70,12 @@ function generateOfflineInvoiceQR(text, size = 110) {
             if (resultHtml) return resultHtml;
         }
     } catch (e) {
-        console.warn("Offline QR generation fallback:", e);
+        console.warn("Offline QR generation notice:", e);
+        if (fallbackText && fallbackText !== text) {
+            return generateOfflineInvoiceQR(fallbackText, size, '');
+        }
     }
-    return `<div class="invoice-qr-code" style="margin:0 auto; width:${size}px; height:${size}px; border:1px dashed #999; display:flex; align-items:center; justify-content:center; font-size:10px;">QR</div>`;
+    return '';
 }
 
 function generateOfflineBarcodeSVG(barcodeText, width = 1.4, height = 30) {
@@ -92,6 +95,88 @@ function generateOfflineBarcodeSVG(barcodeText, width = 1.4, height = 30) {
         console.warn("Offline barcode generation:", e);
     }
     return '';
+}
+
+/**
+ * 🏷️ استنتاج مسمى كود صفحة التواصل أو المتجر
+ */
+function getSocialQrLabel(url) {
+    if (!url) return 'صفحتنا على فيسبوك';
+    const lower = String(url).toLowerCase();
+    if (lower.includes('facebook') || lower.includes('fb.com') || lower.includes('fb.me')) {
+        return 'صفحتنا على فيسبوك';
+    }
+    if (lower.includes('wa.me') || lower.includes('whatsapp')) {
+        return 'تواصل عبر واتساب';
+    }
+    if (lower.includes('instagram')) {
+        return 'صفحتنا على إنستجرام';
+    }
+    if (lower.includes('tiktok')) {
+        return 'صفحتنا على تيك توك';
+    }
+    return 'صفحتنا على فيسبوك';
+}
+
+/**
+ * 📱 بناء نص كيو آر الفاتورة والأصناف بدقة مع اختصار ذكي لمنع الاكتظاظ
+ */
+function buildInvoiceQrRawText(d) {
+    let lines = [];
+    if (d.shopName) lines.push(d.shopName);
+    lines.push(`فاتورة #${d.invoiceNumber}`);
+    lines.push(`التاريخ: ${d.date}`);
+    lines.push(`المبلغ: ${parseFloat(d.totalAmount).toFixed(2)} ج.م`);
+    if (parseFloat(d.paid) > 0) {
+        lines.push(`المدفوع: ${parseFloat(d.paid).toFixed(2)} ج.م`);
+    }
+    if (d.customer && !d.customer.includes('نقدي') && d.customer !== '-' && d.customer !== '---') {
+        lines.push(`العميل: ${d.customer}`);
+    }
+    return lines.join('\n');
+}
+
+/**
+ * 🔲 بناء كود HTML لعرض الكيو آر كود المزدوج جنباً إلى جنب (كيو ار الفاتورة يساراً وكيو ار السوشيال يميناً)
+ */
+function renderDualQrCodesHtml(d, size = 80, isNarrow = false) {
+    const invoiceQrText = buildInvoiceQrRawText(d);
+    const fallbackInvoiceText = `Inv: #${d.invoiceNumber} | Total: ${parseFloat(d.totalAmount).toFixed(2)} | Date: ${d.date}`;
+    const invoiceQrHtml = generateOfflineInvoiceQR(invoiceQrText, size, fallbackInvoiceText);
+    const socialLink = (d.socialQrLink && d.socialQrLink.trim()) ? d.socialQrLink.trim() : '';
+
+    // إذا وُجد رابط سوشيال / فيسبوك، يتم عرض الكودين جنباً إلى جنب في سطر واحد
+    if (socialLink) {
+        let normalizedSocial = socialLink;
+        if (!/^https?:\/\//i.test(normalizedSocial)) {
+            normalizedSocial = 'https://' + normalizedSocial;
+        }
+        const socialLabel = getSocialQrLabel(socialLink);
+        const socialQrHtml = generateOfflineInvoiceQR(normalizedSocial, size, socialLink);
+        const containerWidth = size + (isNarrow ? 8 : 18);
+        const labelFontSize = isNarrow ? '10px' : '11px';
+
+        return `
+        <div style="display:flex; justify-content:space-around; align-items:flex-start; margin-top:8px; padding-top:6px; border-top:2px dashed #000000; direction:rtl; box-sizing:border-box;">
+            <!-- كيو ار المتجر / صفحتنا على الطرف الأيمن -->
+            <div style="text-align:center; width:${containerWidth}px; display:inline-block; vertical-align:top;">
+                ${socialQrHtml}
+                <div style="font-size:${labelFontSize}; font-weight:900; margin-top:3px; -webkit-text-stroke:0.55px #000; line-height:1.2; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${socialLabel}</div>
+            </div>
+            <!-- كيو ار تفاصيل الفاتورة والأصناف على الطرف الأيسر -->
+            <div style="text-align:center; width:${containerWidth}px; display:inline-block; vertical-align:top;">
+                ${invoiceQrHtml}
+                <div style="font-size:${labelFontSize}; font-weight:900; margin-top:3px; -webkit-text-stroke:0.55px #000; line-height:1.2; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">بيانات الفاتورة</div>
+            </div>
+        </div>`;
+    }
+
+    // في حال عدم إدخال رابط صفحة للمتجر، يظهر كيو ار الفاتورة الأصلي منفرداً في المنتصف
+    return `
+    <div style="margin-top:8px; text-align:center; border-top:2px dashed #000000; padding-top:6px;">
+        ${invoiceQrHtml}
+        <div style="font-size:11.5px; font-weight:900; margin-top:3px; -webkit-text-stroke:0.55px #000; text-align:center;">بيانات الفاتورة</div>
+    </div>`;
 }
 
 /**
@@ -285,7 +370,8 @@ function buildInvoiceDocumentHTML(invoiceData) {
         invoiceNumber, rawInvoiceNumber, dailyTaxSeq,
         invoiceType: paymentMethod, date, time, dueDate, cashier, customer, warehouse, terminal,
         totalAmount, paid, deferred, prevBalance, currentBalance, docType,
-        itemsRowsFull, itemsRowsCompact, discount, subTotal, tax, taxLabel, globalTax
+        itemsRowsFull, itemsRowsCompact, discount, subTotal, tax, taxLabel, globalTax,
+        rawItems: items
     };
 
     // ============================================================
@@ -702,15 +788,8 @@ function build80mmStandard(d) {
     // تصفية أسطر الأصناف من الإيموجيات للحفاظ على جودة الطباعة
     const cleanItemsRows = d.itemsRowsFull.replace(/📤|📥|🔄|🔙|💵|💸|⚖️|🚚|🛒|🛍️|🧺|📦|💰|🌗|✅|⏳/g, '');
 
-    // إنشاء الـ QR Code الحقيقي (رابط السوشيال أو تفاصيل الفاتورة)
-    const qrData = (d.socialQrLink && d.socialQrLink.trim())
-        ? d.socialQrLink.trim()
-        : `Inv: #${d.invoiceNumber} | Total: ${parseFloat(d.totalAmount).toFixed(2)} | Date: ${d.date}`;
-    const qrHtml = generateOfflineInvoiceQR(qrData, 95);
-
-    // باركود خطي للفاتورة Code 128 لمسحه بالاسكانر عند المرتجع
-    const barcodeRaw = String(d.rawInvoiceNumber || d.invoiceNumber || '').trim();
-    const barcodeSvg = barcodeRaw ? generateOfflineBarcodeSVG(barcodeRaw, 1.45, 28) : '';
+    // إنشاء الـ QR Code المزدوج (بيانات الفاتورة يساراً وصفحة فيسبوك يميناً)
+    const qrSectionHtml = renderDualQrCodesHtml(d, 82, false);
 
     return `
     <div style="width:72mm; max-width:72mm; margin:0 auto; font-family:'Arial','Tahoma','Segoe UI',sans-serif; direction:rtl; padding:1mm 2mm; color:#000000; box-sizing:border-box; line-height:1.35; font-weight:900;">
@@ -810,16 +889,7 @@ function build80mmStandard(d) {
         <div style="text-align:center; border-top:3px solid #000000; padding-top:6px; margin-top:6px;">
             ${d.footerMsg ? `<div style="font-size:14px; font-weight:900; line-height:1.45; white-space: pre-line; -webkit-text-stroke:0.7px #000;">${d.footerMsg}</div>` : ''}
             
-            ${barcodeSvg ? `
-            <div style="margin-top:6px; text-align:center;">
-                ${barcodeSvg}
-                <div style="font-size:12.5px; font-weight:900; letter-spacing:2px; margin-top:2px; -webkit-text-stroke:0.7px #000;">* ${barcodeRaw} *</div>
-            </div>
-            ` : ''}
-
-            <div style="margin-top:8px; text-align:center;">
-                ${qrHtml}
-            </div>
+            ${qrSectionHtml}
         </div>
     </div>`;
 }
@@ -831,13 +901,7 @@ function build80mmCompact(d) {
     // تصفية الأصناف من الإيموجيات
     const cleanItemsRows = d.itemsRowsCompact.replace(/📤|📥|🔄|🔙|💵|💸|⚖️|🚚|🛒|🛍️|🧺|📦|💰|🌗|✅|⏳/g, '');
 
-    const qrData = (d.socialQrLink && d.socialQrLink.trim())
-        ? d.socialQrLink.trim()
-        : `Inv: #${d.invoiceNumber} | Total: ${parseFloat(d.totalAmount).toFixed(2)} | Date: ${d.date}`;
-    const qrHtml = generateOfflineInvoiceQR(qrData, 100);
-
-    const barcodeRaw = String(d.rawInvoiceNumber || d.invoiceNumber || '').trim();
-    const barcodeSvg = barcodeRaw ? generateOfflineBarcodeSVG(barcodeRaw, 1.5, 30) : '';
+    const qrSectionHtml = renderDualQrCodesHtml(d, 82, false);
 
     return `
     <div style="width:72mm; max-width:72mm; margin:0 auto; font-family:'Arial','Tahoma','Segoe UI',sans-serif; direction:rtl; padding:1mm 2mm; color:#000000; font-size:13.5px; font-weight:900; box-sizing:border-box;">
@@ -911,16 +975,7 @@ function build80mmCompact(d) {
         <div style="text-align:center; border-top:3px solid #000000; padding-top:6px; margin-top:6px; font-size:14px; font-weight:900;">
             <div style="white-space: pre-line; -webkit-text-stroke:0.7px #000;">${d.footerMsg}</div>
 
-            ${barcodeSvg ? `
-            <div style="margin-top:6px; text-align:center;">
-                ${barcodeSvg}
-                <div style="font-size:12.5px; font-weight:900; letter-spacing:2px; margin-top:2px; -webkit-text-stroke:0.7px #000;">* ${barcodeRaw} *</div>
-            </div>
-            ` : ''}
-
-            <div style="margin-top:8px; text-align:center;">
-                ${qrHtml}
-            </div>
+            ${qrSectionHtml}
         </div>
     </div>`;
 }
@@ -928,10 +983,7 @@ function build80mmCompact(d) {
 // ─── 57mm Mobile ──────────────────────────────────────────────
 function build57mm(d) {
     const isCashBuyer = !d.customer || (window.isGenericCashPartner && window.isGenericCashPartner(d.customer)) || d.customer === '-' || d.customer === '---' || d.customer.includes('نقدي');
-    const qrData = (d.socialQrLink && d.socialQrLink.trim())
-        ? d.socialQrLink.trim()
-        : `Inv: #${d.invoiceNumber} | Total: ${parseFloat(d.totalAmount).toFixed(2)} | Date: ${d.date}`;
-    const qrHtml = generateOfflineInvoiceQR(qrData, 90);
+    const qrSectionHtml = renderDualQrCodesHtml(d, 66, true);
 
     return `
     <div style="width:57mm; font-family:'Arial','Tahoma',sans-serif; direction:rtl; padding:2mm; color:#000000; font-size:12px; font-weight:900;">
@@ -977,9 +1029,7 @@ function build57mm(d) {
         ` : '')}
         <div style="text-align:center; border-top:2px solid #000; padding-top:5px; margin-top:5px; font-size:11px; font-weight:900; white-space: pre-line; -webkit-text-stroke:0.6px #000;">
             ${d.footerMsg}
-            <div style="margin-top:6px; text-align:center;">
-                ${qrHtml}
-            </div>
+            ${qrSectionHtml}
         </div>
     </div>`;
 }
@@ -987,10 +1037,7 @@ function build57mm(d) {
 // ─── A4 Professional ──────────────────────────────────────────
 function buildA4Professional(d) {
     const isCashBuyer = !d.customer || (window.isGenericCashPartner && window.isGenericCashPartner(d.customer)) || d.customer === '-' || d.customer === '---' || d.customer.includes('نقدي');
-    const qrData = (d.socialQrLink && d.socialQrLink.trim())
-        ? d.socialQrLink.trim()
-        : `Inv: #${d.invoiceNumber} | Total: ${parseFloat(d.totalAmount).toFixed(2)} | Date: ${d.date}`;
-    const qrHtml = generateOfflineInvoiceQR(qrData, 110);
+    const qrSectionHtml = renderDualQrCodesHtml(d, 95, false);
 
     return `
     <div style="font-family:'Segoe UI',Tahoma,Arial,sans-serif; direction:rtl; padding:30px; background:#fff; color:#333;">
@@ -1037,8 +1084,8 @@ function buildA4Professional(d) {
         </table>
 
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-            <div style="text-align:center; padding:10px;">
-                ${qrHtml}
+            <div style="text-align:center; padding:5px;">
+                ${qrSectionHtml}
             </div>
             <table style="width:300px; background:#f9f9f9; padding:15px; border-radius:6px; border:1px solid #eee;">
                 <tr>
@@ -1083,10 +1130,7 @@ function buildA4Professional(d) {
 // ─── A5 Modern ────────────────────────────────────────────────
 function buildA5Modern(d) {
     const isCashBuyer = !d.customer || (window.isGenericCashPartner && window.isGenericCashPartner(d.customer)) || d.customer === '-' || d.customer === '---' || d.customer.includes('نقدي');
-    const qrData = (d.socialQrLink && d.socialQrLink.trim())
-        ? d.socialQrLink.trim()
-        : `Inv: #${d.invoiceNumber} | Total: ${parseFloat(d.totalAmount).toFixed(2)} | Date: ${d.date}`;
-    const qrHtml = generateOfflineInvoiceQR(qrData, 100);
+    const qrSectionHtml = renderDualQrCodesHtml(d, 85, false);
 
     return `
     <div style="font-family:'Segoe UI',Tahoma,Arial,sans-serif; direction:rtl; padding:20px; background:#fff; color:#333; width:148mm;">
@@ -1120,7 +1164,7 @@ function buildA5Modern(d) {
 
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:15px;">
             <div style="text-align:center;">
-                ${qrHtml}
+                ${qrSectionHtml}
             </div>
             <table style="width:60%; font-size:0.9rem; border-top:2px solid #34495e;">
                 <tr>
