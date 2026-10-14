@@ -101,21 +101,21 @@ function generateOfflineBarcodeSVG(barcodeText, width = 1.4, height = 30) {
  * 🏷️ استنتاج مسمى كود صفحة التواصل أو المتجر
  */
 function getSocialQrLabel(url) {
-    if (!url) return 'صفحتنا على فيسبوك';
+    if (!url) return 'Facebook';
     const lower = String(url).toLowerCase();
     if (lower.includes('facebook') || lower.includes('fb.com') || lower.includes('fb.me')) {
-        return 'صفحتنا على فيسبوك';
+        return 'Facebook';
     }
     if (lower.includes('wa.me') || lower.includes('whatsapp')) {
-        return 'تواصل عبر واتساب';
+        return 'WhatsApp';
     }
     if (lower.includes('instagram')) {
-        return 'صفحتنا على إنستجرام';
+        return 'Instagram';
     }
     if (lower.includes('tiktok')) {
-        return 'صفحتنا على تيك توك';
+        return 'TikTok';
     }
-    return 'صفحتنا على فيسبوك';
+    return 'Facebook';
 }
 
 /**
@@ -154,19 +154,19 @@ function renderDualQrCodesHtml(d, size = 80, isNarrow = false) {
         const socialLabel = getSocialQrLabel(socialLink);
         const socialQrHtml = generateOfflineInvoiceQR(normalizedSocial, size, socialLink);
         const containerWidth = size + (isNarrow ? 8 : 18);
-        const labelFontSize = isNarrow ? '10px' : '11px';
+        const labelFontSize = isNarrow ? '10.5px' : '12px';
 
         return `
         <div style="display:flex; justify-content:space-around; align-items:flex-start; margin-top:8px; padding-top:6px; border-top:2px dashed #000000; direction:rtl; box-sizing:border-box;">
-            <!-- كيو ار المتجر / صفحتنا على الطرف الأيمن -->
+            <!-- كيو ار المتجر / فيسبوك على الطرف الأيمن -->
             <div style="text-align:center; width:${containerWidth}px; display:inline-block; vertical-align:top;">
                 ${socialQrHtml}
-                <div style="font-size:${labelFontSize}; font-weight:900; margin-top:3px; -webkit-text-stroke:0.55px #000; line-height:1.2; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${socialLabel}</div>
+                <div style="font-size:${labelFontSize}; font-weight:900; margin-top:3px; -webkit-text-stroke:0.6px #000; line-height:1.2; text-align:center; letter-spacing:0.5px;">${socialLabel}</div>
             </div>
             <!-- كيو ار تفاصيل الفاتورة والأصناف على الطرف الأيسر -->
             <div style="text-align:center; width:${containerWidth}px; display:inline-block; vertical-align:top;">
                 ${invoiceQrHtml}
-                <div style="font-size:${labelFontSize}; font-weight:900; margin-top:3px; -webkit-text-stroke:0.55px #000; line-height:1.2; text-align:center; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">بيانات الفاتورة</div>
+                <div style="font-size:${labelFontSize}; font-weight:900; margin-top:3px; -webkit-text-stroke:0.6px #000; line-height:1.2; text-align:center;">بيانات الفاتورة</div>
             </div>
         </div>`;
     }
