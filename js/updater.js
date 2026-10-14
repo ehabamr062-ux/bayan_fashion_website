@@ -18,7 +18,7 @@
     const GITHUB_REPO_OWNER = 'ehabamr062-ux';
     const GITHUB_REPO_NAME = 'bayan_fashion_website';
     const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases/latest`;
-    const GITHUB_BROADCAST_REPO = 'bayan-pos-fashion';
+    const GITHUB_BROADCAST_REPO = 'bayan_fashion_website';
     const GITHUB_BROADCAST_URL = `https://raw.githubusercontent.com/${GITHUB_REPO_OWNER}/${GITHUB_BROADCAST_REPO}/main/announcements.json`;
 
     let ipcRenderer = null;
@@ -853,9 +853,10 @@
             if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
 
             let rawText = '';
-            const broadcastRepos = [GITHUB_BROADCAST_REPO, GITHUB_REPO_NAME];
+            let data = [];
+            const broadcastRepos = [GITHUB_REPO_NAME, 'bayan-pos-fashion'];
             for (const repo of broadcastRepos) {
-                if (rawText && rawText.trim()) break;
+                let currentText = '';
                 try {
                     const url = `https://raw.githubusercontent.com/${GITHUB_REPO_OWNER}/${repo}/main/announcements.json?t=${Date.now()}`;
                     const ctrl = new AbortController();
@@ -864,12 +865,12 @@
                     clearTimeout(tid);
                     if (res.ok) {
                         const t = await res.text();
-                        if (t && t.trim()) rawText = t;
+                        if (t && t.trim()) currentText = t;
                     }
                 } catch(e) {}
 
                 // تجاوز كاش Fastly CDN اللحظي لجلب أحدث تعديل فورياً عبر GitHub Contents API
-                if (!rawText || !rawText.trim()) {
+                if (!currentText || !currentText.trim()) {
                     try {
                         const apiUrl = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${repo}/contents/announcements.json?t=${Date.now()}`;
                         const apiCtrl = new AbortController();
@@ -882,26 +883,50 @@
                                 const binaryStr = atob(apiJson.content.replace(/\s/g, ''));
                                 const bytes = Uint8Array.from(binaryStr, c => c.charCodeAt(0));
                                 const decoded = new TextDecoder('utf-8').decode(bytes);
-                                if (decoded && decoded.trim()) rawText = decoded;
+                                if (decoded && decoded.trim()) currentText = decoded;
                             }
                         }
                     } catch(apiErr) {}
                 }
+
+                if (currentText && currentText.trim()) {
+                    try {
+                        const parsed = JSON.parse(currentText.trim());
+                        const arr = Array.isArray(parsed) ? parsed : (parsed && typeof parsed === 'object' ? [parsed] : []);
+                        const hasActive = arr.some(item => item && item.active !== false && String(item.active).toLowerCase() !== 'false');
+                        if (hasActive || data.length === 0) {
+                            data = arr;
+                            rawText = currentText;
+                            if (hasActive) break;
+                        }
+                    } catch(pe) {
+                        data = [{
+                            title: '📢 تنبيه من إدارة نظام بيان POS',
+                            message: currentText.trim(),
+                            active: true
+                        }];
+                        rawText = currentText;
+                        break;
+                    }
+                }
             }
 
-            if (!rawText || !rawText.trim()) return;
-
-            let data = [];
-            try {
-                const parsed = JSON.parse(rawText.trim());
-                data = Array.isArray(parsed) ? parsed : (parsed && typeof parsed === 'object' ? [parsed] : []);
-            } catch (parseErr) {
-                // دعم الكتابة المباشرة كنص عادي بالعربي على جيت هوب بدون تنسيق JSON
-                data = [{
-                    title: '📢 تنبيه من إدارة نظام بيان POS',
-                    message: rawText.trim(),
-                    active: true
-                }];
+            // فحص محلي فوري (Local Fallback) في حال عدم توفر اتصال أو للعمل أوفلاين
+            if (!data || data.length === 0 || !data.some(i => i.active !== false)) {
+                try {
+                    const localRes = await fetch('announcements.json?t=' + Date.now());
+                    if (localRes.ok) {
+                        const localRaw = await localRes.text();
+                        if (localRaw && localRaw.trim()) {
+                            const localParsed = JSON.parse(localRaw.trim());
+                            const localArr = Array.isArray(localParsed) ? localParsed : [localParsed];
+                            if (localArr.length > 0) {
+                                data = localArr;
+                                rawText = localRaw;
+                            }
+                        }
+                    }
+                } catch(locErr) {}
             }
 
             if (!data || data.length === 0) return;
@@ -1222,22 +1247,25 @@
     // =========================================================================
     const autoCheck = () => {
         window.initAutoUpdatesPolicyUI();
+
+        // 1. فحص فوري وسريع للإشعارات السحابية بعد تشغيل التطبيق بـ 2.5 ثانية فقط
         setTimeout(() => {
-            // 1. فحص تحديثات إصدار البرنامج (يحترم قرار التجميد إذا كان مفعلاً)
+            window.checkCloudAnnouncements();
+        }, 2500);
+
+        // 2. فحص إصدارات البرنامج والترقيات بعد 6 ثوانٍ
+        setTimeout(() => {
             if (!window.__isAutoUpdatesFrozenNow || !window.__isAutoUpdatesFrozenNow()) {
                 window.checkGitHubReleases(false);
             } else {
                 console.log('[Updater] 🔒 تخطي فحص إصدارات البرنامج: التحديثات مجمدة بناءً على اختيار العميل.');
             }
+        }, 6000);
 
-            // 2. فحص الرسائل والتنبيهات السحابية للإدارة (يعمل دائماً ولا يتعطل بتجميد التحديثات)
+        // 3. فحص دوري خفيف كل 10 دقائق في الخلفية
+        setInterval(() => {
             window.checkCloudAnnouncements();
-
-            // فحص دوري خفيف كل 15 دقيقة في الخلفية لترشيد موارد الشبكة والمعالج
-            setInterval(() => {
-                window.checkCloudAnnouncements();
-            }, 15 * 60 * 1000);
-        }, 75000);
+        }, 10 * 60 * 1000);
     };
 
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
