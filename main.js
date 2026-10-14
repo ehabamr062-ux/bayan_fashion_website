@@ -79,6 +79,13 @@ function createWindow() {
         console.log("✅ [Main] Window has recovered responsiveness.");
     });
 
+    // 🛡️ حماية تركيز الكيبورد في ويندوز فور تنشيط النافذة لمنع سقوط الحروف
+    win.on('focus', () => {
+        if (win && !win.isDestroyed() && win.webContents) {
+            win.webContents.focus();
+        }
+    });
+
     if (!mainWindow || mainWindow.isDestroyed()) {
         mainWindow = win;
     }
@@ -534,25 +541,39 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
         let printWin = null;
         let resolved = false;
 
-        const cleanup = (res) => {
+        const cleanup = (res, delayDestroy = false) => {
             if (!resolved) {
                 resolved = true;
-                if (printWin && !printWin.isDestroyed()) {
-                    try { printWin.destroy(); } catch (e) {}
-                }
+                clearTimeout(timeoutTimer);
                 resolve(res);
+
+                // ⏱️ حماية جوهرية: تأخير آمن قبل إغلاق نافذة الطباعة (1500ms)
+                // في نظام ويندوز، إغلاق نافذة Electron فور كولباك الطباعة يقطع الاتصال بـ Windows Print Spooler
+                // أثناء كتابة ملف الـ EMF، مما يجعل الطابعة تنهي الأمر مبكراً وتخرج ورقة بيضاء فارغة بطول 2-3 سم
+                if (delayDestroy) {
+                    setTimeout(() => {
+                        if (printWin && !printWin.isDestroyed()) {
+                            try { printWin.destroy(); } catch (e) {}
+                            printWin = null;
+                        }
+                    }, 1500);
+                } else {
+                    if (printWin && !printWin.isDestroyed()) {
+                        try { printWin.destroy(); } catch (e) {}
+                        printWin = null;
+                    }
+                }
             }
         };
 
         const timeoutTimer = setTimeout(() => {
-            cleanup({ success: false, error: 'Print operation timed out' });
+            cleanup({ success: false, error: 'Print operation timed out' }, false);
         }, 12000);
 
         try {
             const { html, printerName } = payload || {};
-            if (!html || typeof html !== 'string') {
-                clearTimeout(timeoutTimer);
-                return cleanup({ success: false, error: 'No invoice HTML provided' });
+            if (!html || typeof html !== 'string' || !html.trim()) {
+                return cleanup({ success: false, error: 'No invoice HTML provided' }, false);
             }
 
             printWin = new BrowserWindow({
@@ -563,22 +584,36 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                 webPreferences: {
                     nodeIntegration: false,
                     contextIsolation: true,
-                    sandbox: true
+                    sandbox: true,
+                    backgroundThrottling: false // ⚡ منع تقييد الرسم والمعالجة في النوافذ المخفية
                 }
             });
 
             printWin.webContents.on('did-fail-load', (_e, code, desc) => {
-                clearTimeout(timeoutTimer);
-                cleanup({ success: false, error: desc || 'Failed to load receipt HTML' });
+                cleanup({ success: false, error: desc || 'Failed to load receipt HTML' }, false);
             });
 
             printWin.webContents.on('did-finish-load', async () => {
                 try {
-                    // ⏱️ انتظار ضروري (450ms) لإتمام معالجة ورسم الـ DOM والخطوط وحساب ارتفاع الفاتورة في الذاكرة
-                    await new Promise(r => setTimeout(r, 450));
-                    try {
-                        await printWin.webContents.executeJavaScript('document.body.scrollHeight');
-                    } catch (e) {}
+                    // ⏱️ التأكد القطعي من اكتمال رسم الـ DOM وتحميل الخطوط وحساب ارتفاع الفاتورة
+                    const renderStatus = await printWin.webContents.executeJavaScript(`
+                        (async () => {
+                            if (document.fonts && document.fonts.ready) {
+                                await document.fonts.ready;
+                            }
+                            await new Promise(r => requestAnimationFrame(() => setTimeout(r, 80)));
+                            return {
+                                scrollHeight: document.body.scrollHeight || 0,
+                                textLen: (document.body.innerText || '').trim().length
+                            };
+                        })()
+                    `).catch(() => ({ scrollHeight: 0, textLen: 0 }));
+
+                    // حماية صارمة: منع إرسال أمر طباعة لمستند فارغ
+                    if (!renderStatus || renderStatus.textLen === 0) {
+                        console.warn('[Print Silent] Refusing to print empty document content');
+                        return cleanup({ success: false, error: 'Invoice content is blank' }, false);
+                    }
 
                     let targetDevice = (printerName && String(printerName).trim()) || '';
 
@@ -611,27 +646,24 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                     console.log(`[Print Silent] 🖨️ Printing silently to: "${targetDevice || 'Default Printer'}"`);
 
                     printWin.webContents.print(printOptions, (success, failureReason) => {
-                        clearTimeout(timeoutTimer);
                         if (!success) {
                             console.warn('[Print Silent] Print failed:', failureReason);
-                            cleanup({ success: false, error: failureReason });
+                            cleanup({ success: false, error: failureReason }, false);
                         } else {
                             console.log('[Print Silent] Print job sent successfully ✅');
-                            cleanup({ success: true, deviceName: targetDevice });
+                            cleanup({ success: true, deviceName: targetDevice }, true);
                         }
                     });
                 } catch (printErr) {
-                    clearTimeout(timeoutTimer);
-                    cleanup({ success: false, error: printErr.message });
+                    cleanup({ success: false, error: printErr.message }, false);
                 }
             });
 
             printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
 
         } catch (err) {
-            clearTimeout(timeoutTimer);
             console.error('[Print Silent] Handler error:', err);
-            cleanup({ success: false, error: err.message });
+            cleanup({ success: false, error: err.message }, false);
         }
     });
 });

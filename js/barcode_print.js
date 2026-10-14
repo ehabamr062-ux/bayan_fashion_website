@@ -321,15 +321,35 @@
     }
 
     /**
+     * التحقق من مطابقة الصنف أو أي من تشكيلاته لفلاتر المقاس واللون
+     */
+    function bpProductMatchesFilter(p, fSize, fColor) {
+        if (!fSize && !fColor) return true;
+        const pSize = String(p.size || '').trim().toLowerCase();
+        const pColor = String(p.color || '').trim().toLowerCase();
+        if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
+            return p.variants.some(v => {
+                const vSize = String(v.size || '').trim().toLowerCase();
+                const vColor = String(v.color || '').trim().toLowerCase();
+                const sMatch = !fSize || vSize === fSize || vSize.includes(fSize);
+                const cMatch = !fColor || vColor === fColor || vColor.includes(fColor);
+                return sMatch && cMatch;
+            });
+        }
+        const sMatch = !fSize || pSize === fSize || pSize.includes(fSize);
+        const cMatch = !fColor || pColor === fColor || pColor.includes(fColor);
+        return sMatch && cMatch;
+    }
+
+    /**
      * تنفيذ البحث والتصفية المباشرة الشاملة (الاسم، كود الموديل، الباركود، المقاس، اللون)
+     * يعتمد على محرك البحث الذكي الموحد searchProductsRanked لضمان ظهور الكود والباركود التام بالترتيب الأول فوراً
      */
     function performBpSearch(query = '', filterSize = '', filterColor = '') {
         const dropdown = document.getElementById('bpSearchResultsDropdown');
         if (!dropdown) return;
 
-        const cleanAr = (str) => (str || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
-        const q = String(query || '').trim().toLowerCase();
-        const qClean = cleanAr(query);
+        const q = String(query || '').trim();
         const fSize = String(filterSize || '').trim().toLowerCase();
         const fColor = String(filterColor || '').trim().toLowerCase();
 
@@ -340,176 +360,59 @@
             return;
         }
 
-        const prods = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : [];
+        const prods = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
         if (prods.length === 0) {
             dropdown.innerHTML = '<div style="padding:16px; text-align:center; color:#94a3b8; font-weight:800;">⚠️ لا توجد أصناف مسجلة بالمخزن</div>';
             dropdown.classList.add('active');
             return;
         }
 
-        const matched = [];
+        let matched = [];
 
-        for (const p of prods) {
-            const pName = String(p.name || '').trim().toLowerCase();
-            const pNameClean = cleanAr(p.name);
-            const pCode = String(p.code || p.sysCode || '').trim().toLowerCase();
-            const pModel = String(p.modelCode || p.model_code || p.model || '').trim().toLowerCase();
-            const pBarcode = String(p.barcode || '').trim().toLowerCase();
-            const pSize = String(p.size || '').trim().toLowerCase();
-            const pColor = String(p.color || '').trim().toLowerCase();
-            const qNoSpaces = q ? q.replace(/\s+/g, '') : '';
-
-            // فحص تطابق المقاس واللون في الصنف المباشر وتشكيلاته
-            let sizeMatches = !fSize;
-            let colorMatches = !fColor;
-            let matchedVariantItems = [];
-
-            // تتبع تطابق التشكيلات لحساب الأولوية
-            let variantHasExactMatch = false;
-            let variantHasPrefixMatch = false;
-            let variantHasContainsMatch = false;
-
-            if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
-                p.variants.forEach(v => {
-                    const vSize = String(v.size || '').trim().toLowerCase();
-                    const vColor = String(v.color || '').trim().toLowerCase();
-                    const vBarcode = String(v.barcode || '').trim().toLowerCase();
-                    const vCode = String(v.code || '').trim().toLowerCase();
-
-                    let vSizeMatches = !fSize || vSize === fSize || vSize.includes(fSize);
-                    let vColorMatches = !fColor || vColor === fColor || vColor.includes(fColor);
-
-                    let vMatchesText = false;
-                    if (!q) {
-                        vMatchesText = true;
-                    } else {
-                        if (vBarcode === q || (qNoSpaces && vBarcode === qNoSpaces) || vCode === q) {
-                            variantHasExactMatch = true;
-                            vMatchesText = true;
-                        } else if (vBarcode.startsWith(q) || (qNoSpaces && vBarcode.startsWith(qNoSpaces)) || vCode.startsWith(q)) {
-                            variantHasPrefixMatch = true;
-                            vMatchesText = true;
-                        } else if (vBarcode.includes(q) || (qNoSpaces && vBarcode.includes(qNoSpaces)) || vCode.includes(q) || vSize.includes(q) || vColor.includes(q)) {
-                            variantHasContainsMatch = true;
-                            vMatchesText = true;
-                        }
-                    }
-
-                    if (vSizeMatches && vColorMatches && (vMatchesText || !q)) {
-                        matchedVariantItems.push(v);
-                    }
-                });
-
-                if (matchedVariantItems.length > 0) {
-                    sizeMatches = true;
-                    colorMatches = true;
+        // 🌟 1. الفرز الذكي الموحد عبر محرك البحث السريع searchProductsRanked (O(1) Map + Token Ranking)
+        if (q && typeof window.searchProductsRanked === 'function') {
+            const ranked = window.searchProductsRanked(q, { limit: 50, filterDeleted: true });
+            if (ranked && ranked.length > 0) {
+                if (fSize || fColor) {
+                    matched = ranked.filter(p => bpProductMatchesFilter(p, fSize, fColor));
                 } else {
-                    if (fSize && pSize && (pSize === fSize || pSize.includes(fSize))) sizeMatches = true;
-                    if (fColor && pColor && (pColor === fColor || pColor.includes(fColor))) colorMatches = true;
+                    matched = ranked;
                 }
-            } else {
-                if (fSize) sizeMatches = pSize && (pSize === fSize || pSize.includes(fSize));
-                if (fColor) colorMatches = pColor && (pColor === fColor || pColor.includes(fColor));
             }
+        }
 
-            // فحص تطابق النص وحساب درجة الأولوية والفرز الذكي (Relevance Score)
-            let textMatches = false;
-            let score = 0;
+        // 🌟 2. إذا لم يكن هناك استعلام نصي (بحث مقتصر على فلاتر المقاس/اللون) أو لم تعثر الدالة الموحدة
+        if (matched.length === 0 && (fSize || fColor || q)) {
+            const qLower = q.toLowerCase();
+            for (let i = 0; i < prods.length; i++) {
+                const p = prods[i];
+                if (!p || p.isDeleted) continue;
+                if (!bpProductMatchesFilter(p, fSize, fColor)) continue;
 
-            if (!q) {
-                textMatches = true;
-                score = 1;
-            } else {
-                // 1. أعلى أولوية مطلقة: تطابق تام مع اسم الصنف (مثل صنف 118) أو الباركود الأساسي أو الكود
-                if (pNameClean === qClean || pName === q || (qNoSpaces && pNameClean.replace(/\s+/g, '') === qNoSpaces)) {
-                    score = Math.max(score, 1200);
-                    textMatches = true;
-                }
-                if (pBarcode === q || (qNoSpaces && pBarcode === qNoSpaces)) {
-                    score = Math.max(score, 1050);
-                    textMatches = true;
-                }
-                if (pCode === q || (qNoSpaces && pCode === qNoSpaces)) {
-                    score = Math.max(score, 1000);
-                    textMatches = true;
-                }
-                if (pModel === q || (qNoSpaces && pModel === qNoSpaces)) {
-                    score = Math.max(score, 995);
-                    textMatches = true;
-                }
-                if (variantHasExactMatch) {
-                    score = Math.max(score, 980);
-                    textMatches = true;
-                }
+                if (q) {
+                    const pName = String(p.name || '').toLowerCase();
+                    const pCode = String(p.code || p.sysCode || '').toLowerCase();
+                    const pBarcode = String(p.barcode || '').toLowerCase();
+                    const pModel = String(p.modelCode || p.model_code || p.model || '').toLowerCase();
 
-                // 2. أولوية عالية: بداية اسم الصنف أو بداية الكود أو الموديل أو الباركود (Prefix / Starts With)
-                if (pNameClean.startsWith(qClean) || pName.startsWith(q)) {
-                    score = Math.max(score, 850);
-                    textMatches = true;
-                }
-                if (pCode.startsWith(q) || (qNoSpaces && pCode.startsWith(qNoSpaces))) {
-                    score = Math.max(score, 800 - Math.min(pCode.length, 30));
-                    textMatches = true;
-                }
-                if (pModel.startsWith(q) || (qNoSpaces && pModel.startsWith(qNoSpaces))) {
-                    score = Math.max(score, 790 - Math.min(pModel.length, 30));
-                    textMatches = true;
-                }
-                if (pBarcode.startsWith(q) || (qNoSpaces && pBarcode.startsWith(qNoSpaces))) {
-                    score = Math.max(score, 750 - Math.min(pBarcode.length, 30));
-                    textMatches = true;
-                }
-                if (variantHasPrefixMatch) {
-                    score = Math.max(score, 720);
-                    textMatches = true;
-                }
-
-                // 3. أولوية متوسطة: تطابق جزئي داخل الكود أو الموديل أو الباركود أو الاسم (Contains)
-                if (pCode.includes(q) || (qNoSpaces && pCode.includes(qNoSpaces))) {
-                    score = Math.max(score, 500);
-                    textMatches = true;
-                }
-                if (pModel.includes(q) || (qNoSpaces && pModel.includes(qNoSpaces))) {
-                    score = Math.max(score, 490);
-                    textMatches = true;
-                }
-                if (pBarcode.includes(q) || (qNoSpaces && pBarcode.includes(qNoSpaces))) {
-                    score = Math.max(score, 450);
-                    textMatches = true;
-                }
-                if (variantHasContainsMatch) {
-                    score = Math.max(score, 400);
-                    textMatches = true;
-                }
-                if (pNameClean.includes(qClean) || pName.includes(q)) {
-                    score = Math.max(score, 350);
-                    textMatches = true;
-                }
-
-                if (pSize.includes(q) || pColor.includes(q)) {
-                    score = Math.max(score, 200);
-                    textMatches = true;
-                }
-
-                // فحص الكلمات المتعددة إذا كان البحث يحتوي على أكثر من كلمة
-                if (!textMatches && q.includes(' ')) {
-                    const words = q.split(/\s+/).filter(w => w.length > 0);
-                    const allWordsMatch = words.every(w => pName.includes(w) || pCode.includes(w) || pModel.includes(w));
-                    if (allWordsMatch) {
-                        score = Math.max(score, 250);
-                        textMatches = true;
+                    let vMatch = false;
+                    if (p.variants && Array.isArray(p.variants)) {
+                        vMatch = p.variants.some(v => 
+                            String(v.barcode || '').toLowerCase().includes(qLower) ||
+                            String(v.code || '').toLowerCase().includes(qLower) ||
+                            String(v.size || '').toLowerCase().includes(qLower) ||
+                            String(v.color || '').toLowerCase().includes(qLower)
+                        );
                     }
+
+                    if (pName.includes(qLower) || pCode.includes(qLower) || pBarcode.includes(qLower) || pModel.includes(qLower) || vMatch) {
+                        matched.push(p);
+                    }
+                } else {
+                    matched.push(p);
                 }
-            }
 
-            // إذا كان الصنف يطابق فلاتر المقاس/اللون المطلوبة
-            if (matchedVariantItems.length > 0) {
-                textMatches = true;
-                if (score === 0) score = 100;
-            }
-
-            if (textMatches && sizeMatches && colorMatches) {
-                matched.push({ product: p, matchedVariantsCount: matchedVariantItems.length, score });
+                if (matched.length >= 40) break;
             }
         }
 
@@ -522,14 +425,11 @@
             return;
         }
 
-        // فرز النتائج تنازلياً حسب درجة التطابق (الأعلى أولوية والتطابق التام يظهر أولاً)
-        matched.sort((a, b) => b.score - a.score);
-
         // أخذ أفضل 30 نتيجة بعد الترتيب الدقيق
         const topMatched = matched.slice(0, 30);
 
         let html = '';
-        topMatched.forEach(({ product: p, matchedVariantsCount }) => {
+        topMatched.forEach((p) => {
             const hasVariants = p.variants && Array.isArray(p.variants) && p.variants.length > 0;
             const priceFormatted = (parseFloat(p.price) || 0).toFixed(2);
             const totalStock = getBpProductStock(p);
@@ -613,19 +513,24 @@
             const query = (e.target.value || '').trim();
             if (!query) return;
 
-            const prods = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : [];
-            // 1. فحص باركود التشكيلة المباشر (Variant Barcode)
-            for (const p of prods) {
-                if (p.variants && Array.isArray(p.variants)) {
-                    for (let idx = 0; idx < p.variants.length; idx++) {
-                        const v = p.variants[idx];
-                        if (String(v.barcode || '').trim().toLowerCase() === query.toLowerCase()) {
-                            const vPrice = (v.price !== undefined && v.price !== null && v.price !== '') ? parseFloat(v.price) : (parseFloat(p.price) || 0);
+            // 1. فحص فوري عبر محرك البحث المرتب الموحد O(1) Index
+            if (typeof window.searchProductsRanked === 'function') {
+                const ranked = window.searchProductsRanked(query, { limit: 1 });
+                if (ranked && ranked.length > 0) {
+                    const exact = ranked[0];
+
+                    // إذا كان الاستعلام يطابق باركود تشكيلة معينة تحديداً
+                    if (exact.variants && Array.isArray(exact.variants)) {
+                        const qLower = query.toLowerCase();
+                        const vIdx = exact.variants.findIndex(v => String(v.barcode || '').trim().toLowerCase() === qLower);
+                        if (vIdx !== -1) {
+                            const v = exact.variants[vIdx];
+                            const vPrice = (v.price !== undefined && v.price !== null && v.price !== '') ? parseFloat(v.price) : (parseFloat(exact.price) || 0);
                             const vStock = getBpVariantStock(v);
                             addSingleItemToQueue({
-                                productId: p.id,
-                                name: p.name,
-                                variantId: idx,
+                                productId: exact.id,
+                                name: exact.name,
+                                variantId: vIdx,
                                 size: v.size || '',
                                 color: v.color || '',
                                 barcode: String(v.barcode).trim(),
@@ -641,34 +546,17 @@
                             return;
                         }
                     }
+
+                    onBpSelectProduct(exact.id);
+                    e.target.value = '';
+                    const dropdown = document.getElementById('bpSearchResultsDropdown');
+                    if (dropdown) dropdown.classList.remove('active');
+                    if (window.BayanBarcode && typeof BayanBarcode.playBeep === 'function') BayanBarcode.playBeep(true);
+                    return;
                 }
             }
 
-            // 2. فحص باركود أو كود أو كود الموديل أو اسم الصنف العام
-            const qClean = query.toLowerCase();
-            const qCleanNoSpaces = qClean.replace(/\s+/g, '');
-            const exactProduct = prods.find(p => {
-                const pBarcode = String(p.barcode || '').trim().toLowerCase();
-                const pCode = String(p.code || p.sysCode || '').trim().toLowerCase();
-                const pModel = String(p.modelCode || p.model_code || p.model || '').trim().toLowerCase();
-                const pName = String(p.name || '').trim().toLowerCase();
-
-                return pBarcode === qClean || (qCleanNoSpaces && pBarcode === qCleanNoSpaces) ||
-                       pCode === qClean || (qCleanNoSpaces && pCode === qCleanNoSpaces) ||
-                       pModel === qClean || (qCleanNoSpaces && pModel === qCleanNoSpaces) ||
-                       pName === qClean;
-            });
-
-            if (exactProduct) {
-                onBpSelectProduct(exactProduct.id);
-                e.target.value = '';
-                const dropdown = document.getElementById('bpSearchResultsDropdown');
-                if (dropdown) dropdown.classList.remove('active');
-                if (window.BayanBarcode && typeof BayanBarcode.playBeep === 'function') BayanBarcode.playBeep(true);
-                return;
-            }
-
-            // 3. إذا لم يوجد تطابق تام مباشر ولكن القائمة المنسدلة بها نتائج مرتبة، يتم اختيار أول نتيجة (الأعلى أولوية)
+            // 2. إذا كانت القائمة المنسدلة بها نتائج معروضة، نختار أول نتيجة فوراً
             const dropdown = document.getElementById('bpSearchResultsDropdown');
             if (dropdown && dropdown.classList.contains('active')) {
                 const firstResult = dropdown.querySelector('.bp-search-result-item');

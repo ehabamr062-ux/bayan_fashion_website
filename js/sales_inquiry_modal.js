@@ -151,30 +151,18 @@
                 currentInquiryProduct = productsDB.find(p => p.id === currentHeaderProductId || p.id == currentHeaderProductId);
             }
             if (!currentInquiryProduct) {
-                const searchVal = (document.getElementById('productSearch')?.value || '').trim().toLowerCase();
-                const searchClean = cleanArabic(searchVal);
-                if (searchClean && typeof productsDB !== 'undefined') {
-                    for (const p of productsDB) {
-                        if (p.variants && p.variants.length > 0) {
-                            const matchedV = p.variants.find(v => 
-                                (v.barcode && String(v.barcode).trim().toLowerCase() === searchVal) ||
-                                (v.barcode && cleanArabic(v.barcode) === searchClean)
-                            );
-                            if (matchedV) {
-                                currentInquiryProduct = p;
-                                targetVariant = matchedV;
-                                break;
-                            }
-                        }
-                        if (cleanArabic(p.name) === searchClean ||
-                            (p.barcode && String(p.barcode).trim().toLowerCase() === searchVal) ||
-                            (p.code && String(p.code).trim().toLowerCase() === searchVal)) {
-                            currentInquiryProduct = p;
-                            break;
-                        }
-                    }
-                    if (!currentInquiryProduct) {
-                        currentInquiryProduct = productsDB.find(p => cleanArabic(p.name).includes(searchClean));
+                const searchVal = (document.getElementById('productSearch')?.value || '').trim();
+                if (searchVal && typeof productsDB !== 'undefined') {
+                    const normSearch = (typeof normalizeDigits === 'function' ? normalizeDigits(searchVal) : searchVal).toLowerCase();
+                    const bMap = (typeof window.getBarcodeToProductMap === 'function') ? window.getBarcodeToProductMap() : null;
+                    const cMap = (typeof window.getCodeToProductMap === 'function') ? window.getCodeToProductMap() : null;
+                    if (bMap && (bMap.has(normSearch) || bMap.has(searchVal))) {
+                        currentInquiryProduct = bMap.get(normSearch) || bMap.get(searchVal);
+                    } else if (cMap && (cMap.has(normSearch) || cMap.has(searchVal))) {
+                        currentInquiryProduct = cMap.get(normSearch) || cMap.get(searchVal);
+                    } else if (typeof window.searchProductsRanked === 'function') {
+                        const ranked = window.searchProductsRanked(searchVal, { limit: 1 });
+                        if (ranked && ranked.length > 0) currentInquiryProduct = ranked[0];
                     }
                 }
             }
@@ -1597,7 +1585,8 @@
 
         if (guideEl) guideEl.style.display = 'none';
 
-        const normalizeDigits = (str) => String(str || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
+        try {
+            const normalizeDigits = (str) => String(str || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
         const qNorm = normalizeDigits(raw).toLowerCase();
         const qClean = cleanArabic(qNorm);
 
@@ -1626,6 +1615,8 @@
 
         const effectiveQuery = extractedQuery || qClean;
         const effectiveNorm = normalizeDigits(effectiveQuery).trim().toLowerCase();
+        // 🛡️ تعريف مصفوفة الكلمات (tokens) لمنع خطأ ReferenceError وفك تجميد المربع فوراً
+        const tokens = effectiveQuery ? effectiveQuery.split(/\s+/).filter(t => t.length > 0) : [];
         const results = [];
         const barcodeMap = (typeof window.getBarcodeToProductMap === 'function') ? window.getBarcodeToProductMap() : null;
         const codeMap = (typeof window.getCodeToProductMap === 'function') ? window.getCodeToProductMap() : null;
@@ -1698,15 +1689,28 @@
             if (p.isDeleted) continue;
             if (directFound.has(p.id)) continue;
 
-            const pRawName = String(p.name || '').trim();
-            const pName = cleanArabic(pRawName);
-            const pNormName = normalizeDigits(pName).toLowerCase();
-
-            const pCode = normalizeDigits(String(p.code || '')).trim().toLowerCase();
-            const pSysCode = normalizeDigits(String(p.sysCode || '')).trim().toLowerCase();
-            const pId = normalizeDigits(String(p.id || '')).trim().toLowerCase();
-            const pScale = normalizeDigits(String(p.scalePlu || '')).trim().toLowerCase();
-            const pBarcode = normalizeDigits(String(p.barcode || '')).trim().toLowerCase();
+            // ⚡ تخزين مؤقت للخصائص المطبّعة لتجنب تكرار 500,000 عملية ريجكس مع كل حرف
+            let c = p._inqCache;
+            const currentVer = p.updatedAt || p.editDate || p.price;
+            if (!c || c._v !== currentVer) {
+                const pRawName = String(p.name || '').trim();
+                const pName = cleanArabic(pRawName);
+                const pNormName = normalizeDigits(pName).toLowerCase();
+                const pCode = normalizeDigits(String(p.code || '')).trim().toLowerCase();
+                const pSysCode = normalizeDigits(String(p.sysCode || '')).trim().toLowerCase();
+                const pId = normalizeDigits(String(p.id || '')).trim().toLowerCase();
+                const pScale = normalizeDigits(String(p.scalePlu || '')).trim().toLowerCase();
+                const pBarcode = normalizeDigits(String(p.barcode || '')).trim().toLowerCase();
+                c = { pName, pNormName, pCode, pSysCode, pId, pScale, pBarcode, _v: currentVer };
+                p._inqCache = c;
+            }
+            const pName = c.pName;
+            const pNormName = c.pNormName;
+            const pCode = c.pCode;
+            const pSysCode = c.pSysCode;
+            const pId = c.pId;
+            const pScale = c.pScale;
+            const pBarcode = c.pBarcode;
 
             // 1. فحص تطابق الاسم
             const isExactName = (pName === effectiveQuery || pName === qClean || pNormName === effectiveNorm || pNormName === qNorm);
@@ -2002,7 +2006,8 @@
                 isCompoundMatch
             });
 
-            if (results.length >= 45) {
+            // ⚡ فرامل ذكية فائقة: الاكتفاء بأول 30 نتيجة مطابقة والتوقف فوراً لتوفير المعالج
+            if (results.length >= 30) {
                 break;
             }
         }
@@ -2198,7 +2203,10 @@
         `;
 
         dropdown.style.display = 'block';
-    };
+    } catch (err) {
+        console.error("⚠️ [InquiryLiveSearch] Error:", err);
+    }
+};
 
     /**
      * تلوين وتحديد الصف النشط عند التنقل بالأسهم أو الماوس
@@ -2506,15 +2514,20 @@
         if (modal) {
             modal.style.display = 'none';
         }
-        // 🎯 إعادة التركيز التلقائي فوراً لحقل باركود شاشة البيع
+        // 🎯 إعادة التركيز التلقائي الذكي فوراً لحقل الإدخال في التبويب النشط حالياً
         setTimeout(() => {
-            const searchInput = document.getElementById('productSearch') || 
-                                document.getElementById('barcodeInput');
-            if (searchInput) {
-                searchInput.focus();
-                if (typeof searchInput.select === 'function') searchInput.select();
+            if (typeof window.restoreActiveSectionFocus === 'function') {
+                window.restoreActiveSectionFocus();
+            } else {
+                const searchInput = document.getElementById('productSearch') || 
+                                    document.getElementById('purchaseSearch') ||
+                                    document.getElementById('barcodeInput');
+                if (searchInput && searchInput.offsetParent !== null) {
+                    searchInput.focus();
+                    if (typeof searchInput.select === 'function') searchInput.select();
+                }
             }
-        }, 80);
+        }, 50);
     };
 
     // ⌨️ الاستماع لاختصارات الكيبورد (F2 لفتح الاستعلام و Escape للإغلاق)

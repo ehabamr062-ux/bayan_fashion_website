@@ -1757,8 +1757,7 @@
             border-right-color: var(--accent-gold) !important;
         }
 
-        .result-item:hover,
-        .pos-search-row:hover {
+        .result-item:hover {
             background-color: #ecfdf5 !important;
             color: #065f46 !important;
         }

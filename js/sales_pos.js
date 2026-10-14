@@ -634,9 +634,9 @@ async function handleSearchEnter(query, event, forceAdd = false) {
                     matchingVariant = foundP.variants.find(v => v.barcode && String(v.barcode).trim() === cleanQuery) || null;
                 }
             } else if (window.BayanSQLite && window.BayanSQLite.db) {
-                // البحث في الفهرس السريع المباشر (B-Tree) بدلاً من مسح نصوص raw_json البطيء
-                const stmt = window.BayanSQLite.db.prepare("SELECT * FROM products WHERE barcode = ? OR code = ? LIMIT 1");
-                stmt.bind([cleanQuery, cleanQuery]);
+                // البحث في الفهرس السريع المباشر (B-Tree) بالباركود و ID وكود الصنف
+                const stmt = window.BayanSQLite.db.prepare("SELECT * FROM products WHERE barcode = ? OR CAST(id AS TEXT) = ? OR json_extract(raw_json, '$.code') = ? LIMIT 1");
+                stmt.bind([cleanQuery, cleanQuery, cleanQuery]);
                 if (stmt.step()) {
                     const rawObj = stmt.getAsObject();
                     const parsed = (window.BayanSQLite && typeof window.BayanSQLite._reconstructRow === 'function')

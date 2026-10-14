@@ -1276,6 +1276,135 @@ window.priceAdjData = window.priceAdjData || [];
 window.priceAdjCurrentFiltered = null;
 window.priceAdjDisplayLimit = 50;
 
+/**
+ * بناء وتنسيق عنصر الصنف لعرضه وإدارته داخل جدول تعديل الأسعار المجمع
+ */
+function buildPriceAdjItem(p, lastBuyMap, activeWH) {
+    const itemName = p.name || 'صنف غير مسمى';
+    const itemCode = p.code || '';
+    const itemBarcode = p.barcode || '';
+    
+    // حساب الرصيد الحي الفعلي للصنف في المخزن النشط
+    let liveStock = 0;
+    if (typeof getWarehouseStock === 'function') {
+        const st = getWarehouseStock(p, activeWH);
+        if (st !== undefined && !isNaN(st)) liveStock = Number(st);
+    } else if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
+        liveStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
+    } else if (activeWH === 'المخزن الرئيسي' || !p.warehouseStocks || Object.keys(p.warehouseStocks).length === 0) {
+        liveStock = parseFloat(p.stock) || 0;
+    }
+
+    const liveAvgCost = parseFloat(p.cost) || 0; 
+    const lastPPrice = (lastBuyMap && lastBuyMap[itemName] !== undefined) ? lastBuyMap[itemName] : liveAvgCost;
+
+    // هل الصنف فاشون وله مصفوفة مقاسات وألوان؟
+    if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
+        let vStockSum = 0;
+        const variantsCopy = p.variants.map((v, vIdx) => {
+            const vCost = parseFloat(v.cost) || liveAvgCost;
+            const vPrice = parseFloat(v.price) || parseFloat(p.price) || 0;
+            const vWholesale = parseFloat(v.wholesale) || parseFloat(v.wholesalePrice) || parseFloat(p.wholesale) || 0;
+            const vMinPrice = parseFloat(v.minPrice) || parseFloat(p.minPrice) || 0;
+            
+            // حساب رصيد التشكيلة الفعلي في المخزن النشط
+            let vStock = 0;
+            if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
+                vStock = parseFloat(v.warehouseStocks[activeWH]) || 0;
+            } else if (activeWH === 'المخزن الرئيسي' || !v.warehouseStocks || Object.keys(v.warehouseStocks).length === 0) {
+                vStock = parseFloat(v.stock) || 0;
+            } else {
+                vStock = 0;
+            }
+            vStockSum += vStock;
+
+            return {
+                variantIndex: vIdx,
+                size: String(v.size || '').trim(),
+                color: String(v.color || '').trim(),
+                barcode: String(v.barcode || '').trim() || itemBarcode,
+                cost: vCost,
+                wholesale: vWholesale,
+                price: vPrice,
+                minPrice: vMinPrice,
+                stock: vStock
+            };
+        });
+
+        // سطر واحد فقط يمثل الموديل بالكامل
+        return {
+            id: p.id,
+            name: itemName,
+            image: p.image || null,
+            code: itemCode,
+            sysCode: p.sysCode || p.id,
+            barcode: itemBarcode,
+            category: p.category || 'عام',
+            unit: p.unit || 'قطعة',
+            lastBuyPrice: lastPPrice,
+            avgBuyPrice: liveAvgCost,
+            wholesale: parseFloat(p.wholesale) || 0,
+            retail: parseFloat(p.price) || 0,
+            minPrice: parseFloat(p.minPrice) || 0,
+            discount: parseFloat(p.discount) || 0,
+            stock: (liveStock > 0 || (p.warehouseStocks && p.warehouseStocks[activeWH] !== undefined)) ? liveStock : vStockSum,
+            hasVariants: true,
+            variantsCount: variantsCopy.length,
+            variants: variantsCopy,
+            profitMargin: (liveAvgCost > 0 && isFinite(liveAvgCost)) ? (((parseFloat(p.price) || 0) - liveAvgCost) / liveAvgCost * 100).toFixed(1) : '0.0'
+        };
+    } else if (p.units && Array.isArray(p.units) && p.units.length > 1) {
+        // صنف وحدات متعددة
+        return {
+            id: p.id,
+            name: itemName,
+            image: p.image || null,
+            code: itemCode,
+            sysCode: p.sysCode || p.id,
+            barcode: itemBarcode,
+            category: p.category || 'عام',
+            unit: p.unit || (p.units[0] && p.units[0].unitName) || 'قطعة',
+            lastBuyPrice: lastPPrice,
+            avgBuyPrice: liveAvgCost,
+            wholesale: parseFloat(p.wholesale) || 0,
+            retail: parseFloat(p.price) || 0,
+            minPrice: parseFloat(p.minPrice) || 0,
+            discount: parseFloat(p.discount) || 0,
+            stock: liveStock,
+            hasVariants: false,
+            variantsCount: 0,
+            variants: [],
+            hasUnits: true,
+            units: p.units,
+            profitMargin: (liveAvgCost > 0 && isFinite(liveAvgCost)) ? (((parseFloat(p.price) || 0) - liveAvgCost) / liveAvgCost * 100).toFixed(1) : '0.0'
+        };
+    } else {
+        // صنف عام مفرد قياسي
+        return {
+            id: p.id,
+            name: itemName,
+            image: p.image || null,
+            code: itemCode,
+            sysCode: p.sysCode || p.id,
+            barcode: itemBarcode,
+            category: p.category || 'عام',
+            unit: p.unit || 'قطعة',
+            lastBuyPrice: lastPPrice,
+            avgBuyPrice: liveAvgCost,
+            wholesale: parseFloat(p.wholesale) || 0,
+            retail: parseFloat(p.price) || 0,
+            minPrice: parseFloat(p.minPrice) || 0,
+            discount: parseFloat(p.discount) || 0,
+            stock: liveStock,
+            hasVariants: false,
+            variantsCount: 0,
+            variants: [],
+            profitMargin: (liveAvgCost > 0 && isFinite(liveAvgCost)) ? (((parseFloat(p.price) || 0) - liveAvgCost) / liveAvgCost * 100).toFixed(1) : '0.0'
+        };
+    }
+}
+window.buildPriceAdjItem = buildPriceAdjItem;
+
 function loadPriceAdjustmentData(selectedIds = []) {
     const tbody = document.getElementById('priceAdjustmentTableBody');
     if (!tbody) return;
@@ -1299,14 +1428,15 @@ function loadPriceAdjustmentData(selectedIds = []) {
         } else if (searchQ.length > 0 || catQ !== 'all') {
             targets = allProds.filter(p => {
                 const nameMatch = String(p.name || '').toLowerCase().includes(searchQ);
-                const codeMatch = String(p.code || '').toLowerCase().includes(searchQ);
+                const codeMatch = String(p.code || p.sysCode || '').toLowerCase().includes(searchQ);
                 const barcodeMatch = String(p.barcode || '').toLowerCase().includes(searchQ);
                 let variantMatch = false;
                 if (p.variants && Array.isArray(p.variants)) {
                     variantMatch = p.variants.some(v => 
                         String(v.size || '').toLowerCase().includes(searchQ) ||
                         String(v.color || '').toLowerCase().includes(searchQ) ||
-                        String(v.barcode || '').toLowerCase().includes(searchQ)
+                        String(v.barcode || '').toLowerCase().includes(searchQ) ||
+                        String(v.code || '').toLowerCase().includes(searchQ)
                     );
                 }
                 const catMatch = (catQ === 'all') || (p.category === catQ);
@@ -1331,134 +1461,16 @@ function loadPriceAdjustmentData(selectedIds = []) {
                 }
             }
         }
+        window._priceAdjLastBuyMap = lastBuyMap;
 
         const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName)
             ? currentUser.warehouseName
             : ((typeof getStore === 'function' ? getStore('activeWarehouse') : null) || 'المخزن الرئيسي')).trim();
+        window._priceAdjActiveWH = activeWH;
 
         targets.forEach(p => {
-            const itemName = p.name || 'صنف غير مسمى';
-            const itemCode = p.code || '';
-            const itemBarcode = p.barcode || '';
-            
-            // حساب الرصيد الحي الفعلي للصنف في المخزن النشط
-            let liveStock = 0;
-            if (typeof getWarehouseStock === 'function') {
-                const st = getWarehouseStock(p, activeWH);
-                if (st !== undefined && !isNaN(st)) liveStock = Number(st);
-            } else if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
-                liveStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
-            } else if (activeWH === 'المخزن الرئيسي' || !p.warehouseStocks || Object.keys(p.warehouseStocks).length === 0) {
-                liveStock = parseFloat(p.stock) || 0;
-            }
-
-            const liveAvgCost = parseFloat(p.cost) || 0; 
-            const lastPPrice = lastBuyMap[itemName] !== undefined ? lastBuyMap[itemName] : liveAvgCost;
-
-            // هل الصنف فاشون وله مصفوفة مقاسات وألوان؟
-            if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
-                let vStockSum = 0;
-                const variantsCopy = p.variants.map((v, vIdx) => {
-                    const vCost = parseFloat(v.cost) || liveAvgCost;
-                    const vPrice = parseFloat(v.price) || parseFloat(p.price) || 0;
-                    const vWholesale = parseFloat(v.wholesale) || parseFloat(v.wholesalePrice) || parseFloat(p.wholesale) || 0;
-                    const vMinPrice = parseFloat(v.minPrice) || parseFloat(p.minPrice) || 0;
-                    
-                    // حساب رصيد التشكيلة الفعلي في المخزن النشط
-                    let vStock = 0;
-                    if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
-                        vStock = parseFloat(v.warehouseStocks[activeWH]) || 0;
-                    } else if (activeWH === 'المخزن الرئيسي' || !v.warehouseStocks || Object.keys(v.warehouseStocks).length === 0) {
-                        vStock = parseFloat(v.stock) || 0;
-                    } else {
-                        vStock = 0;
-                    }
-                    vStockSum += vStock;
-
-                    return {
-                        variantIndex: vIdx,
-                        size: String(v.size || '').trim(),
-                        color: String(v.color || '').trim(),
-                        barcode: String(v.barcode || '').trim() || itemBarcode,
-                        cost: vCost,
-                        wholesale: vWholesale,
-                        price: vPrice,
-                        minPrice: vMinPrice,
-                        stock: vStock
-                    };
-                });
-
-                // سطر واحد فقط يمثل الموديل بالكامل
-                window.priceAdjData.push({
-                    id: p.id,
-                    name: itemName,
-                    image: p.image || null,
-                    code: itemCode,
-                    sysCode: p.sysCode || p.id,
-                    barcode: itemBarcode,
-                    category: p.category || 'عام',
-                    unit: p.unit || 'قطعة',
-                    lastBuyPrice: lastPPrice,
-                    avgBuyPrice: liveAvgCost,
-                    wholesale: parseFloat(p.wholesale) || 0,
-                    retail: parseFloat(p.price) || 0,
-                    minPrice: parseFloat(p.minPrice) || 0,
-                    discount: parseFloat(p.discount) || 0,
-                    stock: (liveStock > 0 || (p.warehouseStocks && p.warehouseStocks[activeWH] !== undefined)) ? liveStock : vStockSum,
-                    hasVariants: true,
-                    variantsCount: variantsCopy.length,
-                    variants: variantsCopy,
-                    profitMargin: (liveAvgCost > 0 && isFinite(liveAvgCost)) ? (((parseFloat(p.price) || 0) - liveAvgCost) / liveAvgCost * 100).toFixed(1) : '0.0'
-                });
-            } else if (p.units && Array.isArray(p.units) && p.units.length > 1) {
-                // صنف وحدات متعددة
-                window.priceAdjData.push({
-                    id: p.id,
-                    name: itemName,
-                    image: p.image || null,
-                    code: itemCode,
-                    sysCode: p.sysCode || p.id,
-                    barcode: itemBarcode,
-                    category: p.category || 'عام',
-                    unit: p.unit || (p.units[0] && p.units[0].unitName) || 'قطعة',
-                    lastBuyPrice: lastPPrice,
-                    avgBuyPrice: liveAvgCost,
-                    wholesale: parseFloat(p.wholesale) || 0,
-                    retail: parseFloat(p.price) || 0,
-                    minPrice: parseFloat(p.minPrice) || 0,
-                    discount: parseFloat(p.discount) || 0,
-                    stock: liveStock,
-                    hasVariants: false,
-                    variantsCount: 0,
-                    variants: [],
-                    hasUnits: true,
-                    units: p.units,
-                    profitMargin: (liveAvgCost > 0 && isFinite(liveAvgCost)) ? (((parseFloat(p.price) || 0) - liveAvgCost) / liveAvgCost * 100).toFixed(1) : '0.0'
-                });
-            } else {
-                // صنف عام مفرد قياسي
-                window.priceAdjData.push({
-                    id: p.id,
-                    name: itemName,
-                    image: p.image || null,
-                    code: itemCode,
-                    sysCode: p.sysCode || p.id,
-                    barcode: itemBarcode,
-                    category: p.category || 'عام',
-                    unit: p.unit || 'قطعة',
-                    lastBuyPrice: lastPPrice,
-                    avgBuyPrice: liveAvgCost,
-                    wholesale: parseFloat(p.wholesale) || 0,
-                    retail: parseFloat(p.price) || 0,
-                    minPrice: parseFloat(p.minPrice) || 0,
-                    discount: parseFloat(p.discount) || 0,
-                    stock: liveStock,
-                    hasVariants: false,
-                    variantsCount: 0,
-                    variants: [],
-                    profitMargin: (liveAvgCost > 0 && isFinite(liveAvgCost)) ? (((parseFloat(p.price) || 0) - liveAvgCost) / liveAvgCost * 100).toFixed(1) : '0.0'
-                });
-            }
+            const item = buildPriceAdjItem(p, lastBuyMap, activeWH);
+            if (item) window.priceAdjData.push(item);
         });
 
         window.priceAdjDisplayLimit = 50;
@@ -2350,29 +2362,96 @@ async function saveFashionVariantsPrice() {
 window.saveFashionVariantsPrice = saveFashionVariantsPrice;
 
 function handlePriceAdjSearch() {
-    const query = document.getElementById('priceAdjSearch')?.value.toLowerCase().trim() || '';
+    const searchInput = document.getElementById('priceAdjSearch');
+    const query = searchInput ? searchInput.value.trim() : '';
+    const queryLower = query.toLowerCase();
     const cat = document.getElementById('priceAdjCategory')?.value || 'all';
     const typeFilter = document.getElementById('priceAdjTypeFilter')?.value || 'all';
     const stockFilter = document.getElementById('priceAdjStockFilter')?.value || 'all';
     const sizeFilter = document.getElementById('priceAdjSizeFilter')?.value || 'all';
     const colorFilter = document.getElementById('priceAdjColorFilter')?.value || 'all';
 
-    const filtered = (window.priceAdjData || []).filter(p => {
-        const nameMatch = (p.name || '').toLowerCase().includes(query) || 
-                         (p.barcode && String(p.barcode).toLowerCase().includes(query)) ||
-                         (p.code && String(p.code).toLowerCase().includes(query));
+    const allProds = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
+    
+    // خريطة الأصناف المحملة حالياً بالذاكرة لضمان الحفاظ على أي تعديل تم إجراؤه
+    const existingMap = new Map();
+    (window.priceAdjData || []).forEach(item => {
+        if (item && item.id != null) {
+            existingMap.set(String(item.id), item);
+        }
+    });
 
-        let variantSearchMatch = false;
-        if (p.hasVariants && Array.isArray(p.variants)) {
-            variantSearchMatch = p.variants.some(v => 
-                String(v.size || '').toLowerCase().includes(query) ||
-                String(v.color || '').toLowerCase().includes(query) ||
-                String(v.barcode || '').toLowerCase().includes(query)
-            );
+    const lastBuyMap = window._priceAdjLastBuyMap || {};
+    const activeWH = window._priceAdjActiveWH || ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName)
+        ? currentUser.warehouseName
+        : ((typeof getStore === 'function' ? getStore('activeWarehouse') : null) || 'المخزن الرئيسي')).trim();
+
+    function getOrBuildItem(p) {
+        if (!p || p.isDeleted) return null;
+        const key = String(p.id);
+        if (existingMap.has(key)) {
+            return existingMap.get(key);
+        }
+        if (typeof buildPriceAdjItem === 'function') {
+            const created = buildPriceAdjItem(p, lastBuyMap, activeWH);
+            window.priceAdjData.push(created);
+            existingMap.set(key, created);
+            return created;
+        }
+        return null;
+    }
+
+    let candidateItems = [];
+
+    // 🌟 إذا كان المستخدم يبحث بنص أو كود أو باركود:
+    if (query) {
+        // 1. البحث عبر محرك البحث المرتب والذكي الموحد O(1) Index عبر كامل قاعدة البيانات (51,000+ صنف)
+        let matchedProds = [];
+        if (typeof window.searchProductsRanked === 'function') {
+            matchedProds = window.searchProductsRanked(query, { limit: 100, filterDeleted: true });
         }
 
-        const catMatch = (cat === 'all' || p.category === cat);
+        // إذا لم يعثر محرك البحث على شيء أو لم يكن متوفراً، فحص شامل في allProds
+        if (!matchedProds || matchedProds.length === 0) {
+            matchedProds = allProds.filter(p => {
+                if (!p || p.isDeleted) return false;
+                const nameMatch = String(p.name || '').toLowerCase().includes(queryLower);
+                const codeMatch = String(p.code || p.sysCode || '').toLowerCase().includes(queryLower);
+                const barcodeMatch = String(p.barcode || '').toLowerCase().includes(queryLower);
+                const modelMatch = String(p.modelCode || p.model_code || p.model || '').toLowerCase().includes(queryLower);
+                let variantMatch = false;
+                if (p.variants && Array.isArray(p.variants)) {
+                    variantMatch = p.variants.some(v => 
+                        String(v.size || '').toLowerCase().includes(queryLower) ||
+                        String(v.color || '').toLowerCase().includes(queryLower) ||
+                        String(v.barcode || '').toLowerCase().includes(queryLower) ||
+                        String(v.code || '').toLowerCase().includes(queryLower)
+                    );
+                }
+                return nameMatch || codeMatch || barcodeMatch || modelMatch || variantMatch;
+            }).slice(0, 100);
+        }
 
+        // فلترة القسم إن وُجد
+        if (cat !== 'all') {
+            matchedProds = matchedProds.filter(p => p.category === cat);
+        }
+
+        // تحويل المنتجات المطابقة إلى عناصر جدول الأسعار مع الحفاظ على أي تعديل تم إجراؤه
+        candidateItems = matchedProds.map(p => getOrBuildItem(p)).filter(Boolean);
+
+    } else if (cat !== 'all') {
+        // إذا كان الاستعلام فارغاً ولكن تم اختيار قسم معين من القائمة
+        const catProds = allProds.filter(p => p && !p.isDeleted && p.category === cat);
+        candidateItems = catProds.map(p => getOrBuildItem(p)).filter(Boolean);
+
+    } else {
+        // إذا لم يكن هناك نص ولا قسم، نعتمد على القائمة المحملة الأساسية
+        candidateItems = window.priceAdjData || [];
+    }
+
+    // 🌟 تطبيق الفلاتر الثانوية (المخزون، نوع الصنف، المقاس، اللون)
+    const filtered = candidateItems.filter(p => {
         let stockMatch = true;
         if (stockFilter === 'in') stockMatch = (p.stock > 0);
         else if (stockFilter === 'out') stockMatch = (p.stock <= 0);
@@ -2395,14 +2474,13 @@ function handlePriceAdjSearch() {
                 colorMatch = p.variants.some(v => String(v.color || '').trim() === colorFilter);
             }
         } else {
-            // صنف عادي ليس به مقاسات أو ألوان: يظهر فقط عند اختيار "كافة المقاسات" و "كافة الألوان"
             if (sizeFilter !== 'all' || colorFilter !== 'all') {
                 sizeMatch = false;
                 colorMatch = false;
             }
         }
 
-        return (nameMatch || variantSearchMatch) && catMatch && stockMatch && typeMatch && sizeMatch && colorMatch;
+        return stockMatch && typeMatch && sizeMatch && colorMatch;
     });
 
     const isFiltered = query !== '' || cat !== 'all' || stockFilter !== 'all' || typeFilter !== 'all' || sizeFilter !== 'all' || colorFilter !== 'all';

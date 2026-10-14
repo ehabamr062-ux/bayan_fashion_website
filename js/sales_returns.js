@@ -2349,15 +2349,28 @@ document.addEventListener('keydown', function (e) {
     };
 
     const containerId = containerMap[currentTab.type];
-
     if (!containerId) return;
 
-    const resultsDiv = document.getElementById(containerId);
+    // 🛡️ حماية حقول الملاحظات والمدخلات الأخرى من اعتراض الأسهم ومفتاح Enter
+    const searchTargetMap = {
+        'sales': 'productSearch',
+        'purchase': 'purchaseSearch',
+        'sales-return': 'returnSearchInput',
+        'purchase-return': 'purReturnSearchInput',
+        'adjustment': 'adjSearch'
+    };
+    const currentSearchInputId = searchTargetMap[currentTab.type];
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT')) {
+        if (!currentSearchInputId || activeEl.id !== currentSearchInputId) {
+            return; // السماح للمستخدم بالكتابة بحرية والتنقل والضغط على Enter في حقول الملاحظات دون اعتراض
+        }
+    }
 
+    const resultsDiv = document.getElementById(containerId);
     if (!resultsDiv || resultsDiv.style.display === 'none') return;
 
     const items = resultsDiv.querySelectorAll('.pos-search-row, .search-item, .result-item');
-
     if (items.length === 0) return;
 
     if (e.key === 'ArrowDown') {

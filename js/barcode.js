@@ -202,8 +202,8 @@ const BayanBarcode = (function () {
         let found = idx.get(clean) || null;
         if (!found && window.BayanSQLite && window.BayanSQLite.db) {
             try {
-                let stmt = window.BayanSQLite.db.prepare("SELECT raw_json FROM products WHERE barcode = ? OR code = ? LIMIT 1");
-                stmt.bind([clean, clean]);
+                let stmt = window.BayanSQLite.db.prepare("SELECT raw_json FROM products WHERE barcode = ? OR CAST(id AS TEXT) = ? OR json_extract(raw_json, '$.code') = ? LIMIT 1");
+                stmt.bind([clean, clean, clean]);
                 let p = null;
                 if (stmt.step()) {
                     const raw = stmt.get()[0];
@@ -877,9 +877,9 @@ const BayanBarcode = (function () {
                     ? (keyIntervals.reduce((a, b) => a + b, 0) / keyIntervals.length)
                     : 100;
 
-                // إذا كان التركيز داخل حقل إدخال عادي، يجب أن تكون سرعة الإدخال سريعة جداً كالسكانر (< 50ms) ولا نعتمد فقط على طول النص لمنع اعتراض كتابة المستخدم
+                // إذا كان التركيز داخل حقل إدخال عادي، يجب أن تكون سرعة الإدخال سريعة جداً كالسكانر (< 50ms) وبطول لا يقل عن 4 أحرف
                 const isFastScanner = isStandardInput
-                    ? (avgInterval < SCAN_THRESHOLD_MS)
+                    ? (avgInterval < SCAN_THRESHOLD_MS && buffer.length >= 4)
                     : (avgInterval < SCAN_THRESHOLD_MS || buffer.length >= 8);
 
                 const scanned = buffer;
@@ -901,6 +901,11 @@ const BayanBarcode = (function () {
 
         // تجميع أحرف الباركود
         if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+            // 🛡️ إذا كان المستخدم يكتب في حقل إدخال عادي بسرعة يدوية عادية، نفرغ البافر فوراً لمنع التداخل
+            if (isStandardInput && timeDiff > SCAN_THRESHOLD_MS) {
+                buffer = '';
+                keyIntervals = [];
+            }
             if (timeDiff < SCAN_THRESHOLD_MS || buffer.length === 0) {
                 buffer += e.key;
                 if (buffer.length > 1) keyIntervals.push(timeDiff);

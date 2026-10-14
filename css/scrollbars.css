@@ -142,22 +142,42 @@ body.dark-mode ::-webkit-scrollbar-thumb:active {
     padding: 6px;
 }
 
-.pos-search-row {
-    display: grid;
-    grid-template-columns: 120px 1fr 90px 90px 90px 80px;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 12px;
-    border-bottom: 1px solid #f1f5f9;
-    border-radius: 10px;
-    cursor: pointer;
-    transition: background 0.15s ease, transform 0.15s ease;
+/* 🌿 تأثير الهوفر الموحد عالي التباين لنتائج البحث في كافة الأقسام (مبيعات، مشتريات، تسوية، تحويلات، مرتجعات) */
+.pos-search-row:hover,
+.pos-search-row.selected,
+.adj-search-row:hover,
+.transfer-search-card:hover,
+.search-result-item:hover {
+    background: linear-gradient(135deg, #064e3b, #047857) !important;
+    background-color: #064e3b !important;
+    border-right: 6px solid #10b981 !important;
+    border-color: #059669 !important;
+    color: #ffffff !important;
+    box-shadow: 0 8px 22px rgba(6, 78, 59, 0.45) !important;
+    transform: translateX(-4px) scale(1.01) !important;
 }
 
-.pos-search-row:hover {
-    background: #ecfdf5 !important;
-    border-color: #10b981 !important;
-    transform: translateX(-3px);
+.pos-search-row:hover div,
+.pos-search-row:hover span,
+.pos-search-row:hover b,
+.adj-search-row:hover div,
+.adj-search-row:hover span,
+.adj-search-row:hover b,
+.transfer-search-card:hover div,
+.transfer-search-card:hover span,
+.transfer-search-card:hover b,
+.search-result-item:hover div,
+.search-result-item:hover span,
+.search-result-item:hover b {
+    color: #ffffff !important;
+}
+
+.pos-search-row:hover div[style*="background"],
+.adj-search-row:hover div[style*="background"],
+.transfer-search-card:hover div[style*="background"],
+.search-result-item:hover div[style*="background"] {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: rgba(255, 255, 255, 0.35) !important;
 }
 
 .pos-search-close-btn {

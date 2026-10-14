@@ -872,25 +872,14 @@ function closeVariantSelectionModal() {
     const prevContext = variantModalContext;
     variantModalProduct = null;
     
-    if (prevContext === 'transfer') {
-        const searchInput = document.getElementById('transferProductSearch');
-        if (searchInput) searchInput.focus();
-    } else if (prevContext === 'purchase') {
-        const searchInput = document.getElementById('purchaseSearch');
-        if (searchInput) searchInput.focus();
-    } else if (prevContext === 'adj') {
-        const searchInput = document.getElementById('adjSearch');
-        if (searchInput) searchInput.focus();
-    } else if (prevContext === 'salesReturn') {
-        const searchInput = document.getElementById('salesReturnSearch');
-        if (searchInput) searchInput.focus();
-    } else if (prevContext === 'purReturn') {
-        const searchInput = document.getElementById('purReturnSearch');
-        if (searchInput) searchInput.focus();
-    } else {
-        const searchInput = document.getElementById('productSearch');
-        if (searchInput) searchInput.focus();
-    }
+    setTimeout(() => {
+        if (typeof window.restoreActiveSectionFocus === 'function') {
+            window.restoreActiveSectionFocus();
+        } else {
+            const searchInput = document.getElementById('productSearch') || document.getElementById('purchaseSearch');
+            if (searchInput && searchInput.offsetParent !== null) searchInput.focus();
+        }
+    }, 40);
 }
 window.closeVariantSelectionModal = closeVariantSelectionModal;
 

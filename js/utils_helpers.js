@@ -203,11 +203,64 @@
                     }
                 }
                 _productIndexVersion++;
+                // ⚡ جدولة التجهيز المسبق الهادئ لتوكنز البحث في أوقات فراغ المعالج
+                setTimeout(() => {
+                    if (typeof warmupProductSearchTokens === 'function') {
+                        warmupProductSearchTokens();
+                    }
+                }, 100);
             } catch (e) {
                 console.warn("rebuildProductFastIndex err:", e);
             }
         }
         window.rebuildProductFastIndex = rebuildProductFastIndex;
+
+        // ============================================================
+        // ⚡ التجهيز المسبق الهادئ لتوكنز الأصناف في الخلفية (Background Pre-Caching)
+        // ============================================================
+        let _precacheTokensIndex = 0;
+        let _isPrecachingTokens = false;
+
+        function warmupProductSearchTokens() {
+            if (_isPrecachingTokens) return;
+            const list = (typeof productsDB !== 'undefined' && Array.isArray(productsDB))
+                ? productsDB
+                : (window.productsDB || []);
+            if (!list || list.length === 0) return;
+
+            _isPrecachingTokens = true;
+            _precacheTokensIndex = 0;
+
+            const BATCH_SIZE = 500;
+            const processBatch = () => {
+                const end = Math.min(_precacheTokensIndex + BATCH_SIZE, list.length);
+                for (let i = _precacheTokensIndex; i < end; i++) {
+                    const p = list[i];
+                    if (p && !p.isDeleted) {
+                        getProductSearchTokens(p);
+                    }
+                }
+                _precacheTokensIndex = end;
+
+                if (_precacheTokensIndex < list.length) {
+                    if (typeof requestIdleCallback === 'function') {
+                        requestIdleCallback(processBatch, { timeout: 150 });
+                    } else {
+                        setTimeout(processBatch, 20);
+                    }
+                } else {
+                    _isPrecachingTokens = false;
+                    console.log(`✅ [SearchOptimizer] تم تجهيز وتخزين توكنز البحث مسبقاً لـ (${list.length}) صنف في الخلفية بنجاح.`);
+                }
+            };
+
+            if (typeof requestIdleCallback === 'function') {
+                requestIdleCallback(processBatch, { timeout: 200 });
+            } else {
+                setTimeout(processBatch, 40);
+            }
+        }
+        window.warmupProductSearchTokens = warmupProductSearchTokens;
         window.getBarcodeToProductMap = () => {
             const list = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
             if (_barcodeToProductMap.size === 0 && list.length > 0) {
@@ -248,6 +301,46 @@
         window.debouncedHandlePriceAdjSearch = debouncedHandlePriceAdjSearch;
         window.debouncedHandleSupplierSearch = debouncedHandleSupplierSearch;
         window.debouncedHandlePurchaseSearch = debouncedHandlePurchaseSearch;
+
+        // ============================================================
+        // 🛡️ حماية وضمان تركيز الكيبورد للقسم النشط في الواجهة (Focus Guard)
+        // ============================================================
+        function restoreActiveSectionFocus() {
+            try {
+                let targetInp = null;
+                if (typeof openTabs !== 'undefined' && Array.isArray(openTabs) && typeof activeTabId !== 'undefined') {
+                    const currentTab = openTabs.find(t => t.id === activeTabId);
+                    if (currentTab) {
+                        const searchMap = {
+                            'sales': 'productSearch',
+                            'purchase': 'purchaseSearch',
+                            'sales-return': 'returnSearchInput',
+                            'purchase-return': 'purReturnSearchInput',
+                            'adjustment': 'adjSearch'
+                        };
+                        const id = searchMap[currentTab.type];
+                        if (id) targetInp = document.getElementById(id);
+                    }
+                }
+                if (!targetInp || targetInp.offsetParent === null) {
+                    const candidates = ['productSearch', 'purchaseSearch', 'returnSearchInput', 'purReturnSearchInput', 'adjSearch', 'barcodeInput'];
+                    for (let i = 0; i < candidates.length; i++) {
+                        const el = document.getElementById(candidates[i]);
+                        if (el && el.offsetParent !== null) {
+                            targetInp = el;
+                            break;
+                        }
+                    }
+                }
+                if (targetInp && targetInp.offsetParent !== null) {
+                    targetInp.focus();
+                    if (typeof targetInp.select === 'function') targetInp.select();
+                }
+            } catch (err) {
+                console.warn("restoreActiveSectionFocus:", err);
+            }
+        }
+        window.restoreActiveSectionFocus = restoreActiveSectionFocus;
 
         // ============================================================
         //  محرك البحث الذكي الموحد والمرتب للأصناف (Smart Ranked Product Search)
@@ -325,8 +418,9 @@
                 }
             }
 
+            const normWords = normName ? normName.split(/\s+/) : [];
             const tokens = {
-                rawName, normName,
+                rawName, normName, normWords,
                 rawBarcode, normBarcode, lowerBarcode,
                 rawCode, normCode, lowerCode,
                 rawModelCode, normModelCode, lowerModelCode,
@@ -369,7 +463,9 @@
             const limit = (options.limit && typeof options.limit === 'number' && options.limit > 0) 
                 ? options.limit 
                 : (options.limit === 0 || options.limit === Infinity ? Infinity : 40);
-            const maxCollect = (limit === Infinity) ? Infinity : Math.min(limit * 3, 120);
+            // ⚡ فرامل أسرع: جمع ضعف المطلوب بحد أقصى 50 صنف فقط لتسريع المعالجة 3 أضعاف
+            const maxCollect = (limit === Infinity) ? Infinity : Math.min(limit * 2, 50);
+            const isSingleChar = normQuery.length === 1;
             const scored = [];
 
             for (let i = 0; i < list.length; i++) {
@@ -462,16 +558,16 @@
                     score = Math.max(score, 10000 - Math.min(lengthDiff * 5, 2000));
                 }
 
-                // 6. كلمة كاملة مطابقة في الاسم
-                if (score < 9000) {
-                    const words = tok.normName.split(/\s+/);
+                // 6. كلمة كاملة مطابقة في الاسم (استخدام normWords الجاهزة بدلاً من split)
+                if (score < 9000 && !isSingleChar) {
+                    const words = tok.normWords || (tok.normWords = tok.normName ? tok.normName.split(/\s+/) : []);
                     if (words.includes(normQuery)) {
                         score = Math.max(score, 8500);
                     }
                 }
 
-                // 7. الاسم يحتوي على نص البحث في أي مكان (حتى لو حرف واحد)
-                if (score < 7000) {
+                // 7. الاسم يحتوي على نص البحث في أي مكان (تجاهل الفحص العميق للحرف الواحد لتوفير المعالج)
+                if (score < 7000 && !isSingleChar) {
                     const idx = tok.normName.indexOf(normQuery);
                     if (idx !== -1) {
                         score = Math.max(score, 5000 - Math.min(idx * 20, 1500));
@@ -481,14 +577,14 @@
                 // 8. كود الصنف أو كود الموديل يبدأ أو يحتوي على نص البحث
                 if ((tok.normCode && tok.normCode.startsWith(normQuery)) || (tok.normModelCode && tok.normModelCode.startsWith(normQuery))) {
                     score = Math.max(score, 6000);
-                } else if ((tok.normCode && tok.normCode.includes(normQuery)) || (tok.normModelCode && tok.normModelCode.includes(normQuery))) {
+                } else if (!isSingleChar && ((tok.normCode && tok.normCode.includes(normQuery)) || (tok.normModelCode && tok.normModelCode.includes(normQuery)))) {
                     score = Math.max(score, 3000);
                 }
 
                 // 9. الباركود يبدأ أو يحتوي على نص البحث
                 if (tok.normBarcode && tok.normBarcode.startsWith(normQuery)) {
                     score = Math.max(score, 3800);
-                } else if (tok.normBarcode && tok.normBarcode.includes(normQuery)) {
+                } else if (!isSingleChar && tok.normBarcode && tok.normBarcode.includes(normQuery)) {
                     score = Math.max(score, 1800);
                 }
 

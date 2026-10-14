@@ -701,6 +701,11 @@ async function loadData() {
 
         console.log("✅ Data successfully loaded and synchronized from SQLite.");
 
+        // ⚡ التجهيز المسبق لتوكنز البحث في أوقات فراغ المعالج بالخلفية
+        if (typeof window.warmupProductSearchTokens === 'function') {
+            window.warmupProductSearchTokens();
+        }
+
         // ⚡ تهيئة بصمات الكيانات لتفعيل الحفظ الجزئي فائق السرعة (Incremental / Delta Save Engine)
         if (typeof initEntitySignatures === 'function') {
             initEntitySignatures();
@@ -918,9 +923,33 @@ function initEntitySignatures() {
         };
     }
     if (Array.isArray(window.transactions)) {
-        for (let i = 0; i < window.transactions.length; i++) {
-            const t = window.transactions[i];
-            if (t && t.id != null) window._entitySignatures.transactions.set(t.id, getTransactionSignature(t));
+        const txs = window.transactions;
+        const txLen = txs.length;
+        if (txLen <= 300) {
+            for (let i = 0; i < txLen; i++) {
+                const t = txs[i];
+                if (t && t.id != null) window._entitySignatures.transactions.set(t.id, getTransactionSignature(t));
+            }
+        } else {
+            // ⚡ معالجة هادئة تدريجية للفواتير في الخلفية لمنع أي إجهاد للمعالج عند الإقلاع
+            let txIdx = 0;
+            const TX_BATCH = 500;
+            const processTxBatch = () => {
+                const end = Math.min(txIdx + TX_BATCH, txLen);
+                for (let i = txIdx; i < end; i++) {
+                    const t = txs[i];
+                    if (t && t.id != null) window._entitySignatures.transactions.set(t.id, getTransactionSignature(t));
+                }
+                txIdx = end;
+                if (txIdx < txLen) {
+                    if (typeof requestIdleCallback === 'function') {
+                        requestIdleCallback(processTxBatch, { timeout: 100 });
+                    } else {
+                        setTimeout(processTxBatch, 10);
+                    }
+                }
+            };
+            processTxBatch();
         }
     }
     if (Array.isArray(window.accounts)) {
