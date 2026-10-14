@@ -1,5 +1,5 @@
 /**
- * Bayan POS Security & Utility Module (v4.5.4 Enterprise Edition)
+ * Bayan POS Security & Utility Module (v4.5.5 Enterprise Edition)
  * نظام الأمان والتشفير المتقدم لرموز الدخول والجلسات مع التوافقية العكسية 100%
  */
 (function () {
