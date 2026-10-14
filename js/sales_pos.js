@@ -53,7 +53,8 @@ function handleGeneralAccountSearch(query, inputId, resultsId) {
 
             div.className = 'result-item';
 
-            div.innerHTML = `<span>${a.name}</span> <span class="stock-badge">${a.type === 'client' ? 'عميل' : (a.type === 'supplier' ? 'مورد' : a.type)}</span>`;
+            const safeName = (typeof escapeHtml === 'function') ? escapeHtml(a.name) : a.name;
+            div.innerHTML = `<span>${safeName}</span> <span class="stock-badge">${a.type === 'client' ? 'عميل' : (a.type === 'supplier' ? 'مورد' : a.type)}</span>`;
 
             div.onclick = () => {
 
@@ -83,19 +84,17 @@ function handleGeneralAccountSearch(query, inputId, resultsId) {
 
     } else {
 
-        // خيار الإضافة السريعة
-
+        // خيار الإضافة السريعة مع حماية تامة ضد XSS
         resultsDiv.style.display = 'block';
+        resultsDiv.innerHTML = '';
 
-        resultsDiv.innerHTML = `
-
-                <div class="result-item" onclick="quickAddAccount('${query.replace(/'/g, "\\'")}')" style="color:var(--main-green); font-weight:bold; justify-content:center;">
-
-                <span>➕ إضافة سريع: ${query}</span>
-
-                </div>
-
-                `;
+        const safeQuery = (typeof escapeHtml === 'function') ? escapeHtml(query) : query;
+        const quickItem = document.createElement('div');
+        quickItem.className = 'result-item';
+        quickItem.style.cssText = 'color:var(--main-green); font-weight:bold; justify-content:center; cursor:pointer;';
+        quickItem.innerHTML = `<span>➕ إضافة سريع: ${safeQuery}</span>`;
+        quickItem.onclick = () => quickAddAccount(query);
+        resultsDiv.appendChild(quickItem);
 
     }
 
@@ -159,7 +158,8 @@ async function handleCustomerSearch(query) {
 
             div.className = 'result-item';
 
-            div.innerHTML = `<span>${a.name}</span> <span class="stock-badge">${a.type === 'client' ? 'عميل' : (a.type === 'mixed' ? 'مشترك' : 'حساب')}</span>`;
+            const safeName = (typeof escapeHtml === 'function') ? escapeHtml(a.name) : a.name;
+            div.innerHTML = `<span>${safeName}</span> <span class="stock-badge">${a.type === 'client' ? 'عميل' : (a.type === 'mixed' ? 'مشترك' : 'حساب')}</span>`;
 
             div.onclick = () => {
 
@@ -204,17 +204,17 @@ async function handleCustomerSearch(query) {
 
     } else {
 
+        // خيار إضافة عميل جديد مع حماية تامة ضد XSS
         resultsDiv.style.display = 'block';
+        resultsDiv.innerHTML = '';
 
-        resultsDiv.innerHTML = `
-
-                <div class="result-item" onclick="quickAddAccount('${query.replace(/'/g, "\\'")}')" style="color:var(--main-green); font-weight:bold; justify-content:center;">
-
-                <span>➕ إضافة عميل جديد: ${query}</span>
-
-                </div>
-
-                `;
+        const safeQuery = (typeof escapeHtml === 'function') ? escapeHtml(query) : query;
+        const quickItem = document.createElement('div');
+        quickItem.className = 'result-item';
+        quickItem.style.cssText = 'color:var(--main-green); font-weight:bold; justify-content:center; cursor:pointer;';
+        quickItem.innerHTML = `<span>➕ إضافة عميل جديد: ${safeQuery}</span>`;
+        quickItem.onclick = () => quickAddAccount(query);
+        resultsDiv.appendChild(quickItem);
 
     }
 
@@ -634,18 +634,18 @@ async function handleSearchEnter(query, event, forceAdd = false) {
                     matchingVariant = foundP.variants.find(v => v.barcode && String(v.barcode).trim() === cleanQuery) || null;
                 }
             } else if (window.BayanSQLite && window.BayanSQLite.db) {
-                const stmt = window.BayanSQLite.db.prepare("SELECT * FROM products WHERE raw_json LIKE ? LIMIT 1");
-                stmt.bind([`%${cleanQuery}%`]);
+                // البحث في الفهرس السريع المباشر (B-Tree) بدلاً من مسح نصوص raw_json البطيء
+                const stmt = window.BayanSQLite.db.prepare("SELECT * FROM products WHERE barcode = ? OR code = ? LIMIT 1");
+                stmt.bind([cleanQuery, cleanQuery]);
                 if (stmt.step()) {
                     const rawObj = stmt.getAsObject();
                     const parsed = (window.BayanSQLite && typeof window.BayanSQLite._reconstructRow === 'function')
                         ? window.BayanSQLite._reconstructRow(rawObj)
                         : rawObj;
-                    if (parsed && parsed.variants && Array.isArray(parsed.variants)) {
-                        const vFound = parsed.variants.find(v => v.barcode && String(v.barcode).trim() === cleanQuery);
-                        if (vFound) {
-                            pInDB = parsed;
-                            matchingVariant = vFound;
+                    if (parsed) {
+                        pInDB = parsed;
+                        if (parsed.variants && Array.isArray(parsed.variants)) {
+                            matchingVariant = parsed.variants.find(v => v.barcode && String(v.barcode).trim() === cleanQuery) || null;
                         }
                     }
                 }
@@ -1818,9 +1818,16 @@ function resetBill() {
     }
 
     // تحديث رقم الفاتورة في المربع الأخضر
-
     if (document.getElementById('salesBadgeID')) {
-        document.getElementById('salesBadgeID').innerText = typeof getNextSequence === 'function' ? getNextSequence('بيع') : 1;
+        const rawSeq = typeof getNextSequence === 'function' ? getNextSequence('بيع') : 1;
+        if (typeof isDailyTaxSeqEnabled === 'function' && isDailyTaxSeqEnabled() && typeof getDailyTaxSequence === 'function') {
+            const dailySeq = getDailyTaxSequence();
+            document.getElementById('salesBadgeID').innerText = dailySeq;
+            document.getElementById('salesBadgeID').title = `رقم الإيصال اليومي: ${dailySeq} (الرقم التراكمي الأصلي: ${rawSeq})`;
+        } else {
+            document.getElementById('salesBadgeID').innerText = rawSeq;
+            document.getElementById('salesBadgeID').title = `رقم الفاتورة: ${rawSeq}`;
+        }
     }
 
     // 💡 استعادة طريقة السداد الافتراضية للفاتورة القادمة (إما الخيار المثبت بالدبوس 📌 أو كاش تلقائياً)
@@ -3003,6 +3010,18 @@ async function saveBill(force = false, accountChecked = false) {
                 });
             })());
 
+        // 🧾 استخراج رقم الإيصال اليومي (خاص بنظام الضرائب إذا كانت الميزة مفعلة)
+        let currentDailyTaxSeq = null;
+        if (typeof isDailyTaxSeqEnabled === 'function' && isDailyTaxSeqEnabled()) {
+            if (isEditMode) {
+                currentDailyTaxSeq = (typeof window.editingOriginalDailyTaxSeq !== 'undefined' && window.editingOriginalDailyTaxSeq)
+                    ? window.editingOriginalDailyTaxSeq
+                    : (typeof getDailyTaxSequence === 'function' ? getDailyTaxSequence(dt.iso) : null);
+            } else {
+                currentDailyTaxSeq = typeof getDailyTaxSequence === 'function' ? getDailyTaxSequence(dt.iso) : null;
+            }
+        }
+
         // 🛑 فحص أمان: منع حفظ نفس الفاتورة مرتين بالخطأ في نفس اللحظة لنفس العميل والإجمالي
         if (!isEditMode && !force) {
             const cleanCust = (document.getElementById('customerName')?.value || 'عميل نقدي').trim().toLowerCase();
@@ -3176,6 +3195,8 @@ async function saveBill(force = false, accountChecked = false) {
                 terminalOrder: tInfo.terminalOrder,
                 terminalId: tInfo.terminalId,
                 unitFactor: factor, // حفظ المعامل للرجوع إليه عند التعديل مستقبلاً
+                taxInvoiceSeq: currentDailyTaxSeq,
+                dailySeq: currentDailyTaxSeq,
                 editDate: isEditMode ? `${new Date().toLocaleString('ar-EG')} (تعديل: ${currentUser ? currentUser.name : 'مجهول'})` : '-'
             };
             transactions.push(newRow);
@@ -3205,6 +3226,10 @@ async function saveBill(force = false, accountChecked = false) {
 
         if (!isEditMode && typeof window.updateLastSavedSequence === 'function') {
             window.updateLastSavedSequence('بيع', newInvoiceId);
+        }
+
+        if (!isEditMode && currentDailyTaxSeq && typeof window.updateLastSavedDailyTaxSequence === 'function') {
+            window.updateLastSavedDailyTaxSequence(dt.iso, currentDailyTaxSeq);
         }
 
         if (typeof logAuditAction === 'function') {
@@ -3256,7 +3281,10 @@ async function saveBill(force = false, accountChecked = false) {
             let globalTaxAmount = globalTaxEnabled ? (subTotal * globalTaxPercent / 100) : 0;
 
             autoPrintInvoiceData = {
-                invoiceNumber: newInvoiceId,
+                invoiceNumber: (currentDailyTaxSeq || newInvoiceId),
+                originalInvoiceId: newInvoiceId,
+                taxInvoiceSeq: currentDailyTaxSeq,
+                dailySeq: currentDailyTaxSeq,
                 invoiceType: selectedMethod,
                 date: dt.iso || dt.full.split(' ')[0],
                 time: dt.time || '',
@@ -4279,6 +4307,12 @@ async function loadInvoiceToSalesPOS(targetInvoiceId) {
     const notesVal = rows.find(t => t.notes)?.notes || head.notes || '';
     const dateVal = head.dateISO || (head.date ? head.date.split(' ')[0] : new Date().toLocaleDateString('en-CA'));
     const timeVal = head.timeISO || head.time || (head.date && head.date.split(' ')[1]) || new Date().toTimeString().slice(0, 5);
+
+    const activeWH = (head.warehouse && head.warehouse.trim())
+        ? head.warehouse.trim()
+        : ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName)
+            ? currentUser.warehouseName.trim()
+            : ((typeof getStore === 'function' && getStore('bayan_terminal_warehouse')) || 'المخزن الرئيسي'));
 
     // تحويل البنود إلى سلة البيع بكامل تفاصيل المقاس واللون والوحدة
     cart = validItems.map(it => {

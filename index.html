@@ -149,14 +149,14 @@
     <script src="js/sqlite_manager.js?v=4.5.4" defer></script>
     <script src="js/db_adapter.js?v=4.5.4" defer></script>
     <script src="js/store.js?v=4.5.4" defer></script>
-    <script src="js/security.js?v=4.5.4" defer></script>
+    <script src="js/security.js?v=4.5.5" defer></script>
     <script src="js/core.js?v=4.5.4" defer></script>
     <script src="lib/JsBarcode.all.min.js"></script>
     <script src="lib/qrcode.min.js"></script>
     <script src="js/utils_helpers.js?v=4.5.4" defer></script>
     <script src="js/app_units_payments.js?v=4.5.4" defer></script>
     <script src="js/app_license.js?v=4.5.4" defer></script>
-    <script src="js/settings.js?v=4.5.4" defer></script>
+    <script src="js/settings.js?v=4.5.5" defer></script>
     <script src="js/ui_theme_custom.js?v=4.5.4" defer></script>
     <script src="js/ui_tabs.js?v=4.5.4" defer></script>
     <script src="js/ui_modals_notifications.js?v=4.5.4" defer></script>
@@ -169,11 +169,11 @@
     <script src="js/trash.js?v=4.5.4" defer></script>
     <script src="js/engine_invoices.js?v=4.5.4" defer></script>
     <script src="js/sales_purchases.js?v=4.5.4" defer></script>
-    <script src="js/sales_pos.js?v=4.5.4" defer></script>
+    <script src="js/sales_pos.js?v=4.5.5" defer></script>
     <script src="js/sales_fashion_picker.js?v=4.5.4" defer></script>
     <script src="js/sales_inquiry_modal.js?v=4.5.4" defer></script>
-    <script src="js/sales_returns.js?v=4.5.4" defer></script>
-    <script src="js/sales_history_view.js?v=4.5.4" defer></script>
+    <script src="js/sales_returns.js?v=4.5.5" defer></script>
+    <script src="js/sales_history_view.js?v=4.5.5" defer></script>
     <script src="js/inv_transfers.js?v=4.5.4" defer></script>
     <script src="js/acc_invoices.js?v=4.5.4" defer></script>
     <script src="js/acc_vouchers.js?v=4.5.4" defer></script>
@@ -6020,7 +6020,7 @@
                 style="gap: 12px; flex-wrap: wrap; background: #ffffff; padding: 12px 16px; border-radius: 14px; border: 1.5px solid #e2e8f0; box-shadow: 0 2px 10px rgba(0,0,0,0.03); margin-bottom: 12px; align-items: center;">
                 <div style="flex: 1; display: flex; gap: 10px; min-width: 320px; flex-wrap: wrap;">
                     <div style="position: relative; flex: 1; min-width: 130px;">
-                        <input type="text" id="invoicesSearchId" class="search-input" placeholder="🔍 رقم الفاتورة..."
+                        <input type="text" id="invoicesSearchId" class="search-input" placeholder="🔍 رقم الفاتورة أو الإيصال..."
                             style="width: 100%; height: 38px; border: 1.5px solid #cbd5e1; border-radius: 9px; padding: 0 12px; font-size: 0.85rem; font-weight: 700; color: #0f172a; background: #f8fafc; outline: none; transition: all 0.2s;"
                             onfocus="this.style.borderColor='#3b82f6'; this.style.background='#fff'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)';"
                             onblur="this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc'; this.style.boxShadow='none';"
@@ -6240,6 +6240,7 @@
                         <tr>
                             <th class="col-inv-0" style="width: 40px;">اختيار</th>
                             <th class="col-inv-1" style="min-width: 90px;">رقم الفاتورة</th>
+                            <th class="col-inv-15" style="min-width: 90px; color: #38bdf8;">رقم الإيصال</th>
                             <th class="col-inv-2" style="min-width: 100px;">التاريخ</th>
                             <th class="col-inv-3" style="min-width: 80px;">النوع</th>
                             <th class="col-inv-4" style="min-width: 200px;">البيان / الأصناف</th>
@@ -8796,35 +8797,61 @@
 
                             <input type="hidden" id="appBusinessType" value="clothing">
 
-                            <!-- كارت طبيعة النشاط التجاري للملابس والموضة -->
+                            <!-- كارت طبيعة النشاط التجاري واختيار التخصص -->
                             <div class="settings-modern-card" style="margin-bottom: 20px;">
                                 <div class="settings-card-header">
                                     <h3 class="settings-card-title">
                                         <span>🎯</span> طبيعة نشاط المحل / المؤسسة
                                     </h3>
-                                    <span
-                                        style="background: #ecfdf5; color: #047857; padding: 4px 12px; border-radius: 8px; font-weight: 800; font-size: 0.8rem; border: 1px solid #a7f3d0;">
+                                    <span id="businessTypeStatusBadge"
+                                        style="background: #ecfdf5; color: #047857; padding: 4px 12px; border-radius: 8px; font-weight: 800; font-size: 0.8rem; border: 1px solid #a7f3d0; transition: all 0.25s;">
                                         ⚡ نظام المقاسات والألوان مفعّل
                                     </span>
                                 </div>
 
-                                <div
-                                    style="background: #f0fdf4; border: 1.5px solid #a7f3d0; border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between;">
-                                    <div style="display: flex; align-items: center; gap: 14px;">
-                                        <div style="font-size: 2rem;">👕👠👜</div>
-                                        <div>
-                                            <div style="font-weight: 900; color: #065f46; font-size: 1rem;">
-                                                محلات الملابس والأحذية والشنط والموضة
-                                            </div>
-                                            <div
-                                                style="color: #047857; font-size: 0.82rem; font-weight: 700; margin-top: 2px;">
-                                                النسخة مهيأة بالكامل بنظام مصفوفة المقاسات والألوان وتوليد باركود
-                                                المقاسات وطباعة تيكتات الملابس والاستبدال السريع.
+                                <div style="display: flex; flex-direction: column; gap: 14px;">
+                                    <!-- القائمة المنسدلة لاختيار التخصص -->
+                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #f8fafc; padding: 12px 16px; border-radius: 12px; border: 1.5px solid #cbd5e1; flex-wrap: wrap;">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <span style="font-size: 1.4rem;">🏷️</span>
+                                            <div>
+                                                <div style="font-weight: 900; color: #1e293b; font-size: 0.95rem;">
+                                                    اختر مجال وطبيعة النشاط التجاري:
+                                                </div>
+                                                <div style="color: #64748b; font-size: 0.78rem; font-weight: 700; margin-top: 1px;">
+                                                    يتم تكييف شاشات البيع والباركود والمقاسات وشاشة الدخول تلقائياً بناءً على اختيارك.
+                                                </div>
                                             </div>
                                         </div>
+                                        <select id="appBusinessTypeSelect" onchange="onBusinessTypeChange(this.value)"
+                                            style="height: 42px; min-width: 320px; border-radius: 10px; border: 2px solid #059669; padding: 0 14px; font-weight: 900; background: #ffffff; color: #065f46; cursor: pointer; font-size: 0.92rem; outline: none; transition: 0.2s; box-shadow: 0 2px 6px rgba(5,150,105,0.15);"
+                                            onfocus="this.style.borderColor='#10b981'; this.style.boxShadow='0 0 0 3px rgba(16,185,129,0.2)';"
+                                            onblur="this.style.borderColor='#059669'; this.style.boxShadow='0 2px 6px rgba(5,150,105,0.15)';">
+                                            <option value="clothing">👔 محلات الملابس والأحذية والشنط والموضة</option>
+                                            <option value="grocery">🛒 السوبر ماركت والبقالة والتجارة العامة والمنظفات</option>
+                                        </select>
                                     </div>
-                                    <span
-                                        style="background: #10b981; color: white; border-radius: 50%; width: 26px; height: 26px; display: flex; align-items: center; justify-content: center; font-size: 0.9rem; font-weight: 900; flex-shrink: 0;">✓</span>
+
+                                    <!-- كارت المعاينة التفاعلي للنشاط المختار (يحتوي على علامة الصح ✓) -->
+                                    <div id="businessTypePreviewCard"
+                                        style="background: #f0fdf4; border: 1.5px solid #a7f3d0; border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; transition: all 0.3s ease;">
+                                        <div style="display: flex; align-items: center; gap: 14px;">
+                                            <div id="businessTypePreviewIcon" style="font-size: 2.2rem; flex-shrink: 0;">👕👠👜</div>
+                                            <div>
+                                                <div id="businessTypePreviewTitle" style="font-weight: 900; color: #065f46; font-size: 1.05rem;">
+                                                    محلات الملابس والأحذية والشنط والموضة
+                                                </div>
+                                                <div id="businessTypePreviewDesc"
+                                                    style="color: #047857; font-size: 0.83rem; font-weight: 700; margin-top: 3px; line-height: 1.4;">
+                                                    (النسخة مهيأة بالكامل بنظام مصفوفة المقاسات والألوان وتوليد باركود المقاسات وطباعة تيكتات الملابس والاستبدال السريع)
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+                                            <span id="businessTypePreviewCheck"
+                                                style="background: #10b981; color: white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 1rem; font-weight: 900; box-shadow: 0 2px 8px rgba(16,185,129,0.4);">✓</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
 
@@ -9394,6 +9421,39 @@
                                                     آلي في جميع فواتير البيع والشراء</span>
                                             </div>
                                         </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 2.1 ترقيم الفواتير اليومي للضرائب -->
+                            <div class="settings-modern-card"
+                                style="background: #f0fdf4 !important; border: 1.5px solid #86efac !important; margin-bottom: 20px;">
+                                <div class="settings-card-header" style="border-bottom-color: #bbf7d0 !important; display: flex; justify-content: space-between; align-items: center;">
+                                    <h3 class="settings-card-title" style="color: #166534 !important;">
+                                        <span>🧾</span> نظام ترقيم الفواتير اليومي (الحماية الضريبية)
+                                    </h3>
+                                    <span style="background: #dcfce7; color: #15803d; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 800; border: 1px solid #86efac;">خاص بمبيعات التجزئة</span>
+                                </div>
+                                <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; align-items: center;">
+                                    <label
+                                        style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px 14px; background: #ffffff; border-radius: 12px; border: 1.5px solid #86efac; transition: 0.2s;">
+                                        <input type="checkbox" id="dailyTaxSeqEnabled"
+                                            style="width: 20px; height: 20px; accent-color: #16a34a; cursor: pointer;">
+                                        <div>
+                                            <span
+                                                style="display: block; font-weight: 900; color: #14532d; font-size: 0.9rem;">تفعيل الترقيم اليومي للفواتير</span>
+                                            <span
+                                                style="display: block; color: #4b5563; font-size: 0.78rem; font-weight: 700;">يبدأ العداد من 1 كل صباح ويطبع على الإيصال وشاشة الكاشير</span>
+                                        </div>
+                                    </label>
+                                    <div class="form-group" style="margin-bottom: 0;">
+                                        <label
+                                            style="display: block; color: #166534; font-weight: 800; margin-bottom: 6px; font-size: 0.85rem;">
+                                            أقصى عدد فواتير في اليوم (سقف العداد)
+                                        </label>
+                                        <input type="number" id="dailyTaxSeqLimit" placeholder="مثال: 50 أو 100 (اتركه فارغاً للتسلسل الحر)" min="1" max="99999"
+                                            style="font-weight: 900; font-size: 1.05rem; color: #15803d !important; background: #ffffff; border: 1.5px solid #86efac;">
+                                        <span style="display: block; color: #65a30d; font-size: 0.74rem; font-weight: 700; margin-top: 4px;">يمكنك تعديل هذا الرقم في أي وقت في أوقات الذروة والمواسم</span>
                                     </div>
                                 </div>
                             </div>
@@ -12268,7 +12328,7 @@
                 <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
                     <div id="loginBusinessIcon"
                         style="width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #10b981, #059669); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; box-shadow: 0 3px 8px rgba(16, 185, 129, 0.35); flex-shrink: 0;">
-                        ☁️
+                        👕
                     </div>
                     <div style="text-align: right; line-height: 1.2;">
                         <div style="color: #ffffff; font-size: 0.82rem; font-weight: 900; letter-spacing: 0.3px;">نظام
@@ -17626,6 +17686,7 @@
                             <th style="padding: 10px 8px; font-weight: 800;">التاريخ</th>
                             <th style="padding: 10px 8px; font-weight: 800;">الوقت</th>
                             <th style="padding: 10px 8px; font-weight: 800;">رقم الفاتورة</th>
+                            <th style="padding: 10px 8px; font-weight: 800; min-width: 90px; color: #38bdf8;">رقم الإيصال</th>
                             <th style="padding: 10px 8px; font-weight: 800;">الحساب</th>
                             <th style="padding: 10px 8px; font-weight: 800;">النهائي</th>
                             <th style="padding: 10px 8px; font-weight: 800;">المخزن</th>
@@ -17635,7 +17696,7 @@
                     </thead>
                     <tbody id="searchInvoiceTableBody">
                         <tr>
-                            <td colspan="9"
+                            <td colspan="10"
                                 style="padding: 40px; color: #94a3b8; text-align: center; font-weight: 700;">الرجاء
                                 إجراء بحث لعرض الفواتير...</td>
                         </tr>
@@ -18727,6 +18788,14 @@
                         onmouseout="this.style.borderColor='#e2e8f0'">
                         <span style="font-weight:bold; font-size:0.85rem; color:#334155;">رقم الفاتورة</span>
                         <input type="checkbox" checked onchange="toggleInvoicesColumn(1, this.checked)"
+                            style="width:18px; height:18px; accent-color:var(--main-blue); cursor:pointer;">
+                    </label>
+                    <label
+                        style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:#f8fafc; border-radius:12px; cursor:pointer; border:1px solid #e2e8f0; transition: 0.2s;"
+                        onmouseover="this.style.borderColor='var(--main-blue)'"
+                        onmouseout="this.style.borderColor='#e2e8f0'">
+                        <span style="font-weight:bold; font-size:0.85rem; color:#334155;">رقم الإيصال</span>
+                        <input type="checkbox" checked onchange="toggleInvoicesColumn(15, this.checked)"
                             style="width:18px; height:18px; accent-color:var(--main-blue); cursor:pointer;">
                     </label>
                     <label

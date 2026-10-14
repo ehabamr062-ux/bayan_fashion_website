@@ -132,7 +132,13 @@ function buildInvoiceDocumentHTML(invoiceData) {
     const socialQrLink = (invoiceData.socialQrLink || savedPosSettings.printSocialQrLink || (document.getElementById('printSocialQrLink') ? document.getElementById('printSocialQrLink').value.trim() : '') || '').trim();
 
     // توحيد وتطبيع الحقول لتغطية كافة أشكال البيانات القادمة من مختلف شاشات التطبيق
-    const invoiceNumber = invoiceData.invoiceNumber || invoiceData.id || '';
+    const rawInvoiceNumber = invoiceData.originalInvoiceId || invoiceData.invoiceNumber || invoiceData.id || '';
+    const dailyTaxSeq = (typeof getInvoiceTaxReceiptSeq === 'function') ? getInvoiceTaxReceiptSeq(invoiceData) : (invoiceData.taxInvoiceSeq || invoiceData.dailySeq || null);
+    const isTaxSeqActive = (typeof isDailyTaxSeqEnabled === 'function') ? isDailyTaxSeqEnabled() : false;
+    // إذا كان الترقيم اليومي مفعلاً، يكون هو الرقم المطبوع الرئيسي للزبون والضرائب
+    const invoiceNumber = (dailyTaxSeq && (isTaxSeqActive || invoiceData.taxInvoiceSeq || invoiceData.dailySeq))
+        ? dailyTaxSeq
+        : (invoiceData.invoiceNumber || invoiceData.id || '');
     const date          = invoiceData.date          || '';
     const time          = invoiceData.time          || '';
     const dueDate       = invoiceData.dueDate       || '';
@@ -276,7 +282,8 @@ function buildInvoiceDocumentHTML(invoiceData) {
 
     const d = {
         shopName, shopAddress, shopPhone, footerMsg, socialQrLink, docTitle,
-        invoiceNumber, invoiceType: paymentMethod, date, time, dueDate, cashier, customer, warehouse, terminal,
+        invoiceNumber, rawInvoiceNumber, dailyTaxSeq,
+        invoiceType: paymentMethod, date, time, dueDate, cashier, customer, warehouse, terminal,
         totalAmount, paid, deferred, prevBalance, currentBalance, docType,
         itemsRowsFull, itemsRowsCompact, discount, subTotal, tax, taxLabel, globalTax
     };
@@ -334,13 +341,15 @@ async function printInvoice(invoiceData, options = {}) {
     <base href="${baseUrl}">
     <title>${docTitle} - ${shopName}</title>
     <style>
-        @page { margin: 0; size: ${pageWidth} auto; }
+        @page { margin: 0; size: auto; }
         *, *::before, *::after { box-sizing: border-box !important; }
         html, body {
             margin: 0 !important;
             padding: 0 !important;
             width: 100% !important;
             max-width: ${pageWidth} !important;
+            height: auto !important;
+            overflow: visible !important;
             font-family: 'Arial', 'Segoe UI', Tahoma, sans-serif;
             text-align: right;
             direction: rtl;
@@ -699,7 +708,7 @@ function build80mmStandard(d) {
             </div>
             ${!isCashBuyer && d.customer ? `<div style="border-top:1px dashed #ccc; margin-top:3px; padding-top:2px; padding-right:2px;">العميل: ${d.customer}</div>` : ''}
             ${d.cashier  ? `<div style="display:flex; justify-content:space-between; padding:0 2px;"><span>الكاشير: ${d.cashier}</span><span>الفرع: ${d.warehouse}</span></div>`  : `<div style="padding-right:2px;">الفرع: ${d.warehouse}</div>`}
-            ${d.terminal ? `<div style="padding-right:2px; font-size:10px; color:#333;">الجهاز: ${d.terminal}</div>` : ''}
+            ${d.terminal ? `<div style="padding-right:2px; font-size:10px; color:#333; display:flex; justify-content:space-between;"><span>الجهاز: ${d.terminal}</span>${(d.dailyTaxSeq && d.rawInvoiceNumber && String(d.dailyTaxSeq) !== String(d.rawInvoiceNumber)) ? `<span style="font-size:8.5px; color:#666;">Ref: ${d.rawInvoiceNumber}</span>` : ''}</div>` : ''}
             ${d.dueDate  ? `<div style="padding-right:2px;">تاريخ الاستحقاق: ${d.dueDate}</div>`  : ''}
         </div>
 

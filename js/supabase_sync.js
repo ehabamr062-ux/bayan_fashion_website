@@ -53,8 +53,10 @@
                 } catch (e) {}
             }
             if (!shopId) {
-                const randSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
-                shopId = 'SHOP_' + randSuffix;
+                const randPart = (typeof crypto !== 'undefined' && crypto.randomUUID)
+                    ? crypto.randomUUID().replace(/-/g, '').substring(0, 10).toUpperCase()
+                    : (Math.random().toString(36).substring(2, 8) + Math.random().toString(36).substring(2, 6)).toUpperCase();
+                shopId = 'SHOP_' + randPart;
                 localStorage.setItem('bayan_shop_id', shopId);
             }
             return shopId;
@@ -168,10 +170,25 @@
 
             if (allTx.length === 0) return 0;
 
-            // تحديد الفواتير التي تم إنشاؤها أو تعديلها منذ آخر مزامنة
             const lastSyncTs = parseInt(localStorage.getItem('bayan_sb_last_tx_time') || '0', 10);
             const shopId = cfg.shopId || this.getShopId();
-            const toSend = allTx.slice(-150).map(t => {
+
+            // رفع الفواتير المعدلة/الجديدة مع الحفاظ على تغطية كاملة وتجنب إسقاط أي فاتورة
+            let targetTx = allTx;
+            if (lastSyncTs > 0) {
+                targetTx = allTx.filter(t => {
+                    if (!t) return false;
+                    const tTime = t.updatedAt || t.timestamp || (t.dateISO ? new Date(t.dateISO).getTime() : 0);
+                    return !tTime || tTime >= (lastSyncTs - 60000); // بهامش أمان دقيقة
+                });
+                if (targetTx.length === 0) {
+                    targetTx = allTx.slice(-200);
+                }
+            } else {
+                targetTx = allTx.slice(-500);
+            }
+
+            const toSend = targetTx.map(t => {
                 const localInvId = String(t.invoiceId || t.id || Math.random().toString(36).substring(2, 9));
                 return {
                     id: `${shopId}_DESK_${localInvId}`,
@@ -192,18 +209,30 @@
 
             if (toSend.length === 0) return 0;
 
-            const res = await fetch(`${cfg.supabaseUrl}/rest/v1/transactions?on_conflict=id`, {
-                method: 'POST',
-                headers: this._getHeaders(),
-                body: JSON.stringify(toSend)
-            });
+            // إرسال الفواتير على دفعات متتالية (Batches of 100) لرفع كافة الفواتير دون أي فقد
+            const CHUNK_SIZE = 100;
+            let totalSent = 0;
+            for (let i = 0; i < toSend.length; i += CHUNK_SIZE) {
+                const chunk = toSend.slice(i, i + CHUNK_SIZE);
+                const res = await fetch(`${cfg.supabaseUrl}/rest/v1/transactions?on_conflict=id`, {
+                    method: 'POST',
+                    headers: this._getHeaders(),
+                    body: JSON.stringify(chunk)
+                });
 
-            if (res.ok || res.status === 201 || res.status === 200) {
-                localStorage.setItem('bayan_sb_last_tx_time', String(Date.now()));
-                return toSend.length;
-            } else {
-                throw new Error(`خطأ في رفع الفواتير: ${res.status}`);
+                if (!res.ok && res.status !== 201 && res.status !== 200) {
+                    throw new Error(`خطأ في رفع الفواتير: ${res.status}`);
+                }
+                totalSent += chunk.length;
+
+                // 🌿 استراحة تنفس غير متزامنة (Non-blocking Yield) لضمان سلاسة حركة شاشة الكاشير وعدم إجهاد الشبكة
+                if (i + CHUNK_SIZE < toSend.length) {
+                    await new Promise(r => setTimeout(r, 80));
+                }
             }
+
+            localStorage.setItem('bayan_sb_last_tx_time', String(Date.now()));
+            return totalSent;
         },
 
         // 👗 2. مزامنة الأصناف والمخزون مع جدول products
@@ -235,16 +264,26 @@
                 };
             });
 
-            // إرسال على دفعات خفيفة لمنع استهلاك الشبكة (Batch of 100)
-            const batch = toSend.slice(0, 100);
-            const res = await fetch(`${cfg.supabaseUrl}/rest/v1/products?on_conflict=id`, {
-                method: 'POST',
-                headers: this._getHeaders(),
-                body: JSON.stringify(batch)
-            });
+            // إرسال كافة الأصناف على دفعات متتالية (Batches of 100) لضمان رفع جميع الأصناف
+            const CHUNK_SIZE = 100;
+            let totalSent = 0;
+            for (let i = 0; i < toSend.length; i += CHUNK_SIZE) {
+                const batch = toSend.slice(i, i + CHUNK_SIZE);
+                const res = await fetch(`${cfg.supabaseUrl}/rest/v1/products?on_conflict=id`, {
+                    method: 'POST',
+                    headers: this._getHeaders(),
+                    body: JSON.stringify(batch)
+                });
 
-            if (!res.ok && res.status !== 201 && res.status !== 200) {
-                throw new Error(`خطأ في رفع الأصناف: ${res.status}`);
+                if (!res.ok && res.status !== 201 && res.status !== 200) {
+                    throw new Error(`خطأ في رفع الأصناف: ${res.status}`);
+                }
+                totalSent += batch.length;
+
+                // 🌿 استراحة تنفس غير متزامنة (Non-blocking Yield) بين دفعات الأصناف لمنع أي تجميد للواجهة
+                if (i + CHUNK_SIZE < toSend.length) {
+                    await new Promise(r => setTimeout(r, 80));
+                }
             }
 
             // 📥 استيراد أي أصناف وموديلات جديدة تمت إضافتها من التابلت (الخاصة بهذا المحل فقط)

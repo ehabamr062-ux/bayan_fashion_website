@@ -431,6 +431,90 @@ async function renderHistoryTable(filterName = null) {
         if (searchVal) filterName = searchVal;
     }
 
+    // ⚡ جلب حركات الصنف التاريخية الشاملة من جدول transaction_items المفهرس في SQLite
+    if (filterName && window.BayanSQLite && window.BayanSQLite.db) {
+        try {
+            const cleanVal = String(filterName).trim();
+            const existingTxIds = new Set((transactions || []).map(t => t ? t.id : null));
+
+            // جمع كافة الباركودات وأسماء الصنف وتشكيلاته للمطابقة الدقيقة
+            const matchedBarcodes = new Set([cleanVal]);
+            const matchedNames = new Set();
+            if (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
+                const cLower = cleanVal.toLowerCase();
+                for (let pi = 0; pi < productsDB.length; pi++) {
+                    const p = productsDB[pi];
+                    if (!p) continue;
+                    const pName = String(p.name || '').trim();
+                    const pBar = String(p.barcode || '').trim();
+                    const pCode = String(p.code || '').trim();
+                    const isM = (pBar === cleanVal) || (pCode === cleanVal) || (pName.toLowerCase().includes(cLower));
+                    if (isM) {
+                        if (pName) matchedNames.add(pName);
+                        if (pBar) matchedBarcodes.add(pBar);
+                        if (p.variants && Array.isArray(p.variants)) {
+                            p.variants.forEach(v => {
+                                if (v && v.barcode) matchedBarcodes.add(String(v.barcode).trim());
+                            });
+                        }
+                    }
+                }
+            }
+
+            // الاستعلام السريع عبر فهرس idx_ti_barcode و idx_ti_invoiceId
+            const bArr = Array.from(matchedBarcodes);
+            const bMarks = bArr.map(() => '?').join(',');
+            let tiSql = `SELECT DISTINCT tx_id FROM transaction_items WHERE barcode IN (${bMarks}) OR invoiceId = ?`;
+            const tiParams = [...bArr, cleanVal];
+
+            if (matchedNames.size > 0) {
+                const nArr = Array.from(matchedNames);
+                const nMarks = nArr.map(() => '?').join(',');
+                tiSql += ` OR productName IN (${nMarks})`;
+                tiParams.push(...nArr);
+            }
+            tiSql += ` LIMIT 1500;`;
+
+            const tiStmt = window.BayanSQLite.db.prepare(tiSql);
+            tiStmt.bind(tiParams);
+            const missingIds = [];
+            while (tiStmt.step()) {
+                const row = tiStmt.getAsObject();
+                const tid = row.tx_id || row.id;
+                if (tid && !existingTxIds.has(tid)) {
+                    missingIds.push(tid);
+                    existingTxIds.add(tid);
+                }
+            }
+            tiStmt.free();
+
+            // جلب سجلات الفواتير المفقودة وإضافتها إلى transactions لعرضها فوراً
+            if (missingIds.length > 0) {
+                const chunkSize = 200;
+                for (let ci = 0; ci < missingIds.length; ci += chunkSize) {
+                    const chunk = missingIds.slice(ci, ci + chunkSize);
+                    const qMarks = chunk.map(() => '?').join(',');
+                    const txStmt = window.BayanSQLite.db.prepare(`SELECT raw_json FROM transactions WHERE id IN (${qMarks});`);
+                    txStmt.bind(chunk);
+                    while (txStmt.step()) {
+                        const raw = txStmt.get()[0];
+                        if (raw) {
+                            try {
+                                const parsed = JSON.parse(raw);
+                                if (parsed && parsed.id) {
+                                    transactions.push(parsed);
+                                }
+                            } catch(e) {}
+                        }
+                    }
+                    txStmt.free();
+                }
+            }
+        } catch(tiErr) {
+            console.warn("Item history smart index load notice:", tiErr);
+        }
+    }
+
     tbody.innerHTML = '';
 
     // حساب الأرصدة التراكمية الدقيقة لكافة الحركات بناءً على فلتر المخزن
@@ -641,6 +725,8 @@ async function renderHistoryTable(filterName = null) {
     const hasMore = totalMatchingCount > displayedData.length;
 
     let rowsHtml = '';
+    const esc = (typeof escapeHtml === 'function') ? escapeHtml : (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+
     displayedData.forEach(t => {
         const isSelected = (selectedHistoryIndex === t.originalIndex);
 
@@ -652,9 +738,9 @@ async function renderHistoryTable(filterName = null) {
         if (sSize || sColor || whName) {
             fashionBadges = `
                 <div style="display: flex; gap: 4px; margin-top: 3px; font-size: 0.75rem; flex-wrap: wrap; align-items: center;">
-                    ${sSize ? `<span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 1px 6px; border-radius: 4px; font-weight: 800;">${sSize}</span>` : ''}
-                    ${sColor ? `<span style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 1px 6px; border-radius: 4px; font-weight: 800;">${sColor}</span>` : ''}
-                    ${whName ? `<span style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; padding: 1px 6px; border-radius: 4px; font-weight: 700;">🏢 ${whName}</span>` : ''}
+                    ${sSize ? `<span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 1px 6px; border-radius: 4px; font-weight: 800;">${esc(sSize)}</span>` : ''}
+                    ${sColor ? `<span style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 1px 6px; border-radius: 4px; font-weight: 800;">${esc(sColor)}</span>` : ''}
+                    ${whName ? `<span style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; padding: 1px 6px; border-radius: 4px; font-weight: 700;">🏢 ${esc(whName)}</span>` : ''}
                 </div>
             `;
         }
@@ -675,13 +761,13 @@ async function renderHistoryTable(filterName = null) {
         rowsHtml += `
             <tr data-orig-index="${t.originalIndex}" class="${isSelected ? 'selected-row' : ''}" onclick="selectHistoryRow(${t.originalIndex})">
                 <td class="col-hist-0"><input type="radio" name="histRad" ${isSelected ? 'checked' : ''}></td>
-                <td class="col-hist-1"><span style="background:#eee; padding:2px 6px; border-radius:4px; font-weight:bold;">${t.invoiceId || '-'}</span></td>
-                <td class="col-hist-2">${t.date || '-'}</td>
+                <td class="col-hist-1"><span style="background:#eee; padding:2px 6px; border-radius:4px; font-weight:bold;">${esc(t.invoiceId || '-')}</span></td>
+                <td class="col-hist-2">${esc(t.date || '-')}</td>
                 <td class="col-hist-3">
                     <span class="stock-badge ${t.type.includes('بيع') ? (t.type.includes('مرتجع') ? 'badge-return' : 'badge-sale') :
                         (t.type.includes('شراء') ? (t.type.includes('مرتجع') ? 'badge-return' : 'badge-purchase') :
                         (t.type.includes('قبض') ? 'badge-receipt' : (t.type.includes('صرف') ? 'badge-disburse' : (t.type.includes('تحويل') ? 'badge-transfer' : ''))))}">
-                        ${t.type}
+                        ${esc(t.type)}
                     </span>
                     ${t.type.includes('تحويل') ? (
                         t.transferStatus === 'pending' ? '<span style="display:block; margin-top:2px; font-size:0.72rem; color:#b45309; font-weight:800; background:#fef3c7; border:1px solid #fde68a; border-radius:10px; padding:1px 6px;">معلق ⏳</span>' :
@@ -690,15 +776,15 @@ async function renderHistoryTable(filterName = null) {
                     ) : ''}
                 </td>
                 <td class="col-hist-4" style="text-align: right;">
-                    <div style="font-weight: 800; color: #1e293b;">${t.product || '-'}</div>
+                    <div style="font-weight: 800; color: #1e293b;">${esc(t.product || '-')}</div>
                     ${fashionBadges}
                 </td>
                 <td class="col-hist-5" style="font-weight: bold;">${t.qty || 0}</td>
                 <td class="col-hist-6">${parseFloat(t.price || 0).toFixed(2)}</td>
                 <td class="col-hist-7" style="font-weight:bold; color:var(--main-blue);">${parseFloat(t.total || 0).toFixed(2)}</td>
-                <td class="col-hist-8">${t.partner || '-'}</td>
-                <td class="col-hist-9" style="font-size:0.75rem; color:#64748b;">${t.editDate || '-'}</td>
-                <td class="col-hist-10" style="font-size:0.85rem; color:#0f766e; font-weight:bold;">${t.user || '-'}</td>
+                <td class="col-hist-8">${esc(t.partner || '-')}</td>
+                <td class="col-hist-9" style="font-size:0.75rem; color:#64748b;">${esc(t.editDate || '-')}</td>
+                <td class="col-hist-10" style="font-size:0.85rem; color:#0f766e; font-weight:bold;">${esc(t.user || '-')}</td>
                 <td class="col-hist-11" style="text-align: center; background: linear-gradient(135deg, rgba(124,58,237,0.05), rgba(245,158,11,0.05)); font-weight: 900;">${balHtml}</td>
             </tr>`;
     });
@@ -742,7 +828,7 @@ async function renderHistoryTable(filterName = null) {
 
 // متغيرات للتحكم في ظهور الأعمدة مع الحفظ في SQLite (getStore)
 
-let invoicesColumnVisibility = JSON.parse(getStore('pos_inv_cols_visible') || '{"0":true,"1":true,"2":true,"3":true,"4":true,"5":true,"6":true,"7":true,"8":true,"9":true,"10":true,"11":true,"12":true,"13":true,"14":true}');
+let invoicesColumnVisibility = JSON.parse(getStore('pos_inv_cols_visible') || '{"0":true,"1":true,"2":true,"3":true,"4":true,"5":true,"6":true,"7":true,"8":true,"9":true,"10":true,"11":true,"12":true,"13":true,"14":true,"15":true}');
 window.invoicesColumnVisibility = invoicesColumnVisibility;
 
 // دالة مركزية لاسترجاع تخصيص أعمدة الفواتير من الذاكرة وقاعدة البيانات لحظياً
@@ -778,7 +864,7 @@ function updateInvoicesTableStyles() {
     const hasProfitPerm = (typeof hasPermission === 'function') ? hasPermission('general_profits') : true;
     let css = '';
 
-    for (let i = 0; i <= 14; i++) {
+    for (let i = 0; i <= 15; i++) {
         const isHiddenByPref = invoicesColumnVisibility[i] === false;
         const isProfitHidden = (i === 5 && !hasProfitPerm);
 
@@ -797,7 +883,7 @@ function initInvoicesColumns() {
     updateInvoicesTableStyles();
 
     // مزامنة حالة مربعات الاختيار في نافذة التخصيص
-    for (let i = 0; i <= 14; i++) {
+    for (let i = 0; i <= 15; i++) {
         const isVisible = invoicesColumnVisibility[i] !== false;
         const checkbox = document.querySelector(`#invoicesColSelectorPopup input[onchange*="(${i},"]`);
         if (checkbox) checkbox.checked = isVisible;
@@ -847,7 +933,7 @@ function toggleInvoicesColumn(index, isVisible, shouldSave = true) {
 window.toggleInvoicesColumn = toggleInvoicesColumn;
 
 function setInvoicesAllCols(makeVisible) {
-    for (let i = 0; i <= 14; i++) {
+    for (let i = 0; i <= 15; i++) {
         if (i === 0 || i === 1) {
             // الاحتفاظ بعمود الاختيار ورقم الفاتورة مفعلين دوماً لضمان التفاعل
             invoicesColumnVisibility[i] = true;

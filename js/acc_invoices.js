@@ -538,8 +538,11 @@
             txList.forEach((t, i) => {
                 const key = (t.invoiceId || 'single_' + (t.originalIndex !== undefined ? t.originalIndex : i)) + '_' + t.type;
                 if (!groups[key]) {
+                    const taxSeq = t.taxInvoiceSeq || t.dailySeq || (typeof getInvoiceTaxReceiptSeq === 'function' ? getInvoiceTaxReceiptSeq(t) : null);
                     groups[key] = {
                         invoiceId: t.invoiceId,
+                        taxInvoiceSeq: taxSeq,
+                        dailySeq: taxSeq,
                         date: t.date,
                         dateISO: t.dateISO,
                         type: t.type,
@@ -561,6 +564,11 @@
                         is_returned: t.is_returned || false,
                         products: []
                     };
+                }
+
+                if (!groups[key].taxInvoiceSeq && (t.taxInvoiceSeq || t.dailySeq)) {
+                    groups[key].taxInvoiceSeq = t.taxInvoiceSeq || t.dailySeq;
+                    groups[key].dailySeq = t.dailySeq || t.taxInvoiceSeq;
                 }
 
                 if (t.transferStatus) groups[key].transferStatus = t.transferStatus;
@@ -634,6 +642,15 @@
                     // الفاتورة مدفوعة بالكامل دائماً ومسددة بالكامل ولا تتحول لـ جزئي نهائياً
                     g.paid = g.total;
                     g.remaining = 0;
+                }
+
+                // صمام أمان لاستخراج رقم الإيصال اليومي إذا لم يكن مسجلاً
+                if (!g.taxInvoiceSeq && typeof getInvoiceTaxReceiptSeq === 'function') {
+                    const fallbackSeq = getInvoiceTaxReceiptSeq(g);
+                    if (fallbackSeq) {
+                        g.taxInvoiceSeq = fallbackSeq;
+                        g.dailySeq = fallbackSeq;
+                    }
                 }
             });
 
@@ -857,7 +874,12 @@
                 rawData = rawData.filter(t => {
                     if (!t) return false;
                     if (whFilter && (t.warehouse || 'المخزن الرئيسي') !== whFilter) return false;
-                    if (searchId && (!t.invoiceId || !t.invoiceId.toString().includes(searchId))) return false;
+                    if (searchId) {
+                        const rawMatch = t.invoiceId && t.invoiceId.toString().toLowerCase().includes(searchId);
+                        const seqVal = (typeof getInvoiceTaxReceiptSeq === 'function') ? getInvoiceTaxReceiptSeq(t) : (t.taxInvoiceSeq || t.dailySeq);
+                        const taxMatch = seqVal && String(seqVal).toLowerCase().includes(searchId);
+                        if (!rawMatch && !taxMatch) return false;
+                    }
 
                     if (cleanProdQ && (!t.product || !cleanAr(t.product).includes(cleanProdQ))) return false;
 
@@ -1051,7 +1073,10 @@
                         <td class="col-inv-0" style="${isV(0) ? '' : 'display:none;'}"><input type="radio" name="invRad" ${isSelected ? 'checked' : ''}></td>
                         <td class="col-inv-1" style="${isV(1) ? '' : 'display:none;'}">
                             <div style="display:flex; flex-direction:row; gap:4px; align-items:center; justify-content:center; flex-wrap:wrap;">
-                                <span style="background:rgba(0,0,0,0.05); padding:2px 5px; border-radius:4px; font-weight:bold; font-size:0.75rem;">${t.invoiceId || '-'} ${t.is_returned ? '<span title="تم الإرجاع" style="color:#ef4444; margin-right:2px;">↩️</span>' : ''}</span>
+                                <span style="background:rgba(0,0,0,0.05); padding:2px 5px; border-radius:4px; font-weight:bold; font-size:0.75rem;" title="رقم الفاتورة: #${t.invoiceId || '-'}">
+                                    #${t.invoiceId || '-'}
+                                    ${t.is_returned ? '<span title="تم الإرجاع" style="color:#ef4444; margin-right:2px;">↩️</span>' : ''}
+                                </span>
                                 ${isRejectedTransfer ? '<span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:1px 5px; font-size:0.7rem; border-radius:4px; font-weight:900;">ملغي ❌</span>' : ''}
                                 ${isSalesOrPurchase ? (() => {
                                     const m = (t.method || '').toLowerCase();
@@ -1084,6 +1109,9 @@
                                     return `<span class="${bClass}" style="padding: 1px 5px; font-size: 0.7rem; border-radius: 4px; font-weight: 800;">${bText}</span>`;
                                 })() : ''}
                             </div>
+                        </td>
+                        <td class="col-inv-15" style="text-align:center; ${isV(15) ? '' : 'display:none;'}">
+                            ${typeof getInvoiceReceiptBadgeHtml === 'function' ? getInvoiceReceiptBadgeHtml(t) : ((t.taxInvoiceSeq || t.dailySeq) ? `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; border-radius:6px; padding:2px 8px; font-size:0.8rem; font-weight:900;" title="رقم الإيصال اليومي">#${t.taxInvoiceSeq || t.dailySeq}</span>` : '<span style="color:#94a3b8; font-size:0.85rem;">-</span>')}
                         </td>
                         <td class="col-inv-2" style="${isV(2) ? '' : 'display:none;'}">${t.date}</td>
                         <td class="col-inv-3" style="${isV(3) ? '' : 'display:none;'}">

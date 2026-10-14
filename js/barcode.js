@@ -211,17 +211,6 @@ const BayanBarcode = (function () {
                 }
                 stmt.free();
 
-                // إذا لم يُعثر عليه بالباركود الرئيسي، نبحث في باركود التشكيلات (المقاسات والألوان)
-                if (!p) {
-                    stmt = window.BayanSQLite.db.prepare("SELECT raw_json FROM products WHERE raw_json LIKE ? LIMIT 1");
-                    stmt.bind([`%"${clean}"%`]);
-                    if (stmt.step()) {
-                        const raw = stmt.get()[0];
-                        if (raw) p = JSON.parse(raw);
-                    }
-                    stmt.free();
-                }
-
                 if (p) {
                     if (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
                         if (!productsDB.some(x => x.id === p.id)) productsDB.push(p);

@@ -2524,7 +2524,7 @@ function resetSearchInvoiceModal() {
 
     document.getElementById('searchInvoiceAccount').value = '';
 
-    document.getElementById('searchInvoiceTableBody').innerHTML = '<tr><td colspan="9" style="padding: 30px; color: #94a3b8; text-align: center;">ابدأ البحث برقم الفاتورة أو اسم العميل...</td></tr>';
+    document.getElementById('searchInvoiceTableBody').innerHTML = '<tr><td colspan="10" style="padding: 30px; color: #94a3b8; text-align: center;">ابدأ البحث برقم الفاتورة أو اسم العميل...</td></tr>';
 
     // تعبئة قائمة الحسابات (Autocomplete)
 
@@ -2702,7 +2702,11 @@ async function executeInvoiceSearch() {
 
         if (!isCorrectType) return false;
 
-        const matchRef = !ref || (t.invoiceId && String(t.invoiceId).includes(ref));
+        const seqVal = (typeof getInvoiceTaxReceiptSeq === 'function') ? getInvoiceTaxReceiptSeq(t) : (t.taxInvoiceSeq || t.dailySeq);
+        const matchRef = !ref || (
+            (t.invoiceId && String(t.invoiceId).includes(ref)) ||
+            (seqVal && String(seqVal).includes(ref))
+        );
 
         // البحث عن الحساب بالاسم أو الكود أو الهاتف بتطبيع كامل
         let matchAccount = true;
@@ -2776,6 +2780,8 @@ async function executeInvoiceSearch() {
                 warehouse: t.warehouse || 'المخزن الرئيسي',
 
                 user: t.user || 'أدمن',
+
+                taxInvoiceSeq: (typeof getInvoiceTaxReceiptSeq === 'function' ? getInvoiceTaxReceiptSeq(t) : (t.taxInvoiceSeq || t.dailySeq || null)),
 
                 type: t.type || targetType
 
@@ -2853,40 +2859,46 @@ async function executeInvoiceSearch() {
 
         };
 
+        const esc = (typeof escapeHtml === 'function') ? escapeHtml : (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+
         tr.innerHTML = `
 
                     <td style="border: 1px solid #ddd; padding: 5px;">
 
-                        <input type="radio" name="selectedReturnInvoice" value="${inv.id}" class="invoice-radio-select" style="cursor: pointer; transform: scale(1.3); ${isFullyReturned ? 'opacity: 0.4;' : ''}">
+                        <input type="radio" name="selectedReturnInvoice" value="${esc(inv.id)}" class="invoice-radio-select" style="cursor: pointer; transform: scale(1.3); ${isFullyReturned ? 'opacity: 0.4;' : ''}">
 
                     </td>
 
-                    <td style="border: 1px solid #ddd; padding: 5px;">${inv.date}</td>
+                    <td style="border: 1px solid #ddd; padding: 5px;">${esc(inv.date)}</td>
 
-                    <td style="border: 1px solid #ddd; padding: 5px;">${inv.time}</td>
+                    <td style="border: 1px solid #ddd; padding: 5px;">${esc(inv.time)}</td>
 
-                    <td style="border: 1px solid #ddd; padding: 5px; font-weight: bold;">${inv.id} ${isFullyReturned ? '<span style="color:#ef4444; font-size:0.7rem;">(مسترجعة)</span>' : ''}</td>
+                    <td style="border: 1px solid #ddd; padding: 5px; font-weight: bold;">
+                        #${esc(inv.id)} 
+                        ${isFullyReturned ? '<span style="color:#ef4444; font-size:0.7rem; margin-right:4px;">(مسترجعة)</span>' : ''}
+                    </td>
 
-                    <td style="border: 1px solid #ddd; padding: 5px;">${inv.partner}</td>
+                    <td style="border: 1px solid #ddd; padding: 5px; text-align: center;">
+                        ${typeof getInvoiceReceiptBadgeHtml === 'function' ? getInvoiceReceiptBadgeHtml(inv) : (inv.taxInvoiceSeq ? `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; border-radius:6px; padding:2px 8px; font-size:0.82rem; font-weight:900;" title="رقم الإيصال اليومي">#${esc(inv.taxInvoiceSeq)}</span>` : '<span style="color:#94a3b8; font-size:0.85rem;">-</span>')}
+                    </td>
+
+                    <td style="border: 1px solid #ddd; padding: 5px;">${esc(inv.partner)}</td>
 
                     <td style="border: 1px solid #ddd; padding: 5px; direction: ltr;">${netTotal.toFixed(2)}</td>
 
-                    <td style="border: 1px solid #ddd; padding: 5px;">${inv.warehouse}</td>
+                    <td style="border: 1px solid #ddd; padding: 5px;">${esc(inv.warehouse)}</td>
 
-                    <td style="border: 1px solid #ddd; padding: 5px; color: #1e8449;">${inv.user}</td>
+                    <td style="border: 1px solid #ddd; padding: 5px; color: #1e8449;">${esc(inv.user)}</td>
 
                     <td style="border: 1px solid #ddd; padding: 4px; text-align: center;">
 
                         <button type="button" class="btn-invoice-preview-fast" 
-
-                            onclick="event.stopPropagation(); if(typeof viewInvoiceItems==='function') viewInvoiceItems('${inv.id}', '${inv.type || targetType}');" 
-
+                            data-inv-id="${esc(inv.id)}"
+                            data-inv-type="${esc(inv.type || targetType)}"
+                            onclick="event.stopPropagation(); if(typeof viewInvoiceItems==='function') viewInvoiceItems(this.getAttribute('data-inv-id'), this.getAttribute('data-inv-type'));" 
                             title="عرض تفاصيل وأصناف الفاتورة" 
-
                             style="background: linear-gradient(135deg, #0284c7, #0369a1); border: none; color: white; width: 34px; height: 30px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 1.05rem; box-shadow: 0 2px 6px rgba(2,132,199,0.3); transition: transform 0.15s, box-shadow 0.15s;" 
-
                             onmouseover="this.style.transform='scale(1.1)';" 
-
                             onmouseout="this.style.transform='scale(1)';">
 
                             👁️
@@ -2903,7 +2915,7 @@ async function executeInvoiceSearch() {
 
     if (Object.keys(grouped).length === 0) {
 
-        tbody.innerHTML = '<tr><td colspan="9" style="padding: 30px; color: #94a3b8; text-align: center;">لا توجد فواتير تطابق البحث</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" style="padding: 30px; color: #94a3b8; text-align: center;">لا توجد فواتير تطابق البحث</td></tr>';
 
     }
 
@@ -3199,7 +3211,8 @@ async function openSelectReturnItemsModal(invoiceId) {
 
     document.getElementById('returnItemsInvoiceInfo').style.display = 'grid';
 
-    document.getElementById('returnItemsInvNo').innerText = '#' + invoiceId;
+    const targetRetSeq = (currentReturnInvoiceItems[0].taxInvoiceSeq || currentReturnInvoiceItems[0].dailySeq);
+    document.getElementById('returnItemsInvNo').innerHTML = '#' + invoiceId + (targetRetSeq ? ` <span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; border-radius:6px; padding:2px 7px; font-size:0.8rem; font-weight:900;" title="رقم الإيصال اليومي">(إيصال #${targetRetSeq})</span>` : '');
 
     document.getElementById('returnItemsAccount').innerText = currentReturnInvoiceItems[0].partner;
 
@@ -3248,9 +3261,10 @@ async function openSelectReturnItemsModal(invoiceId) {
 
         const availableQty = parseFloat(item.qty) - returnedQty;
 
+        const escModal = (typeof escapeHtml === 'function') ? escapeHtml : (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
         const varInfo = [itemSize, itemColor].filter(Boolean).join(' - ');
         const varBadge = varInfo 
-            ? `<span style="display:inline-block; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 6px; padding: 2px 8px; font-size: 0.78rem; font-weight: 900; margin-right: 8px;">🏷️ ${varInfo}</span>` 
+            ? `<span style="display:inline-block; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 6px; padding: 2px 8px; font-size: 0.78rem; font-weight: 900; margin-right: 8px;">🏷️ ${escModal(varInfo)}</span>` 
             : '';
 
         const tr = document.createElement('tr');
@@ -3265,9 +3279,9 @@ async function openSelectReturnItemsModal(invoiceId) {
 
                     <td style="text-align: center; color: #64748b;">${idx + 1}</td>
 
-                    <td style="font-weight: 800; color: #1e293b; text-align: right; padding-right: 15px;">${item.product} ${varBadge}</td>
+                    <td style="font-weight: 800; color: #1e293b; text-align: right; padding-right: 15px;">${escModal(item.product)} ${varBadge}</td>
 
-                    <td style="text-align: center;">${item.unit || 'عدد'}</td>
+                    <td style="text-align: center;">${escModal(item.unit || 'عدد')}</td>
 
                     <td style="text-align: center; font-weight: bold; color: #94a3b8;">${item.qty}</td>
 

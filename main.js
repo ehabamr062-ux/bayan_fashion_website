@@ -574,13 +574,19 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
 
             printWin.webContents.on('did-finish-load', async () => {
                 try {
+                    // ⏱️ انتظار ضروري (450ms) لإتمام معالجة ورسم الـ DOM والخطوط وحساب ارتفاع الفاتورة في الذاكرة
+                    await new Promise(r => setTimeout(r, 450));
+                    try {
+                        await printWin.webContents.executeJavaScript('document.body.scrollHeight');
+                    } catch (e) {}
+
                     let targetDevice = (printerName && String(printerName).trim()) || '';
 
                     // إذا لم يتم تحديد طابعة محددة بالاسم، البحث الذكي عن طابعة الكاشير والإيصالات الحرارية (مثل XP-80C)
                     if (!targetDevice) {
                         try {
                             const printers = await printWin.webContents.getPrintersAsync();
-                            const receiptPrinter = printers.find(p => /XP-80|80C|Xprinter|POS|Receipt|Thermal|Cashier/i.test(p.name));
+                            const receiptPrinter = printers.find(p => /XP-80|80C|Xprinter|POS|Receipt|Thermal|Cashier|58|80/i.test(p.name));
                             if (receiptPrinter) {
                                 targetDevice = receiptPrinter.name;
                             } else {

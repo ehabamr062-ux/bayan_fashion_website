@@ -305,19 +305,20 @@ window.ensureInvoiceLoaded = async function(invoiceId) {
     return [];
 };
 
-window.loadTransactionsForDateRange = async function(fromDate, toDate) {
+window.loadTransactionsForDateRange = async function(fromDate, toDate, maxLimit = 10000) {
     try {
         if (!window.db || !window.db.transactions) return;
+        const lim = parseInt(maxLimit, 10) || 10000;
         let q;
         if (fromDate && toDate) {
-            q = window.db.transactions.where('dateISO').between(fromDate, toDate, true, true).limit(3000);
+            q = window.db.transactions.where('dateISO').between(fromDate, toDate, true, true).limit(lim);
         } else if (fromDate) {
-            q = window.db.transactions.where('dateISO').aboveOrEqual(fromDate).limit(3000);
+            q = window.db.transactions.where('dateISO').aboveOrEqual(fromDate).limit(lim);
         } else if (toDate) {
-            q = window.db.transactions.where('dateISO').belowOrEqual(toDate).limit(3000);
+            q = window.db.transactions.where('dateISO').belowOrEqual(toDate).limit(lim);
         } else {
             // كل الفترات: جلب أحدث الحركات بأمان دون تجميد المتصفح
-            q = window.db.transactions.orderBy('id').reverse().limit(1500);
+            q = window.db.transactions.orderBy('id').reverse().limit(Math.min(3000, lim));
         }
         const records = await q.toArray();
         if (records && records.length > 0) {
@@ -329,8 +330,9 @@ window.loadTransactionsForDateRange = async function(fromDate, toDate) {
                 }
             });
 
-            // 🛡️ صمام أمان الذاكرة: منع تراكم الفواتير القديمة في الـ Heap إذا تجاوزت 2500 حركة
-            if (window.transactions.length > 2500) {
+            // 🛡️ صمام أمان الذاكرة: حماية الذاكرة مع الحفاظ على كافة فواتير الفترة المطلوبة للتقارير
+            const safeCap = Math.max(7500, lim);
+            if (window.transactions.length > safeCap) {
                 const todayISO = new Date().toLocaleDateString('en-CA');
                 const recentQueryIds = new Set(records.map(r => r.id));
                 window.transactions = window.transactions.filter(t => 

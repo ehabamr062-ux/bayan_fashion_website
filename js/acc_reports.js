@@ -6091,7 +6091,7 @@
             const fromDate = document.getElementById('anDateFrom')?.value || '';
             const toDate = document.getElementById('anDateTo')?.value || '';
             if (typeof window.loadTransactionsForDateRange === 'function' && (fromDate || toDate)) {
-                await window.loadTransactionsForDateRange(fromDate, toDate);
+                await window.loadTransactionsForDateRange(fromDate, toDate, 10000);
             }
             const searchQuery = (document.getElementById('anSearchInput')?.value || '').trim().toLowerCase();
             const accFilter = document.getElementById('anAccount')?.value || 'all';

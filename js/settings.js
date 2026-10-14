@@ -66,12 +66,14 @@ async function saveSettings() {
         currencyName: document.getElementById('appCurrencyName').value || "جنيه مصري",
         taxPercent: parseFloat(document.getElementById('appTaxPercent').value) || 0,
         taxEnabled: document.getElementById('appTaxEnabled').checked,
+        dailyTaxSeqEnabled: document.getElementById('dailyTaxSeqEnabled') ? document.getElementById('dailyTaxSeqEnabled').checked : false,
+        dailyTaxSeqLimit: document.getElementById('dailyTaxSeqLimit') ? (parseInt(document.getElementById('dailyTaxSeqLimit').value, 10) || 0) : 0,
         allowBackdating: document.getElementById('allowBackdating').checked,
         allowHistoryEdit: document.getElementById('allowHistoryEdit').checked,
         showInquiryCostPrice: document.getElementById('showInquiryCostPrice') ? document.getElementById('showInquiryCostPrice').checked : false,
         requireOriginalInvoiceForReturn: document.getElementById('requireOriginalInvoiceForReturn') ? document.getElementById('requireOriginalInvoiceForReturn').checked : true,
         // Business Profile & UI Customization Settings
-        businessType: document.getElementById('appBusinessType') ? document.getElementById('appBusinessType').value : "clothing",
+        businessType: (document.getElementById('appBusinessTypeSelect') ? document.getElementById('appBusinessTypeSelect').value : null) || (document.getElementById('appBusinessType') ? document.getElementById('appBusinessType').value : "clothing"),
         directToSalesOnLogin: document.getElementById('directToSalesOnLogin') ? document.getElementById('directToSalesOnLogin').checked : true,
         enableVariantsMatrix: document.getElementById('enableVariantsMatrix') ? document.getElementById('enableVariantsMatrix').checked : true,
         splitWholesaleRetailReports: document.getElementById('splitWholesaleRetailReports') ? document.getElementById('splitWholesaleRetailReports').checked : true,
@@ -157,25 +159,129 @@ function applyStaffPresetVisibility() {
 }
 
 function selectBusinessType(type) {
-    const hiddenInput = document.getElementById('appBusinessType');
-    if (hiddenInput) hiddenInput.value = 'clothing';
+    const rawType = (type === 'grocery' || type === 'supermarket') ? 'grocery' : 'clothing';
 
-    // ضبط الخيارات لنشاط الملابس مع احترام الإعداد المحفوظ مسبقاً
-    const settings = JSON.parse(getStore('pos_settings') || '{}');
-    const variantsCheck = document.getElementById('enableVariantsMatrix');
-    if (variantsCheck) {
-        variantsCheck.checked = (settings.enableVariantsMatrix !== undefined) ? !!settings.enableVariantsMatrix : true;
+    const hiddenInput = document.getElementById('appBusinessType');
+    if (hiddenInput) hiddenInput.value = rawType;
+
+    const selectEl = document.getElementById('appBusinessTypeSelect');
+    if (selectEl && selectEl.value !== rawType) {
+        selectEl.value = rawType;
+    }
+
+    // تحديث كارت المعاينة والشارة في شاشة الإعدادات
+    const statusBadge = document.getElementById('businessTypeStatusBadge');
+    const previewCard = document.getElementById('businessTypePreviewCard');
+    const previewIcon = document.getElementById('businessTypePreviewIcon');
+    const previewTitle = document.getElementById('businessTypePreviewTitle');
+    const previewDesc = document.getElementById('businessTypePreviewDesc');
+    const previewCheck = document.getElementById('businessTypePreviewCheck');
+
+    if (rawType === 'grocery') {
+        if (statusBadge) {
+            statusBadge.innerHTML = '⚡ نظام الباركود السريع وسرعة الكاشير مفعّل';
+            statusBadge.style.background = '#e0f2fe';
+            statusBadge.style.color = '#0369a1';
+            statusBadge.style.borderColor = '#7dd3fc';
+        }
+        if (previewCard) {
+            previewCard.style.background = '#f0f9ff';
+            previewCard.style.borderColor = '#7dd3fc';
+        }
+        if (previewIcon) previewIcon.innerText = '🛒🧀🥫🧼';
+        if (previewTitle) {
+            previewTitle.innerText = 'السوبر ماركت والبقالة والتجارة العامة والمنظفات';
+            previewTitle.style.color = '#0369a1';
+        }
+        if (previewDesc) {
+            previewDesc.innerText = '(مناسب للسوبر ماركت، البقالة، تجارة الجملة والتجزئة، محلات المنظفات، العطارة، والمنتجات الاستهلاكية والباركود السريع)';
+            previewDesc.style.color = '#0284c7';
+        }
+        if (previewCheck) {
+            previewCheck.style.background = '#0284c7';
+            previewCheck.style.boxShadow = '0 2px 8px rgba(2, 132, 199, 0.4)';
+        }
+    } else {
+        if (statusBadge) {
+            statusBadge.innerHTML = '⚡ نظام المقاسات والألوان مفعّل';
+            statusBadge.style.background = '#ecfdf5';
+            statusBadge.style.color = '#047857';
+            statusBadge.style.borderColor = '#a7f3d0';
+        }
+        if (previewCard) {
+            previewCard.style.background = '#f0fdf4';
+            previewCard.style.borderColor = '#a7f3d0';
+        }
+        if (previewIcon) previewIcon.innerText = '👕👠👜';
+        if (previewTitle) {
+            previewTitle.innerText = 'محلات الملابس والأحذية والشنط والموضة';
+            previewTitle.style.color = '#065f46';
+        }
+        if (previewDesc) {
+            previewDesc.innerText = '(النسخة مهيأة بالكامل بنظام مصفوفة المقاسات والألوان وتوليد باركود المقاسات وطباعة تيكتات الملابس والاستبدال السريع)';
+            previewDesc.style.color = '#047857';
+        }
+        if (previewCheck) {
+            previewCheck.style.background = '#10b981';
+            previewCheck.style.boxShadow = '0 2px 8px rgba(16, 185, 129, 0.4)';
+        }
     }
 
     applyBusinessTypeUI();
 }
 
+function onBusinessTypeChange(type) {
+    const rawType = (type === 'grocery' || type === 'supermarket') ? 'grocery' : 'clothing';
+
+    // ضبط مصفوفة المقاسات والألوان بذكاء عند التبديل
+    const variantsCheck = document.getElementById('enableVariantsMatrix');
+    if (variantsCheck) {
+        if (rawType === 'grocery') {
+            variantsCheck.checked = false;
+        } else {
+            variantsCheck.checked = true;
+        }
+    }
+
+    selectBusinessType(rawType);
+
+    // حفظ فوري في الإعدادات وقاعدة بيانات SQLite
+    let settings = {};
+    try {
+        settings = JSON.parse(getStore('pos_settings') || '{}');
+    } catch(e) {}
+    settings.businessType = rawType;
+    if (variantsCheck) settings.enableVariantsMatrix = variantsCheck.checked;
+    setStore('pos_settings', JSON.stringify(settings));
+
+    if (typeof window.saveSettingsDirect === 'function') {
+        window.saveSettingsDirect(settings);
+    }
+
+    if (typeof showToast === 'function') {
+        const msg = rawType === 'grocery'
+            ? '🛒 تم اختيار نشاط: السوبر ماركت والبقالة والمنظفات بنجاح'
+            : '👔 تم اختيار نشاط: محلات الملابس والأحذية والموضة بنجاح';
+        showToast(msg, 'success');
+    }
+}
+
 function applyBusinessTypeUI() {
-    const settings = JSON.parse(getStore('pos_settings') || '{}');
+    let settings = {};
+    try {
+        settings = JSON.parse(getStore('pos_settings') || '{}');
+    } catch(e) {}
+
+    const rawBType = (document.getElementById('appBusinessTypeSelect') ? document.getElementById('appBusinessTypeSelect').value : null)
+        || (document.getElementById('appBusinessType') ? document.getElementById('appBusinessType').value : null)
+        || settings.businessType
+        || 'clothing';
+    const currentBType = (rawBType === 'grocery' || rawBType === 'supermarket') ? 'grocery' : 'clothing';
+
     const variantsCheck = document.getElementById('enableVariantsMatrix');
     const enableVariants = (settings.enableVariantsMatrix !== undefined)
         ? !!settings.enableVariantsMatrix
-        : (variantsCheck ? variantsCheck.checked : true);
+        : (variantsCheck ? variantsCheck.checked : (currentBType !== 'grocery'));
     const sectionsMap = settings.visibleDashboardSections || null;
 
     // 1. تفعيل أو تعطيل مصفوفة المقاسات والألوان وفقاً للإعدادات
@@ -195,7 +301,7 @@ function applyBusinessTypeUI() {
         'shortcuts', 'adjustment',
         'history', 'price-mgmt', 'transfer', 'warehouse-report', 'purchase', 'purchase-return'
     ];
-    const activeClothingSections = ['sales', 'sales-return', 'receipt', 'disbursement', 'daily-report', 'invoices', 'accounts', 'inventory', 'statement', 'analysis'];
+    const activeStaffSections = ['sales', 'sales-return', 'receipt', 'disbursement', 'daily-report', 'invoices', 'accounts', 'inventory', 'statement', 'analysis'];
 
     // ترقية تلقائية: ضمان ظهور قسم تحليل المبيعات افتراضياً وعدم إخفائه بسبب حفظ قديم
     if (sectionsMap && (sectionsMap.analysis === undefined || !settings._hasMigratedAnalysisSec)) {
@@ -210,7 +316,7 @@ function applyBusinessTypeUI() {
         if (sectionsMap && sectionsMap[secKey] !== undefined) {
             isVisible = !!sectionsMap[secKey];
         } else {
-            isVisible = activeClothingSections.includes(secKey);
+            isVisible = activeStaffSections.includes(secKey);
         }
         const hideClass = `bayan-hide-sec-${secKey}`;
         if (!isVisible) {
@@ -227,7 +333,7 @@ function applyBusinessTypeUI() {
             if (sectionsMap && sectionsMap[sec] !== undefined) {
                 chk.checked = !!sectionsMap[sec];
             } else {
-                chk.checked = activeClothingSections.includes(sec);
+                chk.checked = activeStaffSections.includes(sec);
             }
         }
     });
@@ -240,14 +346,44 @@ function applyBusinessTypeUI() {
         document.body.classList.remove('bayan-simple-dashboard-mode');
     }
 
-    // 5. تحديث كارت نوع النشاط في أعلى يسار شاشة تسجيل الدخول
+    // 5. تحديث كارت نوع النشاط في أعلى يسار شاشة تسجيل الدخول فورياً
+    const loginBadge = document.getElementById('loginBusinessTypeBadge');
     const loginBadgeName = document.getElementById('loginBusinessName');
     const loginBadgeIcon = document.getElementById('loginBusinessIcon');
     if (loginBadgeName && loginBadgeIcon) {
-        loginBadgeName.innerText = 'الملابس والأحذية والموضة';
-        loginBadgeIcon.innerText = '👕';
-        loginBadgeIcon.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+        if (currentBType === 'grocery') {
+            loginBadgeName.innerText = 'السوبر ماركت والبقالة والمنظفات';
+            loginBadgeName.style.color = '#7dd3fc';
+            loginBadgeIcon.innerText = '🛒';
+            loginBadgeIcon.style.background = 'linear-gradient(135deg, #0284c7, #0f766e)';
+            if (loginBadge) {
+                loginBadge.style.borderColor = 'rgba(56, 189, 248, 0.7)';
+                loginBadge.style.boxShadow = '0 6px 18px rgba(0,0,0,0.4), 0 0 12px rgba(56, 189, 248, 0.2)';
+            }
+        } else {
+            loginBadgeName.innerText = 'الملابس والأحذية والموضة';
+            loginBadgeName.style.color = '#a7f3d0';
+            loginBadgeIcon.innerText = '👕';
+            loginBadgeIcon.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+            if (loginBadge) {
+                loginBadge.style.borderColor = 'rgba(16, 185, 129, 0.7)';
+                loginBadge.style.boxShadow = '0 6px 18px rgba(0,0,0,0.4), 0 0 12px rgba(16, 185, 129, 0.2)';
+            }
+        }
     }
+}
+
+window.selectBusinessType = selectBusinessType;
+window.onBusinessTypeChange = onBusinessTypeChange;
+window.applyBusinessTypeUI = applyBusinessTypeUI;
+
+// تشغيل فوري لمزامنة نوع النشاط مع شاشة الدخول وباقي واجهات النظام عند تحميل الإعدادات
+try {
+    if (typeof applyBusinessTypeUI === 'function') {
+        applyBusinessTypeUI();
+    }
+} catch (e) {
+    console.warn("Auto-apply business type notice:", e);
 }
 
 function loadSettings() {
@@ -327,6 +463,12 @@ function loadSettings() {
     if (settings.currencyName) document.getElementById('appCurrencyName').value = settings.currencyName;
     if (settings.taxPercent !== undefined) document.getElementById('appTaxPercent').value = settings.taxPercent;
     if (settings.taxEnabled !== undefined) document.getElementById('appTaxEnabled').checked = settings.taxEnabled;
+    if (settings.dailyTaxSeqEnabled !== undefined && document.getElementById('dailyTaxSeqEnabled')) {
+        document.getElementById('dailyTaxSeqEnabled').checked = !!settings.dailyTaxSeqEnabled;
+    }
+    if (settings.dailyTaxSeqLimit !== undefined && document.getElementById('dailyTaxSeqLimit')) {
+        document.getElementById('dailyTaxSeqLimit').value = settings.dailyTaxSeqLimit > 0 ? settings.dailyTaxSeqLimit : '';
+    }
     if (settings.allowBackdating !== undefined) document.getElementById('allowBackdating').checked = settings.allowBackdating;
     if (settings.allowHistoryEdit !== undefined) document.getElementById('allowHistoryEdit').checked = settings.allowHistoryEdit;
     if (settings.showInquiryCostPrice !== undefined && document.getElementById('showInquiryCostPrice')) {
@@ -337,7 +479,14 @@ function loadSettings() {
     }
 
     // Load Business Profile Settings
-    const bType = settings.businessType || 'clothing';
+    let bType = settings.businessType;
+    if (!bType && window.AppStore && window.AppStore['main']) {
+        try {
+            const m = typeof window.AppStore['main'] === 'string' ? JSON.parse(window.AppStore['main']) : window.AppStore['main'];
+            if (m && m.businessType) bType = m.businessType;
+        } catch(e) {}
+    }
+    bType = bType || 'clothing';
     selectBusinessType(bType);
     if (settings.directToSalesOnLogin !== undefined && document.getElementById('directToSalesOnLogin')) {
         document.getElementById('directToSalesOnLogin').checked = settings.directToSalesOnLogin;
@@ -880,8 +1029,8 @@ function renderUsersTable() {
                     </div>
                 </td>
                 <td style="padding: 14px 16px; text-align: center;">
-                    <span style="font-family: monospace; letter-spacing: 2px; font-weight: 900; font-size: 1.05rem; background: #f8fafc; padding: 5px 12px; border-radius: 8px; border: 2px solid #cbd5e1; color: #000000;">
-                        ${(u.role === 'admin' || isSuperAdmin) ? '••••' : (u.pin || '••••')}
+                    <span style="font-family: monospace; letter-spacing: 2px; font-weight: 900; font-size: 1.05rem; background: #f8fafc; padding: 5px 12px; border-radius: 8px; border: 2px solid #cbd5e1; color: #000000;" title="رمز الدخول محمي">
+                        ${(u.role === 'admin' || isSuperAdmin) ? '••••' : (u.pin ? '••••' : 'غير محدد')}
                     </span>
                 </td>
                 <td style="padding: 14px 16px; text-align: center;">${nfcBadge}</td>

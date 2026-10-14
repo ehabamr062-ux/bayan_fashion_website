@@ -661,8 +661,16 @@
                             } else if (window._posCurrentNavState && window._posCurrentNavState.invoiceId) {
                                 if (document.getElementById('salesBadgeID')) document.getElementById('salesBadgeID').innerText = window._posCurrentNavState.invoiceId;
                             } else if (!isCurrentlyEditing) {
-                                const count = typeof getNextSequence === 'function' ? getNextSequence('بيع') : 1;
-                                if (document.getElementById('salesBadgeID')) document.getElementById('salesBadgeID').innerText = count;
+                                const rawCount = typeof getNextSequence === 'function' ? getNextSequence('بيع') : 1;
+                                const count = (typeof isDailyTaxSeqEnabled === 'function' && isDailyTaxSeqEnabled() && typeof getDailyTaxSequence === 'function')
+                                    ? getDailyTaxSequence()
+                                    : rawCount;
+                                if (document.getElementById('salesBadgeID')) {
+                                    document.getElementById('salesBadgeID').innerText = count;
+                                    if (count !== rawCount) {
+                                        document.getElementById('salesBadgeID').title = `رقم الإيصال اليومي: ${count} (الرقم التراكمي الأصلي: ${rawCount})`;
+                                    }
+                                }
                             }
                             if (typeof renderQuickItems === 'function') renderQuickItems(); // تحديث الأصناف السريعة تلقائياً
                         }

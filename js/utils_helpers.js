@@ -789,6 +789,156 @@
         }
         window.updateLastSavedSequence = updateLastSavedSequence;
 
+        // ============================================================
+        // 🧾 نظام ترقيم الفواتير اليومي (الحماية الضريبية لمبيعات التجزئة)
+        // ============================================================
+        function isDailyTaxSeqEnabled() {
+            try {
+                const settings = (typeof getStore === 'function') ? JSON.parse(getStore('pos_settings') || '{}') : {};
+                return settings.dailyTaxSeqEnabled === true;
+            } catch (e) {
+                return false;
+            }
+        }
+        window.isDailyTaxSeqEnabled = isDailyTaxSeqEnabled;
+
+        function getDailyTaxSequence(targetDateISO = null) {
+            const todayDate = targetDateISO || new Date().toLocaleDateString('en-CA');
+            let maxDailySeq = 0;
+            const list = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : [];
+
+            for (let i = 0; i < list.length; i++) {
+                const t = list[i];
+                if (!t || t.isDeleted) continue;
+                const matchesType = (typeof isTransactionOfType === 'function')
+                    ? isTransactionOfType(t, 'بيع')
+                    : (t.type && t.type.includes('بيع') && !t.type.includes('مرتجع'));
+                if (matchesType && (t.dateISO === todayDate || (!t.dateISO && targetDateISO === null))) {
+                    const seq = parseInt(t.taxInvoiceSeq || t.dailySeq || 0, 10);
+                    if (!isNaN(seq) && seq > maxDailySeq) {
+                        maxDailySeq = seq;
+                    }
+                }
+            }
+
+            // فحص القيمة المخزنة لليوم الحالي كصمام أمان
+            try {
+                const storedDayKey = 'bayan_daily_tax_seq_' + todayDate;
+                const storedVal = (typeof getStore === 'function' ? getStore(storedDayKey) : null);
+                const storedSeq = parseInt(storedVal || '0', 10);
+                if (!isNaN(storedSeq) && storedSeq > maxDailySeq) {
+                    maxDailySeq = storedSeq;
+                }
+            } catch (e) {}
+
+            let nextNum = maxDailySeq + 1;
+
+            // تطبيق السقف المحدد في الإعدادات إن وجد
+            try {
+                const settings = (typeof getStore === 'function') ? JSON.parse(getStore('pos_settings') || '{}') : {};
+                const limit = parseInt(settings.dailyTaxSeqLimit || 0, 10);
+                if (limit > 0 && nextNum > limit) {
+                    nextNum = ((nextNum - 1) % limit) + 1;
+                }
+            } catch (e) {}
+
+            return nextNum;
+        }
+        window.getDailyTaxSequence = getDailyTaxSequence;
+
+        function updateLastSavedDailyTaxSequence(targetDateISO, seqNumber) {
+            if (!seqNumber || isNaN(seqNumber)) return;
+            try {
+                const todayDate = targetDateISO || new Date().toLocaleDateString('en-CA');
+                const storedDayKey = 'bayan_daily_tax_seq_' + todayDate;
+                const currentStored = parseInt((typeof getStore === 'function' ? getStore(storedDayKey) : null) || '0', 10);
+                const num = parseInt(seqNumber, 10);
+                if (num > currentStored || isNaN(currentStored)) {
+                    if (typeof setStore === 'function') {
+                        setStore(storedDayKey, String(num));
+                    }
+                }
+            } catch (e) {}
+        }
+        window.updateLastSavedDailyTaxSequence = updateLastSavedDailyTaxSequence;
+
+        // 🏷️ دالة مركزية موحدة لاستخراج رقم الإيصال الضريبي اليومي للفاتورة
+        function getInvoiceTaxReceiptSeq(inv) {
+            if (!inv) return null;
+
+            // 1. القراءة المباشرة إذا كانت القيمة محفوظة على الكائن (بمختلف المسميات المحتملة)
+            let seq = inv.taxInvoiceSeq || inv.dailySeq || inv.dailyTaxSeq || inv.taxSeq || inv.taxInvoiceSequence || inv.receiptSeq || (inv.meta && (inv.meta.dailyTaxSeq || inv.meta.taxInvoiceSeq || inv.meta.dailySeq));
+            if (seq && !isNaN(parseInt(seq, 10)) && parseInt(seq, 10) > 0) {
+                return parseInt(seq, 10);
+            }
+
+            // 2. البحث في مصفوفة transactions المركزية برقم الفاتورة
+            const invId = inv.invoiceId || inv.id;
+            if (invId && typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+                const match = transactions.find(t => String(t.invoiceId) === String(invId) && (t.taxInvoiceSeq || t.dailySeq || t.dailyTaxSeq || t.taxSeq || t.taxInvoiceSequence || t.receiptSeq));
+                if (match) {
+                    const foundSeq = parseInt(match.taxInvoiceSeq || match.dailySeq || match.dailyTaxSeq || match.taxSeq || match.taxInvoiceSequence || match.receiptSeq, 10);
+                    if (!isNaN(foundSeq) && foundSeq > 0) {
+                        inv.taxInvoiceSeq = foundSeq;
+                        inv.dailySeq = foundSeq;
+                        return foundSeq;
+                    }
+                }
+            }
+
+            // 3. الذكاء الاسترجاعي: إذا كانت الفاتورة حركة مبيعات ونظام الترقيم اليومي مفعل
+            // يتم استنتاج ترتيبها اليومي تلقائياً لمنع ظهور شرطة (-)
+            const isSale = (inv.type && inv.type.includes('بيع') && !inv.type.includes('مرتجع'));
+            if (isSale && typeof isDailyTaxSeqEnabled === 'function' && isDailyTaxSeqEnabled() && invId) {
+                try {
+                    const list = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : [];
+                    const invDate = inv.dateISO || (inv.date ? String(inv.date).slice(0, 10) : new Date().toLocaleDateString('en-CA'));
+                    
+                    // استخراج كافة أرقام فواتير البيع الفريدة لنفس اليوم مرتبة تصاعدياً
+                    const daySaleIds = [];
+                    for (let i = 0; i < list.length; i++) {
+                        const t = list[i];
+                        if (!t || t.isDeleted) continue;
+                        const tIsSale = (t.type && t.type.includes('بيع') && !t.type.includes('مرتجع'));
+                        const tDate = t.dateISO || (t.date ? String(t.date).slice(0, 10) : '');
+                        if (tIsSale && tDate === invDate && t.invoiceId) {
+                            const numId = parseInt(t.invoiceId, 10) || 0;
+                            if (numId > 0 && !daySaleIds.includes(numId)) {
+                                daySaleIds.push(numId);
+                            }
+                        }
+                    }
+                    daySaleIds.sort((a, b) => a - b);
+                    const currentNumId = parseInt(invId, 10) || 0;
+                    const pos = daySaleIds.indexOf(currentNumId);
+                    if (pos !== -1) {
+                        let computedSeq = pos + 1;
+                        const settings = (typeof getStore === 'function') ? JSON.parse(getStore('pos_settings') || '{}') : {};
+                        const limit = parseInt(settings.dailyTaxSeqLimit || 0, 10);
+                        if (limit > 0 && computedSeq > limit) {
+                            computedSeq = ((computedSeq - 1) % limit) + 1;
+                        }
+                        inv.taxInvoiceSeq = computedSeq;
+                        inv.dailySeq = computedSeq;
+                        return computedSeq;
+                    }
+                } catch (e) {}
+            }
+
+            return null;
+        }
+        window.getInvoiceTaxReceiptSeq = getInvoiceTaxReceiptSeq;
+
+        // 🏷️ دالة مركزية موحدة لتوليد كود HTML الخاص بشارة رقم الإيصال في الجداول
+        function getInvoiceReceiptBadgeHtml(inv) {
+            const seq = getInvoiceTaxReceiptSeq(inv);
+            if (seq) {
+                return `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; border-radius:6px; padding:2px 8px; font-size:0.82rem; font-weight:900;" title="رقم الإيصال اليومي">#${seq}</span>`;
+            }
+            return '<span style="color:#94a3b8; font-size:0.85rem;">-</span>';
+        }
+        window.getInvoiceReceiptBadgeHtml = getInvoiceReceiptBadgeHtml;
+
 
         // --- مراقبة حالة الاتصال (Offline/Online) المباشرة والدورية ---
         window.addEventListener('online', () => updateConnectionStatus(true));
