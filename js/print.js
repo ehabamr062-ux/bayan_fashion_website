@@ -98,24 +98,45 @@ function generateOfflineBarcodeSVG(barcodeText, width = 1.4, height = 30) {
 }
 
 /**
- * 🏷️ استنتاج مسمى كود صفحة التواصل أو المتجر
+ * 🏷️ استنتاج مسمى منصة التواصل الاجتماعي تلقائياً من الرابط
  */
 function getSocialQrLabel(url) {
-    if (!url) return 'Facebook';
-    const lower = String(url).toLowerCase();
-    if (lower.includes('facebook') || lower.includes('fb.com') || lower.includes('fb.me')) {
+    if (!url || !String(url).trim()) return 'Facebook';
+    const lower = String(url).toLowerCase().trim();
+    
+    if (lower.includes('facebook') || lower.includes('fb.com') || lower.includes('fb.me') || lower.includes('fb.watch')) {
         return 'Facebook';
     }
     if (lower.includes('wa.me') || lower.includes('whatsapp')) {
         return 'WhatsApp';
     }
-    if (lower.includes('instagram')) {
+    if (lower.includes('instagram') || lower.includes('instagr.am')) {
         return 'Instagram';
     }
     if (lower.includes('tiktok')) {
         return 'TikTok';
     }
-    return 'Facebook';
+    if (lower.includes('t.me') || lower.includes('telegram')) {
+        return 'Telegram';
+    }
+    if (lower.includes('snapchat')) {
+        return 'Snapchat';
+    }
+    if (lower.includes('youtube') || lower.includes('youtu.be')) {
+        return 'YouTube';
+    }
+    if (lower.includes('x.com') || lower.includes('twitter')) {
+        return 'X';
+    }
+    if (lower.includes('pinterest')) {
+        return 'Pinterest';
+    }
+    if (lower.includes('linkedin')) {
+        return 'LinkedIn';
+    }
+    
+    // إذا كان رابط موقع خاص بالمتجر
+    return 'Website';
 }
 
 /**
