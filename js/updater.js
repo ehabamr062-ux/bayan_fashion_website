@@ -1021,6 +1021,14 @@
     function showCloudBroadcastModal(item, seenKey) {
         if (document.getElementById('bayan-broadcast-overlay')) return;
 
+        // تسجيل أن الإشعار عُرض فوراً لمنع ظهوره أكثر من مرة واحدة أبداً
+        if (seenKey) {
+            try {
+                if (typeof setStore === 'function') setStore(seenKey, '1');
+                localStorage.setItem(seenKey, '1');
+            } catch(e) {}
+        }
+
         const overlay = document.createElement('div');
         overlay.id = 'bayan-broadcast-overlay';
         overlay.style.cssText = `
