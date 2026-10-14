@@ -853,33 +853,40 @@
             if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
 
             let rawText = '';
-            try {
-                const url = GITHUB_BROADCAST_URL + '?t=' + Date.now();
-                const ctrl = new AbortController();
-                const tid = setTimeout(() => ctrl.abort(), 2000);
-                const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
-                clearTimeout(tid);
-                if (res.ok) rawText = await res.text();
-            } catch(e) {}
-
-            // تجاوز كاش Fastly CDN اللحظي لجلب أحدث تعديل قام به المستخدم فورياً عبر GitHub API
-            if (!rawText || rawText.includes('"active": false') || !rawText.trim()) {
+            const broadcastRepos = [GITHUB_BROADCAST_REPO, GITHUB_REPO_NAME];
+            for (const repo of broadcastRepos) {
+                if (rawText && rawText.trim()) break;
                 try {
-                    const apiUrl = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_BROADCAST_REPO}/contents/announcements.json?t=${Date.now()}`;
-                    const apiCtrl = new AbortController();
-                    const apiTid = setTimeout(() => apiCtrl.abort(), 2000);
-                    const apiRes = await fetch(apiUrl, { cache: 'no-store', signal: apiCtrl.signal });
-                    clearTimeout(apiTid);
-                    if (apiRes.ok) {
-                        const apiJson = await apiRes.json();
-                        if (apiJson && apiJson.content && apiJson.encoding === 'base64') {
-                            const binaryStr = atob(apiJson.content.replace(/\s/g, ''));
-                            const bytes = Uint8Array.from(binaryStr, c => c.charCodeAt(0));
-                            const decoded = new TextDecoder('utf-8').decode(bytes);
-                            if (decoded && decoded.trim()) rawText = decoded;
-                        }
+                    const url = `https://raw.githubusercontent.com/${GITHUB_REPO_OWNER}/${repo}/main/announcements.json?t=${Date.now()}`;
+                    const ctrl = new AbortController();
+                    const tid = setTimeout(() => ctrl.abort(), 2500);
+                    const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal });
+                    clearTimeout(tid);
+                    if (res.ok) {
+                        const t = await res.text();
+                        if (t && t.trim()) rawText = t;
                     }
-                } catch(apiErr) {}
+                } catch(e) {}
+
+                // تجاوز كاش Fastly CDN اللحظي لجلب أحدث تعديل فورياً عبر GitHub Contents API
+                if (!rawText || !rawText.trim()) {
+                    try {
+                        const apiUrl = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${repo}/contents/announcements.json?t=${Date.now()}`;
+                        const apiCtrl = new AbortController();
+                        const apiTid = setTimeout(() => apiCtrl.abort(), 2500);
+                        const apiRes = await fetch(apiUrl, { cache: 'no-store', signal: apiCtrl.signal });
+                        clearTimeout(apiTid);
+                        if (apiRes.ok) {
+                            const apiJson = await apiRes.json();
+                            if (apiJson && apiJson.content && apiJson.encoding === 'base64') {
+                                const binaryStr = atob(apiJson.content.replace(/\s/g, ''));
+                                const bytes = Uint8Array.from(binaryStr, c => c.charCodeAt(0));
+                                const decoded = new TextDecoder('utf-8').decode(bytes);
+                                if (decoded && decoded.trim()) rawText = decoded;
+                            }
+                        }
+                    } catch(apiErr) {}
+                }
             }
 
             if (!rawText || !rawText.trim()) return;
