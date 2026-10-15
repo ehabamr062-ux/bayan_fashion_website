@@ -976,7 +976,7 @@ async function shareTransaction(type, platform) {
 window.shareTransaction = shareTransaction;
 
 // 3. دالة تصدير بيانات الفاتورة والمستندات إلى ملف Excel غني يشمل كافة الحقول والبيانات المطلوبة
-function exportInvoiceDataToExcel(type, fileName, customItems) {
+async function exportInvoiceDataToExcel(type, fileName, customItems) {
     if (typeof validateDocumentData === 'function' && !validateDocumentData(type, 'تصدير ملف إكسل')) {
         return false;
     }
@@ -1297,8 +1297,14 @@ function exportInvoiceDataToExcel(type, fileName, customItems) {
         }
         return;
     } else if (type === 'invoices') {
-        const fromDate = document.getElementById('invFilterFrom')?.value || '';
-        const toDate = document.getElementById('invFilterTo')?.value || '';
+        const fromDate = document.getElementById('invoicesDateFrom')?.value || document.getElementById('invFilterFrom')?.value || '';
+        const toDate = document.getElementById('invoicesDateTo')?.value || document.getElementById('invFilterTo')?.value || '';
+        if ((fromDate || toDate) && typeof window.loadTransactionsForDateRange === 'function') {
+            const todayISO = new Date().toLocaleDateString('en-CA');
+            if (fromDate < todayISO || toDate < todayISO) {
+                await window.loadTransactionsForDateRange(fromDate, toDate);
+            }
+        }
         const filtered = (typeof transactions !== 'undefined' ? transactions : []).filter(t => (!fromDate || t.dateISO >= fromDate) && (!toDate || t.dateISO <= toDate));
         
         const items = filtered.map((t, idx) => ({

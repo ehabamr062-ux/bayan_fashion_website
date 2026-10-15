@@ -324,9 +324,27 @@
                 }
 
                 // البحث عن المستخدم بالاسم في قاعدة البيانات
-                const foundUser = (typeof users !== 'undefined' && Array.isArray(users)) 
-                    ? users.find(u => u.name === username) 
+                let foundUser = (typeof users !== 'undefined' && Array.isArray(users))
+                    ? users.find(u => u.name === username)
                     : null;
+
+                // ⚡ صمام أمان فوري ضد سباق السرعة (Fast Login Fix):
+                // إذا لم يكن المستخدم موجوداً في الذاكرة بعد أو كان الـ PIN غير محمل (كاش سريع)، نجلبه مباشرة من SQLite
+                if (!foundUser || foundUser.pin === undefined) {
+                    const targetDb = window.db || window.bayanDB;
+                    if (targetDb && targetDb.users && typeof targetDb.users.toArray === 'function') {
+                        try {
+                            const dbUsers = await targetDb.users.toArray();
+                            if (dbUsers && dbUsers.length > 0) {
+                                window.users = dbUsers;
+                                users = dbUsers;
+                                foundUser = dbUsers.find(u => u.name === username);
+                            }
+                        } catch(dbErr) {
+                            console.warn("DB user fetch error during login:", dbErr);
+                        }
+                    }
+                }
 
                 if (!foundUser) {
                     if (errorMsgEl) {
@@ -354,11 +372,12 @@
                     return;
                 }
 
-                const expectedPin = (window.BayanSecurity && typeof window.BayanSecurity.decryptPin === 'function')
-                    ? window.BayanSecurity.decryptPin(foundUser.pin)
-                    : foundUser.pin;
-
-                const isPinValid = (pin === foundUser.pin || pin === expectedPin || (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function' && window.BayanSecurity.verifyPin(pin, foundUser.pin)));
+                const cleanEnteredPin = String(pin || '').trim();
+                const isPinValid = (cleanEnteredPin && foundUser.pin != null) && (
+                    (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function')
+                        ? window.BayanSecurity.verifyPin(cleanEnteredPin, foundUser.pin)
+                        : (cleanEnteredPin === String(foundUser.pin).trim())
+                );
 
                 if (isPinValid) {
                     // نجاح الدخول: إعادة تعيين عداد المحاولات الخاطئة وحفظها دائماً

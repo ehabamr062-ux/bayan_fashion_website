@@ -556,19 +556,6 @@ async function loadData() {
         accounts = aData || [];
         window.accounts = accounts;
 
-        // 🩹 ترميم وتطهير أي رصيد افتتاحي تضرر بالخطأ في الحسابات عند الإقلاع
-        const cleanArFn = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
-        accounts.forEach(a => {
-            if (!a) return;
-            if (cleanArFn(a.name) === cleanArFn('طه') && (parseFloat(a.debit) === 400 || a.debit == '400') && (parseFloat(a.credit) === 70 || a.credit == '70')) {
-                a.debit = '0';
-                delete a.balance;
-                if (typeof db !== 'undefined' && db.accounts) {
-                    db.accounts.put(a).catch(e => console.warn("Repair acc in core:", e));
-                }
-            }
-        });
-
         if (typeof window.invalidateAccountBalancesCache === 'function') {
             window.invalidateAccountBalancesCache();
         }
@@ -606,13 +593,11 @@ async function loadData() {
         }).map(u => {
             if (!u) return u;
             const rawPin = u.pin;
-            const decryptedPin = (window.BayanSecurity && typeof window.BayanSecurity.decryptPin === 'function')
-                ? window.BayanSecurity.decryptPin(rawPin)
-                : rawPin;
-            if (rawPin != null && rawPin !== '' && !String(rawPin).startsWith('ENC:')) {
+            // 🔒 نحافظ على حماية وتشفير رمز PIN في الذاكرة لمنع كشفه بنص صريح
+            if (rawPin != null && rawPin !== '' && !String(rawPin).startsWith('ENC:') && !String(rawPin).startsWith('HASH:')) {
                 pinMigrationNeeded = true;
             }
-            return { ...u, pin: decryptedPin };
+            return { ...u };
         });
 
         window.users = users;
@@ -866,12 +851,15 @@ async function loadData() {
     if (typeof applyPermissions === 'function') applyPermissions();
 
     // 🛡️ تشغيل النسخ الاحتياطي التلقائي بهدوء عند إغلاق البرنامج لمنع أي استهلاك للمعالج أو تجميد للداتابيز عند الإقلاع
-    window.addEventListener('beforeunload', () => {
-        const settings = JSON.parse(getStore('pos_settings') || '{}');
-        if (settings.autoBackup === true && typeof BackupService !== 'undefined') {
-            BackupService.createAutoBackup();
-        }
-    });
+    if (!window._hasRegisteredBackupBeforeUnload) {
+        window._hasRegisteredBackupBeforeUnload = true;
+        window.addEventListener('beforeunload', () => {
+            const settings = JSON.parse(getStore('pos_settings') || '{}');
+            if (settings.autoBackup === true && typeof BackupService !== 'undefined') {
+                BackupService.createAutoBackup();
+            }
+        });
+    }
 
 }
 

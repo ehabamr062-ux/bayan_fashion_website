@@ -2083,3 +2083,116 @@ body.dark-mode .panel-header {
         .stmt-filter-input:focus {
             border-color: #3b82f6;
         }
+
+/* =========================================================================
+   🙈 إخفاء المبالغ التام والآمن في تقرير الحركة اليومية
+   ========================================================================= */
+body.daily-amounts-hidden #daily-report-section #dailyTotalVal,
+body.daily-amounts-hidden #daily-report-section .report-summary-box .value,
+body.daily-amounts-hidden #daily-report-section .summary-val,
+body.daily-amounts-hidden #daily-report-section .stat-value,
+body.daily-amounts-hidden #daily-report-section td.amount-cell,
+body.daily-amounts-hidden #daily-report-section td[data-amount],
+body.daily-amounts-hidden #daily-report-section .finance-num {
+    filter: blur(8px) !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    pointer-events: none !important;
+    transition: filter 0.2s ease;
+}
+
+/* 🔒 تأكيد منع كشف المبالغ نهائياً عند مرور الماوس فوق الصفوف */
+body.daily-amounts-hidden #daily-report-section .report-summary-box:hover .value,
+body.daily-amounts-hidden #daily-report-section #dailyTotalSalesReceipts:hover #dailyTotalVal {
+    filter: blur(8px) !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    pointer-events: none !important;
+}
+
+/* =========================================================================
+   📊 تنسيقات جداول قسم الحسابات وتحديد الصفوف
+   ========================================================================= */
+#accounts-section table.invoice-table tbody tr {
+    transition: background-color 0.15s ease, color 0.15s ease !important;
+}
+
+#accounts-section table.invoice-table tbody tr:hover,
+#accounts-section table.invoice-table tbody tr.acc-selected-row {
+    background-color: #065f46 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 15px rgba(6, 95, 70, 0.45) !important;
+}
+
+#accounts-section table.invoice-table tbody tr:hover td,
+#accounts-section table.invoice-table tbody tr:hover span,
+#accounts-section table.invoice-table tbody tr:hover b,
+#accounts-section table.invoice-table tbody tr.acc-selected-row td,
+#accounts-section table.invoice-table tbody tr.acc-selected-row span,
+#accounts-section table.invoice-table tbody tr.acc-selected-row b {
+    color: #ffffff !important;
+}
+
+#accounts-section table.invoice-table tbody tr:hover td span.color-danger,
+#accounts-section table.invoice-table tbody tr.acc-selected-row td span.color-danger {
+    color: #fca5a5 !important;
+    font-weight: 900 !important;
+}
+
+#accounts-section table.invoice-table tbody tr:hover td span.color-success,
+#accounts-section table.invoice-table tbody tr.acc-selected-row td span.color-success {
+    color: #86efac !important;
+    font-weight: 900 !important;
+}
+
+#accounts-section table.invoice-table tbody tr td {
+    padding: 10px 8px !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    font-size: 0.9rem !important;
+    vertical-align: middle !important;
+}
+
+/* ====== شريط تمرير مخصص - قسم الحسابات ====== */
+#accounts-section .table-container::-webkit-scrollbar {
+    width: 10px;
+}
+
+#accounts-section .table-container::-webkit-scrollbar-track {
+    background: linear-gradient(180deg, #fff7ed, #fef3c7);
+    border-radius: 10px;
+    margin: 4px 0;
+}
+
+#accounts-section .table-container::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #f59e0b, #d97706);
+    border-radius: 10px;
+    border: 2px solid #fef3c7;
+}
+
+#accounts-section .table-container::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #fbbf24, #b45309);
+}
+
+#accounts-section .table-container {
+    scrollbar-width: thin;
+    scrollbar-color: #f59e0b #fff7ed;
+}
+
+/* ============================================= */
+/* 📜 تنسيقات سجل الحركات المطور (History Section Enhancements) */
+/* ============================================= */
+.col-hist-11 {
+    background: linear-gradient(135deg, rgba(124,58,237,0.08), rgba(245,158,11,0.08)) !important;
+    font-weight: 900;
+    color: #7c3aed;
+    text-align: center;
+    white-space: nowrap;
+}
+.hist-balance-up   { color: #059669; font-weight: 900; }
+.hist-balance-down { color: #dc2626; font-weight: 900; }
+.hist-balance-zero { color: #94a3b8; font-weight: 700; }
+
+/* تحسين مربع فلتر الفاتورة */
+#historyInvoiceClientFilter:focus {
+    box-shadow: 0 0 0 3px rgba(124,58,237,0.15);
+}

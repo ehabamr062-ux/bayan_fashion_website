@@ -1850,3 +1850,499 @@ body.dark-mode #historySummaryStatsCards > div:nth-child(4) #histCardTotalAmount
     20%, 60% { transform: translateX(-10px); }
     40%, 80% { transform: translateX(10px); }
 }
+
+/* ==============================================================================================
+   💎 تصميم وتطوير قسم البضاعة والجرد الفاخر (Ultra-Premium Inventory Theme & Navigation)
+   ============================================================================================== */
+#inventory-section {
+    background: #f8fafc !important;
+    font-family: 'Cairo', sans-serif !important;
+}
+
+#inventory-section .inv-sidebar {
+    background: linear-gradient(180deg, #1e1b4b 0%, #3b0764 50%, #2e1065 100%) !important;
+    border: 1px solid rgba(192, 132, 252, 0.3) !important;
+    border-radius: 24px !important;
+    box-shadow: 0 15px 35px rgba(46, 16, 101, 0.35) !important;
+}
+
+/* 🎨 ألوان فاخرة ومتميزة لكل مربعات الجانب */
+#inventory-section .inv-sidebar .btn-back-home-inv {
+    background: linear-gradient(135deg, #4f46e5, #4338ca) !important;
+    color: white !important;
+    border: 1px solid #6366f1 !important;
+    border-radius: 14px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3) !important;
+}
+
+#inventory-section .btn-add-item {
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+    color: white !important;
+    border: 1px solid #34d399 !important;
+    border-radius: 16px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+#inventory-section .btn-add-item:hover {
+    transform: translateY(-3px) scale(1.02) !important;
+    box-shadow: 0 12px 30px rgba(16, 185, 129, 0.5) !important;
+    background: linear-gradient(135deg, #059669, #047857) !important;
+}
+
+#inventory-section .btn-inv-barcode {
+    background: linear-gradient(135deg, #d97706, #b45309) !important;
+    color: white !important;
+    border: 1px solid #fbbf24 !important;
+    border-radius: 14px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 4px 15px rgba(217, 119, 6, 0.3) !important;
+}
+
+#inventory-section .btn-inv-transfer {
+    background: linear-gradient(135deg, #0284c7, #0369a1) !important;
+    color: white !important;
+    border: 1px solid #38bdf8 !important;
+    border-radius: 14px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 4px 15px rgba(2, 132, 199, 0.3) !important;
+}
+
+#inventory-section .btn-inv-adjust {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
+    color: white !important;
+    border: 1px solid #a78bfa !important;
+    border-radius: 14px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3) !important;
+}
+
+#inventory-section .btn-inv-history {
+    background: linear-gradient(135deg, #ec4899, #db2777) !important;
+    color: white !important;
+    border: 1px solid #f472b6 !important;
+    border-radius: 14px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3) !important;
+}
+
+#inventory-section .btn-inv-prices {
+    background: linear-gradient(135deg, #ca8a04, #a16207) !important;
+    color: white !important;
+    border: 1px solid #fde047 !important;
+    border-radius: 14px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 4px 15px rgba(202, 138, 4, 0.3) !important;
+}
+
+#inventory-section .btn-inv-excel {
+    background: linear-gradient(135deg, #16a34a, #15803d) !important;
+    color: white !important;
+    border: 1px solid #4ade80 !important;
+    border-radius: 14px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 4px 15px rgba(22, 163, 74, 0.3) !important;
+}
+
+#inventory-section .btn-inv-template {
+    background: linear-gradient(135deg, #475569, #334155) !important;
+    color: white !important;
+    border: 1px solid #94a3b8 !important;
+    border-radius: 14px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 4px 15px rgba(71, 85, 105, 0.3) !important;
+}
+
+#inventory-section .inv-sidebar button:hover {
+    transform: translateY(-2px) scale(1.02) !important;
+    filter: brightness(1.15) !important;
+}
+
+/* ================= 🟪 أزرار ومؤشر التنقل السريع بين الأصناف (Product Navigation Arrows & Counter) ================= */
+.bayan-modal-content {
+    position: relative !important;
+}
+
+.bayan-nav-arrow {
+    position: absolute !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 52px !important;
+    height: 52px !important;
+    background: linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%) !important;
+    color: #ffffff !important;
+    border: 2.5px solid #a78bfa !important;
+    border-radius: 50% !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 2.2rem !important;
+    font-weight: 900 !important;
+    cursor: pointer !important;
+    z-index: 10005 !important;
+    box-shadow: 0 10px 25px rgba(124, 58, 237, 0.45), 0 0 15px rgba(167, 139, 250, 0.4) !important;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) !important;
+    -webkit-user-select: none !important;
+    user-select: none !important;
+    line-height: 1 !important;
+    padding-bottom: 4px !important;
+}
+
+.bayan-nav-arrow:hover {
+    transform: translateY(-50%) !important;
+    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%) !important;
+    box-shadow: 0 15px 35px rgba(139, 92, 246, 0.6), 0 0 25px rgba(192, 132, 252, 0.8) !important;
+    border-color: #c084fc !important;
+}
+
+.bayan-nav-arrow:active {
+    transform: translateY(-50%) !important;
+    opacity: 0.85 !important;
+}
+
+/* السهم اليمين = الصنف التالي (في واجهة RTL) */
+.bayan-nav-arrow.right {
+    right: -26px !important;
+}
+
+/* السهم اليسار = الصنف السابق (في واجهة RTL) */
+.bayan-nav-arrow.left {
+    left: -26px !important;
+}
+
+@media (max-width: 900px) {
+    .bayan-nav-arrow.right {
+        right: 5px !important;
+    }
+
+    .bayan-nav-arrow.left {
+        left: 5px !important;
+    }
+}
+
+#inventory-section .inv-filters .filter-btn {
+    border-radius: 12px !important;
+    font-weight: 800 !important;
+    padding: 8px 18px !important;
+    border: 1px solid #e2e8f0 !important;
+    background: #ffffff !important;
+    color: #475569 !important;
+    transition: all 0.25s ease !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03) !important;
+}
+
+#inventory-section .inv-filters .filter-btn:hover {
+    background: #f1f5f9 !important;
+    transform: translateY(-1px) !important;
+}
+
+#inventory-section .inv-filters .filter-btn.active {
+    background: linear-gradient(135deg, #064e3b, #047857) !important;
+    color: #ffffff !important;
+    border-color: #059669 !important;
+    box-shadow: 0 4px 15px rgba(6, 78, 59, 0.3) !important;
+}
+
+#inventory-section table.invoice-table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border-radius: 14px !important;
+}
+
+#inventory-section table.invoice-table thead tr th {
+    position: -webkit-sticky !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+    background: linear-gradient(135deg, #022c22 0%, #064e3b 60%, #047857 100%) !important;
+    color: #ffffff !important;
+    font-weight: 900 !important;
+    font-size: 0.9rem !important;
+    padding: 14px 10px !important;
+    border-bottom: 2px solid #059669 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
+}
+
+#inventory-section table.invoice-table tbody tr {
+    transition: background-color 0.15s ease, color 0.15s ease !important;
+}
+
+#inventory-section table.invoice-table tbody tr:hover {
+    background-color: #065f46 !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(6, 78, 59, 0.15) !important;
+}
+
+#inventory-section table.invoice-table tbody tr td {
+    padding: 10px 8px !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    font-size: 0.9rem !important;
+    vertical-align: middle !important;
+}
+
+/* ====== تمييز الهوفر والتحديد في قسم البضاعة / الأصناف (بنفسجي ملكي داكن وفخم) ====== */
+#inventory-section table.invoice-table tbody tr,
+#inventoryTableBody tr {
+    transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease !important;
+}
+
+#inventory-section table.invoice-table tbody tr:hover,
+#inventoryTableBody tr:hover,
+#inventoryTableBody tr.selected-row-gold {
+    background: linear-gradient(90deg, #2e1065 0%, #4c1d95 60%, #581c87 100%) !important;
+    /* بنفسجي ملكي فاخر وداكن جداً */
+    color: #ffffff !important;
+    box-shadow: 0 4px 18px rgba(124, 58, 237, 0.45) !important;
+}
+
+#inventory-section table.invoice-table tbody tr:hover td,
+#inventory-section table.invoice-table tbody tr:hover span,
+#inventory-section table.invoice-table tbody tr:hover b,
+#inventoryTableBody tr:hover td,
+#inventoryTableBody tr:hover span,
+#inventoryTableBody tr:hover b,
+#inventoryTableBody tr.selected-row-gold td,
+#inventoryTableBody tr.selected-row-gold span,
+#inventoryTableBody tr.selected-row-gold b {
+    color: #ffffff !important;
+}
+
+#inventory-section table.invoice-table tbody tr:hover td.num-cell,
+#inventoryTableBody tr:hover td.num-cell,
+#inventoryTableBody tr.selected-row-gold td.num-cell {
+    color: #ffffff !important;
+}
+
+#inventory-section table.invoice-table tbody tr:hover td.col-inv-margin,
+#inventoryTableBody tr:hover td.col-inv-margin,
+#inventoryTableBody tr.selected-row-gold td.col-inv-margin {
+    background: rgba(255, 255, 255, 0.22) !important;
+    color: #ffffff !important;
+    border-radius: 6px !important;
+    font-weight: 900 !important;
+}
+
+/* 🖼️ تناسق صورة الموديل والأيقونة البديلة مع الهوفر البنفسجي الملكي */
+#inventory-section table.invoice-table tbody tr:hover td.col-inv-image img,
+#inventoryTableBody tr:hover td.col-inv-image img,
+#inventoryTableBody tr.selected-row-gold td.col-inv-image img {
+    border-color: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+}
+
+#inventory-section table.invoice-table tbody tr:hover td.col-inv-image span,
+#inventoryTableBody tr:hover td.col-inv-image span,
+#inventoryTableBody tr.selected-row-gold td.col-inv-image span {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+/* 3. جدول البيانات الرئيسي مع تثبيت رؤوس الأعمدة Sticky Header وشريط التمرير */
+.inventory-scroll-wrapper table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+}
+
+.inventory-scroll-wrapper thead th,
+#inventory-section table.invoice-table thead tr th {
+    position: -webkit-sticky !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1000 !important;
+    background: linear-gradient(135deg, #022c22 0%, #064e3b 60%, #047857 100%) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4) !important;
+}
+
+.inventory-scroll-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    flex: 1 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    max-height: calc(100vh - 120px) !important;
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+    scroll-behavior: auto !important;
+    padding-bottom: 0px;
+}
+
+.inventory-scroll-wrapper::-webkit-scrollbar {
+    height: 10px !important;
+    width: 8px !important;
+    display: block !important;
+}
+
+.inventory-scroll-wrapper::-webkit-scrollbar-track {
+    background: #f1f5f9 !important;
+    border-radius: 6px !important;
+}
+
+.inventory-scroll-wrapper::-webkit-scrollbar-horizontal {
+    height: 10px !important;
+    display: block !important;
+}
+
+.inventory-scroll-wrapper::-webkit-scrollbar-vertical {
+    width: 8px !important;
+    display: block !important;
+}
+
+.inventory-scroll-wrapper::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, #10b981, #059669) !important;
+    border-radius: 6px !important;
+    border: 2px solid #f1f5f9 !important;
+}
+
+.inventory-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, #059669, #047857) !important;
+}
+
+#invTopScrollbarContainer::-webkit-scrollbar {
+    height: 20px !important;
+    width: 20px !important;
+    display: block !important;
+}
+
+#invTopScrollbarContainer::-webkit-scrollbar-track {
+    background: #e2e8f0 !important;
+    border-radius: 10px !important;
+    box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.2) !important;
+}
+
+#invTopScrollbarContainer::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, #4ade80, #22c55e) !important;
+    border-radius: 10px !important;
+    border: 3px solid #e2e8f0 !important;
+}
+
+#invTopScrollbarContainer::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(90deg, #22c55e, #16a34a) !important;
+}
+
+/* 🔍 نظام تصميم شاشة استعلام وفحص الأصناف الفائق (Premium Fashion Inquiry) */
+#product-inquiry-section .inquiry-sidebar-panel {
+    background: #ffffff !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 20px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+    transition: all 0.3s ease;
+}
+
+#product-inquiry-section .inquiry-details-panel {
+    background: #ffffff !important;
+    border: 1.5px solid #cbd5e1 !important;
+    border-radius: 20px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+    transition: all 0.3s ease;
+}
+
+#product-inquiry-section .btn-back-home-inquiry {
+    background: linear-gradient(135deg, #4f46e5, #4338ca) !important;
+    color: #ffffff !important;
+    border: 1px solid #6366f1 !important;
+    border-radius: 14px !important;
+    font-weight: 900 !important;
+    font-size: 1rem !important;
+    box-shadow: 0 4px 15px rgba(79, 70, 229, 0.35) !important;
+    cursor: pointer !important;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+#product-inquiry-section .btn-back-home-inquiry:hover {
+    background: linear-gradient(135deg, #4338ca, #3730a3) !important;
+    border-color: #818cf8 !important;
+    color: #ffffff !important;
+    transform: translateY(-2px) scale(1.02) !important;
+    box-shadow: 0 8px 25px rgba(79, 70, 229, 0.45) !important;
+}
+
+#product-inquiry-section #inquirySearchInput {
+    border: 2px solid #cbd5e1 !important;
+    border-radius: 12px !important;
+    font-size: 0.95rem !important;
+    font-weight: 800 !important;
+    background: #f8fafc !important;
+    color: #0f172a !important;
+    transition: all 0.2s ease !important;
+}
+
+#product-inquiry-section #inquirySearchInput:focus {
+    background: #ffffff !important;
+    border-color: #059669 !important;
+    outline: 3.5px solid rgba(5, 150, 105, 0.15) !important;
+}
+
+#product-inquiry-section .inquiry-product-item {
+    background: #ffffff !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 12px !important;
+    padding: 11px 14px !important;
+    margin-bottom: 7px !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+    transition: all 0.2s ease !important;
+}
+
+#product-inquiry-section .inquiry-product-item:hover {
+    background: #f0fdf4 !important;
+    border-color: #86efac !important;
+    transform: translateX(-3px) !important;
+    box-shadow: 0 3px 10px rgba(5, 150, 105, 0.08) !important;
+}
+
+#product-inquiry-section .inquiry-product-item.active {
+    background: #ecfdf5 !important;
+    border-color: #10b981 !important;
+    border-right: 4.5px solid #059669 !important;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.16) !important;
+}
+
+#product-inquiry-section .inquiry-product-item .name {
+    color: #0f172a !important;
+    font-weight: 900 !important;
+    font-size: 0.92rem !important;
+}
+
+#product-inquiry-section .inquiry-product-item .code {
+    color: #64748b !important;
+    font-weight: 700 !important;
+    font-size: 0.76rem !important;
+}
+
+#product-inquiry-section .inquiry-product-item>span {
+    color: #047857 !important;
+    background: #ecfdf5 !important;
+    padding: 4px 9px !important;
+    border-radius: 8px !important;
+    border: 1px solid #a7f3d0 !important;
+    font-weight: 900 !important;
+    font-size: 0.88rem !important;
+}
+
+#product-inquiry-section .inquiry-modern-box {
+    background: #ffffff;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 16px;
+    padding: 16px 20px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+#product-inquiry-section .inquiry-table th {
+    background: #f1f5f9;
+    color: #334155;
+    font-weight: 900;
+    font-size: 0.86rem;
+    padding: 10px 14px;
+    border-bottom: 2px solid #cbd5e1;
+}
+
+#product-inquiry-section .inquiry-table td {
+    padding: 10px 14px;
+    font-size: 0.88rem;
+    border-bottom: 1px solid #f1f5f9;
+}

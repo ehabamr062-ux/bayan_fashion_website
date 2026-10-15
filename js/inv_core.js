@@ -2615,4 +2615,102 @@ window.runStockReconciliationAudit = function(showModal = true) {
     };
 };
 
+// ============================================================
+// ⚙️ تخصيص وإظهار أعمدة جدول الأصناف (Inventory Column Customizer)
+// ============================================================
+function showInventoryColumnCustomizer() {
+    if (typeof checkColumnCustomizationPermission === 'function' && !checkColumnCustomizationPermission()) return;
+    const cols = [
+        { id: 0, name: "مربع التحديد (✔️)" },
+        { id: 1, name: "م (الترقيم)" },
+        { id: "quick", name: "صنف سريع ⚡" },
+        { id: 2, name: "كود الصنف" },
+        { id: "internal", name: "كود داخلي" },
+        { id: 3, name: "اسم الصنف" },
+        { id: 4, name: "الباركود" },
+        { id: 5, name: "المكان / الرف" },
+        { id: 6, name: "رصيد البداية" },
+        { id: 7, name: "الوارد (+)" },
+        { id: 8, name: "المنصرف (-)" },
+        { id: 13, name: "بيع جملة" },
+        { id: 10, name: "بيع قطاعي" },
+        { id: "margin", name: "نسبة الربح %" },
+        { id: 11, name: "آخر شراء" },
+        { id: 12, name: "متوسط التكلفة" },
+        { id: "detailed", name: "الوحدات والعبوات" },
+        { id: 9, name: "الرصيد النهائي" },
+        { id: "image", name: "صورة الموديل 🖼️" }
+    ];
+
+    let html = `<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 15px; max-height: 55vh; overflow-y: auto;">`;
+    cols.forEach(c => {
+        const checked = (typeof inventoryColumnVisibility !== 'undefined' && inventoryColumnVisibility[c.id] !== false) ? 'checked' : '';
+        html += `
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 14px; background: #f8fafc; border-radius: 10px; border: 1.5px solid #e2e8f0; font-size: 0.88rem; font-weight: 700; color: #1e293b; transition: all 0.2s;"
+                   onmouseover="this.style.background='#eff6ff'; this.style.borderColor='#3b82f6';"
+                   onmouseout="this.style.background='#f8fafc'; this.style.borderColor='#e2e8f0';">
+                <input type="checkbox" class="inv-col-custom-chk" data-col-id="${c.id}" ${checked}
+                       style="width: 18px; height: 18px; cursor: pointer; accent-color: #7c3aed;"
+                       onchange="toggleInventoryColumn('${c.id}', this.checked)">
+                <span>${c.name}</span>
+            </label>
+        `;
+    });
+    html += `</div>`;
+
+    const modal = document.createElement('div');
+    modal.className = 'modal-overlay';
+    modal.style.cssText = 'position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 999999; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s ease;';
+
+    modal.innerHTML = `
+        <div style="background: white; border-radius: 20px; width: 620px; max-width: 95vw; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); border: 1.5px solid #e2e8f0; overflow: hidden; direction: rtl; text-align: right;">
+            <!-- هيدر النافذة -->
+            <div style="padding: 16px 20px; background: linear-gradient(135deg, #1e293b, #0f172a); color: white; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.4rem;">⚙️</span>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.1rem; font-weight: 900; color: #ffffff;">تخصيص وإظهار أعمدة جدول الأصناف</h3>
+                        <p style="margin: 0; font-size: 0.75rem; color: #94a3b8; font-weight: 600;">حدد الأعمدة التي تريد ظهورها في جدول إدارة البضاعة</p>
+                    </div>
+                </div>
+                <button onclick="this.closest('.modal-overlay').remove()"
+                        style="background: rgba(255,255,255,0.15); border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 1.1rem; cursor: pointer; color: #ffffff; display: flex; align-items: center; justify-content: center; transition: 0.2s;"
+                        onmouseover="this.style.background='rgba(239, 68, 68, 0.8)';"
+                        onmouseout="this.style.background='rgba(255,255,255,0.15)';">&times;</button>
+            </div>
+
+            <!-- شريط إجراءات سريعة لتحديد الكل أو إلغاء الكل -->
+            <div style="padding: 10px 20px; background: #f1f5f9; border-bottom: 1px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.82rem; font-weight: 700; color: #64748b;">اختر الأعمدة التي ترغب في إظهارها:</span>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="document.querySelectorAll('.inv-col-custom-chk').forEach(chk => { chk.checked = true; toggleInventoryColumn(chk.getAttribute('data-col-id'), true); });"
+                            style="padding: 4px 10px; font-size: 0.78rem; font-weight: 800; background: #e0e7ff; color: #4338ca; border: 1px solid #c7d2fe; border-radius: 6px; cursor: pointer;">
+                        تحديد الكل
+                    </button>
+                    <button onclick="document.querySelectorAll('.inv-col-custom-chk').forEach(chk => { chk.checked = false; toggleInventoryColumn(chk.getAttribute('data-col-id'), false); });"
+                            style="padding: 4px 10px; font-size: 0.78rem; font-weight: 800; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-radius: 6px; cursor: pointer;">
+                        إلغاء الكل
+                    </button>
+                </div>
+            </div>
+
+            <!-- قائمة مربعات الأعمدة -->
+            ${html}
+
+            <!-- فوتر النافذة -->
+            <div style="padding: 12px 20px; background: #f8fafc; border-top: 1px solid #e2e8f0;">
+                <button style="width: 100%; height: 44px; background: linear-gradient(135deg, #7c3aed, #6d28d9); color: white; border: none; border-radius: 12px; font-weight: 900; font-size: 0.95rem; cursor: pointer; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3); transition: all 0.2s;"
+                        onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 16px rgba(124, 58, 237, 0.4)';"
+                        onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 12px rgba(124, 58, 237, 0.3)';"
+                        onclick="this.closest('.modal-overlay').remove()">
+                    💾 حفظ التخصيص وإغلاق
+                </button>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+}
+window.showInventoryColumnCustomizer = showInventoryColumnCustomizer;
+
 

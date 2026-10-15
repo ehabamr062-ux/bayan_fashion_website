@@ -1467,6 +1467,11 @@ window.checkUnsavedDataInAllTabs = function() {
                 const am = parseFloat(document.getElementById('disburseAmount')?.value || 0);
                 const pName = document.getElementById('disbursePayee')?.value.trim() || '';
                 if (am > 0 || pName !== '') { hasData = true; reason = 'توجد بيانات مبلغ أو مستفيد غير محفوظة في سند الصرف'; }
+            } else if (type === 'price-adjustment') {
+                if (window.priceAdjUndoStack && window.priceAdjUndoStack.length > 0) {
+                    hasData = true;
+                    reason = `توجد (${window.priceAdjUndoStack.length}) تعديلات أسعار لم تُحفظ بعد في منصة تعديل الأسعار`;
+                }
             }
         } 
         
@@ -1485,6 +1490,11 @@ window.checkUnsavedDataInAllTabs = function() {
                 hasData = true; reason = 'توجد أصناف غير محفوظة في تسوية المخزن';
             } else if ((type === 'receipt' || type === 'disbursement') && (parseFloat(state.amount) > 0 || (state.partnerName && state.partnerName.trim() !== ''))) {
                 hasData = true; reason = 'توجد بيانات غير محفوظة في السند';
+            } else if (type === 'price-adjustment') {
+                if (window.priceAdjUndoStack && window.priceAdjUndoStack.length > 0) {
+                    hasData = true;
+                    reason = `توجد (${window.priceAdjUndoStack.length}) تعديلات أسعار غير محفوظة في منصة تعديل الأسعار`;
+                }
             }
         }
 

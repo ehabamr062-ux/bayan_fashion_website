@@ -56,7 +56,8 @@
         if (typeof initLogin === 'function' && !window.currentUser) {
             initLogin();
         }
-        if (typeof window.startDataLoader === 'function') {
+        // 🚀 تشغيل محرك البيانات فوراً فقط في حال كانت هناك جلسة مستخدم نشطة ومسجلة مسبقاً
+        if (window.currentUser && typeof window.startDataLoader === 'function') {
             window.startDataLoader();
         }
     } catch(e) {
@@ -64,7 +65,7 @@
         if (typeof initLogin === 'function' && !window.currentUser) {
             initLogin();
         }
-        if (typeof window.startDataLoader === 'function') {
+        if (window.currentUser && typeof window.startDataLoader === 'function') {
             window.startDataLoader();
         }
     }
@@ -184,9 +185,9 @@ window.startDataLoader = function() {
     return window._dataLoaderPromise;
 };
 
-// ⏱️ صمام أمان لبدء التحميل في الخلفية إذا لم يبدأ بعد
+// ⏱️ صمام أمان لبدء التحميل في الخلفية فقط إذا كان المستخدم مسجلاً لدخوله بالفعل مسبقاً
 setTimeout(() => {
-    if (!window.currentUser && typeof window.startDataLoader === 'function') {
+    if (window.currentUser && typeof window.startDataLoader === 'function') {
         window.startDataLoader();
     }
 }, 1000);

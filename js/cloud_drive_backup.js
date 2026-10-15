@@ -17,6 +17,7 @@
     const _safeDecodeStr = (b64) => typeof atob === 'function' ? atob(b64) : (typeof Buffer !== 'undefined' ? Buffer.from(b64, 'base64').toString() : '');
     const DEFAULT_OAUTH_CLIENT_ID = _safeDecodeStr('MTAzOTA4NDAzNjIyOC1oZmhlYmc5Ym9zaWd2NXVnY3Zycmw5MWs1a2t1ZHY0Ny5hcHBzLmdvb2dsZXVzZXJjb250ZW50LmNvbQ=='); // معرّف تطبيق بيان الرسمي من جوجل
     const DEFAULT_WEBHOOK_URL = 'https://script.google.com/macros/s/AKfycbz0hce-C1F6XmASlBXx4xayna7Zjk8Rn6hCVLQWyEPAvzcATK593uTTLOmvb5T0lZWM/exec'; // رابط Webhook المعتمد للنسخ السحابي
+    const GDRIVE_FOLDER_NAME = 'Bayan_POS_Backups';
 
     const BayanGoogleDrive = {
         state: {

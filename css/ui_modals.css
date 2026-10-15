@@ -3828,42 +3828,6 @@ body.dark-mode .usr-perm-tab-btn.active {
 /* ========================================================================= */
 /* 💎 لوحة وإدارة تعديل وتسعير الموديلات الفاخرة (Price Adjustment Workspace) */
 /* ========================================================================= */
-#price-adjustment-section {
-    display: flex !important;
-    flex-direction: column !important;
-    direction: rtl;
-    text-align: right;
-    width: 100% !important;
-    max-width: 100% !important;
-    height: calc(100vh - 65px) !important;
-    min-height: calc(100vh - 65px) !important;
-    padding: 8px 16px 12px !important;
-    background: transparent;
-    color: #0f172a;
-    box-sizing: border-box !important;
-    font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
-    gap: 8px;
-    overflow: hidden !important;
-    flex: 1;
-}
-
-#price-adjustment-section.hidden {
-    display: none !important;
-}
-
-.price-adj-workspace {
-    width: 100%;
-    height: 100%;
-    background: #f8fafc;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    border-radius: 14px;
-    border: 1.5px solid #cbd5e1;
-    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
-    animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
 #priceAdjustmentModal {
     animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -3893,4 +3857,508 @@ body.dark-mode .usr-perm-tab-btn.active {
 
 .price-adj-col-modal-overlay {
     animation: fadeIn 0.2s ease-out;
+}
+
+/* =========================================================================
+   🧮 تصميم الآلة الحاسبة المميزة (Premium Calculator) - واضحة وغير شفافة 100%
+   ========================================================================= */
+.calc-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    width: 360px;
+    background: #0f172a;
+    border-radius: 30px;
+    border: 2px solid #334155;
+    box-shadow: 0 25px 70px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    z-index: 30000;
+    padding: 22px;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1), transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    direction: ltr;
+    -webkit-user-select: none;
+    user-select: none;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* شريط التمرير للآلة الحاسبة بالكامل */
+.calc-modal::-webkit-scrollbar {
+    width: 6px;
+}
+
+.calc-modal::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 10px;
+}
+
+.calc-modal::-webkit-scrollbar-track {
+    background: #0f172a;
+}
+
+.calc-modal.visible {
+    visibility: visible;
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.calc-modal.maximized {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    top: 0 !important;
+    left: 0 !important;
+    transform: none !important;
+    border-radius: 0 !important;
+    border: none !important;
+    padding: 40px !important;
+    box-sizing: border-box !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #0b0f19 !important;
+}
+
+.calc-modal.maximized #calcDisplay,
+.calc-modal.maximized .calc-grid,
+.calc-modal.maximized #calcHeader {
+    width: 100% !important;
+    max-width: 450px !important;
+}
+
+.calc-display {
+    background: #020617;
+    border-radius: 20px;
+    padding: 18px 20px;
+    text-align: right;
+    min-height: 105px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    border: 2px solid #1e293b;
+    box-shadow: inset 0 4px 15px rgba(0, 0, 0, 0.8);
+}
+
+#calc-prev {
+    color: #94a3b8;
+    font-size: 0.9rem;
+    margin-bottom: 5px;
+    height: 20px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+}
+
+#calc-current {
+    color: #ffffff;
+    font-size: 2.3rem;
+    font-weight: 900;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
+    padding-bottom: 5px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+/* شريط التمرير المخصص للآلة الحاسبة */
+#calc-current::-webkit-scrollbar,
+#calc-prev::-webkit-scrollbar {
+    height: 4px;
+}
+
+#calc-current::-webkit-scrollbar-thumb,
+#calc-prev::-webkit-scrollbar-thumb {
+    background: var(--main-blue, #3b82f6);
+    border-radius: 4px;
+}
+
+#calc-current::-webkit-scrollbar-track,
+#calc-prev::-webkit-scrollbar-track {
+    background: #020617;
+}
+
+.calc-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+}
+
+.calc-btn {
+    height: 62px;
+    border-radius: 18px;
+    border: 1px solid #334155;
+    font-size: 1.45rem;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    color: #f8fafc;
+    background: #1e293b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.35);
+}
+
+.calc-btn:hover {
+    transform: translateY(-2px);
+    background: #2d3d54;
+    border-color: #475569;
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.45);
+    color: #ffffff;
+}
+
+.calc-btn:active {
+    transform: scale(0.95);
+    background: #1e293b;
+}
+
+.calc-btn.op {
+    color: #38bdf8;
+    background: #0c4a6e;
+    border: 1px solid #0284c7;
+    font-weight: 900;
+}
+
+.calc-btn.op:hover {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #38bdf8;
+    box-shadow: 0 6px 16px rgba(2, 132, 199, 0.45);
+}
+
+.calc-btn.eq {
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    color: #ffffff;
+    box-shadow: 0 6px 18px rgba(2, 132, 199, 0.45);
+    border: 1px solid #38bdf8;
+    font-weight: 900;
+}
+
+.calc-btn.eq:hover {
+    background: linear-gradient(135deg, #0369a1, #0ea5e9);
+    box-shadow: 0 8px 22px rgba(14, 165, 233, 0.55);
+    transform: translateY(-2px);
+}
+
+.calc-btn.ac {
+    color: #ffffff;
+    background: #9f1239;
+    border: 1px solid #e11d48;
+    font-weight: 900;
+}
+
+.calc-btn.ac:hover {
+    background: #be123c;
+    color: #ffffff;
+    box-shadow: 0 6px 16px rgba(225, 29, 72, 0.45);
+    transform: translateY(-2px);
+}
+
+.calc-history {
+    margin-top: 12px;
+    margin-bottom: 8px;
+    background: #0f172a;
+    border: 2px solid #1e293b;
+    border-radius: 18px;
+    padding: 12px;
+    min-height: 140px;
+    max-height: 220px;
+    overflow-y: auto;
+    display: none;
+    box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.5);
+    direction: rtl;
+}
+
+.calc-history.visible {
+    display: block;
+}
+
+.history-item {
+    font-size: 0.95rem;
+    font-weight: 800;
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.06);
+    margin-bottom: 8px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    direction: ltr;
+}
+
+.history-item:hover {
+    color: #ffffff !important;
+    background: rgba(14, 165, 233, 0.25);
+    border-color: #0ea5e9;
+    transform: translateX(-2px);
+}
+
+/* الدائرة العائمة للآلة الحاسبة */
+.calc-bubble {
+    position: fixed;
+    bottom: 85px;
+    right: 25px;
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #0ea5e9, #0369a1);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 25px rgba(14, 165, 233, 0.4);
+    z-index: 30001;
+    cursor: move;
+    display: none;
+    transition: transform 0.2s, box-shadow 0.2s;
+    /* استثناء التوب والليفت من الـ transition */
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    font-size: 1.5rem;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: none;
+}
+
+.calc-bubble:hover {
+    transform: scale(1.1);
+    box-shadow: 0 15px 35px rgba(14, 165, 233, 0.6);
+}
+
+.calc-bubble.visible {
+    display: flex;
+    animation: bubbleIn 0.2s ease-out;
+}
+
+@keyframes bubbleIn {
+    from {
+        transform: scale(0);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* أنيميشن الوميض الأخضر للنسخ */
+@keyframes flashGreen {
+    0% {
+        box-shadow: 0 0 0px rgba(16, 185, 129, 0);
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    50% {
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+        background: rgba(16, 185, 129, 0.1);
+    }
+
+    100% {
+        box-shadow: 0 0 0px rgba(16, 185, 129, 0);
+        background: rgba(255, 255, 255, 0.05);
+    }
+}
+
+.calc-display.copied {
+    animation: flashGreen 0.4s ease-out;
+}
+
+/* 💎 نظام التصميم فائق الشياكة لكارت الصنف (Luxury Fashion Product Card Modal) */
+#newItemModal .bayan-modal-content {
+    background: #f8fafc !important;
+    font-family: 'Cairo', sans-serif !important;
+}
+
+#newItemModal .bayan-top-nav-bar {
+    background: #0f172a !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    padding: 8px 24px !important;
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+}
+
+#newItemModal .bayan-header-section {
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 60%, #1e293b 100%) !important;
+    padding: 14px 24px !important;
+    border-bottom: 2px solid rgba(167, 139, 250, 0.25) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12) !important;
+}
+
+#newItemModal .bayan-header-fields .bayan-field label {
+    color: #cbd5e1 !important;
+    font-size: 0.82rem !important;
+    font-weight: 800 !important;
+    margin-bottom: 4px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 5px !important;
+}
+
+#newItemModal .bayan-header-fields input {
+    height: 38px !important;
+    border-radius: 10px !important;
+    border: 1.5px solid #cbd5e1 !important;
+    background: #ffffff !important;
+    font-weight: 900 !important;
+    font-size: 1rem !important;
+    color: #0f172a !important;
+    transition: all 0.2s ease !important;
+}
+
+#newItemModal .bayan-header-fields input:focus {
+    border-color: #a855f7 !important;
+    outline: 3.5px solid rgba(168, 85, 247, 0.25) !important;
+}
+
+#newItemModal #newItemName {
+    height: 44px !important;
+    font-size: 1.15rem !important;
+    border-color: #818cf8 !important;
+    box-shadow: 0 2px 8px rgba(129, 140, 248, 0.2) !important;
+}
+
+#newItemModal .bayan-tabs-container {
+    background: #ffffff !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 16px !important;
+    padding: 6px 8px !important;
+    margin: 10px 24px 0 !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
+    gap: 8px !important;
+}
+
+#newItemModal .bayan-tab {
+    border-radius: 12px !important;
+    padding: 8px 18px !important;
+    font-weight: 800 !important;
+    font-size: 0.9rem !important;
+    color: #475569 !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+#newItemModal .bayan-tab:hover {
+    background: #f1f5f9 !important;
+    color: #1e1b4b !important;
+    transform: translateY(-1px) !important;
+}
+
+#newItemModal .bayan-tab.active {
+    background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%) !important;
+    color: #ffffff !important;
+    border: 1.5px solid #6366f1 !important;
+    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35) !important;
+    transform: translateY(-1px) !important;
+}
+
+#newItemModal .bayan-tab-content {
+    background: #f8fafc !important;
+    padding: 16px 24px !important;
+}
+
+#newItemModal .bayan-input-card {
+    background: #ffffff !important;
+    border: 1.5px solid #e2e8f0 !important;
+    border-radius: 16px !important;
+    padding: 14px 18px !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+    transition: all 0.2s ease !important;
+}
+
+#newItemModal .bayan-input-card:hover {
+    border-color: #cbd5e1 !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05) !important;
+}
+
+#newItemModal .bayan-input-card:focus-within {
+    border-color: #6366f1 !important;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+}
+
+#newItemModal .bayan-footer {
+    background: #ffffff !important;
+    border-top: 1.5px solid #e2e8f0 !important;
+    padding: 12px 24px !important;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04) !important;
+}
+
+#newItemModal .bayan-footer .bayan-btn {
+    height: 42px !important;
+    padding: 0 20px !important;
+    border-radius: 12px !important;
+    font-weight: 900 !important;
+    font-size: 0.92rem !important;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+#newItemModal .bayan-footer .bayan-btn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15) !important;
+}
+
+/* 🚀 نافذة التنقل السريع المطورة (Premium Metro Design) */
+.nav-card-premium {
+    background: white;
+    border-radius: 18px;
+    padding: 25px 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid #e2e8f0;
+    border-top: 4px solid var(--accent);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    position: relative;
+}
+
+.nav-card-premium:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    border-color: var(--accent);
+}
+
+.nav-card-premium .icon-box {
+    font-size: 2.5rem;
+    transition: 0.3s;
+}
+
+.nav-card-premium:hover .icon-box {
+    transform: scale(1.2);
+    filter: drop-shadow(0 0 8px var(--accent));
+}
+
+.nav-card-premium .label {
+    font-weight: 900;
+    color: var(--accent);
+    font-size: 0.95rem;
+}
+
+.btn-modern-close {
+    background: white;
+    color: #1e293b;
+    border: 3px solid #e2e8f0;
+    padding: 10px 35px;
+    border-radius: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.btn-modern-close:hover {
+    background: #ef4444;
+    color: white;
+    border-color: #ef4444;
+    box-shadow: 0 10px 20px rgba(239, 68, 68, 0.2);
 }

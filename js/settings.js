@@ -847,57 +847,6 @@ function selectCurrencyQuick(symbol, name) {
 }
 
 // =========================================================================
-// ⚡ قوالب الصلاحيات السريعة (Permission Presets)
-// =========================================================================
-function applyPermissionPreset(presetType) {
-    const allCheckboxes = document.querySelectorAll('#permissionsGrid input[type="checkbox"]');
-    
-    if (presetType === 'select_all') {
-        allCheckboxes.forEach(chk => chk.checked = true);
-        if (typeof showToast === 'function') showToast("✅ تم تحديد كافة الصلاحيات بنجاح!", "success");
-        return;
-    }
-
-    if (presetType === 'deselect_all') {
-        allCheckboxes.forEach(chk => chk.checked = false);
-        if (typeof showToast === 'function') showToast("❌ تم إلغاء كافة الصلاحيات!", "info");
-        return;
-    }
-
-    // تصفير الكل أولاً
-    allCheckboxes.forEach(chk => chk.checked = false);
-
-    if (presetType === 'cashier_only') {
-        // كاشير بيع فقط: إضافة فواتير بيع وخصم محدود (بدون تعديل سعر البيع، بدون ضريبة، بدون حذف، وقفل تغيير المخزن)
-        const cashierIds = ['perm_docs_add', 'perm_docs_discount', 'perm_gen_lock_daily_user', 'perm_gen_lock_daily_date', 'perm_gen_lock_daily_amounts', 'perm_wh_lock_switching'];
-        cashierIds.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.checked = true;
-        });
-        if (document.getElementById('perm_docs_price_edit')) document.getElementById('perm_docs_price_edit').checked = false;
-        if (document.getElementById('perm_docs_tax')) document.getElementById('perm_docs_tax').checked = false;
-        if (document.getElementById('newUserMaxDiscount')) document.getElementById('newUserMaxDiscount').value = '5';
-        if (typeof showToast === 'function') showToast("🛒 تم تطبيق قالب: كاشير (بيع فقط - سعر مقفل وخصم 5% مع قفل المخزن) بنجاح!", "success");
-    } else if (presetType === 'stock_manager') {
-        // أمين مخزن: بضاعة ومخازن ونقل أصناف فقط
-        const stockIds = ['perm_stock_add', 'perm_stock_edit', 'perm_stock_transfer', 'perm_stock_view', 'perm_docs_view', 'perm_wh_lock_switching'];
-        stockIds.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.checked = true;
-        });
-        if (typeof showToast === 'function') showToast("📦 تم تطبيق قالب: مسؤول مخازن بنجاح!", "success");
-    } else if (presetType === 'accountant') {
-        // محاسب مالي: حسابات، كشوفات، تقارير مالية، أرباح
-        const accIds = ['perm_acc_add', 'perm_acc_edit', 'perm_acc_statement', 'perm_acc_view', 'perm_gen_reports', 'perm_gen_profits', 'perm_docs_view', 'perm_stock_view', 'perm_wh_lock_switching'];
-        accIds.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.checked = true;
-        });
-        if (typeof showToast === 'function') showToast("💼 تم تطبيق قالب: محاسب مالي بنجاح!", "success");
-    }
-}
-
-// =========================================================================
 // 💳 إدارة تسجيل وقراءة كروت NFC / RFID للموظفين
 // =========================================================================
 window.isListeningForNfcRegistration = false;
@@ -1180,7 +1129,10 @@ function executeChangeUserPin(idx) {
     if (!cleanPin || cleanPin.length !== 4 || isNaN(cleanPin)) {
         return showToast("⚠️ يجب أن يكون الرمز PIN مكوناً من 4 أرقام عددية!", "error");
     }
-    const pinExists = users.some((other, i) => i !== idx && other.pin === cleanPin);
+    const pinExists = users.some((other, i) => i !== idx && (
+        other.pin === cleanPin ||
+        (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function' && window.BayanSecurity.verifyPin(cleanPin, other.pin))
+    ));
     if (pinExists) {
         return showToast("🚫 رمز PIN هذا مستخدم بالفعل لموظف آخر!", "error");
     }
@@ -1400,7 +1352,10 @@ async function addUser() {
         return showToast(`🚫 اسم الموظف (${name}) مستخدم بالفعل لموظف آخر!`, "error");
     }
 
-    const duplicatePinUser = users.find(u => u.pin === pin && u.id !== (window.editingUserId || 0));
+    const duplicatePinUser = users.find(u => u.id !== (window.editingUserId || 0) && (
+        u.pin === pin ||
+        (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function' && window.BayanSecurity.verifyPin(pin, u.pin))
+    ));
     if (duplicatePinUser) {
         return showToast(`🚫 رمز الدخول PIN (${pin}) مستخدم بالفعل للموظف (${duplicatePinUser.name})!`, "error");
     }
@@ -1617,7 +1572,9 @@ function editUser(idx) {
     if (!u) return;
     window.editingUserId = u.id;
     document.getElementById('newUserName').value = u.name;
-    document.getElementById('newUserPin').value = u.pin;
+    document.getElementById('newUserPin').value = (window.BayanSecurity && typeof window.BayanSecurity.decryptPin === 'function')
+        ? window.BayanSecurity.decryptPin(u.pin)
+        : (u.pin || '');
     document.getElementById('newUserRole').value = u.role;
     if (document.getElementById('newUserNfcUid')) {
         document.getElementById('newUserNfcUid').value = u.nfcUid || '';
@@ -1910,6 +1867,18 @@ function switchPermCategory(category) {
 window.switchPermCategory = switchPermCategory;
 
 function applyPermissionPreset(presetKey, silent = false) {
+    if (presetKey === 'select_all') {
+        toggleAllUserSections(true, silent);
+        if (!silent && typeof showToast === 'function') showToast("✅ تم تحديد كافة الصلاحيات بنجاح!", "success");
+        return;
+    }
+
+    if (presetKey === 'deselect_all') {
+        toggleAllUserSections(false, silent);
+        if (!silent && typeof showToast === 'function') showToast("❌ تم إلغاء كافة الصلاحيات!", "info");
+        return;
+    }
+
     const setChecked = (id, val) => {
         const el = document.getElementById(id);
         if (el) el.checked = !!val;
@@ -3404,7 +3373,10 @@ async function confirmFullReset() {
                 return showToast("❌ تم إلغاء العملية: يجب إدخال الرمز السري.", "error");
             }
             
-            if (typeof currentUser !== 'undefined' && currentUser.pin !== pin) {
+            const isPinValid = (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function')
+                ? (window.BayanSecurity.verifyPin(pin, currentUser.pin) || await window.BayanSecurity.verifyAdminPin(pin))
+                : (currentUser.pin === pin);
+            if (typeof currentUser !== 'undefined' && !isPinValid) {
                 return showToast("❌ رمز الدخول غير صحيح، تم إلغاء العملية.", "error");
             }
 
