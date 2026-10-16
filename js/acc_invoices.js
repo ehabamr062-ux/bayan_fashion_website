@@ -1139,32 +1139,32 @@
                             ${typeof getInvoiceReceiptBadgeHtml === 'function' ? getInvoiceReceiptBadgeHtml(t) : ((t.taxInvoiceSeq || t.dailySeq) ? `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; border-radius:6px; padding:2px 8px; font-size:0.8rem; font-weight:900;" title="رقم الإيصال اليومي">#${t.taxInvoiceSeq || t.dailySeq}</span>` : '<span style="color:#94a3b8; font-size:0.85rem;">-</span>')}
                         </td>
                         <td class="col-inv-2" style="${isV(2) ? '' : 'display:none;'}">${t.date}</td>
-                        <td class="col-inv-3" style="${isV(3) ? '' : 'display:none;'}">
+                        <td class="col-inv-3" style="text-align: center; ${isV(3) ? '' : 'display:none;'}">
                             ${(() => {
                                 const type = t.type || '';
                                 if (type.includes('مرتجع') && (type.includes('بيع') || type.includes('مبيعات'))) {
-                                    return `<span class="stock-badge badge-return-sale" title="مرتجع مبيعات">↩️🛒 مرتجع بيع</span>`;
+                                    return `<span class="stock-badge badge-return-sale" title="مرتجع مبيعات">↩️ مرتجع بيع</span>`;
                                 } else if (type.includes('مرتجع') && (type.includes('شراء') || type.includes('مشتريات'))) {
-                                    return `<span class="stock-badge badge-return-purchase" title="مرتجع مشتريات">↩️📥 مرتجع شراء</span>`;
+                                    return `<span class="stock-badge badge-return-purchase" title="مرتجع مشتريات">🔄 مرتجع شراء</span>`;
                                 } else if (type.includes('بيع') || type.includes('مبيعات')) {
                                     return `<span class="stock-badge badge-sale" title="فاتورة مبيعات">🛒 فاتورة بيع</span>`;
                                 } else if (type.includes('شراء') || type.includes('مشتريات')) {
-                                    return `<span class="stock-badge badge-purchase" title="فاتورة مشتريات">📥 فاتورة شراء</span>`;
+                                    return `<span class="stock-badge badge-purchase" title="فاتورة مشتريات وتوريد بضاعة">📦 فاتورة شراء</span>`;
                                 } else if (type.includes('قبض')) {
                                     return `<span class="stock-badge badge-receipt" title="سند قبض نقدية">💵 سند قبض</span>`;
                                 } else if (type.includes('صرف')) {
                                     return `<span class="stock-badge badge-disburse" title="سند صرف نقدية">💸 سند صرف</span>`;
                                 } else if (type.includes('تحويل')) {
                                     if (t.transferStatus === 'pending') {
-                                        return `<span class="stock-badge badge-transfer" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a;" title="تحويل مخزني معلق بانتظار الاستلام">🚚 تحويل (معلق ⏳)</span>`;
+                                        return `<span class="stock-badge badge-transfer" style="background:#fef3c7 !important; color:#92400e !important; border:1px solid #fde68a !important;" title="تحويل مخزني معلق بانتظار الاستلام">🚚 تحويل (معلق ⏳)</span>`;
                                     } else if (t.transferStatus === 'rejected') {
-                                        return `<span class="stock-badge badge-transfer" style="background:#fee2e2; color:#991b1b; border:1.5px solid #f87171; font-weight:900;" title="تحويل مخزني مرفوض وملغي - لم تنفذ العملية">❌ تحويل (مرفوض / ملغي)</span>`;
+                                        return `<span class="stock-badge badge-transfer" style="background:#fee2e2 !important; color:#991b1b !important; border:1.5px solid #f87171 !important; font-weight:900;" title="تحويل مخزني مرفوض وملغي - لم تنفذ العملية">❌ تحويل (مرفوض / ملغي)</span>`;
                                     }
-                                    return `<span class="stock-badge badge-transfer" style="background:#dcfce7; color:#15803d; border:1px solid #86efac;" title="تحويل مخزني مستلم">🚚 تحويل (مستلم ✅)</span>`;
+                                    return `<span class="stock-badge badge-transfer" title="تحويل مخزني مستلم">🚚 تحويل (مستلم ✅)</span>`;
                                 } else if (type.includes('تسوية')) {
                                     return `<span class="stock-badge badge-adj" title="تسوية مخزنية">⚖️ تسوية مخزنية</span>`;
                                 }
-                                return `<span class="stock-badge" style="background:#f1f5f9; color:#475569;">${type}</span>`;
+                                return `<span class="stock-badge" style="background:#f1f5f9; color:#334155; border-color:#cbd5e1;">${type}</span>`;
                             })()}
                         </td>
                         <td class="col-inv-4" style="font-weight:bold; ${isV(4) ? '' : 'display:none;'}">${displayProduct}</td>

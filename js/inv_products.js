@@ -818,7 +818,7 @@ function fillProductModal(p) {
         tbody.innerHTML = '';
         if (p.units && p.units.length > 0 && typeof addProductUnitRow === 'function') {
             p.units.forEach((u, idx) => {
-                addProductUnitRow(u.unitName, u.base_qty || u.factor || 1, u.sub_unit_quantity || 1);
+                addProductUnitRow(u.unitName, u.base_qty || u.factor || 1, u.sub_unit_quantity || 1, u.unitBarcode || '');
                 const lastRow = tbody.rows[tbody.rows.length - 1];
 
                 const wInp = lastRow.cells[3].querySelector('input');
@@ -833,7 +833,22 @@ function fillProductModal(p) {
                 if (cLabel) cLabel.innerText = (u.cost || 0).toFixed(2);
                 if (saleCheck) saleCheck.checked = !!u.isDefaultSale;
                 if (purCheck) purCheck.checked = !!u.isDefaultPurchase;
-                if (bInp) bInp.value = u.unitBarcode || '';
+                if (bInp) {
+                    bInp.value = u.unitBarcode || '';
+                    bInp.dataset.originalBarcode = u.unitBarcode || '';
+                    if (u.unitBarcode) {
+                        bInp.readOnly = true;
+                        bInp.style.background = '#f8fafc';
+                        const lockBtn = lastRow.querySelector('.btn-lock-unit-barcode');
+                        if (lockBtn) {
+                            lockBtn.innerText = '🔒';
+                            lockBtn.style.background = '#fffbeb';
+                            lockBtn.style.borderColor = '#fde68a';
+                            lockBtn.style.color = '#b45309';
+                            lockBtn.title = '🔒 الحقل مقفل لحماية الباركود من التعديل العفوي (اضغط للفتح)';
+                        }
+                    }
+                }
 
                 if (idx > 0) {
                     if (wInp) wInp.dataset.manual = 'true';

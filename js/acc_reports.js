@@ -944,7 +944,7 @@
                                     } else if (gType.includes('مرتجع بيع')) {
                                         previousBalance -= paid;
                                     } else if (gType.includes('مرتجع شراء')) {
-                                        previousBalance -= paid;
+                                        previousBalance += paid;
                                     }
                                 }
                             }
@@ -1578,7 +1578,7 @@
                 auditBadgeHtml = `<span id="opsRowAuditStatusBadge" style="background:rgba(255,255,255,0.18); color:#f8fafc; border:1px solid rgba(255,255,255,0.3); padding:2px 8px; border-radius:6px; font-size:0.75rem; font-weight:800;">⏳ بانتظار العد</span>`;
             } else {
                 const currentExpected = window.currentDrawerClosingState?.includePrevBalance ? (previousBalance + dailyTotal) : dailyTotal;
-                const diff = liveActual - currentExpected;
+                const diff = liveActual - Math.abs(currentExpected);
                 const absDiff = Math.abs(diff);
                 if (absDiff < 0.01) {
                     auditBadgeHtml = `<span id="opsRowAuditStatusBadge" style="background:#ecfdf5; color:#059669; border:1.5px solid #10b981; padding:2px 8px; border-radius:6px; font-size:0.75rem; font-weight:900;">✅ متطابق تماماً</span>`;
@@ -2842,7 +2842,7 @@
             const expected = window.currentDrawerClosingState?.expectedCash !== undefined 
                 ? window.currentDrawerClosingState.expectedCash 
                 : (window.currentDrawerClosingState?.netCashMovement || 0);
-            const diff = actual - expected;
+            const diff = actual - Math.abs(expected);
             const absDiff = Math.abs(diff);
 
             if (absDiff < 0.01) {
@@ -3114,7 +3114,7 @@
 
             const expEl = document.getElementById('auditCardExpectedCash');
             if (expEl) {
-                expEl.innerText = expected.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                expEl.innerText = Math.abs(expected).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             }
 
             const vfEl = document.getElementById('auditCardVodafoneCash');
@@ -3271,7 +3271,7 @@
 
             const actual = parseFloat(val) || 0;
             const expected = window.currentDrawerClosingState.expectedCash !== undefined ? window.currentDrawerClosingState.expectedCash : window.currentDrawerClosingState.netCashMovement;
-            const diff = actual - expected;
+            const diff = actual - Math.abs(expected);
             const absDiff = Math.abs(diff);
 
             window.currentDrawerClosingState.actualCash = actual;
@@ -3566,7 +3566,25 @@
             }
         };
 
-                // --- اعتماد وتقفيل الوردية والدرج ---
+        // --- دالة توليد كود محضر تقفيل الوردية المحاسبي الشيك باليوم والساعة (مثال: Z-0910-1643) ---
+        window.generateShiftCloseId = function(targetDate = new Date()) {
+            const d = (targetDate instanceof Date && !isNaN(targetDate)) ? targetDate : new Date();
+            const day = String(d.getDate()).padStart(2, '0');
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const hours = String(d.getHours()).padStart(2, '0');
+            const minutes = String(d.getMinutes()).padStart(2, '0');
+            let baseId = `Z-${day}${month}-${hours}${minutes}`;
+
+            // صمام أمان لضمان عدم تكرار الكود قطعياً في حال تم تقفيل محضرين في نفس الدقيقة
+            const closures = typeof window.getSavedDrawerClosures === 'function' ? window.getSavedDrawerClosures() : [];
+            if (closures && Array.isArray(closures) && closures.some(c => c && c.id === baseId)) {
+                const seconds = String(d.getSeconds()).padStart(2, '0');
+                baseId = `Z-${day}${month}-${hours}${minutes}-${seconds}`;
+            }
+            return baseId;
+        };
+
+        // --- اعتماد وتقفيل الوردية والدرج ---
         window.commitDrawerClosing = async function() {
             const actualInput = document.getElementById('drawerActualCashInput');
             if (!actualInput || actualInput.value.trim() === '') {
@@ -3582,7 +3600,7 @@
             const state = window.currentDrawerClosingState || {};
             const expected = state.expectedCash !== undefined ? state.expectedCash : (state.netCashMovement || 0);
             const actual = parseFloat(actualInput.value) || 0;
-            const diff = actual - expected;
+            const diff = actual - Math.abs(expected);
             const absDiff = Math.abs(diff);
 
             const userShift = (state.selectedUser && state.selectedUser !== 'all') ? state.selectedUser : ((typeof currentUser !== 'undefined' && currentUser) ? currentUser.name : 'كافة المستخدمين');
@@ -3727,7 +3745,7 @@
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
                         <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:14px; padding:12px 14px; text-align:center;">
                             <div style="font-size:0.82rem; font-weight:800; color:#64748b; margin-bottom:4px;">💰 المطلوب بالدرج (دفترياً)</div>
-                            <div style="font-size:1.35rem; font-weight:900; color:#0f172a; font-family:'Consolas', monospace;">${expected.toFixed(2)} <span style="font-size:0.85rem;">ج.م</span></div>
+                            <div style="font-size:1.35rem; font-weight:900; color:#0f172a; font-family:'Consolas', monospace;">${Math.abs(expected).toFixed(2)} <span style="font-size:0.85rem;">ج.م</span></div>
                         </div>
                         <div style="background:#fffbeb; border:2px solid #f59e0b; border-radius:14px; padding:12px 14px; text-align:center; box-shadow:0 4px 12px rgba(245,158,11,0.15);">
                             <div style="font-size:0.82rem; font-weight:900; color:#92400e; margin-bottom:4px;">💵 النقدية الفعلية (العد)</div>
@@ -3790,8 +3808,8 @@
             const repData = payload.repData || {};
             const expected = payload.expected;
             const actual = payload.actual;
-            const diff = payload.diff;
-            const absDiff = payload.absDiff;
+            const diff = actual - Math.abs(expected);
+            const absDiff = Math.abs(diff);
             const userShift = payload.userShift;
 
             let finalRecord = null;
@@ -3835,7 +3853,7 @@
                 const targetShiftDate = document.getElementById('reportDateFrom')?.value || new Date().toLocaleDateString('en-CA');
                 const targetShiftDateTo = document.getElementById('reportDateTo')?.value || targetShiftDate;
                 finalRecord = {
-                    id: 'CLOSE_' + Date.now(),
+                    id: typeof window.generateShiftCloseId === 'function' ? window.generateShiftCloseId() : `Z-${String(new Date().getDate()).padStart(2, '0')}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getHours()).padStart(2, '0')}${String(new Date().getMinutes()).padStart(2, '0')}`,
                     timestamp: new Date().toISOString(),
                     dateStr: targetShiftDate === new Date().toLocaleDateString('en-CA') ? new Date().toLocaleDateString('ar-EG') : targetShiftDate,
                     timeStr: new Date().toLocaleTimeString('ar-EG'),
@@ -3933,7 +3951,7 @@
             const liveActual = (inpEl && inpEl.value.trim() !== '' && !isNaN(parseFloat(inpEl.value))) ? parseFloat(inpEl.value) : null;
 
             const rec = customRecord || {
-                id: 'CLOSE_' + Date.now(),
+                id: typeof window.generateShiftCloseId === 'function' ? window.generateShiftCloseId() : `Z-${String(new Date().getDate()).padStart(2, '0')}${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getHours()).padStart(2, '0')}${String(new Date().getMinutes()).padStart(2, '0')}`,
                 dateStr: new Date().toLocaleDateString('ar-EG'),
                 timeStr: new Date().toLocaleTimeString('ar-EG'),
                 closedBy: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.name : 'المدير',
@@ -3945,7 +3963,7 @@
                 netCashMovement: state.netCashMovement || 0,
                 expectedCash: state.expectedCash !== undefined ? state.expectedCash : (state.includePrevBalance ? state.finalCashBalance : state.netCashMovement),
                 actualCash: (liveActual !== null) ? liveActual : (state.actualCash !== null ? state.actualCash : (state.expectedCash !== undefined ? state.expectedCash : state.netCashMovement)),
-                difference: (liveActual !== null) ? (liveActual - (state.expectedCash !== undefined ? state.expectedCash : state.netCashMovement)) : (state.difference || 0),
+                difference: (liveActual !== null) ? (liveActual - Math.abs(state.expectedCash !== undefined ? state.expectedCash : state.netCashMovement)) : (state.difference || 0),
                 status: state.status || 'balanced',
                 notes: state.notes || '',
                 denominations: state.denominations || null,
@@ -3990,9 +4008,7 @@
                 actual = liveActual;
             }
 
-            const diff = (customRecord && customRecord.difference !== undefined && customRecord.difference !== null) 
-                ? Number(customRecord.difference) 
-                : (actual - expected);
+            const diff = actual - Math.abs(expected);
             const absDiff = Math.abs(diff);
 
             const cashierName = (rec.userShift && rec.userShift !== 'كافة المستخدمين' && rec.userShift !== 'all') 
@@ -4289,7 +4305,7 @@
                     ` : `
                     <tr style="border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 14px; background: #eee;">
                         <td style="padding: 5px 0;">💰 صافي المطلوب بالدرج (اليوم بيومه):</td>
-                        <td style="text-align: left; font-size: 14.5px;">${expected.toFixed(2)} ج.م</td>
+                        <td style="text-align: left; font-size: 14.5px;">${Math.abs(expected).toFixed(2)} ج.م</td>
                     </tr>
                     `}
 
@@ -4920,7 +4936,7 @@
             const rec = targetRecord;
             const expected = Number(rec.expectedCash !== undefined ? rec.expectedCash : (rec.netCashMovement || 0));
             const initialActual = Number(rec.actualCash !== undefined ? rec.actualCash : expected);
-            const initialDiff = initialActual - expected;
+            const initialDiff = initialActual - Math.abs(expected);
             const initialAbsDiff = Math.abs(initialDiff);
 
             window.currentDrawerClosingState.editingClosureId = rec.id;
@@ -5048,7 +5064,7 @@
             }
 
             const actual = parseFloat(val) || 0;
-            const diff = actual - expected;
+            const diff = actual - Math.abs(expected);
             const absDiff = Math.abs(diff);
 
             if (absDiff < 0.01) {
@@ -5103,7 +5119,7 @@
 
             const rec = closures[idx];
             const expected = Number(rec.expectedCash !== undefined ? rec.expectedCash : (rec.netCashMovement || 0));
-            const diff = newActual - expected;
+            const diff = newActual - Math.abs(expected);
             const absDiff = Math.abs(diff);
 
             rec.actualCash = newActual;

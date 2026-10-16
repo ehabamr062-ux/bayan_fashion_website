@@ -126,7 +126,7 @@
             }
         }
 
-        function addProductUnitRow(unitName = "", bVal = 1, sVal = 1) {
+        function addProductUnitRow(unitName = "", bVal = 1, sVal = 1, uBarcode = "") {
             const tbody = document.getElementById('productUnitsTableBody');
             const tr = document.createElement('tr');
             const units = getGlobalUnits();
@@ -137,6 +137,8 @@
             });
             selectHtml += `</select>`;
 
+            const safeBarcode = (uBarcode && typeof uBarcode === 'string') ? uBarcode.replace(/"/g, '&quot;') : '';
+
             tr.innerHTML = `
                 <td>${selectHtml}</td>
                 <td><input type="number" class="base-qty" value="${bVal}" ${tbody.rows.length === 0 ? 'disabled' : ''} oninput="calculateUnitPrices()" style="text-align:center;"></td>
@@ -146,11 +148,224 @@
                 <td><span class="u-cost-label" style="font-weight:bold; color:#64748b;">0.00</span></td>
                 <td><input type="checkbox" ${tbody.rows.length === 0 ? 'checked' : ''} style="cursor:pointer;"></td>
                 <td><input type="checkbox" ${tbody.rows.length === 0 ? 'checked' : ''} style="cursor:pointer;"></td>
-                <td><input type="text" placeholder="باركود الوحدة" style="text-align:center;"></td>
+                <td style="white-space: nowrap;">
+                    <div style="display:inline-flex; align-items:center; gap:3px; justify-content:center;">
+                        <input type="text" class="u-barcode-input" value="${safeBarcode}" data-original-barcode="${safeBarcode}" 
+                            placeholder="باركود الوحدة / اسكانر 📷" 
+                            ${safeBarcode ? 'readonly style="text-align:center; width:120px; font-weight:800; font-family:monospace; padding:3px 5px; border:1.5px solid #cbd5e1; border-radius:6px; background:#f8fafc; color:#334155;"' : 'style="text-align:center; width:120px; font-weight:800; font-family:monospace; padding:3px 5px; border:1.5px solid #cbd5e1; border-radius:6px; background:#ffffff; color:#0f172a;"'} 
+                            onkeydown="handleUnitBarcodeKeydown(event, this)">
+                        
+                        <button type="button" class="btn-lock-unit-barcode" onclick="toggleUnitBarcodeLock(this)" 
+                            title="${safeBarcode ? '🔒 الحقل مقفل لحماية الباركود من التعديل العفوي (اضغط للفتح والتعديل أو المسح)' : '🔓 الحقل مفتوح (اضغط للقفل والحماية)'}" 
+                            style="background:${safeBarcode ? '#fffbeb' : '#fef2f2'}; border:1.5px solid ${safeBarcode ? '#fde68a' : '#fecaca'}; color:${safeBarcode ? '#b45309' : '#dc2626'}; border-radius:6px; padding:3px 6px; font-weight:900; cursor:pointer; font-size:0.82rem; display:inline-flex; align-items:center; justify-content:center; transition:0.2s;">
+                            ${safeBarcode ? '🔒' : '🔓'}
+                        </button>
+
+                        <button type="button" class="btn-restore-unit-barcode" onclick="restoreUnitBarcode(this)" 
+                            title="🔄 استرجاع الباركود الأصلي للوحدة" 
+                            style="background:#f0fdf4; border:1.5px solid #bbf7d0; color:#15803d; border-radius:6px; padding:3px 6px; font-weight:900; cursor:pointer; font-size:0.82rem; display:inline-flex; align-items:center; justify-content:center; transition:0.2s;"
+                            onmouseover="this.style.background='#dcfce7';"
+                            onmouseout="this.style.background='#f0fdf4';">
+                            🔄
+                        </button>
+
+                        <button type="button" class="btn-gen-unit-barcode" onclick="generateSingleUnitBarcode(this)" 
+                            title="⚡ توليد باركود تلقائي فريد للوحدة" 
+                            style="background:#f5f3ff; border:1.5px solid #c4b5fd; color:#7c3aed; border-radius:6px; padding:3px 6px; font-weight:900; cursor:pointer; font-size:0.82rem; display:inline-flex; align-items:center; justify-content:center; transition:0.2s;"
+                            onmouseover="this.style.background='#ede9fe'; this.style.borderColor='#8b5cf6';"
+                            onmouseout="this.style.background='#f5f3ff'; this.style.borderColor='#c4b5fd';">
+                            ⚡
+                        </button>
+
+                        <button type="button" class="btn-copy-unit-barcode" onclick="copyUnitBarcode(this)" 
+                            title="📋 نسخ باركود الوحدة" 
+                            style="background:#f8fafc; border:1.5px solid #cbd5e1; color:#475569; border-radius:6px; padding:3px 6px; cursor:pointer; font-size:0.82rem; display:inline-flex; align-items:center; justify-content:center; transition:0.2s;"
+                            onmouseover="this.style.background='#f1f5f9';"
+                            onmouseout="this.style.background='#f8fafc';">
+                            📋
+                        </button>
+                    </div>
+                </td>
             `;
             tbody.appendChild(tr);
             calculateUnitPrices();
         }
+
+        function toggleUnitBarcodeLock(btn, forceLock = null) {
+            const row = btn.closest('tr');
+            if (!row) return;
+            const inp = row.querySelector('.u-barcode-input') || (row.cells && row.cells[8] ? row.cells[8].querySelector('input') : null);
+            if (!inp) return;
+
+            const isCurrentlyLocked = (forceLock !== null) ? !forceLock : inp.readOnly;
+
+            if (isCurrentlyLocked) {
+                // فتح القفل
+                inp.readOnly = false;
+                inp.style.background = '#ffffff';
+                inp.style.borderColor = '#7c3aed';
+                inp.style.color = '#0f172a';
+                inp.focus();
+                inp.select();
+                btn.innerText = '🔓';
+                btn.style.background = '#fef2f2';
+                btn.style.borderColor = '#fecaca';
+                btn.style.color = '#dc2626';
+                btn.title = '🔓 الحقل مفتوح للتعديل أو الاسكانر (اضغط للقفل والحماية)';
+                if (typeof showToast === 'function') {
+                    showToast('🔓 تم فتح الحقل: يمكنك الآن التعديل، المسح، أو ضرب مسدس الاسكانر 📷', 'info');
+                }
+            } else {
+                // قفل الحقل
+                inp.readOnly = true;
+                inp.style.background = '#f8fafc';
+                inp.style.borderColor = '#cbd5e1';
+                inp.style.color = '#334155';
+                if (!inp.dataset.originalBarcode && inp.value.trim()) {
+                    inp.dataset.originalBarcode = inp.value.trim();
+                }
+                btn.innerText = '🔒';
+                btn.style.background = '#fffbeb';
+                btn.style.borderColor = '#fde68a';
+                btn.style.color = '#b45309';
+                btn.title = '🔒 الحقل مقفل لحماية الباركود من التعديل العفوي (اضغط للفتح)';
+                if (typeof showToast === 'function') {
+                    showToast('🔒 تم قفل باركود الوحدة وحمايته من التعديل العفوي', 'success');
+                }
+            }
+        }
+        window.toggleUnitBarcodeLock = toggleUnitBarcodeLock;
+
+        function restoreUnitBarcode(btn) {
+            const row = btn.closest('tr');
+            if (!row) return;
+            const inp = row.querySelector('.u-barcode-input') || (row.cells && row.cells[8] ? row.cells[8].querySelector('input') : null);
+            if (!inp) return;
+
+            const orig = inp.dataset.originalBarcode || '';
+            inp.value = orig;
+            inp.style.borderColor = '#10b981';
+            inp.style.background = '#ecfdf5';
+            setTimeout(() => {
+                inp.style.borderColor = '#cbd5e1';
+                inp.style.background = inp.readOnly ? '#f8fafc' : '#ffffff';
+            }, 600);
+
+            if (typeof showToast === 'function') {
+                showToast(`🔄 تم استرجاع الباركود الأصلي: ${orig || '(فارغ)'}`, 'info');
+            }
+        }
+        window.restoreUnitBarcode = restoreUnitBarcode;
+
+        function handleUnitBarcodeKeydown(event, inp) {
+            if (event.key === 'Enter' || event.keyCode === 13) {
+                event.preventDefault();
+                const rawVal = inp.value.trim();
+                if (!rawVal) return;
+
+                // قفل الحقل تلقائياً بعد التقاط الباركود من الاسكانر لحمايته
+                inp.readOnly = true;
+                inp.style.background = '#f8fafc';
+                inp.style.borderColor = '#10b981';
+                inp.dataset.originalBarcode = rawVal;
+
+                const row = inp.closest('tr');
+                const lockBtn = row ? row.querySelector('.btn-lock-unit-barcode') : null;
+                if (lockBtn) {
+                    lockBtn.innerText = '🔒';
+                    lockBtn.style.background = '#fffbeb';
+                    lockBtn.style.borderColor = '#fde68a';
+                    lockBtn.style.color = '#b45309';
+                    lockBtn.title = '🔒 الحقل مقفل لحماية الباركود من التعديل العفوي (اضغط للفتح)';
+                }
+
+                setTimeout(() => {
+                    inp.style.borderColor = '#cbd5e1';
+                }, 800);
+
+                const unitSelect = row ? row.cells[0]?.querySelector('select') : null;
+                const unitName = unitSelect ? unitSelect.value : '';
+
+                if (typeof showToast === 'function') {
+                    showToast(`✅ تم استقبال وقفل باركود وحدة (${unitName || 'الوحدة'}): ${rawVal}`, 'success');
+                }
+            }
+        }
+        window.handleUnitBarcodeKeydown = handleUnitBarcodeKeydown;
+
+        function generateSingleUnitBarcode(btn) {
+            const row = btn.closest('tr');
+            if (!row) return;
+            const inp = row.querySelector('.u-barcode-input') || (row.cells && row.cells[8] ? row.cells[8].querySelector('input') : null);
+            if (!inp) return;
+
+            const unitSelect = row.cells[0]?.querySelector('select');
+            const unitName = unitSelect ? unitSelect.value : '';
+            const rowIndex = row.rowIndex || 1;
+
+            const baseCode = document.getElementById('newItemSysCode')?.value 
+                || document.getElementById('newItemBarcode')?.value 
+                || document.getElementById('newItemCode')?.value 
+                || String(Date.now()).slice(-6);
+            const cleanBase = String(baseCode).replace(/\D/g, '').slice(-4) || '2001';
+            
+            let candidate = '';
+            let attempts = 0;
+            do {
+                attempts++;
+                const randSuffix = Math.floor(1000 + Math.random() * 9000);
+                candidate = `22${cleanBase}${String(rowIndex).padStart(2, '0')}${randSuffix}`.slice(0, 13);
+            } while (typeof isBarcodeInUseAnywhere === 'function' && isBarcodeInUseAnywhere(candidate) && attempts < 100);
+
+            inp.value = candidate;
+            inp.dataset.originalBarcode = candidate;
+            inp.readOnly = true;
+            inp.style.background = '#f8fafc';
+            inp.style.borderColor = '#7c3aed';
+
+            const lockBtn = row.querySelector('.btn-lock-unit-barcode');
+            if (lockBtn) {
+                lockBtn.innerText = '🔒';
+                lockBtn.style.background = '#fffbeb';
+                lockBtn.style.borderColor = '#fde68a';
+                lockBtn.style.color = '#b45309';
+                lockBtn.title = '🔒 الحقل مقفل لحماية الباركود من التعديل العفوي (اضغط للفتح)';
+            }
+
+            setTimeout(() => {
+                inp.style.borderColor = '#cbd5e1';
+            }, 600);
+
+            if (typeof showToast === 'function') {
+                showToast(`⚡ تم توليد باركود لوحدة (${unitName || 'الوحدة'}): ${candidate}`, 'success');
+            }
+        }
+        window.generateSingleUnitBarcode = generateSingleUnitBarcode;
+
+        function copyUnitBarcode(btn) {
+            const row = btn.closest('tr');
+            if (!row) return;
+            const inp = row.querySelector('.u-barcode-input') || (row.cells && row.cells[8] ? row.cells[8].querySelector('input') : null);
+            if (!inp || !inp.value.trim()) {
+                if (typeof showToast === 'function') showToast('⚠️ لا يوجد باركود لنسخه بعد', 'warning');
+                return;
+            }
+            const val = inp.value.trim();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(val).then(() => {
+                    if (typeof showToast === 'function') showToast(`📋 تم نسخ باركود الوحدة: ${val}`, 'success');
+                }).catch(() => {
+                    inp.select();
+                    document.execCommand('copy');
+                    if (typeof showToast === 'function') showToast(`📋 تم نسخ باركود الوحدة: ${val}`, 'success');
+                });
+            } else {
+                inp.select();
+                document.execCommand('copy');
+                if (typeof showToast === 'function') showToast(`📋 تم نسخ باركود الوحدة: ${val}`, 'success');
+            }
+        }
+        window.copyUnitBarcode = copyUnitBarcode;
 
         function removeProductUnitRow() {
             const tbody = document.getElementById('productUnitsTableBody');

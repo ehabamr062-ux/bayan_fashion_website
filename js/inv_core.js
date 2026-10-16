@@ -1128,36 +1128,36 @@ async function renderWarehouseReportTable(isSearchTrigger = false) {
 
     if (summaryContainer) {
         let cardsHTML = `
-            <div class="summary-card-gold" style="padding: 12px 16px; background: linear-gradient(135deg, #1e293b, #0f172a); color: white; border-radius: 14px; box-shadow: 0 4px 15px rgba(15,23,42,0.15); border: 1px solid rgba(255,255,255,0.1); border-right: 5px solid #3b82f6; display: flex; flex-direction: column; justify-content: center; transition: 0.3s;">
-                <div style="font-size: 0.8rem; font-weight: 800; color: #93c5fd; margin-bottom: 4px;">📊 إجمالي المخزون (بكل الفروع)</div>
-                <div style="font-size: 1.35rem; font-weight: 900; color: white;">${totalGlobalQty.toLocaleString()} <span style="font-size: 0.75rem; color: #94a3b8; font-weight: normal;">قطعة</span></div>
-                ${canViewCost ? `<div style="font-size: 0.95rem; font-weight: 800; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 6px; padding-top: 4px; color: #60a5fa;">${totalGlobalValue.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size: 0.75rem;">ج.م</span></div>` : ''}
+            <div class="summary-card-gold" style="min-width: 170px; padding: 12px 16px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #ffffff; border-radius: 14px; box-shadow: 0 6px 20px rgba(15,23,42,0.35); border: 1.5px solid rgba(59,130,246,0.5); border-right: 5px solid #3b82f6; display: flex; flex-direction: column; justify-content: center; transition: 0.3s;">
+                <div style="font-size: 0.85rem; font-weight: 900; color: #38bdf8 !important; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">📊 إجمالي المخزون (بكل الفروع)</div>
+                <div style="font-size: 1.4rem; font-weight: 900; color: #ffffff !important; text-shadow: 0 1px 3px rgba(0,0,0,0.6);">${totalGlobalQty.toLocaleString()} <span style="font-size: 0.8rem; color: #ffffff !important; font-weight: 800;">قطعة</span></div>
+                ${canViewCost ? `<div style="font-size: 1.05rem; font-weight: 900; border-top: 1px solid rgba(255,255,255,0.18); margin-top: 5px; padding-top: 4px; color: #4ade80 !important; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">${totalGlobalValue.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size: 0.78rem; color: #ffffff !important; font-weight: 800;">ج.م</span></div>` : ''}
             </div>
         `;
 
         if (canViewProfits) {
             cardsHTML += `
-                <div class="summary-card-profit-wh" style="padding: 12px 16px; background: linear-gradient(135deg, #064e3b, #052e16); color: white; border-radius: 14px; box-shadow: 0 4px 15px rgba(6,78,59,0.15); border: 1px solid rgba(255,255,255,0.1); border-right: 5px solid #10b981; display: flex; flex-direction: column; justify-content: center; transition: 0.3s;">
-                    <div style="font-size: 0.8rem; font-weight: 800; color: #6ee7b7; margin-bottom: 4px;">💵 إجمالي ربح الجملة</div>
-                    <div style="font-size: 1.35rem; font-weight: 900; color: white;">${totalGlobalProfitWH.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size: 0.75rem;">ج.م</span></div>
-                    <div style="font-size: 0.72rem; margin-top: 4px; color: #34d399; opacity: 0.9;">(بناءً على الأرصدة الحالية)</div>
+                <div class="summary-card-profit-wh" style="min-width: 170px; padding: 12px 16px; background: linear-gradient(135deg, #064e3b 0%, #052e16 100%); color: #ffffff; border-radius: 14px; box-shadow: 0 6px 20px rgba(6,78,59,0.35); border: 1.5px solid rgba(16,185,129,0.5); border-right: 5px solid #10b981; display: flex; flex-direction: column; justify-content: center; transition: 0.3s;">
+                    <div style="font-size: 0.85rem; font-weight: 900; color: #6ee7b7 !important; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">💵 إجمالي ربح الجملة</div>
+                    <div style="font-size: 1.4rem; font-weight: 900; color: #ffffff !important; text-shadow: 0 1px 3px rgba(0,0,0,0.6);">${totalGlobalProfitWH.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size: 0.8rem; color: #ffffff !important; font-weight: 800;">ج.م</span></div>
+                    <div style="font-size: 0.75rem; margin-top: 4px; color: #a7f3d0 !important; font-weight: 800;">(بناءً على الأرصدة الحالية)</div>
                 </div>
 
-                <div class="summary-card-profit-rt" style="padding: 12px 16px; background: linear-gradient(135deg, #1e3a8a, #172554); color: white; border-radius: 14px; box-shadow: 0 4px 15px rgba(30,58,138,0.15); border: 1px solid rgba(255,255,255,0.1); border-right: 5px solid #60a5fa; display: flex; flex-direction: column; justify-content: center; transition: 0.3s;">
-                    <div style="font-size: 0.8rem; font-weight: 800; color: #93c5fd; margin-bottom: 4px;">💎 إجمالي ربح التجزئة</div>
-                    <div style="font-size: 1.35rem; font-weight: 900; color: white;">${totalGlobalProfitRT.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size: 0.75rem;">ج.م</span></div>
-                    <div style="font-size: 0.72rem; margin-top: 4px; color: #93c5fd; opacity: 0.9;">(بناءً على الأرصدة الحالية)</div>
+                <div class="summary-card-profit-rt" style="min-width: 170px; padding: 12px 16px; background: linear-gradient(135deg, #1e3a8a 0%, #172554 100%); color: #ffffff; border-radius: 14px; box-shadow: 0 6px 20px rgba(30,58,138,0.35); border: 1.5px solid rgba(96,165,250,0.5); border-right: 5px solid #60a5fa; display: flex; flex-direction: column; justify-content: center; transition: 0.3s;">
+                    <div style="font-size: 0.85rem; font-weight: 900; color: #93c5fd !important; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">💎 إجمالي ربح التجزئة</div>
+                    <div style="font-size: 1.4rem; font-weight: 900; color: #ffffff !important; text-shadow: 0 1px 3px rgba(0,0,0,0.6);">${totalGlobalProfitRT.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size: 0.8rem; color: #ffffff !important; font-weight: 800;">ج.م</span></div>
+                    <div style="font-size: 0.75rem; margin-top: 4px; color: #bfdbfe !important; font-weight: 800;">(بناءً على الأرصدة الحالية)</div>
                 </div>
             `;
         }
 
         warehouseStats.forEach(ws => {
             cardsHTML += `
-                <div class="summary-card-white" style="padding: 12px 16px; background: linear-gradient(135deg, #334155, #0f172a); color: white; border-radius: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.15); border: 1px solid rgba(255,255,255,0.1); border-right: 5px solid #f59e0b; display: flex; flex-direction: column; justify-content: center; transition: 0.3s;">
-                    <div style="font-size: 0.8rem; color: #fcd34d; font-weight: 800; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">🏬 كمية ${ws.name}</div>
-                    <div style="font-size: 1.25rem; font-weight: 900; color: white;">${ws.qty.toLocaleString()} <span style="font-size: 0.75rem; color: #94a3b8; font-weight: normal;">قطعة</span></div>
-                    ${canViewCost ? `<div style="font-size: 0.95rem; color: #34d399; font-weight: 800; margin-top: 2px;">${ws.val.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size: 0.65rem;">ج.م</span></div>` : ''}
-                    <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 4px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 3px;">(${ws.items} صنف نشط)</div>
+                <div class="summary-card-white" style="min-width: 170px; padding: 12px 16px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #ffffff; border-radius: 14px; box-shadow: 0 6px 20px rgba(0,0,0,0.35); border: 1.5px solid rgba(245,158,11,0.5); border-right: 5px solid #f59e0b; display: flex; flex-direction: column; justify-content: center; transition: 0.3s;">
+                    <div style="font-size: 0.86rem; color: #fbbf24 !important; font-weight: 900; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; text-shadow: 0 1px 3px rgba(0,0,0,0.5);">🏬 كمية ${ws.name}</div>
+                    <div style="font-size: 1.35rem; font-weight: 900; color: #ffffff !important; text-shadow: 0 1px 3px rgba(0,0,0,0.6);">${ws.qty.toLocaleString()} <span style="font-size: 0.8rem; color: #ffffff !important; font-weight: 800;">قطعة</span></div>
+                    ${canViewCost ? `<div style="font-size: 1.05rem; color: #4ade80 !important; font-weight: 900; margin-top: 3px; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">${ws.val.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size: 0.78rem; color: #ffffff !important; font-weight: 800;">ج.م</span></div>` : ''}
+                    <div style="font-size: 0.78rem; color: #ffffff !important; font-weight: 800; margin-top: 5px; border-top: 1px solid rgba(255,255,255,0.18); padding-top: 4px; display: flex; align-items: center; gap: 4px;"><span style="color: #38bdf8;">📦</span> (${ws.items} صنف نشط)</div>
                 </div>
             `;
         });

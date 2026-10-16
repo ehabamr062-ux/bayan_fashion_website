@@ -773,11 +773,18 @@ async function renderHistoryTable(filterName = null) {
                 <td class="col-hist-0"><input type="radio" name="histRad" ${isSelected ? 'checked' : ''}></td>
                 <td class="col-hist-1"><span style="background:#eee; padding:2px 6px; border-radius:4px; font-weight:bold;">${esc(t.invoiceId || '-')}</span></td>
                 <td class="col-hist-2">${esc(t.date || '-')}</td>
-                <td class="col-hist-3">
-                    <span class="stock-badge ${t.type.includes('بيع') ? (t.type.includes('مرتجع') ? 'badge-return' : 'badge-sale') :
-                        (t.type.includes('شراء') ? (t.type.includes('مرتجع') ? 'badge-return' : 'badge-purchase') :
+                <td class="col-hist-3" style="text-align: center;">
+                    <span class="stock-badge ${t.type.includes('بيع') ? (t.type.includes('مرتجع') ? 'badge-return-sale' : 'badge-sale') :
+                        (t.type.includes('شراء') ? (t.type.includes('مرتجع') ? 'badge-return-purchase' : 'badge-purchase') :
                         (t.type.includes('قبض') ? 'badge-receipt' : (t.type.includes('صرف') ? 'badge-disburse' : (t.type.includes('تحويل') ? 'badge-transfer' : ''))))}">
-                        ${esc(t.type)}
+                        ${(() => {
+                            const tp = t.type || '';
+                            if (tp.includes('مرتجع') && (tp.includes('بيع') || tp.includes('مبيعات'))) return '↩️ مرتجع بيع';
+                            if (tp.includes('مرتجع') && (tp.includes('شراء') || tp.includes('مشتريات'))) return '🔄 مرتجع شراء';
+                            if (tp.includes('بيع') || tp.includes('مبيعات')) return '🛒 فاتورة بيع';
+                            if (tp.includes('شراء') || tp.includes('مشتريات')) return '📦 فاتورة شراء';
+                            return esc(tp);
+                        })()}
                     </span>
                     ${t.type.includes('تحويل') ? (
                         t.transferStatus === 'pending' ? '<span style="display:block; margin-top:2px; font-size:0.72rem; color:#b45309; font-weight:800; background:#fef3c7; border:1px solid #fde68a; border-radius:10px; padding:1px 6px;">معلق ⏳</span>' :

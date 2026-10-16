@@ -2071,12 +2071,6 @@ body.dark-mode #historySummaryStatsCards > div:nth-child(4) #histCardTotalAmount
     transition: background-color 0.15s ease, color 0.15s ease !important;
 }
 
-#inventory-section table.invoice-table tbody tr:hover {
-    background-color: #065f46 !important;
-    color: #ffffff !important;
-    box-shadow: 0 4px 12px rgba(6, 78, 59, 0.15) !important;
-}
-
 #inventory-section table.invoice-table tbody tr td {
     padding: 10px 8px !important;
     border-bottom: 1px solid #f1f5f9 !important;
@@ -2084,59 +2078,52 @@ body.dark-mode #historySummaryStatsCards > div:nth-child(4) #histCardTotalAmount
     vertical-align: middle !important;
 }
 
-/* ====== تمييز الهوفر والتحديد في قسم البضاعة / الأصناف (بنفسجي ملكي داكن وفخم) ====== */
+/* ====== تمييز التحديد الفعلي بالضغط في قسم البضاعة / الأصناف (بنفسجي ملكي داكن وفخم للصنف المحدد فقط) ====== */
 #inventory-section table.invoice-table tbody tr,
 #inventoryTableBody tr {
     transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease !important;
 }
 
-#inventory-section table.invoice-table tbody tr:hover,
-#inventoryTableBody tr:hover,
-#inventoryTableBody tr.selected-row-gold {
+/* التحديد الفعلي بالضغط فقط - صنف محدد ومفعل عليه الاختيار */
+#inventoryTableBody tr.selected-row-gold,
+#inventory-section table.invoice-table tbody tr.selected-row-gold {
     background: linear-gradient(90deg, #2e1065 0%, #4c1d95 60%, #581c87 100%) !important;
     /* بنفسجي ملكي فاخر وداكن جداً */
     color: #ffffff !important;
     box-shadow: 0 4px 18px rgba(124, 58, 237, 0.45) !important;
 }
 
-#inventory-section table.invoice-table tbody tr:hover td,
-#inventory-section table.invoice-table tbody tr:hover span,
-#inventory-section table.invoice-table tbody tr:hover b,
-#inventoryTableBody tr:hover td,
-#inventoryTableBody tr:hover span,
-#inventoryTableBody tr:hover b,
 #inventoryTableBody tr.selected-row-gold td,
 #inventoryTableBody tr.selected-row-gold span,
-#inventoryTableBody tr.selected-row-gold b {
+#inventoryTableBody tr.selected-row-gold b,
+#inventory-section table.invoice-table tbody tr.selected-row-gold td,
+#inventory-section table.invoice-table tbody tr.selected-row-gold span,
+#inventory-section table.invoice-table tbody tr.selected-row-gold b {
     color: #ffffff !important;
 }
 
-#inventory-section table.invoice-table tbody tr:hover td.num-cell,
-#inventoryTableBody tr:hover td.num-cell,
-#inventoryTableBody tr.selected-row-gold td.num-cell {
+#inventoryTableBody tr.selected-row-gold td.num-cell,
+#inventory-section table.invoice-table tbody tr.selected-row-gold td.num-cell {
     color: #ffffff !important;
 }
 
-#inventory-section table.invoice-table tbody tr:hover td.col-inv-margin,
-#inventoryTableBody tr:hover td.col-inv-margin,
-#inventoryTableBody tr.selected-row-gold td.col-inv-margin {
+#inventoryTableBody tr.selected-row-gold td.col-inv-margin,
+#inventory-section table.invoice-table tbody tr.selected-row-gold td.col-inv-margin {
     background: rgba(255, 255, 255, 0.22) !important;
     color: #ffffff !important;
     border-radius: 6px !important;
     font-weight: 900 !important;
 }
 
-/* 🖼️ تناسق صورة الموديل والأيقونة البديلة مع الهوفر البنفسجي الملكي */
-#inventory-section table.invoice-table tbody tr:hover td.col-inv-image img,
-#inventoryTableBody tr:hover td.col-inv-image img,
-#inventoryTableBody tr.selected-row-gold td.col-inv-image img {
+/* 🖼️ تناسق صورة الموديل والأيقونة البديلة مع التحديد البنفسجي الملكي */
+#inventoryTableBody tr.selected-row-gold td.col-inv-image img,
+#inventory-section table.invoice-table tbody tr.selected-row-gold td.col-inv-image img {
     border-color: #ffffff !important;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
 }
 
-#inventory-section table.invoice-table tbody tr:hover td.col-inv-image span,
-#inventoryTableBody tr:hover td.col-inv-image span,
-#inventoryTableBody tr.selected-row-gold td.col-inv-image span {
+#inventoryTableBody tr.selected-row-gold td.col-inv-image span,
+#inventory-section table.invoice-table tbody tr.selected-row-gold td.col-inv-image span {
     background: rgba(255, 255, 255, 0.15) !important;
     border-color: rgba(255, 255, 255, 0.35) !important;
 }

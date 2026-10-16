@@ -1549,37 +1549,85 @@
 
             let typeIcon = '🧾';
             if (isReturn) typeIcon = '↩️';
-            else if (isPurchase) typeIcon = '📥';
+            else if (isPurchase) typeIcon = '📦';
             else if (isTransfer) typeIcon = '🚚';
             else if (isAdjustment) typeIcon = '⚖️';
             else if (isReceipt) typeIcon = '💰';
             else if (isDisburse) typeIcon = '💸';
 
+            // استخراج وتنسيق التاريخ والوقت بدقة وبشكل واضح ومقروء
+            let displayDate = '';
+            let displayTime = '';
+            
+            if (tx.dateISO) {
+                displayDate = tx.dateISO;
+                if (tx.timeISO) {
+                    displayTime = tx.timeISO;
+                } else if (tx.time) {
+                    displayTime = tx.time;
+                }
+            } else if (tx.date) {
+                const rawDateStr = String(tx.date).trim();
+                if (rawDateStr.includes('T')) {
+                    const parts = rawDateStr.split('T');
+                    displayDate = parts[0];
+                    displayTime = (parts[1] || '').split('.')[0].slice(0, 8);
+                } else if (rawDateStr.includes(' ')) {
+                    const parts = rawDateStr.split(' ');
+                    displayDate = parts[0];
+                    displayTime = parts.slice(1).join(' ');
+                } else {
+                    displayDate = rawDateStr;
+                }
+            } else if (tx.timestamp) {
+                const d = new Date(tx.timestamp);
+                if (!isNaN(d.getTime())) {
+                    displayDate = d.toLocaleDateString('ar-EG') || d.toISOString().slice(0, 10);
+                    displayTime = d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+                } else {
+                    displayDate = String(tx.timestamp);
+                }
+            }
+            
+            if (!displayTime && tx.time) {
+                displayTime = tx.time;
+            }
+            if (!displayDate) displayDate = '-';
+
             let modalContent = `
                 <div style="background: #ffffff; width: ${modalWidth}; max-width: 96vw; max-height: 92vh; border-radius: 24px; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.28), 0 4px 12px rgba(0,0,0,0.06); display: flex; flex-direction: column; overflow: hidden; border: 1.5px solid #cbd5e1; direction: rtl; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;">
                     
-                    <!-- 1. Header بتدرج داكن وعصري مع هوية نوع العملية -->
-                    <div style="background: linear-gradient(135deg, #090d16 0%, #111827 50%, #1e293b 100%); padding: 18px 24px; color: white; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid ${typeColor}; position: relative;">
+                    <!-- 1. Header بتدرج بنفسجي غامق ملكي فاخر مع هوية نوع العملية ووضوح التاريخ والوقت -->
+                    <div style="background: linear-gradient(135deg, #180928 0%, #2a0845 50%, #431068 100%); padding: 18px 24px; color: white; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid ${typeColor}; position: relative; box-shadow: 0 4px 20px rgba(42, 8, 69, 0.25);">
                         <div style="display: flex; align-items: center; gap: 14px;">
-                            <div style="width: 46px; height: 46px; border-radius: 14px; background: linear-gradient(135deg, ${typeColor}, #1e293b); display: flex; align-items: center; justify-content: center; font-size: 1.4rem; box-shadow: 0 4px 14px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2);">
+                            <div style="width: 48px; height: 48px; border-radius: 14px; background: linear-gradient(135deg, ${typeColor}, #2a0845); display: flex; align-items: center; justify-content: center; font-size: 1.45rem; box-shadow: 0 4px 14px rgba(0,0,0,0.35); border: 1.5px solid rgba(255,255,255,0.25);">
                                 ${typeIcon}
                             </div>
                             <div>
                                 <div style="display: flex; align-items: center; gap: 9px; flex-wrap: wrap;">
-                                    <span style="background: ${typeColor}; color: #ffffff; font-size: 0.76rem; font-weight: 900; padding: 3px 11px; border-radius: 20px; letter-spacing: 0.3px; box-shadow: 0 2px 6px rgba(0,0,0,0.2);">${typeName}</span>
-                                    <h3 style="margin: 0; font-size: 1.25rem; font-weight: 900; color: #f8fafc; letter-spacing: -0.3px;">
+                                    <span style="background: ${typeColor}; color: #ffffff; font-size: 0.76rem; font-weight: 900; padding: 3px 12px; border-radius: 20px; letter-spacing: 0.3px; box-shadow: 0 2px 8px rgba(0,0,0,0.25);">${typeName}</span>
+                                    <h3 style="margin: 0; font-size: 1.25rem; font-weight: 900; color: #ffffff; letter-spacing: -0.3px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
                                         رقم #${tx.invoiceId || tx.invoiceNumber || tx.id}
                                     </h3>
                                 </div>
-                                <div style="font-size: 0.8rem; color: #94a3b8; font-weight: 700; margin-top: 5px; display: flex; align-items: center; gap: 10px;">
-                                    <span style="background: rgba(255,255,255,0.08); padding: 2px 9px; border-radius: 7px; border: 1px solid rgba(255,255,255,0.1);">📅 ${tx.date || tx.timestamp || '-'}</span>
+                                <div style="font-size: 0.8rem; color: #f1f5f9; font-weight: 700; margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                    <span style="background: rgba(255,255,255,0.16); color: #ffffff; padding: 3px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.2);">
+                                        <span>📅</span>
+                                        <span style="font-weight: 800;">${displayDate}</span>
+                                    </span>
+                                    ${displayTime ? `
+                                        <span style="background: rgba(255,255,255,0.16); color: #f5f3ff; padding: 3px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.25); display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.2);">
+                                            <span>🕒</span>
+                                            <span style="font-weight: 800;">${displayTime}</span>
+                                        </span>
+                                    ` : ''}
                                 </div>
                             </div>
                         </div>
                         <button onclick="document.getElementById('customViewModalOverlay').remove()" 
-                            style="background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.2); color: #ffffff; font-size: 1.35rem; cursor: pointer; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s;"
-                            onmouseover="this.style.background='rgba(239,68,68,0.3)'; this.style.borderColor='#ef4444';"
-                            onmouseout="this.style.background='rgba(255,255,255,0.12)'; this.style.borderColor='rgba(255,255,255,0.2)';">
+                            style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: #ffffff; font-size: 1.35rem; cursor: pointer; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s;"
+                            onmouseover="this.style.background='rgba(239,68,68,0.4)'; this.style.borderColor='#ef4444';"
+                            onmouseout="this.style.background='rgba(255,255,255,0.15)'; this.style.borderColor='rgba(255,255,255,0.25)';">
                             &times;
                         </button>
                     </div>

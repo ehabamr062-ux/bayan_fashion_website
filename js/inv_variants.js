@@ -196,6 +196,12 @@ function isBarcodeInUseAnywhere(barcode, excludeBarcode = null) {
         if (inp && inp.value.trim() === clean && clean !== excludeBarcode) return true;
     }
 
+    const uRows = document.getElementById('productUnitsTableBody')?.rows || [];
+    for (let i = 0; i < uRows.length; i++) {
+        const inp = uRows[i].querySelector('.u-barcode-input') || (uRows[i].cells && uRows[i].cells[8] ? uRows[i].cells[8].querySelector('input') : null);
+        if (inp && inp.value.trim() === clean && clean !== excludeBarcode) return true;
+    }
+
     return false;
 }
 window.isBarcodeInUseAnywhere = isBarcodeInUseAnywhere;
