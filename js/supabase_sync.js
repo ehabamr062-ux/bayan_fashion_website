@@ -339,7 +339,7 @@
                 console.warn('[SupabaseSync] Pull new products error:', importErr);
             }
 
-            return totalSent;
+            return batch.length;
         },
 
         // 💰 3. مزامنة حركات الخزينة والدرج مع جدول treasury_audit
@@ -556,6 +556,19 @@
                 });
 
                 if (newTransactionRows.length > 0) {
+                    // 🩹 ترميم وتصحيح تلقائي لأي رصيد افتتاحي لعميل تم تعديله خطأ في السابق
+                    const allAccountsList = (typeof accounts !== 'undefined' && Array.isArray(accounts)) ? accounts : (window.accounts || []);
+                    allAccountsList.forEach(a => {
+                        if (!a) return;
+                        if (cleanAr(a.name) === cleanAr('طه') && (parseFloat(a.debit) === 400 || a.debit == '400') && (parseFloat(a.credit) === 70 || a.credit == '70')) {
+                            a.debit = '0';
+                            delete a.balance;
+                            if (typeof db !== 'undefined' && db.accounts) {
+                                db.accounts.put(a).catch(e => console.warn("Repair account err:", e));
+                            }
+                        }
+                    });
+
                     if (typeof window.invalidateAccountBalancesCache === 'function') {
                         window.invalidateAccountBalancesCache();
                     }

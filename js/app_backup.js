@@ -1242,7 +1242,7 @@ window.executeAutoBackupToFile = async function(silent = false, isManual = false
                 console.log("⚡ [Ultra-Fast Backup] تم النسخ الاحتياطي التلقائي الفوري لملف الداتابيز بنجاح في أجزاء من الثانية:", directRes.filePath);
                 try {
                     const settings = JSON.parse(getStore('pos_settings') || '{}');
-                    const maxBackups = parseInt(settings.maxBackupFiles) || 100;
+                    const maxBackups = parseInt(settings.maxBackupFiles) || 30;
                     await ipc.invoke('rotate-backups', maxBackups);
                 } catch(rotErr) {}
                 return true;
@@ -1275,7 +1275,7 @@ window.executeAutoBackupToFile = async function(silent = false, isManual = false
                 // إدارة تدوير النسخ
                 try {
                     const settings = JSON.parse(getStore('pos_settings') || '{}');
-                    const maxBackups = parseInt(settings.maxBackupFiles) || 100;
+                    const maxBackups = parseInt(settings.maxBackupFiles) || 30;
                     await ipc.invoke('rotate-backups', maxBackups);
                 } catch(rotErr) {}
             }

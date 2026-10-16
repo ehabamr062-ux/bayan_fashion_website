@@ -44,7 +44,7 @@ function createWindow() {
             nodeIntegration: true,
             contextIsolation: false,
             sandbox: false,
-            devTools: false,
+            devTools: false, // أدوات المطورين مغلقة تماماً ومحمية
             spellcheck: false, // تعطيل التدقيق الإملائي لتوفير الرامات والمعالج
             backgroundThrottling: false // الحفاظ على أداء سريع حتى عند تصغير النافذة
         },
@@ -540,6 +540,7 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
     return new Promise(async (resolve) => {
         let printWin = null;
         let resolved = false;
+        let tempReceiptFile = null;
 
         const cleanup = (res, delayDestroy = false) => {
             if (!resolved) {
@@ -547,20 +548,26 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                 clearTimeout(timeoutTimer);
                 resolve(res);
 
-                // ⏱️ حماية جوهرية: تأخير آمن قبل إغلاق نافذة الطباعة (1500ms)
-                // في نظام ويندوز، إغلاق نافذة Electron فور كولباك الطباعة يقطع الاتصال بـ Windows Print Spooler
-                // أثناء كتابة ملف الـ EMF، مما يجعل الطابعة تنهي الأمر مبكراً وتخرج ورقة بيضاء فارغة بطول 2-3 سم
+                // ⏱️ حماية جوهرية: تأخير آمن (10 ثوانٍ) في الخلفية قبل إغلاق نافذة الطباعة
+                // في نظام ويندوز، إغلاق نافذة Electron مبكراً يقطع الاتصال بـ Windows Print Spooler
+                // أثناء كتابة ملف الـ EMF، مما يجعل الطابعة تخرج 2-3 سم ورق أبيض فارغ وتتوقف
                 if (delayDestroy) {
                     setTimeout(() => {
                         if (printWin && !printWin.isDestroyed()) {
                             try { printWin.destroy(); } catch (e) {}
                             printWin = null;
                         }
-                    }, 1500);
+                        if (tempReceiptFile) {
+                            try { if (fs.existsSync(tempReceiptFile)) fs.unlinkSync(tempReceiptFile); } catch (e) {}
+                        }
+                    }, 10000);
                 } else {
                     if (printWin && !printWin.isDestroyed()) {
                         try { printWin.destroy(); } catch (e) {}
                         printWin = null;
+                    }
+                    if (tempReceiptFile) {
+                        try { if (fs.existsSync(tempReceiptFile)) fs.unlinkSync(tempReceiptFile); } catch (e) {}
                     }
                 }
             }
@@ -568,7 +575,7 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
 
         const timeoutTimer = setTimeout(() => {
             cleanup({ success: false, error: 'Print operation timed out' }, false);
-        }, 12000);
+        }, 20000);
 
         try {
             const { html, printerName } = payload || {};
@@ -576,16 +583,22 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                 return cleanup({ success: false, error: 'No invoice HTML provided' }, false);
             }
 
+            // 💾 حفظ كود الـ HTML في ملف محلي مؤقت لتحميله عبر بروتوكول file:/// الحقيقي بدلاً من data:
+            // هذا يضمن تحميل الخطوط المحلية وتنسيقات CSS وتفادي أي قيود حظر في Chromium
+            const os = require('os');
+            tempReceiptFile = path.join(os.tmpdir(), `bayan_receipt_${Date.now()}_${Math.floor(Math.random() * 1000)}.html`);
+            await fs.promises.writeFile(tempReceiptFile, html, 'utf8');
+
             printWin = new BrowserWindow({
                 show: false,
                 width: 350,
-                height: 600,
+                height: 800,
                 autoHideMenuBar: true,
                 webPreferences: {
                     nodeIntegration: false,
                     contextIsolation: true,
-                    sandbox: true,
-                    backgroundThrottling: false // ⚡ منع تقييد الرسم والمعالجة في النوافذ المخفية
+                    sandbox: false, // ⚡ السماح بتحميل الخطوط والتنسيقات المحلية
+                    backgroundThrottling: false // ⚡ الحفاظ على كامل سرعة المعالجة والرسم في الخلفية
                 }
             });
 
@@ -595,13 +608,12 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
 
             printWin.webContents.on('did-finish-load', async () => {
                 try {
-                    // ⏱️ التأكد القطعي من اكتمال رسم الـ DOM وتحميل الخطوط وحساب ارتفاع الفاتورة
+                    // ⏱️ مهلة آمنة ومؤكدة (400ms) لاكتمال تفريغ الـ DOM ورسم الخطوط على كرت الشاشة
+                    // بدلاً من requestAnimationFrame المعطل في النوافذ المخفية
+                    await new Promise(r => setTimeout(r, 400));
+
                     const renderStatus = await printWin.webContents.executeJavaScript(`
-                        (async () => {
-                            if (document.fonts && document.fonts.ready) {
-                                await document.fonts.ready;
-                            }
-                            await new Promise(r => requestAnimationFrame(() => setTimeout(r, 80)));
+                        (() => {
                             return {
                                 scrollHeight: document.body.scrollHeight || 0,
                                 textLen: (document.body.innerText || '').trim().length
@@ -659,7 +671,7 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                 }
             });
 
-            printWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+            printWin.loadFile(tempReceiptFile);
 
         } catch (err) {
             console.error('[Print Silent] Handler error:', err);
@@ -777,7 +789,7 @@ function autoMigrateLegacyBackups() {
             if (fs.existsSync(dir) && dir !== backupDir) {
                 const files = fs.readdirSync(dir);
                 files.forEach(file => {
-                    if ((file.startsWith('backup_pos_') || file.startsWith('backup_complete_')) && file.endsWith('.json')) {
+                    if ((file.startsWith('backup_pos_') || file.startsWith('backup_complete_')) && (file.endsWith('.json') || file.endsWith('.db'))) {
                         const src = path.join(dir, file);
                         const dest = path.join(backupDir, file);
                         if (!fs.existsSync(dest)) {
@@ -930,13 +942,13 @@ ipcMain.handle('open-backup-folder', async () => {
     }
 });
 
-// إدارة وتدوير النسخ الاحتياطية الاحتفاظ بأحدث N (الافتراضي 100) وحذف الأقدم تلقائياً
-ipcMain.handle('rotate-backups', async (event, maxKeep = 100) => {
+// إدارة وتدوير النسخ الاحتياطية الاحتفاظ بأحدث N (الافتراضي 30) وحذف الأقدم تلقائياً
+ipcMain.handle('rotate-backups', async (event, maxKeep = 30) => {
     try {
         if (!fs.existsSync(backupDir)) return { success: true, count: 0 };
 
         const files = fs.readdirSync(backupDir)
-            .filter(f => f.startsWith('backup_pos_') && f.endsWith('.json'))
+            .filter(f => f.startsWith('backup_pos_') && (f.endsWith('.json') || f.endsWith('.db')))
             .map(f => {
                 const fp = path.join(backupDir, f);
                 const stat = fs.statSync(fp);

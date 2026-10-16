@@ -25,7 +25,7 @@
                         : "url('" + savedWp + "')";
                     var s = document.createElement('style');
                     s.id = 'bayan-instant-wallpaper-style';
-                    s.textContent = 'html, body { background-image: ' + bgVal + ' !important; background-size: cover !important; background-attachment: fixed !important; background-position: center !important; }';
+                    s.textContent = 'html, body { background-image: ' + bgVal + ' !important; background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; }';
                     document.head.appendChild(s);
                 }
             } catch (e) { }
@@ -82,10 +82,10 @@
             window._secondaryLibsLoadingStarted = true;
             const secondaryList = [
                 'lib/html2canvas.min.js', 'lib/xlsx.full.min.js', 'lib/chart.min.js',
-                'lib/Sortable.min.js', 'js/barcode_print.js?v=4.5.7',
-                'js/app_backup.js?v=4.5.7', 'js/app_export_share.js?v=4.5.7',
-                'js/cloud_telemetry.js?v=4.5.7', 'js/updater.js?v=4.5.7',
-                'js/treasury_audit.js?v=4.5.7'
+                'lib/Sortable.min.js', 'js/barcode_print.js?v=4.5.8',
+                'js/app_backup.js?v=4.5.8', 'js/app_export_share.js?v=4.5.8',
+                'js/cloud_telemetry.js?v=4.5.8', 'js/updater.js?v=4.5.8',
+                'js/treasury_audit.js?v=4.5.8'
             ];
             secondaryList.forEach(src => {
                 const s = document.createElement('script');
@@ -110,8 +110,8 @@
             }
         });
 
-        // 🌟 دالة التبديل الفوري لاحتساب رصيد الدرج (احتياطي مشروط لضمان عدم التعارض مع النسخة الكاملة في js/acc_reports.js)
-        window.toggleIncludePrevBalanceInAudit = window.toggleIncludePrevBalanceInAudit || function () {
+        // 🌟 دالة التبديل الفوري لاحتساب رصيد الدرج (متاحة عالمياً قبل وبعد تحميل التقارير)
+        window.toggleIncludePrevBalanceInAudit = function () {
             if (window.currentDrawerClosingState) {
                 window.currentDrawerClosingState.includePrevBalance = !window.currentDrawerClosingState.includePrevBalance;
                 if (typeof window.updateDrawerAuditPanelUI === 'function') {
@@ -134,59 +134,59 @@
     <!-- استيراد خط القاهرة محلياً 100% أوفلاين فائق السرعة -->
     <link rel="stylesheet" href="fonts/cairo.css">
 
-    <link rel="stylesheet" href="css/theme_base.css?v=4.5.7">
-    <link rel="stylesheet" href="css/sales_pos.css?v=4.5.7">
-    <link rel="stylesheet" href="css/inventory_products.css?v=4.5.7">
-    <link rel="stylesheet" href="css/accounts_reports.css?v=4.5.7">
-    <link rel="stylesheet" href="css/ui_modals.css?v=4.5.7">
-    <link rel="stylesheet" href="css/scrollbars.css?v=4.5.7">
-    <link rel="stylesheet" href="css/premium.css?v=4.5.7">
-    <link rel="stylesheet" href="css/treasury_audit.css?v=4.5.7">
-    <link rel="stylesheet" href="css/barcode_print.css?v=4.5.7">
+    <link rel="stylesheet" href="css/theme_base.css?v=4.5.8">
+    <link rel="stylesheet" href="css/sales_pos.css?v=4.5.8">
+    <link rel="stylesheet" href="css/inventory_products.css?v=4.5.8">
+    <link rel="stylesheet" href="css/accounts_reports.css?v=4.5.8">
+    <link rel="stylesheet" href="css/ui_modals.css?v=4.5.8">
+    <link rel="stylesheet" href="css/scrollbars.css?v=4.5.8">
+    <link rel="stylesheet" href="css/treasury_audit.css?v=4.5.8">
+    <link rel="stylesheet" href="css/barcode_print.css?v=4.5.8">
+    <link rel="stylesheet" href="css/premium.css?v=4.5.8">
 
-    <script src="lib/sql-wasm-binary.js?v=4.5.7"></script>
-    <script src="lib/sql-wasm.js?v=4.5.7"></script>
-    <script src="js/sqlite_manager.js?v=4.5.7" defer></script>
-    <script src="js/db_adapter.js?v=4.5.7" defer></script>
-    <script src="js/store.js?v=4.5.7" defer></script>
-    <script src="js/security.js?v=4.5.7" defer></script>
-    <script src="js/core.js?v=4.5.7" defer></script>
+    <script src="lib/sql-wasm-binary.js?v=4.5.8"></script>
+    <script src="lib/sql-wasm.js?v=4.5.8"></script>
+    <script src="js/sqlite_manager.js?v=4.5.9" defer></script>
+    <script src="js/db_adapter.js?v=4.5.8" defer></script>
+    <script src="js/store.js?v=4.5.8" defer></script>
+    <script src="js/security.js?v=4.5.8" defer></script>
+    <script src="js/core.js?v=4.5.8" defer></script>
     <script src="lib/JsBarcode.all.min.js"></script>
     <script src="lib/qrcode.min.js"></script>
-    <script src="js/utils_helpers.js?v=4.5.7" defer></script>
-    <script src="js/app_units_payments.js?v=4.5.7" defer></script>
-    <script src="js/app_license.js?v=4.5.7" defer></script>
-    <script src="js/settings.js?v=4.5.7" defer></script>
-    <script src="js/ui_theme_custom.js?v=4.5.7" defer></script>
-    <script src="js/ui_tabs.js?v=4.5.7" defer></script>
-    <script src="js/ui_modals_notifications.js?v=4.5.7" defer></script>
-    <script src="js/ui_auth.js?v=4.5.7" defer></script>
-    <script src="js/ui_calculator.js?v=4.5.7" defer></script>
-    <script src="js/inv_core.js?v=4.5.7" defer></script>
-    <script src="js/inv_products.js?v=4.5.7" defer></script>
-    <script src="js/inv_variants.js?v=4.5.7" defer></script>
-    <script src="js/inv_adjustments.js?v=4.5.7" defer></script>
-    <script src="js/trash.js?v=4.5.7" defer></script>
-    <script src="js/engine_invoices.js?v=4.5.7" defer></script>
-    <script src="js/sales_purchases.js?v=4.5.7" defer></script>
-    <script src="js/sales_pos.js?v=4.5.7" defer></script>
-    <script src="js/sales_fashion_picker.js?v=4.5.7" defer></script>
-    <script src="js/sales_inquiry_modal.js?v=4.5.7" defer></script>
-    <script src="js/sales_returns.js?v=4.5.7" defer></script>
-    <script src="js/sales_history_view.js?v=4.5.7" defer></script>
-    <script src="js/inv_transfers.js?v=4.5.7" defer></script>
-    <script src="js/acc_invoices.js?v=4.5.7" defer></script>
-    <script src="js/acc_vouchers.js?v=4.5.7" defer></script>
-    <script src="js/acc_reports.js?v=4.5.7" defer></script>
-    <script src="js/acc_partners.js?v=4.5.7" defer></script>
-    <script src="js/init.js?v=4.5.7" defer></script>
-    <script src="js/print.js?v=4.5.7" defer></script>
-    <script src="js/receipt_disburse_fixes.js?v=4.5.7" defer></script>
-    <script src="js/history_enhancements.js?v=4.5.7" defer></script>
-    <script src="js/barcode.js?v=4.5.7" defer></script>
-    <script src="js/cloud_drive_backup.js?v=4.5.7" defer></script>
-    <script src="js/supabase_sync.js?v=4.5.7" defer></script>
-    <script src="js/login_update_card.js?v=4.5.7" defer></script>
+    <script src="js/utils_helpers.js?v=4.5.8" defer></script>
+    <script src="js/app_units_payments.js?v=4.5.8" defer></script>
+    <script src="js/app_license.js?v=4.5.8" defer></script>
+    <script src="js/settings.js?v=4.5.8" defer></script>
+    <script src="js/ui_theme_custom.js?v=4.5.8" defer></script>
+    <script src="js/ui_tabs.js?v=4.5.8" defer></script>
+    <script src="js/ui_modals_notifications.js?v=4.5.8" defer></script>
+    <script src="js/ui_auth.js?v=4.5.8" defer></script>
+    <script src="js/ui_calculator.js?v=4.5.8" defer></script>
+    <script src="js/inv_core.js?v=4.5.8" defer></script>
+    <script src="js/inv_products.js?v=4.5.8" defer></script>
+    <script src="js/inv_variants.js?v=4.5.8" defer></script>
+    <script src="js/inv_adjustments.js?v=4.5.8" defer></script>
+    <script src="js/trash.js?v=4.5.8" defer></script>
+    <script src="js/engine_invoices.js?v=4.5.8" defer></script>
+    <script src="js/sales_purchases.js?v=4.5.8" defer></script>
+    <script src="js/sales_pos.js?v=4.5.8" defer></script>
+    <script src="js/sales_fashion_picker.js?v=4.5.8" defer></script>
+    <script src="js/sales_inquiry_modal.js?v=4.5.8" defer></script>
+    <script src="js/sales_returns.js?v=4.5.9" defer></script>
+    <script src="js/sales_history_view.js?v=4.5.8" defer></script>
+    <script src="js/inv_transfers.js?v=4.5.8" defer></script>
+    <script src="js/acc_invoices.js?v=4.5.9" defer></script>
+    <script src="js/acc_vouchers.js?v=4.5.8" defer></script>
+    <script src="js/acc_reports.js?v=4.5.8" defer></script>
+    <script src="js/acc_partners.js?v=4.5.8" defer></script>
+    <script src="js/init.js?v=4.5.8" defer></script>
+    <script src="js/print.js?v=4.5.8" defer></script>
+    <script src="js/receipt_disburse_fixes.js?v=4.5.8" defer></script>
+    <script src="js/history_enhancements.js?v=4.5.8" defer></script>
+    <script src="js/barcode.js?v=4.5.8" defer></script>
+    <script src="js/cloud_drive_backup.js?v=4.5.8" defer></script>
+    <script src="js/supabase_sync.js?v=4.5.8" defer></script>
+    <script src="js/login_update_card.js?v=4.5.8" defer></script>
 
 
 </head>
@@ -803,15 +803,17 @@
                     style="display: flex; align-items: flex-end; gap: 8px; background: #ffffff; padding: 8px 12px; border-radius: 14px 14px 0 0; border-bottom: 1.5px solid #e2e8f0; flex-wrap: nowrap; overflow: visible; box-shadow: 0 2px 10px rgba(0,0,0,0.02);">
                     <!-- 1. أزرار التحكم -->
                     <div class="header-column">
-                        <div class="header-label-badge badge-default">⚙️ تحكم</div>
+                        <div class="header-label-badge"
+                            style="background: #f1f5f9; color: #0f172a; font-weight: 900; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                            ⚙️ تحكم</div>
                         <button class="btn-back-home btn-back-home-pos" onclick="switchSection('dashboard')"
                             title="العودة للقائمة الرئيسية">↩️</button>
                     </div>
 
                     <!-- 2. طريقة الدفع -->
                     <div class="header-column" style="width: 130px; min-width: 125px;">
-                        <div class="header-label-badge badge-default"
-                            style="display:flex; justify-content:space-between; align-items:center;">
+                        <div class="header-label-badge"
+                            style="background: #f1f5f9; color: #0f172a; font-weight: 900; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.72rem; display:flex; justify-content:space-between; align-items:center; padding: 2px 6px;">
                             <span>💵 طريقة الدفع</span>
                             <span id="pinPaymentMethodBtn" onclick="togglePinPaymentMethod(event)"
                                 title="تثبيت طريقة الدفع المفضلة"
@@ -831,7 +833,9 @@
 
                     <!-- 4. العميل -->
                     <div class="search-container header-column" style="width: 150px; position: relative; margin: 0;">
-                        <div class="header-label-badge badge-default">👤 العميل</div>
+                        <div class="header-label-badge"
+                            style="background: #f1f5f9; color: #0f172a; font-weight: 900; border: 1.5px solid #cbd5e1; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                            👤 العميل</div>
                         <input type="text" id="customerName" class="customer-input header-input-unified"
                             style="width: 100%; height: 40px; padding: 0 10px; font-size: 0.9rem; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; color: #0f172a; font-weight: 900; transition: 0.2s;"
                             placeholder="👤 اختر عميل..."
@@ -845,7 +849,9 @@
 
                     <!-- 5. البحث عن صنف -->
                     <div class="header-column" style="flex: 1; min-width: 140px; position: relative;">
-                        <div class="header-label-badge badge-success">📦 الصنف / الباركود</div>
+                        <div class="header-label-badge"
+                            style="background: #ecfdf5; color: #065f46; font-weight: 900; border: 1.5px solid #a7f3d0; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                            📦 الصنف / الباركود</div>
                         <input type="text" id="productSearch" class="header-input-unified"
                             style="width: 100%; height: 40px; border: 1.5px solid #059669; border-radius: 8px; background: #ffffff; color: #0f172a; font-size: 1.05rem; font-weight: 900; padding: 0 10px 0 32px; text-align: right; box-sizing: border-box; transition: 0.2s;"
                             placeholder="🔍 ابحث عن الصنف أو امسح الباركود..." data-i18n="search_item"
@@ -861,7 +867,10 @@
 
                     <!-- 6. الكمية -->
                     <div class="header-column" style="width: 85px; min-width: 80px;">
-                        <div class="header-label-badge badge-danger">🔢 الكمية</div>
+                        <div class="header-label-badge"
+                            style="background: #fef2f2; color: #991b1b; font-weight: 900; border: 1.5px solid #fca5a5; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                            🔢 الكمية
+                        </div>
                         <input type="number" id="headerQty" value="1" min="0" step="any" class="header-input-unified"
                             style="width: 100%; height: 40px; border: 1.5px solid #ef4444 !important; background: #ffffff !important; color: #991b1b !important; text-align: center; font-size: 1.15rem; font-weight: 900; border-radius: 8px; box-sizing: border-box;"
                             onfocus="this.select()"
@@ -870,7 +879,9 @@
 
                     <!-- 7. السعر -->
                     <div class="header-column" style="width: 110px; min-width: 105px;">
-                        <div class="header-label-badge badge-primary">💰 السعر</div>
+                        <div class="header-label-badge"
+                            style="background: #eff6ff; color: #1e40af; font-weight: 900; border: 1.5px solid #93c5fd; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                            💰 السعر</div>
                         <input type="number" id="headerPrice" step="0.01" class="header-input-unified"
                             style="width: 100%; height: 40px; border: 1.5px solid #3b82f6 !important; background: #ffffff !important; color: #0f172a !important; text-align: center; font-size: 1.1rem; font-weight: 900; border-radius: 8px; box-sizing: border-box; padding: 0 4px;"
                             placeholder="0.00" onfocus="this.select()"
@@ -887,7 +898,9 @@
 
                     <!-- 9. زر استعلام سريع عن أرصدة الفروع والمخازن -->
                     <div class="header-column" style="width: auto; min-width: 100px;">
-                        <div class="header-label-badge badge-success">❓ فحص مخزون</div>
+                        <div class="header-label-badge"
+                            style="background: #f0fdf4; color: #065f46; font-weight: 900; border: 1.5px solid #86efac; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                            ❓ فحص مخزون</div>
                         <button type="button" id="posFastInquiryBtn" onclick="openFastItemInquiryModal()"
                             style="width: 100%; height: 40px; border-radius: 8px; background: linear-gradient(135deg, #0284c7, #0369a1); color: #ffffff; border: none; font-weight: 900; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 3px 10px rgba(2,132,199,0.25); transition: all 0.2s;"
                             title="استعلام سريع عن أرصدة الصنف والمقاسات في كافة المخازن والفروع"
@@ -1165,13 +1178,15 @@
                                     style="color: #000000; font-weight: 900;">---</span></span>
                         </div>
                         <!-- 2. رقم الفاتورة -->
-                        <div
-                            style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 8px; padding: 6px 8px; display: flex; align-items: center; justify-content: center; gap: 4px; box-sizing: border-box;">
+                        <div id="salesInvoiceBadgeBox"
+                            style="background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 8px; padding: 6px 8px; display: flex; align-items: center; justify-content: center; gap: 4px; box-sizing: border-box; cursor: help;"
+                            title="رقم الفاتورة">
                             <span
                                 style="font-size: 0.78rem; color: #000000; font-weight: 900; -webkit-font-smoothing: antialiased;">📄
                                 فاتورة #</span>
                             <span id="salesBadgeID"
-                                style="font-size: 0.95rem; font-weight: 900; color: #000000; -webkit-font-smoothing: antialiased;">1</span>
+                                style="font-size: 0.95rem; font-weight: 900; color: #000000; -webkit-font-smoothing: antialiased;"
+                                title="رقم الفاتورة">1</span>
                         </div>
                         <!-- 3. رصيد العميل -->
                         <div
@@ -1293,7 +1308,9 @@
 
                     <!-- 2. العميل أو الحساب المردود منه/إليه -->
                     <div class="search-container header-column" style="width: 150px; position: relative; margin: 0;">
-                        <div class="header-label-badge badge-default">👤 حساب العميل</div>
+                        <div class="header-label-badge"
+                            style="background: #f8fafc; color: #475569; font-weight: 800; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                            👤 حساب العميل</div>
                         <input type="text" id="salesReturnAccountInput" class="header-input-unified"
                             style="width: 100%; height: 40px; padding: 0 26px 0 10px; font-size: 0.88rem; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; color: #0f172a; font-weight: 800; transition: 0.2s;"
                             placeholder="اسم العميل..." list="searchAccountsList" autocomplete="off"
@@ -1308,7 +1325,9 @@
 
                     <!-- 3. البحث المباشر عن صنف للإرجاع -->
                     <div class="header-column" style="flex: 1; min-width: 130px; position: relative;">
-                        <div class="header-label-badge badge-danger">📦 الصنف / الباركود للإرجاع</div>
+                        <div class="header-label-badge"
+                            style="background: #fef2f2; color: #dc2626; font-weight: 800; border: 1px solid #fecaca; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                            📦 الصنف / الباركود للإرجاع</div>
                         <input type="text" id="returnProductSearch" class="header-input-unified"
                             style="width: 100%; height: 40px; border: 1.5px solid #ef4444; border-radius: 8px; background: #ffffff; color: #0f172a; font-size: 1.05rem; font-weight: 800; padding: 0 35px 0 35px; text-align: right; box-sizing: border-box; transition: 0.2s;"
                             placeholder="🔍 مسح باركود للإرجاع..."
@@ -1320,12 +1339,15 @@
                         <span
                             onclick="document.getElementById('returnProductSearch').value=''; debouncedHandleReturnSearch('', 'sales');"
                             style="position: absolute; left: 10px; bottom: 10px; font-size: 0.85rem; cursor: pointer; color: #94a3b8; z-index: 10; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">✕</span>
-                    <div id="returnSearchResults" class="search-results" style="top: 66px; width: 100%;"></div>
+                        <div id="returnSearchResults" class="search-results" style="top: 66px; width: 100%;"></div>
                     </div>
 
                     <!-- 4. الكمية المرتجعة -->
                     <div class="header-column" style="width: 85px;">
-                        <div class="header-label-badge badge-danger">🔢 الكمية</div>
+                        <div class="header-label-badge"
+                            style="background: #fef2f2; color: #dc2626; font-weight: 800; border: 1px solid #fecaca; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                            🔢 الكمية
+                        </div>
                         <input type="number" id="returnHeaderQty" value="1" min="0" step="any"
                             class="header-input-unified"
                             style="width: 100%; height: 40px; border: 1.5px solid #f87171 !important; background: #fff !important; color: #b91c1c !important; text-align: center; font-size: 1.15rem; font-weight: 900; border-radius: 8px; box-sizing: border-box;"
@@ -1335,7 +1357,9 @@
 
                     <!-- 5. سعر المرتجع -->
                     <div class="header-column" style="width: 105px;">
-                        <div class="header-label-badge badge-primary">💰 السعر</div>
+                        <div class="header-label-badge"
+                            style="background: #eff6ff; color: #1d4ed8; font-weight: 800; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                            💰 السعر</div>
                         <input type="number" id="returnHeaderPrice" step="0.01" class="header-input-unified"
                             style="width: 100%; height: 40px; border: 1.5px solid #60a5fa; border-radius: 8px; background: #ffffff; color: #0f172a; text-align: center; font-size: 1.1rem; font-weight: 800; box-sizing: border-box;"
                             placeholder="0.00" onfocus="this.select()"
@@ -1639,7 +1663,9 @@
 
                     <!-- 2. المورد أو الحساب المردود إليه -->
                     <div class="search-container header-column" style="width: 150px; position: relative; margin: 0;">
-                        <div class="header-label-badge badge-default">👤 حساب المورد</div>
+                        <div class="header-label-badge"
+                            style="background: #f8fafc; color: #475569; font-weight: 800; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                            👤 حساب المورد</div>
                         <input type="text" id="purReturnAccountInput" class="header-input-unified"
                             style="width: 100%; height: 40px; padding: 0 26px 0 10px; font-size: 0.88rem; background: #f8fafc; border: 1.5px solid #cbd5e1; border-radius: 8px; color: #0f172a; font-weight: 800; transition: 0.2s;"
                             placeholder="اسم المورد..." list="searchAccountsList" autocomplete="off"
@@ -1654,7 +1680,9 @@
 
                     <!-- 3. البحث المباشر عن صنف للإرجاع -->
                     <div class="header-column" style="flex: 1; min-width: 130px; position: relative;">
-                        <div class="header-label-badge badge-rose">📦 الصنف / الباركود للإرجاع</div>
+                        <div class="header-label-badge"
+                            style="background: #fff1f2; color: #e11d48; font-weight: 800; border: 1px solid #fecdd3; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                            📦 الصنف / الباركود للإرجاع</div>
                         <input type="text" id="purReturnProductSearch" class="header-input-unified"
                             style="width: 100%; height: 40px; border: 1.5px solid #e11d48; border-radius: 8px; background: #ffffff; color: #0f172a; font-size: 1.05rem; font-weight: 800; padding: 0 35px 0 35px; text-align: right; box-sizing: border-box; transition: 0.2s;"
                             placeholder="🔍 مسح باركود للإرجاع..."
@@ -1671,7 +1699,10 @@
 
                     <!-- 4. الكمية المرتجعة -->
                     <div class="header-column" style="width: 85px;">
-                        <div class="header-label-badge badge-rose">🔢 الكمية</div>
+                        <div class="header-label-badge"
+                            style="background: #fff1f2; color: #e11d48; font-weight: 800; border: 1px solid #fecdd3; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                            🔢 الكمية
+                        </div>
                         <input type="number" id="purReturnHeaderQty" value="1" min="0" step="any"
                             class="header-input-unified"
                             style="width: 100%; height: 40px; border: 1.5px solid #fb7185 !important; background: #fff !important; color: #be123c !important; text-align: center; font-size: 1.15rem; font-weight: 900; border-radius: 8px; box-sizing: border-box;"
@@ -1681,7 +1712,9 @@
 
                     <!-- 5. سعر المرتجع -->
                     <div class="header-column" style="width: 105px;">
-                        <div class="header-label-badge badge-primary">💰 السعر</div>
+                        <div class="header-label-badge"
+                            style="background: #eff6ff; color: #1d4ed8; font-weight: 800; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                            💰 السعر</div>
                         <input type="number" id="purReturnHeaderPrice" step="0.01" class="header-input-unified"
                             style="width: 100%; height: 40px; border: 1.5px solid #60a5fa; border-radius: 8px; background: #ffffff; color: #0f172a; text-align: center; font-size: 1.1rem; font-weight: 800; box-sizing: border-box;"
                             placeholder="0.00" onfocus="this.select()"
@@ -1957,8 +1990,11 @@
                 <div class="panel-header"
                     style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; margin-bottom: 12px; background: #ffffff; border-bottom: 1.5px solid #e2e8f0; border-radius: 14px 14px 0 0;">
                     <div style="display: flex; align-items: center; gap: 12px;">
-                        <button class="btn-back-home btn-back-home-pos" onclick="switchSection('dashboard')"
-                            title="العودة للقائمة الرئيسية">↩️</button>
+                        <button class="btn-back-home" onclick="switchSection('dashboard')"
+                            title="العودة للقائمة الرئيسية"
+                            style="margin: 0; background: linear-gradient(135deg, #1e293b, #0f172a); color: #fff; width: 38px; height: 38px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 3px 10px rgba(15,23,42,0.2); border: none; cursor: pointer; transition: all 0.2s ease; font-size: 1rem;"
+                            onmouseover="this.style.transform='translateY(-1px)';"
+                            onmouseout="this.style.transform='translateY(0)';">↩️</button>
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <div
                                 style="width: 38px; height: 38px; border-radius: 9px; background: linear-gradient(135deg, #ecfdf5, #d1fae5); color: #059669; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; border: 1px solid #a7f3d0;">
@@ -2172,8 +2208,11 @@
                 <div class="panel-header"
                     style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; margin-bottom: 12px; background: #ffffff; border-bottom: 1.5px solid #e2e8f0; border-radius: 14px 14px 0 0;">
                     <div style="display: flex; align-items: center; gap: 12px;">
-                        <button class="btn-back-home btn-back-home-pos" onclick="switchSection('dashboard')"
-                            title="العودة للقائمة الرئيسية">↩️</button>
+                        <button class="btn-back-home" onclick="switchSection('dashboard')"
+                            title="العودة للقائمة الرئيسية"
+                            style="margin: 0; background: linear-gradient(135deg, #1e293b, #0f172a); color: #fff; width: 38px; height: 38px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 3px 10px rgba(15,23,42,0.2); border: none; cursor: pointer; transition: all 0.2s ease; font-size: 1rem;"
+                            onmouseover="this.style.transform='translateY(-1px)';"
+                            onmouseout="this.style.transform='translateY(0)';">↩️</button>
                         <div style="display: flex; align-items: center; gap: 8px;">
                             <div
                                 style="width: 38px; height: 38px; border-radius: 9px; background: linear-gradient(135deg, #fef2f2, #fee2e2); color: #dc2626; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; border: 1px solid #fecaca;">
@@ -2387,8 +2426,11 @@
                 <div class="panel-header"
                     style="justify-content: space-between; gap: 12px; padding: 10px 14px; margin-bottom: 14px; background: #ffffff; border-radius: 14px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); align-items: center; border: 1.5px solid #e2e8f0; flex-wrap: wrap;">
                     <div style="display: flex; gap: 12px; align-items: center;">
-                        <button class="btn-back-home btn-back-home-pos" onclick="switchSection('dashboard')"
-                            title="العودة للقائمة الرئيسية">↩️</button>
+                        <button class="btn-back-home" onclick="switchSection('dashboard')"
+                            title="العودة للقائمة الرئيسية"
+                            style="margin: 0; background: linear-gradient(135deg, #1e293b, #0f172a); color: #fff; width: 40px; height: 40px; font-size: 1.1rem; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 3px 10px rgba(15,23,42,0.2); border: none; cursor: pointer; transition: 0.2s;"
+                            onmouseover="this.style.transform='translateY(-1px)';"
+                            onmouseout="this.style.transform='translateY(0)';">↩️</button>
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <div
                                 style="width: 40px; height: 40px; border-radius: 10px; background: linear-gradient(135deg, #ecfdf5, #d1fae5); color: #059669; display: flex; align-items: center; justify-content: center; font-size: 1.25rem; border: 1px solid #a7f3d0;">
@@ -2715,12 +2757,17 @@
                     <div class="header-label-badge"
                         style="background: #f8fafc; color: #475569; font-weight: 800; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
                         ⚙️ تحكم</div>
-                    <button class="btn-back-home btn-back-home-pos" onclick="switchSection('dashboard')" title="العودة للقائمة الرئيسية">↩️</button>
+                    <button class="btn-back-home" onclick="switchSection('dashboard')" title="العودة للقائمة الرئيسية"
+                        style="margin:0; padding: 0 12px; height: 40px; border-radius: 8px; background: linear-gradient(135deg, #1e293b, #0f172a); border: none; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1rem; box-shadow: 0 2px 8px rgba(15,23,42,0.25); transition: 0.2s;"
+                        onmouseover="this.style.transform='translateY(-1px)';"
+                        onmouseout="this.style.transform='translateY(0)';">↩️</button>
                 </div>
 
                 <!-- 1.5 بحث في السلة (فلترة) -->
                 <div class="header-column" style="width: 110px;">
-                    <div class="header-label-badge badge-default">🔍 فلترة السلة</div>
+                    <div class="header-label-badge"
+                        style="background: #f8fafc; color: #475569; font-weight: 800; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                        🔍 فلترة السلة</div>
                     <input type="text" id="purchaseCartFilterInput" placeholder="🔍 فلترة..."
                         oninput="filterPurchaseCartItems(this.value)" class="header-input-unified"
                         style="width: 100%; height: 40px; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 0 10px; font-size: 0.85rem; background: #f8fafc; font-weight: 700; color: #0f172a; transition: 0.2s;"
@@ -2730,7 +2777,9 @@
 
                 <!-- 2. المورد -->
                 <div class="header-column" style="width: 170px;">
-                    <div class="header-label-badge badge-default">🏭 المورد</div>
+                    <div class="header-label-badge"
+                        style="background: #f8fafc; color: #475569; font-weight: 800; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                        🏭 المورد</div>
                     <div style="display: flex; gap: 4px;">
                         <input type="text" id="supplierName" class="header-input-unified"
                             style="flex: 1; height: 40px; border: 1.5px solid #cbd5e1; border-radius: 8px; background: #f8fafc; color: #0f172a; padding: 0 10px; font-size: 0.88rem; font-weight: 800; min-width: 0; transition: 0.2s;"
@@ -2750,21 +2799,28 @@
 
                 <!-- 3. الصنف -->
                 <div class="header-column" style="flex: 1; min-width: 120px; position: relative;">
-                    <div class="header-label-badge badge-primary">📦 الصنف / الباركود</div>
+                    <div class="header-label-badge"
+                        style="background: #eff6ff; color: #2563eb; font-weight: 800; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                        📦 الصنف / الباركود
+                    </div>
                     <input type="text" id="purchaseSearch" class="header-input-unified"
                         style="width: 100%; height: 40px; border: 1.5px solid #10b981; border-radius: 8px; background: #ffffff; color: #0f172a; font-size: 1.05rem; font-weight: 800; padding: 0 10px 0 32px; text-align: right; box-sizing: border-box; transition: 0.2s;"
                         placeholder="🔍 ابحث عن الصنف..." data-i18n="search_item"
                         onfocus="this.select(); this.style.boxShadow='0 0 0 3px rgba(16,185,129,0.15)';"
                         onblur="this.style.boxShadow='none';" oninput="debouncedHandlePurchaseSearch(this.value)"
                         onkeydown="handlePurchaseSearchKeydown(event)" autocomplete="off">
-                    <span onclick="document.getElementById('purchaseSearch').value=''; debouncedHandlePurchaseSearch('');"
+                    <span
+                        onclick="document.getElementById('purchaseSearch').value=''; debouncedHandlePurchaseSearch('');"
                         style="position: absolute; left: 10px; bottom: 10px; font-size: 0.85rem; cursor: pointer; color: #94a3b8; z-index: 10; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;">✕</span>
                     <div id="purchaseSearchResults" class="search-results" style="width: 100%; top: 66px;"></div>
                 </div>
 
                 <!-- 4. الكمية -->
                 <div class="header-column" style="width: 90px; min-width: 85px;">
-                    <div class="header-label-badge badge-primary">🔢 الكمية</div>
+                    <div class="header-label-badge"
+                        style="background: #eff6ff; color: #1d4ed8; font-weight: 800; border: 1px solid #bfdbfe; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                        🔢 الكمية
+                    </div>
                     <input type="number" id="purchaseHeaderQty" value="1" min="0" step="any"
                         class="header-input-unified"
                         style="width: 100%; height: 40px; border: 1.5px solid #60a5fa !important; background: #fff !important; color: #1e3a8a !important; text-align: center; font-size: 1.15rem; font-weight: 900; border-radius: 8px; box-sizing: border-box;"
@@ -2774,7 +2830,9 @@
 
                 <!-- 5. التكلفة -->
                 <div class="header-column" style="width: 110px; min-width: 105px;">
-                    <div class="header-label-badge badge-success">💰 تكلفة الشراء</div>
+                    <div class="header-label-badge"
+                        style="background: #f0fdf4; color: #059669; font-weight: 800; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                        💰 تكلفة الشراء</div>
                     <input type="number" id="purchaseHeaderPrice" step="0.01" class="header-input-unified"
                         style="width: 100%; height: 40px; border: 1.5px solid #34d399 !important; background: #fff !important; color: #0f172a !important; text-align: center; font-size: 1.1rem; font-weight: 900; border-radius: 8px; box-sizing: border-box; padding: 0 4px;"
                         placeholder="0.00" onfocus="this.select()"
@@ -2793,7 +2851,10 @@
 
                 <!-- 8. السداد -->
                 <div class="header-column" style="width: 130px; min-width: 125px;">
-                    <div class="header-label-badge badge-default">💵 طريقة السداد</div>
+                    <div class="header-label-badge"
+                        style="background: #f8fafc; color: #475569; font-weight: 800; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px;">
+                        💵 طريقة السداد
+                    </div>
                     <select id="purchase-sectionPaymentMethodSelect" onchange="selectMethod(this)"
                         class="header-input-unified"
                         style="width: 100%; height: 40px; border: 1.5px solid #cbd5e1; border-radius: 8px; background: #f8fafc; color: #0f172a; font-size: 0.88rem; font-weight: 800; cursor: pointer; padding: 0 8px 0 24px; text-align: right; box-sizing: border-box; transition: 0.2s;"
@@ -4017,7 +4078,8 @@
                 style="gap: 12px; flex-wrap: wrap; background: #ffffff; padding: 12px 16px; border-radius: 14px; border: 1.5px solid #e2e8f0; box-shadow: 0 2px 10px rgba(0,0,0,0.03); margin-bottom: 12px; align-items: center;">
                 <div style="flex: 1; display: flex; gap: 10px; min-width: 320px; flex-wrap: wrap;">
                     <div style="position: relative; flex: 1; min-width: 130px;">
-                        <input type="text" id="invoicesSearchId" class="search-input" placeholder="🔍 رقم الفاتورة أو الإيصال..."
+                        <input type="text" id="invoicesSearchId" class="search-input"
+                            placeholder="🔍 رقم الفاتورة أو الإيصال..."
                             style="width: 100%; height: 38px; border: 1.5px solid #cbd5e1; border-radius: 9px; padding: 0 12px; font-size: 0.85rem; font-weight: 700; color: #0f172a; background: #f8fafc; outline: none; transition: all 0.2s;"
                             onfocus="this.style.borderColor='#3b82f6'; this.style.background='#fff'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)';"
                             onblur="this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc'; this.style.boxShadow='none';"
@@ -4556,6 +4618,98 @@
                 </div>
 
                 <!-- 3. جدول البيانات الرئيسي مع تثبيت رؤوس الأعمدة Sticky Header -->
+                <style>
+                    .inventory-scroll-wrapper table {
+                        border-collapse: separate !important;
+                        border-spacing: 0 !important;
+                    }
+
+                    .inventory-scroll-wrapper thead th,
+                    #inventory-section table.invoice-table thead tr th {
+                        position: -webkit-sticky !important;
+                        position: sticky !important;
+                        top: 0 !important;
+                        z-index: 1000 !important;
+                        background: linear-gradient(135deg, #022c22 0%, #064e3b 60%, #047857 100%) !important;
+                        color: #ffffff !important;
+                        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4) !important;
+                    }
+
+                    .inventory-scroll-wrapper {
+                        width: 100% !important;
+                        max-width: 100% !important;
+                        /* منع الجدول من التمدد خارج حدود الشاشة */
+                        min-width: 0 !important;
+                        /* كسر السلوك الافتراضي لـ flex */
+                        flex: 1 !important;
+                        min-height: 0 !important;
+                        height: 100% !important;
+                        max-height: calc(100vh - 120px) !important;
+                        /* ملء كامل المساحة الرأسية المتاحة للشاشة */
+                        overflow-x: auto !important;
+                        /* تفعيل التمرير العمودي والأفقي */
+                        overflow-y: auto !important;
+                        scroll-behavior: auto !important;
+                        padding-bottom: 0px;
+                    }
+
+                    /* شريط التمرير الأفقي والعمودي لجدول المخزن بانسيابية وأناقة تامة */
+                    .inventory-scroll-wrapper::-webkit-scrollbar {
+                        height: 10px !important;
+                        width: 8px !important;
+                        display: block !important;
+                    }
+
+                    .inventory-scroll-wrapper::-webkit-scrollbar-track {
+                        background: #f1f5f9 !important;
+                        border-radius: 6px !important;
+                    }
+
+                    .inventory-scroll-wrapper::-webkit-scrollbar-horizontal {
+                        height: 10px !important;
+                        display: block !important;
+                    }
+
+                    .inventory-scroll-wrapper::-webkit-scrollbar-vertical {
+                        width: 8px !important;
+                        display: block !important;
+                    }
+
+                    .inventory-scroll-wrapper::-webkit-scrollbar-thumb {
+                        background: linear-gradient(90deg, #10b981, #059669) !important;
+                        border-radius: 6px !important;
+                        border: 2px solid #f1f5f9 !important;
+                    }
+
+                    .inventory-scroll-wrapper::-webkit-scrollbar-thumb:hover {
+                        background: linear-gradient(90deg, #059669, #047857) !important;
+                    }
+
+                    /* شريط تمرير أفقي علوي سميك جداً وواضح باللون الأخضر المميز */
+                    #invTopScrollbarContainer::-webkit-scrollbar {
+                        height: 20px !important;
+                        width: 20px !important;
+                        display: block !important;
+                        /* ضمان عدم إخفائه */
+                    }
+
+                    #invTopScrollbarContainer::-webkit-scrollbar-track {
+                        background: #e2e8f0 !important;
+                        border-radius: 10px !important;
+                        box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.2) !important;
+                    }
+
+                    #invTopScrollbarContainer::-webkit-scrollbar-thumb {
+                        background: linear-gradient(90deg, #4ade80, #22c55e) !important;
+                        border-radius: 10px !important;
+                        border: 3px solid #e2e8f0 !important;
+                    }
+
+                    #invTopScrollbarContainer::-webkit-scrollbar-thumb:hover {
+                        background: linear-gradient(90deg, #22c55e, #16a34a) !important;
+                    }
+                </style>
+
                 <!-- شريط التمرير الموحد لجدول البضاعة والجرد -->
                 <div id="invTopScrollbarContainer" style="display: none !important;">
                     <div id="invTopScrollbarFiller" style="height: 1px; width: 1800px;"></div>
@@ -5301,6 +5455,130 @@
     <div id="product-inquiry-section" class="section-view hidden"
         style="height: calc(100vh - 95px); align-items: stretch !important; overflow: hidden; gap: 16px; font-family: 'Cairo', sans-serif;">
 
+        <style>
+            /* 🔍 نظام تصميم شاشة استعلام وفحص الأصناف الفائق (Premium Fashion Inquiry) */
+            #product-inquiry-section .inquiry-sidebar-panel {
+                background: #ffffff !important;
+                border: 1.5px solid #cbd5e1 !important;
+                border-radius: 20px !important;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+                transition: all 0.3s ease;
+            }
+
+            #product-inquiry-section .inquiry-details-panel {
+                background: #ffffff !important;
+                border: 1.5px solid #cbd5e1 !important;
+                border-radius: 20px !important;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04) !important;
+                transition: all 0.3s ease;
+            }
+
+            #product-inquiry-section .btn-back-home-inquiry {
+                background: linear-gradient(135deg, #4f46e5, #4338ca) !important;
+                color: #ffffff !important;
+                border: 1px solid #6366f1 !important;
+                border-radius: 14px !important;
+                font-weight: 900 !important;
+                font-size: 1rem !important;
+                box-shadow: 0 4px 15px rgba(79, 70, 229, 0.35) !important;
+                cursor: pointer !important;
+                transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+            }
+
+            #product-inquiry-section .btn-back-home-inquiry:hover {
+                background: linear-gradient(135deg, #4338ca, #3730a3) !important;
+                border-color: #818cf8 !important;
+                color: #ffffff !important;
+                transform: translateY(-2px) scale(1.02) !important;
+                box-shadow: 0 8px 25px rgba(79, 70, 229, 0.45) !important;
+            }
+
+            #product-inquiry-section #inquirySearchInput {
+                border: 2px solid #cbd5e1 !important;
+                border-radius: 12px !important;
+                font-size: 0.95rem !important;
+                font-weight: 800 !important;
+                background: #f8fafc !important;
+                color: #0f172a !important;
+                transition: all 0.2s ease !important;
+            }
+
+            #product-inquiry-section #inquirySearchInput:focus {
+                background: #ffffff !important;
+                border-color: #059669 !important;
+                outline: 3.5px solid rgba(5, 150, 105, 0.15) !important;
+            }
+
+            #product-inquiry-section .inquiry-product-item {
+                background: #ffffff !important;
+                border: 1.5px solid #e2e8f0 !important;
+                border-radius: 12px !important;
+                padding: 11px 14px !important;
+                margin-bottom: 7px !important;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+                transition: all 0.2s ease !important;
+            }
+
+            #product-inquiry-section .inquiry-product-item:hover {
+                background: #f0fdf4 !important;
+                border-color: #86efac !important;
+                transform: translateX(-3px) !important;
+                box-shadow: 0 3px 10px rgba(5, 150, 105, 0.08) !important;
+            }
+
+            #product-inquiry-section .inquiry-product-item.active {
+                background: #ecfdf5 !important;
+                border-color: #10b981 !important;
+                border-right: 4.5px solid #059669 !important;
+                box-shadow: 0 4px 14px rgba(16, 185, 129, 0.16) !important;
+            }
+
+            #product-inquiry-section .inquiry-product-item .name {
+                color: #0f172a !important;
+                font-weight: 900 !important;
+                font-size: 0.92rem !important;
+            }
+
+            #product-inquiry-section .inquiry-product-item .code {
+                color: #64748b !important;
+                font-weight: 700 !important;
+                font-size: 0.76rem !important;
+            }
+
+            #product-inquiry-section .inquiry-product-item>span {
+                color: #047857 !important;
+                background: #ecfdf5 !important;
+                padding: 4px 9px !important;
+                border-radius: 8px !important;
+                border: 1px solid #a7f3d0 !important;
+                font-weight: 900 !important;
+                font-size: 0.88rem !important;
+            }
+
+            #product-inquiry-section .inquiry-modern-box {
+                background: #ffffff;
+                border: 1.5px solid #e2e8f0;
+                border-radius: 16px;
+                padding: 16px 20px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+            }
+
+            #product-inquiry-section .inquiry-table th {
+                background: #f1f5f9;
+                color: #334155;
+                font-weight: 900;
+                font-size: 0.86rem;
+                padding: 10px 14px;
+                border-bottom: 2px solid #cbd5e1;
+            }
+
+            #product-inquiry-section .inquiry-table td {
+                padding: 10px 14px;
+                font-size: 0.88rem;
+                border-bottom: 1px solid #f1f5f9;
+            }
+        </style>
+
         <!-- اللوحة الجانبية: قائمة البحث والأصناف -->
         <div class="inquiry-sidebar-panel"
             style="flex: 0 0 350px; display: flex; flex-direction: column; padding: 18px; overflow: hidden; height: 100%;">
@@ -5601,6 +5879,890 @@
             <!-- تخطيط الإعدادات السوبر بريميوم -->
             <!-- 🚀 نظام الإعدادات الاحترافي (إصلاح شامل وتصميم فائق) -->
             <!-- 🚀 نظام الإعدادات الاحترافي فائق الشياكة والتنظيم (Ultra-Clean Settings Design System) -->
+            <style>
+                /* محرك الخطوط والتباين الراقي لقسم الإعدادات */
+                #premium-settings-wrapper,
+                #premium-settings-wrapper * {
+                    -webkit-font-smoothing: antialiased !important;
+                    -moz-osx-font-smoothing: grayscale !important;
+                    text-rendering: optimizeLegibility !important;
+                    box-sizing: border-box;
+                }
+
+                #premium-settings-wrapper {
+                    display: flex !important;
+                    flex-direction: row !important;
+                    background: #f8fafc !important;
+                    height: 100% !important;
+                    border-radius: 20px !important;
+                    overflow: hidden !important;
+                    border: 1px solid #cbd5e1 !important;
+                    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04) !important;
+                    margin: 0 !important;
+                    font-family: "Cairo", sans-serif !important;
+                    direction: rtl !important;
+                    color: #0f172a !important;
+                    font-size: 15px !important;
+                }
+
+                #premium-settings-sidebar {
+                    width: 300px !important;
+                    background: #ffffff !important;
+                    display: flex !important;
+                    flex-direction: column !important;
+                    padding: 16px 0 !important;
+                    border-left: 1px solid #e2e8f0 !important;
+                    flex-shrink: 0 !important;
+                    overflow-y: auto !important;
+                    scrollbar-width: thin !important;
+                    scrollbar-color: #cbd5e1 transparent !important;
+                }
+
+                #premium-settings-sidebar::-webkit-scrollbar {
+                    width: 5px !important;
+                }
+
+                #premium-settings-sidebar::-webkit-scrollbar-thumb {
+                    background: #cbd5e1 !important;
+                    border-radius: 4px !important;
+                }
+
+                .premium-sidebar-header {
+                    padding: 0 16px 14px 16px !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: flex-start !important;
+                    gap: 10px !important;
+                    border-bottom: 1px solid #f1f5f9 !important;
+                    margin-bottom: 8px !important;
+                }
+
+                .premium-sidebar-title {
+                    color: #0f172a !important;
+                    font-size: 1.15rem !important;
+                    font-weight: 800 !important;
+                    margin: 0 !important;
+                    letter-spacing: -0.2px !important;
+                }
+
+                .premium-logo-box {
+                    width: 38px !important;
+                    height: 38px !important;
+                    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+                    border-radius: 10px !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    font-weight: 900 !important;
+                    color: white !important;
+                    font-size: 1.15rem !important;
+                    box-shadow: 0 3px 10px rgba(5, 150, 105, 0.25) !important;
+                }
+
+                .premium-badge {
+                    background: #ecfdf5 !important;
+                    color: #047857 !important;
+                    margin: 0 12px 10px 12px !important;
+                    padding: 7px 12px !important;
+                    border-radius: 9px !important;
+                    font-size: 0.82rem !important;
+                    font-weight: 700 !important;
+                    text-align: center !important;
+                    border: 1px solid #a7f3d0 !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    gap: 6px !important;
+                }
+
+                /* فواصل ومجموعات التبويبات في الشريط الجانبي */
+                .settings-group-label {
+                    padding: 10px 16px 4px 16px !important;
+                    font-size: 0.76rem !important;
+                    font-weight: 800 !important;
+                    color: #0f172a !important;
+                    letter-spacing: 0.3px !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    gap: 6px !important;
+                    text-transform: uppercase !important;
+                    margin-top: 4px !important;
+                }
+
+                .settings-group-label::after {
+                    content: '' !important;
+                    flex: 1 !important;
+                    height: 1px !important;
+                    background: #cbd5e1 !important;
+                    margin-right: 6px !important;
+                }
+
+                .premium-tab-btn {
+                    width: calc(100% - 16px) !important;
+                    margin: 2px 8px !important;
+                    padding: 8px 12px !important;
+                    border: 1px solid transparent !important;
+                    border-radius: 10px !important;
+                    background: transparent !important;
+                    color: #0f172a !important;
+                    font-size: 0.9rem !important;
+                    font-weight: 700 !important;
+                    cursor: pointer !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: flex-start !important;
+                    gap: 10px !important;
+                    text-align: right !important;
+                    transition: all 0.16s ease-in-out !important;
+                }
+
+                .premium-tab-btn:hover {
+                    background: #f1f5f9 !important;
+                    color: #0f172a !important;
+                    border-color: #e2e8f0 !important;
+                    transform: translateX(-2px) !important;
+                }
+
+                .premium-tab-btn.active {
+                    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+                    color: #ffffff !important;
+                    font-weight: 800 !important;
+                    border-color: #047857 !important;
+                    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25) !important;
+                }
+
+                .premium-tab-btn .btn-icon {
+                    width: 30px !important;
+                    height: 30px !important;
+                    background: #f8fafc !important;
+                    border: 1px solid #e2e8f0 !important;
+                    border-radius: 8px !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    font-size: 1.1rem !important;
+                    color: #059669 !important;
+                    flex-shrink: 0 !important;
+                    transition: all 0.16s ease !important;
+                }
+
+                .premium-tab-btn:hover .btn-icon {
+                    background: #ffffff !important;
+                    border-color: #cbd5e1 !important;
+                }
+
+                .premium-tab-btn.active .btn-icon {
+                    background: rgba(255, 255, 255, 0.22) !important;
+                    border-color: rgba(255, 255, 255, 0.35) !important;
+                    color: white !important;
+                }
+
+                #premium-settings-content {
+                    flex: 1 !important;
+                    background: #f8fafc !important;
+                    padding: 24px 30px !important;
+                    overflow-y: auto !important;
+                    height: 100% !important;
+                    box-sizing: border-box !important;
+                    direction: rtl !important;
+                    color: #1e293b !important;
+                }
+
+                #premium-settings-content::-webkit-scrollbar {
+                    width: 8px;
+                }
+
+                #premium-settings-content::-webkit-scrollbar-track {
+                    background: #f1f5f9;
+                }
+
+                #premium-settings-content::-webkit-scrollbar-thumb {
+                    background: #cbd5e1;
+                    border-radius: 8px;
+                }
+
+                #premium-settings-content::-webkit-scrollbar-thumb:hover {
+                    background: #94a3b8;
+                }
+
+                /* كروت الإعدادات الحديثة */
+                .settings-modern-card {
+                    background: #ffffff !important;
+                    border-radius: 16px !important;
+                    padding: 22px 24px !important;
+                    border: 1px solid #e2e8f0 !important;
+                    margin-bottom: 20px !important;
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03) !important;
+                    transition: border-color 0.2s, box-shadow 0.2s !important;
+                }
+
+                .settings-modern-card:hover {
+                    border-color: #cbd5e1 !important;
+                    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05) !important;
+                }
+
+                .settings-card-header {
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: space-between !important;
+                    margin-bottom: 18px !important;
+                    padding-bottom: 14px !important;
+                    border-bottom: 1px solid #f1f5f9 !important;
+                }
+
+                .settings-card-title,
+                #premium-settings-content h1,
+                #premium-settings-content h2,
+                #premium-settings-content h3,
+                #premium-settings-content h4,
+                #premium-settings-content h5 {
+                    font-size: 1.18rem !important;
+                    font-weight: 800 !important;
+                    color: #0f172a !important;
+                    margin: 0 !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    gap: 10px !important;
+                    letter-spacing: -0.2px !important;
+                }
+
+                /* عناوين الحقول (Labels) في قسم الإعدادات */
+                #premium-settings-content label,
+                #premium-settings-content .form-group label {
+                    color: #000000 !important;
+                    font-weight: 700 !important;
+                    font-size: 0.92rem !important;
+                    display: block !important;
+                    margin-bottom: 6px !important;
+                    line-height: 1.4 !important;
+                }
+
+                /* الشروحات والنصوص التوضيحية */
+                #premium-settings-content p,
+                #premium-settings-content .settings-tip,
+                #premium-settings-content .settings-modern-card p,
+                #premium-settings-content .settings-card-header span:not(.preset-badge),
+                #premium-settings-content .form-group span:not(.preset-badge),
+                #premium-settings-content details summary,
+                #premium-settings-content details li {
+                    color: #0f172a !important;
+                    font-weight: 600 !important;
+                    font-size: 0.86rem !important;
+                    opacity: 1 !important;
+                    line-height: 1.55 !important;
+                }
+
+                /* حقول الإدخال والقوائم المنسدلة */
+                #premium-settings-content input[type="text"],
+                #premium-settings-content input[type="number"],
+                #premium-settings-content input[type="password"],
+                #premium-settings-content input[type="email"],
+                #premium-settings-content select,
+                #premium-settings-content textarea {
+                    width: 100% !important;
+                    padding: 9px 14px !important;
+                    border: 1.5px solid #cbd5e1 !important;
+                    border-radius: 10px !important;
+                    font-family: "Cairo", sans-serif !important;
+                    font-size: 0.95rem !important;
+                    font-weight: 600 !important;
+                    background: #ffffff !important;
+                    color: #000000 !important;
+                    outline: none !important;
+                    box-sizing: border-box !important;
+                    min-height: 42px !important;
+                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+                    transition: border-color 0.2s, box-shadow 0.2s !important;
+                }
+
+                #premium-settings-content input::placeholder,
+                #premium-settings-content textarea::placeholder {
+                    color: #64748b !important;
+                    font-weight: 500 !important;
+                    font-size: 0.88rem !important;
+                }
+
+                #premium-settings-content input:focus,
+                #premium-settings-content select:focus,
+                #premium-settings-content textarea:focus {
+                    border-color: #059669 !important;
+                    background: #ffffff !important;
+                    color: #0f172a !important;
+                    box-shadow: 0 0 0 3px rgba(5, 150, 105, 0.15) !important;
+                    outline: none !important;
+                }
+
+                /* 🏷️ محاذاة متطابقة لشبكات حقول الباركود والموازين لضمان استواء مستوى الحقول هندسياً */
+                #premium-settings-content .barcode-grid-aligned {
+                    display: grid !important;
+                    align-items: stretch !important;
+                }
+
+                #premium-settings-content .barcode-grid-aligned .form-group,
+                #premium-settings-content .barcode-grid-aligned>div {
+                    display: flex !important;
+                    flex-direction: column !important;
+                    justify-content: space-between !important;
+                    margin-bottom: 0 !important;
+                    height: 100% !important;
+                }
+
+                #premium-settings-content .barcode-grid-aligned label {
+                    min-height: 44px !important;
+                    display: flex !important;
+                    align-items: flex-start !important;
+                    margin-bottom: 6px !important;
+                    line-height: 1.4 !important;
+                }
+
+                #premium-settings-content .barcode-grid-aligned input,
+                #premium-settings-content .barcode-grid-aligned select {
+                    margin-top: auto !important;
+                    height: 44px !important;
+                    min-height: 44px !important;
+                    box-sizing: border-box !important;
+                }
+
+                /* بطاقات خيارات الشاشة وتفعيل الأقسام - تصميم مودرن فخم */
+                .sec-toggle-container {
+                    max-height: 290px;
+                    overflow-y: auto;
+                    padding: 4px 6px;
+                    scrollbar-width: thin;
+                    scrollbar-color: #cbd5e1 transparent;
+                }
+
+                .sec-toggle-container::-webkit-scrollbar {
+                    width: 6px;
+                }
+
+                .sec-toggle-container::-webkit-scrollbar-thumb {
+                    background: #cbd5e1;
+                    border-radius: 10px;
+                }
+
+                .sec-toggle-container::-webkit-scrollbar-thumb:hover {
+                    background: #94a3b8;
+                }
+
+                .sec-toggle-group-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                    font-size: 0.8rem;
+                    font-weight: 800;
+                    margin: 10px 0 8px 0;
+                    padding-bottom: 5px;
+                    border-bottom: 1.5px dashed #e2e8f0;
+                }
+
+                .sec-toggle-group-header.primary {
+                    color: #059669;
+                }
+
+                .sec-toggle-group-header.extra {
+                    color: #d97706;
+                    margin-top: 16px;
+                }
+
+                .sec-toggle-grid {
+                    display: grid;
+                    grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+                    gap: 9px;
+                }
+
+                .sec-toggle-card {
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: space-between !important;
+                    padding: 8px 12px !important;
+                    border-radius: 12px !important;
+                    cursor: pointer !important;
+                    -webkit-user-select: none !important;
+                    user-select: none !important;
+                    min-height: 50px !important;
+                    box-sizing: border-box !important;
+                    background: #ffffff !important;
+                    border: 1.5px solid #e2e8f0 !important;
+                    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04) !important;
+                    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                    position: relative !important;
+                }
+
+                .sec-toggle-card:hover {
+                    transform: translateY(-2px) !important;
+                    box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08) !important;
+                }
+
+                /* الكروت الأساسية المفعلة */
+                .sec-toggle-card.primary:has(.dash-sec-toggle:checked) {
+                    background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%) !important;
+                    border-color: #10b981 !important;
+                    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.12) !important;
+                }
+
+                /* الكروت الإضافية المفعلة */
+                .sec-toggle-card.extra:has(.dash-sec-toggle:checked) {
+                    background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%) !important;
+                    border-color: #f97316 !important;
+                    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.12) !important;
+                }
+
+                /* الكروت غير المفعلة */
+                .sec-toggle-card:not(:has(.dash-sec-toggle:checked)) {
+                    background: #f8fafc !important;
+                    border-color: #e2e8f0 !important;
+                    opacity: 0.72 !important;
+                }
+
+                .sec-toggle-card:not(:has(.dash-sec-toggle:checked)):hover {
+                    opacity: 0.95 !important;
+                    background: #ffffff !important;
+                    border-color: #cbd5e1 !important;
+                }
+
+                .sec-toggle-card:not(:has(.dash-sec-toggle:checked)) .sec-toggle-icon {
+                    filter: grayscale(0.7) !important;
+                    opacity: 0.65 !important;
+                }
+
+                /* المحتوى والأيقونة داخل البطاقة */
+                .sec-toggle-info {
+                    display: flex !important;
+                    align-items: center !important;
+                    gap: 8px !important;
+                    pointer-events: none !important;
+                    overflow: hidden !important;
+                }
+
+                .sec-toggle-icon {
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    width: 32px !important;
+                    height: 32px !important;
+                    border-radius: 9px !important;
+                    font-size: 1.15rem !important;
+                    flex-shrink: 0 !important;
+                    transition: transform 0.2s ease, filter 0.2s ease !important;
+                }
+
+                .sec-toggle-card.primary .sec-toggle-icon {
+                    background: #ecfdf5 !important;
+                    border: 1px solid #d1fae5 !important;
+                }
+
+                .sec-toggle-card.extra .sec-toggle-icon {
+                    background: #fff7ed !important;
+                    border: 1px solid #ffedd5 !important;
+                }
+
+                .sec-toggle-card:hover .sec-toggle-icon {
+                    transform: scale(1.08) !important;
+                }
+
+                .sec-toggle-label {
+                    font-size: 0.86rem !important;
+                    font-weight: 800 !important;
+                    color: #1e293b !important;
+                    letter-spacing: -0.2px !important;
+                    white-space: nowrap !important;
+                    overflow: hidden !important;
+                    text-overflow: ellipsis !important;
+                }
+
+                /* مفتاح التشغيل والإيقاف العصري Smooth Toggle Switch */
+                .dash-sec-toggle {
+                    appearance: none !important;
+                    -webkit-appearance: none !important;
+                    width: 38px !important;
+                    min-width: 38px !important;
+                    height: 22px !important;
+                    background: #cbd5e1 !important;
+                    border-radius: 20px !important;
+                    position: relative !important;
+                    cursor: pointer !important;
+                    outline: none !important;
+                    margin: 0 !important;
+                    transition: background 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                    flex-shrink: 0 !important;
+                }
+
+                .dash-sec-toggle::after {
+                    content: '' !important;
+                    position: absolute !important;
+                    top: 2px !important;
+                    left: 2px !important;
+                    width: 18px !important;
+                    height: 18px !important;
+                    background: #ffffff !important;
+                    border-radius: 50% !important;
+                    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.25) !important;
+                    transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                }
+
+                .sec-toggle-card.primary .dash-sec-toggle:checked {
+                    background: #059669 !important;
+                }
+
+                .sec-toggle-card.extra .dash-sec-toggle:checked {
+                    background: #ea580c !important;
+                }
+
+                .dash-sec-toggle:checked::after {
+                    transform: translateX(16px) !important;
+                }
+
+                /* جداول المستخدمين والمخازن وسلة المحذوفات */
+                #premium-settings-content table,
+                #premium-settings-content .users-table {
+                    border-collapse: separate !important;
+                    border-spacing: 0 !important;
+                    width: 100% !important;
+                    background: #ffffff !important;
+                    border-radius: 12px !important;
+                    overflow: hidden !important;
+                    border: 1px solid #e2e8f0 !important;
+                }
+
+                #premium-settings-content table th,
+                #premium-settings-content .users-table th {
+                    background: #f8fafc !important;
+                    color: #0f172a !important;
+                    font-weight: 800 !important;
+                    font-size: 0.88rem !important;
+                    border-bottom: 2px solid #cbd5e1 !important;
+                    padding: 12px 14px !important;
+                }
+
+                #premium-settings-content table td,
+                #premium-settings-content .users-table td {
+                    color: #000000 !important;
+                    font-weight: 700 !important;
+                    font-size: 0.9rem !important;
+                    border-bottom: 1px solid #e2e8f0 !important;
+                    padding: 12px 14px !important;
+                }
+
+                #premium-settings-content table tbody tr:hover,
+                #premium-settings-content .users-table tbody tr:hover {
+                    background: #f8fafc !important;
+                }
+
+                /* أزرار العمليات والتعديل داخل التبويبات */
+                #premium-settings-content button,
+                #premium-settings-content .settings-save-btn,
+                #premium-settings-content .btn {
+                    font-size: 0.95rem !important;
+                    font-weight: 700 !important;
+                    min-height: 42px !important;
+                    padding: 8px 18px !important;
+                    border-radius: 10px !important;
+                    cursor: pointer !important;
+                    opacity: 1 !important;
+                }
+
+                #premium-settings-content .settings-save-btn {
+                    color: #ffffff !important;
+                    font-weight: 800 !important;
+                    font-size: 1rem !important;
+                }
+
+                #premium-settings-content button[onclick*="emptyTrash"],
+                #premium-settings-content button[onclick*="applyWarehouseSwitch"],
+                #premium-settings-content button[onclick*="loadTrash"],
+                #premium-settings-content button[onclick*="openWarehouseModal"],
+                #premium-settings-content button[onclick*="loadMoreTrash"],
+                #premium-settings-content button.btn-high-contrast {
+                    color: #0f172a !important;
+                    font-weight: 700 !important;
+                }
+
+                /* كروت وأزرار تبويب البيانات والأمان */
+                #premium-settings-content #set-tab-data .sqlite-card {
+                    background: #f0f9ff !important;
+                    border: 1.5px solid #0284c7 !important;
+                    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.08) !important;
+                }
+
+                #premium-settings-content #set-tab-data .export-card {
+                    background: #ffffff !important;
+                    border: 1.5px solid #93c5fd !important;
+                    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.06) !important;
+                }
+
+                #premium-settings-content #set-tab-data .restore-card {
+                    background: #ffffff !important;
+                    border: 1.5px solid #fcd34d !important;
+                    box-shadow: 0 4px 14px rgba(217, 119, 6, 0.06) !important;
+                }
+
+                #premium-settings-content .btn-sqlite-migrate {
+                    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
+                    color: #ffffff !important;
+                    border: none !important;
+                    font-weight: 700 !important;
+                    font-size: 0.92rem !important;
+                    border-radius: 9px !important;
+                    height: 42px !important;
+                    padding: 0 18px !important;
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    gap: 8px !important;
+                    box-shadow: 0 3px 10px rgba(2, 132, 199, 0.3) !important;
+                    cursor: pointer !important;
+                    transition: transform 0.2s, box-shadow 0.2s !important;
+                }
+
+                #premium-settings-content .btn-sqlite-migrate:hover {
+                    background: #0369a1 !important;
+                    transform: translateY(-1px) !important;
+                    box-shadow: 0 5px 14px rgba(2, 132, 199, 0.4) !important;
+                }
+
+                #premium-settings-content .btn-sqlite-folder {
+                    background: #ffffff !important;
+                    color: #0369a1 !important;
+                    border: 1.5px solid #0284c7 !important;
+                    font-weight: 700 !important;
+                    font-size: 0.9rem !important;
+                    border-radius: 9px !important;
+                    height: 42px !important;
+                    padding: 0 16px !important;
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    gap: 8px !important;
+                    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.1) !important;
+                    cursor: pointer !important;
+                    transition: all 0.2s !important;
+                }
+
+                #premium-settings-content .btn-sqlite-folder:hover {
+                    background: #e0f2fe !important;
+                    color: #0284c7 !important;
+                    border-color: #0369a1 !important;
+                }
+
+                #premium-settings-content .btn-sqlite-copy {
+                    background: #ffffff !important;
+                    color: #334155 !important;
+                    border: 1.5px solid #cbd5e1 !important;
+                    font-weight: 700 !important;
+                    font-size: 0.9rem !important;
+                    border-radius: 9px !important;
+                    height: 42px !important;
+                    padding: 0 16px !important;
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    gap: 8px !important;
+                    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
+                    cursor: pointer !important;
+                    transition: all 0.2s !important;
+                }
+
+                #premium-settings-content .btn-sqlite-copy:hover {
+                    background: #f8fafc !important;
+                    color: #0f172a !important;
+                    border-color: #94a3b8 !important;
+                    transform: translateY(-1px) !important;
+                }
+
+                #premium-settings-content .btn-backup-export {
+                    width: 100% !important;
+                    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+                    color: #ffffff !important;
+                    border: none !important;
+                    font-weight: 800 !important;
+                    font-size: 1rem !important;
+                    border-radius: 10px !important;
+                    height: 44px !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    gap: 10px !important;
+                    box-shadow: 0 3px 12px rgba(37, 99, 235, 0.3) !important;
+                    cursor: pointer !important;
+                    transition: transform 0.2s, box-shadow 0.2s !important;
+                }
+
+                #premium-settings-content .btn-backup-export:hover {
+                    background: #1d4ed8 !important;
+                    transform: translateY(-1px) !important;
+                    box-shadow: 0 5px 16px rgba(37, 99, 235, 0.4) !important;
+                }
+
+                #premium-settings-content .btn-backup-folder {
+                    width: 100% !important;
+                    background: #f8fafc !important;
+                    color: #1e3a8a !important;
+                    border: 1.5px solid #bfdbfe !important;
+                    font-weight: 700 !important;
+                    font-size: 0.92rem !important;
+                    border-radius: 10px !important;
+                    height: 40px !important;
+                    margin-top: 8px !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    gap: 8px !important;
+                    cursor: pointer !important;
+                    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04) !important;
+                    transition: all 0.2s !important;
+                }
+
+                #premium-settings-content .btn-backup-folder:hover {
+                    background: #eff6ff !important;
+                    border-color: #2563eb !important;
+                    color: #1d4ed8 !important;
+                }
+
+                #premium-settings-content .btn-backup-restore {
+                    width: 100% !important;
+                    background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
+                    color: #ffffff !important;
+                    border: none !important;
+                    font-weight: 800 !important;
+                    font-size: 1rem !important;
+                    border-radius: 10px !important;
+                    height: 44px !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    gap: 10px !important;
+                    box-shadow: 0 3px 12px rgba(217, 119, 6, 0.3) !important;
+                    cursor: pointer !important;
+                    transition: transform 0.2s, box-shadow 0.2s !important;
+                }
+
+                #premium-settings-content .btn-backup-restore:hover {
+                    background: #b45309 !important;
+                    transform: translateY(-1px) !important;
+                    box-shadow: 0 5px 16px rgba(217, 119, 6, 0.4) !important;
+                }
+
+                /* أزرار العمليات والتعديل والحذف داخل الجداول */
+                #premium-settings-content table button {
+                    font-size: 0.88rem !important;
+                    font-weight: 700 !important;
+                    min-height: 34px !important;
+                    padding: 5px 12px !important;
+                    border-radius: 8px !important;
+                }
+
+                .settings-footer-bar {
+                    background: #ffffff !important;
+                    padding: 14px 22px !important;
+                    border-radius: 14px !important;
+                    border: 1px solid #e2e8f0 !important;
+                    display: flex !important;
+                    justify-content: space-between !important;
+                    align-items: center !important;
+                    margin-top: 22px !important;
+                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04) !important;
+                }
+
+                .settings-footer-bar div,
+                .settings-footer-bar span {
+                    color: #334155 !important;
+                    font-weight: 700 !important;
+                    font-size: 0.95rem !important;
+                }
+
+                .settings-save-btn {
+                    height: 44px !important;
+                    padding: 0 28px !important;
+                    font-size: 1rem !important;
+                    border-radius: 10px !important;
+                    background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+                    color: #ffffff !important;
+                    border: none !important;
+                    font-weight: 800 !important;
+                    cursor: pointer !important;
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    gap: 8px !important;
+                    box-shadow: 0 3px 12px rgba(5, 150, 105, 0.28) !important;
+                    transition: all 0.2s ease !important;
+                }
+
+                .settings-save-btn:hover {
+                    background: linear-gradient(135deg, #047857 0%, #065f46 100%) !important;
+                    transform: translateY(-1px) !important;
+                    box-shadow: 0 5px 16px rgba(5, 150, 105, 0.38) !important;
+                }
+
+                /* 🏷️ أزرار قوالب الباركود الجاهزة والاختصارات */
+                #premium-settings-content .bc-preset-btn {
+                    border: 1.5px solid #e2e8f0 !important;
+                    border-radius: 10px !important;
+                    background: #ffffff !important;
+                    color: #1e293b !important;
+                    font-weight: 700 !important;
+                    padding: 12px 16px !important;
+                    transition: all 0.2s ease !important;
+                }
+
+                #premium-settings-content .bc-preset-btn span {
+                    font-size: 0.98rem !important;
+                    font-weight: 700 !important;
+                    color: #0f172a !important;
+                }
+
+                #premium-settings-content .bc-preset-btn span:last-child {
+                    font-size: 0.85rem !important;
+                    font-weight: 700 !important;
+                    color: #1e293b !important;
+                }
+
+                #premium-settings-content .bc-preset-btn:hover {
+                    border-color: #059669 !important;
+                    background: #f0fdf4 !important;
+                }
+
+                #premium-settings-content .template-type-item,
+                #premium-settings-content .template-item {
+                    color: #0f172a !important;
+                    font-weight: 700 !important;
+                    font-size: 0.92rem !important;
+                    padding: 10px 14px !important;
+                    border-radius: 8px !important;
+                    transition: all 0.18s ease !important;
+                }
+
+                #premium-settings-content .template-type-item:hover,
+                #premium-settings-content .template-item:hover {
+                    background: #f1f5f9 !important;
+                    color: #000000 !important;
+                }
+
+                #premium-settings-content .template-type-item.active,
+                #premium-settings-content .template-item.active {
+                    background: #ecfdf5 !important;
+                    color: #047857 !important;
+                    font-weight: 800 !important;
+                    border-right: 3px solid #059669 !important;
+                }
+
+                /* ⌨️ تبويب الاختصارات */
+                #set-tab-shortcuts span {
+                    color: #000000 !important;
+                    font-weight: 700 !important;
+                    font-size: 0.95rem !important;
+                }
+
+                #set-tab-shortcuts kbd {
+                    background: #ffffff !important;
+                    border: 1.5px solid #cbd5e1 !important;
+                    border-bottom: 3px solid #94a3b8 !important;
+                    border-radius: 8px !important;
+                    padding: 4px 10px !important;
+                    font-weight: 800 !important;
+                    color: #0f172a !important;
+                    font-size: 0.92rem !important;
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06) !important;
+                }
+            </style>
+
             <div id="premium-settings-wrapper">
                 <!-- Sidebar (Now on Right in RTL) -->
                 <div id="premium-settings-sidebar">
@@ -5708,15 +6870,18 @@
 
                                 <div style="display: flex; flex-direction: column; gap: 14px;">
                                     <!-- القائمة المنسدلة لاختيار التخصص -->
-                                    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #f8fafc; padding: 12px 16px; border-radius: 12px; border: 1.5px solid #cbd5e1; flex-wrap: wrap;">
+                                    <div
+                                        style="display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #f8fafc; padding: 12px 16px; border-radius: 12px; border: 1.5px solid #cbd5e1; flex-wrap: wrap;">
                                         <div style="display: flex; align-items: center; gap: 10px;">
                                             <span style="font-size: 1.4rem;">🏷️</span>
                                             <div>
                                                 <div style="font-weight: 900; color: #1e293b; font-size: 0.95rem;">
                                                     اختر مجال وطبيعة النشاط التجاري:
                                                 </div>
-                                                <div style="color: #64748b; font-size: 0.78rem; font-weight: 700; margin-top: 1px;">
-                                                    يتم تكييف شاشات البيع والباركود والمقاسات وشاشة الدخول تلقائياً بناءً على اختيارك.
+                                                <div
+                                                    style="color: #64748b; font-size: 0.78rem; font-weight: 700; margin-top: 1px;">
+                                                    يتم تكييف شاشات البيع والباركود والمقاسات وشاشة الدخول تلقائياً
+                                                    بناءً على اختيارك.
                                                 </div>
                                             </div>
                                         </div>
@@ -5725,7 +6890,8 @@
                                             onfocus="this.style.borderColor='#10b981'; this.style.boxShadow='0 0 0 3px rgba(16,185,129,0.2)';"
                                             onblur="this.style.borderColor='#059669'; this.style.boxShadow='0 2px 6px rgba(5,150,105,0.15)';">
                                             <option value="clothing">👔 محلات الملابس والأحذية والشنط والموضة</option>
-                                            <option value="grocery">🛒 السوبر ماركت والبقالة والتجارة العامة والمنظفات</option>
+                                            <option value="grocery">🛒 السوبر ماركت والبقالة والتجارة العامة والمنظفات
+                                            </option>
                                         </select>
                                     </div>
 
@@ -5733,14 +6899,17 @@
                                     <div id="businessTypePreviewCard"
                                         style="background: #f0fdf4; border: 1.5px solid #a7f3d0; border-radius: 12px; padding: 14px 18px; display: flex; align-items: center; justify-content: space-between; transition: all 0.3s ease;">
                                         <div style="display: flex; align-items: center; gap: 14px;">
-                                            <div id="businessTypePreviewIcon" style="font-size: 2.2rem; flex-shrink: 0;">👕👠👜</div>
+                                            <div id="businessTypePreviewIcon"
+                                                style="font-size: 2.2rem; flex-shrink: 0;">👕👠👜</div>
                                             <div>
-                                                <div id="businessTypePreviewTitle" style="font-weight: 900; color: #065f46; font-size: 1.05rem;">
+                                                <div id="businessTypePreviewTitle"
+                                                    style="font-weight: 900; color: #065f46; font-size: 1.05rem;">
                                                     محلات الملابس والأحذية والشنط والموضة
                                                 </div>
                                                 <div id="businessTypePreviewDesc"
                                                     style="color: #047857; font-size: 0.83rem; font-weight: 700; margin-top: 3px; line-height: 1.4;">
-                                                    (النسخة مهيأة بالكامل بنظام مصفوفة المقاسات والألوان وتوليد باركود المقاسات وطباعة تيكتات الملابس والاستبدال السريع)
+                                                    (النسخة مهيأة بالكامل بنظام مصفوفة المقاسات والألوان وتوليد باركود
+                                                    المقاسات وطباعة تيكتات الملابس والاستبدال السريع)
                                                 </div>
                                             </div>
                                         </div>
@@ -6206,16 +7375,69 @@
                                         </div>
                                     </div>
 
-                                    <!-- كيو ار المتجر -->
+                                    <!-- إعدادات وأكواد QR Code الفاتورة -->
                                     <div class="settings-modern-card" style="margin-bottom: 0;">
                                         <div class="settings-card-header">
                                             <h3 class="settings-card-title">
-                                                <span>📱</span> رابط صفحة المتجر (QR Code)
+                                                <span>🔲</span> إعدادات أكواد QR Code الفاتورة
                                             </h3>
                                         </div>
-                                        <div class="form-group">
-                                            <input type="text" id="printSocialQrLink"
-                                                placeholder="https://facebook.com/yourpage أو رابط صفحتك">
+
+                                        <!-- خيار 1: كيو آر كود بيانات الفاتورة الأصلي -->
+                                        <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 14px; background: #f8fafc; border-radius: 12px; border: 1.5px solid #cbd5e1; margin-bottom: 12px; transition: 0.2s;"
+                                            onmouseover="this.style.borderColor='#059669'" onmouseout="this.style.borderColor='#cbd5e1'">
+                                            <input type="checkbox" id="printInvoiceQrEnabled" checked
+                                                style="width: 19px; height: 19px; accent-color: #059669; cursor: pointer;">
+                                            <div>
+                                                <span style="display: block; font-weight: 900; color: #0f172a; font-size: 0.95rem;">
+                                                    🧾 طباعة كيو آر بيانات الفاتورة التلقائي
+                                                </span>
+                                                <span style="display: block; color: #64748b; font-size: 0.8rem; font-weight: 700; margin-top: 2px;">
+                                                    عرض كود إلكتروني برقم الفاتورة، التاريخ، والمبلغ الإجمالي
+                                                </span>
+                                            </div>
+                                        </label>
+
+                                        <!-- خيار 2: كيو آر كود رابط صفحة المتجر الأول -->
+                                        <div style="background: #f0fdf4; border: 1.5px solid #a7f3d0; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px;">
+                                            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 8px;">
+                                                <input type="checkbox" id="printSocialQrEnabled" checked
+                                                    style="width: 19px; height: 19px; accent-color: #059669; cursor: pointer;">
+                                                <div>
+                                                    <span style="display: block; font-weight: 900; color: #065f46; font-size: 0.95rem;">
+                                                        🌐 تفعيل كيو آر كود الرابط الأول (فيسبوك، تيك توك...)
+                                                    </span>
+                                                    <span style="display: block; color: #047857; font-size: 0.8rem; font-weight: 700; margin-top: 2px;">
+                                                        يقبل أي منصة (فيسبوك، تيك توك، إنستجرام، واتساب، أو موقعك)
+                                                    </span>
+                                                </div>
+                                            </label>
+                                            <div class="form-group" style="margin-bottom: 0;">
+                                                <input type="text" id="printSocialQrLink"
+                                                    placeholder="https://facebook.com/yourpage أو رابط صفحتك..."
+                                                    style="background: #ffffff; border: 1.5px solid #86efac; font-weight: 800; font-size: 0.92rem;">
+                                            </div>
+                                        </div>
+
+                                        <!-- خيار 3: كيو آر كود رابط ثانٍ (منصة إضافية) -->
+                                        <div style="background: #f0f9ff; border: 1.5px solid #bae6fd; border-radius: 12px; padding: 12px 14px;">
+                                            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin-bottom: 8px;">
+                                                <input type="checkbox" id="printSocialQr2Enabled"
+                                                    style="width: 19px; height: 19px; accent-color: #0284c7; cursor: pointer;">
+                                                <div>
+                                                    <span style="display: block; font-weight: 900; color: #0369a1; font-size: 0.95rem;">
+                                                        🌐 تفعيل كيو آر كود الرابط الثاني (منصة أخرى)
+                                                    </span>
+                                                    <span style="display: block; color: #0284c7; font-size: 0.8rem; font-weight: 700; margin-top: 2px;">
+                                                        رابط ثانٍ اختياري (تيك توك، يوتيوب، سناب شات، موقع المتجر...)
+                                                    </span>
+                                                </div>
+                                            </label>
+                                            <div class="form-group" style="margin-bottom: 0;">
+                                                <input type="text" id="printSocialQr2Link"
+                                                    placeholder="رابط منصة إضافية أخرى (تيك توك، يوتيوب، سناب شات...)"
+                                                    style="background: #ffffff; border: 1.5px solid #7dd3fc; font-weight: 800; font-size: 0.92rem;">
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -6325,22 +7547,28 @@
                             <!-- 2.1 ترقيم الفواتير اليومي للضرائب -->
                             <div class="settings-modern-card"
                                 style="background: #f0fdf4 !important; border: 1.5px solid #86efac !important; margin-bottom: 20px;">
-                                <div class="settings-card-header" style="border-bottom-color: #bbf7d0 !important; display: flex; justify-content: space-between; align-items: center;">
+                                <div class="settings-card-header"
+                                    style="border-bottom-color: #bbf7d0 !important; display: flex; justify-content: space-between; align-items: center;">
                                     <h3 class="settings-card-title" style="color: #166534 !important;">
                                         <span>🧾</span> نظام ترقيم الفواتير اليومي (الحماية الضريبية)
                                     </h3>
-                                    <span style="background: #dcfce7; color: #15803d; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 800; border: 1px solid #86efac;">خاص بمبيعات التجزئة</span>
+                                    <span
+                                        style="background: #dcfce7; color: #15803d; padding: 2px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 800; border: 1px solid #86efac;">خاص
+                                        بمبيعات التجزئة</span>
                                 </div>
-                                <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; align-items: center;">
+                                <div
+                                    style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 16px; align-items: center;">
                                     <label
                                         style="display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 12px 14px; background: #ffffff; border-radius: 12px; border: 1.5px solid #86efac; transition: 0.2s;">
                                         <input type="checkbox" id="dailyTaxSeqEnabled"
                                             style="width: 20px; height: 20px; accent-color: #16a34a; cursor: pointer;">
                                         <div>
                                             <span
-                                                style="display: block; font-weight: 900; color: #14532d; font-size: 0.9rem;">تفعيل الترقيم اليومي للفواتير</span>
+                                                style="display: block; font-weight: 900; color: #14532d; font-size: 0.9rem;">تفعيل
+                                                الترقيم اليومي للفواتير</span>
                                             <span
-                                                style="display: block; color: #4b5563; font-size: 0.78rem; font-weight: 700;">يبدأ العداد من 1 كل صباح ويطبع على الإيصال وشاشة الكاشير</span>
+                                                style="display: block; color: #4b5563; font-size: 0.78rem; font-weight: 700;">يبدأ
+                                                العداد من 1 كل صباح ويطبع على الإيصال وشاشة الكاشير</span>
                                         </div>
                                     </label>
                                     <div class="form-group" style="margin-bottom: 0;">
@@ -6348,9 +7576,13 @@
                                             style="display: block; color: #166534; font-weight: 800; margin-bottom: 6px; font-size: 0.85rem;">
                                             أقصى عدد فواتير في اليوم (سقف العداد)
                                         </label>
-                                        <input type="number" id="dailyTaxSeqLimit" placeholder="مثال: 50 أو 100 (اتركه فارغاً للتسلسل الحر)" min="1" max="99999"
+                                        <input type="number" id="dailyTaxSeqLimit"
+                                            placeholder="مثال: 50 أو 100 (اتركه فارغاً للتسلسل الحر)" min="1"
+                                            max="99999"
                                             style="font-weight: 900; font-size: 1.05rem; color: #15803d !important; background: #ffffff; border: 1.5px solid #86efac;">
-                                        <span style="display: block; color: #65a30d; font-size: 0.74rem; font-weight: 700; margin-top: 4px;">يمكنك تعديل هذا الرقم في أي وقت في أوقات الذروة والمواسم</span>
+                                        <span
+                                            style="display: block; color: #65a30d; font-size: 0.74rem; font-weight: 700; margin-top: 4px;">يمكنك
+                                            تعديل هذا الرقم في أي وقت في أوقات الذروة والمواسم</span>
                                     </div>
                                 </div>
                             </div>
@@ -7694,6 +8926,45 @@
                     <!-- محتوى التبويب: إعدادات ومقاسات طابعة الباركود والملصقات -->
                     <div id="set-tab-barcode" class="settings-tab-content hidden">
                         <div style="max-width: 1050px; margin: 0 auto; direction: rtl; text-align: right;">
+                            <style>
+                                .barcode-grid-aligned .form-group {
+                                    display: flex !important;
+                                    flex-direction: column !important;
+                                    justify-content: space-between !important;
+                                }
+
+                                .barcode-grid-aligned label {
+                                    min-height: 52px !important;
+                                    display: flex !important;
+                                    align-items: flex-start !important;
+                                    line-height: 1.35 !important;
+                                    font-weight: 800 !important;
+                                    color: #334155 !important;
+                                    margin-bottom: 8px !important;
+                                }
+
+                                .barcode-grid-aligned input,
+                                .barcode-grid-aligned select {
+                                    height: 48px !important;
+                                    min-height: 48px !important;
+                                    box-sizing: border-box !important;
+                                    width: 100% !important;
+                                    padding: 10px 14px !important;
+                                    border: 1.5px solid #cbd5e1 !important;
+                                    border-radius: 10px !important;
+                                    font-size: 1rem !important;
+                                    font-weight: 800 !important;
+                                    background-color: #ffffff !important;
+                                    color: #0f172a !important;
+                                    margin-top: auto !important;
+                                }
+
+                                .barcode-grid-aligned input:focus,
+                                .barcode-grid-aligned select:focus {
+                                    border-color: #059669 !important;
+                                    outline: none !important;
+                                }
+                            </style>
 
                             <!-- 1. شريط القوالب السريعة لملصقات الملابس والموضة (Fashion Label Presets) -->
                             <div class="settings-modern-card"
@@ -9140,6 +10411,25 @@
 
                         </div>
                     </div>
+
+                    <style>
+                        @keyframes pulse-gold {
+                            0% {
+                                transform: scale(1);
+                                opacity: 1;
+                            }
+
+                            50% {
+                                transform: scale(1.1);
+                                opacity: 0.8;
+                            }
+
+                            100% {
+                                transform: scale(1);
+                                opacity: 1;
+                            }
+                        }
+                    </style>
                 </div>
             </div>
 
@@ -9161,7 +10451,7 @@
 
             <!-- 👔 بادج هوية نظام بيان فاشون -->
             <div id="loginBusinessTypeBadge"
-                style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 46px; box-sizing: border-box; background: linear-gradient(135deg, rgba(6, 78, 59, 0.45), rgba(15, 23, 42, 0.85)); padding: 0 10px; border-radius: 14px; border: 1.5px solid rgba(16, 185, 129, 0.7); box-shadow: 0 6px 18px rgba(0,0,0,0.4), 0 0 12px rgba(16, 185, 129, 0.2); backdrop-filter: blur(14px); cursor: default; transition: all 0.25s ease; user-select: none;"
+                style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 46px; box-sizing: border-box; background: linear-gradient(135deg, rgba(6, 78, 59, 0.85), rgba(15, 23, 42, 0.95)); padding: 0 10px; border-radius: 14px; border: 1.5px solid rgba(16, 185, 129, 0.7); box-shadow: 0 6px 18px rgba(0,0,0,0.4), 0 0 12px rgba(16, 185, 129, 0.2); cursor: default; transition: all 0.25s ease; user-select: none;"
                 onmouseover="this.style.transform='translateY(-2px) scale(1.02)'; this.style.borderColor='#10b981'; this.style.boxShadow='0 10px 24px rgba(0,0,0,0.5), 0 0 20px rgba(16, 185, 129, 0.35)';"
                 onmouseout="this.style.transform='translateY(0) scale(1)'; this.style.borderColor='rgba(16, 185, 129, 0.7)'; this.style.boxShadow='0 6px 18px rgba(0,0,0,0.4), 0 0 12px rgba(16, 185, 129, 0.2)';">
                 <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
@@ -9184,7 +10474,7 @@
             <!-- 💾 كارت النسخ الاحتياطي الطارئ السريع المباشر -->
             <div id="loginEmergencyBackupCard" onclick="executeLoginEmergencyBackup()"
                 title="اضغط هنا لحفظ وتنزيل نسخة احتياطية فورية لبيانات النظام على جهازك بنقرة واحدة كصمام أمان"
-                style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 46px; box-sizing: border-box; background: linear-gradient(135deg, rgba(12, 74, 110, 0.45), rgba(15, 23, 42, 0.85)); padding: 0 10px; border-radius: 14px; border: 1.5px solid rgba(56, 189, 248, 0.7); box-shadow: 0 6px 18px rgba(0,0,0,0.4), 0 0 12px rgba(56, 189, 248, 0.2); backdrop-filter: blur(14px); cursor: pointer; transition: all 0.25s ease; user-select: none;"
+                style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 46px; box-sizing: border-box; background: linear-gradient(135deg, rgba(12, 74, 110, 0.85), rgba(15, 23, 42, 0.95)); padding: 0 10px; border-radius: 14px; border: 1.5px solid rgba(56, 189, 248, 0.7); box-shadow: 0 6px 18px rgba(0,0,0,0.4), 0 0 12px rgba(56, 189, 248, 0.2); cursor: pointer; transition: all 0.25s ease; user-select: none;"
                 onmouseover="this.style.transform='translateY(-2px) scale(1.02)'; this.style.borderColor='#38bdf8'; this.style.boxShadow='0 10px 24px rgba(0,0,0,0.5), 0 0 20px rgba(56, 189, 248, 0.35)';"
                 onmouseout="this.style.transform='translateY(0) scale(1)'; this.style.borderColor='rgba(56, 189, 248, 0.7)'; this.style.boxShadow='0 6px 18px rgba(0,0,0,0.4), 0 0 12px rgba(56, 189, 248, 0.2)';">
                 <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
@@ -9212,7 +10502,7 @@
                 onchange="executeLoginEmergencyRestore(this)">
             <div id="loginEmergencyRestoreCard" onclick="triggerLoginEmergencyRestore()"
                 title="اضغط هنا لاسترجاع وتثبيت نسخة احتياطية من ملف JSON على هذا الجهاز فوراً"
-                style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 46px; box-sizing: border-box; background: linear-gradient(135deg, rgba(88, 28, 135, 0.45), rgba(15, 23, 42, 0.85)); padding: 0 10px; border-radius: 14px; border: 1.5px solid rgba(168, 85, 247, 0.7); box-shadow: 0 6px 18px rgba(0,0,0,0.4), 0 0 12px rgba(168, 85, 247, 0.2); backdrop-filter: blur(14px); cursor: pointer; transition: all 0.25s ease; user-select: none;"
+                style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 46px; box-sizing: border-box; background: linear-gradient(135deg, rgba(88, 28, 135, 0.85), rgba(15, 23, 42, 0.95)); padding: 0 10px; border-radius: 14px; border: 1.5px solid rgba(168, 85, 247, 0.7); box-shadow: 0 6px 18px rgba(0,0,0,0.4), 0 0 12px rgba(168, 85, 247, 0.2); cursor: pointer; transition: all 0.25s ease; user-select: none;"
                 onmouseover="this.style.transform='translateY(-2px) scale(1.02)'; this.style.borderColor='#c084fc'; this.style.boxShadow='0 10px 24px rgba(0,0,0,0.5), 0 0 20px rgba(168, 85, 247, 0.35)';"
                 onmouseout="this.style.transform='translateY(0) scale(1)'; this.style.borderColor='rgba(168, 85, 247, 0.7)'; this.style.boxShadow='0 6px 18px rgba(0,0,0,0.4), 0 0 12px rgba(168, 85, 247, 0.2)';">
                 <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
@@ -9239,7 +10529,7 @@
 
         <!-- أيقونة وهوية النظام في الجنب العلوي الفاخر (الطرف الأيمن) -->
         <div
-            style="position: absolute; top: 25px; right: 35px; z-index: 100000; display: flex; flex-direction: column; align-items: center; background: rgba(10, 22, 40, 0.85); padding: 12px 18px; border-radius: 18px; border: 1.5px solid rgba(212, 175, 55, 0.5); box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(212, 175, 55, 0.2); backdrop-filter: blur(14px);">
+            style="position: absolute; top: 25px; right: 35px; z-index: 100000; display: flex; flex-direction: column; align-items: center; background: rgba(10, 22, 40, 0.95); padding: 12px 18px; border-radius: 18px; border: 1.5px solid rgba(212, 175, 55, 0.5); box-shadow: 0 10px 30px rgba(0,0,0,0.5), 0 0 20px rgba(212, 175, 55, 0.2);">
             <div
                 style="width: 76px; height: 76px; border-radius: 16px; border: 1.5px solid #d4af37; background: #060d19; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.4);">
                 <img src="media/bayan_logo.png" style="width: 58px; height: auto; border-radius: 8px;"
@@ -10872,9 +12162,11 @@
                         <ol style="margin: 0 0 14px 0; padding-right: 20px; color: #cbd5e1;">
                             <li style="margin-bottom: 8px;"><b>اختر البند:</b> اختر <code>مصروفات خزانة</code>، أو اختر
                                 <code>➕ بند مخصص...</code> واكتب أي صنف أو اسم تريده (مثلاً: <i>شراء بضاعة كوتشيات</i>،
-                                <i>كهرباء</i>، <i>بوفيه وسكر</i>، <i>سلفة أحمد</i>).</li>
+                                <i>كهرباء</i>، <i>بوفيه وسكر</i>، <i>سلفة أحمد</i>).
+                            </li>
                             <li style="margin-bottom: 8px;"><b>اكتب الملاحظات:</b> اكتب التفاصيل لتتذكرها لاحقاً (مثلاً:
-                                <i>فاتورة سكر وشاي للفرع</i> أو <i>دفعة من حساب مصنع فوكس</i>).</li>
+                                <i>فاتورة سكر وشاي للفرع</i> أو <i>دفعة من حساب مصنع فوكس</i>).
+                            </li>
                             <li style="margin-bottom: 8px;"><b>أدخل المبلغ في خانة «درج النقدية (الدرج)»:</b> لأن هذه
                                 الأموال خرجت بالفعل من درج الكاشير الورقي.</li>
                             <li><b>اضغط مفتاح Enter أو زر «➕ إضافة العملية»:</b> تنزل العملية في الجدول فوراً ويُخصم
@@ -11543,8 +12835,146 @@
 
     <!-- نافذة إضافة صنف جديد (Bayan Style Professional) -->
     <div id="newItemModal" class="modal-overlay hidden"
-        style="background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(6px);">
+        style="background: rgba(15, 23, 42, 0.88);">
         <div class="bayan-modal-content">
+            <style>
+                /* 💎 نظام التصميم فائق الشياكة لكارت الصنف (Luxury Fashion Product Card Modal) */
+                #newItemModal .bayan-modal-content {
+                    background: #f8fafc !important;
+                    font-family: 'Cairo', sans-serif !important;
+                }
+
+                #newItemModal .bayan-top-nav-bar {
+                    background: #0f172a !important;
+                    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+                    padding: 8px 24px !important;
+                    display: flex !important;
+                    justify-content: space-between !important;
+                    align-items: center !important;
+                    flex-wrap: wrap !important;
+                    gap: 10px !important;
+                }
+
+                #newItemModal .bayan-header-section {
+                    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 60%, #1e293b 100%) !important;
+                    padding: 14px 24px !important;
+                    border-bottom: 2px solid rgba(167, 139, 250, 0.25) !important;
+                    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12) !important;
+                }
+
+                #newItemModal .bayan-header-fields .bayan-field label {
+                    color: #cbd5e1 !important;
+                    font-size: 0.82rem !important;
+                    font-weight: 800 !important;
+                    margin-bottom: 4px !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    gap: 5px !important;
+                }
+
+                #newItemModal .bayan-header-fields input {
+                    height: 38px !important;
+                    border-radius: 10px !important;
+                    border: 1.5px solid #cbd5e1 !important;
+                    background: #ffffff !important;
+                    font-weight: 900 !important;
+                    font-size: 1rem !important;
+                    color: #0f172a !important;
+                    transition: all 0.2s ease !important;
+                }
+
+                #newItemModal .bayan-header-fields input:focus {
+                    border-color: #a855f7 !important;
+                    outline: 3.5px solid rgba(168, 85, 247, 0.25) !important;
+                }
+
+                #newItemModal #newItemName {
+                    height: 44px !important;
+                    font-size: 1.15rem !important;
+                    border-color: #818cf8 !important;
+                    box-shadow: 0 2px 8px rgba(129, 140, 248, 0.2) !important;
+                }
+
+                #newItemModal .bayan-tabs-container {
+                    background: #ffffff !important;
+                    border: 1.5px solid #e2e8f0 !important;
+                    border-radius: 16px !important;
+                    padding: 6px 8px !important;
+                    margin: 10px 24px 0 !important;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03) !important;
+                    gap: 8px !important;
+                }
+
+                #newItemModal .bayan-tab {
+                    border-radius: 12px !important;
+                    padding: 8px 18px !important;
+                    font-weight: 800 !important;
+                    font-size: 0.9rem !important;
+                    color: #475569 !important;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                }
+
+                #newItemModal .bayan-tab:hover {
+                    background: #f1f5f9 !important;
+                    color: #1e1b4b !important;
+                    transform: translateY(-1px) !important;
+                }
+
+                #newItemModal .bayan-tab.active {
+                    background: linear-gradient(135deg, #4f46e5 0%, #3730a3 100%) !important;
+                    color: #ffffff !important;
+                    border: 1.5px solid #6366f1 !important;
+                    box-shadow: 0 4px 14px rgba(79, 70, 229, 0.35) !important;
+                    transform: translateY(-1px) !important;
+                }
+
+                #newItemModal .bayan-tab-content {
+                    background: #f8fafc !important;
+                    padding: 16px 24px !important;
+                }
+
+                #newItemModal .bayan-input-card {
+                    background: #ffffff !important;
+                    border: 1.5px solid #e2e8f0 !important;
+                    border-radius: 16px !important;
+                    padding: 14px 18px !important;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+                    transition: all 0.2s ease !important;
+                }
+
+                #newItemModal .bayan-input-card:hover {
+                    border-color: #cbd5e1 !important;
+                    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05) !important;
+                }
+
+                #newItemModal .bayan-input-card:focus-within {
+                    border-color: #6366f1 !important;
+                    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15) !important;
+                }
+
+                #newItemModal .bayan-footer {
+                    background: #ffffff !important;
+                    border-top: 1.5px solid #e2e8f0 !important;
+                    padding: 12px 24px !important;
+                    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.04) !important;
+                }
+
+                #newItemModal .bayan-footer .bayan-btn {
+                    height: 42px !important;
+                    padding: 0 20px !important;
+                    border-radius: 12px !important;
+                    font-weight: 900 !important;
+                    font-size: 0.92rem !important;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08) !important;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                }
+
+                #newItemModal .bayan-footer .bayan-btn:hover {
+                    transform: translateY(-2px) !important;
+                    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15) !important;
+                }
+            </style>
+
             <!-- أزرار التنقل الجانبية الشفافة -->
             <div class="bayan-nav-arrow left" onclick="navigateProduct(-1)" title="الصنف السابق (Ctrl + ⬅️)">«</div>
             <div class="bayan-nav-arrow right" onclick="navigateProduct(1)" title="الصنف التالي (Ctrl + ➔)">»</div>
@@ -12366,7 +13796,7 @@
 
     <!-- نافذة إضافة/تعديل مخزن (Warehouse Modal) -->
     <div id="warehouseModal" class="modal-overlay hidden"
-        style="z-index: 10005; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center;">
+        style="z-index: 10005; background: rgba(15, 23, 42, 0.88); display: flex; align-items: center; justify-content: center;">
         <div class="login-box"
             style="width: 480px; max-width: 94vw; text-align: right; border-radius: 20px; padding: 0; border: 1.5px solid #e2e8f0; background: #ffffff; box-shadow: 0 25px 60px rgba(15,23,42,0.35); font-family: 'Cairo', sans-serif; overflow: hidden; direction: rtl;">
 
@@ -12444,7 +13874,7 @@
     <!-- نافذة تحويل المخزون المجمّع (Enhanced Batch Transfer Modal) -->
     <!-- 🚚 مودال تحويل المخزون المطور (Premium Stock Transfer Modal) -->
     <div id="transferModal" class="modal-overlay hidden"
-        style="z-index: 10005; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; padding: 20px;">
+        style="z-index: 10005; background: rgba(15, 23, 42, 0.88); display: flex; align-items: center; justify-content: center; padding: 20px;">
         <div class="modal-content"
             style="width: 1120px; max-width: 96vw; text-align: right; max-height: 94vh; display: flex; flex-direction: column; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 22px; box-shadow: 0 25px 70px rgba(15, 23, 42, 0.35); overflow: hidden; padding: 0; direction: rtl;">
 
@@ -12754,7 +14184,7 @@
 
     <!-- 🏭 نافذة الإضافة السريعة لمخزن جديد من شاشة التحويل -->
     <div id="quickWarehouseModal" class="modal-overlay hidden"
-        style="z-index: 10020; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center;">
+        style="z-index: 10020; background: rgba(15, 23, 42, 0.88); display: flex; align-items: center; justify-content: center;">
         <div class="login-box"
             style="width: 460px; max-width: 92vw; text-align: right; border-radius: 20px; padding: 0; border: 1.5px solid #e2e8f0; background: #ffffff; box-shadow: 0 25px 60px rgba(15,23,42,0.35); font-family: 'Cairo', sans-serif; direction: rtl; overflow: hidden;">
 
@@ -12828,6 +14258,25 @@
             </div>
         </div>
     </div>
+
+    <style>
+        @keyframes slideLeft {
+            0% {
+                transform: translateX(-5px);
+                opacity: 0.5;
+            }
+
+            50% {
+                transform: translateX(5px);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateX(-5px);
+                opacity: 0.5;
+            }
+        }
+    </style>
 
     <!-- نافذة التنقل السريع (Quick Navigation Modal) -->
     <!-- نافذة التنقل السريع المطورة (Premium Metro Design) -->
@@ -12958,9 +14407,68 @@
         </div>
     </div>
 
+    <!-- استايلات مخصصة للنافذة (توضع هنا لضمان عملها فوراً) -->
+    <style>
+        .nav-card-premium {
+            background: white;
+            border-radius: 18px;
+            padding: 25px 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid #e2e8f0;
+            border-top: 4px solid var(--accent);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+            position: relative;
+        }
+
+        .nav-card-premium:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            border-color: var(--accent);
+        }
+
+        .nav-card-premium .icon-box {
+            font-size: 2.5rem;
+            transition: 0.3s;
+        }
+
+        .nav-card-premium:hover .icon-box {
+            transform: scale(1.2);
+            filter: drop-shadow(0 0 8px var(--accent));
+        }
+
+        .nav-card-premium .label {
+            font-weight: 900;
+            color: var(--accent);
+            font-size: 0.95rem;
+        }
+
+        .btn-modern-close {
+            background: white;
+            color: #1e293b;
+            border: 3px solid #e2e8f0;
+            padding: 10px 35px;
+            border-radius: 12px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .btn-modern-close:hover {
+            background: #ef4444;
+            color: white;
+            border-color: #ef4444;
+            box-shadow: 0 10px 20px rgba(239, 68, 68, 0.2);
+        }
+    </style>
+
     <!-- نافذة ملخص أرباح العملية (Modern Profit Modal) -->
     <div id="profitModal" class="confirm-modal-overlay hidden"
-        style="z-index: 10002 !important; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center;">
+        style="z-index: 10002 !important; background: rgba(15, 23, 42, 0.88); display: flex; align-items: center; justify-content: center;">
         <div class="profit-card"
             style="width: 420px; max-width: 92%; border-radius: 20px; overflow: hidden; border: 1.5px solid #e2e8f0; box-shadow: 0 25px 60px rgba(15,23,42,0.35); background: #ffffff;">
             <div class="profit-header"
@@ -13020,7 +14528,7 @@
 
     <!-- نافذة التنبيهات الموحدة (Unified Alert Modal) -->
     <div id="alertModal" class="confirm-modal-overlay hidden"
-        style="z-index: 2147483647 !important; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px);">
+        style="z-index: 2147483647 !important; background: rgba(15, 23, 42, 0.88);">
         <div class="alert-card"
             style="position: relative; width: 440px; max-width: 92%; border-radius: 24px; padding: 28px 24px; background: #ffffff; border: 1.5px solid #e2e8f0; box-shadow: 0 25px 60px rgba(15, 23, 42, 0.35); text-align: center;">
             <button onclick="closeCustomAlert()"
@@ -13047,7 +14555,7 @@
 
     <!-- 🏷️ نافذة اختيار نمط طباعة ملصقات الباركود وتيكت السعر -->
     <div id="bpPrintChoiceModal" class="confirm-modal-overlay hidden"
-        style="z-index: 2147483647 !important; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center;">
+        style="z-index: 2147483647 !important; background: rgba(15, 23, 42, 0.88); display: none; align-items: center; justify-content: center;">
         <div class="bp-choice-card"
             style="position: relative; width: 490px; max-width: 94%; background: #ffffff; border-radius: 24px; padding: 26px 24px; box-shadow: 0 25px 60px rgba(15, 23, 42, 0.35); border: 1.5px solid #e2e8f0; text-align: center; direction: rtl; font-family: 'Cairo', sans-serif;">
             <button type="button" onclick="window.closeBpPrintChoiceModal()"
@@ -13106,7 +14614,7 @@
 
     <!-- نافذة اختيار اتجاه تيكت السعر المصغر (Price Tag Orientation Modal: Horizontal vs Vertical) -->
     <div id="bpPriceTagOrientationModal" class="confirm-modal-overlay hidden"
-        style="z-index: 2147483647 !important; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px); display: none; align-items: center; justify-content: center;">
+        style="z-index: 2147483647 !important; background: rgba(15, 23, 42, 0.88); display: none; align-items: center; justify-content: center;">
         <div class="bp-choice-card"
             style="position: relative; width: 490px; max-width: 94%; background: #ffffff; border-radius: 24px; padding: 26px 24px; box-shadow: 0 25px 60px rgba(15, 23, 42, 0.35); border: 1.5px solid #e2e8f0; text-align: center; direction: rtl; font-family: 'Cairo', sans-serif;">
             <button type="button" onclick="window.closeBpPriceTagOrientationModal()"
@@ -13171,7 +14679,7 @@
 
     <!-- نافذة مدخلات مخصصة (Custom Prompt Modal) -->
     <div id="customPromptModal" class="confirm-modal-overlay hidden"
-        style="z-index: 2147483647 !important; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px);">
+        style="z-index: 2147483647 !important; background: rgba(15, 23, 42, 0.88);">
         <div class="alert-card"
             style="position: relative; background: #ffffff; padding: 28px 24px; border-radius: 24px; width: 440px; max-width: 92%; text-align: center; border: 1.5px solid #e2e8f0; box-shadow: 0 25px 60px rgba(15, 23, 42, 0.35);">
             <div class="alert-icon"
@@ -13195,7 +14703,7 @@
 
     <!-- نافذة تأكيد الإغلاق (Unsaved Data Modal) -->
     <div id="confirmModal" class="confirm-modal-overlay hidden"
-        style="z-index: 2147483647 !important; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px);">
+        style="z-index: 2147483647 !important; background: rgba(15, 23, 42, 0.88);">
         <div class="confirm-modal-box"
             style="width: 440px; max-width: 92%; border-radius: 24px; padding: 28px 24px; background: #ffffff; border: 1.5px solid #e2e8f0; box-shadow: 0 25px 60px rgba(15, 23, 42, 0.35); text-align: center;">
             <div
@@ -13746,6 +15254,77 @@
         </div>
     </div>
 
+    <style>
+        .header-label-badge {
+            font-size: 0.8rem !important;
+            font-weight: 900 !important;
+            padding: 0 8px;
+            border-radius: 6px;
+            border: 1.5px solid #cbd5e1;
+            width: fit-content;
+            white-space: nowrap;
+            height: 24px !important;
+            display: flex;
+            align-items: center;
+            box-sizing: border-box;
+            margin-bottom: 3px;
+        }
+
+        .header-input-unified {
+            height: 40px !important;
+            border-radius: 8px !important;
+            border-width: 2px !important;
+            font-weight: 900 !important;
+            outline: none !important;
+            margin: 0 !important;
+            box-sizing: border-box;
+        }
+
+        @keyframes pulseBorder {
+            0% {
+                border-color: #ef4444;
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+            }
+
+            70% {
+                border-color: #ef4444;
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+            }
+
+            100% {
+                border-color: #ef4444;
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+
+        .header-column {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            justify-content: flex-end;
+            height: 66px;
+            /* 22px label + 4px gap + 40px input */
+            flex-shrink: 0;
+        }
+
+        .package-tab {
+            transition: all 0.3s ease;
+            border: 1px solid transparent !important;
+        }
+
+        .package-tab:hover {
+            background: rgba(16, 185, 129, 0.1) !important;
+            color: var(--primary-color) !important;
+            transform: translateY(-2px);
+            border-color: var(--primary-color) !important;
+        }
+
+        .package-tab.active {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+        }
+    </style>
+
     <!-- نافذة تفاصيل باقتك (My Plan Modal) المطورة بنظام الكروت والمربعات العصرية -->
     <div id="myPlanModal" class="confirm-modal-overlay hidden"
         style="z-index: 20002 !important; display: flex; align-items: center; justify-content: center; background: rgba(15, 23, 42, 0.85);">
@@ -14117,7 +15696,7 @@
 
     <!-- ================= نافذة بحث عن فاتورة ================= -->
     <div id="searchInvoiceModal" class="modal-overlay hidden"
-        style="z-index: 11000; display:flex; align-items:center; justify-content:center; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px);">
+        style="z-index: 11000; display:flex; align-items:center; justify-content:center; background: rgba(15, 23, 42, 0.88);">
         <div class="modal-content"
             style="width: 1050px; max-width: 95%; padding: 0; background: #ffffff; border-radius: 18px; overflow: hidden; border: 1.5px solid #e2e8f0; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); display: flex; flex-direction: column;">
 
@@ -14185,10 +15764,24 @@
                     </div>
                 </div>
 
-                <!-- Middle column -->
+                <!-- Middle column: Product & Account -->
                 <div style="display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 260px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <label style="width: 75px; font-size: 0.85rem; font-weight: 800; color: #475569;">الحساب</label>
+                        <label style="width: 110px; font-size: 0.85rem; font-weight: 800; color: #475569;">اسم / كود الصنف</label>
+                        <div style="flex: 1; position: relative; display: flex; align-items: center;">
+                            <input type="text" id="searchInvoiceProduct"
+                                style="width: 100%; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 0 10px; height: 36px; font-weight: 700; font-size: 0.88rem; box-sizing: border-box; background: #ffffff;"
+                                placeholder="اكتب اسم الصنف أو الباركود..."
+                                oninput="if(typeof debouncedExecuteInvoiceSearch==='function') debouncedExecuteInvoiceSearch(); else executeInvoiceSearch();"
+                                onkeydown="if(event.key==='Enter') executeInvoiceSearch()">
+                            <span
+                                onclick="document.getElementById('searchInvoiceProduct').value=''; executeInvoiceSearch();"
+                                style="position: absolute; left: 8px; color: #94a3b8; cursor: pointer; font-size: 0.9rem;"
+                                title="مسح">✕</span>
+                        </div>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <label style="width: 110px; font-size: 0.85rem; font-weight: 800; color: #475569;">الحساب</label>
                         <div style="flex: 1; position: relative; display: flex; align-items: center;">
                             <input type="text" id="searchInvoiceAccount" list="searchAccountsList"
                                 style="width: 100%; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 0 10px; height: 36px; font-weight: 700; font-size: 0.88rem; box-sizing: border-box; background: #ffffff;"
@@ -14201,9 +15794,13 @@
                                 title="مسح">✕</span>
                         </div>
                     </div>
+                </div>
+
+                <!-- Date column -->
+                <div style="display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 240px;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <label
-                            style="width: 75px; font-size: 0.85rem; font-weight: 800; color: #475569;">التاريخ</label>
+                            style="width: 65px; font-size: 0.85rem; font-weight: 800; color: #475569;">التاريخ</label>
                         <div style="flex: 1; display: flex; gap: 6px; align-items: center;">
                             <input type="date" id="searchInvoiceDateFrom"
                                 style="flex: 1; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 0 6px; height: 36px; font-weight: 700; font-size: 0.82rem; background: #ffffff;"
@@ -14238,7 +15835,8 @@
                             <th style="padding: 10px 8px; font-weight: 800;">التاريخ</th>
                             <th style="padding: 10px 8px; font-weight: 800;">الوقت</th>
                             <th style="padding: 10px 8px; font-weight: 800;">رقم الفاتورة</th>
-                            <th style="padding: 10px 8px; font-weight: 800; min-width: 90px; color: #38bdf8;">رقم الإيصال</th>
+                            <th style="padding: 10px 8px; font-weight: 800; min-width: 90px; color: #38bdf8;">رقم
+                                الإيصال</th>
                             <th style="padding: 10px 8px; font-weight: 800;">الحساب</th>
                             <th style="padding: 10px 8px; font-weight: 800;">النهائي</th>
                             <th style="padding: 10px 8px; font-weight: 800;">المخزن</th>
@@ -14269,7 +15867,7 @@
 
     <!-- ================= نافذة حدد الأصناف المرتجعة ================= -->
     <div id="selectReturnItemsModal" class="modal-overlay hidden"
-        style="z-index: 11005; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px);">
+        style="z-index: 11005; background: rgba(15, 23, 42, 0.88);">
         <div class="modal-content"
             style="width: 1000px; max-width: 95%; max-height: 92vh; display: flex; flex-direction: column; padding: 0; border-radius: 20px; overflow: hidden; border: 1.5px solid #e2e8f0; box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);">
             <div
@@ -14409,7 +16007,7 @@
 
     <!-- ================= نافذة اختيار وحدة الصنف (Product Unit Selection) ================= -->
     <div id="unitSelectionModal" class="modal-overlay hidden"
-        style="z-index: 11000; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px);">
+        style="z-index: 11000; background: rgba(15, 23, 42, 0.88);">
         <div class="modal-content"
             style="width: 420px; padding: 0; border-radius: 20px; overflow: hidden; border: 1.5px solid #e2e8f0; box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);">
             <div
@@ -14442,6 +16040,45 @@
             </div>
         </div>
     </div>
+
+    <style>
+        .unit-option-card {
+            background: white;
+            border: 3px solid #e2e8f0;
+            padding: 15px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: 0.3s;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+        }
+
+        .unit-option-card:hover {
+            border-color: #064e3b;
+            background: #f0fdf4;
+            transform: translateY(-2px);
+        }
+
+        .unit-option-card.selected {
+            border-color: #064e3b;
+            background: #f0fdf4;
+            box-shadow: 0 0 0 4px rgba(6, 78, 59, 0.2);
+        }
+
+        .unit-option-card .unit-name {
+            font-size: 1rem;
+            color: var(--text-primary);
+            font-weight: 900;
+        }
+
+        .unit-option-card .unit-price {
+            color: #064e3b;
+            font-size: 1.1rem;
+            font-weight: 900;
+        }
+    </style>
 
     <!-- قوائم المشاركة المركزية (Moved to body end for perfect centering) -->
     <div id="receiptShareMenu" class="share-menu centered-modal horizontal-popup">
@@ -15060,6 +16697,134 @@
                 style="color: #00f2fe; font-size: 1.85rem; font-weight: 900; letter-spacing: 1px; text-shadow: 0 0 16px rgba(0, 242, 254, 0.7); font-family: 'Segoe UI', 'Cairo', sans-serif;">00:00</span>
         </div>
     </div>
+
+    <style>
+        .quick-wp-bar {
+            position: fixed;
+            bottom: 16px;
+            left: 20px;
+            z-index: 100000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            background: rgba(8, 20, 38, 0.96);
+            padding: 6px 4px;
+            border-radius: 20px;
+            border: 1.5px solid #00f2fe;
+            box-shadow: 0 0 16px rgba(0, 242, 254, 0.4), inset 0 0 8px rgba(0, 242, 254, 0.15);
+            transition: all 0.25s ease;
+            max-height: calc(100vh - 210px);
+            overflow-y: auto;
+            scrollbar-width: none;
+        }
+
+        .quick-wp-bar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .quick-info-widget {
+            position: fixed;
+            bottom: 25px;
+            right: 25px;
+            z-index: 100000;
+            background: rgba(8, 20, 38, 0.96);
+            padding: 12px 24px;
+            border-radius: 20px;
+            border: 1.5px solid rgba(56, 189, 248, 0.5);
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(56, 189, 248, 0.25);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            transition: all 0.3s ease;
+            min-width: 170px;
+            text-align: center;
+            user-select: none;
+        }
+
+        .quick-wp-bar:hover {
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.6), inset 0 0 10px rgba(0, 242, 254, 0.25);
+            border-color: #38bdf8;
+        }
+
+        .quick-info-widget:hover {
+            transform: translateY(-3px) scale(1.02);
+            border-color: #38bdf8;
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7), 0 0 25px rgba(56, 189, 248, 0.4);
+        }
+
+        .wp-swatch {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            border: 1.5px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+            position: relative;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .wp-swatch:hover {
+            transform: scale(1.22);
+            border-color: #00f2fe;
+            box-shadow: 0 0 14px #00f2fe;
+            z-index: 20;
+        }
+
+        /* توهج مخصص لكل لون لزيادة الوضوح */
+        .wp-swatch[style*="#a855f7"] {
+            box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+        }
+
+        .wp-swatch[style*="#0ea5e9"] {
+            box-shadow: 0 0 15px rgba(14, 165, 233, 0.4);
+        }
+
+        .wp-swatch[style*="photo-1516550893923-42d28e5677af"] {
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
+        }
+
+        .wp-swatch[style*="dark-luxury-design"] {
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.6), 0 0 5px rgba(212, 175, 55, 0.3);
+        }
+
+        .wp-swatch.swatch-default {
+            background: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: #333;
+        }
+
+        .wp-swatch.active {
+            transform: scale(1.25) !important;
+            border: 2px solid #00f2fe !important;
+            box-shadow: 0 0 14px #00f2fe, 0 0 24px rgba(0, 242, 254, 0.75) !important;
+            z-index: 25 !important;
+        }
+
+        .widget-date {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.85rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: capitalize;
+        }
+
+        .widget-time span {
+            color: #00e5ff;
+            font-size: 2rem;
+            font-weight: 900;
+            font-family: 'Cairo', sans-serif;
+            text-shadow: 0 0 15px rgba(0, 229, 255, 0.6);
+            line-height: 1;
+        }
+    </style>
 
     <script>
         function updateQuickWidget() {
@@ -15903,7 +17668,7 @@
 
     <!-- 👗 نافذة مصفوفة تسعير المقاسات والألوان الفاخرة (Fashion Variant Price Matrix Modal) -->
     <div id="fashionVariantPriceModal" class="hidden"
-        style="position: fixed; inset: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(8px); z-index: 100005; display: none; align-items: center; justify-content: center; padding: 20px; font-family: 'Cairo', sans-serif; direction: rtl;">
+        style="position: fixed; inset: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.88); z-index: 100005; display: none; align-items: center; justify-content: center; padding: 20px; font-family: 'Cairo', sans-serif; direction: rtl;">
 
         <div
             style="background: #ffffff; width: 980px; max-width: 96vw; max-height: 92vh; border-radius: 20px; border: 1.5px solid #e2e8f0; box-shadow: 0 25px 70px rgba(15, 23, 42, 0.35); display: flex; flex-direction: column; overflow: hidden;">
@@ -16701,30 +18466,6 @@
 
         </div>
     </div>
-
-    <!-- 🔒 حماية المنظومة ومنع كلك يمين وفحص العناصر في المتصفح والتابلت -->
-    <script>
-        (function () {
-            // منع القائمة المنبثقة بالزر الأيمن في كامل البرنامج لحماية السورس كود
-            document.addEventListener('contextmenu', function (e) {
-                e.preventDefault();
-                return false;
-            }, { capture: true });
-
-            // منع اختصارات المطورين وعرض المصدر: F12, Ctrl+Shift+I/J/C, Ctrl+U, Ctrl+S
-            document.addEventListener('keydown', function (e) {
-                const key = e.key ? e.key.toLowerCase() : '';
-                if (e.key === 'F12' || e.keyCode === 123) {
-                    e.preventDefault();
-                    return false;
-                }
-                if (e.ctrlKey && ((e.shiftKey && (key === 'i' || key === 'j' || key === 'c')) || key === 'u' || key === 's')) {
-                    e.preventDefault();
-                    return false;
-                }
-            }, { capture: true });
-        })();
-    </script>
 </body>
 
 </html>

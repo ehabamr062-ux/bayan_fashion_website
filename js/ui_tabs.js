@@ -453,40 +453,14 @@
                 }
             }
 
-            // 🧹 تفريغ الذاكرة وتنظيف الـ DOM عند مغادرة أي قسم ضخم (Automatic Memory & DOM Trimming)
+            // ⚡ الحفاظ على جداول الـ DOM حية في الذاكرة للتبديل الفوري عبر CSS (0ms Instant Tab Switch)
+            // تم إلغاء تفريغ tbody.innerHTML لمنع إعادة بناء الجداول واستهلاك المعالج في كل نقرة تبويب
             try {
-                const prevTab = openTabs.find(t => t.id === activeTabId) || (activeTabId ? { type: activeTabId } : null);
-                if (prevTab && prevTab.type !== targetTab.type) {
-                    const pType = prevTab.type;
-                    if (pType === 'inventory') {
-                        window.inventoryRenderLimit = 100;
-                        const tbody = document.getElementById('inventoryTableBody');
-                        if (tbody && tbody.children.length > 100) tbody.innerHTML = '';
-                    } else if (pType === 'accounts') {
-                        window.accountsRenderLimit = 50;
-                        const tbody = document.getElementById('accountsTableBody');
-                        if (tbody && tbody.children.length > 50) tbody.innerHTML = '';
-                    } else if (pType === 'invoices') {
-                        window.invoicesRenderLimit = 100;
-                        const tbody = document.getElementById('invoicesTableBody');
-                        if (tbody && tbody.children.length > 100) tbody.innerHTML = '';
-                    } else if (pType === 'history') {
-                        window.historyRenderLimit = 500;
-                        const tbody = document.getElementById('historyTableBody');
-                        if (tbody && tbody.children.length > 200) tbody.innerHTML = '';
-                    } else if (pType === 'trash') {
-                        window.trashRenderLimit = 50;
-                        const tbody = document.getElementById('trashTableBody');
-                        if (tbody && tbody.children.length > 50) tbody.innerHTML = '';
-                    } else if (pType === 'warehouse-report') {
-                        if (window.wrRenderState) window.wrRenderState.limit = 100;
-                        const tbody = document.querySelector('#warehouseReportTable tbody') || document.getElementById('wrTableBody');
-                        if (tbody && tbody.children.length > 100) tbody.innerHTML = '';
-                    }
-                }
-            } catch (errCleanup) {
-                console.warn('Memory cleanup error on tab switch:', errCleanup);
-            }
+                if (!window.inventoryRenderLimit) window.inventoryRenderLimit = 50;
+                if (!window.accountsRenderLimit) window.accountsRenderLimit = 50;
+                if (!window.invoicesRenderLimit) window.invoicesRenderLimit = 50;
+                if (!window.historyRenderLimit) window.historyRenderLimit = 100;
+            } catch (errCleanup) {}
 
             activeTabId = targetTab.id;
 
@@ -671,19 +645,20 @@
                         if (config.s === 'sales') {
                             const savedState = tabStates[targetTab.id];
                             if (savedState && savedState.viewingInvoiceId) {
-                                if (document.getElementById('salesBadgeID')) document.getElementById('salesBadgeID').innerText = savedState.badgeId || savedState.viewingInvoiceId;
+                                if (typeof updateSalesBadgeUI === 'function') {
+                                    updateSalesBadgeUI(null, savedState.viewingInvoiceId);
+                                } else if (document.getElementById('salesBadgeID')) {
+                                    document.getElementById('salesBadgeID').innerText = savedState.badgeId || savedState.viewingInvoiceId;
+                                }
                             } else if (window._posCurrentNavState && window._posCurrentNavState.invoiceId) {
-                                if (document.getElementById('salesBadgeID')) document.getElementById('salesBadgeID').innerText = window._posCurrentNavState.invoiceId;
+                                if (typeof updateSalesBadgeUI === 'function') {
+                                    updateSalesBadgeUI(null, window._posCurrentNavState.invoiceId);
+                                } else if (document.getElementById('salesBadgeID')) {
+                                    document.getElementById('salesBadgeID').innerText = window._posCurrentNavState.invoiceId;
+                                }
                             } else if (!isCurrentlyEditing) {
-                                const rawCount = typeof getNextSequence === 'function' ? getNextSequence('بيع') : 1;
-                                const count = (typeof isDailyTaxSeqEnabled === 'function' && isDailyTaxSeqEnabled() && typeof getDailyTaxSequence === 'function')
-                                    ? getDailyTaxSequence()
-                                    : rawCount;
-                                if (document.getElementById('salesBadgeID')) {
-                                    document.getElementById('salesBadgeID').innerText = count;
-                                    if (count !== rawCount) {
-                                        document.getElementById('salesBadgeID').title = `رقم الإيصال اليومي: ${count} (الرقم التراكمي الأصلي: ${rawCount})`;
-                                    }
+                                if (typeof updateSalesBadgeUI === 'function') {
+                                    updateSalesBadgeUI();
                                 }
                             }
                             if (typeof renderQuickItems === 'function') renderQuickItems(); // تحديث الأصناف السريعة تلقائياً
@@ -1125,13 +1100,17 @@
                     if (state.viewingInvoiceId) {
                         window._posCurrentNavState = state.posNavState || { invoiceId: state.viewingInvoiceId, dateISO: state.date, id: null };
                         window._posInvoiceModified = Boolean(state.invoiceModified);
-                        if (document.getElementById('salesBadgeID')) {
+                        if (typeof updateSalesBadgeUI === 'function') {
+                            updateSalesBadgeUI(null, state.viewingInvoiceId);
+                        } else if (document.getElementById('salesBadgeID')) {
                             document.getElementById('salesBadgeID').innerText = state.badgeId || state.viewingInvoiceId;
                         }
                     } else {
                         window._posCurrentNavState = { invoiceId: null, dateISO: null, id: null };
                         window._posInvoiceModified = false;
-                        if (state.badgeId && !isEditMode) {
+                        if (typeof updateSalesBadgeUI === 'function') {
+                            updateSalesBadgeUI();
+                        } else if (state.badgeId && !isEditMode) {
                             if (document.getElementById('salesBadgeID')) document.getElementById('salesBadgeID').innerText = state.badgeId;
                         }
                     }

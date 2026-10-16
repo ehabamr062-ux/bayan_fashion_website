@@ -849,11 +849,23 @@ const BayanBarcode = (function () {
      */
     function onGlobalKeyDown(e) {
         if (!e || typeof e.key !== 'string') return;
+
+        // 🛡️ صمام أمان حاسم: إذا كان المستخدم يكتب في حقل كلمة سر أو داخل نافذة منبثقة/حوار، نتجاهل مستمع الباركود تماماً
+        const activeElem = document.activeElement;
+        const isPasswordInput = activeElem && activeElem.tagName === 'INPUT' && activeElem.type === 'password';
+        const isInsideModal = activeElem && !!activeElem.closest('.confirm-modal-overlay, .modal-overlay, #customPromptModal, #alertModal, #confirmModal, #loginModal');
+        const hasOpenPromptModal = !!document.querySelector('#customPromptModal:not(.hidden), #alertModal:not(.hidden), #confirmModal:not(.hidden)');
+
+        if (isPasswordInput || isInsideModal || hasOpenPromptModal) {
+            buffer = '';
+            keyIntervals = [];
+            return;
+        }
+
         const currentTime = performance.now();
         const timeDiff = currentTime - lastKeyTime;
         lastKeyTime = currentTime;
 
-        const activeElem = document.activeElement;
         const isStandardInput = activeElem && (
             activeElem.tagName === 'INPUT' ||
             activeElem.tagName === 'TEXTAREA' ||

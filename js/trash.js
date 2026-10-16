@@ -589,7 +589,7 @@ window.trashRenderLimit = 50;
 window.loadMoreTrash = function(step) {
     if (step === 0) {
         const MAX_SAFE_CEILING = 300;
-        const total = (typeof window.trashBin !== 'undefined' && Array.isArray(window.trashBin)) ? window.trashBin.length : 0;
+        const total = (typeof window.trashBin !== 'undefined' && Array.isArray(window.trashBin)) ? window.trashBin.length : ((typeof trashBin !== 'undefined' && Array.isArray(trashBin)) ? trashBin.length : 0);
         if (total > MAX_SAFE_CEILING) {
             window.trashRenderLimit = MAX_SAFE_CEILING;
             if (typeof showToast === 'function') {

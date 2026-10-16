@@ -400,34 +400,49 @@
                             nativeDb.pragma('journal_mode = WAL');
                             nativeDb.pragma('synchronous = NORMAL');
                             nativeDb.pragma('temp_store = MEMORY');
-                            nativeDb.pragma('cache_size = -64000');
-                            nativeDb.pragma('mmap_size = 268435456');
+                            nativeDb.pragma('cache_size = -8000');
+                            nativeDb.pragma('mmap_size = 33554432');
 
                             this.nativeDb = nativeDb;
                             this.db = new CompatibleDatabase(nativeDb);
                             this.isNative = true;
 
-                            console.log("⚡ [SQLite] تم تفعيل محرك Native C++ SQLite (WAL Mode) بنجاح فائق السرعة والديمومة على الهارد ديسك!");
+                            console.info("⚡ [SQLite Engine] NATIVE C++ better-sqlite3 ACTIVE (WAL Mode) at:", this.dbPath);
 
-                            // صمام أمان النسخة الاحتياطية الطارئة (.bak)
+                            // صمام أمان النسخة الاحتياطية الطارئة (.bak) بشكل غير حاجب (Non-blocking Async)
                             const bakPath = (this.path && this.dbPath) ? (this.dbPath + '.bak') : null;
                             if (this.fs && this.dbPath && bakPath && this.fs.existsSync(this.dbPath)) {
                                 setTimeout(() => {
                                     try {
-                                        this.fs.copyFileSync(this.dbPath, bakPath);
-                                        console.log("🛡️ [SQLite Auto-Recovery] تم حفظ وتحديث نسخة الطوارئ الاحتياطية (.bak) بنجاح.");
+                                        if (typeof nativeDb.backup === 'function') {
+                                            nativeDb.backup(bakPath).then(() => {
+                                                console.log("🛡️ [SQLite Auto-Recovery] تم حفظ نسخة الطوارئ الاحتياطية (.bak) بنجاح وبدون أي تجميد.");
+                                            }).catch(() => {});
+                                        } else if (this.fs.copyFile) {
+                                            this.fs.copyFile(this.dbPath, bakPath, () => {});
+                                        }
                                     } catch (e) {}
-                                }, 5000);
+                                }, 30000);
                             }
 
                             // إنشاء الجداول والفهارس فوراً
-                            this._createSchema();
+                            try {
+                                this._createSchema();
+                            } catch(sErr) {
+                                console.warn("[SQLite] Schema warning:", sErr.message);
+                            }
 
                             // تنفيذ مهام ما بعد التهيئة والفحص الصامت
-                            await this._runPostInitTasks();
+                            try {
+                                await this._runPostInitTasks();
+                            } catch(pErr) {
+                                console.warn("[SQLite] Post-init warning:", pErr.message);
+                            }
 
                             this.isInitialized = true;
-                            console.log("✅ [SQLite Native Engine] Database active successfully at:", this.dbPath);
+                            // 🧹 تحرير فوري لذاكرة الرام بإلغاء حزمة الـ WASM Base64 في بيئة Native SQLite
+                            try { delete window.SQL_WASM_BASE64; } catch (e) { window.SQL_WASM_BASE64 = null; }
+                            console.info("⚡ [SQLite Engine] NATIVE C++ better-sqlite3 ACTIVE (WAL Mode) at:", this.dbPath);
 
                             if (window.BayanDBAdapter) {
                                 window.BayanDBAdapter.mode = 'sqlite';
@@ -437,7 +452,7 @@
                             return this;
                         }
                     } catch (nativeErr) {
-                        console.warn("⚠️ [SQLite] تعذر تشغيل محرك Native C++، جاري التحويل التلقائي لمحرك WebAssembly:", nativeErr.message);
+                        console.warn("⚠️ [SQLite Engine] WASM Fallback ACTIVE (sql.js) - تعذر تشغيل محرك Native C++:", nativeErr.message);
                         this.isNative = false;
                         this.nativeDb = null;
                     }
@@ -643,13 +658,21 @@
                     }
 
                     // إنشاء الجداول والفهارس فوراً
-                    this._createSchema();
+                    try {
+                        this._createSchema();
+                    } catch(sErr) {
+                        console.warn("[SQLite] Schema warning:", sErr.message);
+                    }
 
                     // تنفيذ مهام ما بعد التهيئة والفحص الصامت
-                    await this._runPostInitTasks();
+                    try {
+                        await this._runPostInitTasks();
+                    } catch(pErr) {
+                        console.warn("[SQLite] Post-init warning:", pErr.message);
+                    }
 
                     this.isInitialized = true;
-                    console.log("✅ [SQLite WebAssembly] Database initialized and active successfully at:", this.dbPath || 'Browser Local Storage');
+                    console.info("ℹ️ [SQLite Engine] WASM Fallback ACTIVE (sql.js) at:", this.dbPath || 'Browser Local Storage');
 
                     // إعلام الـ Adapter بتوفر الـ SQLite
                     if (window.BayanDBAdapter) {
@@ -698,10 +721,10 @@
                 }
             } catch(tiErr) {}
 
-            // 📸 فحص وتفريغ أي صور Base64 قديمة متبقية في جدول products إلى القرص بهدوء في الخلفية
+            // 📸 فحص وتفريغ أي صور Base64 قديمة متبقية في جدول products إلى القرص بهدوء بعد دقيقة
             setTimeout(() => {
                 this._migrateLegacyBase64Images();
-            }, 8000);
+            }, 60000);
         }
 
         /**
@@ -738,29 +761,54 @@
             `);
 
             // 2. جدول الفواتير والحركات اليومية
-            this.db.run(`
-                CREATE TABLE IF NOT EXISTS transactions (
-                    id INTEGER PRIMARY KEY,
-                    invoiceId TEXT,
-                    dateISO TEXT,
-                    time TEXT,
-                    type TEXT,
-                    partner TEXT,
-                    total REAL DEFAULT 0,
-                    paidAmount REAL DEFAULT 0,
-                    remaining REAL DEFAULT 0,
-                    method TEXT,
-                    cashier TEXT,
-                    warehouse TEXT,
-                    raw_json TEXT
-                );
-                CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(dateISO);
-                CREATE INDEX IF NOT EXISTS idx_tx_partner ON transactions(partner);
-                CREATE INDEX IF NOT EXISTS idx_tx_invoiceId ON transactions(invoiceId);
-                CREATE INDEX IF NOT EXISTS idx_tx_type ON transactions(type);
-                CREATE INDEX IF NOT EXISTS idx_tx_date_type ON transactions(dateISO, type);
-                CREATE INDEX IF NOT EXISTS idx_tx_date_method ON transactions(dateISO, method);
-            `);
+            try {
+                this.db.run(`
+                    CREATE TABLE IF NOT EXISTS transactions (
+                        id INTEGER PRIMARY KEY,
+                        invoiceId TEXT,
+                        originalInvoiceId TEXT,
+                        dateISO TEXT,
+                        time TEXT,
+                        type TEXT,
+                        partner TEXT,
+                        total REAL DEFAULT 0,
+                        paidAmount REAL DEFAULT 0,
+                        remaining REAL DEFAULT 0,
+                        method TEXT,
+                        cashier TEXT,
+                        warehouse TEXT,
+                        raw_json TEXT
+                    );
+                    CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(dateISO);
+                    CREATE INDEX IF NOT EXISTS idx_tx_partner ON transactions(partner);
+                    CREATE INDEX IF NOT EXISTS idx_tx_invoiceId ON transactions(invoiceId);
+                    CREATE INDEX IF NOT EXISTS idx_tx_type ON transactions(type);
+                    CREATE INDEX IF NOT EXISTS idx_tx_date_type ON transactions(dateISO, type);
+                    CREATE INDEX IF NOT EXISTS idx_tx_date_method ON transactions(dateISO, method);
+                    CREATE INDEX IF NOT EXISTS idx_tx_date_wh ON transactions(dateISO, warehouse);
+                    CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);
+                    CREATE INDEX IF NOT EXISTS idx_tx_date_type_wh ON transactions(dateISO, type, warehouse);
+                `);
+            } catch(txErr) {
+                console.warn("[SQLite] transactions table schema notice:", txErr.message);
+            }
+
+            // 🛡️ ترقية الأعمدة والفهارس المضافة لقواعد البيانات المفتوحة مسبقاً لمنع أي خطأ
+            try {
+                this.db.run("ALTER TABLE transactions ADD COLUMN originalInvoiceId TEXT;");
+            } catch(e) {}
+            try {
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_origInvId ON transactions(originalInvoiceId);");
+            } catch(e) {}
+            try {
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_wh ON transactions(dateISO, warehouse);");
+            } catch(e) {}
+            try {
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);");
+            } catch(e) {}
+            try {
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_type_wh ON transactions(dateISO, type, warehouse);");
+            } catch(e) {}
 
             // 2.1 جدول بنود الفواتير الذكي والمفهرس لتسريع تقارير الأصناف التاريخية بنسبة 95%
             this.db.run(`
@@ -858,20 +906,29 @@
          */
         _reconstructRow(row) {
             if (!row || typeof row !== 'object') return null;
-            let extra = {};
+            let res = null;
             if (row.raw_json) {
                 try {
-                    extra = typeof row.raw_json === 'string' ? JSON.parse(row.raw_json) : row.raw_json;
+                    res = typeof row.raw_json === 'string' ? JSON.parse(row.raw_json) : row.raw_json;
                 } catch (e) {}
             }
-            delete row.raw_json;
-            // دمج خصائص extra أولاً، ثم تطبيق قيم أعمدة row غير الفارغة (غير null وغير undefined)
-            // هذا يمنع أي عمود SQL قيمته null من طمس بيانات الكائن الأصلية
-            const res = Object.assign({}, extra);
+            if (!res || typeof res !== 'object') res = {};
             for (const key in row) {
-                if (row[key] !== null && row[key] !== undefined) {
+                if (key !== 'raw_json' && row[key] !== null && row[key] !== undefined) {
                     res[key] = row[key];
                 }
+            }
+            // 🔄 توحيد وتطبيع حقول الصنف والباركود لمنع ظهور undefined في مرتجع البيع أو الشراء
+            const resolvedName = (res.product || res.productName || res.name || '').trim();
+            if (resolvedName) {
+                if (!res.product) res.product = resolvedName;
+                if (!res.productName) res.productName = resolvedName;
+                if (!res.name) res.name = resolvedName;
+            }
+            const resolvedCode = (res.code || res.barcode || '').trim();
+            if (resolvedCode) {
+                if (!res.code) res.code = resolvedCode;
+                if (!res.barcode) res.barcode = resolvedCode;
             }
             if (res.image && typeof res.image === 'string' && res.image.startsWith('local_img:')) {
                 res.image = this._resolveProductImage(res.image);
@@ -979,6 +1036,9 @@
         _migrateLegacyBase64Images() {
             if (!this.db || !this.fs) return;
             try {
+                if (typeof localStorage !== 'undefined' && localStorage.getItem('bayan_legacy_img_migrated') === 'done') {
+                    return;
+                }
                 const stmt = this.db.prepare("SELECT id, raw_json FROM products WHERE raw_json LIKE '%data:image%';");
                 const prodsToMigrate = [];
                 while (stmt.step()) {
@@ -986,7 +1046,10 @@
                 }
                 stmt.free();
 
-                if (prodsToMigrate.length === 0) return;
+                if (prodsToMigrate.length === 0) {
+                    if (typeof localStorage !== 'undefined') localStorage.setItem('bayan_legacy_img_migrated', 'done');
+                    return;
+                }
                 console.log(`📸 [SQLite Image Offloader] جاري ترحيل وتفريغ ${prodsToMigrate.length} صورة من الداتابيز إلى القرص...`);
                 let count = 0;
                 this.runInTransaction(() => {
@@ -1153,11 +1216,10 @@
                         const rows = this.nativeDb.prepare("SELECT id, value FROM settings;").all();
                         return rows.map(row => ({ id: String(row.id), value: row.value }));
                     }
-                    const rawRows = this.nativeDb.prepare(`SELECT * FROM ${tableName};`).all();
-                    const len = rawRows.length;
-                    const items = new Array(len);
-                    for (let i = 0; i < len; i++) {
-                        items[i] = this._reconstructRow(rawRows[i]);
+                    const stmt = this.nativeDb.prepare(`SELECT * FROM ${tableName};`);
+                    const items = [];
+                    for (const row of stmt.iterate()) {
+                        items.push(this._reconstructRow(row));
                     }
                     return items;
                 }
@@ -1310,11 +1372,12 @@
                     stmt.free();
                 } else if (tableName === 'transactions') {
                     // تجريد أعمدة الفاتورة الأساسية مع الاحتفاظ بالمصفوفات مثل items والخصومات والإضافات وإجمالي الفاتورة
-                    const rawJson = this._extractExtraFields(item, ['id', 'invoiceId', 'dateISO', 'time', 'type', 'partner', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'user', 'warehouse']);
-                    const stmt = this.db.prepare(`INSERT OR REPLACE INTO transactions (id, invoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
+                    const rawJson = this._extractExtraFields(item, ['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'user', 'warehouse']);
+                    const stmt = this.db.prepare(`INSERT OR REPLACE INTO transactions (id, invoiceId, originalInvoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
                     stmt.run(this._safeBind([
                         item.id,
                         String(item.invoiceId || ''),
+                        item.originalInvoiceId != null && item.originalInvoiceId !== '' ? String(item.originalInvoiceId) : null,
                         item.dateISO || '',
                         item.time || '',
                         item.type || '',
@@ -1543,6 +1606,851 @@
         }
 
         /**
+         * ⚡ جلب فاتورة واحدة برقمها الفوري من SQLite
+         */
+        getInvoice(invoiceId) {
+            if (!this.db || !invoiceId) return null;
+            const sId = String(invoiceId).trim();
+            const numId = Number(sId) || 0;
+            try {
+                if (this.isNative && this.nativeDb) {
+                    const row = this.nativeDb.prepare("SELECT * FROM transactions WHERE invoiceId = ? OR id = ? LIMIT 1;").get(sId, numId);
+                    return row ? this._reconstructRow(row) : null;
+                }
+                const stmt = this.db.prepare("SELECT * FROM transactions WHERE invoiceId = ? OR id = ? LIMIT 1;");
+                stmt.bind([sId, numId]);
+                if (stmt.step()) {
+                    const row = stmt.getAsObject();
+                    stmt.free();
+                    return this._reconstructRow(row);
+                }
+                stmt.free();
+            } catch (e) {
+                console.warn("[SQLite] getInvoice notice:", e.message);
+            }
+            return null;
+        }
+
+        /**
+         * ⚡ جلب كافة بنود الفاتورة مباشرة من جدول transaction_items أو transactions
+         */
+        getInvoiceItems(invoiceId) {
+            if (!this.db || !invoiceId) return [];
+            const sId = String(invoiceId).trim();
+            const numId = Number(sId) || 0;
+            try {
+                if (this.isNative && this.nativeDb) {
+                    const tiRows = this.nativeDb.prepare("SELECT * FROM transaction_items WHERE invoiceId = ? OR tx_id = ?;").all(sId, numId);
+                    if (tiRows && tiRows.length > 0) {
+                        return tiRows.map(r => this._reconstructRow(r));
+                    }
+                    const txRows = this.nativeDb.prepare("SELECT * FROM transactions WHERE invoiceId = ? OR id = ?;").all(sId, numId);
+                    return txRows ? txRows.map(r => this._reconstructRow(r)) : [];
+                }
+                const stmt = this.db.prepare("SELECT * FROM transaction_items WHERE invoiceId = ? OR tx_id = ?;");
+                stmt.bind([sId, numId]);
+                const items = [];
+                while (stmt.step()) {
+                    items.push(this._reconstructRow(stmt.getAsObject()));
+                }
+                stmt.free();
+                if (items.length > 0) return items;
+
+                const txStmt = this.db.prepare("SELECT * FROM transactions WHERE invoiceId = ? OR id = ?;");
+                txStmt.bind([sId, numId]);
+                while (txStmt.step()) {
+                    items.push(this._reconstructRow(txStmt.getAsObject()));
+                }
+                txStmt.free();
+                return items;
+            } catch (e) {
+                console.warn("[SQLite] getInvoiceItems notice:", e.message);
+            }
+            return [];
+        }
+
+        /**
+         * ⚡ جلب حركات المرتجع السابقة المرتبطة بفاتورة أصلية محددة
+         */
+        getInvoiceReturns(invoiceId) {
+            if (!this.db || !invoiceId) return [];
+            const sId = String(invoiceId).trim();
+            const rawJsonPattern = `%"originalInvoiceId":"${sId}"%`;
+            try {
+                if (this.isNative && this.nativeDb) {
+                    const rows = this.nativeDb.prepare("SELECT * FROM transactions WHERE (originalInvoiceId = ? OR (raw_json IS NOT NULL AND raw_json LIKE ?)) AND (type LIKE '%مرتجع%');").all(sId, rawJsonPattern);
+                    return rows ? rows.map(r => this._reconstructRow(r)) : [];
+                }
+                const stmt = this.db.prepare("SELECT * FROM transactions WHERE (originalInvoiceId = ? OR (raw_json IS NOT NULL AND raw_json LIKE ?)) AND (type LIKE '%مرتجع%');");
+                stmt.bind([sId, rawJsonPattern]);
+                const items = [];
+                while (stmt.step()) {
+                    items.push(this._reconstructRow(stmt.getAsObject()));
+                }
+                stmt.free();
+                return items;
+            } catch (e) {
+                console.warn("[SQLite] getInvoiceReturns notice:", e.message);
+            }
+            return [];
+        }
+
+        /**
+         * ⚡ حساب إجمالي القيمة المرتجعة لفاتورة معينة
+         */
+        getTotalReturnedAmount(invoiceId) {
+            if (!this.db || !invoiceId) return 0;
+            const sId = String(invoiceId).trim();
+            const rawJsonPattern = `%"originalInvoiceId":"${sId}"%`;
+            try {
+                if (this.isNative && this.nativeDb) {
+                    const row = this.nativeDb.prepare("SELECT COALESCE(SUM(total), 0) AS retTotal FROM transactions WHERE (originalInvoiceId = ? OR (raw_json IS NOT NULL AND raw_json LIKE ?)) AND (type LIKE '%مرتجع%');").get(sId, rawJsonPattern);
+                    return row ? (parseFloat(row.retTotal) || 0) : 0;
+                }
+                const stmt = this.db.prepare("SELECT COALESCE(SUM(total), 0) AS retTotal FROM transactions WHERE (originalInvoiceId = ? OR (raw_json IS NOT NULL AND raw_json LIKE ?)) AND (type LIKE '%مرتجع%');");
+                stmt.bind([sId, rawJsonPattern]);
+                if (stmt.step()) {
+                    const val = stmt.get()[0];
+                    stmt.free();
+                    return parseFloat(val) || 0;
+                }
+                stmt.free();
+            } catch (e) {
+                console.warn("[SQLite] getTotalReturnedAmount notice:", e.message);
+            }
+            return 0;
+        }
+
+        /**
+         * ⚡ حساب الكمية المرتجعة لصنف محدد ضمن فاتورة أصلية
+         */
+        getReturnedQtyForProduct(invoiceId, productName, size = '', color = '') {
+            if (!this.db || !invoiceId) return 0;
+            const sId = String(invoiceId).trim();
+            const pName = String(productName || '').trim();
+            const sSize = String(size || '').trim();
+            const sColor = String(color || '').trim();
+            try {
+                const rets = this.getInvoiceReturns(sId);
+                if (!rets || rets.length === 0) return 0;
+                let sum = 0;
+                for (const r of rets) {
+                    const rName = String(r.product || r.productName || '').trim();
+                    const rSize = String(r.size || r.selectedSize || '').trim();
+                    const rColor = String(r.color || r.selectedColor || '').trim();
+                    if (rName === pName && (!sSize || rSize === sSize) && (!sColor || rColor === sColor)) {
+                        sum += (parseFloat(r.qty) || 0);
+                    }
+                }
+                return sum;
+            } catch (e) {
+                return 0;
+            }
+        }
+
+        /**
+         * ⚡ جلب قائمة أسماء الشركاء (العملاء والموردين) المتميزة من SQLite مباشرة دون فحص مصفوفات بالذاكرة
+         */
+        getDistinctPartners() {
+            if (!this.db) return [];
+            try {
+                if (this.isNative && this.nativeDb) {
+                    const rows = this.nativeDb.prepare("SELECT DISTINCT partner AS p FROM transactions WHERE partner IS NOT NULL AND partner != '' AND partner != '-' UNION SELECT DISTINCT name AS p FROM accounts WHERE name IS NOT NULL AND name != '';").all();
+                    return rows ? rows.map(r => r.p).filter(Boolean).sort() : [];
+                }
+                const res = this.db.exec("SELECT DISTINCT partner AS p FROM transactions WHERE partner IS NOT NULL AND partner != '' AND partner != '-' UNION SELECT DISTINCT name AS p FROM accounts WHERE name IS NOT NULL AND name != '';");
+                if (res && res.length > 0 && res[0].values) {
+                    return res[0].values.map(v => v[0]).filter(Boolean).sort();
+                }
+            } catch (e) {
+                console.warn("[SQLite] getDistinctPartners notice:", e.message);
+            }
+            return [];
+        }
+
+        /**
+         * ⚡ جلب تصنيفات الأصناف المتميزة مباشرة من SQLite
+         */
+        getDistinctCategories() {
+            if (!this.db) return [];
+            try {
+                if (this.isNative && this.nativeDb) {
+                    const rows = this.nativeDb.prepare("SELECT DISTINCT category AS c FROM products WHERE category IS NOT NULL AND category != '' AND category != 'عام';").all();
+                    return rows ? rows.map(r => r.c).filter(Boolean).sort() : [];
+                }
+                const res = this.db.exec("SELECT DISTINCT category AS c FROM products WHERE category IS NOT NULL AND category != '' AND category != 'عام';");
+                if (res && res.length > 0 && res[0].values) {
+                    return res[0].values.map(v => v[0]).filter(Boolean).sort();
+                }
+            } catch (e) {
+                console.warn("[SQLite] getDistinctCategories notice:", e.message);
+            }
+            return [];
+        }
+
+        /**
+         * ⚡ جلب أسماء الكاشيرات والمستخدمين المسجلين في حركات SQLite
+         */
+        getDistinctUsers() {
+            if (!this.db) return [];
+            try {
+                if (this.isNative && this.nativeDb) {
+                    const rows = this.nativeDb.prepare("SELECT DISTINCT cashier AS u FROM transactions WHERE cashier IS NOT NULL AND cashier != '' AND cashier != '-' UNION SELECT DISTINCT name AS u FROM users WHERE name IS NOT NULL AND name != '';").all();
+                    return rows ? rows.map(r => r.u).filter(Boolean).sort() : [];
+                }
+                const res = this.db.exec("SELECT DISTINCT cashier AS u FROM transactions WHERE cashier IS NOT NULL AND cashier != '' AND cashier != '-' UNION SELECT DISTINCT name AS u FROM users WHERE name IS NOT NULL AND name != '';");
+                if (res && res.length > 0 && res[0].values) {
+                    return res[0].values.map(v => v[0]).filter(Boolean).sort();
+                }
+            } catch (e) {
+                console.warn("[SQLite] getDistinctUsers notice:", e.message);
+            }
+            return [];
+        }
+
+        /**
+         * ⚡ جلب حركات فترة محددة مباشرة من SQLite دون تكديسها في مصفوفة الذاكرة العامة
+         */
+        getTransactionsForPeriod(fromDate, toDate, limit = 5000, warehouse = null, cashier = null) {
+            if (!this.db) return [];
+            try {
+                const fDate = String(fromDate || '').trim();
+                const tDate = String(toDate || '').trim();
+                const lim = parseInt(limit, 10) || 5000;
+
+                let query = "SELECT * FROM transactions WHERE 1=1";
+                const params = [];
+                if (fDate) {
+                    query += " AND dateISO >= ?";
+                    params.push(fDate);
+                }
+                if (tDate) {
+                    query += " AND dateISO <= ?";
+                    params.push(tDate);
+                }
+                if (warehouse && warehouse !== 'all') {
+                    query += " AND (warehouse = ? OR (warehouse IS NULL AND ? = 'المخزن الرئيسي'))";
+                    params.push(warehouse, warehouse);
+                }
+                if (cashier && cashier !== 'all') {
+                    query += " AND cashier = ?";
+                    params.push(cashier);
+                }
+                query += " ORDER BY dateISO ASC, id ASC LIMIT ?;";
+                params.push(lim);
+
+                if (this.isNative && this.nativeDb) {
+                    const rows = this.nativeDb.prepare(query).all(...params);
+                    return rows ? rows.map(r => this._reconstructRow(r)) : [];
+                }
+                const stmt = this.db.prepare(query);
+                stmt.bind(params);
+                const items = [];
+                while (stmt.step()) {
+                    items.push(this._reconstructRow(stmt.getAsObject()));
+                }
+                stmt.free();
+                return items;
+            } catch (err) {
+                console.warn("[SQLite] getTransactionsForPeriod error:", err.message);
+                return [];
+            }
+        }
+
+        /**
+         * ⚡ جلب صنف واحد باسمه مباشرة بالاعتماد على الفهرس B-Tree
+         */
+        getProductByName(productName) {
+            if (!this.db || !productName) return null;
+            const pName = String(productName).trim();
+            try {
+                if (this.isNative && this.nativeDb) {
+                    const row = this.nativeDb.prepare("SELECT * FROM products WHERE name = ? LIMIT 1;").get(pName);
+                    return row ? this._reconstructRow(row) : null;
+                }
+                const stmt = this.db.prepare("SELECT * FROM products WHERE name = ? LIMIT 1;");
+                stmt.bind([pName]);
+                if (stmt.step()) {
+                    const row = stmt.getAsObject();
+                    stmt.free();
+                    return this._reconstructRow(row);
+                }
+                stmt.free();
+            } catch (e) {
+                console.warn("[SQLite] getProductByName notice:", e.message);
+            }
+            return null;
+        }
+
+        /**
+         * ⚡ جلب صنف بمعرفه id مباشرة
+         */
+        getProductById(productId) {
+            if (!this.db || !productId) return null;
+            const numId = Number(productId) || 0;
+            try {
+                if (this.isNative && this.nativeDb) {
+                    const row = this.nativeDb.prepare("SELECT * FROM products WHERE id = ? LIMIT 1;").get(numId);
+                    return row ? this._reconstructRow(row) : null;
+                }
+                const stmt = this.db.prepare("SELECT * FROM products WHERE id = ? LIMIT 1;");
+                stmt.bind([numId]);
+                if (stmt.step()) {
+                    const row = stmt.getAsObject();
+                    stmt.free();
+                    return this._reconstructRow(row);
+                }
+                stmt.free();
+            } catch (e) {
+                console.warn("[SQLite] getProductById notice:", e.message);
+            }
+            return null;
+        }
+
+        /**
+         * ⚡ جلب صنف مباشرة بالباركود بالاعتماد على فهرس idx_prod_barcode
+         */
+        getProductByBarcode(barcode) {
+            if (!this.db || !barcode) return null;
+            const b = String(barcode).trim();
+            try {
+                if (this.isNative && this.nativeDb) {
+                    const row = this.nativeDb.prepare("SELECT * FROM products WHERE barcode = ? LIMIT 1;").get(b);
+                    return row ? this._reconstructRow(row) : null;
+                }
+                const stmt = this.db.prepare("SELECT * FROM products WHERE barcode = ? LIMIT 1;");
+                stmt.bind([b]);
+                if (stmt.step()) {
+                    const row = stmt.getAsObject();
+                    stmt.free();
+                    return this._reconstructRow(row);
+                }
+                stmt.free();
+            } catch (e) {
+                console.warn("[SQLite] getProductByBarcode notice:", e.message);
+            }
+            return null;
+        }
+
+        /**
+         * ⚡ بحث سريع في الأصناف بالاسم أو الباركود بالاعتماد على SQLite
+         */
+        searchProducts(query, limit = 50) {
+            if (!this.db || !query) return [];
+            const q = String(query).trim();
+            const lim = parseInt(limit, 10) || 50;
+            try {
+                const sql = "SELECT * FROM products WHERE barcode = ? OR name LIKE ? LIMIT ?;";
+                const params = [q, `%${q}%`, lim];
+                if (this.isNative && this.nativeDb) {
+                    const rows = this.nativeDb.prepare(sql).all(...params);
+                    return rows ? rows.map(r => this._reconstructRow(r)) : [];
+                }
+                const stmt = this.db.prepare(sql);
+                stmt.bind(params);
+                const items = [];
+                while (stmt.step()) {
+                    items.push(this._reconstructRow(stmt.getAsObject()));
+                }
+                stmt.free();
+                return items;
+            } catch (e) {
+                console.warn("[SQLite] searchProducts notice:", e.message);
+            }
+            return [];
+        }
+
+        /**
+         * ⚡ إحصائيات سريعة للعميل/المورد مباشرة من SQLite باستخدام فهرس idx_tx_partner
+         */
+        getPartnerStats(partnerName) {
+            if (!this.db || !partnerName) return { totalSales: 0, lastReceiptDate: '-', lastTransDate: '-' };
+            const p = String(partnerName).trim();
+            try {
+                if (this.isNative && this.nativeDb) {
+                    const row = this.nativeDb.prepare(`
+                        SELECT 
+                            COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN total WHEN type LIKE '%مرتجع%' AND (type LIKE '%بيع%' OR type LIKE '%مبيعات%') THEN -total ELSE 0 END), 0) AS totalSales,
+                            COALESCE(MAX(CASE WHEN type LIKE '%قبض%' THEN dateISO ELSE NULL END), '-') AS lastReceiptDate,
+                            COALESCE(MAX(dateISO), '-') AS lastTransDate
+                        FROM transactions WHERE partner = ?;
+                    `).get(p);
+                    return row ? {
+                        totalSales: parseFloat(row.totalSales) || 0,
+                        lastReceiptDate: row.lastReceiptDate || '-',
+                        lastTransDate: row.lastTransDate || '-'
+                    } : { totalSales: 0, lastReceiptDate: '-', lastTransDate: '-' };
+                }
+                const stmt = this.db.prepare(`
+                    SELECT 
+                        COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN total WHEN type LIKE '%مرتجع%' AND (type LIKE '%بيع%' OR type LIKE '%مبيعات%') THEN -total ELSE 0 END), 0) AS totalSales,
+                        COALESCE(MAX(CASE WHEN type LIKE '%قبض%' THEN dateISO ELSE NULL END), '-') AS lastReceiptDate,
+                        COALESCE(MAX(dateISO), '-') AS lastTransDate
+                    FROM transactions WHERE partner = ?;
+                `);
+                stmt.bind([p]);
+                if (stmt.step()) {
+                    const res = stmt.getAsObject();
+                    stmt.free();
+                    return {
+                        totalSales: parseFloat(res.totalSales) || 0,
+                        lastReceiptDate: res.lastReceiptDate || '-',
+                        lastTransDate: res.lastTransDate || '-'
+                    };
+                }
+                stmt.free();
+            } catch (e) {
+                console.warn("[SQLite] getPartnerStats error:", e.message);
+            }
+            return { totalSales: 0, lastReceiptDate: '-', lastTransDate: '-' };
+        }
+
+        /**
+         * ⚡ جلب حركات كشف الحساب لشريك معين مباشرة من SQLite بسرعة فائقة
+         */
+        getPartnerTransactions(partnerName, limit = 1000) {
+            if (!this.db || !partnerName) return [];
+            const p = String(partnerName).trim();
+            const lim = parseInt(limit, 10) || 1000;
+            try {
+                const sql = "SELECT * FROM transactions WHERE partner = ? ORDER BY dateISO ASC, id ASC LIMIT ?;";
+                if (this.isNative && this.nativeDb) {
+                    const rows = this.nativeDb.prepare(sql).all(p, lim);
+                    return rows ? rows.map(r => this._reconstructRow(r)) : [];
+                }
+                const stmt = this.db.prepare(sql);
+                stmt.bind([p, lim]);
+                const items = [];
+                while (stmt.step()) {
+                    items.push(this._reconstructRow(stmt.getAsObject()));
+                }
+                stmt.free();
+                return items;
+            } catch (e) {
+                console.warn("[SQLite] getPartnerTransactions error:", e.message);
+            }
+            return [];
+        }
+
+        /**
+         * ⚡ حساب الرصيد الصافي الدقيق للعميل/المورد مباشرة من SQLite C++ مع معالجة تجميع الفواتير
+         */
+        getAccountAccurateBalance(partnerName, excludeInvoiceId = null) {
+            if (!this.db || !partnerName) return 0;
+            const p = String(partnerName).trim();
+            if (typeof window !== 'undefined' && window.isGenericCashPartner && window.isGenericCashPartner(p)) return 0;
+
+            // 1. قراءة الرصيد الافتتاحي للحساب
+            let initialDebit = 0;
+            let initialCredit = 0;
+            try {
+                let accRow = null;
+                if (this.isNative && this.nativeDb) {
+                    accRow = this.nativeDb.prepare("SELECT * FROM accounts WHERE name = ? LIMIT 1;").get(p);
+                } else {
+                    const stmtAcc = this.db.prepare("SELECT * FROM accounts WHERE name = ? LIMIT 1;");
+                    stmtAcc.bind([p]);
+                    if (stmtAcc.step()) accRow = stmtAcc.getAsObject();
+                    stmtAcc.free();
+                }
+                if (accRow) {
+                    const accObj = this._reconstructRow(accRow);
+                    initialDebit = parseFloat(accObj.debit) || 0;
+                    initialCredit = parseFloat(accObj.credit) || 0;
+                }
+            } catch (e) {}
+
+            let currentBalance = initialDebit - initialCredit;
+
+            // 2. جلب كافة حركات الشريك المسجلة في SQLite
+            const activeExcludeId = excludeInvoiceId ? String(excludeInvoiceId).trim() : null;
+            let rows = [];
+            try {
+                const sql = "SELECT * FROM transactions WHERE partner = ? ORDER BY dateISO ASC, id ASC;";
+                if (this.isNative && this.nativeDb) {
+                    rows = this.nativeDb.prepare(sql).all(p);
+                } else {
+                    const stmt = this.db.prepare(sql);
+                    stmt.bind([p]);
+                    while (stmt.step()) {
+                        rows.push(stmt.getAsObject());
+                    }
+                    stmt.free();
+                }
+            } catch (err) {
+                console.warn("[SQLite] getAccountAccurateBalance query error:", err.message);
+                return currentBalance;
+            }
+
+            if (!rows || rows.length === 0) return currentBalance;
+
+            const isCreditMethod = (m) => {
+                if (!m) return false;
+                const s = String(m).toLowerCase().trim().replace(/[أإآ]/g, 'ا');
+                return s.includes('اجل') || s.includes('ذمم') || s.includes('ذمه') || s.includes('تقسيط') || s.includes('credit') || s.includes('deferred');
+            };
+
+            const ivMap = {};
+            const singleTrans = [];
+
+            for (let i = 0; i < rows.length; i++) {
+                const r = rows[i];
+                const t = this._reconstructRow(r);
+                if (!t) continue;
+
+                if (activeExcludeId && String(t.invoiceId || t.id) === activeExcludeId) {
+                    continue;
+                }
+
+                const tType = String(t.type || '');
+                const isInvoice = (tType.includes('بيع') || tType.includes('شراء')) && t.invoiceId;
+                if (isInvoice) {
+                    const isReturn = tType.includes('مرتجع');
+                    const cleanT = tType.replace(/📤|📥|↩️/g, '').trim();
+                    const key = (isReturn ? "RET_" : "") + cleanT + "_" + t.invoiceId;
+                    if (!ivMap[key]) {
+                        ivMap[key] = {
+                            type: tType,
+                            invoiceId: t.invoiceId,
+                            method: t.method || '',
+                            total: 0,
+                            paid: 0,
+                            isReturn: isReturn
+                        };
+                    }
+                    ivMap[key].total += (parseFloat(t.total) || 0);
+                    if (t.isInvoiceHead || t.paidAmount !== undefined || t.paid !== undefined) {
+                        const pAmt = parseFloat(t.paidAmount !== undefined ? t.paidAmount : t.paid) || 0;
+                        ivMap[key].paid = Math.max(ivMap[key].paid, pAmt);
+                    }
+                } else {
+                    singleTrans.push(t);
+                }
+            }
+
+            const ivs = Object.values(ivMap);
+            for (let i = 0; i < ivs.length; i++) {
+                const iv = ivs[i];
+                if (iv.paid === 0 && iv.total > 0 && !isCreditMethod(iv.method)) {
+                    iv.paid = iv.total;
+                }
+                let debit = 0;
+                let credit = 0;
+
+                if (iv.type.includes('بيع')) {
+                    if (iv.type.includes('مرتجع')) {
+                        debit = iv.paid;
+                        credit = iv.total;
+                    } else {
+                        debit = iv.total;
+                        credit = iv.paid;
+                    }
+                } else if (iv.type.includes('شراء')) {
+                    if (iv.type.includes('مرتجع')) {
+                        debit = iv.total;
+                        credit = iv.paid;
+                    } else {
+                        debit = iv.paid;
+                        credit = iv.total;
+                    }
+                }
+
+                currentBalance += (debit - credit);
+            }
+
+            for (let i = 0; i < singleTrans.length; i++) {
+                const t = singleTrans[i];
+                const amount = parseFloat(t.total) || parseFloat(t.price) || 0;
+                const tType = String(t.type || '');
+                if (tType.includes('قبض') || tType.includes('مرتجع بيع')) {
+                    currentBalance -= amount;
+                } else if (tType.includes('صرف') || tType.includes('مرتجع شراء') || tType.includes('بيع')) {
+                    currentBalance += amount;
+                }
+            }
+
+            return currentBalance;
+        }
+
+        /**
+         * ⚡ تلخيص حركات المخزن (الوارد والمنصرف ورصيد المخزن) مجمعة من SQLite مباشرة
+         */
+        getInventoryMovementSummary(currentWH) {
+            if (!this.db) return null;
+            const targetWH = String(currentWH || 'المخزن الرئيسي').trim();
+            const summary = {};
+
+            try {
+                // 1. التجميع المباشر من جدول transaction_items
+                let hasTiData = false;
+                try {
+                    const chk = this.db.exec("SELECT 1 FROM transaction_items LIMIT 1;");
+                    hasTiData = (chk && chk.length > 0 && chk[0].values && chk[0].values.length > 0);
+                } catch(e) {}
+
+                if (hasTiData) {
+                    const sql = `
+                        SELECT 
+                            productName,
+                            type,
+                            warehouse,
+                            COALESCE(SUM(qty), 0) AS totalQty,
+                            COALESCE(SUM(total), 0) AS totalAmount,
+                            COALESCE(MAX(price), 0) AS maxPrice
+                        FROM transaction_items
+                        WHERE productName IS NOT NULL AND productName != ''
+                        GROUP BY productName, type, warehouse;
+                    `;
+                    let rows = [];
+                    if (this.isNative && this.nativeDb) {
+                        rows = this.nativeDb.prepare(sql).all();
+                    } else {
+                        const stmt = this.db.prepare(sql);
+                        while (stmt.step()) rows.push(stmt.getAsObject());
+                        stmt.free();
+                    }
+
+                    for (let i = 0; i < rows.length; i++) {
+                        const r = rows[i];
+                        const pName = r.productName;
+                        if (!summary[pName]) {
+                            summary[pName] = { in: 0, out: 0, lastPur: 0, totalCost: 0, totalQty: 0, wStock: 0, globalChange: 0 };
+                        }
+                        const s = summary[pName];
+                        const qty = parseFloat(r.totalQty) || 0;
+                        const amount = parseFloat(r.totalAmount) || 0;
+                        const type = String(r.type || '');
+                        const rWH = String(r.warehouse || 'المخزن الرئيسي').trim();
+
+                        let change = 0;
+                        if (type.includes('شراء') && !type.includes('مرتجع')) {
+                            change = qty;
+                            s.in += qty;
+                            s.lastPur = r.maxPrice || (qty > 0 ? (amount / qty) : 0);
+                            s.totalCost += amount;
+                            s.totalQty += qty;
+                        } else if (type.includes('مرتجع بيع')) {
+                            change = qty;
+                            s.in += qty;
+                        } else if (type.includes('بيع') && !type.includes('مرتجع')) {
+                            change = -qty;
+                            s.out += qty;
+                        } else if (type.includes('مرتجع شراء')) {
+                            change = -qty;
+                            s.out += qty;
+                        } else if (type.includes('تسوية')) {
+                            change = type.includes('+') ? qty : -qty;
+                        }
+
+                        if (!type.includes('تحويل')) s.globalChange += change;
+                        if (rWH === targetWH) s.wStock += change;
+                    }
+
+                    // 2. تجميع التحويلات المخزنية المعتمدة
+                    try {
+                        const trSql = `SELECT partner, qty, raw_json FROM transactions WHERE type LIKE '%تحويل%';`;
+                        let trRows = [];
+                        if (this.isNative && this.nativeDb) trRows = this.nativeDb.prepare(trSql).all();
+                        else {
+                            const trStmt = this.db.prepare(trSql);
+                            while (trStmt.step()) trRows.push(trStmt.getAsObject());
+                            trStmt.free();
+                        }
+                        for (let k = 0; k < trRows.length; k++) {
+                            const tr = this._reconstructRow(trRows[k]);
+                            if (!tr || tr.transferStatus !== 'received') continue;
+                            const parts = String(tr.partner || '').split(' -> ');
+                            const qty = parseFloat(tr.qty) || 0;
+                            const pName = tr.product;
+                            if (parts.length === 2 && pName && summary[pName]) {
+                                if (parts[1].trim() === targetWH) summary[pName].wStock += qty;
+                                if (parts[0].trim() === targetWH) summary[pName].wStock -= qty;
+                            }
+                        }
+                    } catch(trErr) {}
+
+                    return summary;
+                }
+            } catch (err) {
+                console.warn("[SQLite] getInventoryMovementSummary notice:", err.message);
+            }
+            return null;
+        }
+
+        /**
+         * ⚡ بحث واستعلام فوري عن فواتير الإرجاع مباشرة من SQLite بكامل الأرشيف التاريخي
+         */
+        searchReturnInvoices({ ref = '', product = '', account = '', dateFrom = '', dateTo = '', isSalesReturn = true, limit = 300 } = {}) {
+            if (!this.db) return [];
+            try {
+                const typePattern = isSalesReturn ? '%بيع%' : '%شراء%';
+                let sql = `SELECT * FROM transactions WHERE (type LIKE ? AND type NOT LIKE '%مرتجع%')`;
+                const params = [typePattern];
+
+                if (ref) {
+                    const r = String(ref).trim();
+                    sql += ` AND (invoiceId = ? OR originalInvoiceId = ? OR invoiceId LIKE ? OR product LIKE ? OR code LIKE ? OR barcode LIKE ? OR raw_json LIKE ?)`;
+                    params.push(r, r, `%${r}%`, `%${r}%`, `%${r}%`, `%${r}%`, `%"dailySeq":${r}%`);
+                }
+
+                if (product) {
+                    const p = String(product).trim();
+                    sql += ` AND (product LIKE ? OR code LIKE ? OR barcode LIKE ? OR raw_json LIKE ?)`;
+                    params.push(`%${p}%`, `%${p}%`, `%${p}%`, `%"name":"%${p}%"`);
+                }
+
+                if (account) {
+                    const a = String(account).trim();
+                    sql += ` AND partner LIKE ?`;
+                    params.push(`%${a}%`);
+                }
+
+                if (dateFrom) {
+                    sql += ` AND dateISO >= ?`;
+                    params.push(dateFrom);
+                }
+
+                if (dateTo) {
+                    sql += ` AND dateISO <= ?`;
+                    params.push(dateTo);
+                }
+
+                sql += ` ORDER BY dateISO DESC, id DESC LIMIT ?;`;
+                params.push(parseInt(limit, 10) || 300);
+
+                if (this.isNative && this.nativeDb) {
+                    const rows = this.nativeDb.prepare(sql).all(...params);
+                    return rows ? rows.map(r => this._reconstructRow(r)) : [];
+                }
+                const stmt = this.db.prepare(sql);
+                stmt.bind(params);
+                const items = [];
+                while (stmt.step()) {
+                    items.push(this._reconstructRow(stmt.getAsObject()));
+                }
+                stmt.free();
+                return items;
+            } catch (e) {
+                console.warn("[SQLite] searchReturnInvoices notice:", e.message);
+                return [];
+            }
+        }
+
+        /**
+         * ⚡ استعلام مفلتر مباشرة من محرك SQLite لسجل الفواتير دون إجهاد الذاكرة
+         */
+        queryFilteredTransactions({ fromDate = '', toDate = '', type = '', warehouse = '', cashier = '', partner = '', searchId = '', limit = 5000 } = {}) {
+            if (!this.db) return [];
+            try {
+                let sql = "SELECT * FROM transactions WHERE 1=1";
+                const params = [];
+
+                if (fromDate) {
+                    sql += " AND dateISO >= ?";
+                    params.push(fromDate);
+                }
+                if (toDate) {
+                    sql += " AND dateISO <= ?";
+                    params.push(toDate);
+                }
+                if (warehouse && warehouse !== 'all') {
+                    sql += " AND (warehouse = ? OR (warehouse IS NULL AND ? = 'المخزن الرئيسي'))";
+                    params.push(warehouse, warehouse);
+                }
+                if (cashier && cashier !== 'all') {
+                    sql += " AND cashier = ?";
+                    params.push(cashier);
+                }
+                if (partner) {
+                    sql += " AND partner LIKE ?";
+                    params.push(`%${partner}%`);
+                }
+                if (searchId) {
+                    sql += " AND (invoiceId = ? OR originalInvoiceId = ? OR invoiceId LIKE ?)";
+                    params.push(searchId, searchId, `%${searchId}%`);
+                }
+                if (type && type !== 'all') {
+                    if (type === 'بيع') {
+                        sql += " AND type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%'";
+                    } else if (type === 'شراء') {
+                        sql += " AND (type LIKE '%شراء%' OR type LIKE '%مشتريات%') AND type NOT LIKE '%مرتجع%'";
+                    } else if (type === 'مرتجع بيع') {
+                        sql += " AND type LIKE '%مرتجع%' AND type LIKE '%بيع%'";
+                    } else if (type === 'مرتجع شراء') {
+                        sql += " AND type LIKE '%مرتجع%' AND (type LIKE '%شراء%' OR type LIKE '%مشتريات%')";
+                    } else {
+                        sql += " AND type LIKE ?";
+                        params.push(`%${type}%`);
+                    }
+                }
+
+                sql += " ORDER BY dateISO DESC, id DESC LIMIT ?;";
+                params.push(parseInt(limit, 10) || 5000);
+
+                if (this.isNative && this.nativeDb) {
+                    const rows = this.nativeDb.prepare(sql).all(...params);
+                    return rows ? rows.map(r => this._reconstructRow(r)) : [];
+                }
+                const stmt = this.db.prepare(sql);
+                stmt.bind(params);
+                const items = [];
+                while (stmt.step()) {
+                    items.push(this._reconstructRow(stmt.getAsObject()));
+                }
+                stmt.free();
+                return items;
+            } catch (err) {
+                console.warn("[SQLite] queryFilteredTransactions error:", err.message);
+                return [];
+            }
+        }
+
+        /**
+         * ⚡ إجماليات مالية مجمعة لفترة محددة مباشرة من SQLite C++ لتسريع التقارير
+         */
+        getFinancialPeriodTotals(fromDate, toDate, warehouse = null, cashier = null) {
+            if (!this.db) return null;
+            try {
+                let sql = `
+                    SELECT 
+                        type,
+                        method,
+                        COUNT(DISTINCT (CASE WHEN invoiceId IS NOT NULL AND TRIM(invoiceId) != '' AND invoiceId != '---' THEN invoiceId ELSE id END)) as invCount,
+                        COALESCE(SUM(total), 0) as sumTotal,
+                        COALESCE(SUM(paidAmount), 0) as sumPaid,
+                        COALESCE(SUM(remaining), 0) as sumRemaining
+                    FROM transactions
+                    WHERE dateISO >= ? AND dateISO <= ?
+                `;
+                const params = [fromDate, toDate];
+                if (warehouse && warehouse !== 'all') {
+                    sql += " AND (warehouse = ? OR (warehouse IS NULL AND ? = 'المخزن الرئيسي'))";
+                    params.push(warehouse, warehouse);
+                }
+                if (cashier && cashier !== 'all') {
+                    sql += " AND cashier = ?";
+                    params.push(cashier);
+                }
+                sql += " GROUP BY type, method;";
+
+                if (this.isNative && this.nativeDb) {
+                    return this.nativeDb.prepare(sql).all(...params);
+                }
+                const stmt = this.db.prepare(sql);
+                stmt.bind(params);
+                const items = [];
+                while (stmt.step()) {
+                    items.push(stmt.getAsObject());
+                }
+                stmt.free();
+                return items;
+            } catch (err) {
+                console.warn("[SQLite] getFinancialPeriodTotals error:", err.message);
+                return null;
+            }
+        }
+
+        /**
          * ⚡ تنظيف وضغط قاعدة البيانات وإزالة التكرار من السجلات السابقة (One-Click Storage Optimization)
          */
         optimizeStorage() {
@@ -1692,10 +2600,10 @@
                     }
 
                     if (Array.isArray(data.transactions)) {
-                        const stmt = this.db.prepare(`INSERT OR REPLACE INTO transactions (id, invoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
+                        const stmt = this.db.prepare(`INSERT OR REPLACE INTO transactions (id, invoiceId, originalInvoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
                         data.transactions.forEach(t => {
                             if (!t) return;
-                            stmt.run(this._safeBind([t.id || null, String(t.invoiceId || ''), t.dateISO || '', t.time || '', t.type || '', t.partner || '', parseFloat(t.total) || 0, parseFloat(t.paidAmount) || 0, parseFloat(t.remaining) || 0, t.method || '', t.cashier || '', t.warehouse || '', JSON.stringify(t)]));
+                            stmt.run(this._safeBind([t.id || null, String(t.invoiceId || ''), t.originalInvoiceId ? String(t.originalInvoiceId) : null, t.dateISO || '', t.time || '', t.type || '', t.partner || '', parseFloat(t.total) || 0, parseFloat(t.paidAmount) || 0, parseFloat(t.remaining) || 0, t.method || '', t.cashier || '', t.warehouse || '', JSON.stringify(t)]));
                         });
                         stmt.free();
                     }

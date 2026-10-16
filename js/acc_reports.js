@@ -874,8 +874,8 @@
                 dbPriorCalculated = true;
             } else if (window.BayanSQLite && window.BayanSQLite.db) {
                 try {
-                    // ⚡ تجميع فوري على مستوى محرك SQLite لكل فاتورة وحركة بدون سحب مصفوفات للرام وبدون إجهاد الذاكرة
-                    const sql = `
+                    // ⚡ تجميع فوري على مستوى محرك SQLite لكل فاتورة وحركة مع دفع فلاتر المخزن والمستخدم في الـ WHERE مباشرة
+                    let sql = `
                         SELECT 
                             type, 
                             MAX(method) as method, 
@@ -885,52 +885,71 @@
                             MAX(total) as total
                         FROM transactions 
                         WHERE dateISO < ?
-                        GROUP BY (CASE WHEN invoiceId IS NOT NULL AND TRIM(invoiceId) != '' AND invoiceId != '---' THEN invoiceId ELSE id END), type
                     `;
-                    const stmt = window.BayanSQLite.db.prepare(sql);
-                    stmt.bind([fromDate]);
-                    while (stmt.step()) {
-                        const rowVals = stmt.get();
-                        if (!rowVals) continue;
-                        const gType = rowVals[0] || '';
-                        const rMethod = rowVals[1] || '';
-                        const rWarehouse = rowVals[2] || '';
-                        const rCashier = rowVals[3] || '';
-                        const paid = parseFloat(rowVals[4]) || 0;
-                        const total = parseFloat(rowVals[5]) || 0;
+                    const params = [fromDate];
+                    if (selectedWarehouse && selectedWarehouse !== 'all') {
+                        sql += " AND (warehouse = ? OR (warehouse IS NULL AND ? = 'المخزن الرئيسي'))";
+                        params.push(selectedWarehouse, selectedWarehouse);
+                    }
+                    if (selectedUser && selectedUser !== 'all') {
+                        sql += " AND cashier = ?";
+                        params.push(selectedUser);
+                    }
+                    sql += ` GROUP BY (CASE WHEN invoiceId IS NOT NULL AND TRIM(invoiceId) != '' AND invoiceId != '---' THEN invoiceId ELSE id END), type;`;
 
-                        const row = {
-                            type: gType,
-                            method: rMethod,
-                            warehouse: rWarehouse,
-                            user: rCashier,
-                            cashier: rCashier
-                        };
+                    let rows = [];
+                    if (window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+                        rows = window.BayanSQLite.nativeDb.prepare(sql).all(...params);
+                    } else if (window.BayanSQLite.db) {
+                        const stmt = window.BayanSQLite.db.prepare(sql);
+                        stmt.bind(params);
+                        while (stmt.step()) {
+                            rows.push(stmt.getAsObject());
+                        }
+                        stmt.free();
+                    }
 
-                        if (matchesSelectedWarehouse(row) && matchesSelectedTreasury(row) && matchesSelectedUser(row)) {
-                            const isNonCash = isNonCashMethod(rMethod);
+                    if (rows && rows.length > 0) {
+                        rows.forEach(r => {
+                            const gType = r.type || '';
+                            const rMethod = r.method || '';
+                            const rWarehouse = r.warehouse || '';
+                            const rCashier = r.cashier || '';
+                            const paid = parseFloat(r.paid) || 0;
+                            const total = parseFloat(r.total) || 0;
 
-                            // إذا تم اختيار خزينة بنكية محددة نحسب حركاتها، وإذا كان الكل أو كاش نحسب النقدية (درج الكاش)
-                            const countThisTx = isTreasurySpecificNonCash ? isNonCash : !isNonCash;
+                            const row = {
+                                type: gType,
+                                method: rMethod,
+                                warehouse: rWarehouse,
+                                user: rCashier,
+                                cashier: rCashier
+                            };
 
-                            if (countThisTx) {
-                                if (gType.includes('قبض')) {
-                                    previousBalance += total;
-                                } else if (gType.includes('صرف')) {
-                                    previousBalance -= total;
-                                } else if (gType.includes('بيع') && !gType.includes('مرتجع')) {
-                                    previousBalance += paid;
-                                } else if ((gType.includes('شراء') || gType.includes('مشتريات')) && !gType.includes('مرتجع')) {
-                                    previousBalance -= paid;
-                                } else if (gType.includes('مرتجع بيع')) {
-                                    previousBalance -= paid;
-                                } else if (gType.includes('مرتجع شراء')) {
-                                    previousBalance += paid;
+                            if (matchesSelectedWarehouse(row) && matchesSelectedTreasury(row) && matchesSelectedUser(row)) {
+                                const isNonCash = isNonCashMethod(rMethod);
+
+                                // إذا تم اختيار خزينة بنكية محددة نحسب حركاتها، وإذا كان الكل أو كاش نحسب النقدية (درج الكاش)
+                                const countThisTx = isTreasurySpecificNonCash ? isNonCash : !isNonCash;
+
+                                if (countThisTx) {
+                                    if (gType.includes('قبض')) {
+                                        previousBalance += total;
+                                    } else if (gType.includes('صرف')) {
+                                        previousBalance -= total;
+                                    } else if (gType.includes('بيع') && !gType.includes('مرتجع')) {
+                                        previousBalance += paid;
+                                    } else if ((gType.includes('شراء') || gType.includes('مشتريات')) && !gType.includes('مرتجع')) {
+                                        previousBalance -= paid;
+                                    } else if (gType.includes('مرتجع بيع')) {
+                                        previousBalance -= paid;
+                                    } else if (gType.includes('مرتجع شراء')) {
+                                        previousBalance -= paid;
+                                    }
                                 }
                             }
-                        }
+                        });
                     }
-                    stmt.free();
                     dbPriorCalculated = true;
                     window._cachedDailyReportPriorBalance = { key: priorCacheKey, val: previousBalance };
                 } catch (e) {
@@ -967,8 +986,17 @@
                 });
             }
 
-            // 2. فلترة وتجميع حركات الفترة المحددة
-            const periodAllRaw = transactions.filter(t => t.dateISO && t.dateISO >= fromDate && t.dateISO <= toDate && matchesSelectedWarehouse(t) && matchesSelectedUser(t));
+            // 2. فلترة وتجميع حركات الفترة المحددة مباشرة من SQLite
+            let periodAllRaw = [];
+            if (window.BayanSQLite && typeof window.BayanSQLite.getTransactionsForPeriod === 'function') {
+                periodAllRaw = window.BayanSQLite.getTransactionsForPeriod(fromDate, toDate, 10000, selectedWarehouse, selectedUser);
+            }
+            if (!periodAllRaw || periodAllRaw.length === 0) {
+                periodAllRaw = (typeof transactions !== 'undefined' && Array.isArray(transactions)) 
+                    ? transactions.filter(t => t && t.dateISO && t.dateISO >= fromDate && t.dateISO <= toDate)
+                    : [];
+            }
+            periodAllRaw = periodAllRaw.filter(t => matchesSelectedWarehouse(t) && matchesSelectedUser(t));
             const periodAllGrouped = getGroupedTransactions(periodAllRaw);
 
             const currentRaw = (selectedTreasury === 'all') 
@@ -6177,13 +6205,19 @@
             // 2. تحديث وتعبئة القوائم الديناميكية بدون إنشاء مصفوفات وسيطة تستهلك الذاكرة
             const accSelect = document.getElementById('anAccount');
             if (accSelect && accSelect.options.length <= 1) {
-                const partnerSet = new Set();
-                const txs = window.transactions || [];
-                for (let i = 0; i < txs.length; i++) {
-                    const p = txs[i]?.partner;
-                    if (p && p !== '-') partnerSet.add(p);
+                let partners = [];
+                if (window.BayanSQLite && typeof window.BayanSQLite.getDistinctPartners === 'function') {
+                    partners = window.BayanSQLite.getDistinctPartners();
+                } else {
+                    const partnerSet = new Set();
+                    const txs = window.transactions || [];
+                    for (let i = 0; i < txs.length; i++) {
+                        const p = txs[i]?.partner;
+                        if (p && p !== '-') partnerSet.add(p);
+                    }
+                    partners = Array.from(partnerSet).sort();
                 }
-                Array.from(partnerSet).sort().forEach(p => {
+                partners.forEach(p => {
                     const opt = document.createElement('option');
                     opt.value = p;
                     opt.innerText = `👤 ${p}`;
@@ -6215,13 +6249,19 @@
 
             const catSelect = document.getElementById('anCategory');
             if (catSelect && catSelect.options.length <= 1) {
-                const catSet = new Set();
-                const pDB = window.productsDB || [];
-                for (let i = 0; i < pDB.length; i++) {
-                    const c = pDB[i]?.category;
-                    if (c && c.trim()) catSet.add(c.trim());
+                let categories = [];
+                if (window.BayanSQLite && typeof window.BayanSQLite.getDistinctCategories === 'function') {
+                    categories = window.BayanSQLite.getDistinctCategories();
+                } else {
+                    const catSet = new Set();
+                    const pDB = window.productsDB || [];
+                    for (let i = 0; i < pDB.length; i++) {
+                        const c = pDB[i]?.category;
+                        if (c && c.trim()) catSet.add(c.trim());
+                    }
+                    categories = Array.from(catSet).sort();
                 }
-                Array.from(catSet).sort().forEach(c => {
+                categories.forEach(c => {
                     const opt = document.createElement('option');
                     opt.value = c;
                     opt.innerText = `📦 ${c}`;
@@ -6244,13 +6284,19 @@
 
             const userSelect = document.getElementById('anUser');
             if (userSelect && userSelect.options.length <= 1) {
-                const userSet = new Set();
-                const txs = window.transactions || [];
-                for (let i = 0; i < txs.length; i++) {
-                    const u = txs[i]?.user;
-                    if (u && u !== '-') userSet.add(u);
+                let users = [];
+                if (window.BayanSQLite && typeof window.BayanSQLite.getDistinctUsers === 'function') {
+                    users = window.BayanSQLite.getDistinctUsers();
+                } else {
+                    const userSet = new Set();
+                    const txs = window.transactions || [];
+                    for (let i = 0; i < txs.length; i++) {
+                        const u = txs[i]?.user;
+                        if (u && u !== '-') userSet.add(u);
+                    }
+                    users = Array.from(userSet).sort();
                 }
-                Array.from(userSet).sort().forEach(u => {
+                users.forEach(u => {
                     const opt = document.createElement('option');
                     opt.value = u;
                     opt.innerText = `🧑‍💼 ${u}`;
@@ -6288,9 +6334,16 @@
                 }
             }
 
-            // 3. فلترة البيانات الأساسية (حركات البيع ومرتجع البيع فقط) بتمريرة واحدة فائقة السرعة O(N)
+            // 3. فلترة البيانات الأساسية (حركات البيع ومرتجع البيع فقط) باستعلام SQLite السريع
             const targetMethod = methodFilter !== 'all' ? methodFilter.toLowerCase() : null;
-            let data = (window.transactions || []).filter(t => {
+            let basePool = [];
+            if (window.BayanSQLite && typeof window.BayanSQLite.getTransactionsForPeriod === 'function' && (fromDate || toDate)) {
+                basePool = window.BayanSQLite.getTransactionsForPeriod(fromDate, toDate, 10000);
+            }
+            if (!basePool || basePool.length === 0) {
+                basePool = window.transactions || [];
+            }
+            let data = basePool.filter(t => {
                 if (!t || !t.type) return false;
                 const isSaleOrReturn = t.type.includes('بيع') || t.type.includes('مرتجع بيع');
                 if (!isSaleOrReturn) return false;

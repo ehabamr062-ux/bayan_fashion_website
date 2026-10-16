@@ -35,8 +35,8 @@ input, textarea, [contenteditable="true"] {
             /* --- Premium Light Mode Palette (Modern Slate-Gold) --- */
             --bg-color: #f8fafc;
             --surface-color: #ffffff;
-            --text-primary: #1e293b;
-            --text-secondary: #64748b;
+            --text-primary: #090d16;
+            --text-secondary: #1e293b;
             --accent-gold: #c5a059;
             --accent-gold-light: #e2c08d;
             --border-color: #e2e8f0;
@@ -72,8 +72,8 @@ input, textarea, [contenteditable="true"] {
             /* --- Premium Dark Mode Palette (Obsidian-Gold) --- */
             --bg-color: #0c0c0e;
             --surface-color: #1a1a1c;
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
+            --text-primary: #ffffff;
+            --text-secondary: #e2e8f0;
             --accent-gold: #d4af37;
             --accent-gold-light: #ffdb58;
             --border-color: rgba(212, 175, 55, 0.2);

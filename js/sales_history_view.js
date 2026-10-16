@@ -305,11 +305,21 @@ function computeTransactionRunningBalances(targetWarehouse = 'all') {
     });
 
     const prodMap = new Map();
-    if (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
+    const neededProductNames = new Set(Object.values(productGroups).map(g => g.productName).filter(Boolean));
+    if (window.BayanSQLite && typeof window.BayanSQLite.getProductByName === 'function') {
+        neededProductNames.forEach(name => {
+            const p = window.BayanSQLite.getProductByName(name);
+            if (p) {
+                if (p.name) prodMap.set(String(p.name).trim(), p);
+                if (p.id) prodMap.set(String(p.id), p);
+            }
+        });
+    }
+    if (prodMap.size === 0 && typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
         for (let pi = 0; pi < productsDB.length; pi++) {
             const item = productsDB[pi];
-            if (item) {
-                if (item.name) prodMap.set(String(item.name).trim(), item);
+            if (item && item.name && neededProductNames.has(String(item.name).trim())) {
+                prodMap.set(String(item.name).trim(), item);
                 if (item.id) prodMap.set(String(item.id), item);
             }
         }

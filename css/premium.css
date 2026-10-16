@@ -223,7 +223,6 @@ body.dark-mode table tbody tr:hover {
     box-shadow: 0 4px 14px rgba(16, 185, 129, 0.45);
     border: 2px solid white;
     white-space: nowrap;
-    animation: pulseActive 2s infinite;
 }
 
 @keyframes pulseActive {
@@ -557,7 +556,6 @@ body.dark-mode table tbody tr:hover {
     box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3) !important;
     white-space: nowrap !important;
     margin-right: 4px !important;
-    animation: pulseMini 2s infinite !important;
 }
 
 @keyframes pulseMini {
@@ -814,8 +812,8 @@ body.dark-mode table tbody tr:hover {
     display: inline-flex !important;
     align-items: center !important;
     gap: 8px !important;
-    background: rgba(15, 23, 42, 0.45) !important;
-    backdrop-filter: blur(8px) !important;
+    background: rgba(15, 23, 42, 0.88) !important;
+    /* backdrop-filter disabled for high GPU/CPU performance */
     padding: 6px 18px !important;
     border-radius: 50px !important;
     border: 1.5px solid rgba(255, 255, 255, 0.2) !important;
@@ -866,3 +864,244 @@ body.dark-mode table tbody tr:hover {
 .plan-card:hover {
     box-shadow: 0 22px 42px -10px rgba(15, 23, 42, 0.16) !important;
 }
+
+/* ==========================================================================
+   🖋️ Global Deep-Ink Booster: إشباع الحبر الفاحم فائق التباين لكافة أقسام النظام
+   - يعالج بهتان وضعف حبر النصوص في جميع شاشات النظام وتبويبات الإعدادات
+   - يحافظ بنسبة 100% على أحجام الخطوط والتناسق الدقيق دون أي تغيير بالمقاسات
+   ========================================================================== */
+
+/* 1. تنعيم حواف الخط العربي (Cairo) بالوراثة الطبيعية دون أي استهلاك للمعالج أو كارت الشاشة (0% GPU/CPU) */
+html, body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: auto;
+}
+
+/* 2. اللون الأساسي للهيكل في الوضع النهاري بحبر فاحم صريح */
+body:not(.dark-mode) {
+    color: #090d16;
+}
+
+body:not(.dark-mode) p,
+body:not(.dark-mode) li,
+body:not(.dark-mode) summary,
+body:not(.dark-mode) dt,
+body:not(.dark-mode) dd {
+    color: #090d16;
+}
+
+/* 3. معالجة كافة النصوص والوسوم المكتوبة بألوان رمادية باهتة ومباشرة في أي مكان */
+body:not(.dark-mode) [style*="color: #64748b"],
+body:not(.dark-mode) [style*="color:#64748b"],
+body:not(.dark-mode) [style*="color: #94a3b8"],
+body:not(.dark-mode) [style*="color:#94a3b8"],
+body:not(.dark-mode) [style*="color: #475569"],
+body:not(.dark-mode) [style*="color:#475569"],
+body:not(.dark-mode) [style*="color: #6b7280"],
+body:not(.dark-mode) [style*="color:#6b7280"],
+body:not(.dark-mode) [style*="color: #718096"],
+body:not(.dark-mode) [style*="color:#718096"],
+body:not(.dark-mode) [style*="color: #a0aec0"],
+body:not(.dark-mode) [style*="color:#a0aec0"],
+body:not(.dark-mode) [style*="color: #7f8c8d"],
+body:not(.dark-mode) [style*="color:#7f8c8d"],
+body:not(.dark-mode) [style*="color: #888"],
+body:not(.dark-mode) [style*="color:#888"],
+body:not(.dark-mode) [style*="color: #666"],
+body:not(.dark-mode) [style*="color:#666"],
+body:not(.dark-mode) [style*="color: #777"],
+body:not(.dark-mode) [style*="color:#777"],
+body:not(.dark-mode) [style*="color: #999"],
+body:not(.dark-mode) [style*="color:#999"],
+body:not(.dark-mode) [style*="color: #4b5563"],
+body:not(.dark-mode) [style*="color:#4b5563"],
+body:not(.dark-mode) [style*="color: #374151"],
+body:not(.dark-mode) [style*="color:#374151"],
+body:not(.dark-mode) [style*="rgb(100, 116, 139)"],
+body:not(.dark-mode) [style*="rgb(148, 163, 184)"],
+body:not(.dark-mode) [style*="rgb(71, 85, 105)"],
+body:not(.dark-mode) [style*="rgb(107, 114, 128)"],
+body:not(.dark-mode) [style*="rgb(127, 140, 141)"],
+body:not(.dark-mode) [style*="rgb(136, 136, 136)"],
+body:not(.dark-mode) [style*="rgb(102, 102, 102)"] {
+    color: #0f172a !important;
+}
+
+/* 4. عناوين الحقول (Labels) والتسميات في كافة النماذج والشاشات والمودال */
+body:not(.dark-mode) label,
+body:not(.dark-mode) .form-group label,
+body:not(.dark-mode) .input-group label,
+body:not(.dark-mode) .field-label,
+body:not(.dark-mode) .control-label,
+body:not(.dark-mode) .settings-modern-card label,
+body:not(.dark-mode) .filter-group label,
+body:not(.dark-mode) .filter-label,
+body:not(.dark-mode) .modal label {
+    color: #000000 !important;
+    font-weight: 700;
+}
+
+/* 5. جداول النظام بالكامل ذات الخلفيات الفاتحة (المخازن، الحسابات، التقارير، الخزينة، المودال) */
+body:not(.dark-mode) table th,
+body:not(.dark-mode) thead th,
+body:not(.dark-mode) .table-container th,
+body:not(.dark-mode) .report-table thead th,
+body:not(.dark-mode) .dataTables_wrapper thead th,
+body:not(.dark-mode) .inventory-scroll-wrapper thead th,
+body:not(.dark-mode) .inquiry-table th,
+body:not(.dark-mode) .users-table th {
+    color: #0f172a !important;
+    font-weight: 800 !important;
+}
+
+body:not(.dark-mode) table td,
+body:not(.dark-mode) tbody td,
+body:not(.dark-mode) .table-container td,
+body:not(.dark-mode) .invoice-table tbody td,
+body:not(.dark-mode) .report-table tbody td,
+body:not(.dark-mode) .dataTables_wrapper tbody td,
+body:not(.dark-mode) .inventory-scroll-wrapper tbody td,
+body:not(.dark-mode) .inquiry-table td,
+body:not(.dark-mode) .users-table td {
+    color: #090d16;
+}
+
+/* 🧾 حماية واستثناء رؤوس جداول الفواتير والمبيعات ذات الخلفيات الداكنة لتكون ناصعة البياض والوضوح 100% */
+#invoicesTableHead th,
+#invoicesTableHead tr th,
+#invoicesMainTable thead th,
+#invoicesMainTable th,
+.invoices-theme thead th,
+.invoices-theme .invoice-table thead th,
+.sales-theme thead th,
+.sales-theme .invoice-table thead th {
+    color: #ffffff !important;
+    font-weight: 900 !important;
+}
+#invoicesTableHead th.col-inv-15 {
+    color: #38bdf8 !important;
+}
+
+/* 🌟 حماية الشريط العلوي (App Header) بالكامل لتبقى نصوصه وأزراره وروابطه ناصعة البياض والذهب */
+.app-header,
+.app-header *,
+.app-header .app-title,
+.app-header .compact-header-info,
+.app-header .compact-header-info .info-item,
+.app-header .info-item,
+.app-header span,
+.app-header div {
+    color: #ffffff !important;
+}
+
+.app-header .logo-text-gold,
+.app-header .app-title span,
+.app-header .compact-header-info .info-item[onclick*="showMyPlanDetails"],
+.app-header .info-item b {
+    color: #f59e0b !important;
+}
+
+/* كروت وتصنيفات الشريط العلوي في الشاشة الرئيسية (لوحة التحكم) */
+.dm-top-tile,
+.dm-top-tile *,
+.dm-top-tile .label,
+.dm-mid-tile,
+.dm-mid-tile .label {
+    color: #ffffff !important;
+}
+
+/* 6. الفئات النصية والشروحات والتبويبات في كافة الأقسام والمودال */
+body:not(.dark-mode) .text-muted,
+body:not(.dark-mode) .text-secondary,
+body:not(.dark-mode) .text-gray,
+body:not(.dark-mode) .text-slate,
+body:not(.dark-mode) .text-dimmed,
+body:not(.dark-mode) .bayan-tab,
+body:not(.dark-mode) .inquiry-product-item .code,
+body:not(.dark-mode) .tr-share-footer,
+body:not(.dark-mode) .wa-paste-helper-sub,
+body:not(.dark-mode) .settings-tip,
+body:not(.dark-mode) .modal-desc,
+body:not(.dark-mode) .modal-subtitle,
+body:not(.dark-mode) .item-hint,
+body:not(.dark-mode) .sub-text,
+body:not(.dark-mode) .info-label,
+body:not(.dark-mode) .customer-info,
+body:not(.dark-mode) .cart-empty-text,
+body:not(.dark-mode) .sku-text,
+body:not(.dark-mode) .inv-stat-label,
+body:not(.dark-mode) .report-meta,
+body:not(.dark-mode) .date-range-label,
+body:not(.dark-mode) .tr-audit-hint,
+body:not(.dark-mode) .shift-info,
+body:not(.dark-mode) .bp-setting-hint,
+body:not(.dark-mode) .pos-model-img-toggle-btn.is-hidden {
+    color: #0f172a !important;
+}
+
+/* 7. حقول الإدخال والـ Placeholder لتكون واضحة ومقروءة دون بهتان */
+body:not(.dark-mode) input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not([type="range"]),
+body:not(.dark-mode) select,
+body:not(.dark-mode) textarea {
+    color: #000000 !important;
+}
+
+body:not(.dark-mode) input::placeholder,
+body:not(.dark-mode) textarea::placeholder,
+body:not(.dark-mode) .glass-input::placeholder,
+body:not(.dark-mode) .bp-search-input::placeholder {
+    color: #475569 !important;
+    opacity: 1 !important;
+    font-weight: 600 !important;
+}
+
+/* 8. كروت وبطاقات الإعدادات وبقية الأقسام */
+body:not(.dark-mode) .settings-modern-card p,
+body:not(.dark-mode) .settings-tip,
+body:not(.dark-mode) .settings-group-label,
+body:not(.dark-mode) .premium-tab-btn,
+body:not(.dark-mode) .sec-toggle-label,
+body:not(.dark-mode) .sec-toggle-card span,
+body:not(.dark-mode) .bc-preset-btn span {
+    color: #0f172a !important;
+}
+
+body:not(.dark-mode) .settings-card-title,
+body:not(.dark-mode) .settings-card-header h1,
+body:not(.dark-mode) .settings-card-header h2,
+body:not(.dark-mode) .settings-card-header h3,
+body:not(.dark-mode) .settings-card-header h4 {
+    color: #000000 !important;
+}
+
+/* 9. حماية التباين في الوضع الليلي (Dark Mode) لضمان بياض الحبر الساطع */
+body.dark-mode table th,
+body.dark-mode table td,
+body.dark-mode label,
+body.dark-mode .form-group label,
+body.dark-mode .text-muted,
+body.dark-mode .text-secondary {
+    color: #f8fafc !important;
+}
+
+body.dark-mode [style*="color: #64748b"],
+body.dark-mode [style*="color:#64748b"],
+body.dark-mode [style*="color: #94a3b8"],
+body.dark-mode [style*="color:#94a3b8"],
+body.dark-mode [style*="color: #475569"],
+body.dark-mode [style*="color:#475569"],
+body.dark-mode [style*="color: #6b7280"],
+body.dark-mode [style*="color:#6b7280"],
+body.dark-mode [style*="color: #718096"],
+body.dark-mode [style*="color:#718096"] {
+    color: #e2e8f0 !important;
+}
+
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder,
+body.dark-mode .glass-input::placeholder {
+    color: #94a3b8 !important;
+    opacity: 0.9 !important;
+}
+

@@ -161,42 +161,103 @@ function buildInvoiceQrRawText(d) {
  * 🔲 بناء كود HTML لعرض الكيو آر كود المزدوج جنباً إلى جنب (كيو ار الفاتورة يساراً وكيو ار السوشيال يميناً)
  */
 function renderDualQrCodesHtml(d, size = 80, isNarrow = false) {
-    const invoiceQrText = buildInvoiceQrRawText(d);
-    const fallbackInvoiceText = `Inv: #${d.invoiceNumber} | Total: ${parseFloat(d.totalAmount).toFixed(2)} | Date: ${d.date}`;
-    const invoiceQrHtml = generateOfflineInvoiceQR(invoiceQrText, size, fallbackInvoiceText);
-    const socialLink = (d.socialQrLink && d.socialQrLink.trim()) ? d.socialQrLink.trim() : '';
+    const isInvoiceQrActive  = (d.printInvoiceQrEnabled !== undefined) ? !!d.printInvoiceQrEnabled : true;
+    const isSocial1Active    = (d.printSocialQrEnabled !== undefined) ? !!d.printSocialQrEnabled : true;
+    const social1Link        = (isSocial1Active && d.socialQrLink && d.socialQrLink.trim()) ? d.socialQrLink.trim() : '';
 
-    // إذا وُجد رابط سوشيال / فيسبوك، يتم عرض الكودين جنباً إلى جنب في سطر واحد
-    if (socialLink) {
-        let normalizedSocial = socialLink;
-        if (!/^https?:\/\//i.test(normalizedSocial)) {
-            normalizedSocial = 'https://' + normalizedSocial;
-        }
-        const socialLabel = getSocialQrLabel(socialLink);
-        const socialQrHtml = generateOfflineInvoiceQR(normalizedSocial, size, socialLink);
-        const containerWidth = size + (isNarrow ? 8 : 18);
-        const labelFontSize = isNarrow ? '10.5px' : '12px';
+    const isSocial2Active    = (d.printSocialQr2Enabled !== undefined) ? !!d.printSocialQr2Enabled : false;
+    const social2Link        = (isSocial2Active && d.socialQr2Link && d.socialQr2Link.trim()) ? d.socialQr2Link.trim() : '';
 
-        return `
-        <div style="display:flex; justify-content:space-around; align-items:flex-start; margin-top:8px; padding-top:6px; border-top:2px dashed #000000; direction:rtl; box-sizing:border-box;">
-            <!-- كيو ار المتجر / فيسبوك على الطرف الأيمن -->
-            <div style="text-align:center; width:${containerWidth}px; display:inline-block; vertical-align:top;">
-                ${socialQrHtml}
-                <div style="font-size:${labelFontSize}; font-weight:900; margin-top:3px; -webkit-text-stroke:0.6px #000; line-height:1.2; text-align:center; letter-spacing:0.5px;">${socialLabel}</div>
-            </div>
-            <!-- كيو ار تفاصيل الفاتورة والأصناف على الطرف الأيسر -->
+    const containerWidth = size + (isNarrow ? 8 : 18);
+    const labelFontSize = isNarrow ? '10.5px' : '12px';
+
+    // تجهيز كتل الأكواد المرشحة:
+    // 1. كود كيو آر بيانات الفاتورة
+    let invoiceQrBlock = null;
+    if (isInvoiceQrActive) {
+        const invoiceQrText = buildInvoiceQrRawText(d);
+        const fallbackInvoiceText = `Inv: #${d.invoiceNumber} | Total: ${parseFloat(d.totalAmount).toFixed(2)} | Date: ${d.date}`;
+        const invoiceQrHtml = generateOfflineInvoiceQR(invoiceQrText, size, fallbackInvoiceText);
+        invoiceQrBlock = {
+            type: 'invoice',
+            html: `
             <div style="text-align:center; width:${containerWidth}px; display:inline-block; vertical-align:top;">
                 ${invoiceQrHtml}
                 <div style="font-size:${labelFontSize}; font-weight:900; margin-top:3px; -webkit-text-stroke:0.6px #000; line-height:1.2; text-align:center;">بيانات الفاتورة</div>
-            </div>
+            </div>`
+        };
+    }
+
+    // 2. كود كيو آر الرابط الأول
+    let social1Block = null;
+    if (social1Link) {
+        let norm1 = social1Link;
+        if (!/^https?:\/\//i.test(norm1)) norm1 = 'https://' + norm1;
+        const label1 = getSocialQrLabel(social1Link);
+        const qrHtml1 = generateOfflineInvoiceQR(norm1, size, social1Link);
+        social1Block = {
+            type: 'social1',
+            html: `
+            <div style="text-align:center; width:${containerWidth}px; display:inline-block; vertical-align:top;">
+                ${qrHtml1}
+                <div style="font-size:${labelFontSize}; font-weight:900; margin-top:3px; -webkit-text-stroke:0.6px #000; line-height:1.2; text-align:center; letter-spacing:0.5px;">${label1}</div>
+            </div>`
+        };
+    }
+
+    // 3. كود كيو آر الرابط الثاني
+    let social2Block = null;
+    if (social2Link) {
+        let norm2 = social2Link;
+        if (!/^https?:\/\//i.test(norm2)) norm2 = 'https://' + norm2;
+        const label2 = getSocialQrLabel(social2Link);
+        const qrHtml2 = generateOfflineInvoiceQR(norm2, size, social2Link);
+        social2Block = {
+            type: 'social2',
+            html: `
+            <div style="text-align:center; width:${containerWidth}px; display:inline-block; vertical-align:top;">
+                ${qrHtml2}
+                <div style="font-size:${labelFontSize}; font-weight:900; margin-top:3px; -webkit-text-stroke:0.6px #000; line-height:1.2; text-align:center; letter-spacing:0.5px;">${label2}</div>
+            </div>`
+        };
+    }
+
+    // تحديد ما سيتم عرضه (بحد أقصى كودين اثنين فقط):
+    let selectedBlocks = [];
+
+    if (social1Block && social2Block && !invoiceQrBlock) {
+        // حالة: المستخدم لغى كود الفاتورة ومفعّل الرابطين (يطبع الرابطين جنباً إلى جنب)
+        selectedBlocks = [social1Block, social2Block];
+    } else if (invoiceQrBlock && social1Block && social2Block) {
+        // حالة: المستخدم مفعّل التلاتة معاً -> السقف كودين: نعرض الرابط الأول + كود الفاتورة
+        selectedBlocks = [social1Block, invoiceQrBlock];
+    } else {
+        // الحالات المتبقية: تجميع الكتل النشطة
+        if (social1Block) selectedBlocks.push(social1Block);
+        if (social2Block) selectedBlocks.push(social2Block);
+        if (invoiceQrBlock) selectedBlocks.push(invoiceQrBlock);
+        // الاكتفاء بأول 2 كحد أقصى
+        selectedBlocks = selectedBlocks.slice(0, 2);
+    }
+
+    // إذا لم يكن هناك أي كود نشط
+    if (selectedBlocks.length === 0) {
+        return '';
+    }
+
+    // إذا كان كود واحد فقط نشط (يظهر في المنتصف)
+    if (selectedBlocks.length === 1) {
+        return `
+        <div style="margin-top:8px; text-align:center; border-top:2px dashed #000000; padding-top:6px; display:flex; justify-content:center;">
+            ${selectedBlocks[0].html}
         </div>`;
     }
 
-    // في حال عدم إدخال رابط صفحة للمتجر، يظهر كيو ار الفاتورة الأصلي منفرداً في المنتصف
+    // إذا كان كودين نشطين (يعرضان جنباً إلى جنب)
     return `
-    <div style="margin-top:8px; text-align:center; border-top:2px dashed #000000; padding-top:6px;">
-        ${invoiceQrHtml}
-        <div style="font-size:11.5px; font-weight:900; margin-top:3px; -webkit-text-stroke:0.55px #000; text-align:center;">بيانات الفاتورة</div>
+    <div style="display:flex; justify-content:space-around; align-items:flex-start; margin-top:8px; padding-top:6px; border-top:2px dashed #000000; direction:rtl; box-sizing:border-box;">
+        ${selectedBlocks[0].html}
+        ${selectedBlocks[1].html}
     </div>`;
 }
 
@@ -235,7 +296,27 @@ function buildInvoiceDocumentHTML(invoiceData) {
         || (document.getElementById('printFooterMsg') ? document.getElementById('printFooterMsg').value.trim() : '') 
         || 'شكراً لتعاملكم معنا!';
 
+    const printInvoiceQrEnabled = (invoiceData.printInvoiceQrEnabled !== undefined) 
+        ? !!invoiceData.printInvoiceQrEnabled 
+        : ((savedPosSettings.printInvoiceQrEnabled !== undefined) 
+            ? !!savedPosSettings.printInvoiceQrEnabled 
+            : (document.getElementById('printInvoiceQrEnabled') ? document.getElementById('printInvoiceQrEnabled').checked : true));
+
+    const printSocialQrEnabled = (invoiceData.printSocialQrEnabled !== undefined) 
+        ? !!invoiceData.printSocialQrEnabled 
+        : ((savedPosSettings.printSocialQrEnabled !== undefined) 
+            ? !!savedPosSettings.printSocialQrEnabled 
+            : (document.getElementById('printSocialQrEnabled') ? document.getElementById('printSocialQrEnabled').checked : true));
+
     const socialQrLink = (invoiceData.socialQrLink || savedPosSettings.printSocialQrLink || (document.getElementById('printSocialQrLink') ? document.getElementById('printSocialQrLink').value.trim() : '') || '').trim();
+
+    const printSocialQr2Enabled = (invoiceData.printSocialQr2Enabled !== undefined) 
+        ? !!invoiceData.printSocialQr2Enabled 
+        : ((savedPosSettings.printSocialQr2Enabled !== undefined) 
+            ? !!savedPosSettings.printSocialQr2Enabled 
+            : (document.getElementById('printSocialQr2Enabled') ? document.getElementById('printSocialQr2Enabled').checked : false));
+
+    const socialQr2Link = (invoiceData.socialQr2Link || savedPosSettings.printSocialQr2Link || (document.getElementById('printSocialQr2Link') ? document.getElementById('printSocialQr2Link').value.trim() : '') || '').trim();
 
     // توحيد وتطبيع الحقول لتغطية كافة أشكال البيانات القادمة من مختلف شاشات التطبيق
     const rawInvoiceNumber = invoiceData.originalInvoiceId || invoiceData.invoiceNumber || invoiceData.id || '';
@@ -387,8 +468,10 @@ function buildInvoiceDocumentHTML(invoiceData) {
     const globalTax   = parseFloat(invoiceData.globalTax || 0);
 
     const d = {
-        shopName, shopAddress, shopPhone, footerMsg, socialQrLink, docTitle,
-        invoiceNumber, rawInvoiceNumber, dailyTaxSeq,
+        shopName, shopAddress, shopPhone, footerMsg,
+        socialQrLink, socialQr2Link,
+        printInvoiceQrEnabled, printSocialQrEnabled, printSocialQr2Enabled, docTitle,
+        invoiceNumber, rawInvoiceNumber, dailyTaxSeq, isTaxSeqActive,
         invoiceType: paymentMethod, date, time, dueDate, cashier, customer, warehouse, terminal,
         totalAmount, paid, deferred, prevBalance, currentBalance, docType,
         itemsRowsFull, itemsRowsCompact, discount, subTotal, tax, taxLabel, globalTax,
@@ -445,11 +528,11 @@ async function printInvoice(invoiceData, options = {}) {
 <html dir="rtl" lang="ar">
 <head>
     <meta charset="UTF-8">
-    ${isSilent ? '' : `<base href="${baseUrl}">`}
+    <base href="${baseUrl}">
     <title>${docTitle} - ${shopName}</title>
     <link rel="stylesheet" href="${baseUrl}fonts/cairo.css">
     <style>
-        @page { margin: 0; size: auto; }
+        @page { size: ${pageWidth} auto; margin: 0mm; }
         *, *::before, *::after { 
             box-sizing: border-box !important; 
             -webkit-print-color-adjust: exact !important;
@@ -835,7 +918,7 @@ function build80mmStandard(d) {
                 ${d.cashier ? `<span>الكاشير: ${d.cashier}</span>` : '<span></span>'}
                 <span>الفرع: ${d.warehouse}</span>
             </div>
-            ${d.terminal ? `<div style="padding:0 2px; font-size:11.5px; display:flex; justify-content:space-between; margin-top:2px; -webkit-text-stroke:0.5px #000;"><span>الجهاز: ${d.terminal}</span>${(d.dailyTaxSeq && d.rawInvoiceNumber && String(d.dailyTaxSeq) !== String(d.rawInvoiceNumber)) ? `<span>Ref: ${d.rawInvoiceNumber}</span>` : ''}</div>` : ''}
+            ${d.terminal ? `<div style="padding:0 2px; font-size:11.5px; display:flex; justify-content:space-between; margin-top:2px; -webkit-text-stroke:0.5px #000;"><span>الجهاز: ${d.terminal}</span>${(!d.isTaxSeqActive && d.dailyTaxSeq && d.rawInvoiceNumber && String(d.dailyTaxSeq) !== String(d.rawInvoiceNumber)) ? `<span>Ref: ${d.rawInvoiceNumber}</span>` : ''}</div>` : ''}
             ${d.dueDate  ? `<div style="padding-right:2px; margin-top:2px; -webkit-text-stroke:0.55px #000;">تاريخ الاستحقاق: ${d.dueDate}</div>`  : ''}
         </div>
 

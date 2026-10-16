@@ -1817,17 +1817,9 @@ function resetBill() {
         updatePosNavUIState(null);
     }
 
-    // تحديث رقم الفاتورة في المربع الأخضر
-    if (document.getElementById('salesBadgeID')) {
-        const rawSeq = typeof getNextSequence === 'function' ? getNextSequence('بيع') : 1;
-        if (typeof isDailyTaxSeqEnabled === 'function' && isDailyTaxSeqEnabled() && typeof getDailyTaxSequence === 'function') {
-            const dailySeq = getDailyTaxSequence();
-            document.getElementById('salesBadgeID').innerText = dailySeq;
-            document.getElementById('salesBadgeID').title = `رقم الإيصال اليومي: ${dailySeq} (الرقم التراكمي الأصلي: ${rawSeq})`;
-        } else {
-            document.getElementById('salesBadgeID').innerText = rawSeq;
-            document.getElementById('salesBadgeID').title = `رقم الفاتورة: ${rawSeq}`;
-        }
+    // تحديث رقم الفاتورة في المربع العلوي مع التلميح الذكي
+    if (typeof updateSalesBadgeUI === 'function') {
+        updateSalesBadgeUI();
     }
 
     // 💡 استعادة طريقة السداد الافتراضية للفاتورة القادمة (إما الخيار المثبت بالدبوس 📌 أو كاش تلقائياً)
@@ -2598,6 +2590,19 @@ async function saveBill(force = false, accountChecked = false) {
 
             return false;
 
+        }
+
+        // --- 🛑 التحقق من سقف الفواتير اليومية (الحماية الضريبية) ---
+        if (!isEditMode && typeof isDailyTaxLimitReached === 'function' && isDailyTaxLimitReached()) {
+            const settings = (typeof getStore === 'function') ? JSON.parse(getStore('pos_settings') || '{}') : {};
+            const limit = parseInt(settings.dailyTaxSeqLimit || 0, 10);
+            if (window.BayanBarcode && typeof BayanBarcode.playBeep === 'function') BayanBarcode.playBeep(false);
+            showCustomAlert({
+                type: 'warning',
+                titleText: '⚠️ سقف الفواتير اليومية',
+                msg: `عفواً، لقد تم الوصول للحد الأقصى للفواتير اليومية المحدد في الإعدادات (${limit} فواتير).\n\nلحماية المنشأة، تم إيقاف إصدار فواتير إضافية لهذا اليوم.\n\n💡 يمكنك زيادة سقف الفواتير من قسم الإعدادات لمتابعة البيع فوراً.`
+            });
+            return false;
         }
 
         // --- 0. فحص الأمان الصارم: منع حفظ الفاتورة إذا كان أي صنف أقل من سعر التكلفة ---
@@ -4361,7 +4366,9 @@ async function loadInvoiceToSalesPOS(targetInvoiceId) {
         tEl.dataset.touched = 'true';
     }
 
-    if (document.getElementById('salesBadgeID')) {
+    if (typeof updateSalesBadgeUI === 'function') {
+        updateSalesBadgeUI(null, cleanId);
+    } else if (document.getElementById('salesBadgeID')) {
         document.getElementById('salesBadgeID').innerText = cleanId;
     }
 
@@ -4718,11 +4725,83 @@ async function posNavigateNextInvoice() {
     }
 }
 
+/**
+ * 🏷️ تحديث شارة ومربع رقم الفاتورة في شاشة البيع مع التلميح الذكي
+ * يعرض رقم الإيصال اليومي ومعه تلميح كامل بالرقم الداخلي عند تمرير الماوس فوق المربع
+ */
+function updateSalesBadgeUI(explicitSeq = null, explicitRawSeq = null) {
+    const badgeEl = document.getElementById('salesBadgeID');
+    const boxEl = document.getElementById('salesInvoiceBadgeBox') || (badgeEl ? badgeEl.parentElement : null);
+    if (!badgeEl && !boxEl) return;
+
+    // 1. حالة استعراض فاتورة سابقة من خلال أزرار التنقل (سابق / تالي / بحث)
+    if (window._posCurrentNavState && window._posCurrentNavState.invoiceId) {
+        const invId = window._posCurrentNavState.invoiceId;
+        let taxSeq = null;
+        if (typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+            const match = transactions.find(t => String(t.invoiceId) === String(invId));
+            if (match) taxSeq = match.taxInvoiceSeq || match.dailySeq;
+        }
+        if (taxSeq) {
+            const titleText = `رقم الإيصال اليومي: ${taxSeq} (الرقم التراكمي الداخلي: ${invId})`;
+            if (badgeEl) { badgeEl.innerText = taxSeq; badgeEl.title = titleText; }
+            if (boxEl) { boxEl.title = titleText; }
+        } else {
+            const titleText = `رقم الفاتورة: ${invId}`;
+            if (badgeEl) { badgeEl.innerText = invId; badgeEl.title = titleText; }
+            if (boxEl) { boxEl.title = titleText; }
+        }
+        return;
+    }
+
+    // 2. حالة فاتورة جديدة قيد التحرير
+    const rawSeq = explicitRawSeq !== null ? explicitRawSeq : (typeof getNextSequence === 'function' ? getNextSequence('بيع') : 1);
+    const isTaxEnabled = (typeof isDailyTaxSeqEnabled === 'function' && isDailyTaxSeqEnabled());
+
+    if (isTaxEnabled && typeof getDailyTaxSequence === 'function') {
+        const isLimitReached = (typeof isDailyTaxLimitReached === 'function' && isDailyTaxLimitReached());
+        const dailySeq = explicitSeq !== null ? explicitSeq : getDailyTaxSequence();
+        const settings = (typeof getStore === 'function') ? JSON.parse(getStore('pos_settings') || '{}') : {};
+        const limit = parseInt(settings.dailyTaxSeqLimit || 0, 10);
+
+        const titleText = (isLimitReached && limit > 0)
+            ? `⚠️ تم بلوغ الحد الأقصى اليومي (${limit} فواتير) - رقم الإيصال اليومي: ${dailySeq} (الرقم التراكمي الداخلي: ${rawSeq})`
+            : `رقم الإيصال اليومي: ${dailySeq} (الرقم التراكمي الداخلي: ${rawSeq})`;
+
+        if (badgeEl) {
+            badgeEl.innerText = dailySeq;
+            badgeEl.title = titleText;
+        }
+        if (boxEl) {
+            boxEl.title = titleText;
+        }
+    } else {
+        const titleText = `رقم الفاتورة: ${rawSeq}`;
+        if (badgeEl) {
+            badgeEl.innerText = rawSeq;
+            badgeEl.title = titleText;
+        }
+        if (boxEl) {
+            boxEl.title = titleText;
+        }
+    }
+}
+
 // تصدير الدوال للنافذة العامة
+window.updateSalesBadgeUI = updateSalesBadgeUI;
 window.posSearchSpecificInvoice = posSearchSpecificInvoice;
 window.posNavigateFirstInvoice = posNavigateFirstInvoice;
 window.posNavigatePrevInvoice = posNavigatePrevInvoice;
 window.posNavigateNextInvoice = posNavigateNextInvoice;
 window.loadInvoiceToSalesPOS = loadInvoiceToSalesPOS;
 window.updatePosNavUIState = updatePosNavUIState;
+
+// تشغيل التحديث فور اكتمال تحميل الصفحة لضمان جاهزية التلميح فوراً
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(updateSalesBadgeUI, 300);
+    });
+} else {
+    setTimeout(updateSalesBadgeUI, 300);
+}
 

@@ -13,10 +13,21 @@ function invalidateInvSummaryCache() {
 window.invalidateInvSummaryCache = invalidateInvSummaryCache;
 
 function getInvSummaryMap(currentWH) {
+    const targetWH = (currentWH || 'المخزن الرئيسي').trim();
     const txList = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : [];
     const pList = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : [];
-    const key = `${window.inventoryLastUpdate}_${pList.length}_${txList.length}_${currentWH}`;
+    const key = `${window.inventoryLastUpdate}_${pList.length}_${txList.length}_${targetWH}`;
     if (_invSummaryCache && _invSummaryKey === key) return _invSummaryCache;
+
+    // ⚡ محاولة جلب التلخيص التجميعي المباشر من محرك SQLite C++ لكامل الأرشيف
+    if (window.BayanSQLite && typeof window.BayanSQLite.getInventoryMovementSummary === 'function' && window.BayanSQLite.db) {
+        const sqliteSummary = window.BayanSQLite.getInventoryMovementSummary(targetWH);
+        if (sqliteSummary && Object.keys(sqliteSummary).length > 0) {
+            _invSummaryCache = sqliteSummary;
+            _invSummaryKey = key;
+            return sqliteSummary;
+        }
+    }
 
     const productMapByName = new Map();
     for (let i = 0; i < pList.length; i++) {
@@ -1957,6 +1968,19 @@ let _prodByNameMapLen = 0;
 function getProductFromCache(productName) {
     if (!productName) return null;
     if (typeof productName === 'object') return productName;
+    const clean = String(productName).trim();
+    if (_prodByNameMap && (_prodByNameMap.has(productName) || _prodByNameMap.has(clean))) {
+        return _prodByNameMap.get(productName) || _prodByNameMap.get(clean);
+    }
+    if (window.BayanSQLite && typeof window.BayanSQLite.getProductByName === 'function') {
+        const prod = window.BayanSQLite.getProductByName(clean);
+        if (prod) {
+            if (!_prodByNameMap) _prodByNameMap = new Map();
+            _prodByNameMap.set(clean, prod);
+            _prodByNameMap.set(productName, prod);
+            return prod;
+        }
+    }
     const pDB = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
     if (!_prodByNameMap || _prodByNameMapLen !== pDB.length) {
         _prodByNameMap = new Map();
@@ -1970,7 +1994,6 @@ function getProductFromCache(productName) {
         }
         _prodByNameMapLen = pDB.length;
     }
-    const clean = String(productName).trim();
     return _prodByNameMap.get(productName) || _prodByNameMap.get(clean) || null;
 }
 
@@ -2614,10 +2637,6 @@ window.runStockReconciliationAudit = function(showModal = true) {
         perf: { oldLedgerTimeMs, liveStateTimeMs }
     };
 };
-
-// ============================================================
-// ⚙️ تخصيص وإظهار أعمدة جدول الأصناف (Inventory Column Customizer)
-// ============================================================
 function showInventoryColumnCustomizer() {
     if (typeof checkColumnCustomizationPermission === 'function' && !checkColumnCustomizationPermission()) return;
     const cols = [
@@ -2644,36 +2663,32 @@ function showInventoryColumnCustomizer() {
 
     let html = `<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 15px; max-height: 55vh; overflow-y: auto;">`;
     cols.forEach(c => {
-        const checked = (typeof inventoryColumnVisibility !== 'undefined' && inventoryColumnVisibility[c.id] !== false) ? 'checked' : '';
+        const checked = inventoryColumnVisibility[c.id] !== false ? 'checked' : '';
         html += `
             <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; padding: 10px 14px; background: #f8fafc; border-radius: 10px; border: 1.5px solid #e2e8f0; font-size: 0.88rem; font-weight: 700; color: #1e293b; transition: all 0.2s;"
                    onmouseover="this.style.background='#eff6ff'; this.style.borderColor='#3b82f6';"
                    onmouseout="this.style.background='#f8fafc'; this.style.borderColor='#e2e8f0';">
-                <input type="checkbox" class="inv-col-custom-chk" data-col-id="${c.id}" ${checked}
-                       style="width: 18px; height: 18px; cursor: pointer; accent-color: #7c3aed;"
-                       onchange="toggleInventoryColumn('${c.id}', this.checked)">
+                <input type="checkbox" class="inv-col-custom-chk" data-col-id="${c.id}" ${checked} 
+                       onchange="toggleInventoryColumn('${c.id}', this.checked)"
+                       style="width: 17px; height: 17px; cursor: pointer; accent-color: #7c3aed;">
                 <span>${c.name}</span>
-            </label>
-        `;
+            </label>`;
     });
     html += `</div>`;
 
     const modal = document.createElement('div');
     modal.className = 'modal-overlay';
-    modal.style.cssText = 'position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 999999; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s ease;';
+    modal.style.cssText = 'position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); display: flex; align-items: center; justify-content: center; z-index: 99999; animation: fadeIn 0.2s ease-out;';
 
     modal.innerHTML = `
-        <div style="background: white; border-radius: 20px; width: 620px; max-width: 95vw; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); border: 1.5px solid #e2e8f0; overflow: hidden; direction: rtl; text-align: right;">
+        <div style="width: 520px; max-width: 95vw; background: #ffffff; border-radius: 20px; box-shadow: 0 25px 60px rgba(0,0,0,0.35); border: 2.5px solid #7c3aed; overflow: hidden; display: flex; flex-direction: column; text-align: right; direction: rtl;">
             <!-- هيدر النافذة -->
-            <div style="padding: 16px 20px; background: linear-gradient(135deg, #1e293b, #0f172a); color: white; display: flex; justify-content: space-between; align-items: center;">
-                <div style="display: flex; align-items: center; gap: 10px;">
-                    <span style="font-size: 1.4rem;">⚙️</span>
-                    <div>
-                        <h3 style="margin: 0; font-size: 1.1rem; font-weight: 900; color: #ffffff;">تخصيص وإظهار أعمدة جدول الأصناف</h3>
-                        <p style="margin: 0; font-size: 0.75rem; color: #94a3b8; font-weight: 600;">حدد الأعمدة التي تريد ظهورها في جدول إدارة البضاعة</p>
-                    </div>
+            <div style="background: linear-gradient(135deg, #1e1b4b, #3730a3); padding: 14px 20px; border-bottom: 2px solid #7c3aed; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 1.3rem;">⚙️</span>
+                    <h3 style="margin: 0; color: #ffffff; font-size: 1.1rem; font-weight: 900;">تخصيص أعمدة جدول المخزن</h3>
                 </div>
-                <button onclick="this.closest('.modal-overlay').remove()"
+                <button onclick="this.closest('.modal-overlay').remove()" 
                         style="background: rgba(255,255,255,0.15); border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 1.1rem; cursor: pointer; color: #ffffff; display: flex; align-items: center; justify-content: center; transition: 0.2s;"
                         onmouseover="this.style.background='rgba(239, 68, 68, 0.8)';"
                         onmouseout="this.style.background='rgba(255,255,255,0.15)';">&times;</button>
@@ -2712,5 +2727,3 @@ function showInventoryColumnCustomizer() {
     document.body.appendChild(modal);
 }
 window.showInventoryColumnCustomizer = showInventoryColumnCustomizer;
-
-

@@ -60,7 +60,11 @@ async function saveSettings() {
         autoBackupInterval: document.getElementById('autoBackupInterval').value,
         gdriveAutoShiftBackup: document.getElementById('gdriveAutoShiftCheck') ? document.getElementById('gdriveAutoShiftCheck').checked : true,
         printFooterMsg: document.getElementById('printFooterMsg').value,
+        printInvoiceQrEnabled: document.getElementById('printInvoiceQrEnabled') ? document.getElementById('printInvoiceQrEnabled').checked : true,
+        printSocialQrEnabled: document.getElementById('printSocialQrEnabled') ? document.getElementById('printSocialQrEnabled').checked : true,
         printSocialQrLink: document.getElementById('printSocialQrLink') ? document.getElementById('printSocialQrLink').value.trim() : '',
+        printSocialQr2Enabled: document.getElementById('printSocialQr2Enabled') ? document.getElementById('printSocialQr2Enabled').checked : false,
+        printSocialQr2Link: document.getElementById('printSocialQr2Link') ? document.getElementById('printSocialQr2Link').value.trim() : '',
         // Financial Settings
         currencySymbol: document.getElementById('appCurrencySymbol').value || "ج.م",
         currencyName: document.getElementById('appCurrencyName').value || "جنيه مصري",
@@ -95,6 +99,7 @@ async function saveSettings() {
     if (typeof populatePaymentMethodSelects === 'function') populatePaymentMethodSelects();
     if (typeof updateAllCurrencyLabels === 'function') updateAllCurrencyLabels();
     if (typeof applyBusinessTypeUI === 'function') applyBusinessTypeUI();
+    if (typeof updateSalesBadgeUI === 'function') updateSalesBadgeUI();
 
     if (typeof window.saveSettingsDirect === 'function') {
         await window.saveSettingsDirect(settings);
@@ -396,8 +401,20 @@ function loadSettings() {
     }
     if (settings.address) document.getElementById('shopAddress').value = settings.address;
     if (settings.printFooterMsg) document.getElementById('printFooterMsg').value = settings.printFooterMsg;
+    if (document.getElementById('printInvoiceQrEnabled')) {
+        document.getElementById('printInvoiceQrEnabled').checked = (settings.printInvoiceQrEnabled !== undefined) ? !!settings.printInvoiceQrEnabled : true;
+    }
+    if (document.getElementById('printSocialQrEnabled')) {
+        document.getElementById('printSocialQrEnabled').checked = (settings.printSocialQrEnabled !== undefined) ? !!settings.printSocialQrEnabled : true;
+    }
     if (settings.printSocialQrLink && document.getElementById('printSocialQrLink')) {
         document.getElementById('printSocialQrLink').value = settings.printSocialQrLink;
+    }
+    if (document.getElementById('printSocialQr2Enabled')) {
+        document.getElementById('printSocialQr2Enabled').checked = (settings.printSocialQr2Enabled !== undefined) ? !!settings.printSocialQr2Enabled : false;
+    }
+    if (settings.printSocialQr2Link && document.getElementById('printSocialQr2Link')) {
+        document.getElementById('printSocialQr2Link').value = settings.printSocialQr2Link;
     }
     if (settings.phones) {
         document.getElementById('shopPhone1').value = settings.phones[0] || '';
@@ -845,6 +862,7 @@ function selectCurrencyQuick(symbol, name) {
     if (nameEl && name) nameEl.value = name;
     if (typeof showToast === 'function') showToast(`🇸🇦 تم اختيار العملة: ${symbol} (${name})`, 'success');
 }
+
 
 // =========================================================================
 // 💳 إدارة تسجيل وقراءة كروت NFC / RFID للموظفين

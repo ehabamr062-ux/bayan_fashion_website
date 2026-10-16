@@ -203,12 +203,6 @@
                     }
                 }
                 _productIndexVersion++;
-                // ⚡ جدولة التجهيز المسبق الهادئ لتوكنز البحث في أوقات فراغ المعالج
-                setTimeout(() => {
-                    if (typeof warmupProductSearchTokens === 'function') {
-                        warmupProductSearchTokens();
-                    }
-                }, 100);
             } catch (e) {
                 console.warn("rebuildProductFastIndex err:", e);
             }
@@ -227,6 +221,12 @@
                 ? productsDB
                 : (window.productsDB || []);
             if (!list || list.length === 0) return;
+
+            // ⚡ في القواعد الضخمة (أكثر من 500 صنف)، توليد التوكنز يتم فورياً عند الطلب On-Demand
+            // هذا يوفر مئات الميجابايتات من الذاكرة الرام ويمنع دوران المعالج في الخلفية
+            if (list.length > 500) {
+                return;
+            }
 
             _isPrecachingTokens = true;
             _precacheTokensIndex = 0;
@@ -250,7 +250,6 @@
                     }
                 } else {
                     _isPrecachingTokens = false;
-                    console.log(`✅ [SearchOptimizer] تم تجهيز وتخزين توكنز البحث مسبقاً لـ (${list.length}) صنف في الخلفية بنجاح.`);
                 }
             };
 
@@ -451,6 +450,19 @@
                 return [exactProduct];
             }
 
+            // ⚡ فحص فوري وسريع في SQLite مباشرة بالباركود الأصلي كصمام أمان (0.1ms)
+            if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+                try {
+                    const dbRow = window.BayanSQLite.nativeDb.prepare("SELECT * FROM products WHERE barcode = ? OR barcode = ? OR id = ? LIMIT 1;").get(rawQuery, lowerQuery, rawQuery);
+                    if (dbRow) {
+                        const directP = window.BayanSQLite._reconstructRow(dbRow);
+                        if (directP && (options.filterDeleted === false || !directP.isDeleted)) {
+                            return [directP];
+                        }
+                    }
+                } catch (dbFindErr) {}
+            }
+
             // استخراج نص الاستعلام بعد حذف بادئات مثل "مقاس" أو "نمرة" للبحث الدقيق بالمقاس
             const queryWithoutSize = normQuery.replace(/^(مقاس|نمرة|نمره|size)\s*/i, '').trim();
 
@@ -600,6 +612,17 @@
 
             // إذا كان الحد غير نهائي نرجع جميع النتائج بلا استثناء
             const results = (limit === Infinity) ? scored.map(entry => entry.item) : scored.slice(0, limit).map(entry => entry.item);
+
+            // ⚡ صمام أمان فوري: إذا لم توجد نتائج بالذاكرة (أثناء التحميل الكسول بالخلفية)، نستعلم من SQLite مباشرة
+            if (results.length === 0 && window.BayanSQLite && typeof window.BayanSQLite.searchProducts === 'function' && window.BayanSQLite.db) {
+                try {
+                    const dbResults = window.BayanSQLite.searchProducts(rawQuery, limit);
+                    if (dbResults && dbResults.length > 0) {
+                        return dbResults.filter(p => options.filterDeleted === false || !p.isDeleted);
+                    }
+                } catch(e) {}
+            }
+
             return results;
         }
         window.searchProductsRanked = searchProductsRanked;
@@ -898,10 +921,66 @@
         }
         window.isDailyTaxSeqEnabled = isDailyTaxSeqEnabled;
 
+        // تنظيف أي قيم سابقة ملوثة في التخزين المحلي لضمان دقة العد من جدول المعاملات الفعلي فقط
+        try {
+            if (typeof localStorage !== 'undefined') {
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (k && k.startsWith('bayan_daily_tax_count_')) {
+                        keysToRemove.push(k);
+                    }
+                }
+                keysToRemove.forEach(k => localStorage.removeItem(k));
+            }
+        } catch (e) {}
+
+        // 🔢 حساب عدد فواتير البيع الضريبية الفعلية الصادرة برقم إيصال يومي لليوم المحدد
+        function getDailyTaxCount(targetDateISO = null) {
+            const todayDate = targetDateISO || new Date().toLocaleDateString('en-CA');
+            const list = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : [];
+
+            const daySaleIds = new Set();
+            for (let i = 0; i < list.length; i++) {
+                const t = list[i];
+                if (!t || t.isDeleted) continue;
+                const matchesType = (typeof isTransactionOfType === 'function')
+                    ? isTransactionOfType(t, 'بيع')
+                    : (t.type && t.type.includes('بيع') && !t.type.includes('مرتجع'));
+                if (!matchesType) continue;
+
+                // استخراج تاريخ الحركة والتأكد من مطابقة نفس اليوم فقط
+                let tDate = '';
+                if (t.dateISO) {
+                    tDate = String(t.dateISO).slice(0, 10);
+                } else if (typeof window.extractIsoDateAndTimeString === 'function') {
+                    const ext = window.extractIsoDateAndTimeString(t.date, t.dateISO, t.timeISO);
+                    tDate = ext ? ext.iso : '';
+                } else if (t.date) {
+                    tDate = String(t.date).slice(0, 10);
+                }
+                if (tDate !== todayDate) continue;
+
+                // 🛑 معيار فاصل وحاسم: يتم فقط احتساب الفواتير التي صدرت بالفعل برقم إيصال ضريبي يومي!
+                // الفواتير العادية السابقة قبل تفعيل الميزة أو الفواتير التراكمية العامة لا تُحتسب نهائياً ضمن الحد اليومي
+                const rawTaxSeq = t.taxInvoiceSeq || t.dailySeq || t.dailyTaxSeq || t.taxSeq || (t.meta && (t.meta.taxInvoiceSeq || t.meta.dailySeq || t.meta.dailyTaxSeq));
+                const seqVal = parseInt(rawTaxSeq, 10);
+                if (!isNaN(seqVal) && seqVal > 0) {
+                    const idKey = t.invoiceId ? String(t.invoiceId) : (t.id ? String(t.id) : ('row_' + i));
+                    daySaleIds.add(idKey);
+                }
+            }
+            return daySaleIds.size;
+        }
+        window.getDailyTaxCount = getDailyTaxCount;
+
+        // 🔢 تحديد رقم الإيصال اليومي التالي للفاتورة الجديدة (يبدأ دائماً من 1 لليوم الجديد أو عند تفعيل الميزة)
         function getDailyTaxSequence(targetDateISO = null) {
             const todayDate = targetDateISO || new Date().toLocaleDateString('en-CA');
-            let maxDailySeq = 0;
             const list = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : [];
+
+            const daySaleIds = new Set();
+            let maxTaxSeq = 0;
 
             for (let i = 0; i < list.length; i++) {
                 const t = list[i];
@@ -909,50 +988,57 @@
                 const matchesType = (typeof isTransactionOfType === 'function')
                     ? isTransactionOfType(t, 'بيع')
                     : (t.type && t.type.includes('بيع') && !t.type.includes('مرتجع'));
-                if (matchesType && (t.dateISO === todayDate || (!t.dateISO && targetDateISO === null))) {
-                    const seq = parseInt(t.taxInvoiceSeq || t.dailySeq || 0, 10);
-                    if (!isNaN(seq) && seq > maxDailySeq) {
-                        maxDailySeq = seq;
-                    }
+                if (!matchesType) continue;
+
+                let tDate = '';
+                if (t.dateISO) {
+                    tDate = String(t.dateISO).slice(0, 10);
+                } else if (typeof window.extractIsoDateAndTimeString === 'function') {
+                    const ext = window.extractIsoDateAndTimeString(t.date, t.dateISO, t.timeISO);
+                    tDate = ext ? ext.iso : '';
+                } else if (t.date) {
+                    tDate = String(t.date).slice(0, 10);
+                }
+                if (tDate !== todayDate) continue;
+
+                const rawTaxSeq = t.taxInvoiceSeq || t.dailySeq || t.dailyTaxSeq || t.taxSeq || (t.meta && (t.meta.taxInvoiceSeq || t.meta.dailySeq || t.meta.dailyTaxSeq));
+                const seqVal = parseInt(rawTaxSeq, 10);
+                if (!isNaN(seqVal) && seqVal > 0) {
+                    const idKey = t.invoiceId ? String(t.invoiceId) : (t.id ? String(t.id) : ('row_' + i));
+                    daySaleIds.add(idKey);
+                    if (seqVal > maxTaxSeq) maxTaxSeq = seqVal;
                 }
             }
 
-            // فحص القيمة المخزنة لليوم الحالي كصمام أمان
-            try {
-                const storedDayKey = 'bayan_daily_tax_seq_' + todayDate;
-                const storedVal = (typeof getStore === 'function' ? getStore(storedDayKey) : null);
-                const storedSeq = parseInt(storedVal || '0', 10);
-                if (!isNaN(storedSeq) && storedSeq > maxDailySeq) {
-                    maxDailySeq = storedSeq;
-                }
-            } catch (e) {}
-
-            let nextNum = maxDailySeq + 1;
-
-            // تطبيق السقف المحدد في الإعدادات إن وجد
-            try {
-                const settings = (typeof getStore === 'function') ? JSON.parse(getStore('pos_settings') || '{}') : {};
-                const limit = parseInt(settings.dailyTaxSeqLimit || 0, 10);
-                if (limit > 0 && nextNum > limit) {
-                    nextNum = ((nextNum - 1) % limit) + 1;
-                }
-            } catch (e) {}
-
-            return nextNum;
+            const currentCount = Math.max(daySaleIds.size, maxTaxSeq);
+            return currentCount + 1;
         }
         window.getDailyTaxSequence = getDailyTaxSequence;
 
+        // 🛑 دالة مركزية للتحقق من بلوغ الحد الأقصى للفواتير اليومية (سقف الحماية الضريبية)
+        function isDailyTaxLimitReached(targetDateISO = null) {
+            if (typeof isDailyTaxSeqEnabled !== 'function' || !isDailyTaxSeqEnabled()) {
+                return false;
+            }
+            try {
+                const settings = (typeof getStore === 'function') ? JSON.parse(getStore('pos_settings') || '{}') : {};
+                const limit = parseInt(settings.dailyTaxSeqLimit || 0, 10);
+                if (limit <= 0) return false;
+
+                const todayCount = getDailyTaxCount(targetDateISO);
+                return todayCount >= limit;
+            } catch (e) {
+                return false;
+            }
+        }
+        window.isDailyTaxLimitReached = isDailyTaxLimitReached;
+
         function updateLastSavedDailyTaxSequence(targetDateISO, seqNumber) {
-            if (!seqNumber || isNaN(seqNumber)) return;
             try {
                 const todayDate = targetDateISO || new Date().toLocaleDateString('en-CA');
                 const storedDayKey = 'bayan_daily_tax_seq_' + todayDate;
-                const currentStored = parseInt((typeof getStore === 'function' ? getStore(storedDayKey) : null) || '0', 10);
-                const num = parseInt(seqNumber, 10);
-                if (num > currentStored || isNaN(currentStored)) {
-                    if (typeof setStore === 'function') {
-                        setStore(storedDayKey, String(num));
-                    }
+                if (typeof setStore === 'function' && seqNumber) {
+                    setStore(storedDayKey, String(seqNumber));
                 }
             } catch (e) {}
         }
@@ -982,45 +1068,6 @@
                 }
             }
 
-            // 3. الذكاء الاسترجاعي: إذا كانت الفاتورة حركة مبيعات ونظام الترقيم اليومي مفعل
-            // يتم استنتاج ترتيبها اليومي تلقائياً لمنع ظهور شرطة (-)
-            const isSale = (inv.type && inv.type.includes('بيع') && !inv.type.includes('مرتجع'));
-            if (isSale && typeof isDailyTaxSeqEnabled === 'function' && isDailyTaxSeqEnabled() && invId) {
-                try {
-                    const list = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : [];
-                    const invDate = inv.dateISO || (inv.date ? String(inv.date).slice(0, 10) : new Date().toLocaleDateString('en-CA'));
-                    
-                    // استخراج كافة أرقام فواتير البيع الفريدة لنفس اليوم مرتبة تصاعدياً
-                    const daySaleIds = [];
-                    for (let i = 0; i < list.length; i++) {
-                        const t = list[i];
-                        if (!t || t.isDeleted) continue;
-                        const tIsSale = (t.type && t.type.includes('بيع') && !t.type.includes('مرتجع'));
-                        const tDate = t.dateISO || (t.date ? String(t.date).slice(0, 10) : '');
-                        if (tIsSale && tDate === invDate && t.invoiceId) {
-                            const numId = parseInt(t.invoiceId, 10) || 0;
-                            if (numId > 0 && !daySaleIds.includes(numId)) {
-                                daySaleIds.push(numId);
-                            }
-                        }
-                    }
-                    daySaleIds.sort((a, b) => a - b);
-                    const currentNumId = parseInt(invId, 10) || 0;
-                    const pos = daySaleIds.indexOf(currentNumId);
-                    if (pos !== -1) {
-                        let computedSeq = pos + 1;
-                        const settings = (typeof getStore === 'function') ? JSON.parse(getStore('pos_settings') || '{}') : {};
-                        const limit = parseInt(settings.dailyTaxSeqLimit || 0, 10);
-                        if (limit > 0 && computedSeq > limit) {
-                            computedSeq = ((computedSeq - 1) % limit) + 1;
-                        }
-                        inv.taxInvoiceSeq = computedSeq;
-                        inv.dailySeq = computedSeq;
-                        return computedSeq;
-                    }
-                } catch (e) {}
-            }
-
             return null;
         }
         window.getInvoiceTaxReceiptSeq = getInvoiceTaxReceiptSeq;
@@ -1029,7 +1076,8 @@
         function getInvoiceReceiptBadgeHtml(inv) {
             const seq = getInvoiceTaxReceiptSeq(inv);
             if (seq) {
-                return `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; border-radius:6px; padding:2px 8px; font-size:0.82rem; font-weight:900;" title="رقم الإيصال اليومي">#${seq}</span>`;
+                const rawId = (inv && (inv.invoiceId || inv.id)) ? ` (الرقم التراكمي الداخلي: ${inv.invoiceId || inv.id})` : '';
+                return `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; border-radius:6px; padding:2px 8px; font-size:0.82rem; font-weight:900; cursor:help;" title="رقم الإيصال اليومي: ${seq}${rawId}">#${seq}</span>`;
             }
             return '<span style="color:#94a3b8; font-size:0.85rem;">-</span>';
         }
@@ -3091,18 +3139,43 @@
                     resolve(prompt(message, defaultValue));
                     return;
                 }
+
+                // 🛡️ 1. فك تعلق التركيز بالزر السابق لمنع أي تداخل
+                if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                    try { document.activeElement.blur(); } catch(e) {}
+                }
                 
                 title.innerText = message;
                 input.value = defaultValue;
                 input.type = inputType || 'text';
+                input.disabled = false;
+                input.readOnly = false;
                 modal.style.zIndex = '2147483647';
                 modal.classList.remove('hidden');
-                setTimeout(() => {
-                    input.focus();
-                    input.select();
-                }, 50);
+
+                // 🛡️ 2. تركيز فوري ومكرر عبر requestAnimationFrame و setTimeout لضمان استقرار التركيز 100%
+                const setFocus = () => {
+                    if (input && !modal.classList.contains('hidden')) {
+                        input.focus();
+                        if (typeof input.select === 'function') input.select();
+                    }
+                };
+                setFocus();
+                requestAnimationFrame(setFocus);
+                setTimeout(setFocus, 25);
+                setTimeout(setFocus, 80);
+
+                // 🛡️ 3. Focus Trap ذكي: النقر داخل صندوق المودال يعيد التركيز للحقل تلقائياً
+                const card = modal.querySelector('.alert-card') || modal;
+                const cardTrapHandler = (e) => {
+                    if (e.target !== confirmBtn && e.target !== cancelBtn) {
+                        input.focus();
+                    }
+                };
+                card.addEventListener('mousedown', cardTrapHandler);
                 
                 function cleanup() {
+                    card.removeEventListener('mousedown', cardTrapHandler);
                     input.type = 'text'; // إعادة الحقل إلى نص عادي دائماً
                     modal.classList.add('hidden');
                     confirmBtn.onclick = null;

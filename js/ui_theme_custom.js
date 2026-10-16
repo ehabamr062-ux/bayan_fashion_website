@@ -632,14 +632,14 @@ function updateSubscriptionUI(hwid, plan, daysLeft) {
                 document.body.classList.remove('has-wallpaper');
                 document.documentElement.classList.remove('has-wallpaper');
             } else {
-                s.textContent = `html, body { background-image: ${bgCssVal} !important; background-size: cover !important; background-attachment: fixed !important; background-position: center !important; }`;
+                s.textContent = `html, body { background-image: ${bgCssVal} !important; background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; }`;
                 document.body.style.setProperty('background-image', bgCssVal, 'important');
                 document.body.style.setProperty('background-size', 'cover', 'important');
-                document.body.style.setProperty('background-attachment', 'fixed', 'important');
                 document.body.style.setProperty('background-position', 'center', 'important');
+                document.body.style.setProperty('background-repeat', 'no-repeat', 'important');
                 document.documentElement.style.setProperty('background-image', bgCssVal, 'important');
                 document.documentElement.style.setProperty('background-size', 'cover', 'important');
-                document.documentElement.style.setProperty('background-attachment', 'fixed', 'important');
+                document.documentElement.style.setProperty('background-position', 'center', 'important');
                 document.documentElement.style.setProperty('background-position', 'center', 'important');
                 document.body.classList.add('has-wallpaper');
                 document.documentElement.classList.add('has-wallpaper');

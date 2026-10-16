@@ -2177,22 +2177,3 @@ body.daily-amounts-hidden #daily-report-section #dailyTotalSalesReceipts:hover #
     scrollbar-width: thin;
     scrollbar-color: #f59e0b #fff7ed;
 }
-
-/* ============================================= */
-/* 📜 تنسيقات سجل الحركات المطور (History Section Enhancements) */
-/* ============================================= */
-.col-hist-11 {
-    background: linear-gradient(135deg, rgba(124,58,237,0.08), rgba(245,158,11,0.08)) !important;
-    font-weight: 900;
-    color: #7c3aed;
-    text-align: center;
-    white-space: nowrap;
-}
-.hist-balance-up   { color: #059669; font-weight: 900; }
-.hist-balance-down { color: #dc2626; font-weight: 900; }
-.hist-balance-zero { color: #94a3b8; font-weight: 700; }
-
-/* تحسين مربع فلتر الفاتورة */
-#historyInvoiceClientFilter:focus {
-    box-shadow: 0 0 0 3px rgba(124,58,237,0.15);
-}

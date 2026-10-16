@@ -445,7 +445,11 @@
                     document.getElementById('loginPinInput').value = '';
                     selectedLoginUser = null;
 
-                    // إخفاء أدوات شاشة تسجيل الدخول بعد النجاح في الدخول
+                    // إخفاء أدوات شاشة تسجيل الدخول وتنظيف مؤقت الساعة بعد النجاح في الدخول
+                    if (typeof loginClockInterval !== 'undefined' && loginClockInterval) {
+                        clearInterval(loginClockInterval);
+                        loginClockInterval = null;
+                    }
                     const wpBar = document.getElementById('quickWpBar');
                     const infoWidget = document.getElementById('quickInfoWidget');
                     if (wpBar) wpBar.classList.add('hidden');

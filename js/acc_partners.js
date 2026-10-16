@@ -283,6 +283,15 @@
             accountsColumnOrder = [...DEFAULT_ACCOUNTS_COL_ORDER];
         }
 
+        function toggleAccountsColumn(index, isVisible) {
+
+            accountsColumnVisibility[index] = isVisible;
+
+            setStore('pos_acc_cols', JSON.stringify(accountsColumnVisibility));
+
+            renderAccountsTable();
+        }
+
         // ================= تخصيص أعمدة كشف الحساب (Statement Columns) =================
 
         let statementColumnVisibility = JSON.parse(getStore('pos_stmt_cols') || '{"0":false,"1":true,"2":true,"3":true,"4":true,"5":true,"6":true}');
@@ -718,9 +727,10 @@
                 return (matchName || matchCode || matchPhone) && matchType && matchCat;
             });
 
-            // ⚡ فهرسة سريعة لجميع حركات الشركاء دفعة واحدة O(T) لتسريع فتح جدول الحسابات فورياً
+            // ⚡ جلب إحصائيات الشركاء مباشرة من SQLite أو عبر الفهرسة الاحتياطية
+            const useSqliteStats = !!(window.BayanSQLite && typeof window.BayanSQLite.getPartnerStats === 'function');
             const partnerTransactionsMap = {};
-            if (typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+            if (!useSqliteStats && typeof transactions !== 'undefined' && Array.isArray(transactions)) {
                 for (let i = 0; i < transactions.length; i++) {
                     const t = transactions[i];
                     if (!t) continue;
@@ -762,38 +772,42 @@
                 let totalSales = 0;
                 let lastReceiptDate = '-';
 
-                // جلب حركات الحساب فورياً من الفهرس المباشر O(1) بدلاً من فلترة ملايين العمليات
-                const accTrans = partnerTransactionsMap[targetAccNameClean] || (targetAccCode ? partnerTransactionsMap[targetAccCode] : null) || [];
+                if (useSqliteStats) {
+                    const st = window.BayanSQLite.getPartnerStats(acc.name);
+                    totalSales = st.totalSales;
+                    if (st.lastReceiptDate !== '-') lastReceiptDate = st.lastReceiptDate;
+                    if (st.lastTransDate !== '-') lastTransDate = st.lastTransDate;
+                } else {
+                    const accTrans = partnerTransactionsMap[targetAccNameClean] || (targetAccCode ? partnerTransactionsMap[targetAccCode] : null) || [];
+                    accTrans.forEach(t => {
+                        const transType = (t.type || '');
+                        const val = parseFloat(t.total !== undefined ? t.total : (t.price || 0)) || 0;
 
-                accTrans.forEach(t => {
-                    const transType = (t.type || '');
-                    const val = parseFloat(t.total !== undefined ? t.total : (t.price || 0)) || 0;
+                        // حساب صافي المبيعات (خصم أي مرتجع بيع أو مرتجع مبيعات)
+                        const isSale = transType.includes('بيع') && !transType.includes('مرتجع');
+                        const isSaleReturn = transType.includes('مرتجع') && (transType.includes('بيع') || transType.includes('مبيعات'));
 
-                    // حساب صافي المبيعات (خصم أي مرتجع بيع أو مرتجع مبيعات)
-                    const isSale = transType.includes('بيع') && !transType.includes('مرتجع');
-                    const isSaleReturn = transType.includes('مرتجع') && (transType.includes('بيع') || transType.includes('مبيعات'));
-
-                    if (isSale) {
-                        totalSales += val;
-                    } else if (isSaleReturn) {
-                        totalSales -= val;
-                    }
-
-                    // تاريخ آخر سند قبض
-                    if (transType.includes('قبض') && t.dateISO) {
-                        if (lastReceiptDate === '-' || t.dateISO > lastReceiptDate) {
-                            lastReceiptDate = t.dateISO;
+                        if (isSale) {
+                            totalSales += val;
+                        } else if (isSaleReturn) {
+                            totalSales -= val;
                         }
-                    }
 
-                    // تاريخ آخر حركة مسجلة
-                    if (t.dateISO) {
-                        if (lastTransDate === '-' || t.dateISO > lastTransDate) {
-                            lastTransDate = t.dateISO;
+                        // تاريخ آخر سند قبض
+                        if (transType.includes('قبض') && t.dateISO) {
+                            if (lastReceiptDate === '-' || t.dateISO > lastReceiptDate) {
+                                lastReceiptDate = t.dateISO;
+                            }
                         }
-                    }
 
-                });
+                        // تاريخ آخر حركة مسجلة
+                        if (t.dateISO) {
+                            if (lastTransDate === '-' || t.dateISO > lastTransDate) {
+                                lastTransDate = t.dateISO;
+                            }
+                        }
+                    });
+                }
 
                 // --- منطق فلترة الأرصدة (Zero Balance Logic) ---
 
@@ -1545,31 +1559,37 @@
             const targetPartnerClean = cleanAr(acc.name);
             const targetAccCode = (acc.code || '').toString().trim();
 
-            // ⚡ جلب فوري لحركات الشريك من SQLite عبر الفهرس السريع O(log N) لضمان استيعاب مئات الآلاف من الفواتير
-            let dbPartnerTxs = [];
-            if (typeof db !== 'undefined' && db.transactions) {
-                try {
-                    const indexedTxs = await db.transactions.where('partner').equals(acc.name).toArray();
-                    dbPartnerTxs = indexedTxs || [];
-                } catch (err) {
-                    console.warn("⚠️ Query partner transactions notice:", err);
-                }
+            // ⚡ جلب فوري لحركات الشريك من SQLite عبر الفهرس السريع O(log N)
+            let accTrans = [];
+            if (window.BayanSQLite && typeof window.BayanSQLite.getPartnerTransactions === 'function') {
+                accTrans = window.BayanSQLite.getPartnerTransactions(acc.name, 3000);
             }
-
-            // دمج حركات SQLite مع حركات الذاكرة الحالية بأمان وبدون أي تكرار
-            const txMap = new Map();
-            (dbPartnerTxs || []).forEach(t => { if (t && t.id) txMap.set(t.id, t); });
-            (typeof transactions !== 'undefined' && Array.isArray(transactions) ? transactions : []).forEach(t => {
-                if (!t) return;
-                const matchName = t.partner === acc.name || cleanAr(t.partner) === targetPartnerClean;
-                const matchCode = targetAccCode && (String(t.partnerCode || '').trim() === targetAccCode || String(t.accountCode || '').trim() === targetAccCode);
-                if (matchName || matchCode) {
-                    if (t.id) txMap.set(t.id, t);
-                    else txMap.set(`mem_${Math.random()}`, t);
+            if (!accTrans || accTrans.length === 0) {
+                let dbPartnerTxs = [];
+                if (typeof db !== 'undefined' && db.transactions) {
+                    try {
+                        const indexedTxs = await db.transactions.where('partner').equals(acc.name).toArray();
+                        dbPartnerTxs = indexedTxs || [];
+                    } catch (err) {
+                        console.warn("⚠️ Query partner transactions notice:", err);
+                    }
                 }
-            });
 
-            const accTrans = Array.from(txMap.values());
+                // دمج حركات SQLite مع حركات الذاكرة الحالية بأمان وبدون أي تكرار
+                const txMap = new Map();
+                (dbPartnerTxs || []).forEach(t => { if (t && t.id) txMap.set(t.id, t); });
+                (typeof transactions !== 'undefined' && Array.isArray(transactions) ? transactions : []).forEach(t => {
+                    if (!t) return;
+                    const matchName = t.partner === acc.name || cleanAr(t.partner) === targetPartnerClean;
+                    const matchCode = targetAccCode && (String(t.partnerCode || '').trim() === targetAccCode || String(t.accountCode || '').trim() === targetAccCode);
+                    if (matchName || matchCode) {
+                        if (t.id) txMap.set(t.id, t);
+                        else txMap.set(`mem_${Math.random()}`, t);
+                    }
+                });
+
+                accTrans = Array.from(txMap.values());
+            }
 
             // ترتيب العمليات حسب التاريخ والوقت لضمان دقة تسلسل الرصيد التراكمي
             accTrans.sort((a, b) => {

@@ -308,6 +308,14 @@
                 return window.accountBalancesCache[cacheKey];
             }
 
+            // ⚡ 1. حساب الرصيد الصافي الدقيق مباشرة من محرك SQLite C++ بكامل الأرشيف التاريخي
+            if (window.BayanSQLite && typeof window.BayanSQLite.getAccountAccurateBalance === 'function' && window.BayanSQLite.db) {
+                const accurateBal = window.BayanSQLite.getAccountAccurateBalance(name, activeExcludeId);
+                if (!window.accountBalancesCache) window.accountBalancesCache = {};
+                window.accountBalancesCache[cacheKey] = accurateBal;
+                return accurateBal;
+            }
+
             const acc = getAccountByNameCached(targetNameClean);
             if (!acc) return 0;
 
@@ -715,16 +723,41 @@
             const searchId = (document.getElementById('invoicesSearchId')?.value || '').toLowerCase();
             const fromDate = document.getElementById('invoicesDateFrom')?.value || '';
             const toDate = document.getElementById('invoicesDateTo')?.value || '';
+            const searchPartner = (document.getElementById('invoicesSearchPartner')?.value || '').toLowerCase();
+            const searchProduct = document.getElementById('invoicesSearchProduct') ? document.getElementById('invoicesSearchProduct').value.toLowerCase() : '';
+            const searchMethod = document.getElementById('invoicesSearchMethod')?.value || 'all';
+            const typeFilter = document.getElementById('invoicesTypeFilter')?.value || 'all';
+            const whFilterVal = (window.currentInvoicesWarehouseFilter && window.currentInvoicesWarehouseFilter !== 'all') ? window.currentInvoicesWarehouseFilter : '';
 
-            // ⚡ جلب الفواتير السابقة أو المحددة من SQLite عند الطلب
+            // ⚡ جلب الفواتير من SQLite مع دفع فلاتر البحث الأساسية لمحرك C++ مباشرة
             if (searchId && typeof window.ensureInvoiceLoaded === 'function') {
                 await window.ensureInvoiceLoaded(searchId);
             }
-            if ((fromDate || toDate) && typeof window.loadTransactionsForDateRange === 'function') {
+
+            let rawData = transactions;
+            if (window.BayanSQLite && typeof window.BayanSQLite.queryFilteredTransactions === 'function' && window.BayanSQLite.db && (fromDate || toDate || searchId || searchPartner || (typeFilter && typeFilter !== 'all') || whFilterVal)) {
+                const sqlFiltered = window.BayanSQLite.queryFilteredTransactions({
+                    fromDate,
+                    toDate,
+                    type: typeFilter,
+                    warehouse: whFilterVal,
+                    partner: searchPartner,
+                    searchId: searchId,
+                    limit: 5000
+                });
+                if (sqlFiltered && sqlFiltered.length > 0) {
+                    const existingMap = new Map((window.transactions || []).map(t => [t.id, t]));
+                    sqlFiltered.forEach(t => { if (t && t.id) existingMap.set(t.id, t); });
+                    window.transactions = Array.from(existingMap.values());
+                    if (typeof transactions !== 'undefined') transactions = window.transactions;
+                    rawData = sqlFiltered;
+                }
+            } else if ((fromDate || toDate) && typeof window.loadTransactionsForDateRange === 'function') {
                 const todayISO = new Date().toLocaleDateString('en-CA');
                 if (fromDate < todayISO || toDate < todayISO) {
                     await window.loadTransactionsForDateRange(fromDate, toDate);
                 }
+                rawData = transactions;
             }
 
             if (typeof renderInvoicesWarehouseChips === 'function') {
@@ -738,21 +771,12 @@
 
             tbody.innerHTML = '';
 
-            const searchPartner = document.getElementById('invoicesSearchPartner').value.toLowerCase();
-
-            const searchProduct = document.getElementById('invoicesSearchProduct') ? document.getElementById('invoicesSearchProduct').value.toLowerCase() : '';
-
-            const searchMethod = document.getElementById('invoicesSearchMethod').value;
-
-            const typeFilter = document.getElementById('invoicesTypeFilter').value;
-
             // الحفاظ على الفهرس الأصلي للعملية بدون استهلاك الذاكرة أو استنساخ آلاف الكائنات
-            if (transactions.length > 0 && transactions[0].originalIndex === undefined) {
-                for (let i = 0; i < transactions.length; i++) {
-                    transactions[i].originalIndex = i;
+            if (rawData.length > 0 && rawData[0].originalIndex === undefined) {
+                for (let i = 0; i < rawData.length; i++) {
+                    rawData[i].originalIndex = i;
                 }
             }
-            let rawData = transactions;
 
             // 🔒 خصوصية وسرية الفواتير بحسب دور ونطاق المستخدم الحالي
             const activeUser = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : window.currentUser;
@@ -1208,14 +1232,30 @@
                 else if (typeClean.includes('تحويل')) category = 'transfer';
             }
 
-            // فلترة الحركات التي تطابق رقم الفاتورة والنوع/الفئة بدقة بدون خلط مع معرفات الحركات الأخرى
-            let invoiceItems = transactions.filter(t => {
-                const hasInvId = t.invoiceId != null && t.invoiceId !== '';
-                if (hasInvId) {
-                    if (String(t.invoiceId) !== String(invoiceId)) return false;
-                } else {
-                    if (String(t.id) !== String(invoiceId)) return false;
-                }
+            // ⚡ استدعاء بنود الفاتورة مباشرة من SQLite في 1 ميلي ثانية
+            let rawInvoiceItems = [];
+            if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
+                rawInvoiceItems = window.BayanSQLite.getInvoiceItems(invoiceId);
+            }
+            if (!rawInvoiceItems || rawInvoiceItems.length === 0) {
+                rawInvoiceItems = (typeof transactions !== 'undefined' ? transactions : []).filter(t => {
+                    if (!t) return false;
+                    const hasInvId = t.invoiceId != null && t.invoiceId !== '';
+                    return hasInvId ? (String(t.invoiceId) === String(invoiceId)) : (String(t.id) === String(invoiceId));
+                });
+            }
+            if (rawInvoiceItems.length === 0 && typeof window.ensureInvoiceLoaded === 'function') {
+                await window.ensureInvoiceLoaded(invoiceId);
+                rawInvoiceItems = (window.transactions || []).filter(t => {
+                    if (!t) return false;
+                    const hasInvId = t.invoiceId != null && t.invoiceId !== '';
+                    return hasInvId ? (String(t.invoiceId) === String(invoiceId)) : (String(t.id) === String(invoiceId));
+                });
+            }
+
+            // فلترة البنود حسب الفئة المطلوبة إن وجدت
+            let invoiceItems = rawInvoiceItems.filter(t => {
+                if (!t) return false;
                 if (category) {
                     const tType = String(t.type || '');
                     if (category === 'return_sales') return tType.includes('مرتجع بيع') || tType.includes('مرتجع مبيعات');
@@ -1229,49 +1269,10 @@
                 }
                 return true;
             });
-            
+
             // إذا كانت الفاتورة تجارية، نستبعد حركات المقبوضات والمدفوعات الفردية المرتبطة بها من جدول الأصناف
             if (category === 'sales' || category === 'purchase' || category === 'return_sales' || category === 'return_purchase') {
                 invoiceItems = invoiceItems.filter(t => t.type && !t.type.includes('قبض') && !t.type.includes('صرف'));
-            }
-            
-            // ⚡ إذا لم تكن في الذاكرة (فاتورة قديمة)، نستدعيها من SQLite فوراً مع إظهار مؤشر التحميل
-            if (invoiceItems.length === 0 && typeof window.ensureInvoiceLoaded === 'function') {
-                const showInvLoader = (typeof window.showSectionLoader === 'function');
-                if (showInvLoader) {
-                    window.showSectionLoader(null, 'جاري استدعاء بنود الفاتورة...', 'قراءة الأصناف والتفاصيل من قاعدة البيانات');
-                    await new Promise(r => setTimeout(r, 40));
-                }
-                try {
-                    await window.ensureInvoiceLoaded(invoiceId);
-                } finally {
-                    if (showInvLoader && typeof window.hideSectionLoader === 'function') {
-                        window.hideSectionLoader();
-                    }
-                }
-                invoiceItems = transactions.filter(t => {
-                    const hasInvId = t.invoiceId != null && t.invoiceId !== '';
-                    if (hasInvId) {
-                        if (String(t.invoiceId) !== String(invoiceId)) return false;
-                    } else {
-                        if (String(t.id) !== String(invoiceId)) return false;
-                    }
-                    if (category) {
-                        const tType = String(t.type || '');
-                        if (category === 'return_sales') return tType.includes('مرتجع بيع') || tType.includes('مرتجع مبيعات');
-                        if (category === 'return_purchase') return tType.includes('مرتجع شراء') || tType.includes('مرتجع مشتريات');
-                        if (category === 'sales') return (tType.includes('بيع') || tType.includes('مبيعات')) && !tType.includes('مرتجع');
-                        if (category === 'purchase') return (tType.includes('شراء') || tType.includes('مشتريات')) && !tType.includes('مرتجع');
-                        if (category === 'receipt') return tType.includes('قبض');
-                        if (category === 'disbursement') return tType.includes('صرف');
-                        if (category === 'adjustment') return tType.includes('تسوية');
-                        if (category === 'transfer') return tType.includes('تحويل');
-                    }
-                    return true;
-                });
-                if (category === 'sales' || category === 'purchase' || category === 'return_sales' || category === 'return_purchase') {
-                    invoiceItems = invoiceItems.filter(t => t.type && !t.type.includes('قبض') && !t.type.includes('صرف'));
-                }
             }
 
             if (invoiceItems.length === 0) return alert('خطأ: لم يتم العثور على تفاصيل الفاتورة.');
@@ -2129,15 +2130,20 @@
                             const rawHeadOrigInv = t.originalInvoiceId || head.originalInvoiceId;
                             const headOrigInvId = (rawHeadOrigInv && rawHeadOrigInv !== '-' && rawHeadOrigInv !== '---') ? String(rawHeadOrigInv).trim() : null;
 
-                            returnCart = invItems.filter(x => x.product).map(it => {
-                                const p = productsDB.find(x => x.name === it.product || x.id === it.productId);
+                            returnCart = invItems.filter(x => (x.product || x.productName || x.name)).map(it => {
+                                const pName = (it.product || it.productName || it.name || '').trim();
+                                const p = productsDB.find(x => (pName && x.name === pName) || (it.productId && String(x.id) === String(it.productId)) || (it.id && String(x.id) === String(it.id)));
                                 const u = (p && p.units) ? p.units.find(un => un.unitName === it.unit) : null;
                                 const rawOrigInvId = it.originalInvoiceId || headOrigInvId;
                                 const origInvId = (rawOrigInvId && rawOrigInvId !== '-' && rawOrigInvId !== '---') ? String(rawOrigInvId).trim() : null;
+                                const finalName = pName || (p ? p.name : '') || 'صنف غير محدد';
                                 return {
                                     id: p ? p.id : (it.productId || it.id),
-                                    name: it.product,
-                                    code: it.code || (p ? p.code : '---'),
+                                    name: finalName,
+                                    product: finalName,
+                                    productName: finalName,
+                                    code: it.code || it.barcode || (p ? (p.code || p.barcode) : '---'),
+                                    barcode: it.code || it.barcode || (p ? (p.code || p.barcode) : '---'),
                                     selectedSize: it.selectedSize || it.size || '',
                                     selectedColor: it.selectedColor || it.color || '',
                                     size: it.selectedSize || it.size || '',
@@ -2181,15 +2187,20 @@
                             const rawHeadOrigInv = t.originalInvoiceId || head.originalInvoiceId;
                             const headOrigInvId = (rawHeadOrigInv && rawHeadOrigInv !== '-' && rawHeadOrigInv !== '---') ? String(rawHeadOrigInv).trim() : null;
 
-                            purReturnCart = invItems.filter(x => x.product).map(it => {
-                                const p = productsDB.find(x => x.name === it.product || x.id === it.productId);
+                            purReturnCart = invItems.filter(x => (x.product || x.productName || x.name)).map(it => {
+                                const pName = (it.product || it.productName || it.name || '').trim();
+                                const p = productsDB.find(x => (pName && x.name === pName) || (it.productId && String(x.id) === String(it.productId)) || (it.id && String(x.id) === String(it.id)));
                                 const u = (p && p.units) ? p.units.find(un => un.unitName === it.unit) : null;
                                 const rawOrigInvId = it.originalInvoiceId || headOrigInvId;
                                 const origInvId = (rawOrigInvId && rawOrigInvId !== '-' && rawOrigInvId !== '---') ? String(rawOrigInvId).trim() : null;
+                                const finalName = pName || (p ? p.name : '') || 'صنف غير محدد';
                                 return {
                                     id: p ? p.id : (it.productId || it.id),
-                                    name: it.product,
-                                    code: it.code || (p ? p.code : '---'),
+                                    name: finalName,
+                                    product: finalName,
+                                    productName: finalName,
+                                    code: it.code || it.barcode || (p ? (p.code || p.barcode) : '---'),
+                                    barcode: it.code || it.barcode || (p ? (p.code || p.barcode) : '---'),
                                     selectedSize: it.selectedSize || it.size || '',
                                     selectedColor: it.selectedColor || it.color || '',
                                     size: it.selectedSize || it.size || '',
