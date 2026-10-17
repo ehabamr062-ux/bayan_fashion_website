@@ -1932,87 +1932,117 @@ body.dark-mode .panel-header {
 }
 
 
+/* ================= تخصيصات شاشة كشف الحساب لملء المساحة بالكامل ومنع القص ================= */
+#statement-section {
+    align-items: stretch !important;
+    height: calc(100vh - 95px) !important;
+    max-height: calc(100vh - 95px) !important;
+    overflow: hidden !important;
+    padding-bottom: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+#statement-section .inv-container {
+    height: 100% !important;
+    max-height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 0 !important;
+    align-items: stretch !important;
+    width: 100% !important;
+}
+
 /* ======================================================== */
 /* === Extracted from index.html === */
 /* ======================================================== */
 
 .stmt-split-layout {
-            display: flex;
-            gap: 20px;
-            height: calc(100vh - 180px);
-            flex-direction: row-reverse;
-        }
+    display: flex;
+    gap: 14px;
+    flex: 1;
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
+    flex-direction: row-reverse;
+}
 
-        /* row-reverse for RTL so sidebar is on left */
-        .stmt-sidebar {
-            width: 260px;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            overflow-y: auto;
-            overflow-x: hidden;
-            padding-left: 5px;
-        }
+/* row-reverse for RTL so sidebar is on left */
+.stmt-sidebar {
+    width: 250px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-left: 2px;
+}
 
-        .stmt-main-content {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            overflow: hidden;
-        }
+.stmt-main-content {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: hidden;
+}
 
-        .stmt-table-wrapper {
-            flex: 1;
-            overflow: auto;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            background: white;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-        }
+.stmt-table-wrapper {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 12px;
+    background: white;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+}
 
-        .stmt-balance-box {
-            background: linear-gradient(135deg, #10b981, #059669);
-            color: white;
-            padding: 25px 20px;
-            border-radius: 16px;
-            text-align: center;
-            box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.4);
-            transition: all 0.3s;
-        }
+.stmt-balance-box {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    padding: 14px 12px;
+    border-radius: 14px;
+    text-align: center;
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
+    transition: all 0.25s;
+    flex-shrink: 0;
+}
 
-        .stmt-balance-box.debt {
-            background: linear-gradient(135deg, #ef4444, #dc2626);
-            box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.4);
-        }
+.stmt-balance-box.debt {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    box-shadow: 0 4px 14px rgba(239, 68, 68, 0.3);
+}
 
-        .stmt-action-btn {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 14px 18px;
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 12px;
-            font-weight: 900;
-            color: #334155;
-            cursor: pointer;
-            transition: 0.2s;
-            font-family: 'Cairo', sans-serif;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
-        }
+.stmt-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 14px;
+    background: white;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 10px;
+    font-weight: 800;
+    font-size: 0.84rem;
+    color: #334155;
+    cursor: pointer;
+    transition: 0.2s;
+    font-family: 'Cairo', sans-serif;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    flex-shrink: 0;
+}
 
-        .stmt-action-btn:hover:not(:disabled) {
-            background: #f8fafc;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
-        }
+.stmt-action-btn:hover:not(:disabled) {
+    background: #f8fafc;
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.05);
+}
 
-        .stmt-action-btn:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-            background: #f1f5f9;
-            color: #94a3b8;
+.stmt-action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f1f5f9;
+    color: #94a3b8;
         }
 
         .stmt-table {

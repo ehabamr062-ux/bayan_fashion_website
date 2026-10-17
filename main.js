@@ -8,8 +8,11 @@ const crypto = require('crypto');
 // =========================================================================
 // 💾 تقليل العمليات الخلفية المجهدة للهارد الميكانيكي HDD
 app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling,CalculateNativeWinOcclusion,SpareRendererForSitePerProcess');
-// 🧠 ضبط استهلاك الذاكرة لمحرك V8 لمنح البرنامج سلاسة فائقة ومنع التجميد الدوري (GC Thrashing)
-app.commandLine.appendSwitch('js-flags', '--max-old-space-size=2048');
+// 🧠 ضبط استهلاك الذاكرة لمحرك V8 لتحفيز تنظيف الذاكرة التلقائي (GC) مبكراً
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=1024');
+// 🎮 حماية كروت الشاشة المدمجة القديمة (Intel HD) من تسريب الذاكرة والتجميد
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+app.commandLine.appendSwitch('disable-gpu-memory-buffer-video-frames');
 
 
 const gotTheLock = app.requestSingleInstanceLock();
@@ -46,7 +49,7 @@ function createWindow() {
             sandbox: false,
             devTools: false, // أدوات المطورين مغلقة تماماً ومحمية
             spellcheck: false, // تعطيل التدقيق الإملائي لتوفير الرامات والمعالج
-            backgroundThrottling: false // الحفاظ على أداء سريع حتى عند تصغير النافذة
+            backgroundThrottling: true // إراحة المعالج وكارت الشاشة عند تصغير البرنامج
         },
         icon: path.join(__dirname, 'media', 'logo.ico')
     });
@@ -414,10 +417,19 @@ ipcMain.on('save-backup-and-quit', (event, backupData) => {
     try {
         const desktopDir = app.getPath('desktop');
         const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '_');
-        const backupPath = path.join(desktopDir, 'backup_pos_' + timestamp + '.json');
         
-        fs.writeFileSync(backupPath, backupData, 'utf-8');
-        console.log('Backup saved to', backupPath);
+        // ⚡ مع القواعد الضخمة: نسخ مباشر فائق السرعة لملف SQLite دون استهلاك الرام عبر قنوات IPC
+        const os = require('os');
+        const dbPath = path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db');
+        if (fs.existsSync(dbPath)) {
+            const backupDbPath = path.join(desktopDir, `backup_pos_${timestamp}.db`);
+            fs.copyFileSync(dbPath, backupDbPath);
+            console.log('⚡ Direct SQLite backup saved to:', backupDbPath);
+        } else if (backupData && typeof backupData === 'string' && backupData.trim().length > 0) {
+            const backupPath = path.join(desktopDir, 'backup_pos_' + timestamp + '.json');
+            fs.writeFileSync(backupPath, backupData, 'utf-8');
+            console.log('Backup saved to', backupPath);
+        }
     } catch (err) {
         console.error('Failed to save backup:', err);
     } finally {
@@ -536,8 +548,21 @@ ipcMain.handle('get-system-printers', async (event) => {
     }
 });
 
+let _activePrintWin = null;
+let _activePrintDestroyTimer = null;
+
 ipcMain.handle('print-receipt-silent', async (event, payload) => {
     return new Promise(async (resolve) => {
+        // تنظيف أي نافذة طباعة معلقة سابقة فوراً لمنع تراكم نوافذ Chromium في الرام
+        if (_activePrintDestroyTimer) {
+            clearTimeout(_activePrintDestroyTimer);
+            _activePrintDestroyTimer = null;
+        }
+        if (_activePrintWin && !_activePrintWin.isDestroyed()) {
+            try { _activePrintWin.destroy(); } catch (e) {}
+            _activePrintWin = null;
+        }
+
         let printWin = null;
         let resolved = false;
         let tempReceiptFile = null;
@@ -548,23 +573,21 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                 clearTimeout(timeoutTimer);
                 resolve(res);
 
-                // ⏱️ حماية جوهرية: تأخير آمن (10 ثوانٍ) في الخلفية قبل إغلاق نافذة الطباعة
-                // في نظام ويندوز، إغلاق نافذة Electron مبكراً يقطع الاتصال بـ Windows Print Spooler
-                // أثناء كتابة ملف الـ EMF، مما يجعل الطابعة تخرج 2-3 سم ورق أبيض فارغ وتتوقف
+                // ⏱️ مهلة آمنة (2 ثانية فقط) في الخلفية قبل إغلاق نافذة الطباعة لضمان انتهاء Spooler ويندوز
                 if (delayDestroy) {
-                    setTimeout(() => {
+                    _activePrintDestroyTimer = setTimeout(() => {
                         if (printWin && !printWin.isDestroyed()) {
                             try { printWin.destroy(); } catch (e) {}
-                            printWin = null;
+                            if (_activePrintWin === printWin) _activePrintWin = null;
                         }
                         if (tempReceiptFile) {
                             try { if (fs.existsSync(tempReceiptFile)) fs.unlinkSync(tempReceiptFile); } catch (e) {}
                         }
-                    }, 10000);
+                    }, 2000);
                 } else {
                     if (printWin && !printWin.isDestroyed()) {
                         try { printWin.destroy(); } catch (e) {}
-                        printWin = null;
+                        if (_activePrintWin === printWin) _activePrintWin = null;
                     }
                     if (tempReceiptFile) {
                         try { if (fs.existsSync(tempReceiptFile)) fs.unlinkSync(tempReceiptFile); } catch (e) {}
@@ -583,8 +606,6 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                 return cleanup({ success: false, error: 'No invoice HTML provided' }, false);
             }
 
-            // 💾 حفظ كود الـ HTML في ملف محلي مؤقت لتحميله عبر بروتوكول file:/// الحقيقي بدلاً من data:
-            // هذا يضمن تحميل الخطوط المحلية وتنسيقات CSS وتفادي أي قيود حظر في Chromium
             const os = require('os');
             tempReceiptFile = path.join(os.tmpdir(), `bayan_receipt_${Date.now()}_${Math.floor(Math.random() * 1000)}.html`);
             await fs.promises.writeFile(tempReceiptFile, html, 'utf8');
@@ -597,10 +618,11 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                 webPreferences: {
                     nodeIntegration: false,
                     contextIsolation: true,
-                    sandbox: false, // ⚡ السماح بتحميل الخطوط والتنسيقات المحلية
-                    backgroundThrottling: false // ⚡ الحفاظ على كامل سرعة المعالجة والرسم في الخلفية
+                    sandbox: false,
+                    backgroundThrottling: false // الحفاظ على سرعة المعالجة لنافذة الطباعة المخفية فقط
                 }
             });
+            _activePrintWin = printWin;
 
             printWin.webContents.on('did-fail-load', (_e, code, desc) => {
                 cleanup({ success: false, error: desc || 'Failed to load receipt HTML' }, false);

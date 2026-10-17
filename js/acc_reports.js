@@ -874,17 +874,29 @@
                 dbPriorCalculated = true;
             } else if (window.BayanSQLite && window.BayanSQLite.db) {
                 try {
-                    // ⚡ تجميع فوري على مستوى محرك SQLite لكل فاتورة وحركة مع دفع فلاتر المخزن والمستخدم في الـ WHERE مباشرة
+                    // ⚡ استعلام تجميعي مباشر (Direct SQL Aggregate) على مستوى نواة SQLite C++ لحساب الرصيد السابق في 2ms
                     let sql = `
-                        SELECT 
-                            type, 
-                            MAX(method) as method, 
-                            MAX(warehouse) as warehouse, 
-                            MAX(cashier) as cashier, 
-                            MAX(paidAmount) as paid, 
-                            MAX(total) as total
-                        FROM transactions 
-                        WHERE dateISO < ?
+                        SELECT COALESCE(SUM(
+                            CASE 
+                                WHEN type LIKE '%قبض%' THEN total
+                                WHEN type LIKE '%صرف%' THEN -total
+                                WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN paid
+                                WHEN (type LIKE '%شراء%' OR type LIKE '%مشتريات%') AND type NOT LIKE '%مرتجع%' THEN -paid
+                                WHEN type LIKE '%مرتجع بيع%' THEN -paid
+                                WHEN type LIKE '%مرتجع شراء%' THEN paid
+                                ELSE 0
+                            END
+                        ), 0) AS balance
+                        FROM (
+                            SELECT 
+                                type, 
+                                MAX(method) as method, 
+                                MAX(warehouse) as warehouse, 
+                                MAX(cashier) as cashier, 
+                                MAX(paidAmount) as paid, 
+                                MAX(total) as total
+                            FROM transactions 
+                            WHERE dateISO < ?
                     `;
                     const params = [fromDate];
                     if (selectedWarehouse && selectedWarehouse !== 'all') {
@@ -895,60 +907,78 @@
                         sql += " AND cashier = ?";
                         params.push(selectedUser);
                     }
-                    sql += ` GROUP BY (CASE WHEN invoiceId IS NOT NULL AND TRIM(invoiceId) != '' AND invoiceId != '---' THEN invoiceId ELSE id END), type;`;
+                    sql += ` GROUP BY (CASE WHEN invoiceId IS NOT NULL AND TRIM(invoiceId) != '' AND invoiceId != '---' THEN invoiceId ELSE id END), type ) subTx WHERE `;
 
-                    let rows = [];
+                    // تصفية نوع الخزينة (نقدية الدرج أو وسيلة دفع/محفظة محددة) مباشرة في SQL
+                    if (selectedTreasury === 'all' || !isTreasurySpecificNonCash) {
+                        // الدرج النقدي: استبعاد كافة العمليات غير النقدية والآجلة
+                        sql += ` (
+                            method IS NULL OR TRIM(method) = '' OR TRIM(method) = '-' OR (
+                                LOWER(method) NOT LIKE '%بنك%' AND 
+                                LOWER(method) NOT LIKE '%تحويل%' AND 
+                                LOWER(method) NOT LIKE '%فيزا%' AND 
+                                LOWER(method) NOT LIKE '%شيك%' AND 
+                                LOWER(method) NOT LIKE '%شبكة%' AND 
+                                LOWER(method) NOT LIKE '%فودافون%' AND 
+                                LOWER(method) NOT LIKE '%فودافن%' AND 
+                                LOWER(method) NOT LIKE '%vodafone%' AND 
+                                LOWER(method) NOT LIKE '%voda%' AND 
+                                LOWER(method) NOT LIKE '%اورنج%' AND 
+                                LOWER(method) NOT LIKE '%أورانج%' AND 
+                                LOWER(method) NOT LIKE '%orange%' AND 
+                                LOWER(method) NOT LIKE '%اتصالات%' AND 
+                                LOWER(method) NOT LIKE '%etisalat%' AND 
+                                LOWER(method) NOT LIKE '%وي%' AND 
+                                LOWER(method) NOT LIKE '%we%' AND 
+                                LOWER(method) NOT LIKE '%انستاباي%' AND 
+                                LOWER(method) NOT LIKE '%إنستاباي%' AND 
+                                LOWER(method) NOT LIKE '%انستا%' AND 
+                                LOWER(method) NOT LIKE '%insta%' AND 
+                                LOWER(method) NOT LIKE '%محفظة%' AND 
+                                LOWER(method) NOT LIKE '%wallet%' AND 
+                                LOWER(method) NOT LIKE '%مدى%' AND 
+                                LOWER(method) NOT LIKE '%mada%' AND 
+                                LOWER(method) NOT LIKE '%master%' AND 
+                                LOWER(method) NOT LIKE '%بطاقة%' AND 
+                                LOWER(method) NOT LIKE '%card%' AND 
+                                LOWER(method) NOT LIKE '%اجل%' AND 
+                                LOWER(method) NOT LIKE '%آجل%' AND 
+                                LOWER(method) NOT LIKE '%ذمم%' AND 
+                                LOWER(method) NOT LIKE '%credit%' AND 
+                                LOWER(method) NOT LIKE '%deferred%' AND 
+                                LOWER(method) != 'vodafone_cash'
+                            )
+                        );`;
+                    } else {
+                        // وسيلة دفع بنكية أو محفظة إلكترونية محددة
+                        const cleanSel = selectedTreasury.replace(/^[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}\s]+/u, '').trim().toLowerCase();
+                        if (cleanSel.includes('فودافون') || cleanSel.includes('vodafone') || cleanSel.includes('voda')) {
+                            sql += ` (LOWER(method) LIKE '%فودافون%' OR LOWER(method) LIKE '%فودافن%' OR LOWER(method) LIKE '%vodafone%' OR LOWER(method) LIKE '%voda%' OR LOWER(method) = 'vodafone_cash');`;
+                        } else if (cleanSel.includes('انستا') || cleanSel.includes('insta')) {
+                            sql += ` (LOWER(method) LIKE '%انستاباي%' OR LOWER(method) LIKE '%إنستاباي%' OR LOWER(method) LIKE '%انستا%' OR LOWER(method) LIKE '%insta%');`;
+                        } else if (cleanSel.includes('اورنج') || cleanSel.includes('orange')) {
+                            sql += ` (LOWER(method) LIKE '%اورنج%' OR LOWER(method) LIKE '%أورانج%' OR LOWER(method) LIKE '%orange%');`;
+                        } else if (cleanSel.includes('اتصالات') || cleanSel.includes('etisalat')) {
+                            sql += ` (LOWER(method) LIKE '%اتصالات%' OR LOWER(method) LIKE '%etisalat%');`;
+                        } else if (cleanSel.includes('وي') || cleanSel.includes('we')) {
+                            sql += ` (LOWER(method) LIKE '%وي%' OR LOWER(method) LIKE '%we%');`;
+                        } else {
+                            sql += ` (LOWER(method) LIKE ?);`;
+                            params.push(`%${cleanSel}%`);
+                        }
+                    }
+
                     if (window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
-                        rows = window.BayanSQLite.nativeDb.prepare(sql).all(...params);
+                        const row = window.BayanSQLite.nativeDb.prepare(sql).get(...params);
+                        previousBalance = row ? (parseFloat(row.balance) || 0) : 0;
                     } else if (window.BayanSQLite.db) {
                         const stmt = window.BayanSQLite.db.prepare(sql);
                         stmt.bind(params);
-                        while (stmt.step()) {
-                            rows.push(stmt.getAsObject());
+                        if (stmt.step()) {
+                            const obj = stmt.getAsObject();
+                            previousBalance = parseFloat(obj.balance) || 0;
                         }
                         stmt.free();
-                    }
-
-                    if (rows && rows.length > 0) {
-                        rows.forEach(r => {
-                            const gType = r.type || '';
-                            const rMethod = r.method || '';
-                            const rWarehouse = r.warehouse || '';
-                            const rCashier = r.cashier || '';
-                            const paid = parseFloat(r.paid) || 0;
-                            const total = parseFloat(r.total) || 0;
-
-                            const row = {
-                                type: gType,
-                                method: rMethod,
-                                warehouse: rWarehouse,
-                                user: rCashier,
-                                cashier: rCashier
-                            };
-
-                            if (matchesSelectedWarehouse(row) && matchesSelectedTreasury(row) && matchesSelectedUser(row)) {
-                                const isNonCash = isNonCashMethod(rMethod);
-
-                                // إذا تم اختيار خزينة بنكية محددة نحسب حركاتها، وإذا كان الكل أو كاش نحسب النقدية (درج الكاش)
-                                const countThisTx = isTreasurySpecificNonCash ? isNonCash : !isNonCash;
-
-                                if (countThisTx) {
-                                    if (gType.includes('قبض')) {
-                                        previousBalance += total;
-                                    } else if (gType.includes('صرف')) {
-                                        previousBalance -= total;
-                                    } else if (gType.includes('بيع') && !gType.includes('مرتجع')) {
-                                        previousBalance += paid;
-                                    } else if ((gType.includes('شراء') || gType.includes('مشتريات')) && !gType.includes('مرتجع')) {
-                                        previousBalance -= paid;
-                                    } else if (gType.includes('مرتجع بيع')) {
-                                        previousBalance -= paid;
-                                    } else if (gType.includes('مرتجع شراء')) {
-                                        previousBalance += paid;
-                                    }
-                                }
-                            }
-                        });
                     }
                     dbPriorCalculated = true;
                     window._cachedDailyReportPriorBalance = { key: priorCacheKey, val: previousBalance };
@@ -6353,8 +6383,10 @@
             // 3. فلترة البيانات الأساسية (حركات البيع ومرتجع البيع فقط) باستعلام SQLite السريع
             const targetMethod = methodFilter !== 'all' ? methodFilter.toLowerCase() : null;
             let basePool = [];
-            if (window.BayanSQLite && typeof window.BayanSQLite.getTransactionsForPeriod === 'function' && (fromDate || toDate)) {
-                basePool = window.BayanSQLite.getTransactionsForPeriod(fromDate, toDate, 10000);
+            if (window.BayanSQLite && typeof window.BayanSQLite.getSalesAnalysisTransactions === 'function' && (fromDate || toDate)) {
+                basePool = window.BayanSQLite.getSalesAnalysisTransactions(fromDate, toDate, whFilter, userFilter, 20000);
+            } else if (window.BayanSQLite && typeof window.BayanSQLite.getTransactionsForPeriod === 'function' && (fromDate || toDate)) {
+                basePool = window.BayanSQLite.getTransactionsForPeriod(fromDate, toDate, 20000, whFilter, userFilter);
             }
             if (!basePool || basePool.length === 0) {
                 basePool = window.transactions || [];

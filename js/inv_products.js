@@ -59,26 +59,61 @@ async function saveNewItem(mode = 'save') {
 
     const activeProductId = (typeof currentEditingProductId !== 'undefined' && currentEditingProductId) ? currentEditingProductId : null;
 
-    // 🛑 فهرس الباركودات فائق السرعة O(1) لفحص التكرار لحظياً دون استهلاك المعالج
-    const existingBarcodesMap = new Map();
-    if (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
-        for (let idx = 0; idx < productsDB.length; idx++) {
-            const p = productsDB[idx];
-            if (!p || (activeProductId && (p.id === activeProductId || String(p.id) === String(activeProductId)))) continue;
-            if (p.barcode) existingBarcodesMap.set(String(p.barcode).trim(), p);
-            if (p.code) existingBarcodesMap.set(String(p.code).trim(), p);
-            if (p.units && Array.isArray(p.units)) {
-                for (let u = 0; u < p.units.length; u++) {
-                    if (p.units[u].unitBarcode) existingBarcodesMap.set(String(p.units[u].unitBarcode).trim(), p);
+    // 🛑 فحص الباركود فائق السرعة O(1) المباشر لمنع التكرار دون استهلاك المعالج أو تدوير مصفوفة الأصناف
+    const existingBarcodesMap = {
+        get(rawBarcode) {
+            if (!rawBarcode) return null;
+            const cleanBc = String(rawBarcode).trim();
+            if (!cleanBc) return null;
+            const lowerBc = cleanBc.toLowerCase();
+
+            // 1. الفحص الفوري المباشر من الفهرس الميموري O(1)
+            if (typeof window.getBarcodeToProductMap === 'function') {
+                const bMap = window.getBarcodeToProductMap();
+                if (bMap) {
+                    const match = bMap.get(lowerBc) || bMap.get(cleanBc);
+                    if (match && (!activeProductId || (match.id !== activeProductId && String(match.id) !== String(activeProductId)))) {
+                        return match;
+                    }
                 }
             }
-            if (p.variants && Array.isArray(p.variants)) {
-                for (let v = 0; v < p.variants.length; v++) {
-                    if (p.variants[v].barcode) existingBarcodesMap.set(String(p.variants[v].barcode).trim(), p);
+
+            if (typeof window.getCodeToProductMap === 'function') {
+                const cMap = window.getCodeToProductMap();
+                if (cMap) {
+                    const match = cMap.get(lowerBc) || cMap.get(cleanBc);
+                    if (match && (!activeProductId || (match.id !== activeProductId && String(match.id) !== String(activeProductId)))) {
+                        return match;
+                    }
                 }
             }
+
+            // 2. الفحص من قاعدة بيانات SQLite عبر الفهرس السريع idx_prod_barcode (0ms)
+            if (window.BayanSQLite && typeof window.BayanSQLite.getProductByBarcode === 'function' && window.BayanSQLite.db) {
+                try {
+                    const match = window.BayanSQLite.getProductByBarcode(cleanBc);
+                    if (match && (!activeProductId || (match.id !== activeProductId && String(match.id) !== String(activeProductId)))) {
+                        return match;
+                    }
+                } catch (e) {}
+            }
+
+            // 3. مسار احتياطي آمن وسريع (في حالة عدم تهيئة الفهارس)
+            if (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
+                const found = productsDB.find(p => {
+                    if (!p || (activeProductId && (p.id === activeProductId || String(p.id) === String(activeProductId)))) return false;
+                    if (p.barcode && String(p.barcode).trim() === cleanBc) return true;
+                    if (p.code && String(p.code).trim() === cleanBc) return true;
+                    if (p.units && Array.isArray(p.units) && p.units.some(u => u && String(u.unitBarcode || '').trim() === cleanBc)) return true;
+                    if (p.variants && Array.isArray(p.variants) && p.variants.some(v => v && String(v.barcode || '').trim() === cleanBc)) return true;
+                    return false;
+                });
+                if (found) return found;
+            }
+
+            return null;
         }
-    }
+    };
 
     // فحص أمان صارم: منع تكرار الباركود الأساسي
     if (barcode) {

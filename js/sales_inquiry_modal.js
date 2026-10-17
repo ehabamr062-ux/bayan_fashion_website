@@ -1187,28 +1187,34 @@
      * محتوى تبويب [ حركة الصنف ] (مطابق للصورة 1)
      */
     function renderHistoryTabContent(p) {
-        const allTx = (typeof transactions !== 'undefined' && Array.isArray(transactions))
-            ? transactions.filter(t => (t.product === p.name || t.productName === p.name || t.id == p.id || t.productId == p.id) && !(t.type && t.type.includes('تحويل') && t.transferStatus === 'rejected'))
-            : [];
-
-        if (allTx.length === 0) {
-            return `
-                <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 40px; text-align: center; color: #64748b;">
-                    <div style="font-size: 3rem; margin-bottom: 10px;">📜</div>
-                    <h4 style="margin: 0 0 6px; color: #0f172a; font-weight: 900;">لا توجد حركات مسجلة لهذا الصنف حتى الآن</h4>
-                    <p style="margin: 0; font-size: 0.88rem;">ستظهر هنا كافة عمليات البيع، الشراء، التحويل المخزني، والتسويات فور إجرائها.</p>
-                </div>
-            `;
+        let pTx = [];
+        if (window.BayanSQLite && typeof window.BayanSQLite.getProductHistory === 'function') {
+            pTx = window.BayanSQLite.getProductHistory(p.name, p.barcode, 50);
         }
 
-        // 🌟 الترتيب التنازلي الحاسم: من الأحدث إلى الأقدم مع حصر أحدث 50 حركة لحماية أداء وسرعة المتصفح
-        allTx.sort((a, b) => {
-            const timeA = new Date(a.dateISO || a.date || 0).getTime();
-            const timeB = new Date(b.dateISO || b.date || 0).getTime();
-            return timeB - timeA;
-        });
+        if (!pTx || pTx.length === 0) {
+            const allTx = (typeof transactions !== 'undefined' && Array.isArray(transactions))
+                ? transactions.filter(t => (t.product === p.name || t.productName === p.name || t.id == p.id || t.productId == p.id) && !(t.type && t.type.includes('تحويل') && t.transferStatus === 'rejected'))
+                : [];
 
-        const pTx = allTx.slice(0, 50);
+            if (allTx.length === 0) {
+                return `
+                    <div style="background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 14px; padding: 40px; text-align: center; color: #64748b;">
+                        <div style="font-size: 3rem; margin-bottom: 10px;">📜</div>
+                        <h4 style="margin: 0 0 6px; color: #0f172a; font-weight: 900;">لا توجد حركات مسجلة لهذا الصنف حتى الآن</h4>
+                        <p style="margin: 0; font-size: 0.88rem;">ستظهر هنا كافة عمليات البيع، الشراء، التحويل المخزني، والتسويات فور إجرائها.</p>
+                    </div>
+                `;
+            }
+
+            allTx.sort((a, b) => {
+                const timeA = new Date(a.dateISO || a.date || 0).getTime();
+                const timeB = new Date(b.dateISO || b.date || 0).getTime();
+                return timeB - timeA;
+            });
+
+            pTx = allTx.slice(0, 50);
+        }
 
         const rowsHtml = pTx.map((tx, idx) => {
             const rawType = String(tx.type || '').toLowerCase();
@@ -1684,7 +1690,19 @@
             }
         }
 
-        for (const p of productsDB) {
+        let searchCandidates = productsDB;
+        if (effectiveQuery && productsDB.length > 2500 && window.BayanSQLite && typeof window.BayanSQLite.searchProducts === 'function') {
+            const dbMatches = window.BayanSQLite.searchProducts(effectiveQuery, 150);
+            if (dbMatches && dbMatches.length > 0) {
+                const candidateMap = new Map();
+                for (const item of dbMatches) {
+                    if (item && item.id) candidateMap.set(item.id, item);
+                }
+                searchCandidates = Array.from(candidateMap.values());
+            }
+        }
+
+        for (const p of searchCandidates) {
             if (!p) continue;
             if (p.isDeleted) continue;
             if (directFound.has(p.id)) continue;

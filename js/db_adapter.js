@@ -39,6 +39,7 @@
             this.sortField = null;
             this.isReverse = false;
             this.limitCount = null;
+            this.offsetCount = null;
             this._emptyResult = false;
         }
 
@@ -141,6 +142,11 @@
             return this;
         }
 
+        offset(n) {
+            this.offsetCount = n;
+            return this;
+        }
+
         clone() {
             const col = new SQLiteCollection(this.tableWrapper, this.field);
             col.tableName = this.tableName;
@@ -150,6 +156,7 @@
             col.sortField = this.sortField;
             col.isReverse = this.isReverse;
             col.limitCount = this.limitCount;
+            col.offsetCount = this.offsetCount;
             col._emptyResult = this._emptyResult;
             return col;
         }
@@ -267,13 +274,23 @@
                 sortedInSQL = true;
             }
 
-            // تطبيق الحد في SQL فقط إذا لم تكن هناك فلاتر مخصصة في JS
+            // تطبيق الحد والإزاحة في SQL فقط إذا لم تكن هناك فلاتر مخصصة في JS
             let limitedInSQL = false;
             if (this.limitCount !== null && this.customFilters.length === 0) {
                 const lim = parseInt(this.limitCount, 10);
                 if (!isNaN(lim) && lim >= 0) {
                     sql += ` LIMIT ${lim}`;
                     limitedInSQL = true;
+                }
+            }
+            if (this.offsetCount !== null && this.customFilters.length === 0) {
+                const off = parseInt(this.offsetCount, 10);
+                if (!isNaN(off) && off >= 0) {
+                    if (!limitedInSQL) {
+                        sql += ` LIMIT -1`;
+                        limitedInSQL = true;
+                    }
+                    sql += ` OFFSET ${off}`;
                 }
             }
 
@@ -747,6 +764,14 @@
 
                 filter(fn) {
                     return new SQLiteCollection(this).filter(fn);
+                },
+
+                limit(n) {
+                    return new SQLiteCollection(this).limit(n);
+                },
+
+                offset(n) {
+                    return new SQLiteCollection(this).offset(n);
                 },
 
                 async each(callback) {

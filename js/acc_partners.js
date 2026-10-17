@@ -155,22 +155,21 @@
                 }
 
                 // 🔄 تحديث متتالي لسجل الحركات عند تغيير اسم الحساب لمنع اختفاء الفواتير التاريخية
-                if (oldName && oldName !== accountData.name && typeof transactions !== 'undefined' && Array.isArray(transactions)) {
-                    const cleanOld = (oldName || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
-                    let changedTx = false;
-                    transactions.forEach(t => {
-                        const tClean = (t.partner || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
-                        if (t.partner === oldName || tClean === cleanOld) {
-                            t.partner = accountData.name;
-                            changedTx = true;
-                        }
-                    });
-                    if (changedTx && typeof db !== 'undefined' && db.transactions) {
-                        try {
-                            await db.transactions.bulkPut(transactions);
-                        } catch (txErr) {
-                            console.warn("⚠️ تعذر تحديث اسم الطرف في قاعدة البيانات محلياً:", txErr);
-                        }
+                if (oldName && oldName !== accountData.name) {
+                    // 1. تحديث مباشر في قاعدة بيانات SQLite بـ 1 مللي ثانية دون إعادة كتابة آلاف الفواتير
+                    if (window.BayanSQLite && typeof window.BayanSQLite.renamePartnerInTransactions === 'function') {
+                        window.BayanSQLite.renamePartnerInTransactions(oldName, accountData.name);
+                    }
+                    // 2. تحديث الحركات المتطابقة في الذاكرة المحلية فقط
+                    if (typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+                        const cleanOld = (oldName || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+                        transactions.forEach(t => {
+                            if (!t) return;
+                            const tClean = (t.partner || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+                            if (t.partner === oldName || tClean === cleanOld) {
+                                t.partner = accountData.name;
+                            }
+                        });
                     }
                 }
 
@@ -727,10 +726,36 @@
                 return (matchName || matchCode || matchPhone) && matchType && matchCat;
             });
 
-            // ⚡ جلب إحصائيات الشركاء مباشرة من SQLite أو عبر الفهرسة الاحتياطية
+            // ⚡ جلب إحصائيات وأرصدة الشركاء دفعة واحدة (Batch/Group Queries) لتجنب كثرة الاستعلامات المتزامنة
             const useSqliteStats = !!(window.BayanSQLite && typeof window.BayanSQLite.getPartnerStats === 'function');
+
+            let batchStatsMap = null;
+            if (window.BayanSQLite && typeof window.BayanSQLite.getAllPartnerStats === 'function') {
+                try {
+                    batchStatsMap = window.BayanSQLite.getAllPartnerStats();
+                } catch (e) {
+                    batchStatsMap = null;
+                }
+            }
+
+            let batchBalancesMap = null;
+            if (window.BayanSQLite && typeof window.BayanSQLite.getAllAccountsAccurateBalances === 'function') {
+                try {
+                    batchBalancesMap = window.BayanSQLite.getAllAccountsAccurateBalances();
+                    if (batchBalancesMap && batchBalancesMap.size > 0) {
+                        if (!window.accountBalancesCache) window.accountBalancesCache = {};
+                        batchBalancesMap.forEach((bal, pName) => {
+                            const cleanKey = (typeof cleanArabicCached === 'function' ? cleanArabicCached(pName) : cleanArabicStr(pName)) + "_none";
+                            window.accountBalancesCache[cleanKey] = bal;
+                        });
+                    }
+                } catch (e) {
+                    batchBalancesMap = null;
+                }
+            }
+
             const partnerTransactionsMap = {};
-            if (!useSqliteStats && typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+            if (!useSqliteStats && !batchStatsMap && typeof transactions !== 'undefined' && Array.isArray(transactions)) {
                 for (let i = 0; i < transactions.length; i++) {
                     const t = transactions[i];
                     if (!t) continue;
@@ -766,13 +791,25 @@
                 const targetAccNameClean = cleanArabicStr(acc.name || '');
                 const targetAccCode = (acc.code || '').toString().trim();
 
-                const currentBalance = (typeof getAccountBalance === 'function' && acc.name) ? getAccountBalance(acc.name) : (parseFloat(acc.balance) || 0);
+                let currentBalance = 0;
+                if (batchBalancesMap && (batchBalancesMap.has(acc.name) || batchBalancesMap.has(targetAccNameClean))) {
+                    currentBalance = batchBalancesMap.has(acc.name) ? batchBalancesMap.get(acc.name) : batchBalancesMap.get(targetAccNameClean);
+                } else if (typeof getAccountBalance === 'function' && acc.name) {
+                    currentBalance = getAccountBalance(acc.name);
+                } else {
+                    currentBalance = (parseFloat(acc.balance) || 0);
+                }
 
                 let lastTransDate = acc.balanceDate || '-';
                 let totalSales = 0;
                 let lastReceiptDate = '-';
 
-                if (useSqliteStats) {
+                if (batchStatsMap) {
+                    const st = batchStatsMap.get(acc.name) || batchStatsMap.get(targetAccNameClean) || { totalSales: 0, lastReceiptDate: '-', lastTransDate: '-' };
+                    totalSales = st.totalSales || 0;
+                    if (st.lastReceiptDate && st.lastReceiptDate !== '-') lastReceiptDate = st.lastReceiptDate;
+                    if (st.lastTransDate && st.lastTransDate !== '-') lastTransDate = st.lastTransDate;
+                } else if (useSqliteStats) {
                     const st = window.BayanSQLite.getPartnerStats(acc.name);
                     totalSales = st.totalSales;
                     if (st.lastReceiptDate !== '-') lastReceiptDate = st.lastReceiptDate;

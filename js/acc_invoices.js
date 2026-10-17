@@ -2938,25 +2938,27 @@
                         }
 
                         // 3. تنظيف علامة الإرجاع (is_returned) في الفاتورة الأصلية إذا لم يتبقَ لها مرتجعات أخرى
-
                         if (originalInvIdToClean) {
-
-                            const remainingReturns = transactions.filter(x => x.originalInvoiceId == originalInvIdToClean && x.type.includes('مرتجع'));
-
-                            if (remainingReturns.length === 0) {
-
-                                transactions.forEach(x => {
-
-                                    if (x.invoiceId == originalInvIdToClean && x.type.includes(originalTypeToClean) && !x.type.includes('مرتجع')) {
-
-                                        x.is_returned = false;
-
-                                    }
-
-                                });
-
+                            let hasRem = false;
+                            if (window.BayanSQLite && typeof window.BayanSQLite.hasRemainingReturns === 'function') {
+                                hasRem = window.BayanSQLite.hasRemainingReturns(originalInvIdToClean);
+                            } else if (typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+                                hasRem = transactions.some(x => x && x.originalInvoiceId == originalInvIdToClean && x.type && x.type.includes('مرتجع'));
                             }
 
+                            if (!hasRem) {
+                                if (window.BayanSQLite && typeof window.BayanSQLite.setInvoiceReturnedStatus === 'function') {
+                                    window.BayanSQLite.setInvoiceReturnedStatus(originalInvIdToClean, false, originalTypeToClean);
+                                }
+                                if (typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+                                    for (let i = transactions.length - 1; i >= 0; i--) {
+                                        const x = transactions[i];
+                                        if (x && x.invoiceId == originalInvIdToClean && x.type && x.type.includes(originalTypeToClean) && !x.type.includes('مرتجع')) {
+                                            x.is_returned = false;
+                                        }
+                                    }
+                                }
+                            }
                         }
 
                         if (typeof db !== 'undefined' && db && db.products && affectedRevertProducts.length > 0) {

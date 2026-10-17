@@ -995,18 +995,18 @@ async function saveSalesReturn(force = false, accountChecked = false) {
 
         const affectedOriginalTransactions = [];
         if (originalInvoiceId && originalInvoiceId !== '---') {
-
-            transactions.forEach(t => {
-
-                if (t.invoiceId == originalInvoiceId && t.type.includes('بيع') && !t.type.includes('مرتجع')) {
-
-                    t.is_returned = true;
-                    affectedOriginalTransactions.push(t);
-
+            if (window.BayanSQLite && typeof window.BayanSQLite.setInvoiceReturnedStatus === 'function') {
+                window.BayanSQLite.setInvoiceReturnedStatus(originalInvoiceId, true, 'بيع');
+            }
+            if (typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+                for (let i = transactions.length - 1; i >= 0; i--) {
+                    const t = transactions[i];
+                    if (t && t.invoiceId == originalInvoiceId && t.type && t.type.includes('بيع') && !t.type.includes('مرتجع')) {
+                        t.is_returned = true;
+                        affectedOriginalTransactions.push(t);
+                    }
                 }
-
-            });
-
+            }
         }
 
         // ⚡ حفظ فائق السرعة للمعاملات والأصناف المتأثرة (جديد وتعديل)
@@ -1744,18 +1744,18 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
 
         const affectedOriginalTransactions = [];
         if (originalInvoiceId && originalInvoiceId !== '---') {
-
-            transactions.forEach(t => {
-
-                if (t.invoiceId == originalInvoiceId && t.type.includes('شراء') && !t.type.includes('مرتجع')) {
-
-                    t.is_returned = true;
-                    affectedOriginalTransactions.push(t);
-
+            if (window.BayanSQLite && typeof window.BayanSQLite.setInvoiceReturnedStatus === 'function') {
+                window.BayanSQLite.setInvoiceReturnedStatus(originalInvoiceId, true, 'شراء');
+            }
+            if (typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+                for (let i = transactions.length - 1; i >= 0; i--) {
+                    const t = transactions[i];
+                    if (t && t.invoiceId == originalInvoiceId && t.type && t.type.includes('شراء') && !t.type.includes('مرتجع')) {
+                        t.is_returned = true;
+                        affectedOriginalTransactions.push(t);
+                    }
                 }
-
-            });
-
+            }
         }
 
         // ⚡ حفظ فائق السرعة للمعاملات والأصناف المتأثرة (جديد وتعديل)
@@ -2676,6 +2676,7 @@ async function executeInvoiceSearch() {
         .replace(/\s+/g, ' ');
 
     const cleanAccQuery = cleanAr(account);
+    const cleanProdQuery = cleanAr(product);
 
     // ⚡ استدعاء الفواتير مباشرة من محرك SQLite C++ فائق السرعة بكامل الأرشيف التاريخي
     let sqliteLoaded = false;
@@ -2683,8 +2684,8 @@ async function executeInvoiceSearch() {
         try {
             const foundRows = window.BayanSQLite.searchReturnInvoices({
                 ref,
-                product: cleanAr(product),
-                account: cleanAccQuery,
+                product: product || cleanProdQuery,
+                account: account || cleanAccQuery,
                 dateFrom: (periodVal !== 'all' ? dateFrom : ''),
                 dateTo: (periodVal !== 'all' ? dateTo : ''),
                 isSalesReturn,
@@ -2797,17 +2798,38 @@ async function executeInvoiceSearch() {
 
         const seqVal = (typeof getInvoiceTaxReceiptSeq === 'function') ? getInvoiceTaxReceiptSeq(t) : (t.taxInvoiceSeq || t.dailySeq);
         const itemCodes = (String(t.code || '') + ' ' + String(t.barcode || '') + ' ' + String(t.itemBarcode || '')).toLowerCase();
+
+        // فحص بنود الفاتورة الداخلية إذا كانت الفاتورة تحوي مصفوفة أصناف items
+        let itemMatch = false;
+        if (Array.isArray(t.items)) {
+            for (let i = 0; i < t.items.length; i++) {
+                const it = t.items[i];
+                if (!it) continue;
+                const itName = cleanAr(it.product || it.productName || it.name || '');
+                const itCode = (String(it.barcode || '') + ' ' + String(it.code || '')).toLowerCase();
+                if (cleanProdQuery && (itName.includes(cleanProdQuery) || itCode.includes(cleanProdQuery))) {
+                    itemMatch = true;
+                    break;
+                }
+                if (ref && (itName.includes(cleanAr(ref)) || itCode.includes(String(ref).toLowerCase()))) {
+                    itemMatch = true;
+                    break;
+                }
+            }
+        }
+
         const matchRef = !ref || (
             (t.invoiceId && String(t.invoiceId).includes(ref)) ||
             (seqVal && String(seqVal).includes(ref)) ||
             cleanAr(t.product || t.name || '').includes(cleanAr(ref)) ||
-            itemCodes.includes(ref.toLowerCase())
+            itemCodes.includes(ref.toLowerCase()) ||
+            itemMatch
         );
 
         let matchProduct = true;
         if (cleanProdQuery) {
             const pName = cleanAr(t.product || t.name || '');
-            matchProduct = pName.includes(cleanProdQuery) || itemCodes.includes(cleanProdQuery);
+            matchProduct = pName.includes(cleanProdQuery) || itemCodes.includes(cleanProdQuery) || itemMatch;
         }
 
         // البحث عن الحساب بالاسم أو الكود أو الهاتف بتطبيع كامل

@@ -201,6 +201,19 @@
                             }
                         }
                     }
+
+                    if (p.units && Array.isArray(p.units)) {
+                        for (let k = 0; k < p.units.length; k++) {
+                            const u = p.units[k];
+                            if (!u || !u.unitBarcode) continue;
+                            const ubStr = String(u.unitBarcode).trim();
+                            if (ubStr) {
+                                _barcodeToProductMap.set(ubStr.toLowerCase(), p);
+                                const normUb = normalizeSearchQuery(ubStr);
+                                if (normUb) _barcodeToProductMap.set(normUb, p);
+                            }
+                        }
+                    }
                 }
                 _productIndexVersion++;
             } catch (e) {
@@ -208,6 +221,88 @@
             }
         }
         window.rebuildProductFastIndex = rebuildProductFastIndex;
+
+        /**
+         * ⚡ تحديث فهرس الباركود والكود السريع لدفعة محددة دون تكرار تدوير كامل الأصناف
+         */
+        function updateProductFastIndexForChunk(chunk) {
+            if (!Array.isArray(chunk) || chunk.length === 0) return;
+            try {
+                for (let i = 0; i < chunk.length; i++) {
+                    const p = chunk[i];
+                    if (!p || p.isDeleted) continue;
+
+                    if (p.barcode) {
+                        const bStr = String(p.barcode).trim();
+                        if (bStr) {
+                            _barcodeToProductMap.set(bStr.toLowerCase(), p);
+                            const normB = normalizeSearchQuery(bStr);
+                            if (normB) _barcodeToProductMap.set(normB, p);
+                        }
+                    }
+
+                    if (p.code) {
+                        const cStr = String(p.code).trim();
+                        if (cStr) {
+                            _codeToProductMap.set(cStr.toLowerCase(), p);
+                            const normC = normalizeSearchQuery(cStr);
+                            if (normC) _codeToProductMap.set(normC, p);
+                        }
+                    }
+                    if (p.modelCode || p.model_code || p.model) {
+                        const mStr = String(p.modelCode || p.model_code || p.model).trim();
+                        if (mStr) {
+                            _codeToProductMap.set(mStr.toLowerCase(), p);
+                            const normM = normalizeSearchQuery(mStr);
+                            if (normM) _codeToProductMap.set(normM, p);
+                        }
+                    }
+                    if (p.id != null) {
+                        _codeToProductMap.set(String(p.id), p);
+                    }
+
+                    if (p.variants && Array.isArray(p.variants)) {
+                        for (let j = 0; j < p.variants.length; j++) {
+                            const v = p.variants[j];
+                            if (!v) continue;
+                            if (v.barcode) {
+                                const vbStr = String(v.barcode).trim();
+                                if (vbStr) {
+                                    _barcodeToProductMap.set(vbStr.toLowerCase(), p);
+                                    const normVb = normalizeSearchQuery(vbStr);
+                                    if (normVb) _barcodeToProductMap.set(normVb, p);
+                                }
+                            }
+                            if (v.code) {
+                                const vcStr = String(v.code).trim();
+                                if (vcStr) {
+                                    _codeToProductMap.set(vcStr.toLowerCase(), p);
+                                    const normVc = normalizeSearchQuery(vcStr);
+                                    if (normVc) _codeToProductMap.set(normVc, p);
+                                }
+                            }
+                        }
+                    }
+
+                    if (p.units && Array.isArray(p.units)) {
+                        for (let k = 0; k < p.units.length; k++) {
+                            const u = p.units[k];
+                            if (!u || !u.unitBarcode) continue;
+                            const ubStr = String(u.unitBarcode).trim();
+                            if (ubStr) {
+                                _barcodeToProductMap.set(ubStr.toLowerCase(), p);
+                                const normUb = normalizeSearchQuery(ubStr);
+                                if (normUb) _barcodeToProductMap.set(normUb, p);
+                            }
+                        }
+                    }
+                }
+                _productIndexVersion++;
+            } catch (e) {
+                console.warn("updateProductFastIndexForChunk err:", e);
+            }
+        }
+        window.updateProductFastIndexForChunk = updateProductFastIndexForChunk;
 
         // ============================================================
         // ⚡ التجهيز المسبق الهادئ لتوكنز الأصناف في الخلفية (Background Pre-Caching)

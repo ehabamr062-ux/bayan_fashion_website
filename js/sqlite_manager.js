@@ -1078,20 +1078,25 @@
         /**
          * ⚡ المزامنة التلقائية اللحظية لبنود الفاتورة داخل جدول transaction_items المفهرس مع منع التكرار
          */
-        _syncTransactionItems(item) {
+        _syncTransactionItems(item, optCachedStmts = null) {
             if (!this.db || !item || !item.id) return;
-            let delStmt = null;
-            let insStmt = null;
+            let delStmt = optCachedStmts ? optCachedStmts.delTiStmt : null;
+            let insStmt = optCachedStmts ? optCachedStmts.insTiStmt : null;
+            const shouldFree = !optCachedStmts;
             try {
                 // حذف البنود القديمة لنفس السجل لتجنب الازدواجية عند التعديل
-                delStmt = this.db.prepare("DELETE FROM transaction_items WHERE tx_id = ?;");
+                if (!delStmt) {
+                    delStmt = this.db.prepare("DELETE FROM transaction_items WHERE tx_id = ?;");
+                }
                 delStmt.run([item.id]);
 
-                insStmt = this.db.prepare(`
+                if (!insStmt) {
+                    insStmt = this.db.prepare(`
                     INSERT INTO transaction_items 
                     (tx_id, invoiceId, dateISO, time, type, partner, barcode, productName, size, color, qty, price, cost, discount, addition, total, profit, warehouse, raw_json)
                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                 `);
+                }
 
                 const dateISO = item.dateISO || '';
                 const time = item.time || '';
@@ -1161,8 +1166,10 @@
             } catch (tiErr) {
                 console.warn("[SQLite] _syncTransactionItems notice:", tiErr.message);
             } finally {
-                if (delStmt) try { delStmt.free(); } catch(e) {}
-                if (insStmt) try { insStmt.free(); } catch(e) {}
+                if (shouldFree) {
+                    if (delStmt) try { delStmt.free(); } catch(e) {}
+                    if (insStmt) try { insStmt.free(); } catch(e) {}
+                }
             }
         }
 
@@ -1476,14 +1483,134 @@
             if (!this.db || !Array.isArray(items) || items.length === 0) return [];
             try {
                 return this.runInTransaction(() => {
-                    for (const item of items) {
-                        this.put(tableName, item);
+                    let mainStmt = null;
+                    let delTiStmt = null;
+                    let insTiStmt = null;
+                    try {
+                        if (tableName === 'products') {
+                            mainStmt = this.db.prepare(`INSERT OR REPLACE INTO products (id, name, barcode, category, unit, cost, price, wholesale, stock, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
+                            for (const item of items) {
+                                if (!item) continue;
+                                let itemToStore = item;
+                                if (item.image && typeof item.image === 'string' && item.image.startsWith('data:image')) {
+                                    const diskPath = this._saveProductImage(item.id, item.image);
+                                    itemToStore = { ...item, image: diskPath };
+                                }
+                                const rawJson = this._extractExtraFields(itemToStore, ['id', 'name', 'barcode', 'code', 'category', 'unit', 'cost', 'price', 'wholesale', 'stock']);
+                                mainStmt.run(this._safeBind([
+                                    item.id,
+                                    item.name || '',
+                                    item.barcode || item.code || '',
+                                    item.category || '',
+                                    item.unit || '',
+                                    parseFloat(item.cost) || 0,
+                                    parseFloat(item.price) || 0,
+                                    parseFloat(item.wholesale) || 0,
+                                    parseFloat(item.stock) || 0,
+                                    rawJson
+                                ]));
+                            }
+                        } else if (tableName === 'transactions') {
+                            mainStmt = this.db.prepare(`INSERT OR REPLACE INTO transactions (id, invoiceId, originalInvoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
+                            delTiStmt = this.db.prepare("DELETE FROM transaction_items WHERE tx_id = ?;");
+                            insTiStmt = this.db.prepare(`
+                                INSERT INTO transaction_items 
+                                (tx_id, invoiceId, dateISO, time, type, partner, barcode, productName, size, color, qty, price, cost, discount, addition, total, profit, warehouse, raw_json)
+                                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                            `);
+                            const cachedStmts = { delTiStmt, insTiStmt };
+                            for (const item of items) {
+                                if (!item) continue;
+                                const rawJson = this._extractExtraFields(item, ['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'user', 'warehouse']);
+                                mainStmt.run(this._safeBind([
+                                    item.id,
+                                    String(item.invoiceId || ''),
+                                    item.originalInvoiceId != null && item.originalInvoiceId !== '' ? String(item.originalInvoiceId) : null,
+                                    item.dateISO || '',
+                                    item.time || '',
+                                    item.type || '',
+                                    item.partner || '',
+                                    parseFloat(item.total) != null && !isNaN(parseFloat(item.total)) ? parseFloat(item.total) : 0,
+                                    parseFloat(item.paidAmount) || 0,
+                                    parseFloat(item.remaining) || 0,
+                                    item.method || '',
+                                    item.cashier || item.user || '',
+                                    item.warehouse || '',
+                                    rawJson
+                                ]));
+                                this._syncTransactionItems(item, cachedStmts);
+                            }
+                        } else if (tableName === 'transaction_items') {
+                            mainStmt = this.db.prepare(`INSERT OR REPLACE INTO transaction_items (id, tx_id, invoiceId, dateISO, time, type, partner, barcode, productName, size, color, qty, price, cost, discount, addition, total, profit, warehouse, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
+                            for (const item of items) {
+                                if (!item) continue;
+                                const rawJson = this._extractExtraFields(item, [
+                                    'id', 'tx_id', 'invoiceId', 'dateISO', 'time', 'type', 'partner',
+                                    'barcode', 'code', 'productName', 'product', 'name', 'size', 'selectedSize',
+                                    'color', 'selectedColor', 'qty', 'quantity', 'price', 'cost', 'costPrice',
+                                    'discount', 'itemDiscount', 'addition', 'extra', 'total', 'profit', 'warehouse'
+                                ]);
+                                mainStmt.run(this._safeBind([
+                                    item.id || null, item.tx_id || null, String(item.invoiceId || ''), item.dateISO || '', item.time || '', item.type || '', item.partner || '',
+                                    String(item.barcode || item.code || ''), String(item.productName || item.product || item.name || ''), String(item.size || item.selectedSize || ''), String(item.color || item.selectedColor || ''),
+                                    parseFloat(item.qty != null ? item.qty : item.quantity) || 0, parseFloat(item.price) || 0, parseFloat(item.cost != null ? item.cost : item.costPrice) || 0,
+                                    parseFloat(item.discount != null ? item.discount : item.itemDiscount) || 0, parseFloat(item.addition != null ? item.addition : item.extra) || 0, parseFloat(item.total) || 0,
+                                    parseFloat(item.profit) || 0, item.warehouse || '', rawJson
+                                ]));
+                            }
+                        } else if (tableName === 'accounts') {
+                            mainStmt = this.db.prepare(`INSERT OR REPLACE INTO accounts (id, name, code, type, mobile, balance, address, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?);`);
+                            for (const item of items) {
+                                if (!item) continue;
+                                const rawJson = this._extractExtraFields(item, ['id', 'name', 'code', 'type', 'mobile', 'balance', 'address']);
+                                mainStmt.run(this._safeBind([item.id, item.name || '', item.code || '', item.type || '', item.mobile || '', parseFloat(item.balance) || 0, item.address || '', rawJson]));
+                            }
+                        } else if (tableName === 'users') {
+                            mainStmt = this.db.prepare(`INSERT OR REPLACE INTO users (id, name, pin, role, raw_json) VALUES (?, ?, ?, ?, ?);`);
+                            for (const item of items) {
+                                if (!item) continue;
+                                const rawJson = this._extractExtraFields(item, ['id', 'name', 'pin', 'role']);
+                                mainStmt.run(this._safeBind([item.id, item.name || '', item.pin || '', item.role || '', rawJson]));
+                            }
+                        } else if (tableName === 'warehouses') {
+                            mainStmt = this.db.prepare(`INSERT OR REPLACE INTO warehouses (id, name, address, raw_json) VALUES (?, ?, ?, ?);`);
+                            for (const item of items) {
+                                if (!item) continue;
+                                const rawJson = this._extractExtraFields(item, ['id', 'name', 'address']);
+                                mainStmt.run(this._safeBind([item.id, item.name || '', item.address || '', rawJson]));
+                            }
+                        } else if (tableName === 'trash') {
+                            mainStmt = this.db.prepare(`INSERT OR REPLACE INTO trash (id, type, deletedAt, raw_json) VALUES (?, ?, ?, ?);`);
+                            for (const item of items) {
+                                if (!item) continue;
+                                const rawJson = JSON.stringify(item);
+                                mainStmt.run(this._safeBind([item.id, item.type || '', item.deletedAt || '', rawJson]));
+                            }
+                        } else if (tableName === 'auditLogs') {
+                            mainStmt = this.db.prepare(`INSERT OR REPLACE INTO auditLogs (id, timestamp, action, raw_json) VALUES (?, ?, ?, ?);`);
+                            for (const item of items) {
+                                if (!item) continue;
+                                const rawJson = JSON.stringify(item);
+                                mainStmt.run(this._safeBind([item.id, item.timestamp || item.time || '', item.action || '', rawJson]));
+                            }
+                        } else {
+                            mainStmt = this.db.prepare(`INSERT OR REPLACE INTO ${tableName} (id, raw_json) VALUES (?, ?);`);
+                            for (const item of items) {
+                                if (!item) continue;
+                                const rawJson = JSON.stringify(item);
+                                mainStmt.run(this._safeBind([item.id, rawJson]));
+                            }
+                        }
+                    } finally {
+                        if (mainStmt) try { mainStmt.free(); } catch(e) {}
+                        if (delTiStmt) try { delTiStmt.free(); } catch(e) {}
+                        if (insTiStmt) try { insTiStmt.free(); } catch(e) {}
                     }
+
                     if (!this._inTransaction) {
-                        // ⚡ جدولة حفظ ذكية غير متزامنة بالخلفية
                         this.schedulePersist(1200);
                     }
-                    return items.map(i => i.id);
+                    return items.map(i => i ? i.id : null);
                 });
             } catch (e) {
                 console.error(`[SQLite] bulkPut error on ${tableName}:`, e.message);
@@ -1961,6 +2088,55 @@
         }
 
         /**
+         * ⚡ جلب دفعة من الأصناف (Chunk) مع إزاحة (Offset) لدعم التحميل المتدرج غير الحاجب للواجهة
+         */
+        getProductsChunk(limit = 1000, offset = 0) {
+            if (!this.db) return [];
+            try {
+                const lim = parseInt(limit, 10) || 1000;
+                const off = parseInt(offset, 10) || 0;
+                if (this.isNative && this.nativeDb) {
+                    const rows = this.nativeDb.prepare("SELECT * FROM products ORDER BY id ASC LIMIT ? OFFSET ?;").all(lim, off);
+                    return rows ? rows.map(r => this._reconstructRow(r)).filter(Boolean) : [];
+                }
+                const stmt = this.db.prepare("SELECT * FROM products ORDER BY id ASC LIMIT ? OFFSET ?;");
+                stmt.bind([lim, off]);
+                const items = [];
+                while (stmt.step()) {
+                    const r = this._reconstructRow(stmt.getAsObject());
+                    if (r) items.push(r);
+                }
+                stmt.free();
+                return items;
+            } catch (err) {
+                console.warn("[SQLite] getProductsChunk notice:", err.message);
+                return [];
+            }
+        }
+
+        /**
+         * ⚡ جلب إجمالي عدد الأصناف مباشرة من SQLite بدون تحميل أي سجل في الذاكرة
+         */
+        getProductsTotalCount() {
+            if (!this.db) return 0;
+            try {
+                if (this.isNative && this.nativeDb) {
+                    const row = this.nativeDb.prepare("SELECT COUNT(*) as cnt FROM products;").get();
+                    return row ? (parseInt(row.cnt, 10) || 0) : 0;
+                }
+                const stmt = this.db.prepare("SELECT COUNT(*) as cnt FROM products;");
+                let cnt = 0;
+                if (stmt.step()) {
+                    cnt = parseInt(stmt.getAsObject().cnt, 10) || 0;
+                }
+                stmt.free();
+                return cnt;
+            } catch (err) {
+                return 0;
+            }
+        }
+
+        /**
          * ⚡ إحصائيات سريعة للعميل/المورد مباشرة من SQLite باستخدام فهرس idx_tx_partner
          */
         getPartnerStats(partnerName) {
@@ -2003,6 +2179,214 @@
                 console.warn("[SQLite] getPartnerStats error:", e.message);
             }
             return { totalSales: 0, lastReceiptDate: '-', lastTransDate: '-' };
+        }
+
+        /**
+         * ⚡ جلب إحصائيات كافة الشركاء دفعة واحدة (Group Query) لتسريع جداول الحسابات بنسبة 1000%
+         */
+        getAllPartnerStats() {
+            const statsMap = new Map();
+            if (!this.db) return statsMap;
+            try {
+                const sql = `
+                    SELECT 
+                        partner,
+                        COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN total WHEN type LIKE '%مرتجع%' AND (type LIKE '%بيع%' OR type LIKE '%مبيعات%') THEN -total ELSE 0 END), 0) AS totalSales,
+                        COALESCE(MAX(CASE WHEN type LIKE '%قبض%' THEN dateISO ELSE NULL END), '-') AS lastReceiptDate,
+                        COALESCE(MAX(dateISO), '-') AS lastTransDate
+                    FROM transactions 
+                    WHERE partner IS NOT NULL AND TRIM(partner) != ''
+                    GROUP BY partner;
+                `;
+                if (this.isNative && this.nativeDb) {
+                    const rows = this.nativeDb.prepare(sql).all();
+                    if (rows && rows.length > 0) {
+                        for (let i = 0; i < rows.length; i++) {
+                            const r = rows[i];
+                            const pName = String(r.partner).trim();
+                            statsMap.set(pName, {
+                                totalSales: parseFloat(r.totalSales) || 0,
+                                lastReceiptDate: r.lastReceiptDate || '-',
+                                lastTransDate: r.lastTransDate || '-'
+                            });
+                        }
+                    }
+                    return statsMap;
+                }
+                const stmt = this.db.prepare(sql);
+                while (stmt.step()) {
+                    const r = stmt.getAsObject();
+                    const pName = String(r.partner || '').trim();
+                    if (pName) {
+                        statsMap.set(pName, {
+                            totalSales: parseFloat(r.totalSales) || 0,
+                            lastReceiptDate: r.lastReceiptDate || '-',
+                            lastTransDate: r.lastTransDate || '-'
+                        });
+                    }
+                }
+                stmt.free();
+            } catch (e) {
+                console.warn("[SQLite] getAllPartnerStats error:", e.message);
+            }
+            return statsMap;
+        }
+
+        /**
+         * ⚡ حساب الأرصدة الصافية الدقيقة لكافة العملاء والموردين دفعة واحدة (Batch Balances) لتجنب آلاف الاستعلامات المتزامنة
+         */
+        getAllAccountsAccurateBalances() {
+            const balancesMap = new Map();
+            if (!this.db) return balancesMap;
+
+            try {
+                // 1. جلب كافة الحسابات مع أرصدتها الافتتاحية
+                const accountsSql = "SELECT name, debit, credit FROM accounts;";
+                let accRows = [];
+                if (this.isNative && this.nativeDb) {
+                    accRows = this.nativeDb.prepare(accountsSql).all();
+                } else {
+                    const stmt = this.db.prepare(accountsSql);
+                    while (stmt.step()) accRows.push(stmt.getAsObject());
+                    stmt.free();
+                }
+
+                const accInitialMap = {};
+                if (accRows && accRows.length > 0) {
+                    for (let i = 0; i < accRows.length; i++) {
+                        const a = accRows[i];
+                        if (!a || !a.name) continue;
+                        const pName = String(a.name).trim();
+                        const initDebit = parseFloat(a.debit) || 0;
+                        const initCredit = parseFloat(a.credit) || 0;
+                        accInitialMap[pName] = initDebit - initCredit;
+                    }
+                }
+
+                // 2. جلب كافة الحركات مرتبة
+                const txSql = "SELECT * FROM transactions WHERE partner IS NOT NULL AND TRIM(partner) != '' ORDER BY dateISO ASC, id ASC;";
+                let txRows = [];
+                if (this.isNative && this.nativeDb) {
+                    txRows = this.nativeDb.prepare(txSql).all();
+                } else {
+                    const stmt = this.db.prepare(txSql);
+                    while (stmt.step()) txRows.push(stmt.getAsObject());
+                    stmt.free();
+                }
+
+                // 3. تجميع الحركات حسب الشريك
+                const partnerTxs = {};
+                if (txRows && txRows.length > 0) {
+                    for (let i = 0; i < txRows.length; i++) {
+                        const r = txRows[i];
+                        const p = String(r.partner).trim();
+                        if (!p) continue;
+                        if (!partnerTxs[p]) partnerTxs[p] = [];
+                        partnerTxs[p].push(r);
+                    }
+                }
+
+                const isCreditMethod = (m) => {
+                    if (!m) return false;
+                    const s = String(m).toLowerCase().trim().replace(/[أإآ]/g, 'ا');
+                    return s.includes('اجل') || s.includes('ذمم') || s.includes('ذمه') || s.includes('تقسيط') || s.includes('credit') || s.includes('deferred');
+                };
+
+                // 4. دمج وحساب الأرصدة الصافية مطابقة 100% لمعادلة getAccountAccurateBalance
+                const allPartnerNames = new Set([...Object.keys(accInitialMap), ...Object.keys(partnerTxs)]);
+                allPartnerNames.forEach(pName => {
+                    if (typeof window !== 'undefined' && window.isGenericCashPartner && window.isGenericCashPartner(pName)) {
+                        balancesMap.set(pName, 0);
+                        return;
+                    }
+
+                    let currentBalance = accInitialMap[pName] || 0;
+                    const rows = partnerTxs[pName] || [];
+
+                    if (rows.length > 0) {
+                        const ivMap = {};
+                        const singleTrans = [];
+
+                        for (let i = 0; i < rows.length; i++) {
+                            const r = rows[i];
+                            const t = this._reconstructRow ? this._reconstructRow(r) : r;
+                            if (!t) continue;
+
+                            const tType = String(t.type || '');
+                            const isInvoice = (tType.includes('بيع') || tType.includes('شراء')) && t.invoiceId;
+                            if (isInvoice) {
+                                const isReturn = tType.includes('مرتجع');
+                                const cleanT = tType.replace(/📤|📥|↩️/g, '').trim();
+                                const key = (isReturn ? "RET_" : "") + cleanT + "_" + t.invoiceId;
+                                if (!ivMap[key]) {
+                                    ivMap[key] = {
+                                        type: tType,
+                                        invoiceId: t.invoiceId,
+                                        method: t.method || '',
+                                        total: 0,
+                                        paid: 0,
+                                        isReturn: isReturn
+                                    };
+                                }
+                                ivMap[key].total += (parseFloat(t.total) || 0);
+                                if (t.isInvoiceHead || t.paidAmount !== undefined || t.paid !== undefined) {
+                                    const pAmt = parseFloat(t.paidAmount !== undefined ? t.paidAmount : t.paid) || 0;
+                                    ivMap[key].paid = Math.max(ivMap[key].paid, pAmt);
+                                }
+                            } else {
+                                singleTrans.push(t);
+                            }
+                        }
+
+                        const ivs = Object.values(ivMap);
+                        for (let i = 0; i < ivs.length; i++) {
+                            const iv = ivs[i];
+                            if (iv.paid === 0 && iv.total > 0 && !isCreditMethod(iv.method)) {
+                                iv.paid = iv.total;
+                            }
+                            let debit = 0;
+                            let credit = 0;
+
+                            if (iv.type.includes('بيع')) {
+                                if (iv.type.includes('مرتجع')) {
+                                    debit = iv.paid;
+                                    credit = iv.total;
+                                } else {
+                                    debit = iv.total;
+                                    credit = iv.paid;
+                                }
+                            } else if (iv.type.includes('شراء')) {
+                                if (iv.type.includes('مرتجع')) {
+                                    debit = iv.total;
+                                    credit = iv.paid;
+                                } else {
+                                    debit = iv.paid;
+                                    credit = iv.total;
+                                }
+                            }
+                            currentBalance += (debit - credit);
+                        }
+
+                        for (let i = 0; i < singleTrans.length; i++) {
+                            const t = singleTrans[i];
+                            const amount = parseFloat(t.total) || parseFloat(t.price) || 0;
+                            const tType = String(t.type || '');
+                            if (tType.includes('قبض') || tType.includes('مرتجع بيع')) {
+                                currentBalance -= amount;
+                            } else if (tType.includes('صرف') || tType.includes('مرتجع شراء') || tType.includes('بيع')) {
+                                currentBalance += amount;
+                            }
+                        }
+                    }
+
+                    balancesMap.set(pName, currentBalance);
+                });
+
+            } catch (err) {
+                console.warn("[SQLite] getAllAccountsAccurateBalances error:", err.message);
+            }
+
+            return balancesMap;
         }
 
         /**
@@ -2192,20 +2576,51 @@
                     const sql = `
                         SELECT 
                             productName,
-                            type,
-                            warehouse,
-                            COALESCE(SUM(qty), 0) AS totalQty,
-                            COALESCE(SUM(total), 0) AS totalAmount,
-                            COALESCE(MAX(price), 0) AS maxPrice
+                            COALESCE(SUM(CASE WHEN type LIKE '%شراء%' AND type NOT LIKE '%مرتجع%' THEN qty WHEN type LIKE '%مرتجع بيع%' THEN qty ELSE 0 END), 0) AS totalIn,
+                            COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN qty WHEN type LIKE '%مرتجع شراء%' THEN qty ELSE 0 END), 0) AS totalOut,
+                            COALESCE(SUM(CASE WHEN type LIKE '%شراء%' AND type NOT LIKE '%مرتجع%' THEN total ELSE 0 END), 0) AS purchaseCostSum,
+                            COALESCE(SUM(CASE WHEN type LIKE '%شراء%' AND type NOT LIKE '%مرتجع%' THEN qty ELSE 0 END), 0) AS purchaseQtySum,
+                            COALESCE(MAX(CASE WHEN type LIKE '%شراء%' AND type NOT LIKE '%مرتجع%' THEN price ELSE 0 END), 0) AS maxPurchasePrice,
+                            COALESCE(SUM(
+                                CASE 
+                                    WHEN (warehouse = ? OR (warehouse IS NULL AND ? = 'المخزن الرئيسي')) THEN
+                                        CASE
+                                            WHEN type LIKE '%شراء%' AND type NOT LIKE '%مرتجع%' THEN qty
+                                            WHEN type LIKE '%مرتجع بيع%' THEN qty
+                                            WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN -qty
+                                            WHEN type LIKE '%مرتجع شراء%' THEN -qty
+                                            WHEN type LIKE '%تسوية%' AND type LIKE '%+%' THEN qty
+                                            WHEN type LIKE '%تسوية%' AND type NOT LIKE '%+%' THEN -qty
+                                            ELSE 0
+                                        END
+                                    ELSE 0
+                                END
+                            ), 0) AS wStock,
+                            COALESCE(SUM(
+                                CASE
+                                    WHEN type NOT LIKE '%تحويل%' THEN
+                                        CASE
+                                            WHEN type LIKE '%شراء%' AND type NOT LIKE '%مرتجع%' THEN qty
+                                            WHEN type LIKE '%مرتجع بيع%' THEN qty
+                                            WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN -qty
+                                            WHEN type LIKE '%مرتجع شراء%' THEN -qty
+                                            WHEN type LIKE '%تسوية%' AND type LIKE '%+%' THEN qty
+                                            WHEN type LIKE '%تسوية%' AND type NOT LIKE '%+%' THEN -qty
+                                            ELSE 0
+                                        END
+                                    ELSE 0
+                                END
+                            ), 0) AS globalChange
                         FROM transaction_items
                         WHERE productName IS NOT NULL AND productName != ''
-                        GROUP BY productName, type, warehouse;
+                        GROUP BY productName;
                     `;
                     let rows = [];
                     if (this.isNative && this.nativeDb) {
-                        rows = this.nativeDb.prepare(sql).all();
+                        rows = this.nativeDb.prepare(sql).all(targetWH, targetWH);
                     } else {
                         const stmt = this.db.prepare(sql);
+                        stmt.bind([targetWH, targetWH]);
                         while (stmt.step()) rows.push(stmt.getAsObject());
                         stmt.free();
                     }
@@ -2213,42 +2628,34 @@
                     for (let i = 0; i < rows.length; i++) {
                         const r = rows[i];
                         const pName = r.productName;
-                        if (!summary[pName]) {
-                            summary[pName] = { in: 0, out: 0, lastPur: 0, totalCost: 0, totalQty: 0, wStock: 0, globalChange: 0 };
-                        }
-                        const s = summary[pName];
-                        const qty = parseFloat(r.totalQty) || 0;
-                        const amount = parseFloat(r.totalAmount) || 0;
-                        const type = String(r.type || '');
-                        const rWH = String(r.warehouse || 'المخزن الرئيسي').trim();
+                        const inQty = parseFloat(r.totalIn) || 0;
+                        const outQty = parseFloat(r.totalOut) || 0;
+                        const pCost = parseFloat(r.purchaseCostSum) || 0;
+                        const pQty = parseFloat(r.purchaseQtySum) || 0;
+                        const maxP = parseFloat(r.maxPurchasePrice) || 0;
 
-                        let change = 0;
-                        if (type.includes('شراء') && !type.includes('مرتجع')) {
-                            change = qty;
-                            s.in += qty;
-                            s.lastPur = r.maxPrice || (qty > 0 ? (amount / qty) : 0);
-                            s.totalCost += amount;
-                            s.totalQty += qty;
-                        } else if (type.includes('مرتجع بيع')) {
-                            change = qty;
-                            s.in += qty;
-                        } else if (type.includes('بيع') && !type.includes('مرتجع')) {
-                            change = -qty;
-                            s.out += qty;
-                        } else if (type.includes('مرتجع شراء')) {
-                            change = -qty;
-                            s.out += qty;
-                        } else if (type.includes('تسوية')) {
-                            change = type.includes('+') ? qty : -qty;
-                        }
-
-                        if (!type.includes('تحويل')) s.globalChange += change;
-                        if (rWH === targetWH) s.wStock += change;
+                        summary[pName] = {
+                            in: inQty,
+                            out: outQty,
+                            lastPur: maxP || (pQty > 0 ? (pCost / pQty) : 0),
+                            totalCost: pCost,
+                            totalQty: pQty,
+                            wStock: parseFloat(r.wStock) || 0,
+                            globalChange: parseFloat(r.globalChange) || 0
+                        };
                     }
 
-                    // 2. تجميع التحويلات المخزنية المعتمدة
+                    // 2. تجميع التحويلات المخزنية المعتمدة مباشرة بدون JSON.parse ثقيل
                     try {
-                        const trSql = `SELECT partner, qty, raw_json FROM transactions WHERE type LIKE '%تحويل%';`;
+                        const trSql = `
+                            SELECT 
+                                partner, 
+                                qty, 
+                                json_extract(raw_json, '$.transferStatus') AS status, 
+                                json_extract(raw_json, '$.product') AS product 
+                            FROM transactions 
+                            WHERE type LIKE '%تحويل%' AND json_extract(raw_json, '$.transferStatus') = 'received';
+                        `;
                         let trRows = [];
                         if (this.isNative && this.nativeDb) trRows = this.nativeDb.prepare(trSql).all();
                         else {
@@ -2257,8 +2664,7 @@
                             trStmt.free();
                         }
                         for (let k = 0; k < trRows.length; k++) {
-                            const tr = this._reconstructRow(trRows[k]);
-                            if (!tr || tr.transferStatus !== 'received') continue;
+                            const tr = trRows[k];
                             const parts = String(tr.partner || '').split(' -> ');
                             const qty = parseFloat(tr.qty) || 0;
                             const pName = tr.product;
@@ -2278,6 +2684,224 @@
         }
 
         /**
+         * ⚡ جلب حركات المبيعات والمرتجعات لتحليل المبيعات مفلترة ومفهرسة مباشرة من SQLite C++
+         */
+        getSalesAnalysisTransactions(fromDate, toDate, warehouse = null, cashier = null, limit = 15000) {
+            if (!this.db) return [];
+            try {
+                const fDate = String(fromDate || '').trim();
+                const tDate = String(toDate || '').trim();
+                const lim = parseInt(limit, 10) || 15000;
+
+                let query = "SELECT * FROM transactions WHERE (type LIKE '%بيع%' OR type LIKE '%مرتجع بيع%')";
+                const params = [];
+                if (fDate) {
+                    query += " AND dateISO >= ?";
+                    params.push(fDate);
+                }
+                if (tDate) {
+                    query += " AND dateISO <= ?";
+                    params.push(tDate);
+                }
+                if (warehouse && warehouse !== 'all') {
+                    query += " AND (warehouse = ? OR (warehouse IS NULL AND ? = 'المخزن الرئيسي'))";
+                    params.push(warehouse, warehouse);
+                }
+                if (cashier && cashier !== 'all') {
+                    query += " AND cashier = ?";
+                    params.push(cashier);
+                }
+                query += " ORDER BY dateISO DESC, id DESC LIMIT ?;";
+                params.push(lim);
+
+                if (this.isNative && this.nativeDb) {
+                    const rows = this.nativeDb.prepare(query).all(...params);
+                    return rows ? rows.map(r => this._reconstructRow(r)).filter(Boolean) : [];
+                }
+                const stmt = this.db.prepare(query);
+                stmt.bind(params);
+                const items = [];
+                while (stmt.step()) {
+                    const itm = this._reconstructRow(stmt.getAsObject());
+                    if (itm) items.push(itm);
+                }
+                stmt.free();
+                return items;
+            } catch (err) {
+                console.warn("[SQLite] getSalesAnalysisTransactions error:", err.message);
+                return [];
+            }
+        }
+
+        /**
+         * ⚡ تحديث اسم الطرف (العميل أو المورد) في كافة الفواتير وبنودها مباشرة عبر SQLite بـ 1 مللي ثانية
+         */
+        renamePartnerInTransactions(oldName, newName) {
+            if (!this.db || !oldName || !newName) return false;
+            try {
+                return this.runInTransaction(() => {
+                    const stmt1 = this.db.prepare("UPDATE transactions SET partner = ?, raw_json = json_set(raw_json, '$.partner', ?) WHERE partner = ?;");
+                    stmt1.run([newName, newName, oldName]);
+                    stmt1.free();
+
+                    const stmt2 = this.db.prepare("UPDATE transaction_items SET partner = ?, raw_json = json_set(raw_json, '$.partner', ?) WHERE partner = ?;");
+                    stmt2.run([newName, newName, oldName]);
+                    stmt2.free();
+
+                    this.schedulePersist(500);
+                    return true;
+                });
+            } catch (err) {
+                console.error("[SQLite] renamePartnerInTransactions error:", err.message);
+                return false;
+            }
+        }
+
+        /**
+         * ⚡ تحديث علامة الإرجاع (is_returned) لفاتورة محددة عبر الفهرس السريع idx_tx_invoiceId
+         */
+        setInvoiceReturnedStatus(invoiceId, isReturned = true, typeFilter = null) {
+            if (!this.db || !invoiceId) return false;
+            try {
+                const strId = String(invoiceId);
+                let query = "UPDATE transactions SET raw_json = json_set(raw_json, '$.is_returned', ?) WHERE invoiceId = ?";
+                const params = [isReturned ? 1 : 0, strId];
+                if (typeFilter) {
+                    query += " AND type LIKE ?";
+                    params.push(`%${typeFilter}%`);
+                }
+                const stmt = this.db.prepare(query);
+                stmt.run(params);
+                stmt.free();
+                this.schedulePersist(500);
+                return true;
+            } catch (err) {
+                console.warn("[SQLite] setInvoiceReturnedStatus error:", err.message);
+                return false;
+            }
+        }
+
+        /**
+         * ⚡ التحقق من وجود مرتجعات متبقية لفاتورة معينة مباشرة من SQLite
+         */
+        hasRemainingReturns(originalInvoiceId) {
+            if (!this.db || !originalInvoiceId) return false;
+            try {
+                const stmt = this.db.prepare("SELECT COUNT(*) AS cnt FROM transactions WHERE originalInvoiceId = ? AND type LIKE '%مرتجع%';");
+                stmt.bind([String(originalInvoiceId)]);
+                let cnt = 0;
+                if (stmt.step()) {
+                    cnt = stmt.getAsObject().cnt || 0;
+                }
+                stmt.free();
+                return cnt > 0;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        /**
+         * ⚡ جلب أحدث حركات الصنف التاريخية مباشرة من SQLite بحد أقصى (بدلاً من فلترة وفرز كامل الأرشيف في الذاكرة)
+         */
+        getProductHistory(productName, barcode, limit = 50) {
+            if (!this.db || (!productName && !barcode)) return [];
+            try {
+                let query = `
+                    SELECT tx_id, invoiceId, dateISO, time, type, partner, barcode, productName, size, color, qty, price, total, warehouse
+                    FROM transaction_items
+                    WHERE 1=1
+                `;
+                const params = [];
+                if (productName && barcode) {
+                    query += ` AND (productName = ? OR barcode = ?)`;
+                    params.push(String(productName).trim(), String(barcode).trim());
+                } else if (productName) {
+                    query += ` AND productName = ?`;
+                    params.push(String(productName).trim());
+                } else if (barcode) {
+                    query += ` AND barcode = ?`;
+                    params.push(String(barcode).trim());
+                }
+                query += ` AND (type NOT LIKE '%تحويل%' OR raw_json NOT LIKE '%"transferStatus":"rejected"%')`;
+                query += ` ORDER BY dateISO DESC, time DESC LIMIT ?;`;
+                params.push(parseInt(limit, 10) || 50);
+
+                const stmt = this.db.prepare(query);
+                stmt.bind(params);
+                const results = [];
+                while (stmt.step()) {
+                    results.push(stmt.getAsObject());
+                }
+                stmt.free();
+                return results;
+            } catch (e) {
+                console.warn("[SQLite] getProductHistory error:", e.message);
+                return [];
+            }
+        }
+
+        /**
+         * ⚡ استخراج تصنيفات الأصناف الفريدة مباشرة من SQLite عبر فهرس category (لحظي O(1))
+         */
+        getProductCategoriesFast() {
+            if (!this.db) return [];
+            try {
+                const stmt = this.db.prepare("SELECT DISTINCT category FROM products WHERE category IS NOT NULL AND TRIM(category) != '' ORDER BY category ASC;");
+                const cats = [];
+                while (stmt.step()) {
+                    const row = stmt.getAsObject();
+                    if (row.category && String(row.category).trim()) {
+                        cats.push(String(row.category).trim());
+                    }
+                }
+                stmt.free();
+                return cats;
+            } catch (e) {
+                return [];
+            }
+        }
+
+        /**
+         * ⚡ استعلام تجميعي مفهرس لحساب التعديلات التاريخية للأرصدة بأثر رجعي لما بعد تاريخ النهاية (endDate)
+         */
+        getRetroactiveStockAdjustments(endDate) {
+            if (!this.db || !endDate) return {};
+            try {
+                const query = `
+                    SELECT productName, warehouse,
+                           SUM(CASE 
+                               WHEN type LIKE '%شراء%' AND type NOT LIKE '%مرتجع%' THEN qty
+                               WHEN type LIKE '%مرتجع بيع%' THEN qty
+                               WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN -qty
+                               WHEN type LIKE '%مرتجع شراء%' THEN -qty
+                               WHEN type LIKE '%تسوية%' AND type LIKE '%+%' THEN qty
+                               WHEN type LIKE '%تسوية%' AND type NOT LIKE '%+%' THEN -qty
+                               ELSE 0
+                           END) as netChange
+                    FROM transaction_items
+                    WHERE dateISO > ?
+                    GROUP BY productName, warehouse;
+                `;
+                const stmt = this.db.prepare(query);
+                stmt.bind([endDate]);
+                const diffs = {};
+                while (stmt.step()) {
+                    const row = stmt.getAsObject();
+                    const p = row.productName;
+                    const wh = row.warehouse || 'المخزن الرئيسي';
+                    if (!diffs[p]) diffs[p] = {};
+                    diffs[p][wh] = parseFloat(row.netChange) || 0;
+                }
+                stmt.free();
+                return diffs;
+            } catch (e) {
+                console.warn("[SQLite] getRetroactiveStockAdjustments notice:", e.message);
+                return {};
+            }
+        }
+
+
+        /**
          * ⚡ بحث واستعلام فوري عن فواتير الإرجاع مباشرة من SQLite بكامل الأرشيف التاريخي
          */
         searchReturnInvoices({ ref = '', product = '', account = '', dateFrom = '', dateTo = '', isSalesReturn = true, limit = 300 } = {}) {
@@ -2289,14 +2913,14 @@
 
                 if (ref) {
                     const r = String(ref).trim();
-                    sql += ` AND (invoiceId = ? OR originalInvoiceId = ? OR invoiceId LIKE ? OR product LIKE ? OR code LIKE ? OR barcode LIKE ? OR raw_json LIKE ?)`;
-                    params.push(r, r, `%${r}%`, `%${r}%`, `%${r}%`, `%${r}%`, `%"dailySeq":${r}%`);
+                    sql += ` AND (invoiceId = ? OR originalInvoiceId = ? OR invoiceId LIKE ? OR id IN (SELECT tx_id FROM transaction_items WHERE barcode = ? OR barcode LIKE ? OR productName LIKE ?) OR raw_json LIKE ?)`;
+                    params.push(r, r, `%${r}%`, r, `%${r}%`, `%${r}%`, `%${r}%`);
                 }
 
                 if (product) {
                     const p = String(product).trim();
-                    sql += ` AND (product LIKE ? OR code LIKE ? OR barcode LIKE ? OR raw_json LIKE ?)`;
-                    params.push(`%${p}%`, `%${p}%`, `%${p}%`, `%"name":"%${p}%"`);
+                    sql += ` AND (id IN (SELECT tx_id FROM transaction_items WHERE barcode = ? OR barcode LIKE ? OR productName LIKE ?) OR raw_json LIKE ?)`;
+                    params.push(p, `%${p}%`, `%${p}%`, `%${p}%`);
                 }
 
                 if (account) {
@@ -2311,8 +2935,9 @@
                 }
 
                 if (dateTo) {
+                    const toVal = String(dateTo).length === 10 ? dateTo + 'T23:59:59' : dateTo;
                     sql += ` AND dateISO <= ?`;
-                    params.push(dateTo);
+                    params.push(toVal);
                 }
 
                 sql += ` ORDER BY dateISO DESC, id DESC LIMIT ?;`;

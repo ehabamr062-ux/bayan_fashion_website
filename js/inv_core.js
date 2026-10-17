@@ -623,12 +623,27 @@ function shareWarehouseReport(platform) {
     window.open(url, '_blank');
 }
 
+let _cachedInvCategories = null;
+let _cachedInvCatProdLen = -1;
+
 function updateCategoryFilterOptions() {
     const filter = document.getElementById('invCategoryFilter');
     if (!filter) return;
 
     const currentVal = filter.value || 'all';
-    const categories = [...new Set(productsDB.map(p => (p.category || '').trim()).filter(c => c))].sort();
+    let categories = [];
+    if (_cachedInvCategories && _cachedInvCatProdLen === productsDB.length) {
+        categories = _cachedInvCategories;
+    } else {
+        if (window.BayanSQLite && typeof window.BayanSQLite.getProductCategoriesFast === 'function') {
+            categories = window.BayanSQLite.getProductCategoriesFast();
+        }
+        if (!categories || categories.length === 0) {
+            categories = [...new Set(productsDB.map(p => (p.category || '').trim()).filter(c => c))].sort();
+        }
+        _cachedInvCategories = categories;
+        _cachedInvCatProdLen = productsDB.length;
+    }
 
     // التحقق مما إذا كانت الخيارات الحالية هي نفس التصنيفات لتفادي إعادة الإنشاء والتصفير
     const existingValues = [...filter.options].map(o => o.value).filter(v => v !== 'all');
@@ -2027,17 +2042,21 @@ function getWarehouseStock(productName, warehouseName, startDate = null, endDate
         _stockHistoryCache = {};
         _stockHistoryCacheKey = cacheKey;
 
-        const prodIndex = {};
-        productsDB.forEach(prod => {
-            if (prod && prod.name) {
-                const n = prod.name.trim();
-                prodIndex[n] = prod;
-                prodIndex[n.toLowerCase()] = prod;
-                _stockHistoryCache[n] = {};
-            }
-        });
+        // ⚡ تسريع فائق عبر استعلام SQLite التجميعي إذا كان متوفراً
+        if (window.BayanSQLite && typeof window.BayanSQLite.getRetroactiveStockAdjustments === 'function' && window.BayanSQLite.db) {
+            _stockHistoryCache = window.BayanSQLite.getRetroactiveStockAdjustments(endDate) || {};
+        } else {
+            const prodIndex = {};
+            productsDB.forEach(prod => {
+                if (prod && prod.name) {
+                    const n = prod.name.trim();
+                    prodIndex[n] = prod;
+                    prodIndex[n.toLowerCase()] = prod;
+                    _stockHistoryCache[n] = {};
+                }
+            });
 
-        for (let i = 0; i < transactions.length; i++) {
+            for (let i = 0; i < transactions.length; i++) {
             const t = transactions[i];
             const rawName = (t.product || t.productName || t.name || '').trim();
             if (!rawName) continue;
@@ -2089,6 +2108,7 @@ function getWarehouseStock(productName, warehouseName, startDate = null, endDate
                     _stockHistoryCache[pName][wFrom] -= qty;
                 }
             }
+        }
         }
     }
 

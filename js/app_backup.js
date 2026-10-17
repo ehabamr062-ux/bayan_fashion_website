@@ -213,58 +213,68 @@ window.restoreDataFromContent = async function (jsonContent, fileName = '', isEm
                 if (db.warehouses) tablesToTransact.push(db.warehouses);
                 if (db.wallpapers) tablesToTransact.push(db.wallpapers);
 
-                await db.transaction('rw', tablesToTransact, async () => {
-                    await db.products.clear();
-                    await db.transactions.clear();
-                    await db.accounts.clear();
-                    await db.trash.clear();
-                    if (shouldTouchUsers) {
-                        await db.users.clear();
-                    }
+                // 1. تفريغ الجداول بأمان
+                await db.products.clear();
+                await db.transactions.clear();
+                await db.accounts.clear();
+                await db.trash.clear();
+                if (shouldTouchUsers) {
+                    await db.users.clear();
+                }
+                if (db.treasuryAudit) await db.treasuryAudit.clear();
+                if (db.auditLogs) await db.auditLogs.clear();
+                if (db.warehouses) await db.warehouses.clear();
+                if (db.wallpapers) await db.wallpapers.clear();
 
-                    const PROD_CHUNK = 500;
-                    for (let i = 0; i < cleanProducts.length; i += PROD_CHUNK) {
-                        await db.products.bulkPut(cleanProducts.slice(i, i + PROD_CHUNK));
+                // 2. استرجاع الأصناف بدفعات سريعة مع تحديث شريط التقدم ومنح مهلة للواجهة لمنع التجميد
+                const PROD_CHUNK = 1000;
+                for (let i = 0; i < cleanProducts.length; i += PROD_CHUNK) {
+                    const chunk = cleanProducts.slice(i, i + PROD_CHUNK);
+                    await db.products.bulkPut(chunk);
+                    if (subEl) {
+                        const cur = Math.min(i + PROD_CHUNK, cleanProducts.length);
+                        subEl.innerHTML = `جاري كتابة الأصناف (${cur.toLocaleString()} / ${cleanProducts.length.toLocaleString()})... ⏳`;
                     }
+                    await new Promise(r => setTimeout(r, 15));
+                }
 
-                    const TX_CHUNK = 500;
-                    for (let i = 0; i < cleanTransactions.length; i += TX_CHUNK) {
-                        await db.transactions.bulkPut(cleanTransactions.slice(i, i + TX_CHUNK));
+                // 3. استرجاع الفواتير بدفعات مفهرسة مع منح مهلة للواجهة
+                const TX_CHUNK = 500;
+                for (let i = 0; i < cleanTransactions.length; i += TX_CHUNK) {
+                    const chunk = cleanTransactions.slice(i, i + TX_CHUNK);
+                    await db.transactions.bulkPut(chunk);
+                    if (subEl) {
+                        const cur = Math.min(i + TX_CHUNK, cleanTransactions.length);
+                        subEl.innerHTML = `جاري كتابة الفواتير والحركات (${cur.toLocaleString()} / ${cleanTransactions.length.toLocaleString()})... ⏳`;
                     }
+                    await new Promise(r => setTimeout(r, 15));
+                }
 
-                    if (cleanAccounts.length > 0) await db.accounts.bulkPut(cleanAccounts);
-                    if (cleanTrash.length > 0) await db.trash.bulkPut(cleanTrash);
-                    if (shouldTouchUsers && restoredUsers.length > 0) {
-                        await db.users.bulkPut(restoredUsers);
-                    }
+                // 4. استرجاع الحسابات والجداول التابعة بسلاسة
+                if (cleanAccounts.length > 0) {
+                    if (subEl) subEl.innerHTML = `جاري استرجاع الحسابات (${cleanAccounts.length.toLocaleString()})... ⏳`;
+                    await db.accounts.bulkPut(cleanAccounts);
+                    await new Promise(r => setTimeout(r, 15));
+                }
+                if (cleanTrash.length > 0) await db.trash.bulkPut(cleanTrash);
+                if (shouldTouchUsers && restoredUsers.length > 0) {
+                    await db.users.bulkPut(restoredUsers);
+                }
 
-                    if (db.treasuryAudit) {
-                        await db.treasuryAudit.clear();
-                        if (cleanTreasury.length > 0) {
-                            await db.treasuryAudit.bulkPut(cleanTreasury);
-                        }
-                    }
-                    if (db.auditLogs) {
-                        await db.auditLogs.clear();
-                        if (cleanAuditLogs.length > 0) {
-                            await db.auditLogs.bulkPut(cleanAuditLogs);
-                        }
-                    }
+                if (db.treasuryAudit && cleanTreasury.length > 0) {
+                    await db.treasuryAudit.bulkPut(cleanTreasury);
+                }
+                if (db.auditLogs && cleanAuditLogs.length > 0) {
+                    await db.auditLogs.bulkPut(cleanAuditLogs);
+                }
 
-                    if (db.warehouses) {
-                        await db.warehouses.clear();
-                        if (cleanWarehouses.length > 0) {
-                            await db.warehouses.bulkPut(cleanWarehouses);
-                        }
-                    }
+                if (db.warehouses && cleanWarehouses.length > 0) {
+                    await db.warehouses.bulkPut(cleanWarehouses);
+                }
 
-                    if (db.wallpapers) {
-                        await db.wallpapers.clear();
-                        if (cleanWallpapers.length > 0) {
-                            await db.wallpapers.bulkPut(cleanWallpapers);
-                        }
-                    }
-                });
+                if (db.wallpapers && cleanWallpapers.length > 0) {
+                    await db.wallpapers.bulkPut(cleanWallpapers);
+                }
 
                 if (data.settings && typeof data.settings === 'object') {
                     try {

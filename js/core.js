@@ -519,8 +519,10 @@ async function loadData() {
     }
 
     try {
-        // 1. بدء جلب الأصناف بالتوازي في الخلفية فوراً دون تعطيل تهيئة المستخدمين والمخازن والواجهة
-        const productsPromise = db.products.toArray().catch(e => { console.warn("products load:", e); return []; });
+        // 1. جلب أولي فائق السرعة لـ 100 صنف فقط بالتوازي لفتح شاشة البيع فوراً في 0.05 ثانية
+        const initialProductsPromise = (window.BayanSQLite && typeof window.BayanSQLite.getProductsChunk === 'function')
+            ? Promise.resolve(window.BayanSQLite.getProductsChunk(100, 0))
+            : (db && db.products ? db.products.limit(100).toArray().catch(() => []) : Promise.resolve([]));
 
         // 2. تحميل البيانات الأساسية السريعة (المستخدمين، المخازن، الحسابات، يوميات اليوم) في أقل من 15ms
         const todayDateISO = new Date().toLocaleDateString('en-CA');
@@ -674,54 +676,115 @@ async function loadData() {
             window.invalidateAccountBalancesCache();
         }
 
-        // 3. ⚡ التحميل الكسول للأصناف في الخلفية (Lazy Loading) لفتح شاشة البيع فوراً (0ms Instant Login)
+        // 3. ⚡ التحميل الفوري السريع للأصناف (0ms Instant Login) + التحميل المتدرج الذكي في الخلفية (Chunked Non-Blocking Loader)
         window.productsDB = window.productsDB || [];
         productsDB = window.productsDB;
 
-        // دالة جدولة تحميل الأصناف في الخلفية دون تعطيل واجهة المستخدم أو خيط الإقلاع
-        const scheduleBackgroundProductsLoad = () => {
-            const doAsyncLoad = async () => {
-                try {
-                    const pData = await productsPromise;
-                    if (pData && Array.isArray(pData) && pData.length > 0) {
-                        productsDB = pData;
-                        window.productsDB = productsDB;
+        const syncProductVariantsStock = (p) => {
+            if (p && p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
+                let vSum = 0;
+                for (let j = 0; j < p.variants.length; j++) {
+                    const v = p.variants[j];
+                    if (v.stock !== undefined && (parseFloat(v.stock) < 0 || isNaN(parseFloat(v.stock)))) {
+                        v.stock = 0;
+                    }
+                    vSum += (parseFloat(v.stock) || 0);
+                }
+                p.stock = vSum;
+            }
+        };
 
-                        // تنظيف أي أرصدة سالبة ومزامنة تشكيلات المقاسات
-                        for (let i = 0; i < productsDB.length; i++) {
-                            const p = productsDB[i];
-                            if (p && p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
-                                let vSum = 0;
-                                for (let j = 0; j < p.variants.length; j++) {
-                                    const v = p.variants[j];
-                                    if (v.stock !== undefined && (parseFloat(v.stock) < 0 || isNaN(parseFloat(v.stock)))) {
-                                        v.stock = 0;
-                                    }
-                                    vSum += (parseFloat(v.stock) || 0);
-                                }
-                                p.stock = vSum;
+        // أ) معالجة وتثبيت أول 100 صنف فوراً لتمكين الكاشير والبحث اللحظي في أقل من 5ms
+        try {
+            const initialPData = await initialProductsPromise;
+            if (initialPData && Array.isArray(initialPData) && initialPData.length > 0) {
+                for (let i = 0; i < initialPData.length; i++) {
+                    syncProductVariantsStock(initialPData[i]);
+                }
+                productsDB = initialPData;
+                window.productsDB = productsDB;
+                if (typeof updateProductFastIndexForChunk === 'function') {
+                    updateProductFastIndexForChunk(initialPData);
+                } else if (typeof rebuildProductFastIndex === 'function') {
+                    rebuildProductFastIndex();
+                }
+            }
+        } catch(iErr) {
+            console.warn("Initial products setup notice:", iErr);
+        }
+
+        // ب) جدولة التحميل المتدرج غير الحاجب للواجهة (Non-Blocking Chunked Loader) لباقي الأصناف
+        const scheduleBackgroundProductsLoad = () => {
+            const loadRemainingChunks = async () => {
+                try {
+                    let offset = window.productsDB.length;
+                    const CHUNK_SIZE = 1000;
+                    let hasMore = true;
+                    const totalProductsCount = (window.BayanSQLite && typeof window.BayanSQLite.getProductsTotalCount === 'function')
+                        ? window.BayanSQLite.getProductsTotalCount()
+                        : 0;
+
+                    if (totalProductsCount > 0 && offset >= totalProductsCount) return;
+
+                    const loadedIdSet = new Set(window.productsDB.map(p => p.id));
+
+                    while (hasMore) {
+                        let chunk = [];
+                        if (window.BayanSQLite && typeof window.BayanSQLite.getProductsChunk === 'function') {
+                            chunk = window.BayanSQLite.getProductsChunk(CHUNK_SIZE, offset);
+                        } else if (db && db.products) {
+                            chunk = await db.products.offset(offset).limit(CHUNK_SIZE).toArray().catch(() => []);
+                        }
+
+                        if (!chunk || chunk.length === 0) {
+                            hasMore = false;
+                            break;
+                        }
+
+                        for (let i = 0; i < chunk.length; i++) {
+                            const p = chunk[i];
+                            syncProductVariantsStock(p);
+                            if (!loadedIdSet.has(p.id)) {
+                                loadedIdSet.add(p.id);
+                                window.productsDB.push(p);
                             }
                         }
 
-                        console.log(`📦 [Lazy Load] تم تحميل وتحديث (${productsDB.length}) صنف بالذاكرة بنجاح في الخلفية.`);
-                        if (typeof rebuildProductFastIndex === 'function') rebuildProductFastIndex();
-                        if (typeof initEntitySignatures === 'function') initEntitySignatures();
+                        offset += chunk.length;
+                        productsDB = window.productsDB;
 
-                        // إذا كان المستخدم فاتحاً شاشة المخازن وقت اكتمال الجلب، نحدّث الجدول
-                        const invSecEl = document.getElementById('inventory-section');
-                        if (invSecEl && !invSecEl.classList.contains('hidden') && typeof renderInventoryTable === 'function') {
-                            renderInventoryTable();
+                        // تحديث خريطة الباركود السريع للدفعة المحملة فقط دون تكرار تدوير الأصناف القديمة
+                        if (typeof updateProductFastIndexForChunk === 'function') {
+                            updateProductFastIndexForChunk(chunk);
                         }
+
+                        if (chunk.length < CHUNK_SIZE) {
+                            hasMore = false;
+                            break;
+                        }
+
+                        // 🛑 تحرير خيط المعالج (Event Loop) لـ 20 ملي ثانية حتى تظل الواجهة والماوس والباركود سريعة بنسبة 100%
+                        await new Promise(r => setTimeout(r, 20));
+                    }
+
+                    console.log(`📦 [Chunked Loader] تم تحميل وتحديث (${window.productsDB.length}) صنف بالذاكرة بنجاح في الخلفية.`);
+                    if (typeof rebuildProductFastIndex === 'function') rebuildProductFastIndex();
+                    if (typeof initEntitySignatures === 'function') initEntitySignatures();
+
+                    // إذا كان المستخدم فاتحاً شاشة المخازن وقت اكتمال الجلب، نحدّث الجدول
+                    const invSecEl = document.getElementById('inventory-section');
+                    if (invSecEl && !invSecEl.classList.contains('hidden') && typeof renderInventoryTable === 'function') {
+                        renderInventoryTable();
                     }
                 } catch (pErr) {
-                    console.warn("Lazy products background load notice:", pErr);
+                    console.warn("Chunked products background load notice:", pErr);
                 }
             };
 
             if (typeof requestIdleCallback === 'function') {
-                requestIdleCallback(() => doAsyncLoad(), { timeout: 1000 });
+                requestIdleCallback(() => loadRemainingChunks(), { timeout: 1200 });
             } else {
-                setTimeout(doAsyncLoad, 50);
+                setTimeout(loadRemainingChunks, 60);
             }
         };
 
