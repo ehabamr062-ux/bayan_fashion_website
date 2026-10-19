@@ -232,6 +232,87 @@ function quickAddAccount(name) {
 
 }
 
+// ================= تحديث شارات وبيانات شريك الفاتورة في الهيدر =================
+function updateSalesHeaderPartnerInfo() {
+    const sPB = document.getElementById('salesPartnerBadge');
+    const sCode = document.getElementById('customerCodeDisplay');
+    const sBalance = document.getElementById('customerBalanceDisplay');
+
+    if (sPB && document.getElementById('customerName')) {
+        const name = document.getElementById('customerName').value || '---';
+        sPB.innerText = '👤 عميل: ' + name;
+
+        const acc = (typeof accounts !== 'undefined' && Array.isArray(accounts)) ? accounts.find(a => a.name === name) : null;
+        if (acc) {
+            if (sCode) sCode.innerText = acc.code || '---';
+            if (sBalance) {
+                const bal = typeof getAccountBalance === 'function' ? getAccountBalance(name) : (acc.balance || 0);
+                sBalance.innerText = bal.toFixed(2);
+
+                let priorBal = bal;
+                let activeSalesInvId = null;
+                if (window.editingInvoiceId) {
+                    activeSalesInvId = String(window.editingInvoiceId).trim();
+                } else if (window._posCurrentNavState && window._posCurrentNavState.invoiceId) {
+                    activeSalesInvId = String(window._posCurrentNavState.invoiceId).trim();
+                } else if (typeof tabStates !== 'undefined' && typeof activeTabId !== 'undefined' && tabStates[activeTabId] && tabStates[activeTabId].viewingInvoiceId) {
+                    activeSalesInvId = String(tabStates[activeTabId].viewingInvoiceId).trim();
+                }
+
+                if (activeSalesInvId && typeof window.isGenericCashPartner === 'function' && !window.isGenericCashPartner(name)) {
+                    const allTx = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+                    const headTx = allTx.find(t => String(t.invoiceId) === String(activeSalesInvId) && (t.isInvoiceHead || (t.type && (t.type.includes('بيع') || t.type.includes('مبيعات')))));
+                    if (headTx && headTx.prevBalance !== undefined && headTx.prevBalance !== null && !isNaN(parseFloat(headTx.prevBalance))) {
+                        priorBal = parseFloat(headTx.prevBalance);
+                    } else if (typeof getHistoricalPartnerBalance === 'function') {
+                        priorBal = getHistoricalPartnerBalance(name, activeSalesInvId);
+                    } else if (typeof getAccountBalance === 'function') {
+                        priorBal = getAccountBalance(name, activeSalesInvId);
+                    }
+                }
+
+                if (document.getElementById('prevBalanceDisplay')) {
+                    document.getElementById('prevBalanceDisplay').innerText = priorBal.toFixed(2);
+                    if (priorBal < -0.001) {
+                        document.getElementById('prevBalanceDisplay').style.color = '#dc2626';
+                    } else {
+                        document.getElementById('prevBalanceDisplay').style.color = '#000000';
+                    }
+                    document.getElementById('prevBalanceDisplay').style.fontWeight = '900';
+                    if (typeof calculateTotals === 'function') calculateTotals();
+                }
+
+                sBalance.style.fontWeight = '900';
+                sBalance.style.color = (bal > 0) ? '#15803d' : (bal < 0 ? '#dc2626' : '#000000');
+                sBalance.parentElement.style.backgroundColor = (bal > 0) ? '#dcfce7' : (bal < 0 ? '#fee2e2' : '#fef2f2');
+            }
+        } else {
+            if (sCode) sCode.innerText = '---';
+            if (sBalance) {
+                sBalance.innerText = '0.00';
+                sBalance.style.color = '#000000';
+                sBalance.style.fontWeight = '900';
+                sBalance.parentElement.style.backgroundColor = '#fef2f2';
+            }
+            if (document.getElementById('prevBalanceDisplay')) {
+                document.getElementById('prevBalanceDisplay').innerText = '0.00';
+                document.getElementById('prevBalanceDisplay').style.color = '#000000';
+                document.getElementById('prevBalanceDisplay').style.fontWeight = '900';
+                if (typeof calculateTotals === 'function') calculateTotals();
+            }
+        }
+    }
+}
+window.updateSalesHeaderPartnerInfo = updateSalesHeaderPartnerInfo;
+
+function updateHeaderPartnerInfo() {
+    updateSalesHeaderPartnerInfo();
+    if (typeof window.updatePurchaseHeaderPartnerInfo === 'function') {
+        window.updatePurchaseHeaderPartnerInfo();
+    }
+}
+window.updateHeaderPartnerInfo = updateHeaderPartnerInfo;
+
 // ================= نظام التنقل في البحث بالكيبورد =================
 
 let searchSelectedIndex = -1;
@@ -360,81 +441,24 @@ async function handleSearch(query) {
         return;
     }
 
-    // 2. البحث الحي الموحد بالاسم أو الباركود أو الكود أو المقاس عبر محرك البحث المرتب والذكي (بحد أقصى 50 لسرعة المعالجة)
+    // 2. البحث الحي الموحد بالاسم أو الباركود أو الكود عبر محرك البحث السريع المباشر (LIMIT 30)
     const filtered = (typeof window.searchProductsRanked === 'function')
-        ? window.searchProductsRanked(query, { limit: 50 })
-        : (productsDB || []).filter(p => (p.name && p.name.includes(query)) || (p.barcode && String(p.barcode).includes(query))).slice(0, 50);
+        ? window.searchProductsRanked(query, { limit: 30 })
+        : (typeof window.BayanSQLite !== 'undefined' && window.BayanSQLite && typeof window.BayanSQLite.searchProductsFast === 'function' && window.BayanSQLite.db)
+            ? window.BayanSQLite.searchProductsFast(query, 30)
+            : (productsDB || []).filter(p => (p.name && p.name.includes(query)) || (p.barcode && String(p.barcode).includes(query))).slice(0, 30);
 
-    if (filtered.length > 0) {
-        const totalMatches = filtered.length;
-        const displayFiltered = filtered.slice(0, 40);
-        resultsDiv.innerHTML = `
-            <div class="pos-search-panel" style="width: min(580px, calc(100vw - 40px)); min-width: 320px; position: absolute; top: calc(100% + 4px); right: 0; left: auto; z-index: 999999; background: white; border-radius: 14px; box-shadow: 0 15px 35px rgba(0,0,0,0.25); border: 1.5px solid #cbd5e1; direction: rtl; text-align: right; animation: modalFadeIn 0.15s ease-out;">
-                <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-top-left-radius: 14px; border-top-right-radius: 14px;">
-                    <span style="font-weight: 800; font-size: 0.88rem; color: #5e3370;">🔍 نتائج البحث (${totalMatches} صنف${totalMatches > 40 ? ' - معروض أول 40' : ''})</span>
-                    <button type="button" onclick="document.getElementById('searchResults').style.display='none';" class="pos-search-close-btn" title="إغلاق النافذة" style="background:none; border:none; cursor:pointer; font-size:1rem;">❌</button>
-                </div>
-                <div style="max-height: 380px; overflow-y: auto; padding: 6px; scrollbar-gutter: stable;">
-                    ${displayFiltered.map(p => {
-                        const priceVal = parseFloat(p.price) || 0;
-                        const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
-                        const stockVal = (typeof getLiveProductWhStock === 'function')
-                            ? getLiveProductWhStock(p, activeWH)
-                            : (typeof getWarehouseStock === 'function' ? getWarehouseStock(p, activeWH) : 0);
-                        const safeName = (window.escapeHtml ? window.escapeHtml(p.name) : p.name);
-                        const safeCode = (window.escapeHtml ? window.escapeHtml(p.code || p.id) : (p.code || p.id));
-                        const safeBarcode = (window.escapeHtml ? window.escapeHtml(p.barcode || '---') : (p.barcode || '---'));
-                        const sizesList = (p.variants && Array.isArray(p.variants)) 
-                            ? [...new Set(p.variants.map(v => String(v.size || '').trim()).filter(s => s && s !== '-' && s !== 'موحد' && s !== 'قياسي'))] 
-                            : [];
-                        const sizesHtml = sizesList.length > 0 
-                            ? `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; border: 1px solid #bae6fd;">📏 مقاسات: ${sizesList.slice(0, 5).join(', ')}${sizesList.length > 5 ? '...' : ''}</span>`
-                            : '';
-                        return `
-                            <div class="pos-search-row" onclick="selectProductToHeader(${p.id});" style="display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: 0.15s; border-radius: 10px; gap: 10px;">
-                                <div style="flex: 1; min-width: 0; text-align: right;">
-                                    <div style="font-weight: 900; font-size: 0.98rem; color: #1e293b; white-space: normal; word-break: break-word;">${safeName}</div>
-                                    <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
-                                        <span>🏷️ كود: <b style="color:#5e3370;">${safeCode}</b> | باركود: <b>${safeBarcode}</b></span>
-                                        ${sizesHtml}
-                                    </div>
-                                </div>
-                                <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
-                                    <div style="text-align: center; background: #f8fafc; padding: 5px 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                                        <div style="font-size: 0.7rem; color: #64748b;">📦 الرصيد (${activeWH})</div>
-                                        <div style="font-weight: 900; font-size: 0.95rem; color: ${stockVal <= 5 ? '#ef4444' : '#10b981'};">${stockVal} <span style="font-size:0.7rem;">${p.unit || 'قطعة'}</span></div>
-                                    </div>
-                                    <div style="text-align: center; background: rgba(59, 130, 246, 0.08); padding: 5px 12px; border-radius: 8px; border: 1.5px solid rgba(59, 130, 246, 0.25);">
-                                        <div style="font-size: 0.7rem; color: #1d4ed8; font-weight: 800;">💰 سعر البيع</div>
-                                        <div style="font-weight: 900; font-size: 1rem; color: #1e40af;">${priceVal.toFixed(2)} ج.م</div>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-            </div>
-        `;
-        resultsDiv.classList.remove('hidden');
-        resultsDiv.style.setProperty('display', 'block', 'important');
-    } else {
-        // إذا لم يتم العثور على أي صنف، نظهر خيار "إضافة صنف جديد" في لوحة جميلة ومحاذية
-        const safeQuery = (window.escapeHtml ? window.escapeHtml(query) : query);
-        const jsEscapedQuery = String(query || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-        resultsDiv.innerHTML = `
-            <div class="pos-search-panel" style="width: min(450px, calc(100vw - 40px)); position: absolute; top: calc(100% + 4px); right: 0; left: auto; z-index: 999999; background: white; border-radius: 14px; box-shadow: 0 15px 35px rgba(0,0,0,0.25); border: 1.5px solid #cbd5e1; direction: rtl; text-align: right; padding: 14px; animation: modalFadeIn 0.15s ease-out;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                    <span style="font-weight: 800; font-size: 0.85rem; color: #64748b;">⚠️ لا توجد نتائج مطابقة لـ "${safeQuery}"</span>
-                    <button type="button" onclick="document.getElementById('searchResults').style.display='none';" class="pos-search-close-btn" title="إغلاق" style="background:none; border:none; cursor:pointer; font-size:1rem;">❌</button>
-                </div>
-                <button type="button" onclick="document.getElementById('searchResults').style.display='none'; quickAddProduct('${jsEscapedQuery}', 'sales');" 
-                    style="width: 100%; padding: 12px; background: #f5f3ff; border: 2px dashed #8e44ad; border-radius: 10px; color: #8e44ad; font-weight: 900; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s;">
-                    <span>📝 إضافة صنف جديد باسم: "${safeQuery}"</span>
-                </button>
-            </div>
-        `;
-        resultsDiv.classList.remove('hidden');
-        resultsDiv.style.setProperty('display', 'block', 'important');
+    if (typeof window.renderProductSearchResultsPanel === 'function') {
+        window.renderProductSearchResultsPanel(resultsDiv, query, filtered, {
+            resultsDivId: 'searchResults',
+            title: '🔍 نتائج البحث',
+            priceKey: 'price',
+            priceLabel: '💰 سعر البيع',
+            onSelectFn: 'selectProductToHeader',
+            quickAddFn: 'quickAddProduct',
+            mode: 'sales'
+        });
+        return;
     }
 }
 
@@ -2347,7 +2371,21 @@ function calculateTotals(subTotalParam) {
         }
     }
 
-    let discountAmount = (discountType === 'perc') ? (subTotal * discountVal / 100) : discountVal;
+    // استدعاء محرك الفواتير المركزي الموحد لحساب المجموع، الخصم، الإضافة، والضريبة
+    let invoiceSummary = null;
+    if (window.BayanInvoiceEngine && typeof window.BayanInvoiceEngine.calculateInvoiceSummary === 'function') {
+        invoiceSummary = window.BayanInvoiceEngine.calculateInvoiceSummary({
+            cart,
+            discountVal,
+            discountType,
+            taxVal: parseFloat(document.getElementById('taxInput')?.value) || 0,
+            taxType: (document.getElementById('taxType')?.value) || 'val',
+            maxDiscountPerc,
+            canDiscount
+        });
+    }
+
+    let discountAmount = invoiceSummary ? invoiceSummary.discountAmount : ((discountType === 'perc') ? (subTotal * discountVal / 100) : discountVal);
     
     if (subTotal <= 0) {
         discountAmount = 0;
@@ -2416,15 +2454,18 @@ function calculateTotals(subTotalParam) {
     }
 
     let taxAmount = (taxType === 'perc') ? (subTotal * taxVal / 100) : taxVal;
+    if (invoiceSummary && typeof invoiceSummary.taxAmount === 'number') {
+        taxAmount = invoiceSummary.taxAmount;
+    }
 
     if (document.getElementById('salesTaxAmountDisplay')) document.getElementById('salesTaxAmountDisplay').innerText = taxAmount.toFixed(2);
 
     const settings = JSON.parse(getStore('pos_settings') || '{}');
     const globalTaxEnabled = settings.taxEnabled || false;
     const globalTaxPercent = parseFloat(settings.taxPercent) || 0;
-    let globalTaxAmount = globalTaxEnabled ? (subTotal * globalTaxPercent / 100) : 0;
+    let globalTaxAmount = invoiceSummary ? invoiceSummary.globalTaxAmount : (globalTaxEnabled ? (subTotal * globalTaxPercent / 100) : 0);
 
-    currentTotal = subTotal - discountAmount + taxAmount + globalTaxAmount;
+    currentTotal = invoiceSummary ? invoiceSummary.finalTotal : (subTotal - discountAmount + taxAmount + globalTaxAmount);
 
     if (currentTotal < 0) currentTotal = 0;
 
@@ -3507,18 +3548,21 @@ function getSalesInvoicePrintData() {
         maxCheckoutAdd = isCurAdmin ? 100 : 15;
     }
 
-    if (maxCheckoutDisc >= 0 && maxCheckoutDisc < 100) {
-        if (discountType === 'perc' && discountVal > maxCheckoutDisc) discountVal = maxCheckoutDisc;
-        else if (discountType === 'val' && subTotal > 0 && discountVal > (subTotal * maxCheckoutDisc / 100)) discountVal = Number((subTotal * maxCheckoutDisc / 100).toFixed(2));
+    let printSummary = null;
+    if (window.BayanInvoiceEngine && typeof window.BayanInvoiceEngine.calculateInvoiceSummary === 'function') {
+        printSummary = window.BayanInvoiceEngine.calculateInvoiceSummary({
+            cart,
+            discountVal,
+            discountType,
+            taxVal,
+            taxType,
+            maxDiscountPerc: maxCheckoutDisc,
+            canDiscount: true
+        });
     }
 
-    if (maxCheckoutAdd >= 0 && maxCheckoutAdd < 100) {
-        if (taxType === 'perc' && taxVal > maxCheckoutAdd) taxVal = maxCheckoutAdd;
-        else if (taxType === 'val' && subTotal > 0 && taxVal > (subTotal * maxCheckoutAdd / 100)) taxVal = Number((subTotal * maxCheckoutAdd / 100).toFixed(2));
-    }
-
-    let discountAmount = (discountType === 'perc') ? (subTotal * discountVal / 100) : discountVal;
-    let taxAmount = (taxType === 'perc') ? (subTotal * taxVal / 100) : taxVal;
+    let discountAmount = printSummary ? printSummary.discountAmount : ((discountType === 'perc') ? (subTotal * discountVal / 100) : discountVal);
+    let taxAmount = printSummary ? printSummary.taxAmount : ((taxType === 'perc') ? (subTotal * taxVal / 100) : taxVal);
 
     const taxReasonEl = document.getElementById('taxReason');
     const selectedTaxReason = taxReasonEl ? taxReasonEl.value.trim() : 'إضافة';
@@ -3526,8 +3570,8 @@ function getSalesInvoicePrintData() {
     const settings = JSON.parse(getStore('pos_settings') || '{}');
     const globalTaxEnabled = settings.taxEnabled || false;
     const globalTaxPercent = parseFloat(settings.taxPercent) || 0;
-    let globalTaxAmount = globalTaxEnabled ? (subTotal * globalTaxPercent / 100) : 0;
-    const totAmount = (typeof currentTotal !== 'undefined' ? currentTotal : (subTotal - discountAmount + taxAmount + globalTaxAmount));
+    let globalTaxAmount = printSummary ? printSummary.globalTaxAmount : (globalTaxEnabled ? (subTotal * globalTaxPercent / 100) : 0);
+    const totAmount = (typeof currentTotal !== 'undefined' ? currentTotal : (printSummary ? printSummary.finalTotal : (subTotal - discountAmount + taxAmount + globalTaxAmount)));
 
     return {
         invoiceNumber: salesId,

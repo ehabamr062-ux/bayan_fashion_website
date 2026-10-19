@@ -599,7 +599,11 @@
 
         close() {
             if (window.BayanSQLite) {
-                window.BayanSQLite.persistNow();
+                if (typeof window.BayanSQLite.flushSync === 'function') {
+                    window.BayanSQLite.flushSync();
+                } else if (typeof window.BayanSQLite.persistNow === 'function') {
+                    window.BayanSQLite.persistNow(true);
+                }
             }
         }
 
@@ -628,9 +632,9 @@
                     return await callback();
                 });
                 if (typeof window.BayanSQLite.schedulePersist === 'function') {
-                    window.BayanSQLite.schedulePersist(1200);
+                    window.BayanSQLite.schedulePersist(250);
                 } else {
-                    await window.BayanSQLite.persistNow();
+                    await window.BayanSQLite.persistNow(true);
                 }
                 return res;
             }

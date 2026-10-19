@@ -64,28 +64,35 @@ function handleHistorySearch(query, event) {
         return; 
     }
 
-    // البحث في قاعدة البيانات لاقتراح الصنف بالاسم أو الباركود الأساسي أو باركود المقاس واللون
+    // البحث في قاعدة البيانات لاقتراح الصنف بالاسم أو الباركود مع الترتيب الذكي للأولوية (Ranked Search)
     const cleanQuery = String(query).trim();
     const lowerQuery = cleanQuery.toLowerCase();
     const normQuery = normalizeArabicHist(cleanQuery);
 
-    const filtered = (productsDB || []).filter(p => {
-        if (!p) return false;
-        const pNameNorm = normalizeArabicHist(p.name);
-        if (pNameNorm.includes(normQuery)) return true;
-        if (p.barcode && String(p.barcode).trim().toLowerCase().includes(lowerQuery)) return true;
-        if (p.sysCode && String(p.sysCode).trim().toLowerCase().includes(lowerQuery)) return true;
-        if (p.code && String(p.code).trim().toLowerCase().includes(lowerQuery)) return true;
-        // فحص باركود التشكيلات (المقاسات والألوان)
-        if (p.variants && Array.isArray(p.variants)) {
-            if (p.variants.some(v => v.barcode && String(v.barcode).trim().toLowerCase().includes(lowerQuery))) return true;
-        }
-        // فحص باركود الوحدات
-        if (p.units && Array.isArray(p.units)) {
-            if (p.units.some(u => u.unitBarcode && String(u.unitBarcode).trim().toLowerCase().includes(lowerQuery))) return true;
-        }
-        return false;
-    }).slice(0, 50);
+    let filtered = [];
+    if (typeof window.searchProductsRanked === 'function') {
+        filtered = window.searchProductsRanked(cleanQuery, { limit: 50, exactOnly: false });
+    }
+    // مسار احتياطي آمن في حال عدم توفر الدالة أو عدم إرجاع نتائج
+    if (!filtered || filtered.length === 0) {
+        filtered = (productsDB || []).filter(p => {
+            if (!p) return false;
+            const pNameNorm = normalizeArabicHist(p.name);
+            if (pNameNorm.includes(normQuery)) return true;
+            if (p.barcode && String(p.barcode).trim().toLowerCase().includes(lowerQuery)) return true;
+            if (p.sysCode && String(p.sysCode).trim().toLowerCase().includes(lowerQuery)) return true;
+            if (p.code && String(p.code).trim().toLowerCase().includes(lowerQuery)) return true;
+            // فحص باركود التشكيلات (المقاسات والألوان)
+            if (p.variants && Array.isArray(p.variants)) {
+                if (p.variants.some(v => v.barcode && String(v.barcode).trim().toLowerCase().includes(lowerQuery))) return true;
+            }
+            // فحص باركود الوحدات
+            if (p.units && Array.isArray(p.units)) {
+                if (p.units.some(u => u.unitBarcode && String(u.unitBarcode).trim().toLowerCase().includes(lowerQuery))) return true;
+            }
+            return false;
+        }).slice(0, 50);
+    }
 
     if (filtered.length > 0) {
         resultsDiv.style.display = 'block';

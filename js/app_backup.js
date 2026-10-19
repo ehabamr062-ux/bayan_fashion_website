@@ -1573,7 +1573,30 @@ try {
             } catch (err) {
                 console.error("Backup before quit error:", err);
             } finally {
-                // إكمال عملية الخروج بأمان بعد إنهاء النسخ الاحتياطي
+                // 🔒 صمام أمان حاسم: تفريغ وتثبيت كافة بيانات SQLite على القرص الصلب 100% وإغلاق الاتصال بأمان قبل إنهاء العملية
+                try {
+                    if (window.BayanSQLite) {
+                        if (typeof window.BayanSQLite.flush === 'function') {
+                            await window.BayanSQLite.flush();
+                        } else if (typeof window.BayanSQLite.flushSync === 'function') {
+                            window.BayanSQLite.flushSync();
+                        }
+                        if (typeof window.BayanSQLite.close === 'function') {
+                            window.BayanSQLite.close();
+                        }
+                    }
+                } catch(flErr) {
+                    console.error("Error finalizing SQLite before quit:", flErr);
+                    try {
+                        if (window.BayanSQLite && typeof window.BayanSQLite.close === 'function') {
+                            window.BayanSQLite.close();
+                        } else if (window.BayanSQLite && typeof window.BayanSQLite.flushSync === 'function') {
+                            window.BayanSQLite.flushSync();
+                        }
+                    } catch(e) {}
+                }
+
+                // إكمال عملية الخروج بأمان بعد إنهاء النسخ الاحتياطي وحفظ قاعدة البيانات
                 if (electron && electron.ipcRenderer) {
                     electron.ipcRenderer.send('proceed-quit');
                 }

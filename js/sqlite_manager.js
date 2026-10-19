@@ -180,13 +180,7 @@
                     }
                     this.dbPath = this.path.join(dir, 'bayan_pos.db');
 
-                    // تأمين حفظ أي بيانات معلقة عند طلب إغلاق البرنامج من Electron
-                    const electron = req('electron');
-                    if (electron && electron.ipcRenderer) {
-                        electron.ipcRenderer.on('trigger-backup-before-quit', async () => {
-                            await this.flush();
-                        });
-                    }
+                    // 🔒 إدارة دورة الخروج وإغلاق قاعدة البيانات موحدة مركزياً في js/app_backup.js لضمان التسلسل ومنع التكرار
                 } catch (e) {
                     console.warn('[SQLite] Node module require notice:', e.message);
                 }
@@ -363,6 +357,8 @@
                             }
                         }
                         this._inTransaction = false;
+                        this._isDirty = true;
+                        this.schedulePersist(250);
                         return val;
                     }).catch((err) => {
                         try { this.db.run("ROLLBACK;"); } catch (r) {}
@@ -372,6 +368,8 @@
                 }
                 this.db.run("COMMIT;");
                 this._inTransaction = false;
+                this._isDirty = true;
+                this.schedulePersist(250);
                 return res;
             } catch (err) {
                 try { this.db.run("ROLLBACK;"); } catch (r) {}
@@ -747,6 +745,7 @@
                     id INTEGER PRIMARY KEY,
                     name TEXT NOT NULL,
                     barcode TEXT,
+                    code TEXT,
                     category TEXT,
                     unit TEXT,
                     cost REAL DEFAULT 0,
@@ -758,7 +757,45 @@
                 CREATE INDEX IF NOT EXISTS idx_prod_barcode ON products(barcode);
                 CREATE INDEX IF NOT EXISTS idx_prod_name ON products(name);
                 CREATE INDEX IF NOT EXISTS idx_prod_category ON products(category);
+                CREATE INDEX IF NOT EXISTS idx_prod_raw_code ON products(json_extract(raw_json, '$.code'));
+                CREATE INDEX IF NOT EXISTS idx_prod_raw_model ON products(json_extract(raw_json, '$.model'));
             `);
+
+            // 🛡️ ترقية مخطط جدول الأصناف تلقائياً وفحص عمود code
+            try {
+                let hasCodeCol = false;
+                if (this.isNative && this.nativeDb) {
+                    const cols = this.nativeDb.prepare("PRAGMA table_info(products);").all();
+                    hasCodeCol = Array.isArray(cols) && cols.some(c => c.name === 'code');
+                } else {
+                    const res = this.db.exec("PRAGMA table_info(products);");
+                    if (res && res[0] && res[0].values) {
+                        hasCodeCol = res[0].values.some(v => v[1] === 'code');
+                    }
+                }
+
+                if (!hasCodeCol) {
+                    try {
+                        this.db.run("ALTER TABLE products ADD COLUMN code TEXT;");
+                    } catch(alterErr) {}
+                }
+
+                // تعبئة عمود code من حقل JSON القديم أو الباركود للأصناف الموجودة مسبقاً
+                try {
+                    this.db.run(`
+                        UPDATE products 
+                        SET code = COALESCE(json_extract(raw_json, '$.code'), barcode, '') 
+                        WHERE code IS NULL OR code = '';
+                    `);
+                } catch(updErr) {}
+
+                // بعد التأكد التام من وجود العمود، ننشئ الفهرس بأمان
+                try {
+                    this.db.run("CREATE INDEX IF NOT EXISTS idx_prod_code ON products(code);");
+                } catch(idxErr) {}
+            } catch(colMigErr) {
+                console.warn("[SQLite] products code migration notice:", colMigErr.message);
+            }
 
             // 2. جدول الفواتير والحركات اليومية
             try {
@@ -1084,6 +1121,11 @@
             let insStmt = optCachedStmts ? optCachedStmts.insTiStmt : null;
             const shouldFree = !optCachedStmts;
             try {
+                const sInvoiceId = String(item.invoiceId || '');
+                const sProd = String(item.product || item.productName || item.name || '');
+                const sSize = String(item.size || item.selectedSize || '');
+                const sColor = String(item.color || item.selectedColor || '');
+
                 // حذف البنود القديمة لنفس السجل لتجنب الازدواجية عند التعديل
                 if (!delStmt) {
                     delStmt = this.db.prepare("DELETE FROM transaction_items WHERE tx_id = ?;");
@@ -1363,11 +1405,12 @@
 
                     // تجريد الحقول المخزنة كأعمدة أساسية لتوفير الحجم
                     const rawJson = this._extractExtraFields(itemToStore, ['id', 'name', 'barcode', 'code', 'category', 'unit', 'cost', 'price', 'wholesale', 'stock']);
-                    const stmt = this.db.prepare(`INSERT OR REPLACE INTO products (id, name, barcode, category, unit, cost, price, wholesale, stock, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
+                    const stmt = this.db.prepare(`INSERT OR REPLACE INTO products (id, name, barcode, code, category, unit, cost, price, wholesale, stock, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
                     stmt.run(this._safeBind([
                         item.id,
                         item.name || '',
-                        item.barcode || item.code || '',
+                        item.barcode || '',
+                        item.code || item.barcode || '',
                         item.category || '',
                         item.unit || '',
                         parseFloat(item.cost) || 0,
@@ -1378,27 +1421,42 @@
                     ]));
                     stmt.free();
                 } else if (tableName === 'transactions') {
-                    // تجريد أعمدة الفاتورة الأساسية مع الاحتفاظ بالمصفوفات مثل items والخصومات والإضافات وإجمالي الفاتورة
-                    const rawJson = this._extractExtraFields(item, ['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'user', 'warehouse']);
-                    const stmt = this.db.prepare(`INSERT OR REPLACE INTO transactions (id, invoiceId, originalInvoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
-                    stmt.run(this._safeBind([
-                        item.id,
-                        String(item.invoiceId || ''),
-                        item.originalInvoiceId != null && item.originalInvoiceId !== '' ? String(item.originalInvoiceId) : null,
-                        item.dateISO || '',
-                        item.time || '',
-                        item.type || '',
-                        item.partner || '',
-                        parseFloat(item.total) != null && !isNaN(parseFloat(item.total)) ? parseFloat(item.total) : 0,
-                        parseFloat(item.paidAmount) || 0,
-                        parseFloat(item.remaining) || 0,
-                        item.method || '',
-                        item.cashier || item.user || '',
-                        item.warehouse || '',
-                        rawJson
-                    ]));
-                    stmt.free();
-                    this._syncTransactionItems(item);
+                    // 🔒 تغليف إدخال رأس الفاتورة وبنودها داخل Transaction ذرية موحدة لمنع الفواتير اليتيمة
+                    this.runInTransaction(() => {
+                        // تجريد أعمدة الفاتورة الأساسية مع الاحتفاظ بالمصفوفات مثل items والخصومات والإضافات وإجمالي الفاتورة
+                        const rawJson = this._extractExtraFields(item, ['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'user', 'warehouse']);
+                        const stmt = this.db.prepare(`INSERT OR REPLACE INTO transactions (id, invoiceId, originalInvoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
+                        const runRes = stmt.run(this._safeBind([
+                            item.id,
+                            String(item.invoiceId || ''),
+                            item.originalInvoiceId != null && item.originalInvoiceId !== '' ? String(item.originalInvoiceId) : null,
+                            item.dateISO || '',
+                            item.time || '',
+                            item.type || '',
+                            item.partner || '',
+                            parseFloat(item.total) != null && !isNaN(parseFloat(item.total)) ? parseFloat(item.total) : 0,
+                            parseFloat(item.paidAmount) || 0,
+                            parseFloat(item.remaining) || 0,
+                            item.method || '',
+                            item.cashier || item.user || '',
+                            item.warehouse || '',
+                            rawJson
+                        ]));
+                        if (!item.id) {
+                            if (runRes && runRes.lastInsertRowid) {
+                                item.id = Number(runRes.lastInsertRowid);
+                            } else {
+                                try {
+                                    const lastRow = this.db.exec("SELECT last_insert_rowid() AS id;");
+                                    if (lastRow && lastRow[0] && lastRow[0].values && lastRow[0].values[0]) {
+                                        item.id = Number(lastRow[0].values[0][0]);
+                                    }
+                                } catch(e) {}
+                            }
+                        }
+                        stmt.free();
+                        this._syncTransactionItems(item);
+                    });
                 } else if (tableName === 'transaction_items') {
                     const rawJson = this._extractExtraFields(item, [
                         'id', 'tx_id', 'invoiceId', 'dateISO', 'time', 'type', 'partner',
@@ -1460,7 +1518,8 @@
                 }
                 if (!this._inTransaction) {
                     // ⚡ جدولة حفظ ذكية غير متزامنة بالخلفية لمنع تجميد واجهة الكاشير مع حماية الهارد ديسك
-                    this.schedulePersist(1200);
+                    this._isDirty = true;
+                    this.schedulePersist(250);
                 }
                 return item.id;
             } catch (e) {
@@ -1482,13 +1541,13 @@
         bulkPut(tableName, items) {
             if (!this.db || !Array.isArray(items) || items.length === 0) return [];
             try {
-                return this.runInTransaction(() => {
+                const res = this.runInTransaction(() => {
                     let mainStmt = null;
                     let delTiStmt = null;
                     let insTiStmt = null;
                     try {
                         if (tableName === 'products') {
-                            mainStmt = this.db.prepare(`INSERT OR REPLACE INTO products (id, name, barcode, category, unit, cost, price, wholesale, stock, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
+                            mainStmt = this.db.prepare(`INSERT OR REPLACE INTO products (id, name, barcode, code, category, unit, cost, price, wholesale, stock, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
                             for (const item of items) {
                                 if (!item) continue;
                                 let itemToStore = item;
@@ -1500,7 +1559,8 @@
                                 mainStmt.run(this._safeBind([
                                     item.id,
                                     item.name || '',
-                                    item.barcode || item.code || '',
+                                    item.barcode || '',
+                                    item.code || item.barcode || '',
                                     item.category || '',
                                     item.unit || '',
                                     parseFloat(item.cost) || 0,
@@ -1522,7 +1582,7 @@
                             for (const item of items) {
                                 if (!item) continue;
                                 const rawJson = this._extractExtraFields(item, ['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'user', 'warehouse']);
-                                mainStmt.run(this._safeBind([
+                                const runRes = mainStmt.run(this._safeBind([
                                     item.id,
                                     String(item.invoiceId || ''),
                                     item.originalInvoiceId != null && item.originalInvoiceId !== '' ? String(item.originalInvoiceId) : null,
@@ -1538,6 +1598,18 @@
                                     item.warehouse || '',
                                     rawJson
                                 ]));
+                                if (!item.id) {
+                                    if (runRes && runRes.lastInsertRowid) {
+                                        item.id = Number(runRes.lastInsertRowid);
+                                    } else {
+                                        try {
+                                            const lastRow = this.db.exec("SELECT last_insert_rowid() AS id;");
+                                            if (lastRow && lastRow[0] && lastRow[0].values && lastRow[0].values[0]) {
+                                                item.id = Number(lastRow[0].values[0][0]);
+                                            }
+                                        } catch(e) {}
+                                    }
+                                }
                                 this._syncTransactionItems(item, cachedStmts);
                             }
                         } else if (tableName === 'transaction_items') {
@@ -1607,11 +1679,11 @@
                         if (insTiStmt) try { insTiStmt.free(); } catch(e) {}
                     }
 
-                    if (!this._inTransaction) {
-                        this.schedulePersist(1200);
-                    }
                     return items.map(i => i ? i.id : null);
                 });
+                this._isDirty = true;
+                this.schedulePersist(250);
+                return res;
             } catch (e) {
                 console.error(`[SQLite] bulkPut error on ${tableName}:`, e.message);
                 throw e;
@@ -1637,7 +1709,8 @@
                         delTi.free();
                     } catch (tiErr) {}
                 }
-                this.schedulePersist();
+                this._isDirty = true;
+                this.schedulePersist(250);
                 return true;
             } catch (e) {
                 console.warn(`[SQLite] delete error on ${tableName}:`, e.message);
@@ -1673,9 +1746,11 @@
                             delTi.free();
                         } catch (tiErr) {}
                     }
-                    this.schedulePersist();
                     return true;
                 });
+                this._isDirty = true;
+                this.schedulePersist(250);
+                return res;
             } catch (e) {
                 console.warn(`[SQLite] bulkDelete error on ${tableName}:`, e.message);
                 return false;
@@ -1759,37 +1834,77 @@
         }
 
         /**
-         * ⚡ جلب كافة بنود الفاتورة مباشرة من جدول transaction_items أو transactions
+         * ⚡ جلب كافة بنود الفاتورة مباشرة من جدول transaction_items أو transactions مع منع التكرار
          */
         getInvoiceItems(invoiceId) {
             if (!this.db || !invoiceId) return [];
             const sId = String(invoiceId).trim();
-            const numId = Number(sId) || 0;
             try {
+                let rawList = [];
                 if (this.isNative && this.nativeDb) {
-                    const tiRows = this.nativeDb.prepare("SELECT * FROM transaction_items WHERE invoiceId = ? OR tx_id = ?;").all(sId, numId);
+                    const tiRows = this.nativeDb.prepare("SELECT * FROM transaction_items WHERE invoiceId = ?;").all(sId);
                     if (tiRows && tiRows.length > 0) {
-                        return tiRows.map(r => this._reconstructRow(r));
+                        rawList = tiRows;
+                    } else {
+                        const txRows = this.nativeDb.prepare("SELECT * FROM transactions WHERE invoiceId = ?;").all(sId);
+                        if (txRows && txRows.length > 0) {
+                            rawList = txRows;
+                        } else {
+                            const numId = Number(sId);
+                            if (!isNaN(numId) && numId > 0) {
+                                const idRows = this.nativeDb.prepare("SELECT * FROM transactions WHERE id = ?;").all(numId);
+                                if (idRows && idRows.length > 0) rawList = idRows;
+                            }
+                        }
                     }
-                    const txRows = this.nativeDb.prepare("SELECT * FROM transactions WHERE invoiceId = ? OR id = ?;").all(sId, numId);
-                    return txRows ? txRows.map(r => this._reconstructRow(r)) : [];
-                }
-                const stmt = this.db.prepare("SELECT * FROM transaction_items WHERE invoiceId = ? OR tx_id = ?;");
-                stmt.bind([sId, numId]);
-                const items = [];
-                while (stmt.step()) {
-                    items.push(this._reconstructRow(stmt.getAsObject()));
-                }
-                stmt.free();
-                if (items.length > 0) return items;
+                } else {
+                    const stmt = this.db.prepare("SELECT * FROM transaction_items WHERE invoiceId = ?;");
+                    stmt.bind([sId]);
+                    while (stmt.step()) {
+                        rawList.push(stmt.getAsObject());
+                    }
+                    stmt.free();
 
-                const txStmt = this.db.prepare("SELECT * FROM transactions WHERE invoiceId = ? OR id = ?;");
-                txStmt.bind([sId, numId]);
-                while (txStmt.step()) {
-                    items.push(this._reconstructRow(txStmt.getAsObject()));
+                    if (rawList.length === 0) {
+                        const txStmt = this.db.prepare("SELECT * FROM transactions WHERE invoiceId = ?;");
+                        txStmt.bind([sId]);
+                        while (txStmt.step()) {
+                            rawList.push(txStmt.getAsObject());
+                        }
+                        txStmt.free();
+                    }
+
+                    if (rawList.length === 0) {
+                        const numId = Number(sId);
+                        if (!isNaN(numId) && numId > 0) {
+                            const idStmt = this.db.prepare("SELECT * FROM transactions WHERE id = ?;");
+                            idStmt.bind([numId]);
+                            while (idStmt.step()) {
+                                rawList.push(idStmt.getAsObject());
+                            }
+                            idStmt.free();
+                        }
+                    }
                 }
-                txStmt.free();
-                return items;
+
+                // 🛡️ صمام أمان صارم: منع تكرار ودبلرة الأصناف لنفس الفاتورة
+                const seen = new Set();
+                const uniqueItems = [];
+                for (const r of rawList) {
+                    if (!r) continue;
+                    const reconstructed = this._reconstructRow(r);
+                    const pName = (reconstructed.product || reconstructed.productName || reconstructed.name || '').trim();
+                    const pSize = (reconstructed.size || reconstructed.selectedSize || '').trim();
+                    const pColor = (reconstructed.color || reconstructed.selectedColor || '').trim();
+                    const pQty = parseFloat(reconstructed.qty != null ? reconstructed.qty : (reconstructed.quantity || 0)) || 0;
+                    const pPrice = parseFloat(reconstructed.price != null ? reconstructed.price : 0) || 0;
+                    const sig = `${reconstructed.id || ''}|${pName}|${pSize}|${pColor}|${pQty}|${pPrice}`;
+                    if (!seen.has(sig)) {
+                        seen.add(sig);
+                        uniqueItems.push(reconstructed);
+                    }
+                }
+                return uniqueItems;
             } catch (e) {
                 console.warn("[SQLite] getInvoiceItems notice:", e.message);
             }
@@ -2088,6 +2203,71 @@
         }
 
         /**
+         * ⚡ استعلام سريع ومباشر ومفهرس للبحث عن الأصناف بـ (LIMIT 30) لتخفيف الرام وتسريع استجابة الكاشير
+         */
+        searchProductsFast(searchTerm, limit = 30) {
+            if (!this.db || !searchTerm) return [];
+            const term = String(searchTerm).trim();
+            if (!term) return [];
+            const lim = parseInt(limit, 10) || 30;
+            try {
+                const sql = `
+                    SELECT * FROM products 
+                    WHERE barcode = ? 
+                       OR code = ? 
+                       OR name LIKE ? 
+                       OR json_extract(raw_json, '$.model') LIKE ? 
+                    LIMIT ?;
+                `;
+                const likeTerm = `%${term}%`;
+                const params = [term, term, likeTerm, likeTerm, lim];
+                if (this.isNative && this.nativeDb) {
+                    const rows = this.nativeDb.prepare(sql).all(...params);
+                    return rows ? rows.map(r => this._reconstructRow(r)).filter(Boolean) : [];
+                }
+                const stmt = this.db.prepare(sql);
+                stmt.bind(params);
+                const items = [];
+                while (stmt.step()) {
+                    const r = this._reconstructRow(stmt.getAsObject());
+                    if (r) items.push(r);
+                }
+                stmt.free();
+                return items;
+            } catch (err) {
+                console.warn("[SQLite] searchProductsFast fallback:", err.message);
+                // 🛡️ استعلام احتياطي سريع ومتوافق بالكامل في حال تعذر عمود code
+                try {
+                    const fallbackSql = `
+                        SELECT * FROM products 
+                        WHERE barcode = ? 
+                           OR name LIKE ? 
+                           OR json_extract(raw_json, '$.code') = ? 
+                           OR json_extract(raw_json, '$.model') LIKE ? 
+                        LIMIT ?;
+                    `;
+                    const likeTerm = `%${term}%`;
+                    const fallbackParams = [term, likeTerm, term, likeTerm, lim];
+                    if (this.isNative && this.nativeDb) {
+                        const rows = this.nativeDb.prepare(fallbackSql).all(...fallbackParams);
+                        return rows ? rows.map(r => this._reconstructRow(r)).filter(Boolean) : [];
+                    }
+                    const stmt = this.db.prepare(fallbackSql);
+                    stmt.bind(fallbackParams);
+                    const items = [];
+                    while (stmt.step()) {
+                        const r = this._reconstructRow(stmt.getAsObject());
+                        if (r) items.push(r);
+                    }
+                    stmt.free();
+                    return items;
+                } catch (fallbackErr) {
+                    return [];
+                }
+            }
+        }
+
+        /**
          * ⚡ جلب دفعة من الأصناف (Chunk) مع إزاحة (Offset) لدعم التحميل المتدرج غير الحاجب للواجهة
          */
         getProductsChunk(limit = 1000, offset = 0) {
@@ -2240,8 +2420,8 @@
             if (!this.db) return balancesMap;
 
             try {
-                // 1. جلب كافة الحسابات مع أرصدتها الافتتاحية
-                const accountsSql = "SELECT name, debit, credit FROM accounts;";
+                // 1. جلب كافة الحسابات مع أرصدتها الافتتاحية من جدول accounts و raw_json
+                const accountsSql = "SELECT name, balance, raw_json FROM accounts;";
                 let accRows = [];
                 if (this.isNative && this.nativeDb) {
                     accRows = this.nativeDb.prepare(accountsSql).all();
@@ -2257,9 +2437,28 @@
                         const a = accRows[i];
                         if (!a || !a.name) continue;
                         const pName = String(a.name).trim();
-                        const initDebit = parseFloat(a.debit) || 0;
-                        const initCredit = parseFloat(a.credit) || 0;
-                        accInitialMap[pName] = initDebit - initCredit;
+                        const accObj = (typeof this._reconstructRow === 'function') ? this._reconstructRow(a) : a;
+                        const initDebit = parseFloat(accObj.debit) || 0;
+                        const initCredit = parseFloat(accObj.credit) || 0;
+                        if (initDebit === 0 && initCredit === 0 && accObj.balance !== undefined && accObj.balance !== null) {
+                            accInitialMap[pName] = parseFloat(accObj.balance) || 0;
+                        } else {
+                            accInitialMap[pName] = initDebit - initCredit;
+                        }
+                    }
+                }
+
+                // دمج الأرصدة الافتتاحية من accounts في الذاكرة أيضاً لضمان الدقة وتجنب أي نقص
+                if (typeof accounts !== 'undefined' && Array.isArray(accounts)) {
+                    for (let i = 0; i < accounts.length; i++) {
+                        const acc = accounts[i];
+                        if (!acc || !acc.name) continue;
+                        const pName = String(acc.name).trim();
+                        if (accInitialMap[pName] === undefined) {
+                            const initDebit = parseFloat(acc.debit) || 0;
+                            const initCredit = parseFloat(acc.credit) || 0;
+                            accInitialMap[pName] = initDebit - initCredit;
+                        }
                     }
                 }
 
@@ -3281,23 +3480,22 @@
         /**
          * 💾 حفظ التغييرات على القرص الصلب (Auto Debounced Persistence)
          */
-        schedulePersist(delayMs = 1200) {
+        schedulePersist(delayMs = 250) {
+            this._isDirty = true;
             if (this.isNative) {
-                this._isDirty = true;
                 if (this._saveTimer) clearTimeout(this._saveTimer);
                 this._saveTimer = setTimeout(() => {
                     if (this.nativeDb) {
                         try { this.nativeDb.pragma('wal_checkpoint(PASSIVE)'); } catch(e) {}
                     }
                     this._isDirty = false;
-                }, typeof delayMs === 'number' ? delayMs : 2000);
+                }, typeof delayMs === 'number' ? delayMs : 500);
                 return;
             }
-            this._isDirty = true;
             if (this._saveTimer) clearTimeout(this._saveTimer);
             this._saveTimer = setTimeout(() => {
                 this.persistNow();
-            }, typeof delayMs === 'number' ? delayMs : 1200);
+            }, typeof delayMs === 'number' ? delayMs : 250);
         }
 
         /**
@@ -3583,13 +3781,21 @@
         /**
          * 🛡️ إنشاء وتحديث ملف نسخة الطوارئ الاحتياطية (.bak)
          */
-        createBackupFile() {
+        async createBackupFile() {
             if (this.fs && this.dbPath && this.fs.existsSync(this.dbPath)) {
                 try {
+                    const bakPath = this.dbPath + '.bak';
                     if (this.isNative && this.nativeDb) {
                         try { this.nativeDb.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+                        if (typeof this.nativeDb.backup === 'function') {
+                            try {
+                                await this.nativeDb.backup(bakPath);
+                                return true;
+                            } catch(backupErr) {
+                                console.warn('[SQLite] nativeDb.backup notice, fallback to copyFileSync:', backupErr.message);
+                            }
+                        }
                     }
-                    const bakPath = this.dbPath + '.bak';
                     this.fs.copyFileSync(this.dbPath, bakPath);
                     return true;
                 } catch(e) {
@@ -3602,7 +3808,7 @@
         /**
          * 🛡️ تفريغ وحفظ كافة العمليات المعلقة وضمان اكتمالها فوراً
          */
-        async flush() {
+        async flush(shouldClose = false) {
             if (this._saveTimer) {
                 clearTimeout(this._saveTimer);
                 this._saveTimer = null;
@@ -3611,17 +3817,23 @@
                 if (this.nativeDb) {
                     try { this.nativeDb.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
                 }
-                this.createBackupFile();
+                await this.createBackupFile();
+                if (shouldClose) {
+                    this.close();
+                }
                 return Promise.resolve();
             }
             if (this._isWriting && this._writePromise) {
                 await this._writePromise;
             }
-            if (this._hasPendingWrite) {
-                await this.persistNow();
+            if (this._isDirty || this._hasPendingWrite) {
+                await this.persistNow(true);
             }
             // تحديث نسخة الطوارئ الاحتياطية عند الإغلاق النظيف
-            this.createBackupFile();
+            await this.createBackupFile();
+            if (shouldClose) {
+                this.close();
+            }
         }
 
         /**
@@ -3636,11 +3848,20 @@
             if (this.isNative) {
                 if (this.nativeDb) {
                     try { this.nativeDb.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+                    const bakPath = this.dbPath + '.bak';
+                    try {
+                        if (typeof this.nativeDb.backup === 'function') {
+                            this.nativeDb.backup(bakPath).catch(() => {});
+                        } else if (this.fs && this.fs.existsSync(this.dbPath)) {
+                            this.fs.copyFileSync(this.dbPath, bakPath);
+                        }
+                    } catch(bErr) {}
                 }
-                this.createBackupFile();
                 return true;
             }
             try {
+                this._isDirty = false;
+                this._hasPendingWrite = false;
                 const data = this.db.export();
                 if (this.fs && this.dbPath) {
                     const buffer = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
@@ -3654,6 +3875,11 @@
                     } catch (renErr) {
                         this.fs.writeFileSync(this.dbPath, buffer);
                     }
+                    try {
+                        const bakPath = this.dbPath + '.bak';
+                        this.fs.copyFileSync(this.dbPath, bakPath);
+                    } catch(bErr) {}
+                    console.log("💾 [SQLite] Emergency sync flush completed successfully to disk.");
                 } else {
                     this._persistToBrowserStorage(data);
                 }
@@ -3666,11 +3892,25 @@
          * 🔒 إغلاق قاعدة البيانات بشكل نظيف وآمن
          */
         close() {
-            this.flushSync();
             if (this.isNative && this.nativeDb) {
                 try {
+                    this.nativeDb.pragma('wal_checkpoint(TRUNCATE)');
+                } catch(e) {}
+                try {
                     this.nativeDb.close();
-                    console.log("🔒 [SQLite Native] تم إغلاق الاتصال بقاعدة البيانات بنجاح.");
+                    this.nativeDb = null;
+                    this.db = null;
+                    this.isInitialized = false;
+                    console.log("🔒 [SQLite Native] تم إغلاق الاتصال بقاعدة البيانات بنجاح وتحرير ملفات القفل.");
+                } catch(e) {
+                    console.warn("⚠️ [SQLite Native] تحذير إغلاق الاتصال:", e.message);
+                }
+            } else if (this.db) {
+                this.flushSync();
+                try {
+                    if (typeof this.db.close === 'function') this.db.close();
+                    this.db = null;
+                    this.isInitialized = false;
                 } catch(e) {}
             }
         }

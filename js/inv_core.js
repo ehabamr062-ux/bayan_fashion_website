@@ -959,21 +959,47 @@ async function renderWarehouseReportTable(isSearchTrigger = false) {
     const searchRaw = searchInput ? searchInput.value.trim() : '';
     const searchClean = cleanAr(searchRaw);
 
-    const filteredProducts = productsDB.filter(p => {
-        if (!p) return false;
-        if (!searchClean) return true;
-        if (cleanAr(p.name).includes(searchClean)) return true;
-        if (p.barcode && String(p.barcode).includes(searchRaw)) return true;
-        if (p.code && String(p.code).toLowerCase().includes(searchClean)) return true;
-        if (p.variants && Array.isArray(p.variants)) {
-            return p.variants.some(v => 
-                (v.barcode && String(v.barcode).includes(searchRaw)) ||
-                (v.size && cleanAr(v.size).includes(searchClean)) ||
-                (v.color && cleanAr(v.color).includes(searchClean))
-            );
+    let filteredProducts = [];
+    if (!searchClean) {
+        filteredProducts = productsDB || [];
+    } else if (typeof window.searchProductsRanked === 'function') {
+        filteredProducts = window.searchProductsRanked(searchRaw, {
+            limit: (productsDB || []).length,
+            filterDeleted: false,
+            exactOnly: false
+        });
+        if (!filteredProducts || filteredProducts.length === 0) {
+            filteredProducts = (productsDB || []).filter(p => {
+                if (!p) return false;
+                if (cleanAr(p.name).includes(searchClean)) return true;
+                if (p.barcode && String(p.barcode).includes(searchRaw)) return true;
+                if (p.code && String(p.code).toLowerCase().includes(searchClean)) return true;
+                if (p.variants && Array.isArray(p.variants)) {
+                    return p.variants.some(v => 
+                        (v.barcode && String(v.barcode).includes(searchRaw)) ||
+                        (v.size && cleanAr(v.size).includes(searchClean)) ||
+                        (v.color && cleanAr(v.color).includes(searchClean))
+                    );
+                }
+                return false;
+            });
         }
-        return false;
-    });
+    } else {
+        filteredProducts = (productsDB || []).filter(p => {
+            if (!p) return false;
+            if (cleanAr(p.name).includes(searchClean)) return true;
+            if (p.barcode && String(p.barcode).includes(searchRaw)) return true;
+            if (p.code && String(p.code).toLowerCase().includes(searchClean)) return true;
+            if (p.variants && Array.isArray(p.variants)) {
+                return p.variants.some(v => 
+                    (v.barcode && String(v.barcode).includes(searchRaw)) ||
+                    (v.size && cleanAr(v.size).includes(searchClean)) ||
+                    (v.color && cleanAr(v.color).includes(searchClean))
+                );
+            }
+            return false;
+        });
+    }
 
     const sDate = (window.wrFilterState && window.wrFilterState.startDate) ? window.wrFilterState.startDate : null;
     const eDate = (window.wrFilterState && window.wrFilterState.endDate) ? window.wrFilterState.endDate : null;
@@ -1218,21 +1244,47 @@ function printWarehouseReport() {
     const searchRaw = document.getElementById('wrSearchInput')?.value.trim() || '';
     const searchClean = cleanAr(searchRaw);
 
-    const filtered = productsDB.filter(p => {
-        if (!p) return false;
-        if (!searchClean) return true;
-        if (cleanAr(p.name).includes(searchClean)) return true;
-        if (p.barcode && String(p.barcode).includes(searchRaw)) return true;
-        if (p.code && String(p.code).toLowerCase().includes(searchClean)) return true;
-        if (p.variants && Array.isArray(p.variants)) {
-            return p.variants.some(v => 
-                (v.barcode && String(v.barcode).includes(searchRaw)) ||
-                (v.size && cleanAr(v.size).includes(searchClean)) ||
-                (v.color && cleanAr(v.color).includes(searchClean))
-            );
+    let filtered = [];
+    if (!searchClean) {
+        filtered = productsDB || [];
+    } else if (typeof window.searchProductsRanked === 'function') {
+        filtered = window.searchProductsRanked(searchRaw, {
+            limit: (productsDB || []).length,
+            filterDeleted: false,
+            exactOnly: false
+        });
+        if (!filtered || filtered.length === 0) {
+            filtered = (productsDB || []).filter(p => {
+                if (!p) return false;
+                if (cleanAr(p.name).includes(searchClean)) return true;
+                if (p.barcode && String(p.barcode).includes(searchRaw)) return true;
+                if (p.code && String(p.code).toLowerCase().includes(searchClean)) return true;
+                if (p.variants && Array.isArray(p.variants)) {
+                    return p.variants.some(v => 
+                        (v.barcode && String(v.barcode).includes(searchRaw)) ||
+                        (v.size && cleanAr(v.size).includes(searchClean)) ||
+                        (v.color && cleanAr(v.color).includes(searchClean))
+                    );
+                }
+                return false;
+            });
         }
-        return false;
-    });
+    } else {
+        filtered = (productsDB || []).filter(p => {
+            if (!p) return false;
+            if (cleanAr(p.name).includes(searchClean)) return true;
+            if (p.barcode && String(p.barcode).includes(searchRaw)) return true;
+            if (p.code && String(p.code).toLowerCase().includes(searchClean)) return true;
+            if (p.variants && Array.isArray(p.variants)) {
+                return p.variants.some(v => 
+                    (v.barcode && String(v.barcode).includes(searchRaw)) ||
+                    (v.size && cleanAr(v.size).includes(searchClean)) ||
+                    (v.color && cleanAr(v.color).includes(searchClean))
+                );
+            }
+            return false;
+        });
+    }
 
     if (filtered.length === 0) return alert("لا توجد بيانات للطباعة وفقاً للبحث الحالي");
 
@@ -1432,21 +1484,47 @@ function exportWarehouseReportToExcel() {
     const searchRaw = document.getElementById('wrSearchInput')?.value.trim() || '';
     const searchClean = cleanAr(searchRaw);
 
-    const filtered = productsDB.filter(p => {
-        if (!p) return false;
-        if (!searchClean) return true;
-        if (cleanAr(p.name).includes(searchClean)) return true;
-        if (p.barcode && String(p.barcode).includes(searchRaw)) return true;
-        if (p.code && String(p.code).toLowerCase().includes(searchClean)) return true;
-        if (p.variants && Array.isArray(p.variants)) {
-            return p.variants.some(v => 
-                (v.barcode && String(v.barcode).includes(searchRaw)) ||
-                (v.size && cleanAr(v.size).includes(searchClean)) ||
-                (v.color && cleanAr(v.color).includes(searchClean))
-            );
+    let filtered = [];
+    if (!searchClean) {
+        filtered = productsDB || [];
+    } else if (typeof window.searchProductsRanked === 'function') {
+        filtered = window.searchProductsRanked(searchRaw, {
+            limit: (productsDB || []).length,
+            filterDeleted: false,
+            exactOnly: false
+        });
+        if (!filtered || filtered.length === 0) {
+            filtered = (productsDB || []).filter(p => {
+                if (!p) return false;
+                if (cleanAr(p.name).includes(searchClean)) return true;
+                if (p.barcode && String(p.barcode).includes(searchRaw)) return true;
+                if (p.code && String(p.code).toLowerCase().includes(searchClean)) return true;
+                if (p.variants && Array.isArray(p.variants)) {
+                    return p.variants.some(v => 
+                        (v.barcode && String(v.barcode).includes(searchRaw)) ||
+                        (v.size && cleanAr(v.size).includes(searchClean)) ||
+                        (v.color && cleanAr(v.color).includes(searchClean))
+                    );
+                }
+                return false;
+            });
         }
-        return false;
-    });
+    } else {
+        filtered = (productsDB || []).filter(p => {
+            if (!p) return false;
+            if (cleanAr(p.name).includes(searchClean)) return true;
+            if (p.barcode && String(p.barcode).includes(searchRaw)) return true;
+            if (p.code && String(p.code).toLowerCase().includes(searchClean)) return true;
+            if (p.variants && Array.isArray(p.variants)) {
+                return p.variants.some(v => 
+                    (v.barcode && String(v.barcode).includes(searchRaw)) ||
+                    (v.size && cleanAr(v.size).includes(searchClean)) ||
+                    (v.color && cleanAr(v.color).includes(searchClean))
+                );
+            }
+            return false;
+        });
+    }
 
     let totalGlobalQty = 0;
     let totalGlobalVal = 0;

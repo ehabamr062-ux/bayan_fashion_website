@@ -114,6 +114,34 @@
         }
     }
 
+    // 🛡️ حفظ الأصناف محلياً بأمان مع حماية المتصفح من انهيار السعة (QuotaExceededError Protection)
+    function safelyPersistProducts(productsList) {
+        window.allProducts = productsList;
+        try {
+            localStorage.setItem(CONFIG.STORAGE_PREFIX + 'products', JSON.stringify(productsList));
+        } catch (storageErr) {
+            const isQuota = storageErr && (
+                storageErr.name === 'QuotaExceededError' ||
+                storageErr.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
+                storageErr.code === 22 ||
+                storageErr.code === 1014 ||
+                String(storageErr.message || '').toLowerCase().includes('quota')
+            );
+            if (isQuota) {
+                console.warn('⚠️ [StorageQuota] Products catalog exceeds localStorage quota. Retaining full catalog in window.allProducts and RAM.');
+                try {
+                    // الاحتفاظ بأول 500 صنف فقط للأوفلاين تفادياً لضياع كامل البيانات
+                    if (Array.isArray(productsList) && productsList.length > 500) {
+                        localStorage.setItem(CONFIG.STORAGE_PREFIX + 'products', JSON.stringify(productsList.slice(0, 500)));
+                    }
+                } catch (subErr) {}
+                showToast('⚡ حجم الأصناف كبير، تم حفظ الكتالوج كاملاً في الذاكرة السريعة دون استهلاك مساحة الهاتف', 'info');
+            } else {
+                console.warn('[Storage] Product save error:', storageErr);
+            }
+        }
+    }
+
     async function checkServerInfo() {
         try {
             const res = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/products?select=id&limit=1`, {
@@ -123,8 +151,10 @@
                 updateConnectionStatus(true);
                 return true;
             }
-        } catch (e) {}
-        updateConnectionStatus(false, 'غير متصل بالسحابة');
+        } catch (e) {
+            console.warn('[SupabaseMobile] checkServerInfo network error:', e);
+        }
+        updateConnectionStatus(false, navigator.onLine ? 'السيرفر السحابي غير متاح' : 'الجهاز غير متصل بالإنترنت');
         return false;
     }
 
@@ -135,6 +165,11 @@
         if (pinInput) {
             pinInput.value = '';
             setTimeout(() => pinInput.focus(), 300);
+        }
+        const directInp = document.getElementById('directShopIdInput');
+        if (directInp) {
+            const cur = State.shopId || localStorage.getItem('bayan_mob_shop_id') || '';
+            directInp.value = (cur && cur !== 'SHOP_DEFAULT') ? cur : '';
         }
     }
 
@@ -148,10 +183,41 @@
         openPinModal();
     }
 
+    // 🔗 الربط المباشر بمعرّف المحل السحابي (Direct Shop ID Pairing)
+    async function submitDirectShopId(rawShopId) {
+        const clean = String(rawShopId || '').trim();
+        if (!clean || clean.length < 4) {
+            showToast('يرجى إدخال كود محل صالح (Shop ID)', 'error');
+            return;
+        }
+        const finalShopId = clean.startsWith('SHOP_') ? clean : ('SHOP_' + clean);
+
+        State.token = 'PAIRED_' + CONFIG.DEVICE_ID;
+        State.terminalLetter = 'B';
+        State.shopId = finalShopId;
+        CONFIG.SHOP_ID = finalShopId;
+
+        localStorage.setItem(CONFIG.STORAGE_PREFIX + 'token', State.token);
+        localStorage.setItem(CONFIG.STORAGE_PREFIX + 'terminal_letter', State.terminalLetter);
+        localStorage.setItem('bayan_mob_shop_id', finalShopId);
+
+        closePinModal();
+        showToast(`تم ربط الهاتف بكود المحل (${finalShopId}) بنجاح! 🚀`, 'success');
+        updateConnectionStatus(true);
+        await pullMasterData();
+        startAutoSyncPoll();
+    }
+
     async function submitPinVerification(pin) {
         const cleanPin = String(pin || '').trim();
         if (!cleanPin) {
             showToast('يرجى إدخال رمز الـ PIN أو كود المحل', 'error');
+            return;
+        }
+
+        // إذا تم إدخال معرّف المحل مباشرة
+        if (cleanPin.toUpperCase().startsWith('SHOP_') || cleanPin.length >= 8) {
+            await submitDirectShopId(cleanPin);
             return;
         }
 
@@ -163,7 +229,7 @@
             let isValid = false;
 
             // 1. فحص سجلات الاقتران السحابية للتعرف على المحل المرتبط بالـ PIN
-            const res = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?category=eq.اقتران&order=date.desc&limit=50`, {
+            const res = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?category=eq.اقتران&order=date.desc&limit=100`, {
                 headers: getSupabaseHeaders()
             });
 
@@ -186,6 +252,7 @@
                 State.token = 'PAIRED_' + CONFIG.DEVICE_ID;
                 State.terminalLetter = 'B';
                 State.shopId = matchedShopId;
+                CONFIG.SHOP_ID = matchedShopId;
                 State.shopName = matchedShopName;
 
                 localStorage.setItem(CONFIG.STORAGE_PREFIX + 'token', State.token);
@@ -199,10 +266,11 @@
                 await pullMasterData();
                 startAutoSyncPoll();
             } else {
-                showToast('رمز الـ PIN غير صحيح، تأكد من الرمز المعروض بشاشة الكمبيوتر ❌', 'error');
+                showToast('رمز الـ PIN غير صحيح، تأكد من الرمز المعروض بشاشة الكمبيوتر أو استخدم كود المحل ❌', 'error');
             }
         } catch (e) {
-            showToast('فشل التحقق: تأكد من اتصال الإنترنت بالسيرفر', 'error');
+            console.warn('[submitPinVerification] Network error:', e);
+            showToast('تعذر التحقق: تأكد من اتصال الإنترنت بالسيرفر', 'error');
         }
     }
 
@@ -220,17 +288,36 @@
     // ============================================================
     async function pullMasterData(showIndicator = true) {
         try {
-            let currentShopId = State.shopId || CONFIG.SHOP_ID || localStorage.getItem('bayan_mob_shop_id');
-            // إذا لم يكن الهاتف مقترناً بمحل معتمد، لا نقوم بسحب بيانات أي محل آخر
+            let currentShopId = State.shopId || CONFIG.SHOP_ID || localStorage.getItem('bayan_mob_shop_id') || localStorage.getItem('bayan_shop_id');
+            if (currentShopId && currentShopId !== 'SHOP_DEFAULT') {
+                State.shopId = currentShopId;
+                CONFIG.SHOP_ID = currentShopId;
+            }
+
+            // إذا لم يكن الهاتف مقترناً بمحل معتمد، لا نوقف الاتصال بل ننبه لحالة الانتظار
             if (!currentShopId || currentShopId === 'SHOP_DEFAULT') {
-                updateConnectionStatus(false);
+                updateConnectionStatus(false, 'في انتظار الاقتران بكود المحل 🟡');
                 return;
             }
 
+            const safeFetchJson = async (url) => {
+                try {
+                    const res = await fetch(url, { headers: getSupabaseHeaders() });
+                    if (!res.ok) {
+                        console.warn(`[SupabaseMobile] HTTP ${res.status} on ${url}`);
+                        return [];
+                    }
+                    return await res.json();
+                } catch (netErr) {
+                    console.warn(`[SupabaseMobile] Network fetch failed:`, netErr.message || netErr);
+                    return [];
+                }
+            };
+
             const [pRes, tRes, cRes] = await Promise.all([
-                fetch(`${SUPABASE_CONFIG.url}/rest/v1/products?id=like.${encodeURIComponent(currentShopId)}_PROD_*&select=*`, { headers: getSupabaseHeaders() }).then(r => r.json()).catch(() => []),
-                fetch(`${SUPABASE_CONFIG.url}/rest/v1/transactions?id=like.${encodeURIComponent(currentShopId)}_*&select=*&order=created_at.desc&limit=150`, { headers: getSupabaseHeaders() }).then(r => r.json()).catch(() => []),
-                fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?id=like.${encodeURIComponent(currentShopId)}_*&select=*&order=date.desc&limit=50`, { headers: getSupabaseHeaders() }).then(r => r.json()).catch(() => [])
+                safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/products?id=like.${encodeURIComponent(currentShopId)}_PROD_*&select=*`),
+                safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/transactions?id=like.${encodeURIComponent(currentShopId)}_*&select=*&order=created_at.desc&limit=150`),
+                safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?id=like.${encodeURIComponent(currentShopId)}_*&select=*&order=date.desc&limit=50`)
             ]);
 
             // 1. معالجة وتوحيد الفواتير مع الاكتشاف الذكي لمعرف المحل
@@ -400,7 +487,7 @@
                         id: String(localProdId)
                     };
                 });
-                try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'products', JSON.stringify(State.products)); } catch (e) {}
+                safelyPersistProducts(State.products);
             }
 
             // 4. استقبال قائمة الحسابات والعملاء الخاصة بهذا المحل من السحابة
@@ -423,11 +510,17 @@
             updateCategoriesList();
         } catch (e) {
             console.warn('[SupabaseMobile] Pull data error:', e);
+            updateConnectionStatus(false, navigator.onLine ? 'تعذر مزامنة السحابة (جاري المحاولة)' : 'أوفلاين (يعمل محلياً)');
             const cachedP = localStorage.getItem(CONFIG.STORAGE_PREFIX + 'products');
             const cachedT = localStorage.getItem(CONFIG.STORAGE_PREFIX + 'transactions');
             const cachedC = localStorage.getItem(CONFIG.STORAGE_PREFIX + 'customers');
             const cachedA = localStorage.getItem(CONFIG.STORAGE_PREFIX + 'accounts');
-            if (cachedP) { try { State.products = JSON.parse(cachedP); } catch(e){} }
+            if (cachedP) { 
+                try { 
+                    State.products = JSON.parse(cachedP); 
+                    window.allProducts = State.products;
+                } catch(e){} 
+            }
             if (cachedT) { try { State.transactions = JSON.parse(cachedT); } catch(e){} }
             if (cachedC) { try { State.customers = JSON.parse(cachedC); } catch(e){} }
             if (cachedA) {
@@ -2464,9 +2557,7 @@
         try {
             // 1. Add locally to mobile state immediately
             State.products.unshift(newProduct);
-            try {
-                localStorage.setItem(CONFIG.STORAGE_PREFIX + 'products', JSON.stringify(State.products));
-            } catch (e) {}
+            safelyPersistProducts(State.products);
 
             // Update UI immediately
             updateCategoriesList();
@@ -2906,7 +2997,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                 });
             }
         });
-        try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'products', JSON.stringify(State.products)); } catch(e){}
+        safelyPersistProducts(State.products);
     }
 
     function onWarehouseSelectChange(val) {
@@ -4129,6 +4220,8 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         triggerCameraScan,
         handleCameraFile,
         submitPinVerification,
+        submitDirectShopId,
+        checkConnectionStatus: checkServerInfo,
         openPinModal,
         closePinModal,
         openSettingSubPage,

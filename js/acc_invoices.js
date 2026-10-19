@@ -544,11 +544,13 @@
             const groups = {};
 
             txList.forEach((t, i) => {
-                const key = (t.invoiceId || 'single_' + (t.originalIndex !== undefined ? t.originalIndex : i)) + '_' + t.type;
+                const baseDocId = t.invoiceId || t.id || t.transferId || t.adjId || ('single_' + (t.originalIndex !== undefined ? t.originalIndex : i));
+                const key = baseDocId + '_' + t.type;
                 if (!groups[key]) {
                     const taxSeq = t.taxInvoiceSeq || t.dailySeq || (typeof getInvoiceTaxReceiptSeq === 'function' ? getInvoiceTaxReceiptSeq(t) : null);
                     groups[key] = {
-                        invoiceId: t.invoiceId,
+                        id: t.id || t.invoiceId || null,
+                        invoiceId: t.invoiceId || t.id || t.transferId || t.adjId || null,
                         taxInvoiceSeq: taxSeq,
                         dailySeq: taxSeq,
                         date: t.date,
@@ -570,6 +572,7 @@
                         notes: t.notes,
                         originalIndex: t.originalIndex !== undefined ? t.originalIndex : i,
                         is_returned: t.is_returned || false,
+                        seenItemSigs: new Set(),
                         products: []
                     };
                 }
@@ -590,6 +593,22 @@
                     groups[key].method = t.method;
                 }
                 if (t.is_returned) groups[key].is_returned = true;
+
+                // 🛡️ صمام أمان صارم: منع تكرار وازدواجية البنود داخل نفس الفاتورة
+                const pName = (t.product || t.productName || t.name || '').trim();
+                const pSize = (t.size || t.selectedSize || '').trim();
+                const pColor = (t.color || t.selectedColor || '').trim();
+                const pQty = parseFloat(t.qty != null ? t.qty : (t.quantity || 0)) || 0;
+                const pPrice = parseFloat(t.price != null ? t.price : 0) || 0;
+                const isHead = t.isInvoiceHead ? 'head' : 'item';
+                const itemSig = `${t.id || ''}|${isHead}|${pName}|${pSize}|${pColor}|${pQty}|${pPrice}`;
+
+                if (groups[key].seenItemSigs.has(itemSig)) {
+                    // هذا السطر مكرر ومدبلر داخل نفس الفاتورة - نتجاهله فوراً لمنع تكرار الإجماليات وعدد الأصناف
+                    return;
+                }
+                groups[key].seenItemSigs.add(itemSig);
+
                 if (t.product) {
                     groups[key].itemsCount++;
                     groups[key].products.push(`${t.product} (x${t.qty || 0})`);
@@ -746,16 +765,26 @@
                     limit: 5000
                 });
                 if (sqlFiltered && sqlFiltered.length > 0) {
-                    const existingMap = new Map((window.transactions || []).map(t => [t.id, t]));
-                    sqlFiltered.forEach(t => { if (t && t.id) existingMap.set(t.id, t); });
-                    window.transactions = Array.from(existingMap.values());
-                    if (typeof transactions !== 'undefined') transactions = window.transactions;
+                    if (typeof window.safelyMergeTransactionIntoMemory === 'function') {
+                        sqlFiltered.forEach(t => { if (t) window.safelyMergeTransactionIntoMemory(t); });
+                    }
+                    if (typeof window.deduplicateTransactionsMemory === 'function') {
+                        window.deduplicateTransactionsMemory();
+                    }
                     rawData = sqlFiltered;
                 }
             } else if ((fromDate || toDate) && typeof window.loadTransactionsForDateRange === 'function') {
                 const todayISO = new Date().toLocaleDateString('en-CA');
                 if (fromDate < todayISO || toDate < todayISO) {
                     await window.loadTransactionsForDateRange(fromDate, toDate);
+                }
+                if (typeof window.deduplicateTransactionsMemory === 'function') {
+                    window.deduplicateTransactionsMemory();
+                }
+                rawData = transactions;
+            } else {
+                if (typeof window.deduplicateTransactionsMemory === 'function') {
+                    window.deduplicateTransactionsMemory();
                 }
                 rawData = transactions;
             }
@@ -933,8 +962,23 @@
             if (currentInvoicesView === 'operation') {
                 finalData = getGroupedTransactions(rawData);
             } else {
-                // عرض الأصناف تفصيلياً - نستبعد سجلات الرأس الفارغة (مثل رأس التسوية) لمنع التكرار
-                finalData = rawData.filter(t => t.product || t.type.includes('قبض') || t.type.includes('صرف'));
+                // عرض الأصناف تفصيلياً - نستبعد سجلات الرأس الفارغة (مثل رأس التسوية) ونمنع تكرار أو دبلرة أي صنف
+                const seenDetail = new Set();
+                finalData = [];
+                for (const t of rawData) {
+                    if (!t || (!t.product && !t.type.includes('قبض') && !t.type.includes('صرف'))) continue;
+                    const docId = String(t.invoiceId || t.id || t.transferId || t.adjId || '');
+                    const pName = (t.product || t.productName || t.name || '').trim();
+                    const pSize = (t.size || t.selectedSize || '').trim();
+                    const pColor = (t.color || t.selectedColor || '').trim();
+                    const pQty = parseFloat(t.qty != null ? t.qty : (t.quantity || 0)) || 0;
+                    const pPrice = parseFloat(t.price != null ? t.price : 0) || 0;
+                    const dSig = `${t.id || ''}|${docId}|${t.type}|${pName}|${pSize}|${pColor}|${pQty}|${pPrice}`;
+                    if (!seenDetail.has(dSig)) {
+                        seenDetail.add(dSig);
+                        finalData.push(t);
+                    }
+                }
             }
 
             // تطبيق فلترة طريقة السداد بدقة بعد التجميع (نقدي / آجل / الكل)
@@ -1023,7 +1067,9 @@
 
             let rowsHtml = '';
             displayedInvoices.forEach((t) => {
-                const isSelected = (selectedInvoiceIndex === t.originalIndex);
+                const isSelected = (window.selectedInvoiceId && t.invoiceId)
+                    ? (String(window.selectedInvoiceId) === String(t.invoiceId) && (!window.selectedInvoiceType || t.type === window.selectedInvoiceType))
+                    : (selectedInvoiceIndex === t.originalIndex);
 
                 // حساب وتنسيق عرض الربح للمرتجعات في الجدول بالسالب وباللون المناسب
                 const rawProfit = parseFloat(t.profit) || 0;
@@ -1046,15 +1092,17 @@
 
                 const esc = (typeof escapeHtml === 'function') ? escapeHtml : (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 
+                const targetDocId = t.invoiceId || t.id || t.transferId || t.adjId || '';
+
                 if (currentInvoicesView === 'operation') {
 
                     if (isFinancial) {
 
-                        displayProduct = `<div title="حركة نقدية لـ: ${esc(t.partner || '-')}"><b>${esc(t.partner || '-')}</b> (حركة نقدية) • <small style="color:#888;">${esc(t.product !== 'أخرى' ? t.product : 'صرف/قبض نقدية')}</small></div>`;
+                        displayProduct = `<div title="حركة نقدية لـ: ${esc(t.partner || '-')}"><b>${esc(t.partner || '-')}</b> (حركة نقدية) • <small style="color:#888;">${esc(t.product !== 'أخرى' ? t.product : 'صرف/قبض نقدية')}</small> <button class="tool-btn" style="padding: 2px 6px; font-size: 0.7rem; background: #059669; color:white; border-radius:10px; margin: 0 4px; line-height: 1;" onclick="if(window.viewAnyDocumentUnified) window.viewAnyDocumentUnified('${esc(targetDocId)}', '${esc(t.type)}'); else viewInvoiceItems('${esc(targetDocId)}', '${esc(t.type)}')">📄 تفاصيل السند</button></div>`;
 
                     } else {
 
-                        displayProduct = `<div title="فاتورة رقم #${esc(t.invoiceId)} - اضغط على زر التفاصيل لرؤية الأصناف" style="display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;"><b>${esc(t.partner || '-')}</b> (عدد ${t.itemsCount} أصناف) <button class="tool-btn" style="padding: 2px 6px; font-size: 0.7rem; background: #9b59b6; color:white; border-radius:10px; margin: 0; line-height: 1;" onclick="viewInvoiceItems('${esc(t.invoiceId || -1)}', '${esc(t.type)}')">📄 التفاصيل</button></div>`;
+                        displayProduct = `<div title="مستند رقم #${esc(targetDocId)} - اضغط على زر التفاصيل لرؤية البيانات" style="display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;"><b>${esc(t.partner || '-')}</b> (عدد ${t.itemsCount} أصناف) <button class="tool-btn" style="padding: 2px 6px; font-size: 0.7rem; background: #9b59b6; color:white; border-radius:10px; margin: 0; line-height: 1;" onclick="if(window.viewAnyDocumentUnified) window.viewAnyDocumentUnified('${esc(targetDocId)}', '${esc(t.type)}'); else viewInvoiceItems('${esc(targetDocId)}', '${esc(t.type)}')">📄 التفاصيل</button></div>`;
 
                     }
 
@@ -1062,7 +1110,7 @@
 
                     const hoverTitle = `الصنف: ${esc(t.product || '-')}\nالكمية: ${t.qty || 0}\nالسعر: ${t.price || 0}\nالإجمالي: ${t.total || 0}\nالمخزن: ${esc(t.warehouse || '-')}`;
 
-                    displayProduct = `<span title="${hoverTitle}" style="cursor:help; border-bottom:1px dotted #aaa;">${esc(t.product || '-')} ${(!isFinancial && t.qty) ? '(x' + t.qty + ')' : ''}</span>`;
+                    displayProduct = `<div style="display:flex; align-items:center; justify-content:center; gap:6px;"><span title="${hoverTitle}" style="cursor:help; border-bottom:1px dotted #aaa;">${esc(t.product || '-')} ${(!isFinancial && t.qty) ? '(x' + t.qty + ')' : ''}</span> <button class="tool-btn" style="padding: 1px 5px; font-size: 0.68rem; background: #64748b; color:white; border-radius:8px; margin: 0; line-height: 1;" onclick="if(window.viewAnyDocumentUnified) window.viewAnyDocumentUnified('${esc(targetDocId)}', '${esc(t.type)}'); else viewInvoiceItems('${esc(targetDocId)}', '${esc(t.type)}')">👁️</button></div>`;
 
                 }
 
@@ -1094,7 +1142,7 @@
                     : parseFloat(totalTextFinal || 0).toFixed(2);
 
                 rowsHtml += `
-                    <tr class="${isSelected ? 'selected-row' : ''}" style="${isRejectedTransfer ? 'background:#fff5f5; opacity:0.85;' : ''}" data-orig-index="${t.originalIndex}" onclick="selectInvoiceRow(${t.originalIndex}, this)" ondblclick="if(window.viewSelectedInvoice) window.viewSelectedInvoice();">
+                    <tr class="${isSelected ? 'selected-row' : ''}" style="${isRejectedTransfer ? 'background:#fff5f5; opacity:0.85;' : ''}" data-orig-index="${t.originalIndex}" data-invoice-id="${esc(targetDocId)}" data-invoice-type="${esc(t.type || '')}" onclick="selectInvoiceRow(${t.originalIndex}, this, '${esc(targetDocId)}', '${esc(t.type || '')}')" ondblclick="if(window.viewAnyDocumentUnified) window.viewAnyDocumentUnified('${esc(targetDocId)}', '${esc(t.type || '')}'); else if(window.viewSelectedInvoice) window.viewSelectedInvoice();">
                         <td class="col-inv-0" style="${isV(0) ? '' : 'display:none;'}"><input type="radio" name="invRad" ${isSelected ? 'checked' : ''}></td>
                         <td class="col-inv-1" style="${isV(1) ? '' : 'display:none;'}">
                             <div style="display:flex; flex-direction:row; gap:4px; align-items:center; justify-content:center; flex-wrap:wrap;">
@@ -1216,7 +1264,10 @@
         // دالة لعرض تفاصيل الفاتورة في تنبيه أو نافذة
 
         async function viewInvoiceItems(invoiceId, type = '', autoPrint = false) {
-            if (!checkPermission('docs_view')) return;
+            if (typeof checkPermission === 'function' && !checkPermission('docs_view')) return;
+            if (typeof window.viewAnyDocumentUnified === 'function') {
+                return window.viewAnyDocumentUnified(invoiceId, type);
+            }
             
             // تحديد فئة المعاملة المطلوبة لتجنب خلط السندات والفواتير التي تحمل نفس المعرّف
             let category = '';
@@ -1274,6 +1325,22 @@
             if (category === 'sales' || category === 'purchase' || category === 'return_sales' || category === 'return_purchase') {
                 invoiceItems = invoiceItems.filter(t => t.type && !t.type.includes('قبض') && !t.type.includes('صرف'));
             }
+
+            // 🛡️ صمام أمان صارم: منع تكرار ودبلرة الأصناف في مودال الفاتورة
+            const seenInvItems = new Set();
+            invoiceItems = invoiceItems.filter(item => {
+                if (!item) return false;
+                const pName = (item.product || item.productName || item.name || '').trim();
+                const pSize = (item.size || item.selectedSize || '').trim();
+                const pColor = (item.color || item.selectedColor || '').trim();
+                const pQty = parseFloat(item.qty != null ? item.qty : (item.quantity || 0)) || 0;
+                const pPrice = parseFloat(item.price != null ? item.price : 0) || 0;
+                const isHead = item.isInvoiceHead ? 'head' : 'item';
+                const sig = `${item.id || ''}|${isHead}|${pName}|${pSize}|${pColor}|${pQty}|${pPrice}`;
+                if (seenInvItems.has(sig)) return false;
+                seenInvItems.add(sig);
+                return true;
+            });
 
             if (invoiceItems.length === 0) return alert('خطأ: لم يتم العثور على تفاصيل الفاتورة.');
             
@@ -1413,17 +1480,19 @@
             if (!checkPermission('docs_edit')) return;
 
             if (!invId) {
-
-                 if (typeof selectedInvoiceIndex === 'undefined' || selectedInvoiceIndex === null) return showCustomAlert({ type: 'warning', titleText: '⚠️ تنبيه', msg: 'يرجى تحديد فاتورة أولاً.' });
-
-                 invId = transactions[selectedInvoiceIndex].invoiceId;
-
+                if (window.selectedInvoiceId) {
+                    invId = window.selectedInvoiceId;
+                } else if (typeof selectedInvoiceIndex === 'undefined' || selectedInvoiceIndex === null) {
+                    return showCustomAlert({ type: 'warning', titleText: '⚠️ تنبيه', msg: 'يرجى تحديد فاتورة أولاً.' });
+                } else if (transactions[selectedInvoiceIndex]) {
+                    invId = transactions[selectedInvoiceIndex].invoiceId;
+                }
             }
 
             if (!invId) return showToast("❌ لا يمكن تعديل هذه الحركة مباشرة", "error");
 
             const baseTx = (typeof selectedInvoiceIndex !== 'undefined' && selectedInvoiceIndex !== null && transactions[selectedInvoiceIndex]) ? transactions[selectedInvoiceIndex] : null;
-            const expectedType = baseTx ? baseTx.type : (transactions.find(t => String(t.invoiceId) === String(invId))?.type || '');
+            const expectedType = window.selectedInvoiceType || (baseTx ? baseTx.type : (transactions.find(t => String(t.invoiceId) === String(invId))?.type || ''));
 
             const items = transactions.filter(t => {
                 const hasInvId = t.invoiceId != null && t.invoiceId !== '';
@@ -3074,7 +3143,10 @@
         // ================= منطق كشف الحساب (Account Statement) =================
         window.deleteInvoiceGlobal = async function(invId, type) {
             if (!invId) return;
-            const idx = transactions.findIndex(t => (t.invoiceId == invId || t.id == invId) && (!type || (t.type && t.type.includes(type))));
+            if (typeof window.ensureInvoiceLoaded === 'function') {
+                await window.ensureInvoiceLoaded(invId);
+            }
+            const idx = transactions.findIndex(t => (String(t.invoiceId) === String(invId) || String(t.id) === String(invId)) && (!type || (t.type && (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(t.type, type) : t.type.includes(type)))));
             if (idx !== -1 && typeof deleteTransaction === 'function') {
                 await deleteTransaction(idx);
             } else {

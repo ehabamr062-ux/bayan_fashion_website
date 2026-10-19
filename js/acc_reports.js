@@ -801,7 +801,13 @@
                 const isSelCash = !isNonCashMethod(sel) && (sel.includes('نقد') || sel.includes('كاش') || sel.includes('cash') || sel.includes('الدرج') || sel.includes('خزينة') || sel === 'نقدية');
                 if (isSelCash) {
                     if (!m) return true;
-                    return !isNonCashMethod(m) && !isDeferredMethod(m);
+                    if (isNonCashMethod(m)) return false;
+                    // السماح باحتساب الجزء المدفوع نقداً (paidAmount > 0 أو الكاش الفعلي) من فواتير الشراء أو العمليات حتى لو كانت مسجلة كآجل جزئي
+                    if (isDeferredMethod(m)) {
+                        const cashPaid = Number(t.paidAmount !== undefined ? t.paidAmount : (t.paid !== undefined ? t.paid : 0));
+                        return cashPaid > 0;
+                    }
+                    return true;
                 }
 
                 // إذا كان المختار وسيلة بنكية أو محفظة محددة (فودافون كاش / إنستاباي / فيزا ...)
@@ -847,9 +853,30 @@
             const adminNames = (typeof window.getAdminUserNames === 'function')
                 ? window.getAdminUserNames()
                 : new Set(['المدير', 'المدير العام', 'مدير النظام', 'admin']);
+
+            // فحص هل الحركة حركة نقدية مشتركة تخص الدرج والخزينة (مشتريات نقدية، سندات صرف/مصروفات من الدرج، سندات قبض نقدية)
+            const isSharedDrawerCashMovement = (t) => {
+                if (!t) return false;
+                const tType = String(t.type || '');
+                const isPur = tType.includes('شراء') || tType.includes('مشتريات');
+                const isDisb = tType.includes('صرف');
+                const isRec = tType.includes('قبض');
+                if (!isPur && !isDisb && !isRec) return false;
+
+                // التحقق من أن الحركة لها تأثير نقدي كاش (مدفوع كاش أو طريقة دفع نقدية للدرج)
+                const m = String(t.method || t.paymentMethod || t.treasury || '').trim().toLowerCase();
+                const paid = Number(t.paidAmount !== undefined ? t.paidAmount : (t.paid !== undefined ? t.paid : (t.cash !== undefined ? t.cash : t.total))) || 0;
+                const isCash = (!isNonCashMethod(m) && !m.includes('بنك') && !m.includes('فيزا') && !m.includes('تحويل') && !m.includes('شيك')) || paid > 0;
+                return isCash;
+            };
+
             const matchesSelectedUser = (t) => {
                 if (!t) return false;
-                const tUser = String(t.user || '').trim().toLowerCase();
+                // السماح باحتساب حركات مشتريات النقدية وسندات المصروفات وسندات القبض المشتركة من الدرج حتى لو سجلها المدير
+                if (isSharedDrawerCashMovement(t)) {
+                    return true;
+                }
+                const tUser = String(t.user || t.cashier || '').trim().toLowerCase();
                 if (curUser && !isAdmin && (curUser.invoiceScope === 'hide_admin' || (uTarget && uTarget.invoiceScope === 'hide_admin'))) {
                     if (adminNames.has(tUser)) return false;
                 }
@@ -904,14 +931,14 @@
                         params.push(selectedWarehouse, selectedWarehouse);
                     }
                     if (selectedUser && selectedUser !== 'all') {
-                        sql += " AND cashier = ?";
+                        sql += " AND (cashier = ? OR type LIKE '%شراء%' OR type LIKE '%مشتريات%' OR type LIKE '%صرف%' OR type LIKE '%قبض%')";
                         params.push(selectedUser);
                     }
                     sql += ` GROUP BY (CASE WHEN invoiceId IS NOT NULL AND TRIM(invoiceId) != '' AND invoiceId != '---' THEN invoiceId ELSE id END), type ) subTx WHERE `;
 
                     // تصفية نوع الخزينة (نقدية الدرج أو وسيلة دفع/محفظة محددة) مباشرة في SQL
                     if (selectedTreasury === 'all' || !isTreasurySpecificNonCash) {
-                        // الدرج النقدي: استبعاد كافة العمليات غير النقدية والآجلة
+                        // الدرج النقدي: استبعاد كافة العمليات غير النقدية والآجلة مع استثناء المدفوع نقداً
                         sql += ` (
                             method IS NULL OR TRIM(method) = '' OR TRIM(method) = '-' OR (
                                 LOWER(method) NOT LIKE '%بنك%' AND 
@@ -941,11 +968,15 @@
                                 LOWER(method) NOT LIKE '%master%' AND 
                                 LOWER(method) NOT LIKE '%بطاقة%' AND 
                                 LOWER(method) NOT LIKE '%card%' AND 
-                                LOWER(method) NOT LIKE '%اجل%' AND 
-                                LOWER(method) NOT LIKE '%آجل%' AND 
-                                LOWER(method) NOT LIKE '%ذمم%' AND 
-                                LOWER(method) NOT LIKE '%credit%' AND 
-                                LOWER(method) NOT LIKE '%deferred%' AND 
+                                (
+                                    (
+                                        LOWER(method) NOT LIKE '%اجل%' AND 
+                                        LOWER(method) NOT LIKE '%آجل%' AND 
+                                        LOWER(method) NOT LIKE '%ذمم%' AND 
+                                        LOWER(method) NOT LIKE '%credit%' AND 
+                                        LOWER(method) NOT LIKE '%deferred%'
+                                    ) OR paid > 0
+                                ) AND 
                                 LOWER(method) != 'vodafone_cash'
                             )
                         );`;
@@ -1019,7 +1050,8 @@
             // 2. فلترة وتجميع حركات الفترة المحددة مباشرة من SQLite
             let periodAllRaw = [];
             if (window.BayanSQLite && typeof window.BayanSQLite.getTransactionsForPeriod === 'function') {
-                periodAllRaw = window.BayanSQLite.getTransactionsForPeriod(fromDate, toDate, 10000, selectedWarehouse, selectedUser);
+                // جلب كافة حركات الفترة للمخزن المحدد دون استبعاد مسبق للكاشير على مستوى SQLite للسماح باحتساب حركات الدرج المشتركة
+                periodAllRaw = window.BayanSQLite.getTransactionsForPeriod(fromDate, toDate, 10000, selectedWarehouse, 'all');
             }
             if (!periodAllRaw || periodAllRaw.length === 0) {
                 periodAllRaw = (typeof transactions !== 'undefined' && Array.isArray(transactions)) 
@@ -1261,8 +1293,10 @@
                 }
             });
 
-            // 📋 تجميع وتفصيل سندات الصرف والمصروفات بدقة تامة طبقاً لفلاتر التقرير (إيجار، موردين، فواتير...)
+            // 📋 تجميع وتفصيل سندات الصرف والمصروفات وسندات القبض وفواتير المشتريات بدقة تامة طبقاً لفلاتر التقرير
             const periodDisbursementsList = [];
+            const periodReceiptsList = [];
+            const periodPurchasesList = [];
             const disbursementsByReason = {};
             currentRaw.forEach((t, idx) => {
                 if (!t) return;
@@ -1276,6 +1310,8 @@
                     const payee = String(t.partner || 'جهة غير محددة').trim();
                     const itemObj = {
                         id: t.id || t.invoiceId || ('disb_' + idx),
+                        category: String(t.voucherCategory || t.category || t.product || t.description || 'أخرى').trim(),
+                        voucherCategory: t.voucherCategory || null,
                         reason: reason,
                         payee: payee,
                         amount: amt,
@@ -1300,6 +1336,58 @@
                         disbursementsByReason[rKey].cashTotal += amt;
                     } else {
                         disbursementsByReason[rKey].nonCashTotal += amt;
+                    }
+                } else if (tType.includes('قبض')) {
+                    const amt = parseFloat(t.total) || parseFloat(t.price) || parseFloat(t.paidAmount) || 0;
+                    if (amt <= 0) return;
+                    const method = String(t.method || t.paymentMethod || 'كاش (نقدي)').trim();
+                    const isCash = !isNonCashMethod(method);
+                    const reason = String(t.product || t.description || 'قبض').trim();
+                    const category = String(t.voucherCategory || t.category || t.product || t.description || 'أخرى').trim();
+                    const payer = String(t.partner || 'جهة غير محددة').trim();
+                    const itemObj = {
+                        id: t.id || t.invoiceId || ('rec_' + idx),
+                        category: category,
+                        voucherCategory: t.voucherCategory || null,
+                        reason: reason,
+                        payer: payer,
+                        amount: amt,
+                        method: method,
+                        isCash: isCash,
+                        notes: String(t.notes || '').trim(),
+                        user: String(t.user || 'المدير').trim(),
+                        date: t.date || '',
+                        time: t.time || '',
+                        dateISO: t.dateISO || '',
+                        treasury: t.treasury || selectedTreasury
+                    };
+                    periodReceiptsList.push(itemObj);
+                } else if (tType.includes('شراء') || tType.includes('مشتريات')) {
+                    const amt = parseFloat(t.paidAmount != null ? t.paidAmount : (t.paid != null ? t.paid : t.total)) || 0;
+                    if (amt <= 0) return;
+                    const method = String(t.method || t.paymentMethod || 'كاش (نقدي)').trim();
+                    const isCash = !isNonCashMethod(method) || amt > 0;
+                    const supplier = String(t.partner || 'مورد غير محدد').trim();
+                    const invId = t.invoiceId || t.id || ('pur_' + idx);
+                    if (t.isInvoiceHead || !t.invoiceId || !periodPurchasesList.some(p => p.id === invId)) {
+                        periodPurchasesList.push({
+                            id: invId,
+                            invoiceId: invId,
+                            supplier: supplier,
+                            partner: supplier,
+                            amount: amt,
+                            paidAmount: amt,
+                            total: parseFloat(t.total) || amt,
+                            method: method,
+                            isCash: isCash,
+                            notes: String(t.notes || '').trim(),
+                            user: String(t.user || t.cashier || 'المدير').trim(),
+                            date: t.date || '',
+                            time: t.time || '',
+                            dateISO: t.dateISO || '',
+                            warehouse: t.warehouse || selectedWarehouse,
+                            treasury: t.treasury || selectedTreasury
+                        });
                     }
                 }
             });
@@ -1639,7 +1727,9 @@
                 totalNetVfMovement: totalNetVfMovement,
                 isSpecificTreasury: selectedTreasury !== 'all',
                 treasuryName: selectedTreasury,
-                selectedUser: selectedUser
+                selectedUser: selectedUser,
+                disbursementsList: periodDisbursementsList,
+                receiptsList: periodReceiptsList
             };
 
             if (opsCfg.allOpsTotal !== false) {
@@ -1711,7 +1801,9 @@
                         vodafoneCash: (vodafoneSales.cash + vodafoneSales.nonCash),
                         isSpecificTreasury: selectedTreasury !== 'all',
                         treasuryName: selectedTreasury,
-                        selectedUser: selectedUser
+                        selectedUser: selectedUser,
+                        disbursementsList: periodDisbursementsList,
+                        receiptsList: periodReceiptsList
                     });
                 }
             }
@@ -2083,6 +2175,8 @@
                 receiptsCount: receipts.count,
                 disbursementsCount: disbursements.count,
                 disbursementsList: periodDisbursementsList,
+                receiptsList: periodReceiptsList,
+                purchasesList: periodPurchasesList,
                 disbursementsByReason: disbursementsByReason,
                 totalDiscounts: totalSalesDiscounts,
                 discountedInvoicesCount: discountedInvoicesCount,
@@ -2091,12 +2185,17 @@
                 totalPurchases: purchases.total,
                 totalPurchasesCash: purchases.cash,
                 totalPurchasesNonCash: purchases.nonCash,
+                cashPurchases: purchases.cash,
+                purchasesTotal: purchases.total,
                 totalReceipts: receipts.total,
                 totalReceiptsCash: receipts.cash,
                 totalReceiptsNonCash: receipts.nonCash,
+                cashReceipts: receipts.cash,
                 totalExpenses: disbursements.total,
                 totalExpensesCash: disbursements.cash,
                 totalExpensesNonCash: disbursements.nonCash,
+                cashExpenses: disbursements.cash,
+                expenses: disbursements.cash,
                 netCashMovement: netCashMovement,
                 finalCashBalance: finalCashBalance,
                 previousBalance: previousBalance,
@@ -2620,6 +2719,158 @@
                     ? window.currentDrawerClosingState.actualCash
                     : null);
 
+            // 1. تفصيل سندات القبض النقدية (قبض عملاء + بنود مخصصة)
+            const rList = (config.receiptsList && Array.isArray(config.receiptsList))
+                ? config.receiptsList
+                : ((window.dailyReportData?.receiptsList && Array.isArray(window.dailyReportData.receiptsList)) ? window.dailyReportData.receiptsList : []);
+
+            const cashReceipts = rList.filter(r => r && (r.isCash !== false) && (parseFloat(r.amount) > 0));
+            let clientReceiptsTotal = 0;
+            const customReceiptsMap = new Map();
+
+            if (cashReceipts.length > 0) {
+                cashReceipts.forEach(r => {
+                    const amt = parseFloat(r.amount) || 0;
+                    if (amt <= 0) return;
+                    const cat = String(r.voucherCategory || r.category || '').trim();
+                    if (!cat || cat === 'أخرى') {
+                        clientReceiptsTotal += amt;
+                    } else {
+                        customReceiptsMap.set(cat, (customReceiptsMap.get(cat) || 0) + amt);
+                    }
+                });
+            } else if (cReceipts > 0) {
+                clientReceiptsTotal = cReceipts;
+            }
+            const mappedRecSum = clientReceiptsTotal + Array.from(customReceiptsMap.values()).reduce((a, b) => a + b, 0);
+            if (cReceipts - mappedRecSum > 0.009) {
+                clientReceiptsTotal += (cReceipts - mappedRecSum);
+            }
+
+            let receiptsBreakdownHtml = '';
+            if (clientReceiptsTotal > 0) {
+                receiptsBreakdownHtml += `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border-radius: 10px; margin-bottom: 6px; background: #f8fafc; border: 1px solid #e2e8f0;">
+                    <span style="font-weight: 800; color: #1e293b; font-size: 0.98rem; display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 1.05rem;">💰</span>
+                        <span style="color: #059669; font-weight: 900;">(+)</span> إجمالي قبض عملاء:
+                    </span>
+                    <span style="min-width: 145px; text-align: left; direction: ltr; font-family: 'Consolas', monospace; font-size: 1.12rem; font-weight: 900; color: var(--main-green, #059669); font-variant-numeric: tabular-nums;">
+                        +${clientReceiptsTotal.toLocaleString('en-US', {minimumFractionDigits:2})} ج.م
+                    </span>
+                </div>`;
+            }
+            customReceiptsMap.forEach((amt, catName) => {
+                receiptsBreakdownHtml += `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border-radius: 10px; margin-bottom: 6px; background: #f8fafc; border: 1px solid #e2e8f0;">
+                    <span style="font-weight: 800; color: #1e293b; font-size: 0.98rem; display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 1.05rem;">💰</span>
+                        <span style="color: #059669; font-weight: 900;">(+)</span> قبض (${catName}):
+                    </span>
+                    <span style="min-width: 145px; text-align: left; direction: ltr; font-family: 'Consolas', monospace; font-size: 1.12rem; font-weight: 900; color: var(--main-green, #059669); font-variant-numeric: tabular-nums;">
+                        +${amt.toLocaleString('en-US', {minimumFractionDigits:2})} ج.م
+                    </span>
+                </div>`;
+            });
+
+            // 2. تفصيل سندات الصرف النقدية (صرف موردين + بنود مصروفات مخصصة)
+            const dList = (config.disbursementsList && Array.isArray(config.disbursementsList))
+                ? config.disbursementsList
+                : ((window.dailyReportData?.disbursementsList && Array.isArray(window.dailyReportData.disbursementsList)) ? window.dailyReportData.disbursementsList : []);
+
+            const cashDisbs = dList.filter(d => d && (d.isCash !== false) && (parseFloat(d.amount) > 0));
+            let suppliersDisbTotal = 0;
+            const customDisbMap = new Map();
+
+            if (cashDisbs.length > 0) {
+                const accountsList = (typeof window.accounts !== 'undefined' && Array.isArray(window.accounts)) 
+                    ? window.accounts 
+                    : ((typeof accounts !== 'undefined' && Array.isArray(accounts)) ? accounts : []);
+
+                const isTradeOrSupplierDisb = (d) => {
+                    const cat = String(d.voucherCategory || d.category || '').trim();
+                    if (cat === 'سداد موردين' || cat === 'أخرى' || cat === '') return true;
+                    const r = String(d.reason || '').trim().toLowerCase();
+                    if (r.includes('مورد') || r.includes('سداد موردين') || r.includes('بضاعة') || r.includes('شراء')) return true;
+                    const pName = String(d.payee || '').trim();
+                    if (pName && pName !== 'جهة غير محددة' && pName !== 'مصروفات عامة' && pName !== 'المحل' && pName !== 'عميل نقدي' && pName !== 'مورد نقدي') {
+                        const foundAcc = accountsList.find(a => a && a.name && String(a.name).trim() === pName);
+                        if (foundAcc) {
+                            const accType = String(foundAcc.type || '').toLowerCase();
+                            if (accType === 'supplier' || accType.includes('مورد')) return true;
+                        }
+                    }
+                    return false;
+                };
+
+                cashDisbs.forEach(d => {
+                    const amt = parseFloat(d.amount) || 0;
+                    if (amt <= 0) return;
+                    const vCat = String(d.voucherCategory || d.category || '').trim();
+                    if (vCat === 'أخرى' || vCat === 'سداد موردين') {
+                        suppliersDisbTotal += amt;
+                    } else if (vCat) {
+                        customDisbMap.set(vCat, (customDisbMap.get(vCat) || 0) + amt);
+                    } else if (isTradeOrSupplierDisb(d)) {
+                        suppliersDisbTotal += amt;
+                    } else {
+                        const fallbackCat = String(d.reason || d.product || '').trim();
+                        if (fallbackCat && fallbackCat !== 'أخرى' && fallbackCat !== 'مصروف عام' && fallbackCat !== 'نثريات' && fallbackCat !== 'سند صرف') {
+                            customDisbMap.set(fallbackCat, (customDisbMap.get(fallbackCat) || 0) + amt);
+                        } else {
+                            suppliersDisbTotal += amt;
+                        }
+                    }
+                });
+            } else if (cDisbursements > 0) {
+                suppliersDisbTotal = cDisbursements;
+            }
+
+            const mappedDisbSum = suppliersDisbTotal + Array.from(customDisbMap.values()).reduce((a, b) => a + b, 0);
+            if (cDisbursements - mappedDisbSum > 0.009) {
+                suppliersDisbTotal += (cDisbursements - mappedDisbSum);
+            }
+
+            let disbursementsBreakdownHtml = '';
+            if (suppliersDisbTotal > 0) {
+                disbursementsBreakdownHtml += `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border-radius: 10px; margin-bottom: 6px; background: #fff5f5; border: 1px solid #fed7d7;">
+                    <span style="font-weight: 800; color: #1e293b; font-size: 0.98rem; display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 1.05rem;">💸</span>
+                        <span style="color: #dc2626; font-weight: 900;">(-)</span> إجمالي صرف موردين:
+                    </span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <button type="button" onclick="window.showDailyDisbursementsModal()" style="background: rgba(220,38,38,0.12); border: 1px solid rgba(220,38,38,0.3); color: #dc2626; border-radius: 6px; padding: 2px 8px; font-size: 0.78rem; font-weight: 800; cursor: pointer;">
+                            🔍 تفاصيل البنود
+                        </button>
+                        <span style="min-width: 145px; text-align: left; direction: ltr; font-family: 'Consolas', monospace; font-size: 1.12rem; font-weight: 900; color: var(--box-red, #dc2626); font-variant-numeric: tabular-nums;">
+                            -${suppliersDisbTotal.toLocaleString('en-US', {minimumFractionDigits:2})} ج.م
+                        </span>
+                    </div>
+                </div>`;
+            }
+
+            let firstCustomDisb = (suppliersDisbTotal === 0);
+            customDisbMap.forEach((amt, catName) => {
+                disbursementsBreakdownHtml += `
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border-radius: 10px; margin-bottom: 6px; background: #fff5f5; border: 1px solid #fed7d7;">
+                    <span style="font-weight: 800; color: #1e293b; font-size: 0.98rem; display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 1.05rem;">💸</span>
+                        <span style="color: #dc2626; font-weight: 900;">(-)</span> صرف ${catName}:
+                    </span>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        ${firstCustomDisb ? `
+                        <button type="button" onclick="window.showDailyDisbursementsModal()" style="background: rgba(220,38,38,0.12); border: 1px solid rgba(220,38,38,0.3); color: #dc2626; border-radius: 6px; padding: 2px 8px; font-size: 0.78rem; font-weight: 800; cursor: pointer;">
+                            🔍 تفاصيل البنود
+                        </button>` : ''}
+                        <span style="min-width: 145px; text-align: left; direction: ltr; font-family: 'Consolas', monospace; font-size: 1.12rem; font-weight: 900; color: var(--box-red, #dc2626); font-variant-numeric: tabular-nums;">
+                            -${amt.toLocaleString('en-US', {minimumFractionDigits:2})} ج.م
+                        </span>
+                    </div>
+                </div>`;
+                firstCustomDisb = false;
+            });
+
             let existingModal = document.getElementById('dailyTotalBreakdownModal');
             if (existingModal) existingModal.remove();
 
@@ -2705,17 +2956,8 @@
                         </div>
                     </div>` : ''}
 
-                    <!-- 3. سندات قبض نقدية -->
-                    ${(cReceipts > 0) ? `
-                    <div style="display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; border-radius: 10px; margin-bottom: 6px; background: #f8fafc; border: 1px solid #e2e8f0;">
-                        <span style="font-weight: 800; color: #1e293b; font-size: 0.98rem; display: flex; align-items: center; gap: 6px;">
-                            <span style="font-size: 1.05rem;">💰</span>
-                            <span style="color: #059669; font-weight: 900;">(+)</span> سندات قبض نقدية (إيرادات وتحصيلات بالدرج):
-                        </span>
-                        <span style="min-width: 145px; text-align: left; direction: ltr; font-family: 'Consolas', monospace; font-size: 1.12rem; font-weight: 900; color: var(--main-green, #059669); font-variant-numeric: tabular-nums;">
-                            +${cReceipts.toLocaleString('en-US', {minimumFractionDigits:2})} ج.م
-                        </span>
-                    </div>` : ''}
+                    <!-- 3. سندات قبض نقدية مفصلة -->
+                    ${receiptsBreakdownHtml}
 
                     <!-- 4. مرتجع مشتريات نقدي (استرداد كاش للمحل) -->
                     ${cPurRet > 0 ? `
@@ -2753,32 +2995,8 @@
                         </span>
                     </div>` : ''}
 
-                    <!-- 7. سندات صرف نقدية (مصروفات ومدفوعات) -->
-                    ${(cDisbursements > 0) ? `
-                    <div style="display: flex; flex-direction: column; padding: 10px 12px; border-radius: 10px; margin-bottom: 8px; background: #fff5f5; border: 1px solid #fed7d7;">
-                        <div style="display: flex; align-items: center; justify-content: space-between;">
-                            <span style="font-weight: 800; color: #1e293b; font-size: 0.98rem; display: flex; align-items: center; gap: 6px;">
-                                <span style="font-size: 1.05rem;">💸</span>
-                                <span style="color: #dc2626; font-weight: 900;">(-)</span> سندات صرف نقدية (مصروفات من الدرج):
-                            </span>
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <button type="button" onclick="window.showDailyDisbursementsModal()" style="background: rgba(220,38,38,0.12); border: 1px solid rgba(220,38,38,0.3); color: #dc2626; border-radius: 6px; padding: 2px 8px; font-size: 0.78rem; font-weight: 800; cursor: pointer;">
-                                    🔍 تفاصيل البنود
-                                </button>
-                                <span style="min-width: 145px; text-align: left; direction: ltr; font-family: 'Consolas', monospace; font-size: 1.12rem; font-weight: 900; color: var(--box-red, #dc2626); font-variant-numeric: tabular-nums;">
-                                    -${cDisbursements.toLocaleString('en-US', {minimumFractionDigits:2})} ج.م
-                                </span>
-                            </div>
-                        </div>
-                        ${(window.dailyReportData?.disbursementsList && window.dailyReportData.disbursementsList.filter(d => d.isCash).length > 0) ? `
-                        <div style="margin-top: 6px; padding-top: 6px; border-top: 1px dashed #fca5a5; display: flex; flex-wrap: wrap; gap: 6px; font-size: 0.8rem;">
-                            ${window.dailyReportData.disbursementsList.filter(d => d.isCash).map(d => `
-                                <span style="background: #ffffff; border: 1px solid #f87171; border-radius: 6px; padding: 2px 7px; color: #991b1b; font-weight: 700;">
-                                    • ${d.reason}${d.payee && d.payee !== 'جهة غير محددة' ? ' [' + d.payee + ']' : ''}: <b>${parseFloat(d.amount).toFixed(2)} ج.م</b>
-                                </span>
-                            `).join('')}
-                        </div>` : ''}
-                    </div>` : ''}
+                    <!-- 7. سندات صرف نقدية مفصلة -->
+                    ${disbursementsBreakdownHtml}
 
                     <!-- 8. بطاقة صافي المطلوب بالدرج (اليوم بيومه) -->
                     <div style="display: flex; align-items: center; justify-content: space-between; font-size: 1.12rem; font-weight: 900; background: linear-gradient(135deg, #059669, #10b981); color: white; padding: 13px 16px; border-radius: 14px; box-shadow: 0 4px 16px rgba(16,185,129,0.3); margin-top: 6px;">
@@ -3641,7 +3859,7 @@
                 : [];
 
             const targetShiftDate = document.getElementById('reportDateFrom')?.value || new Date().toLocaleDateString('en-CA');
-            const existingToday = closures.find(c => (c.dateISO === targetShiftDate || c.dateFrom === targetShiftDate) && (c.userShift === userShift || userShift === 'كافة المستخدمين'));
+            const existingToday = closures.find(c => (c.dateISO === targetShiftDate || c.dateFrom === targetShiftDate) && (c.userShift === userShift));
 
             const repData = window.dailyReportData || {};
             const payload = {
@@ -3865,13 +4083,19 @@
                 existing.totalSalesNonCash = repData.totalSalesNonCash || 0;
                 existing.totalSalesCredit = repData.totalSalesCredit || 0;
                 existing.effectiveReceipts = repData.effectiveReceipts !== undefined ? repData.effectiveReceipts : (repData.totalReceiptsCash || 0);
+                existing.cashReceipts = existing.effectiveReceipts;
                 existing.effectivePurReturns = repData.effectivePurReturns !== undefined ? repData.effectivePurReturns : (repData.purchasesReturnCash || 0);
                 existing.effectiveDisbursements = repData.effectiveDisbursements !== undefined ? repData.effectiveDisbursements : (repData.totalExpensesCash || 0);
+                existing.cashExpenses = existing.effectiveDisbursements;
                 existing.effectivePurchases = repData.effectivePurchases !== undefined ? repData.effectivePurchases : (repData.totalPurchasesCash || 0);
+                existing.cashPurchases = existing.effectivePurchases;
+                existing.purchasesTotal = repData.totalPurchases !== undefined ? repData.totalPurchases : existing.effectivePurchases;
                 existing.effectiveSalesReturns = repData.effectiveSalesReturns !== undefined ? repData.effectiveSalesReturns : (repData.salesReturnCash || 0);
                 existing.totalCashIn = repData.totalCashIn || 0;
                 existing.totalCashOut = repData.totalCashOut || 0;
                 existing.disbursementsList = repData.disbursementsList || [];
+                existing.receiptsList = repData.receiptsList || [];
+                existing.purchasesList = repData.purchasesList || [];
 
                 if (targetIdx !== -1) {
                     closures[targetIdx] = existing;
@@ -3908,13 +4132,19 @@
                     totalSalesNonCash: repData.totalSalesNonCash || 0,
                     totalSalesCredit: repData.totalSalesCredit || 0,
                     effectiveReceipts: repData.effectiveReceipts !== undefined ? repData.effectiveReceipts : (repData.totalReceiptsCash || 0),
+                    cashReceipts: repData.effectiveReceipts !== undefined ? repData.effectiveReceipts : (repData.totalReceiptsCash || 0),
                     effectivePurReturns: repData.effectivePurReturns !== undefined ? repData.effectivePurReturns : (repData.purchasesReturnCash || 0),
                     effectiveDisbursements: repData.effectiveDisbursements !== undefined ? repData.effectiveDisbursements : (repData.totalExpensesCash || 0),
+                    cashExpenses: repData.effectiveDisbursements !== undefined ? repData.effectiveDisbursements : (repData.totalExpensesCash || 0),
                     effectivePurchases: repData.effectivePurchases !== undefined ? repData.effectivePurchases : (repData.totalPurchasesCash || 0),
+                    cashPurchases: repData.effectivePurchases !== undefined ? repData.effectivePurchases : (repData.totalPurchasesCash || 0),
+                    purchasesTotal: repData.totalPurchases !== undefined ? repData.totalPurchases : (repData.effectivePurchases || repData.totalPurchasesCash || 0),
                     effectiveSalesReturns: repData.effectiveSalesReturns !== undefined ? repData.effectiveSalesReturns : (repData.salesReturnCash || 0),
                     totalCashIn: repData.totalCashIn || 0,
                     totalCashOut: repData.totalCashOut || 0,
-                    disbursementsList: repData.disbursementsList || []
+                    disbursementsList: repData.disbursementsList || [],
+                    receiptsList: repData.receiptsList || [],
+                    purchasesList: repData.purchasesList || []
                 };
                 closures.unshift(finalRecord);
             }
@@ -3965,6 +4195,25 @@
                 showToast("🎉 تم اعتماد وتقفيل الوردية والدرج وحفظ المحضر بنجاح!", "success");
             }
 
+            // 🔄 تحديث الواجهة التلقائي وجدول المحاضر المسجلة وإعادة توليد اليومية فوراً
+            if (typeof window.renderSavedDrawerClosuresLog === 'function') {
+                window.renderSavedDrawerClosuresLog();
+            } else if (typeof renderSavedDrawerClosuresLog === 'function') {
+                renderSavedDrawerClosuresLog();
+            }
+
+            const commitBtn = document.getElementById('btnCommitDrawerClose');
+            if (commitBtn) {
+                commitBtn.innerHTML = '<span>✅</span> الوردية مقفلة (Z-Report)';
+                commitBtn.style.background = 'linear-gradient(135deg, #047857, #065f46)';
+            }
+
+            if (typeof generateDailyReport === 'function') {
+                setTimeout(() => {
+                    generateDailyReport();
+                }, 300);
+            }
+
             // 3. طباعة فورية إن تم اختيارها بدون أي confirm قديم
             if (shouldPrint) {
                 setTimeout(() => {
@@ -4004,24 +4253,30 @@
                 totalSalesNonCash: repData.totalSalesNonCash || 0,
                 totalSalesCredit: repData.totalSalesCredit || 0,
                 effectiveReceipts: repData.effectiveReceipts !== undefined ? repData.effectiveReceipts : (repData.totalReceiptsCash || 0),
+                cashReceipts: repData.effectiveReceipts !== undefined ? repData.effectiveReceipts : (repData.totalReceiptsCash || 0),
                 effectivePurReturns: repData.effectivePurReturns !== undefined ? repData.effectivePurReturns : (repData.purchasesReturnCash || 0),
                 effectiveDisbursements: repData.effectiveDisbursements !== undefined ? repData.effectiveDisbursements : (repData.totalExpensesCash || 0),
+                cashExpenses: repData.effectiveDisbursements !== undefined ? repData.effectiveDisbursements : (repData.totalExpensesCash || 0),
                 effectivePurchases: repData.effectivePurchases !== undefined ? repData.effectivePurchases : (repData.totalPurchasesCash || 0),
+                cashPurchases: repData.effectivePurchases !== undefined ? repData.effectivePurchases : (repData.totalPurchasesCash || 0),
+                purchasesTotal: repData.totalPurchases !== undefined ? repData.totalPurchases : (repData.effectivePurchases || repData.totalPurchasesCash || 0),
                 effectiveSalesReturns: repData.effectiveSalesReturns !== undefined ? repData.effectiveSalesReturns : (repData.salesReturnCash || 0),
-                disbursementsList: repData.disbursementsList || []
+                disbursementsList: repData.disbursementsList || [],
+                receiptsList: repData.receiptsList || [],
+                purchasesList: repData.purchasesList || []
             };
 
             const shopName = (typeof getStore === 'function' ? getStore('bayan_business_name') : null) || document.getElementById('shopName')?.value || 'بيان POS للملابس والأحذية';
             const shopPhone = document.getElementById('shopPhone1')?.value || '';
 
-            // استخراج تفاصيل احتساب نقدية اليوم بيومه بالضبط كما في نافذة "عرض التفاصيل"
-            const cSales = Number(rec.totalSalesCash !== undefined ? rec.totalSalesCash : (repData.effectiveCashSales || repData.totalSalesCash || 0));
+            // استخراج تفاصيل احتساب نقدية اليوم بيومه بالضبط كما في نافذة "عرض التفاصيل" مع دعم كافة الأسماء المترادفة
+            const cSales = Number(rec.totalSalesCash !== undefined ? rec.totalSalesCash : (rec.cashSales !== undefined ? rec.cashSales : (repData.effectiveCashSales || repData.totalSalesCash || 0)));
             const vfSales = Number(repData.vodafoneSales ? (repData.vodafoneSales.cash + repData.vodafoneSales.nonCash) : (repData.vodafoneCashTotal || 0));
-            const cReceipts = Number(rec.effectiveReceipts !== undefined ? rec.effectiveReceipts : (repData.effectiveReceipts || repData.totalReceiptsCash || 0));
-            const cPurRet = Number(rec.effectivePurReturns !== undefined ? rec.effectivePurReturns : (repData.effectivePurReturns || repData.purchasesReturnCash || 0));
-            const cSalesRet = Number(rec.effectiveSalesReturns !== undefined ? rec.effectiveSalesReturns : (repData.effectiveSalesReturns || repData.salesReturnCash || 0));
-            const cPurchases = Number(rec.effectivePurchases !== undefined ? rec.effectivePurchases : (repData.effectivePurchases || repData.totalPurchasesCash || 0));
-            const cDisbursements = Number(rec.effectiveDisbursements !== undefined ? rec.effectiveDisbursements : (repData.effectiveDisbursements || repData.totalExpensesCash || 0));
+            const cReceipts = Number(rec.effectiveReceipts !== undefined ? rec.effectiveReceipts : (rec.cashReceipts !== undefined ? rec.cashReceipts : (rec.totalReceiptsCash !== undefined ? rec.totalReceiptsCash : (repData.effectiveReceipts || repData.totalReceiptsCash || 0))));
+            const cPurRet = Number(rec.effectivePurReturns !== undefined ? rec.effectivePurReturns : (rec.purchasesReturnCash !== undefined ? rec.purchasesReturnCash : (repData.effectivePurReturns || repData.purchasesReturnCash || 0)));
+            const cSalesRet = Number(rec.effectiveSalesReturns !== undefined ? rec.effectiveSalesReturns : (rec.salesReturnCash !== undefined ? rec.salesReturnCash : (repData.effectiveSalesReturns || repData.salesReturnCash || 0)));
+            const cPurchases = Number(rec.effectivePurchases !== undefined ? rec.effectivePurchases : (rec.cashPurchases !== undefined ? rec.cashPurchases : (rec.purchasesTotal !== undefined ? rec.purchasesTotal : (rec.totalPurchasesCash !== undefined ? rec.totalPurchasesCash : (repData.effectivePurchases || repData.totalPurchasesCash || 0)))));
+            const cDisbursements = Number(rec.effectiveDisbursements !== undefined ? rec.effectiveDisbursements : (rec.cashExpenses !== undefined ? rec.cashExpenses : (rec.expenses !== undefined ? rec.expenses : (rec.totalExpensesCash !== undefined ? rec.totalExpensesCash : (repData.effectiveDisbursements || repData.totalExpensesCash || 0)))));
 
             const totalCashIn = cSales + cReceipts + cPurRet;
             const totalCashOut = cSalesRet + cPurchases + cDisbursements;
@@ -4079,13 +4334,51 @@
                 `;
             }
 
-            // 3- سندات قبض نقدية
+            // 3- سندات قبض نقدية (مفصلة: قبض عملاء + بنود مخصصة)
             if (cReceipts > 0) {
-                breakdownRows += `
-                <tr style="border-bottom: 1px solid #000;">
-                    <td style="padding: 4px 2px; font-weight: 800;">(+) سندات قبض نقدية (إيرادات وتحصيلات بالدرج):</td>
-                    <td style="padding: 4px 2px; text-align: left; font-weight: 900;">+${cReceipts.toFixed(2)} ج.م</td>
-                </tr>`;
+                const recItems = (rec.receiptsList && Array.isArray(rec.receiptsList) && rec.receiptsList.length > 0)
+                    ? rec.receiptsList
+                    : ((repData.receiptsList && Array.isArray(repData.receiptsList)) ? repData.receiptsList : []);
+
+                const cashRecs = recItems.filter(r => r && (r.isCash !== false) && (parseFloat(r.amount) > 0));
+                let clientRecTotal = 0;
+                const customRecMap = new Map();
+
+                if (cashRecs.length > 0) {
+                    cashRecs.forEach(r => {
+                        const amt = parseFloat(r.amount) || 0;
+                        if (amt <= 0) return;
+                        const cat = String(r.voucherCategory || r.category || '').trim();
+                        if (!cat || cat === 'أخرى') {
+                            clientRecTotal += amt;
+                        } else {
+                            customRecMap.set(cat, (customRecMap.get(cat) || 0) + amt);
+                        }
+                    });
+                } else {
+                    clientRecTotal = cReceipts;
+                }
+
+                const mappedRecSum = clientRecTotal + Array.from(customRecMap.values()).reduce((a, b) => a + b, 0);
+                if (cReceipts - mappedRecSum > 0.009) {
+                    clientRecTotal += (cReceipts - mappedRecSum);
+                }
+
+                if (clientRecTotal > 0) {
+                    breakdownRows += `
+                    <tr style="border-bottom: 1px solid #000;">
+                        <td style="padding: 4px 2px; font-weight: 800;">(+) إجمالي قبض عملاء:</td>
+                        <td style="padding: 4px 2px; text-align: left; font-weight: 900;">+${clientRecTotal.toFixed(2)} ج.م</td>
+                    </tr>`;
+                }
+
+                customRecMap.forEach((amt, catName) => {
+                    breakdownRows += `
+                    <tr style="border-bottom: 1px solid #000;">
+                        <td style="padding: 4px 2px; font-weight: 800;">(+) قبض (${catName}):</td>
+                        <td style="padding: 4px 2px; text-align: left; font-weight: 900;">+${amt.toFixed(2)} ج.م</td>
+                    </tr>`;
+                });
             }
 
             // 4- مرتجع مشتريات نقدي
@@ -4106,96 +4399,106 @@
                 </tr>`;
             }
 
-            // 6- مشتريات نقدية
+            // 6- مشتريات نقدية (مع تفاصيل فواتير المشتريات)
             if (cPurchases > 0) {
                 breakdownRows += `
                 <tr style="border-bottom: 1px solid #000;">
                     <td style="padding: 4px 2px; font-weight: 800;">(-) مشتريات نقدية (مدفوعات كاش من الدرج):</td>
                     <td style="padding: 4px 2px; text-align: left; font-weight: 900;">-${cPurchases.toFixed(2)} ج.م</td>
                 </tr>`;
+
+                const purItems = (rec.purchasesList && Array.isArray(rec.purchasesList) && rec.purchasesList.length > 0)
+                    ? rec.purchasesList
+                    : ((repData.purchasesList && Array.isArray(repData.purchasesList)) ? repData.purchasesList : []);
+
+                if (purItems.length > 0) {
+                    purItems.forEach(p => {
+                        const amt = parseFloat(p.paidAmount || p.amount || p.total) || 0;
+                        if (amt <= 0) return;
+                        const sName = String(p.supplier || p.partner || 'مورد بضاعة').trim();
+                        breakdownRows += `
+                        <tr style="background: #fafafa; border-bottom: 1px dashed #ccc;">
+                            <td style="padding: 2px 8px; font-size: 11px; color: #444;">↳ شراء: ${sName}</td>
+                            <td style="padding: 2px 2px; text-align: left; font-size: 11px; font-weight: 800; color: #444;">-${amt.toFixed(2)} ج.م</td>
+                        </tr>`;
+                    });
+                }
             }
 
-            // 7- سندات صرف نقدية (مفصلة: بنود مصروفات المحل في أسطر مستقلة، وتعاملات البضاعة مجمعة بالإجمالي)
+            // 7- سندات صرف نقدية (مفصلة: صرف موردين + بنود مصروفات مخصصة)
             if (cDisbursements > 0) {
                 const disbItems = (rec.disbursementsList && Array.isArray(rec.disbursementsList) && rec.disbursementsList.length > 0)
                     ? rec.disbursementsList
                     : ((repData.disbursementsList && Array.isArray(repData.disbursementsList)) ? repData.disbursementsList : []);
 
                 const cashDisbs = disbItems.filter(d => d && (d.isCash !== false) && (parseFloat(d.amount) > 0));
+                let suppliersDisbTotal = 0;
+                const customDisbMap = new Map();
 
                 if (cashDisbs.length > 0) {
                     const accountsList = (typeof window.accounts !== 'undefined' && Array.isArray(window.accounts)) 
                         ? window.accounts 
                         : ((typeof accounts !== 'undefined' && Array.isArray(accounts)) ? accounts : []);
 
-                    const isTradeDisbursement = (d) => {
+                    const isTradeOrSupplierDisb = (d) => {
+                        const cat = String(d.voucherCategory || d.category || '').trim();
+                        if (cat === 'سداد موردين' || cat === 'أخرى' || cat === '') return true;
                         const r = String(d.reason || '').trim().toLowerCase();
-                        if (r.includes('مورد') || r.includes('عميل') || r.includes('بضاعة') || r.includes('شراء') || r === 'سداد موردين') {
-                            return true;
-                        }
+                        if (r.includes('مورد') || r.includes('سداد موردين') || r.includes('بضاعة') || r.includes('شراء')) return true;
                         const pName = String(d.payee || '').trim();
                         if (pName && pName !== 'جهة غير محددة' && pName !== 'مصروفات عامة' && pName !== 'المحل' && pName !== 'عميل نقدي' && pName !== 'مورد نقدي') {
                             const foundAcc = accountsList.find(a => a && a.name && String(a.name).trim() === pName);
                             if (foundAcc) {
                                 const accType = String(foundAcc.type || '').toLowerCase();
-                                if (accType === 'supplier' || accType === 'client' || accType.includes('مورد') || accType.includes('عميل')) {
-                                    return true;
-                                }
+                                if (accType === 'supplier' || accType.includes('مورد')) return true;
                             }
                         }
                         return false;
                     };
 
-                    const opExpensesMap = new Map();
-                    let tradeTotal = 0;
-
                     cashDisbs.forEach(d => {
                         const amt = parseFloat(d.amount) || 0;
                         if (amt <= 0) return;
-
-                        if (isTradeDisbursement(d)) {
-                            tradeTotal += amt;
+                        const vCat = String(d.voucherCategory || d.category || '').trim();
+                        if (vCat === 'أخرى' || vCat === 'سداد موردين') {
+                            suppliersDisbTotal += amt;
+                        } else if (vCat) {
+                            customDisbMap.set(vCat, (customDisbMap.get(vCat) || 0) + amt);
+                        } else if (isTradeOrSupplierDisb(d)) {
+                            suppliersDisbTotal += amt;
                         } else {
-                            let label = String(d.reason || 'مصروف عام').trim();
-                            const payee = (d.payee && d.payee !== 'جهة غير محددة' && d.payee !== 'مصروفات عامة' && d.payee !== 'عميل نقدي' && d.payee !== 'مورد نقدي') ? ` [${d.payee}]` : '';
-                            const notes = (d.notes && (label === 'أخرى' || label === 'مصروف عام' || label === 'نثريات')) ? ` (${d.notes})` : '';
-                            const fullLabel = `${label}${payee}${notes}`;
-                            opExpensesMap.set(fullLabel, (opExpensesMap.get(fullLabel) || 0) + amt);
+                            const fallbackCat = String(d.reason || d.product || '').trim();
+                            if (fallbackCat && fallbackCat !== 'أخرى' && fallbackCat !== 'مصروف عام' && fallbackCat !== 'نثريات' && fallbackCat !== 'سند صرف') {
+                                customDisbMap.set(fallbackCat, (customDisbMap.get(fallbackCat) || 0) + amt);
+                            } else {
+                                suppliersDisbTotal += amt;
+                            }
                         }
                     });
-
-                    // 1. إضافة كل بند من بنود مصروفات المحل التشغيلية في سطر مستقل
-                    opExpensesMap.forEach((amt, fullLabel) => {
-                        breakdownRows += `
-                        <tr style="border-bottom: 1px solid #000;">
-                            <td style="padding: 4px 2px; font-weight: 800;">(-) صرف ${fullLabel}:</td>
-                            <td style="padding: 4px 2px; text-align: left; font-weight: 900;">-${amt.toFixed(2)} ج.م</td>
-                        </tr>`;
-                    });
-
-                    // 2. إضافة إجمالي تعاملات البضاعة (عملاء وموردين) في سطر واحد مجمّع
-                    if (tradeTotal > 0) {
-                        breakdownRows += `
-                        <tr style="border-bottom: 1px solid #000;">
-                            <td style="padding: 4px 2px; font-weight: 800;">(-) إجمالي صرف تعاملات بضاعة (عملاء وموردين):</td>
-                            <td style="padding: 4px 2px; text-align: left; font-weight: 900;">-${tradeTotal.toFixed(2)} ج.م</td>
-                        </tr>`;
-                    }
-
-                    // صمام أمان في حال لم ينطبق أي تصنيف لسبب ما
-                    if (opExpensesMap.size === 0 && tradeTotal === 0) {
-                        breakdownRows += `
-                        <tr style="border-bottom: 1px solid #000;">
-                            <td style="padding: 4px 2px; font-weight: 800;">(-) سندات صرف نقدية:</td>
-                            <td style="padding: 4px 2px; text-align: left; font-weight: 900;">-${cDisbursements.toFixed(2)} ج.م</td>
-                        </tr>`;
-                    }
                 } else {
-                    // صمام أمان للسجلات القديمة التي لا تحتوي على قائمة تفصيلية
+                    suppliersDisbTotal = cDisbursements;
+                }
+
+                const mappedDisbSum = suppliersDisbTotal + Array.from(customDisbMap.values()).reduce((a, b) => a + b, 0);
+                if (cDisbursements - mappedDisbSum > 0.009) {
+                    suppliersDisbTotal += (cDisbursements - mappedDisbSum);
+                }
+
+                // 1. إضافة كل بند من بنود المصروفات المحددة في سطر مستقل
+                customDisbMap.forEach((amt, catName) => {
                     breakdownRows += `
                     <tr style="border-bottom: 1px solid #000;">
-                        <td style="padding: 4px 2px; font-weight: 800;">(-) سندات صرف نقدية:</td>
-                        <td style="padding: 4px 2px; text-align: left; font-weight: 900;">-${cDisbursements.toFixed(2)} ج.م</td>
+                        <td style="padding: 4px 2px; font-weight: 800;">(-) صرف ${catName}:</td>
+                        <td style="padding: 4px 2px; text-align: left; font-weight: 900;">-${amt.toFixed(2)} ج.م</td>
+                    </tr>`;
+                });
+
+                // 2. إضافة إجمالي صرف الموردين في سطر واحد مجمّع
+                if (suppliersDisbTotal > 0) {
+                    breakdownRows += `
+                    <tr style="border-bottom: 1px solid #000;">
+                        <td style="padding: 4px 2px; font-weight: 800;">(-) إجمالي صرف موردين:</td>
+                        <td style="padding: 4px 2px; text-align: left; font-weight: 900;">-${suppliersDisbTotal.toFixed(2)} ج.م</td>
                     </tr>`;
                 }
             }
@@ -4367,14 +4670,14 @@
                     <div style="flex: 1; border: 1.5px solid #000000; border-radius: 4px; padding: 5px 2px; background: #ffffff;">
                         <div style="font-size: 11px; font-weight: 900; border-bottom: 1px dashed #000000; padding-bottom: 3px; margin-bottom: 3px;">توقيع الكاشير المسلّم</div>
                         <div style="font-size: 13px; font-weight: 900; color: #000000; margin: 3px 0;">✍️ ${cashierName}</div>
-                        <div style="font-size: 9px; font-weight: bold; color: #333333;">.........................</div>
-                        <div style="font-size: 8.5px; font-weight: 800; color: #555555; margin-top: 2px;">(تسليم الدرج والعهدة)</div>
+                        <div style="font-size: 10.5px; font-weight: 900; color: #000000 !important;">.........................</div>
+                        <div style="font-size: 10.5px; font-weight: 900; color: #000000 !important; margin-top: 2px;">(تسليم الدرج والعهدة)</div>
                     </div>
                     <div style="flex: 1; border: 1.5px solid #000000; border-radius: 4px; padding: 5px 2px; background: #ffffff;">
                         <div style="font-size: 11px; font-weight: 900; border-bottom: 1px dashed #000000; padding-bottom: 3px; margin-bottom: 3px;">توقيع المدير المستلم</div>
                         <div style="font-size: 13px; font-weight: 900; color: #000000; margin: 3px 0;">✍️ ${managerName}</div>
-                        <div style="font-size: 9px; font-weight: bold; color: #333333;">.........................</div>
-                        <div style="font-size: 8.5px; font-weight: 800; color: #555555; margin-top: 2px;">(اعتماد واستلام الخزينة)</div>
+                        <div style="font-size: 10.5px; font-weight: 900; color: #000000 !important;">.........................</div>
+                        <div style="font-size: 10.5px; font-weight: 900; color: #000000 !important; margin-top: 2px;">(اعتماد واستلام الخزينة)</div>
                     </div>
                 </div>
 
@@ -5171,13 +5474,19 @@
                 rec.totalSalesNonCash = window.dailyReportData.totalSalesNonCash || 0;
                 rec.totalSalesCredit = window.dailyReportData.totalSalesCredit || 0;
                 rec.effectiveReceipts = window.dailyReportData.effectiveReceipts !== undefined ? window.dailyReportData.effectiveReceipts : (window.dailyReportData.totalReceiptsCash || 0);
+                rec.cashReceipts = rec.effectiveReceipts;
                 rec.effectivePurReturns = window.dailyReportData.effectivePurReturns !== undefined ? window.dailyReportData.effectivePurReturns : (window.dailyReportData.purchasesReturnCash || 0);
                 rec.effectiveDisbursements = window.dailyReportData.effectiveDisbursements !== undefined ? window.dailyReportData.effectiveDisbursements : (window.dailyReportData.totalExpensesCash || 0);
+                rec.cashExpenses = rec.effectiveDisbursements;
                 rec.effectivePurchases = window.dailyReportData.effectivePurchases !== undefined ? window.dailyReportData.effectivePurchases : (window.dailyReportData.totalPurchasesCash || 0);
+                rec.cashPurchases = rec.effectivePurchases;
+                rec.purchasesTotal = window.dailyReportData.totalPurchases !== undefined ? window.dailyReportData.totalPurchases : rec.effectivePurchases;
                 rec.effectiveSalesReturns = window.dailyReportData.effectiveSalesReturns !== undefined ? window.dailyReportData.effectiveSalesReturns : (window.dailyReportData.salesReturnCash || 0);
                 rec.totalCashIn = window.dailyReportData.totalCashIn || 0;
                 rec.totalCashOut = window.dailyReportData.totalCashOut || 0;
                 rec.disbursementsList = window.dailyReportData.disbursementsList || [];
+                rec.receiptsList = window.dailyReportData.receiptsList || [];
+                rec.purchasesList = window.dailyReportData.purchasesList || [];
             }
 
             closures[idx] = rec;
@@ -5203,7 +5512,12 @@
             const editModal = document.getElementById('editDrawerClosingModal');
             if (editModal) editModal.remove();
 
-
+            // 🔄 تحديث الواجهة التلقائي وجدول المحاضر المسجلة فوراً
+            if (typeof window.renderSavedDrawerClosuresLog === 'function') {
+                window.renderSavedDrawerClosuresLog();
+            } else if (typeof renderSavedDrawerClosuresLog === 'function') {
+                renderSavedDrawerClosuresLog();
+            }
 
             if (typeof showToast === 'function') {
                 showToast("✅ تم حفظ التعديل وتحديث محضر تقفيل الوردية بنجاح!", "success");
@@ -6433,8 +6747,47 @@
                 return true;
             });
 
-            // 4. فرز التاريخ والوقت
+            // 4. فرز ذكي حسب قوة تطابق البحث أولاً ثم التاريخ والوقت
+            const getTxMatchRank = (t, query) => {
+                if (!query) return 0;
+                const q = query.toLowerCase();
+                const pName = (t.product || '').toLowerCase();
+                const pCode = (t.code || t.itemCode || '').toLowerCase();
+                const barcode = (t.barcode || '').toLowerCase();
+                const prodObj = (typeof getReportsProductQuick === 'function') 
+                    ? (getReportsProductQuick(t.product) || getReportsProductQuick(t.productId) || getReportsProductQuick(t.barcode))
+                    : null;
+                const objCode = prodObj && prodObj.code ? String(prodObj.code).toLowerCase() : '';
+                const objModelCode = prodObj && (prodObj.modelCode || prodObj.model_code || prodObj.model) ? String(prodObj.modelCode || prodObj.model_code || prodObj.model).toLowerCase() : '';
+
+                // أولوية قصوى: تطابق تام في الكود أو الموديل
+                if (pCode === q || objCode === q || objModelCode === q) return 5000;
+                // كود الصنف يبدأ بالاستعلام
+                if ((pCode && pCode.startsWith(q)) || (objCode && objCode.startsWith(q)) || (objModelCode && objModelCode.startsWith(q))) return 4000;
+                // تطابق تام في اسم الصنف
+                if (pName === q) return 3500;
+                // اسم الصنف يبدأ بنص البحث
+                if (pName.startsWith(q)) return 3000;
+                // كلمة كاملة مطابقة في الاسم (مثل "كود 4000")
+                if (pName.split(/\s+/).includes(q)) return 2500;
+                // اسم الصنف يحتوي على نص البحث
+                if (pName.includes(q)) return 2000;
+                // تطابق تام بالباركود
+                if (barcode === q) return 1500;
+                // باركود يبدأ بنص البحث
+                if (barcode.startsWith(q)) return 1000;
+                // أي تطابق جزئي آخر
+                return 100;
+            };
+
             data.sort((a, b) => {
+                if (searchQuery) {
+                    const rankA = getTxMatchRank(a, searchQuery);
+                    const rankB = getTxMatchRank(b, searchQuery);
+                    if (rankA !== rankB) {
+                        return rankB - rankA; // الأعلى تطابقاً أولاً
+                    }
+                }
                 const dtA = (a.dateISO || '') + ' ' + (a.timeISO || '00:00');
                 const dtB = (b.dateISO || '') + ' ' + (b.timeISO || '00:00');
                 return (analysisDateSortDir === 'desc') ? dtB.localeCompare(dtA) : dtA.localeCompare(dtB);

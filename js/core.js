@@ -184,6 +184,10 @@ let editingOriginalDate = null;
 let editingOriginalItems = []; // لحساب فرق المخزون والمديونية
 
 let selectedInvoiceIndex = null;
+let selectedInvoiceId = null;
+let selectedInvoiceType = null;
+window.selectedInvoiceId = null;
+window.selectedInvoiceType = null;
 
 let selectedHistoryIndex = null;
 
@@ -273,6 +277,95 @@ window.isUserAdminName = function(userName) {
 /**
  * ⚡ نظام التحميل الذكي عند الطلب ومزامنة الفواتير (Lazy & On-Demand Loader)
  * لحماية الذاكرة والسرعة الخارقة لأقل من 1 ثانية مع الاحتفاظ بكافة فواتير السنين في SQLite
+/**
+ * ⚡ محرك الدمج الآمن للمعاملات بالذاكرة ومنع التكرار والدبلرة نهائياً
+ */
+window.safelyMergeTransactionIntoMemory = function(row) {
+    if (!row) return;
+    if (!window.transactions) window.transactions = [];
+    if (typeof transactions !== 'undefined' && transactions !== window.transactions) {
+        transactions = window.transactions;
+    }
+    const pool = window.transactions;
+
+    // 1. هل السجل موجود بالفعل بنفس المعرف الصريح؟
+    if (row.id) {
+        const exact = pool.find(t => t && t.id === row.id);
+        if (exact) {
+            Object.assign(exact, row);
+            return;
+        }
+    }
+
+    // 2. هل يوجد سجل بالذاكرة يطابق تماماً الفاتورة ونوع الحركة وبيانات الصنف؟
+    const inMemMatch = pool.find(t => {
+        if (!t) return false;
+        const sameDoc = (String(t.invoiceId || t.id || '') === String(row.invoiceId || row.id || ''));
+        if (!sameDoc) return false;
+        const sameType = (t.type === row.type);
+        if (!sameType) return false;
+        const tProd = (t.product || t.productName || t.name || '').trim();
+        const rProd = (row.product || row.productName || row.name || '').trim();
+        if (tProd !== rProd) return false;
+        const tSize = (t.size || t.selectedSize || '').trim();
+        const rSize = (row.size || row.selectedSize || '').trim();
+        if (tSize !== rSize) return false;
+        const tColor = (t.color || t.selectedColor || '').trim();
+        const rColor = (row.color || row.selectedColor || '').trim();
+        if (tColor !== rColor) return false;
+        const tHead = t.isInvoiceHead ? 1 : 0;
+        const rHead = row.isInvoiceHead ? 1 : 0;
+        if (tHead !== rHead) return false;
+        return true;
+    });
+
+    if (inMemMatch) {
+        if (row.id && !inMemMatch.id) inMemMatch.id = row.id;
+        Object.assign(inMemMatch, row);
+        return;
+    }
+
+    pool.push(row);
+};
+
+/**
+ * ⚡ تنظيف الذاكرة الفوري من أي سجلات مكررة أو مدبلرة
+ */
+window.deduplicateTransactionsMemory = function() {
+    if (!window.transactions || !Array.isArray(window.transactions)) return;
+    const seen = new Map();
+    const clean = [];
+    for (const t of window.transactions) {
+        if (!t) continue;
+        const docId = String(t.invoiceId || t.id || t.transferId || t.adjId || '');
+        const type = String(t.type || '');
+        const prod = String(t.product || t.productName || t.name || '').trim();
+        const size = String(t.size || t.selectedSize || '').trim();
+        const color = String(t.color || t.selectedColor || '').trim();
+        const qty = parseFloat(t.qty != null ? t.qty : (t.quantity || 0)) || 0;
+        const price = parseFloat(t.price != null ? t.price : 0) || 0;
+        const isHead = t.isInvoiceHead ? 'head' : 'item';
+
+        const sig = `${docId}|${type}|${isHead}|${prod}|${size}|${color}|${qty}|${price}`;
+
+        if (!seen.has(sig)) {
+            seen.set(sig, t);
+            clean.push(t);
+        } else {
+            const existing = seen.get(sig);
+            if (t.id && !existing.id) {
+                existing.id = t.id;
+                Object.assign(existing, t);
+            }
+        }
+    }
+    window.transactions = clean;
+    if (typeof transactions !== 'undefined') transactions = clean;
+};
+
+/**
+ * ⚡ نظام التحميل الذكي عند الطلب ومزامنة الفواتير (Lazy & On-Demand Loader)
+ * لحماية الذاكرة والسرعة الخارقة لأقل من 1 ثانية مع الاحتفاظ بكافة فواتير السنين في SQLite
  */
 window.ensureInvoiceLoaded = async function(invoiceId) {
     if (!invoiceId || invoiceId === '---') return [];
@@ -290,13 +383,10 @@ window.ensureInvoiceLoaded = async function(invoiceId) {
         const queryKeys = !isNaN(numId) ? [sId, numId] : [sId];
         const fromDB = await window.db.transactions.where('invoiceId').anyOf(queryKeys).toArray();
         if (fromDB && fromDB.length > 0) {
-            const existingIds = new Set((window.transactions || []).map(t => t ? t.id : null));
             fromDB.forEach(row => {
-                if (row && row.id && !existingIds.has(row.id)) {
-                    window.transactions.push(row);
-                    existingIds.add(row.id);
-                }
+                if (row) window.safelyMergeTransactionIntoMemory(row);
             });
+            window.deduplicateTransactionsMemory();
             return fromDB;
         }
     } catch(e) {
@@ -322,13 +412,10 @@ window.loadTransactionsForDateRange = async function(fromDate, toDate, maxLimit 
         }
         const records = await q.toArray();
         if (records && records.length > 0) {
-            const existingIds = new Set((window.transactions || []).map(t => t ? t.id : null));
             records.forEach(row => {
-                if (row && row.id && !existingIds.has(row.id)) {
-                    window.transactions.push(row);
-                    existingIds.add(row.id);
-                }
+                if (row) window.safelyMergeTransactionIntoMemory(row);
             });
+            window.deduplicateTransactionsMemory();
 
             // 🛡️ صمام أمان الذاكرة: حماية الذاكرة مع الحفاظ على كافة فواتير الفترة المطلوبة للتقارير
             const safeCap = Math.max(7500, lim);
@@ -559,7 +646,11 @@ async function loadData() {
         window.accounts = accounts;
 
         // 🩹 ترميم وتطهير أي رصيد افتتاحي تضرر بالخطأ في الحسابات عند الإقلاع
-        const cleanArFn = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+        const cleanArFn = (typeof window.normalizeSearchQuery === 'function')
+            ? window.normalizeSearchQuery
+            : ((typeof window.cleanAr === 'function')
+                ? window.cleanAr
+                : (s => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ')));
         accounts.forEach(a => {
             if (!a) return;
             if (cleanArFn(a.name) === cleanArFn('طه') && (parseFloat(a.debit) === 400 || a.debit == '400') && (parseFloat(a.credit) === 70 || a.credit == '70')) {
@@ -1532,11 +1623,11 @@ async function saveTransactionChanges({ newTransactions = [], modifiedTransactio
                 window.BayanNetworkHub.onDataSaved();
             }
 
-            // 💾 جدولة حفظ غير معطلة للواجهة لملف قاعدة البيانات على الهارد ديسك
+            // 💾 حفظ سريع ومثبت لملف قاعدة البيانات على الهارد ديسك
             if (window.BayanSQLite && typeof window.BayanSQLite.schedulePersist === 'function') {
-                window.BayanSQLite.schedulePersist(1200);
+                window.BayanSQLite.schedulePersist(200);
             } else if (window.BayanSQLite && typeof window.BayanSQLite.persistNow === 'function') {
-                window.BayanSQLite.persistNow();
+                window.BayanSQLite.persistNow(true);
             }
 
             console.log("⚡ [FastSave] Transaction saved incrementally in ultra-fast mode.");

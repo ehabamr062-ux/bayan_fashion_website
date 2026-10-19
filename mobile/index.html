@@ -1010,15 +1010,30 @@
                 يرجى إدخال رمز الـ PIN المكون من 4 أرقام المعروض الآن على شاشة الكمبيوتر
             </p>
 
-            <input type="number" id="pinInput" maxlength="4" placeholder="••••"
-                style="width: 180px; height: 52px; text-align: center; font-size: 1.8rem; font-weight: 900; letter-spacing: 12px; background: rgba(0,0,0,0.5); border: 2px solid var(--primary); border-radius: 14px; color: #ffffff; margin-bottom: 18px; outline: none;">
+            <input type="text" id="pinInput" maxlength="20" placeholder="••••"
+                style="width: 200px; height: 50px; text-align: center; font-size: 1.6rem; font-weight: 900; letter-spacing: 6px; background: rgba(0,0,0,0.5); border: 2px solid var(--primary); border-radius: 14px; color: #ffffff; margin-bottom: 14px; outline: none;" autocomplete="off">
 
-            <div style="display: flex; gap: 10px;">
+            <div style="display: flex; gap: 10px; margin-bottom: 16px;">
                 <button type="button" class="btn-complete-invoice" style="flex: 2;" onclick="window.BayanMobile.submitPinVerification(document.getElementById('pinInput').value)">
-                    اعتماد وربط الجهاز 🚀
+                    اعتماد رمز الـ PIN 🚀
                 </button>
                 <button type="button" class="btn-complete-invoice" style="flex: 1; background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); box-shadow: none;" onclick="window.BayanMobile.closePinModal()">
                     إلغاء
+                </button>
+            </div>
+
+            <!-- خيار الربط المباشر بكود المحل (Shop ID) -->
+            <div style="margin: 12px 0 10px; display: flex; align-items: center; gap: 8px;">
+                <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.15);"></div>
+                <span style="font-size: 0.75rem; color: var(--text-dim); font-weight: 700;">أو الربط المباشر بكود المحل (Shop ID)</span>
+                <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.15);"></div>
+            </div>
+
+            <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+                <input type="text" id="directShopIdInput" placeholder="SHOP_XXXXXXXXXX"
+                    style="flex: 1; height: 44px; text-align: center; font-size: 0.95rem; font-weight: 800; font-family: monospace; background: rgba(0,0,0,0.4); border: 1.5px dashed var(--border-subtle); border-radius: 12px; color: #ffffff; outline: none; padding: 0 10px;" autocomplete="off">
+                <button type="button" class="btn-complete-invoice" style="width: auto; padding: 0 16px; height: 44px; font-size: 0.85rem; background: linear-gradient(135deg, #0284c7, #0369a1); margin-top: 0;" onclick="window.BayanMobile.submitDirectShopId(document.getElementById('directShopIdInput').value)">
+                    ربط 🔗
                 </button>
             </div>
         </div>

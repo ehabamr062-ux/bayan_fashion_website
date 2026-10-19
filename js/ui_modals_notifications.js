@@ -91,32 +91,32 @@
             const modalContent = `
                 <div class="glass-card-premium" style="background: #ffffff; border: 1px solid #cbd5e1; padding: 0; border-radius: 24px; width: 1080px; max-width: 96vw; height: 86vh; max-height: 860px; overflow: hidden; box-shadow: 0 16px 36px rgba(15, 23, 42, 0.22); display: flex; flex-direction: column; direction: rtl; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;">
 
-                    <!-- Header بتدرج داكن وعصري مع ملخص ذكي -->
-                    <div style="background: linear-gradient(135deg, #090d16 0%, #111827 50%, #1e293b 100%); padding: 18px 28px; display: flex; justify-content: space-between; align-items: center; color: white; border-bottom: 1px solid rgba(255,255,255,0.1); position: relative; flex-shrink: 0;">
+                    <!-- Header بتدرج كحلي ملكي فخم وعالي التباين مع ملخص ذكي -->
+                    <div style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); padding: 18px 28px; display: flex; justify-content: space-between; align-items: center; color: #ffffff; border-bottom: 1px solid rgba(255,255,255,0.22); position: relative; flex-shrink: 0; box-shadow: 0 4px 20px rgba(30, 58, 138, 0.25);">
                         <div style="display:flex; align-items:center; gap:14px;">
-                            <div style="width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); display: flex; align-items: center; justify-content: center; font-size: 1.35rem; box-shadow: 0 4px 14px rgba(59, 130, 246, 0.4); border: 1px solid rgba(255,255,255,0.2); flex-shrink: 0;">
+                            <div style="width: 44px; height: 44px; border-radius: 14px; background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; font-size: 1.35rem; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15); border: 1px solid rgba(255,255,255,0.35); flex-shrink: 0;">
                                 🔔
                             </div>
                             <div>
-                                <h3 style="margin: 0; font-size: 1.28rem; font-weight: 900; color: #f8fafc; letter-spacing: -0.3px; display:flex; align-items:center; gap:10px;">
+                                <h3 style="margin: 0; font-size: 1.28rem; font-weight: 700; color: #ffffff; letter-spacing: -0.3px; display:flex; align-items:center; gap:10px;">
                                     مركز إدارة التنبيهات وسجل الاستلام
-                                    ${totalActiveCount > 0 ? `<span style="background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; font-size: 0.74rem; font-weight: 900; padding: 3px 10px; border-radius: 20px; box-shadow: 0 2px 8px rgba(239, 68, 68, 0.45); letter-spacing: 0;">${totalActiveCount} تنبيه نشط</span>` : '<span style="background: #10b981; color: #fff; font-size: 0.75rem; font-weight: 900; padding: 3px 12px; border-radius: 20px; box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);">مستقر ومكتمل</span>'}
+                                    ${totalActiveCount > 0 ? `<span style="background: linear-gradient(135deg, #ef4444, #dc2626); color: #ffffff; font-size: 0.74rem; font-weight: 800; padding: 3px 10px; border-radius: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.25); letter-spacing: 0; border: 1px solid rgba(255,255,255,0.35);">${totalActiveCount} تنبيه نشط</span>` : '<span style="background: rgba(16, 185, 129, 0.95); color: #ffffff; font-size: 0.75rem; font-weight: 800; padding: 3px 12px; border-radius: 20px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); border: 1px solid rgba(255,255,255,0.35);">مستقر ومكتمل</span>'}
                                 </h3>
-                                <div style="font-size: 0.78rem; color: #94a3b8; font-weight: 700; margin-top: 4px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
-                                    <span style="background: rgba(255,255,255,0.08); padding: 2px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">🏬 المعين المالي: <b style="color: #60a5fa;">${escapeStr(activeWH)}</b></span>
-                                    <span>•</span>
-                                    <span style="background: rgba(255,255,255,0.08); padding: 2px 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">📋 التنبيهات الموثقة بالسجل: <b style="color: #fbbf24;">${totalReceiptCount}</b></span>
+                                <div style="font-size: 0.8rem; color: #ffffff; font-weight: 600; margin-top: 6px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                                    <span style="background: rgba(255, 255, 255, 0.15); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.3); font-weight: 600; padding: 3px 12px; border-radius: 10px; backdrop-filter: blur(6px); display: inline-flex; align-items: center; gap: 6px;">🏬 المعين المالي: <b style="color: #ffffff; font-weight: 800; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">${escapeStr(activeWH)}</b></span>
+                                    <span style="color: rgba(255,255,255,0.6);">•</span>
+                                    <span style="background: rgba(255, 255, 255, 0.15); color: #ffffff; border: 1px solid rgba(255, 255, 255, 0.3); font-weight: 600; padding: 3px 12px; border-radius: 10px; backdrop-filter: blur(6px); display: inline-flex; align-items: center; gap: 6px;">📋 التنبيهات الموثقة بالسجل: <b style="color: #fef08a; font-weight: 800; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">${totalReceiptCount}</b></span>
                                 </div>
                             </div>
                         </div>
 
                         <div style="display: flex; align-items: center; gap: 12px;">
                             ${(totalActiveCount > 0 && activeTab !== 'transfers') ? `
-                                <button onclick="acknowledgeAllNotifications('${activeTab}')" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.35)); border: 1.5px solid #10b981; color: #a7f3d0; padding: 7px 16px; border-radius: 10px; cursor: pointer; font-size: 0.84rem; font-weight: 900; display: flex; align-items: center; gap: 6px; transition: all 0.2s;" onmouseover="this.style.background='linear-gradient(135deg, rgba(16, 185, 129, 0.45), rgba(5, 150, 105, 0.55))'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(5, 150, 105, 0.35))'; this.style.transform='none';">
+                                <button onclick="acknowledgeAllNotifications('${activeTab}')" style="background: rgba(255, 255, 255, 0.18); border: 1.5px solid rgba(255, 255, 255, 0.4); color: #ffffff; padding: 7px 16px; border-radius: 10px; cursor: pointer; font-size: 0.84rem; font-weight: 800; display: flex; align-items: center; gap: 6px; transition: all 0.2s; backdrop-filter: blur(4px); box-shadow: 0 2px 8px rgba(0,0,0,0.15);" onmouseover="this.style.background='rgba(16, 185, 129, 0.9)'; this.style.borderColor='#10b981'; this.style.transform='translateY(-1px)';" onmouseout="this.style.background='rgba(255, 255, 255, 0.18)'; this.style.borderColor='rgba(255, 255, 255, 0.4)'; this.style.transform='none';">
                                     <span>✔️</span> استلام وتوثيق الكل
                                 </button>
                             ` : ''}
-                            <button onclick="document.getElementById('notifyModal').remove()" style="background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.22); color: #fff; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: 1.3rem; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s;" onmouseover="this.style.background='rgba(239,68,68,0.4)'; this.style.borderColor='#ef4444';" onmouseout="this.style.background='rgba(255,255,255,0.12)'; this.style.borderColor='rgba(255,255,255,0.22)';">&times;</button>
+                            <button onclick="document.getElementById('notifyModal').remove()" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.35); color: #ffffff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 1.35rem; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s; backdrop-filter: blur(4px); box-shadow: 0 2px 8px rgba(0,0,0,0.15);" onmouseover="this.style.background='rgba(239, 68, 68, 0.85)'; this.style.borderColor='rgba(239, 68, 68, 1)'; this.style.transform='scale(1.08)';" onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'; this.style.borderColor='rgba(255, 255, 255, 0.35)'; this.style.transform='none';">&times;</button>
                         </div>
                     </div>
 
@@ -1649,7 +1649,7 @@
                             ` : isAdjustment ? `
                                 <div style="background: #f8fafc; padding: 11px 15px; border-radius: 13px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 3px;">
                                     <span style="font-size: 0.74rem; color: #64748b; font-weight: 800;">⚖️ نوع العملية:</span>
-                                    <span style="font-weight: 900; color: #d97706; font-size: 0.94rem;">تسوية جرد مخزني</span>
+                                    <span style="font-weight: 900; color: #d97706; font-size: 0.94rem;">${tx.adjustmentType || (tx.type && tx.type.includes('عجز') ? 'تسوية عجز مخزني 📉' : (tx.type && tx.type.includes('زيادة') ? 'تسوية زيادة مخزنية 📈' : 'تسوية جرد مخزني ⚖️'))}</span>
                                 </div>
                                 <div style="background: #f8fafc; padding: 11px 15px; border-radius: 13px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 3px;">
                                     <span style="font-size: 0.74rem; color: #64748b; font-weight: 800;">👤 الطرف / الجهة:</span>
@@ -1702,7 +1702,7 @@
                                                 <th style="padding: 12px; text-align: center; font-size: 0.83rem; color: #334155; width: 85px; font-weight: 900;">اللون</th>
                                             ` : ''}
                                             <th style="padding: 12px; text-align: center; font-size: 0.83rem; color: #334155; width: 95px; font-weight: 900;">الكمية</th>
-                                            <th style="padding: 12px; text-align: center; font-size: 0.83rem; color: #334155; width: 115px; font-weight: 900;">السعر</th>
+                                            <th style="padding: 12px; text-align: center; font-size: 0.83rem; color: #334155; width: 115px; font-weight: 900;">${isPurchase ? 'سعر التكلفة' : 'السعر'}</th>
                                             <th style="padding: 12px; text-align: center; font-size: 0.83rem; color: #b91c1c; width: 125px; font-weight: 900; background: #fef2f2;">الخصم / الإضافة</th>
                                         ` : `
                                             <th style="padding: 12px; text-align: center; font-size: 0.83rem; color: #334155; width: 150px; font-weight: 900;">طريقة الدفع</th>
@@ -2300,6 +2300,746 @@
             document.getElementById('customPrintBtn').onclick = executePrint;
         };
 
+        // ====================================================================
+        // 🌟 دالة التفقيط بالعربية المعتمدة (Arabic Number to Words / Tafqeet)
+        // ====================================================================
+        function tafqeetArabic(num) {
+            if (num === null || num === undefined || isNaN(num)) return 'صفر جنيه مصري لا غير';
+            num = parseFloat(num);
+            if (num === 0) return 'صفر جنيه مصري لا غير';
+
+            const isNeg = num < 0;
+            num = Math.abs(num);
+
+            const intPart = Math.floor(num);
+            const decPart = Math.round((num - intPart) * 100);
+
+            const ones = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'];
+            const tens = ['', 'عشرة', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون', 'سبعون', 'ثمانون', 'تسعون'];
+            const teens = ['عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر', 'ستة عشر', 'سبعة عشر', 'ثمانية عشر', 'تسعة عشر'];
+            const hundreds = ['', 'مائة', 'مئتان', 'ثلاثمائة', 'أربعمائة', 'خمسمائة', 'ستمائة', 'سبعمائة', 'ثمانمائة', 'تسعمائة'];
+
+            function convertGroup(n) {
+                let str = '';
+                const h = Math.floor(n / 100);
+                const rem = n % 100;
+                const t = Math.floor(rem / 10);
+                const o = rem % 10;
+
+                if (h > 0) {
+                    str += hundreds[h];
+                }
+
+                if (rem > 0) {
+                    if (str !== '') str += ' و';
+                    if (rem < 10) {
+                        str += ones[rem];
+                    } else if (rem >= 10 && rem < 20) {
+                        str += teens[rem - 10];
+                    } else {
+                        if (o > 0) {
+                            str += ones[o] + ' و';
+                        }
+                        str += tens[t];
+                    }
+                }
+                return str;
+            }
+
+            let result = '';
+            const millions = Math.floor(intPart / 1000000);
+            const thousands = Math.floor((intPart % 1000000) / 1000);
+            const remainder = intPart % 1000;
+
+            if (millions > 0) {
+                if (millions === 1) result += 'مليون';
+                else if (millions === 2) result += 'مليونان';
+                else if (millions >= 3 && millions <= 10) result += convertGroup(millions) + ' ملايين';
+                else result += convertGroup(millions) + ' مليوناً';
+            }
+
+            if (thousands > 0) {
+                if (result !== '') result += ' و';
+                if (thousands === 1) result += 'ألف';
+                else if (thousands === 2) result += 'ألفان';
+                else if (thousands >= 3 && thousands <= 10) result += convertGroup(thousands) + ' آلاف';
+                else result += convertGroup(thousands) + ' ألفاً';
+            }
+
+            if (remainder > 0) {
+                if (result !== '') result += ' و';
+                result += convertGroup(remainder);
+            }
+
+            let pounds = '';
+            if (intPart === 0) {
+                pounds = '';
+            } else if (intPart === 1) {
+                pounds = 'جنيه مصري واحد';
+            } else if (intPart === 2) {
+                pounds = 'جنيهان مصريان';
+            } else if (intPart >= 3 && intPart <= 10) {
+                pounds = result + ' جنيهات مصرية';
+            } else {
+                pounds = result + ' جنيهاً مصرياً';
+            }
+
+            let piastres = '';
+            if (decPart > 0) {
+                const decText = convertGroup(decPart);
+                if (decPart === 1) piastres = 'قرش واحد';
+                else if (decPart === 2) piastres = 'قرشان';
+                else if (decPart >= 3 && decPart <= 10) piastres = decText + ' قروش';
+                else piastres = decText + ' قرشاً';
+            }
+
+            let finalTafqeet = 'فقط ';
+            if (intPart > 0 && decPart > 0) {
+                finalTafqeet += pounds + ' و' + piastres;
+            } else if (intPart > 0) {
+                finalTafqeet += pounds;
+            } else if (decPart > 0) {
+                finalTafqeet += piastres;
+            } else {
+                finalTafqeet += 'صفر جنيه مصري';
+            }
+
+            finalTafqeet += ' لا غير';
+            if (isNeg) finalTafqeet = 'سالب ' + finalTafqeet;
+            return finalTafqeet;
+        }
+        window.tafqeetArabic = tafqeetArabic;
+
+        // ====================================================================
+        // 💵 نافذة السند المالي المخصصة مع التفقيط (Financial Voucher Modal)
+        // ====================================================================
+        window.renderFinancialVoucherModal = function(tx, autoPrint = false) {
+            if (!tx) return;
+
+            let existing = document.getElementById('financialVoucherModalOverlay');
+            if (existing) existing.remove();
+
+            const tType = String(tx.type || '').toLowerCase();
+            const isReceipt = tType.includes('قبض') || tType === 'receipt';
+            const voucherTitle = isReceipt ? 'سند استلام نقدية (قبض)' : 'سند صرف نقدية';
+            const voucherIcon = isReceipt ? '📥' : '📤';
+            const themeGradient = isReceipt
+                ? 'linear-gradient(135deg, #064e3b 0%, #047857 50%, #059669 100%)'
+                : 'linear-gradient(135deg, #7f1d1d 0%, #b91c1c 50%, #dc2626 100%)';
+            const themeColor = isReceipt ? '#059669' : '#dc2626';
+            const partnerLabel = isReceipt ? 'استلمنا من السيد / الطرف:' : 'صرفنا إلى السيد / الطرف:';
+
+            const amountNum = parseFloat(tx.total || tx.price || 0) || 0;
+            const tafqeetText = typeof window.tafqeetArabic === 'function' ? window.tafqeetArabic(amountNum) : `${amountNum.toFixed(2)} ج.م`;
+
+            const docId = tx.invoiceId || tx.id || '-';
+            const dateStr = tx.dateISO || (tx.date ? String(tx.date).split(' ')[0] : '-');
+            const timeStr = tx.timeISO || tx.time || (tx.date && String(tx.date).includes(' ') ? String(tx.date).split(' ')[1] : '');
+            const partnerName = tx.partner || tx.customer || tx.payee || tx.account || 'طرف نقدي';
+            const paymentMethod = (typeof window.formatPaymentMethodDisplay === 'function' ? window.formatPaymentMethodDisplay(tx) : tx.method) || 'كاش (نقدي)';
+            const notes = tx.product || tx.notes || tx.desc || 'سند مالي';
+            const cashier = tx.user || tx.cashier || '-';
+            const warehouse = tx.warehouse || 'المخزن الرئيسي';
+            const terminal = tx.terminal || 'الجهاز الرئيسي 💻';
+
+            const overlay = document.createElement('div');
+            overlay.id = 'financialVoucherModalOverlay';
+            overlay.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px);
+                z-index: 12600; display: flex; align-items: center; justify-content: center;
+                direction: rtl; font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+            `;
+
+            overlay.innerHTML = `
+                <div style="background: #ffffff; width: 680px; max-width: 95vw; max-height: 92vh; border-radius: 20px; box-shadow: 0 25px 60px rgba(0,0,0,0.3); display: flex; flex-direction: column; overflow: hidden; border: 1.5px solid #cbd5e1;">
+                    
+                    <!-- Header -->
+                    <div style="background: ${themeGradient}; padding: 18px 24px; color: white; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.15);">
+                        <div style="display: flex; align-items: center; gap: 14px;">
+                            <div style="width: 46px; height: 46px; border-radius: 12px; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 1.5rem; border: 1.5px solid rgba(255,255,255,0.3);">
+                                ${voucherIcon}
+                            </div>
+                            <div>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="background: rgba(255,255,255,0.25); color: #fff; font-size: 0.75rem; font-weight: 800; padding: 2px 10px; border-radius: 12px;">سند مالي معتمد</span>
+                                    <h3 style="margin: 0; font-size: 1.25rem; font-weight: 900; color: #ffffff;">${voucherTitle}</h3>
+                                </div>
+                                <div style="font-size: 0.8rem; color: #e2e8f0; margin-top: 4px; display: flex; gap: 12px; align-items: center;">
+                                    <span>🔢 رقم السند: <b>#${docId}</b></span>
+                                    <span>📅 ${dateStr} ${timeStr ? '🕒 ' + timeStr : ''}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" onclick="document.getElementById('financialVoucherModalOverlay').remove()" 
+                            style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #ffffff; font-size: 1.3rem; cursor: pointer; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: 0.2s;"
+                            onmouseover="this.style.background='rgba(239,68,68,0.5)';"
+                            onmouseout="this.style.background='rgba(255,255,255,0.15)';">
+                            &times;
+                        </button>
+                    </div>
+
+                    <!-- Body -->
+                    <div style="padding: 22px 24px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; background: #f8fafc;" class="fast-scrollbar">
+                        
+                        <!-- Hero Amount & Tafqeet Card -->
+                        <div style="background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%); border: 2px solid ${themeColor}; border-radius: 16px; padding: 18px 20px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
+                            <div style="font-size: 0.82rem; color: #64748b; font-weight: 800; margin-bottom: 4px;">المبلغ المالي الإجمالي للسند</div>
+                            <div style="font-size: 2.2rem; font-weight: 900; color: ${themeColor}; line-height: 1.2; letter-spacing: -0.5px;">
+                                ${amountNum.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style="font-size: 1.1rem; font-weight: 800; color: #64748b;">ج.م</span>
+                            </div>
+                            <div style="margin-top: 10px; background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 10px; padding: 8px 14px; font-size: 0.88rem; font-weight: 800; color: #1e293b; display: inline-flex; align-items: center; gap: 6px;">
+                                <span>✍️</span>
+                                <span>${tafqeetText}</span>
+                            </div>
+                        </div>
+
+                        <!-- Details Grid -->
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;">
+                            <div style="background: #ffffff; padding: 12px 16px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 4px;">
+                                <span style="font-size: 0.74rem; color: #64748b; font-weight: 800;">👤 ${partnerLabel}</span>
+                                <span style="font-weight: 900; color: #0f172a; font-size: 1rem;">${partnerName}</span>
+                            </div>
+
+                            <div style="background: #ffffff; padding: 12px 16px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 4px;">
+                                <span style="font-size: 0.74rem; color: #64748b; font-weight: 800;">💳 طريقة السداد / الخزينة:</span>
+                                <span style="font-weight: 900; color: #059669; font-size: 0.95rem;">${paymentMethod}</span>
+                            </div>
+
+                            <div style="background: #ffffff; padding: 12px 16px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 4px;">
+                                <span style="font-size: 0.74rem; color: #64748b; font-weight: 800;">🏢 المخزن والكاشير:</span>
+                                <span style="font-weight: 800; color: #1e293b; font-size: 0.9rem;">${warehouse} • ${cashier}</span>
+                            </div>
+
+                            <div style="background: #ffffff; padding: 12px 16px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 4px;">
+                                <span style="font-size: 0.74rem; color: #64748b; font-weight: 800;">💻 جهاز الإصدار:</span>
+                                <span style="font-weight: 800; color: #475569; font-size: 0.9rem;">${terminal}</span>
+                            </div>
+
+                            <div style="grid-column: 1 / -1; background: #ffffff; padding: 12px 16px; border-radius: 12px; border: 1px solid #e2e8f0; display: flex; flex-direction: column; gap: 4px;">
+                                <span style="font-size: 0.74rem; color: #64748b; font-weight: 800;">📝 البيان والغرض:</span>
+                                <span style="font-weight: 800; color: #334155; font-size: 0.92rem; line-height: 1.5;">${notes}</span>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Footer Buttons -->
+                    <div style="padding: 14px 24px; background: #ffffff; border-top: 1.5px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                        <button type="button" onclick="document.getElementById('financialVoucherModalOverlay').remove()" 
+                            style="padding: 9px 20px; border-radius: 10px; border: 1.5px solid #cbd5e1; background: #ffffff; color: #475569; font-weight: 800; font-size: 0.88rem; cursor: pointer; transition: 0.2s;"
+                            onmouseover="this.style.background='#f1f5f9';"
+                            onmouseout="this.style.background='#ffffff';">
+                            إغلاق
+                        </button>
+
+                        <div style="display: flex; gap: 10px;">
+                            <button type="button" onclick="if(window.shareFinancialVoucherWhatsApp) window.shareFinancialVoucherWhatsApp('${docId}')" 
+                                style="padding: 9px 18px; border-radius: 10px; border: none; background: #25d366; color: #ffffff; font-weight: 800; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);">
+                                <span>💬</span> مشاركة واتساب
+                            </button>
+                            <button type="button" onclick="if(window.printFinancialVoucherById) window.printFinancialVoucherById('${docId}')" 
+                                style="padding: 9px 22px; border-radius: 10px; border: none; background: ${themeGradient}; color: #ffffff; font-weight: 900; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+                                <span>🖨️</span> طباعة السند
+                            </button>
+                        </div>
+                    </div>
+
+                </div>
+            `;
+
+            document.body.appendChild(overlay);
+
+            if (autoPrint && typeof window.printFinancialVoucherById === 'function') {
+                setTimeout(() => window.printFinancialVoucherById(docId), 300);
+            }
+        };
+
+        window.shareFinancialVoucherWhatsApp = function(docId) {
+            if (!docId) return;
+            const pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+            const t = pool.find(x => String(x.invoiceId) === String(docId) || String(x.id) === String(docId)) || {};
+            const amount = parseFloat(t.total || t.price || 0).toFixed(2);
+            const isReceipt = String(t.type || '').includes('قبض');
+            const title = isReceipt ? 'سند استلام نقدية (قبض)' : 'سند صرف نقدية';
+            const tafqeet = typeof window.tafqeetArabic === 'function' ? window.tafqeetArabic(amount) : '';
+            
+            const text = `📄 ${title}\n🔢 رقم السند: #${docId}\n📅 التاريخ: ${t.date || t.dateISO || '-'}\n👤 الطرف: ${t.partner || t.customer || t.payee || '-'}\n💰 المبلغ: ${amount} ج.م\n✍️ التفقيط: ${tafqeet}\n💳 طريقة الدفع: ${t.method || 'نقدي'}\n📝 البيان: ${t.product || t.notes || '-'}\n\nتم الإرسال عبر تطبيق بيان POS ✨`;
+
+            let cleanPhone = '';
+            if (typeof getPartnerPhone === 'function' && typeof formatPhoneForWhatsApp === 'function') {
+                cleanPhone = formatPhoneForWhatsApp(getPartnerPhone(t.partner || t.customer || t.payee));
+            }
+            const url = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
+            window.open(url, '_blank');
+        };
+
+        window.printFinancialVoucherById = function(docId) {
+            if (!docId) return;
+            const pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+            const t = pool.find(x => String(x.invoiceId) === String(docId) || String(x.id) === String(docId));
+            if (!t) return;
+            
+            const isReceipt = String(t.type || '').includes('قبض');
+            if (isReceipt && typeof printReceiptData === 'function' && document.getElementById('receiptID')) {
+                document.getElementById('receiptID').value = t.invoiceId || t.id || '';
+                if (document.getElementById('receiptCustomer')) document.getElementById('receiptCustomer').value = t.partner || t.customer || '';
+                if (document.getElementById('receiptAmount')) document.getElementById('receiptAmount').value = t.total || t.price || 0;
+                if (document.getElementById('receiptDate')) document.getElementById('receiptDate').value = t.dateISO || (t.date ? String(t.date).split(' ')[0] : '');
+                if (document.getElementById('receiptNotes')) document.getElementById('receiptNotes').value = t.product || t.notes || '';
+                printReceiptData();
+            } else if (!isReceipt && typeof printDisbursementData === 'function' && document.getElementById('disburseID')) {
+                document.getElementById('disburseID').value = t.invoiceId || t.id || '';
+                if (document.getElementById('disbursePayee')) document.getElementById('disbursePayee').value = t.partner || t.customer || t.payee || '';
+                if (document.getElementById('disburseAmount')) document.getElementById('disburseAmount').value = t.total || t.price || 0;
+                if (document.getElementById('disburseDate')) document.getElementById('disburseDate').value = t.dateISO || (t.date ? String(t.date).split(' ')[0] : '');
+                if (document.getElementById('disburseNotes')) document.getElementById('disburseNotes').value = t.product || t.notes || '';
+                printDisbursementData();
+            } else {
+                window.print();
+            }
+        };
+
+        // ====================================================================
+        // 🚀 دالة توجيه المستندات المركزية الموحدة (Master Document Router)
+        // ====================================================================
+        window.viewAnyDocumentUnified = async function(targetId, targetType = '') {
+            if (typeof checkPermission === 'function' && !checkPermission('docs_view')) return;
+
+            if (!targetId && targetId !== 0) {
+                targetId = window.selectedInvoiceId || selectedInvoiceIndex;
+                targetType = targetType || window.selectedInvoiceType || '';
+            }
+
+            if (!targetId && targetId !== 0) {
+                return showCustomAlert({
+                    type: 'warning',
+                    titleText: '⚠️ تنبيه',
+                    msg: 'يرجى تحديد مستند أو عملية من الجدول أولاً لعرض تفاصيلها.'
+                });
+            }
+
+            const sId = String(targetId).trim();
+            const pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+
+            // 🎯 الخطوة 0: تحديد نوع العملية أولاً بدقة فائقة
+            let cleanType = String(targetType || '').trim().toLowerCase();
+            if (!cleanType) {
+                // محاولة استخراج النوع مباشرة من الصف المحدد في الجدول إن وجد
+                const selectedTr = (typeof document !== 'undefined') ? (
+                    document.querySelector('#invoicesTableBody tr.selected-row') ||
+                    document.querySelector(`#invoicesTableBody tr[data-invoice-id="${sId}"]`)
+                ) : null;
+                if (selectedTr && selectedTr.getAttribute('data-invoice-type')) {
+                    cleanType = selectedTr.getAttribute('data-invoice-type').trim().toLowerCase();
+                }
+            }
+            if (!cleanType) {
+                const foundSample = pool.find(t => t && ((t.invoiceId != null && String(t.invoiceId) === sId) ||
+                                                        (t.id != null && String(t.id) === sId) ||
+                                                        (t.transferId != null && String(t.transferId) === sId) ||
+                                                        (t.adjId != null && String(t.adjId) === sId)));
+                if (foundSample && foundSample.type) {
+                    cleanType = String(foundSample.type).trim().toLowerCase();
+                } else if (!isNaN(Number(sId)) && pool[Number(sId)] && pool[Number(sId)].type) {
+                    cleanType = String(pool[Number(sId)].type).trim().toLowerCase();
+                }
+            }
+
+            const isFinancial = cleanType.includes('قبض') || cleanType === 'receipt' ||
+                                cleanType.includes('صرف') || cleanType.includes('دفع') ||
+                                cleanType === 'payment' || cleanType === 'disburse';
+            const isTransfer = cleanType.includes('تحويل') || cleanType.includes('transfer');
+            const isAdjustment = cleanType.includes('تسوية') || cleanType.includes('adjustment') ||
+                                 cleanType.includes('جرد') || cleanType.includes('عجز') || cleanType.includes('زيادة');
+            const isPurchase = (cleanType.includes('شراء') || cleanType.includes('مشتريات') || cleanType.includes('purchase'));
+            const isReturn = cleanType.includes('مرتجع');
+
+            // ====================================================================
+            // 1️⃣ الحالة الأولى: سند مالي (قبض 📥 أو صرف 📤)
+            // ⛔ ممنوع نهائياً الذهاب لـ SQLite أو البحث عن أصناف بضاعة
+            // ====================================================================
+            if (isFinancial) {
+                const isReceiptOnly = cleanType.includes('قبض') || cleanType === 'receipt';
+                const isDisburseOnly = cleanType.includes('صرف') || cleanType.includes('دفع') || cleanType === 'payment' || cleanType === 'disburse';
+
+                let voucherTx = pool.find(t => {
+                    if (!t) return false;
+                    const tType = String(t.type || '').toLowerCase();
+                    if (isReceiptOnly && !tType.includes('قبض') && tType !== 'receipt') return false;
+                    if (isDisburseOnly && !tType.includes('صرف') && !tType.includes('دفع') && tType !== 'payment' && tType !== 'disburse') return false;
+                    return (t.invoiceId != null && String(t.invoiceId) === sId) ||
+                           (t.id != null && String(t.id) === sId);
+                });
+
+                if (!voucherTx && !isNaN(Number(sId)) && pool[Number(sId)]) {
+                    const fallbackTx = pool[Number(sId)];
+                    const fType = String(fallbackTx.type || '').toLowerCase();
+                    if (isReceiptOnly && (fType.includes('قبض') || fType === 'receipt')) {
+                        voucherTx = fallbackTx;
+                    } else if (isDisburseOnly && (fType.includes('صرف') || fType.includes('دفع') || fType === 'payment' || fType === 'disburse')) {
+                        voucherTx = fallbackTx;
+                    }
+                }
+
+                if (voucherTx) {
+                    return window.renderFinancialVoucherModal(voucherTx);
+                } else {
+                    return showCustomAlert({
+                        type: 'error',
+                        titleText: '❌ غير موجود',
+                        msg: `لم يتم العثور على بيانات السند المالي رقم (#${sId}).`
+                    });
+                }
+            }
+
+            // ====================================================================
+            // 2️⃣ الحالة الثانية: تسوية مخزنية (جرد / عجز / زيادة)
+            // ⛔ تبحث فقط وحصرياً في حركات التسوية المخزنية
+            // ====================================================================
+            if (isAdjustment) {
+                let adjMatches = pool.filter(t => {
+                    if (!t) return false;
+                    const tType = String(t.type || '').toLowerCase();
+                    const isAdjType = tType.includes('تسوية') || tType.includes('adjustment') || tType.includes('جرد') || tType.includes('عجز') || tType.includes('زيادة');
+                    if (!isAdjType) return false;
+                    return (t.invoiceId != null && String(t.invoiceId) === sId) ||
+                           (t.adjId != null && String(t.adjId) === sId) ||
+                           (t.id != null && String(t.id) === sId);
+                });
+
+                if (adjMatches.length === 0 && !isNaN(Number(sId)) && pool[Number(sId)]) {
+                    const fallbackTx = pool[Number(sId)];
+                    const fType = String(fallbackTx.type || '').toLowerCase();
+                    if (fType.includes('تسوية') || fType.includes('جرد')) {
+                        adjMatches = [fallbackTx];
+                    }
+                }
+
+                if (adjMatches.length === 0) {
+                    return showCustomAlert({
+                        type: 'error',
+                        titleText: '❌ غير موجود',
+                        msg: `لم يتم العثور على محضر التسوية المخزنية رقم (#${sId}).`
+                    });
+                }
+
+                const head = adjMatches.find(t => t.isInvoiceHead) || adjMatches[0];
+                let tx = { ...head };
+                tx.invoiceId = head.invoiceId || head.adjId || head.id || sId;
+                tx.id = head.id || tx.invoiceId;
+                tx.type = 'تسوية مخزنية';
+                tx.warehouse = head.warehouse || 'المخزن الرئيسي';
+                tx.terminal = head.terminal || 'الجهاز الرئيسي 💻';
+                tx.partner = head.partner || head.customer || 'جرد مخزني';
+                tx.notes = adjMatches.find(t => t.notes)?.notes || head.notes || '';
+
+                const seenAdj = new Set();
+                const uniqueAdjMatches = adjMatches.filter(i => {
+                    if (!i || (!i.product && !i.name)) return false;
+                    const p = (i.product || i.productName || i.name || '').trim();
+                    const s = (i.size || i.selectedSize || '').trim();
+                    const c = (i.color || i.selectedColor || '').trim();
+                    const q = parseFloat(i.qty != null ? i.qty : (i.quantity || 0)) || 0;
+                    const pr = parseFloat(i.price != null ? i.price : 0) || 0;
+                    const sig = `${i.id || ''}|${p}|${s}|${c}|${q}|${pr}`;
+                    if (seenAdj.has(sig)) return false;
+                    seenAdj.add(sig);
+                    return true;
+                });
+
+                tx.items = uniqueAdjMatches.map(i => {
+                    const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 0));
+                    const price = parseFloat(i.price != null ? i.price : (i.costPrice || 0));
+                    return {
+                        name: i.product || i.productName || i.name || 'صنف تسوية',
+                        qty: qty,
+                        unit: i.unit || '-',
+                        size: i.size || '',
+                        color: i.color || '',
+                        price: price,
+                        costPrice: price,
+                        discount: 0,
+                        discountType: 'val',
+                        addition: 0,
+                        total: parseFloat(i.total != null ? i.total : (qty * price))
+                    };
+                });
+
+                return window.renderCustomInvoiceModal(tx);
+            }
+
+            // ====================================================================
+            // 3️⃣ الحالة الثالثة: تحويل مخزني بين الفروع والمخازن
+            // ⛔ تبحث فقط وحصرياً في أذون التحويل المخزني
+            // ====================================================================
+            if (isTransfer) {
+                let transferMatches = pool.filter(t => {
+                    if (!t) return false;
+                    const tType = String(t.type || '').toLowerCase();
+                    if (!tType.includes('تحويل') && !tType.includes('transfer')) return false;
+                    return (t.invoiceId != null && String(t.invoiceId) === sId) ||
+                           (t.transferId != null && String(t.transferId) === sId) ||
+                           (t.id != null && String(t.id) === sId);
+                });
+
+                if (transferMatches.length === 0 && !isNaN(Number(sId)) && pool[Number(sId)]) {
+                    const fallbackTx = pool[Number(sId)];
+                    const fType = String(fallbackTx.type || '').toLowerCase();
+                    if (fType.includes('تحويل')) {
+                        transferMatches = [fallbackTx];
+                    }
+                }
+
+                if (transferMatches.length === 0) {
+                    return showCustomAlert({
+                        type: 'error',
+                        titleText: '❌ غير موجود',
+                        msg: `لم يتم العثور على إذن التحويل المخزني رقم (#${sId}).`
+                    });
+                }
+
+                const head = transferMatches.find(t => t.isInvoiceHead) || transferMatches[0];
+                let tx = { ...head };
+                tx.invoiceId = head.invoiceId || head.transferId || head.id || sId;
+                tx.id = head.id || tx.invoiceId;
+                tx.type = 'تحويل مخزني';
+                tx.warehouse = head.toWarehouse || head.destWarehouse || head.warehouse || 'المخزن المحول إليه';
+                tx.sourceWarehouse = head.sourceWarehouse || head.fromWarehouse || head.from || 'المخزن الرئيسي';
+                tx.terminal = head.terminal || 'الجهاز الرئيسي 💻';
+                tx.partner = head.partner || `${tx.sourceWarehouse} -> ${tx.warehouse}`;
+                tx.notes = transferMatches.find(t => t.notes)?.notes || head.notes || '';
+
+                const seenTr = new Set();
+                const uniqueTrMatches = transferMatches.filter(i => {
+                    if (!i || (!i.product && !i.name)) return false;
+                    const p = (i.product || i.productName || i.name || '').trim();
+                    const s = (i.size || i.selectedSize || '').trim();
+                    const c = (i.color || i.selectedColor || '').trim();
+                    const q = parseFloat(i.qty != null ? i.qty : (i.quantity || 0)) || 0;
+                    const sig = `${i.id || ''}|${p}|${s}|${c}|${q}`;
+                    if (seenTr.has(sig)) return false;
+                    seenTr.add(sig);
+                    return true;
+                });
+
+                tx.items = uniqueTrMatches.map(i => {
+                    const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 0));
+                    const price = parseFloat(i.price != null ? i.price : (i.costPrice || 0));
+                    return {
+                        name: i.product || i.productName || i.name || 'صنف محول',
+                        qty: qty,
+                        unit: i.unit || '-',
+                        size: i.size || '',
+                        color: i.color || '',
+                        price: price,
+                        costPrice: price,
+                        discount: 0,
+                        discountType: 'val',
+                        addition: 0,
+                        total: parseFloat(i.total != null ? i.total : (qty * price))
+                    };
+                });
+
+                return window.renderCustomInvoiceModal(tx);
+            }
+
+            // ====================================================================
+            // 4️⃣ الحالة الرابعة: فاتورة مشتريات أو مرتجع مشتريات 🧺
+            // ⛔ تبحث فقط وحصرياً في سجلات المشتريات وتبرز المورد والتكلفة
+            // ====================================================================
+            if (isPurchase) {
+                let purchaseMatches = pool.filter(t => {
+                    if (!t) return false;
+                    const tType = String(t.type || '').toLowerCase();
+                    const isPurch = tType.includes('شراء') || tType.includes('مشتريات') || tType.includes('purchase');
+                    if (!isPurch) return false;
+                    if (isReturn && !tType.includes('مرتجع')) return false;
+                    if (!isReturn && tType.includes('مرتجع')) return false;
+                    return (t.invoiceId != null && String(t.invoiceId) === sId) ||
+                           (t.id != null && String(t.id) === sId);
+                });
+
+                if (purchaseMatches.length === 0 && typeof window.ensureInvoiceLoaded === 'function') {
+                    try {
+                        await window.ensureInvoiceLoaded(sId);
+                        const updatedPool = window.transactions || [];
+                        purchaseMatches = updatedPool.filter(t => {
+                            if (!t) return false;
+                            const tType = String(t.type || '').toLowerCase();
+                            const isPurch = tType.includes('شراء') || tType.includes('مشتريات') || tType.includes('purchase');
+                            if (!isPurch) return false;
+                            if (isReturn && !tType.includes('مرتجع')) return false;
+                            if (!isReturn && tType.includes('مرتجع')) return false;
+                            return (t.invoiceId != null && String(t.invoiceId) === sId) ||
+                                   (t.id != null && String(t.id) === sId);
+                        });
+                    } catch(e) {}
+                }
+
+                if (purchaseMatches.length === 0) {
+                    return showCustomAlert({
+                        type: 'error',
+                        titleText: '❌ غير موجود',
+                        msg: `لم يتم العثور على فاتورة مشتريات بالرقم (#${sId}).`
+                    });
+                }
+
+                const head = purchaseMatches.find(t => t.isInvoiceHead) || purchaseMatches[0];
+                let tx = { ...head };
+                tx.invoiceId = head.invoiceId || head.id || sId;
+                tx.id = head.id || tx.invoiceId;
+                tx.type = isReturn ? 'مرتجع مشتريات' : 'فاتورة مشتريات';
+                tx.warehouse = head.warehouse || 'المخزن الرئيسي';
+                tx.partner = head.partner || head.customer || head.supplier || 'مورد نقدي';
+                tx.method = head.method || head.paymentMethod || 'نقدي';
+                tx.notes = purchaseMatches.find(t => t.notes)?.notes || head.notes || '';
+
+                const seenPur = new Set();
+                const uniquePurMatches = purchaseMatches.filter(i => {
+                    if (!i || (!i.product && !i.name)) return false;
+                    const p = (i.product || i.productName || i.name || '').trim();
+                    const s = (i.size || i.selectedSize || '').trim();
+                    const c = (i.color || i.selectedColor || '').trim();
+                    const q = parseFloat(i.qty != null ? i.qty : (i.quantity || 0)) || 0;
+                    const pr = parseFloat(i.price != null ? i.price : 0) || 0;
+                    const sig = `${i.id || ''}|${p}|${s}|${c}|${q}|${pr}`;
+                    if (seenPur.has(sig)) return false;
+                    seenPur.add(sig);
+                    return true;
+                });
+
+                tx.items = uniquePurMatches.map(i => {
+                    const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 0));
+                    const price = parseFloat(i.price != null ? i.price : (i.costPrice || i.purchasePrice || 0));
+                    let disc = parseFloat(i.discount != null ? i.discount : (i.itemDiscount != null ? i.itemDiscount : 0)) || 0;
+                    let addition = parseFloat(i.addition != null ? i.addition : (i.extra != null ? i.extra : 0)) || 0;
+                    return {
+                        name: i.product || i.productName || i.name || 'صنف مشتريات',
+                        qty: qty,
+                        unit: i.unit || '-',
+                        size: i.size || '',
+                        color: i.color || '',
+                        price: price,
+                        costPrice: price,
+                        discount: disc,
+                        discountType: i.discountType || 'val',
+                        addition: addition,
+                        total: parseFloat(i.total != null ? i.total : (qty * price - disc + addition))
+                    };
+                });
+
+                return window.renderCustomInvoiceModal(tx);
+            }
+
+            // ====================================================================
+            // 5️⃣ الحالة الخامسة: فاتورة بيع أو مرتجع بيع 🛒
+            // ⛔ تبحث في بنود المبيعات فقط ولا تخلط مع أي نوع آخر
+            // ====================================================================
+            let saleMatches = [];
+
+            // البحث في SQLite فقط إذا كانت العملية مبيعات صريحة
+            if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
+                try {
+                    const rawSql = window.BayanSQLite.getInvoiceItems(sId) || [];
+                    saleMatches = rawSql.filter(t => {
+                        if (!t) return false;
+                        const tType = String(t.type || '').toLowerCase();
+                        const isSaleType = (tType.includes('بيع') || tType.includes('مبيعات') || tType.includes('sale'));
+                        if (!isSaleType) return false;
+                        if (isReturn && !tType.includes('مرتجع')) return false;
+                        if (!isReturn && tType.includes('مرتجع')) return false;
+                        return true;
+                    });
+                } catch(e) {}
+            }
+
+            // البحث في الذاكرة transactions مع التحقق من نوع المبيعات
+            if (saleMatches.length === 0) {
+                saleMatches = pool.filter(t => {
+                    if (!t) return false;
+                    const tType = String(t.type || '').toLowerCase();
+                    const isSaleType = (tType.includes('بيع') || tType.includes('مبيعات') || tType.includes('sale'));
+                    if (!isSaleType) return false;
+                    if (isReturn && !tType.includes('مرتجع')) return false;
+                    if (!isReturn && tType.includes('مرتجع')) return false;
+                    return (t.invoiceId != null && String(t.invoiceId) === sId) ||
+                           (t.id != null && String(t.id) === sId);
+                });
+            }
+
+            if (saleMatches.length === 0 && typeof window.ensureInvoiceLoaded === 'function') {
+                try {
+                    await window.ensureInvoiceLoaded(sId);
+                    const updatedPool = window.transactions || [];
+                    saleMatches = updatedPool.filter(t => {
+                        if (!t) return false;
+                        const tType = String(t.type || '').toLowerCase();
+                        const isSaleType = (tType.includes('بيع') || tType.includes('مبيعات') || tType.includes('sale'));
+                        if (!isSaleType) return false;
+                        if (isReturn && !tType.includes('مرتجع')) return false;
+                        if (!isReturn && tType.includes('مرتجع')) return false;
+                        return (t.invoiceId != null && String(t.invoiceId) === sId) ||
+                               (t.id != null && String(t.id) === sId);
+                    });
+                } catch(e) {}
+            }
+
+            if (saleMatches.length === 0) {
+                return showCustomAlert({
+                    type: 'error',
+                    titleText: '❌ غير موجود',
+                    msg: `لم يتم العثور على فاتورة مبيعات بالرقم (#${sId}).`
+                });
+            }
+
+            const head = saleMatches.find(t => t.isInvoiceHead) || saleMatches[0];
+            let tx = { ...head };
+            tx.invoiceId = head.invoiceId || head.id || sId;
+            tx.id = head.id || tx.invoiceId;
+            tx.type = isReturn ? 'مرتجع مبيعات' : 'فاتورة مبيعات';
+            tx.warehouse = head.warehouse || 'المخزن الرئيسي';
+            tx.partner = head.partner || head.customer || 'عميل نقدي';
+            tx.method = head.method || head.paymentMethod || 'نقدي';
+            tx.notes = saleMatches.find(t => t.notes)?.notes || head.notes || '';
+
+            const seenSale = new Set();
+            const uniqueSaleMatches = saleMatches.filter(i => {
+                if (!i || (!i.product && !i.name)) return false;
+                const p = (i.product || i.productName || i.name || '').trim();
+                const s = (i.size || i.selectedSize || '').trim();
+                const c = (i.color || i.selectedColor || '').trim();
+                const q = parseFloat(i.qty != null ? i.qty : (i.quantity || 0)) || 0;
+                const pr = parseFloat(i.price != null ? i.price : 0) || 0;
+                const sig = `${i.id || ''}|${p}|${s}|${c}|${q}|${pr}`;
+                if (seenSale.has(sig)) return false;
+                seenSale.add(sig);
+                return true;
+            });
+
+            tx.items = uniqueSaleMatches.map(i => {
+                const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 0));
+                const price = parseFloat(i.price != null ? i.price : 0);
+                let disc = parseFloat(i.discount != null ? i.discount : (i.itemDiscount != null ? i.itemDiscount : 0)) || 0;
+                let addition = parseFloat(i.addition != null ? i.addition : (i.extra != null ? i.extra : 0)) || 0;
+                return {
+                    name: i.product || i.productName || i.name || 'صنف',
+                    qty: qty,
+                    unit: i.unit || '-',
+                    size: i.size || i.selectedSize || '',
+                    color: i.color || i.selectedColor || '',
+                    price: price,
+                    costPrice: i.costPrice || price,
+                    discount: disc,
+                    discountType: i.discountType || 'val',
+                    addition: addition,
+                    total: parseFloat(i.total != null ? i.total : (qty * price - disc + addition))
+                };
+            });
+
+            return window.renderCustomInvoiceModal(tx);
+        };
+
         function selectHistoryRow(idx) {
             selectedHistoryIndex = idx;
             const tbody = document.getElementById('historyTableBody');
@@ -2317,26 +3057,64 @@
             }
         }
 
-        function selectInvoiceRow(idx, rowEl) {
+        function selectInvoiceRow(idx, rowEl, invId, invType) {
             selectedInvoiceIndex = idx;
+            window.selectedInvoiceIndex = idx;
+
+            if (rowEl) {
+                if (!invId) invId = rowEl.getAttribute('data-invoice-id');
+                if (!invType) invType = rowEl.getAttribute('data-invoice-type');
+            }
+            if (invId) {
+                window.selectedInvoiceId = invId;
+                selectedInvoiceId = invId;
+            }
+            if (invType) {
+                window.selectedInvoiceType = invType;
+                selectedInvoiceType = invType;
+            }
+
             const tbody = document.getElementById('invoicesTableBody');
             if (tbody) {
                 tbody.querySelectorAll('tr.selected-row').forEach(r => r.classList.remove('selected-row'));
                 tbody.querySelectorAll('input[name="invRad"]').forEach(rad => rad.checked = false);
-                const tr = rowEl || tbody.querySelector(`tr[data-orig-index="${idx}"]`);
+                const tr = rowEl || (invId ? (invType ? (tbody.querySelector(`tr[data-invoice-id="${invId}"][data-invoice-type="${invType}"]`) || tbody.querySelector(`tr[data-invoice-id="${invId}"]`)) : tbody.querySelector(`tr[data-invoice-id="${invId}"]`)) : tbody.querySelector(`tr[data-orig-index="${idx}"]`));
                 if (tr) {
                     tr.classList.add('selected-row');
                     const rad = tr.querySelector('input[name="invRad"]');
                     if (rad) rad.checked = true;
+                    if (!window.selectedInvoiceId && tr.getAttribute('data-invoice-id')) {
+                        window.selectedInvoiceId = tr.getAttribute('data-invoice-id');
+                        selectedInvoiceId = window.selectedInvoiceId;
+                    }
+                    if (!window.selectedInvoiceType && tr.getAttribute('data-invoice-type')) {
+                        window.selectedInvoiceType = tr.getAttribute('data-invoice-type');
+                        selectedInvoiceType = window.selectedInvoiceType;
+                    }
                 }
             }
         }
         window.selectInvoiceRow = selectInvoiceRow;
 
         function shareSelectedInvoice(platform) {
-            const activeIdx = (activeTabId && activeTabId.startsWith('invoices') ? selectedInvoiceIndex : selectedHistoryIndex);
+            const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
+            let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : null;
+            let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : null;
+            let t = null;
 
-            if (activeIdx === null || activeIdx === undefined) {
+            if (isInv && invId) {
+                t = transactions.find(x => String(x.invoiceId) === String(invId) && (!invType || (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(x.type, invType) : x.type === invType)));
+                if (!t) t = transactions.find(x => String(x.invoiceId) === String(invId));
+            }
+
+            if (!t) {
+                const activeIdx = (isInv ? selectedInvoiceIndex : selectedHistoryIndex);
+                if (activeIdx !== null && activeIdx !== undefined && transactions[activeIdx]) {
+                    t = transactions[activeIdx];
+                }
+            }
+
+            if (!t) {
                 return showCustomAlert({
                     type: 'warning',
                     titleText: '⚠️ تنبيه',
@@ -2344,7 +3122,6 @@
                 });
             }
 
-            const t = transactions[activeIdx];
             const pmText = (typeof window.formatPaymentMethodDisplay === 'function') ? window.formatPaymentMethodDisplay(t) : (t.method || 'نقدي');
             const text = `📄 تفاصيل ${t.type}\n🔢 رقم العملية: ${t.invoiceId || '-'}\n📅 التاريخ: ${t.date}\n👤 الطرف: ${t.partner || 'بدون'}\n💳 طريقة الدفع: ${pmText}\n💰 المبلغ: ${parseFloat(t.total || t.price || 0).toFixed(2)} ج.م\n📝 البيان: ${t.product || '-'}\n\nتم الإرسال عبر تطبيق بيان POS ✨`;
 
@@ -2364,9 +3141,26 @@
         }
 
         function printSelectedInvoice() {
-            const activeIdx = (activeTabId && activeTabId.startsWith('invoices') ? selectedInvoiceIndex : selectedHistoryIndex);
+            const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
+            let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : null;
+            let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : null;
+            let t = null;
 
-            if (activeIdx === null || activeIdx === undefined) {
+            if (isInv && invId) {
+                t = transactions.find(x => String(x.invoiceId) === String(invId) && (!invType || (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(x.type, invType) : x.type === invType)));
+                if (!t) t = transactions.find(x => String(x.invoiceId) === String(invId));
+            }
+
+            if (!t) {
+                const activeIdx = (isInv ? selectedInvoiceIndex : selectedHistoryIndex);
+                if (activeIdx !== null && activeIdx !== undefined && transactions[activeIdx]) {
+                    t = transactions[activeIdx];
+                    if (!invId) invId = t.invoiceId;
+                    if (!invType) invType = t.type;
+                }
+            }
+
+            if (!t && !invId) {
                 return showCustomAlert({
                     type: 'warning',
                     titleText: '⚠️ تنبيه',
@@ -2374,13 +3168,12 @@
                 });
             }
             
-            const t = transactions[activeIdx];
-            if (t.invoiceId) {
+            if (invId) {
                 if (typeof viewInvoiceItems === 'function') {
                     // Pass autoPrint = true
-                    viewInvoiceItems(t.invoiceId, t.type, true);
+                    viewInvoiceItems(invId, invType || (t ? t.type : ''), true);
                 }
-            } else {
+            } else if (t) {
                 // Single transaction (Receipt, Disbursement, etc.)
                 window.renderCustomInvoiceModal({
                     ...t,
@@ -2401,37 +3194,42 @@
         }
 
         function viewSelectedInvoice() {
-            const activeIdx = (activeTabId && activeTabId.startsWith('invoices') ? selectedInvoiceIndex : selectedHistoryIndex);
+            const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
+            let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : null;
+            let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : null;
 
-            if (activeIdx === null || activeIdx === undefined) {
+            if (isInv) {
+                const tr = document.querySelector('#invoicesTableBody tr.selected-row') ||
+                           document.querySelector('#invoicesTableBody tr input[name="invRad"]:checked')?.closest('tr');
+                if (tr) {
+                    if (!invId) invId = tr.getAttribute('data-invoice-id');
+                    if (!invType) invType = tr.getAttribute('data-invoice-type');
+                }
+            }
+
+            if (!invId) {
+                const activeIdx = (isInv ? selectedInvoiceIndex : selectedHistoryIndex);
+                if (activeIdx !== null && activeIdx !== undefined && transactions[activeIdx]) {
+                    invId = transactions[activeIdx].invoiceId || transactions[activeIdx].id || transactions[activeIdx].transferId || transactions[activeIdx].adjId;
+                    invType = transactions[activeIdx].type;
+                }
+            }
+
+            if (!invId) {
                 return showCustomAlert({
                     type: 'warning',
                     titleText: '⚠️ تنبيه',
                     msg: 'يرجى تحديد (الضغط على) العملية من الجدول أولاً لعرضها.'
                 });
             }
-            const t = transactions[activeIdx];
-            if (t.invoiceId) {
-                if (typeof viewInvoiceItems === 'function') {
-                    viewInvoiceItems(t.invoiceId, t.type);
-                }
-            } else {
-                // لو عملية مالية بدون رقم فاتورة (حركة فردية)
-                window.renderCustomInvoiceModal({
-                    ...t,
-                    id: t.id || t.invoiceId || Math.floor(Math.random() * 10000),
-                    items: [{
-                        name: t.product || t.type,
-                        qty: 1,
-                        unit: '-',
-                        price: t.total || t.price || 0,
-                        total: t.total || t.price || 0
-                    }],
-                    paid: t.paidAmount || t.total || 0,
-                    partner: t.partner || '-'
-                });
+
+            if (typeof window.viewAnyDocumentUnified === 'function') {
+                window.viewAnyDocumentUnified(invId, invType || '');
+            } else if (typeof viewInvoiceItems === 'function') {
+                viewInvoiceItems(invId, invType || '');
             }
         }
+        window.viewSelectedInvoice = viewSelectedInvoice;
 
         // دالة التعديل السريع برقم الفاتورة
         window.quickEditByNumber = function() {
@@ -2483,9 +3281,25 @@
 
         function editSelectedInvoice() {
             const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
-            const activeIdx = isInv ? selectedInvoiceIndex : selectedHistoryIndex;
+            let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : null;
+            let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : null;
+            let t = null;
 
-            if (activeIdx === null || activeIdx === undefined || activeIdx === -1) {
+            if (isInv && invId) {
+                t = transactions.find(x => String(x.invoiceId) === String(invId) && (!invType || (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(x.type, invType) : x.type === invType)));
+                if (!t) t = transactions.find(x => String(x.invoiceId) === String(invId));
+            }
+
+            if (!t) {
+                const activeIdx = isInv ? selectedInvoiceIndex : selectedHistoryIndex;
+                if (activeIdx !== null && activeIdx !== undefined && activeIdx !== -1 && transactions[activeIdx]) {
+                    t = transactions[activeIdx];
+                    if (!invId) invId = t.invoiceId;
+                    if (!invType) invType = t.type;
+                }
+            }
+
+            if (!t && !invId) {
                 return showCustomAlert({
                     type: 'warning',
                     titleText: '⚠️ تنبيه',
@@ -2493,14 +3307,8 @@
                 });
             }
 
-            const t = transactions[activeIdx];
-            if (!t || (!t.invoiceId && !t.id)) {
-                showToast("⚠️ لا يمكن تعديل هذه الحركة مباشرة", "error");
-                return;
-            }
-
             let cleanType = '';
-            const typeStr = t.type || '';
+            const typeStr = (invType || (t ? t.type : '') || '');
             if (typeStr.includes('بيع') && !typeStr.includes('مرتجع')) cleanType = 'بيع';
             else if (typeStr.includes('شراء') && !typeStr.includes('مرتجع')) cleanType = 'شراء';
             else if (typeStr.includes('مرتجع بيع')) cleanType = 'مرتجع بيع';
@@ -2511,14 +3319,22 @@
             else if (typeStr.includes('تحويل')) cleanType = 'تحويل';
 
             if (window.editTransaction) {
-                window.editTransaction(t.invoiceId || t.id, cleanType);
+                window.editTransaction(invId || (t ? (t.invoiceId || t.id) : null), cleanType);
             }
         }
 
         function deleteSelectedInvoice() {
             const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
-            const activeIdx = isInv ? selectedInvoiceIndex : selectedHistoryIndex;
+            let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : null;
+            let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : null;
 
+            if (isInv && invId) {
+                if (typeof window.deleteInvoiceGlobal === 'function') {
+                    return window.deleteInvoiceGlobal(invId, invType);
+                }
+            }
+
+            const activeIdx = isInv ? selectedInvoiceIndex : selectedHistoryIndex;
             if (activeIdx === null || activeIdx === undefined || activeIdx === -1) {
                 return showCustomAlert({
                     type: 'warning',

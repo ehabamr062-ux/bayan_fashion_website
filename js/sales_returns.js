@@ -627,8 +627,12 @@ async function saveSalesReturn(force = false, accountChecked = false) {
                             ? await db.transactions.where('type').startsWith('مرتجع').filter(t => String(t.originalInvoiceId) === String(originalInvoiceId)).toArray()
                             : []);
                     if (prevR && prevR.length > 0) {
-                        const exIds = new Set(transactions.map(t => t.id));
-                        prevR.forEach(r => { if (r && r.id && !exIds.has(r.id)) transactions.push(r); });
+                        if (typeof window.safelyMergeTransactionIntoMemory === 'function') {
+                            prevR.forEach(r => { if (r) window.safelyMergeTransactionIntoMemory(r); });
+                        } else {
+                            const exIds = new Set(transactions.map(t => t.id));
+                            prevR.forEach(r => { if (r && r.id && !exIds.has(r.id)) transactions.push(r); });
+                        }
                     }
                 } catch(e) {}
             }
@@ -1517,8 +1521,12 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
                             ? await db.transactions.where('type').startsWith('مرتجع').filter(t => String(t.originalInvoiceId) === String(originalInvoiceId)).toArray()
                             : []);
                     if (prevR && prevR.length > 0) {
-                        const exIds = new Set(transactions.map(t => t.id));
-                        prevR.forEach(r => { if (r && r.id && !exIds.has(r.id)) transactions.push(r); });
+                        if (typeof window.safelyMergeTransactionIntoMemory === 'function') {
+                            prevR.forEach(r => { if (r) window.safelyMergeTransactionIntoMemory(r); });
+                        } else {
+                            const exIds = new Set(transactions.map(t => t.id));
+                            prevR.forEach(r => { if (r && r.id && !exIds.has(r.id)) transactions.push(r); });
+                        }
                     }
                 } catch(e) {}
             }
@@ -2692,12 +2700,14 @@ async function executeInvoiceSearch() {
                 limit: 300
             });
             if (foundRows && foundRows.length > 0) {
-                const existingIds = new Set((window.transactions || []).map(t => t.id));
                 const invoiceIds = [];
                 foundRows.forEach(row => {
-                    if (row && row.id && !existingIds.has(row.id)) {
-                        window.transactions.push(row);
-                        existingIds.add(row.id);
+                    if (row) {
+                        if (typeof window.safelyMergeTransactionIntoMemory === 'function') {
+                            window.safelyMergeTransactionIntoMemory(row);
+                        } else {
+                            window.transactions.push(row);
+                        }
                     }
                     if (row && row.invoiceId) {
                         invoiceIds.push(row.invoiceId);
@@ -2723,13 +2733,19 @@ async function executeInvoiceSearch() {
                         if (returnRows && returnRows.length > 0) {
                             returnRows.forEach(r => {
                                 const rec = r.raw_json ? window.BayanSQLite._reconstructRow(r) : r;
-                                if (rec && rec.id && !existingIds.has(rec.id)) {
-                                    window.transactions.push(rec);
-                                    existingIds.add(rec.id);
+                                if (rec) {
+                                    if (typeof window.safelyMergeTransactionIntoMemory === 'function') {
+                                        window.safelyMergeTransactionIntoMemory(rec);
+                                    } else {
+                                        window.transactions.push(rec);
+                                    }
                                 }
                             });
                         }
                     } catch (eRet) {}
+                }
+                if (typeof window.deduplicateTransactionsMemory === 'function') {
+                    window.deduplicateTransactionsMemory();
                 }
             }
         } catch (e) {
@@ -2757,8 +2773,18 @@ async function executeInvoiceSearch() {
                 .limit(200)
                 .toArray();
             if (accMatches && accMatches.length > 0) {
-                const existingIds = new Set(transactions.map(t => t.id));
-                accMatches.forEach(row => { if (row && row.id && !existingIds.has(row.id)) transactions.push(row); });
+                accMatches.forEach(row => {
+                    if (row) {
+                        if (typeof window.safelyMergeTransactionIntoMemory === 'function') {
+                            window.safelyMergeTransactionIntoMemory(row);
+                        } else {
+                            transactions.push(row);
+                        }
+                    }
+                });
+                if (typeof window.deduplicateTransactionsMemory === 'function') {
+                    window.deduplicateTransactionsMemory();
+                }
             }
         } catch(e) {}
     }
@@ -2773,8 +2799,18 @@ async function executeInvoiceSearch() {
         try {
             const recentTx = await db.transactions.where('type').startsWith(targetType).reverse().limit(300).toArray();
             if (recentTx && recentTx.length > 0) {
-                const existingIds = new Set(transactions.map(t => t.id));
-                recentTx.forEach(row => { if (row && row.id && !existingIds.has(row.id)) transactions.push(row); });
+                recentTx.forEach(row => {
+                    if (row) {
+                        if (typeof window.safelyMergeTransactionIntoMemory === 'function') {
+                            window.safelyMergeTransactionIntoMemory(row);
+                        } else {
+                            transactions.push(row);
+                        }
+                    }
+                });
+                if (typeof window.deduplicateTransactionsMemory === 'function') {
+                    window.deduplicateTransactionsMemory();
+                }
             }
         } catch(e) {}
     }
@@ -3099,6 +3135,21 @@ async function confirmSelectedInvoiceForReturn(invoiceId) {
         return;
     }
 
+    // 🛡️ صمام أمان صارم: منع تكرار ودبلرة الأصناف
+    const seenOrig = new Set();
+    originalInvoiceItems = originalInvoiceItems.filter(item => {
+        if (!item) return false;
+        const pName = (item.product || item.productName || item.name || '').trim();
+        const pSize = (item.size || item.selectedSize || '').trim();
+        const pColor = (item.color || item.selectedColor || '').trim();
+        const pQty = parseFloat(item.qty != null ? item.qty : (item.quantity || 0)) || 0;
+        const pPrice = parseFloat(item.price != null ? item.price : 0) || 0;
+        const sig = `${item.id || ''}|${pName}|${pSize}|${pColor}|${pQty}|${pPrice}`;
+        if (seenOrig.has(sig)) return false;
+        seenOrig.add(sig);
+        return true;
+    });
+
     const selectedItems = [];
 
     originalInvoiceItems.forEach((originalItem) => {
@@ -3295,6 +3346,21 @@ async function openSelectReturnItemsModal(invoiceId) {
         alert("تعذر العثور على أصناف لهذه الفاتورة!");
         return;
     }
+
+    // 🛡️ صمام أمان صارم: منع تكرار ودبلرة الأصناف في نافذة اختيار المرتجع
+    const seenRet = new Set();
+    currentReturnInvoiceItems = currentReturnInvoiceItems.filter(item => {
+        if (!item) return false;
+        const pName = (item.product || item.productName || item.name || '').trim();
+        const pSize = (item.size || item.selectedSize || '').trim();
+        const pColor = (item.color || item.selectedColor || '').trim();
+        const pQty = parseFloat(item.qty != null ? item.qty : (item.quantity || 0)) || 0;
+        const pPrice = parseFloat(item.price != null ? item.price : 0) || 0;
+        const sig = `${item.id || ''}|${pName}|${pSize}|${pColor}|${pQty}|${pPrice}`;
+        if (seenRet.has(sig)) return false;
+        seenRet.add(sig);
+        return true;
+    });
 
     // حساب إجماليات الفاتورة بالكامل لربطها بما تم إرجاعه
     const origTotal = currentReturnInvoiceItems.reduce((sum, t) => sum + (parseFloat(t.total) || 0), 0);

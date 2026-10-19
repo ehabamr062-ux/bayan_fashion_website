@@ -311,48 +311,8 @@
         let _isPrecachingTokens = false;
 
         function warmupProductSearchTokens() {
-            if (_isPrecachingTokens) return;
-            const list = (typeof productsDB !== 'undefined' && Array.isArray(productsDB))
-                ? productsDB
-                : (window.productsDB || []);
-            if (!list || list.length === 0) return;
-
-            // ⚡ في القواعد الضخمة (أكثر من 500 صنف)، توليد التوكنز يتم فورياً عند الطلب On-Demand
-            // هذا يوفر مئات الميجابايتات من الذاكرة الرام ويمنع دوران المعالج في الخلفية
-            if (list.length > 500) {
-                return;
-            }
-
-            _isPrecachingTokens = true;
-            _precacheTokensIndex = 0;
-
-            const BATCH_SIZE = 500;
-            const processBatch = () => {
-                const end = Math.min(_precacheTokensIndex + BATCH_SIZE, list.length);
-                for (let i = _precacheTokensIndex; i < end; i++) {
-                    const p = list[i];
-                    if (p && !p.isDeleted) {
-                        getProductSearchTokens(p);
-                    }
-                }
-                _precacheTokensIndex = end;
-
-                if (_precacheTokensIndex < list.length) {
-                    if (typeof requestIdleCallback === 'function') {
-                        requestIdleCallback(processBatch, { timeout: 150 });
-                    } else {
-                        setTimeout(processBatch, 20);
-                    }
-                } else {
-                    _isPrecachingTokens = false;
-                }
-            };
-
-            if (typeof requestIdleCallback === 'function') {
-                requestIdleCallback(processBatch, { timeout: 200 });
-            } else {
-                setTimeout(processBatch, 40);
-            }
+            // ⚡ تم إيقاف التخزين المسبق للتوكنز لتوفير مئات الميجابايتات من الذاكرة الرام
+            return;
         }
         window.warmupProductSearchTokens = warmupProductSearchTokens;
         window.getBarcodeToProductMap = () => {
@@ -457,12 +417,15 @@
                 .replace(/\s+/g, ' ');
         }
         window.normalizeSearchQuery = normalizeSearchQuery;
+        window.cleanArabicCached = normalizeSearchQuery;
+        window.cleanAr = normalizeSearchQuery;
+        window.normalizeDigits = function(str) {
+            if (str === null || str === undefined) return '';
+            return String(str).replace(/[٠-٩۰-۹]/g, d => _digitMap[d] || d);
+        };
 
         function getProductSearchTokens(p) {
-            const currentVer = String(p.editDate || p.updatedAt || '') + '_' + String(p.price || '') + '_' + String(p.name || '') + '_' + String(p.barcode || '');
-            if (p._searchTokens && p._searchTokensVer === currentVer) {
-                return p._searchTokens;
-            }
+            if (!p) return {};
             const rawName = String(p.name || '').trim();
             const normName = normalizeSearchQuery(rawName);
             const rawBarcode = String(p.barcode || '').trim();
@@ -476,6 +439,9 @@
             const lowerModelCode = rawModelCode.toLowerCase();
             const rawDirectSize = String(p.size || p.itemSize || '').trim();
             const normDirectSize = normalizeSearchQuery(rawDirectSize);
+
+            // ⚡ خفيف ولا يخزن في الرام: لا نقوم بتثبيت p._searchTokens لحماية ذاكرة V8 Heap من التضخم
+            if (p._searchTokens) delete p._searchTokens;
 
             const variantTokens = [];
             if (p.variants && Array.isArray(p.variants)) {
@@ -513,7 +479,7 @@
             }
 
             const normWords = normName ? normName.split(/\s+/) : [];
-            const tokens = {
+            return {
                 rawName, normName, normWords,
                 rawBarcode, normBarcode, lowerBarcode,
                 rawCode, normCode, lowerCode,
@@ -522,9 +488,6 @@
                 variantTokens,
                 unitTokens
             };
-            p._searchTokens = tokens;
-            p._searchTokensVer = currentVer;
-            return tokens;
         }
 
         function searchProductsRanked(query, options = {}) {
@@ -536,42 +499,51 @@
             if (!normQuery) return [];
 
             // ⚡ 1. التحقق الفوري المباشر عبر خريطة الفهرس (O(1) Map - 0ms) للأكواد والباركود
-            if (_barcodeToProductMap.size === 0) {
-                rebuildProductFastIndex();
-            }
-            const exactProduct = _barcodeToProductMap.get(normQuery) || _barcodeToProductMap.get(lowerQuery) ||
-                                 _codeToProductMap.get(normQuery) || _codeToProductMap.get(lowerQuery);
-            if (exactProduct && (options.filterDeleted === false || !exactProduct.isDeleted)) {
-                return [exactProduct];
-            }
+            if (options.exactOnly !== false) {
+                if (_barcodeToProductMap.size === 0) {
+                    rebuildProductFastIndex();
+                }
+                const exactProduct = _barcodeToProductMap.get(normQuery) || _barcodeToProductMap.get(lowerQuery) ||
+                                     _codeToProductMap.get(normQuery) || _codeToProductMap.get(lowerQuery);
+                if (exactProduct && (options.filterDeleted === false || !exactProduct.isDeleted)) {
+                    return [exactProduct];
+                }
 
-            // ⚡ فحص فوري وسريع في SQLite مباشرة بالباركود الأصلي كصمام أمان (0.1ms)
-            if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
-                try {
-                    const dbRow = window.BayanSQLite.nativeDb.prepare("SELECT * FROM products WHERE barcode = ? OR barcode = ? OR id = ? LIMIT 1;").get(rawQuery, lowerQuery, rawQuery);
-                    if (dbRow) {
-                        const directP = window.BayanSQLite._reconstructRow(dbRow);
-                        if (directP && (options.filterDeleted === false || !directP.isDeleted)) {
-                            return [directP];
+                // ⚡ فحص فوري في SQLite مباشرة بالباركود الأصلي كصمام أمان (0.1ms)
+                if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+                    try {
+                        const dbRow = window.BayanSQLite.nativeDb.prepare("SELECT * FROM products WHERE barcode = ? OR barcode = ? OR id = ? LIMIT 1;").get(rawQuery, lowerQuery, rawQuery);
+                        if (dbRow) {
+                            const directP = window.BayanSQLite._reconstructRow(dbRow);
+                            if (directP && (options.filterDeleted === false || !directP.isDeleted)) {
+                                return [directP];
+                            }
                         }
-                    }
-                } catch (dbFindErr) {}
+                    } catch (dbFindErr) {}
+                }
             }
 
-            // استخراج نص الاستعلام بعد حذف بادئات مثل "مقاس" أو "نمرة" للبحث الدقيق بالمقاس
-            const queryWithoutSize = normQuery.replace(/^(مقاس|نمرة|نمره|size)\s*/i, '').trim();
+            const limit = (options.limit && typeof options.limit === 'number' && options.limit > 0) ? options.limit : 30;
 
+            // ⚡ 2. توجيه البحث النصي والجزئي فوراً لمحرك SQLite المفهرس بدلاً من مسح الرام الخطي O(N)
+            if (!options.products && window.BayanSQLite && typeof window.BayanSQLite.searchProductsFast === 'function' && window.BayanSQLite.db) {
+                try {
+                    const sqlFastResults = window.BayanSQLite.searchProductsFast(rawQuery, limit);
+                    if (sqlFastResults && sqlFastResults.length > 0) {
+                        return (options.filterDeleted === false) ? sqlFastResults : sqlFastResults.filter(p => !p.isDeleted);
+                    }
+                } catch(sqlErr) {
+                    console.warn("[searchProductsRanked] searchProductsFast notice:", sqlErr.message || sqlErr);
+                }
+            }
+
+            // ⚡ 3. مسار احتياطي آمن (Fallback) في حال تعذر الاستعلام المباشر من SQLite
             const list = options.products || 
                 ((typeof productsDB !== 'undefined' && Array.isArray(productsDB) && productsDB.length > 0)
                     ? productsDB 
                     : (window.productsDB || []));
 
-            // الحد الأقصى الافتراضي لعدد النتائج (40 صنف لسرعة المعالجة الفائقة)
-            const limit = (options.limit && typeof options.limit === 'number' && options.limit > 0) 
-                ? options.limit 
-                : (options.limit === 0 || options.limit === Infinity ? Infinity : 40);
-            // ⚡ فرامل أسرع: جمع ضعف المطلوب بحد أقصى 50 صنف فقط لتسريع المعالجة 3 أضعاف
-            const maxCollect = (limit === Infinity) ? Infinity : Math.min(limit * 2, 50);
+            const maxCollect = (limit === Infinity || limit >= (list.length || 1000)) ? Infinity : Math.max(limit * 2, 50);
             const isSingleChar = normQuery.length === 1;
             const scored = [];
 
@@ -583,23 +555,17 @@
                 const tok = getProductSearchTokens(p);
                 let score = 0;
 
-                // 1. تطابق تام مع اسم الصنف (أعلى أولوية مطلقة - مثل صنف اسمه "14")
                 if (tok.normName === normQuery) {
                     score = Math.max(score, 25000);
                 }
-
-                // 2. تطابق تام مع الباركود الأساسي
                 if (tok.normBarcode === normQuery || tok.lowerBarcode === lowerQuery) {
                     score = Math.max(score, 22000);
                 }
-
-                // 3. تطابق تام مع كود الصنف أو كود الموديل
                 if (tok.normCode === normQuery || tok.lowerCode === lowerQuery || 
                     tok.normModelCode === normQuery || tok.lowerModelCode === lowerQuery) {
                     score = Math.max(score, 20000);
                 }
 
-                // 4. فحص تطابق باركود التشكيلات (المقاسات والألوان) والوحدات
                 if (tok.variantTokens.length > 0) {
                     for (let j = 0; j < tok.variantTokens.length; j++) {
                         const vt = tok.variantTokens[j];
@@ -619,108 +585,122 @@
                                 break;
                             }
                         }
-
-                        // 🌟 البحث بالمقاس في التشكيلات بدقة كاملة
-                        if (vt.normVSize && (vt.normVSize === normQuery || (queryWithoutSize && vt.normVSize === queryWithoutSize))) {
+                        if (vt.normVSize && vt.normVSize === normQuery) {
                             score = Math.max(score, 14000);
                         } else if (vt.normVColor && (vt.normVColor === normQuery || vt.normVColor.includes(normQuery))) {
                             score = Math.max(score, 5500);
-                        } else if (vt.normVSize && queryWithoutSize && vt.normVSize.includes(queryWithoutSize)) {
-                            score = Math.max(score, 5000);
                         }
                     }
                 }
 
-                // فحص المقاس المباشر على الصنف إن وجد
-                if (tok.normDirectSize) {
-                    if (tok.normDirectSize === normQuery || (queryWithoutSize && tok.normDirectSize === queryWithoutSize)) {
-                        score = Math.max(score, 14000);
-                    } else if (queryWithoutSize && tok.normDirectSize.includes(queryWithoutSize)) {
-                        score = Math.max(score, 5000);
-                    }
-                }
-
-                if (tok.unitTokens.length > 0) {
-                    for (let k = 0; k < tok.unitTokens.length; k++) {
-                        const ut = tok.unitTokens[k];
-                        if (ut.uBarcode) {
-                            if (ut.normUBarcode === normQuery || ut.lowerUBarcode === lowerQuery) {
-                                score = Math.max(score, 17000);
-                                break;
-                            } else if (ut.normUBarcode.startsWith(normQuery)) {
-                                score = Math.max(score, 3400);
-                            } else if (ut.normUBarcode.includes(normQuery)) {
-                                score = Math.max(score, 1100);
-                            }
-                        }
-                        if (ut.normUName && ut.normUName === normQuery) {
-                            score = Math.max(score, 4000);
-                        }
-                    }
-                }
-
-                // 5. الاسم يبدأ بنص البحث (حتى لو حرف واحد مثل "ب")
                 if (tok.normName.startsWith(normQuery)) {
-                    const lengthDiff = Math.max(0, tok.normName.length - normQuery.length);
-                    score = Math.max(score, 10000 - Math.min(lengthDiff * 5, 2000));
-                }
-
-                // 6. كلمة كاملة مطابقة في الاسم (استخدام normWords الجاهزة بدلاً من split)
-                if (score < 9000 && !isSingleChar) {
-                    const words = tok.normWords || (tok.normWords = tok.normName ? tok.normName.split(/\s+/) : []);
-                    if (words.includes(normQuery)) {
-                        score = Math.max(score, 8500);
-                    }
-                }
-
-                // 7. الاسم يحتوي على نص البحث في أي مكان (تجاهل الفحص العميق للحرف الواحد لتوفير المعالج)
-                if (score < 7000 && !isSingleChar) {
-                    const idx = tok.normName.indexOf(normQuery);
-                    if (idx !== -1) {
-                        score = Math.max(score, 5000 - Math.min(idx * 20, 1500));
-                    }
-                }
-
-                // 8. كود الصنف أو كود الموديل يبدأ أو يحتوي على نص البحث
-                if ((tok.normCode && tok.normCode.startsWith(normQuery)) || (tok.normModelCode && tok.normModelCode.startsWith(normQuery))) {
-                    score = Math.max(score, 6000);
-                } else if (!isSingleChar && ((tok.normCode && tok.normCode.includes(normQuery)) || (tok.normModelCode && tok.normModelCode.includes(normQuery)))) {
-                    score = Math.max(score, 3000);
-                }
-
-                // 9. الباركود يبدأ أو يحتوي على نص البحث
-                if (tok.normBarcode && tok.normBarcode.startsWith(normQuery)) {
-                    score = Math.max(score, 3800);
-                } else if (!isSingleChar && tok.normBarcode && tok.normBarcode.includes(normQuery)) {
-                    score = Math.max(score, 1800);
+                    score = Math.max(score, 10000);
+                } else if (!isSingleChar && tok.normName.includes(normQuery)) {
+                    score = Math.max(score, 5000);
                 }
 
                 if (score > 0) {
                     scored.push({ item: p, score: score });
-                    // إيقاف التكرار فور جمع عدد كافٍ من النتائج المطابقة لسرعة خارقة وتوفير المعالج
                     if (scored.length >= maxCollect) break;
                 }
             }
 
-            // ترتيب النتائج تنازلياً حسب درجة المطابقة
             scored.sort((a, b) => b.score - a.score);
-
-            // إذا كان الحد غير نهائي نرجع جميع النتائج بلا استثناء
-            const results = (limit === Infinity) ? scored.map(entry => entry.item) : scored.slice(0, limit).map(entry => entry.item);
-
-            // ⚡ صمام أمان فوري: إذا لم توجد نتائج بالذاكرة (أثناء التحميل الكسول بالخلفية)، نستعلم من SQLite مباشرة
-            if (results.length === 0 && window.BayanSQLite && typeof window.BayanSQLite.searchProducts === 'function' && window.BayanSQLite.db) {
-                try {
-                    const dbResults = window.BayanSQLite.searchProducts(rawQuery, limit);
-                    if (dbResults && dbResults.length > 0) {
-                        return dbResults.filter(p => options.filterDeleted === false || !p.isDeleted);
-                    }
-                } catch(e) {}
-            }
-
-            return results;
+            return (limit === Infinity) ? scored.map(entry => entry.item) : scored.slice(0, limit).map(entry => entry.item);
         }
         window.searchProductsRanked = searchProductsRanked;
+        window.warmupProductSearchTokens = function() { /* No-op: disabled to prevent memory heap bloat */ };
+
+        /**
+         * 🎨 القالب الموحد لنافذة نتائج البحث السريع في شاشات المبيعات والمشتريات
+         */
+        function renderProductSearchResultsPanel(resultsDiv, query, filtered, options = {}) {
+            if (!resultsDiv) return;
+            const totalMatches = filtered ? filtered.length : 0;
+            const displayFiltered = (filtered || []).slice(0, 40);
+            const resultsDivId = options.resultsDivId || resultsDiv.id || 'searchResults';
+            const title = options.title || '🔍 نتائج البحث';
+            const priceKey = options.priceKey || 'price';
+            const priceLabel = options.priceLabel || '💰 سعر البيع';
+            const onSelectFn = options.onSelectFn || 'selectProductToHeader';
+            const quickAddFn = options.quickAddFn || 'quickAddProduct';
+            const mode = options.mode || 'sales';
+            const safeQuery = (typeof escapeHtml === 'function') ? escapeHtml(query) : query;
+            const jsEscapedQuery = String(query || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
+            if (totalMatches > 0) {
+                resultsDiv.innerHTML = `
+                    <div class="pos-search-panel" style="width: min(580px, calc(100vw - 40px)); min-width: 320px; position: absolute; top: calc(100% + 4px); right: 0; left: auto; z-index: 999999; background: white; border-radius: 14px; box-shadow: 0 15px 35px rgba(0,0,0,0.25); border: 1.5px solid #cbd5e1; direction: rtl; text-align: right; animation: modalFadeIn 0.15s ease-out;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-top-left-radius: 14px; border-top-right-radius: 14px;">
+                            <span style="font-weight: 800; font-size: 0.88rem; color: #5e3370;">${title} (${totalMatches} صنف${totalMatches > 40 ? ' - معروض أول 40' : ''})</span>
+                            <button type="button" onclick="document.getElementById('${resultsDivId}').style.display='none';" class="pos-search-close-btn" title="إغلاق النافذة" style="background:none; border:none; cursor:pointer; font-size:1rem;">❌</button>
+                        </div>
+                        <div style="max-height: 380px; overflow-y: auto; padding: 6px; scrollbar-gutter: stable;">
+                            ${displayFiltered.map(p => {
+                                const priceVal = parseFloat(p[priceKey]) || 0;
+                                const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
+                                const stockVal = (typeof getLiveProductWhStock === 'function')
+                                    ? getLiveProductWhStock(p, activeWH)
+                                    : (typeof getWarehouseStock === 'function' ? getWarehouseStock(p.name || p, activeWH) : (parseFloat(p.stock) || 0));
+                                const safeName = (typeof escapeHtml === 'function') ? escapeHtml(p.name) : p.name;
+                                const safeCode = (typeof escapeHtml === 'function') ? escapeHtml(p.code || p.id) : (p.code || p.id);
+                                const safeBarcode = (typeof escapeHtml === 'function') ? escapeHtml(p.barcode || '---') : (p.barcode || '---');
+                                const sizesList = (p.variants && Array.isArray(p.variants)) 
+                                    ? [...new Set(p.variants.map(v => String(v.size || '').trim()).filter(s => s && s !== '-' && s !== 'موحد' && s !== 'قياسي'))] 
+                                    : [];
+                                const sizesHtml = sizesList.length > 0 
+                                    ? `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; border: 1px solid #bae6fd;">📏 مقاسات: ${sizesList.slice(0, 5).join(', ')}${sizesList.length > 5 ? '...' : ''}</span>`
+                                    : '';
+                                return `
+                                    <div class="pos-search-row" onclick="${onSelectFn}(${p.id});" style="display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: 0.15s; border-radius: 10px; gap: 10px;">
+                                        <div style="flex: 1; min-width: 0; text-align: right;">
+                                            <div style="font-weight: 900; font-size: 0.98rem; color: #1e293b; white-space: normal; word-break: break-word;">${safeName}</div>
+                                            <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
+                                                <span>🏷️ كود: <b style="color:#5e3370;">${safeCode}</b> | باركود: <b>${safeBarcode}</b></span>
+                                                ${sizesHtml}
+                                            </div>
+                                        </div>
+                                        <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
+                                            <div style="text-align: center; background: #f8fafc; padding: 5px 10px; border-radius: 8px; border: 1px solid #e2e8f0;">
+                                                <div style="font-size: 0.7rem; color: #64748b;">📦 الرصيد (${activeWH})</div>
+                                                <div style="font-weight: 900; font-size: 0.95rem; color: ${stockVal <= 5 ? '#ef4444' : '#10b981'};">${stockVal} <span style="font-size:0.7rem;">${p.unit || 'قطعة'}</span></div>
+                                            </div>
+                                            <div style="text-align: center; background: rgba(59, 130, 246, 0.08); padding: 5px 12px; border-radius: 8px; border: 1.5px solid rgba(59, 130, 246, 0.25);">
+                                                <div style="font-size: 0.7rem; color: #1d4ed8; font-weight: 800;">${priceLabel}</div>
+                                                <div style="font-weight: 900; font-size: 1rem; color: #1e40af;">${priceVal.toFixed(2)} ج.م</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+                resultsDiv.classList.remove('hidden');
+                resultsDiv.style.setProperty('display', 'block', 'important');
+            } else {
+                const isPur = (mode === 'purchase');
+                const btnBg = isPur ? 'rgba(39, 174, 96, 0.1)' : '#f5f3ff';
+                const btnBorder = isPur ? '#27ae60' : '#8e44ad';
+                const btnColor = isPur ? '#27ae60' : '#8e44ad';
+                const btnLabel = isPur ? `⚡ إضافة سريعة ومباشرة: "${safeQuery}"` : `📝 إضافة صنف جديد باسم: "${safeQuery}"`;
+                resultsDiv.innerHTML = `
+                    <div class="pos-search-panel" style="width: min(450px, calc(100vw - 40px)); position: absolute; top: calc(100% + 4px); right: 0; left: auto; z-index: 999999; background: white; border-radius: 14px; box-shadow: 0 15px 35px rgba(0,0,0,0.25); border: 1.5px solid #cbd5e1; direction: rtl; text-align: right; padding: 14px; animation: modalFadeIn 0.15s ease-out;">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                            <span style="font-weight: 800; font-size: 0.85rem; color: #64748b;">⚠️ لا توجد نتائج مطابقة لـ "${safeQuery}"</span>
+                            <button type="button" onclick="document.getElementById('${resultsDivId}').style.display='none';" class="pos-search-close-btn" title="إغلاق" style="background:none; border:none; cursor:pointer; font-size:1rem;">❌</button>
+                        </div>
+                        <button type="button" onclick="document.getElementById('${resultsDivId}').style.display='none'; ${quickAddFn}('${jsEscapedQuery}', '${mode}');" 
+                            style="width: 100%; padding: 12px; background: ${btnBg}; border: 2px dashed ${btnBorder}; border-radius: 10px; color: ${btnColor}; font-weight: 900; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s;">
+                            <span>${btnLabel}</span>
+                        </button>
+                    </div>
+                `;
+                resultsDiv.classList.remove('hidden');
+                resultsDiv.style.setProperty('display', 'block', 'important');
+            }
+        }
+        window.renderProductSearchResultsPanel = renderProductSearchResultsPanel;
 
 
 

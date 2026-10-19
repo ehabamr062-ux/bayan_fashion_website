@@ -1067,6 +1067,13 @@ function updateSubscriptionUI(hwid, plan, daysLeft) {
         window.isCloudPricingActive = false;
 
         window.syncSubscriptionPricingDisplay = function() {
+            // ☁️ فحص ذكي وتلقائي لباقة المستخدم الحالية عند فتح نافذة الاشتراكات
+            const curPlan = (typeof window.getBayanPlan === 'function') ? window.getBayanPlan() : '';
+            const isUserOnCloud = (typeof window.isCloudSyncAllowed === 'function' && window.isCloudSyncAllowed()) ||
+                                  (curPlan && (curPlan.includes('سحاب') || curPlan.includes('Cloud'))) ||
+                                  ((typeof getStore === 'function') && getStore('bayan_cloud_sync_licensed') === 'true');
+
+            window.isCloudPricingActive = !!isUserOnCloud;
             window.switchPricingMode(window.isCloudPricingActive ? 'cloud' : 'offline', true);
         };
 

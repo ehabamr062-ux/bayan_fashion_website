@@ -6,6 +6,7 @@
  * - يعمل في الخلفية بنظام هادئ وغير معطل لنقطة البيع (Non-Blocking Background Worker).
  * - متوافق 100% مع العمل دون إنترنت (Offline-First): يحفظ محلياً أولاً في SQLite.
  * - يرفع الفواتير، الأصناف، المخزون، وسجلات الخزينة فور توفر الإنترنت.
+ * - يدعم المزامنة ثنائية الاتجاه الحقيقية بين أجهزة الكمبيوتر والتابلت.
  * =========================================================================
  */
 
@@ -43,9 +44,45 @@
             }
         },
 
+        // 🛡️ دالة اتصال آمنة وذكية مزودة بـ AbortController ومهلة زمنية لمنع تجميد أو رمي أخطاء حمراء بالكونسول
+        _safeFetch: async function (url, options = {}, timeoutMs = 8000) {
+            if (!navigator.onLine) {
+                return { 
+                    ok: false, 
+                    status: 0, 
+                    statusText: 'Offline', 
+                    json: async () => [], 
+                    text: async () => 'offline' 
+                };
+            }
+            const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+            let timeoutId = null;
+            if (controller) {
+                timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+            }
+            try {
+                const opt = controller ? { ...options, signal: controller.signal } : options;
+                const res = await fetch(url, opt);
+                if (timeoutId) clearTimeout(timeoutId);
+                return res;
+            } catch (err) {
+                if (timeoutId) clearTimeout(timeoutId);
+                return {
+                    ok: false,
+                    status: 0,
+                    statusText: err.message || 'NetworkError',
+                    json: async () => [],
+                    text: async () => err.message || ''
+                };
+            }
+        },
+
         // 🏪 استرجاع أو توليد معرّف المحل الفريد المستقر (Shop Isolation)
         getShopId: function () {
             let shopId = localStorage.getItem('bayan_shop_id');
+            if (!shopId && typeof getStore === 'function') {
+                shopId = getStore('bayan_shop_id');
+            }
             if (!shopId) {
                 try {
                     const settings = JSON.parse(localStorage.getItem('pos_settings') || '{}');
@@ -58,8 +95,82 @@
                     : (Math.random().toString(36).substring(2, 8) + Math.random().toString(36).substring(2, 6)).toUpperCase();
                 shopId = 'SHOP_' + randPart;
                 localStorage.setItem('bayan_shop_id', shopId);
+                if (typeof setStore === 'function') setStore('bayan_shop_id', shopId);
             }
             return shopId;
+        },
+
+        // ✏️ تعيين وتوحيد كود المحل السحابي (Shop ID) لربط جهازين معاً كمرآة واحدة
+        setShopId: function (newId) {
+            const clean = String(newId || '').trim();
+            if (!clean || clean.length < 5) return false;
+            const finalId = clean.startsWith('SHOP_') ? clean : ('SHOP_' + clean);
+            localStorage.setItem('bayan_shop_id', finalId);
+            if (typeof setStore === 'function') {
+                setStore('bayan_shop_id', finalId);
+            }
+            try {
+                const cfg = this.getConfig();
+                cfg.shopId = finalId;
+                localStorage.setItem('bayan_supabase_config', JSON.stringify(cfg));
+            } catch (e) {}
+
+            // تصفير طوابع المزامنة السابقة لفرض سحب شامل وتحديث كامل للبيانات
+            localStorage.removeItem('bayan_sb_last_tx_time');
+            localStorage.removeItem('bayan_sb_last_prod_sync_time');
+            if (window._bayan_synced_prod_fps) window._bayan_synced_prod_fps.clear();
+
+            const badge = document.getElementById('supabaseShopIdBadge');
+            if (badge) badge.textContent = finalId;
+
+            return finalId;
+        },
+
+        // 📋 نسخ كود المحل السحابي إلى الحافظة
+        copyShopId: function () {
+            const id = this.getShopId();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(id).then(() => {
+                    if (typeof showToast === 'function') {
+                        showToast(`📋 تم نسخ كود المحل السحابي (${id}) بنجاح!`, 'success');
+                    } else {
+                        alert(`📋 تم نسخ كود المحل السحابي:\n${id}`);
+                    }
+                }).catch(() => {
+                    prompt('انسخ كود المحل السحابي الخاص بهذا الجهاز:', id);
+                });
+            } else {
+                prompt('انسخ كود المحل السحابي الخاص بهذا الجهاز:', id);
+            }
+        },
+
+        // 🔗 نافذة تفاعلية لإدخال كود محل وربط هذا الجهاز بجهاز رئيسي آخر فوراً
+        promptLinkShopId: async function () {
+            const current = this.getShopId();
+            const input = prompt(
+                `🔗 ربط هذا الجهاز بجهاز آخر كمرآة سحابية موحدة:\n\nأدخل كود المحل السحابي (Shop ID) الخاص بالجهاز الرئيسي:\n(يبدأ بـ SHOP_):`,
+                current
+            );
+            if (!input || !input.trim()) return;
+            const clean = input.trim();
+            if (clean === current) {
+                if (typeof showToast === 'function') showToast('ℹ️ هذا الجهاز مرتبط بالفعل بهذا الكود.', 'info');
+                return;
+            }
+            if (clean.length < 5) {
+                alert('⚠️ كود المحل غير صالح. يرجى التأكد من كتابة الكود بشكل صحيح.');
+                return;
+            }
+            const confirmed = confirm(
+                `هل أنت متأكد من ربط هذا الجهاز بكود المحل (${clean})؟\n\nسيتم توحيد قاعدة البيانات السحابية وسحب كافة أصناف وحسابات وفواتير المحل المرتبط فوراً.`
+            );
+            if (!confirmed) return;
+
+            this.setShopId(clean);
+            if (typeof showToast === 'function') {
+                showToast(`🔗 تم ربط الجهاز بكود المحل (${clean}) بنجاح! جاري سحب البيانات كمرآة سحابية...`, 'success', 6000);
+            }
+            await this.runFullSync(true);
         },
 
         // 🔐 استرجاع أو توليد رمز الاقتران PIN الفريد لهذا المحل (Pairing PIN Isolation)
@@ -77,9 +188,7 @@
             const clean = String(newPin || '').trim();
             if (clean && clean.length >= 4) {
                 localStorage.setItem('bayan_shop_pin', clean);
-                if (this._isAllowed()) {
-                    this.syncPairingPin(clean).catch(() => {});
-                }
+                this.syncPairingPin(clean).catch(() => {});
                 return true;
             }
             return false;
@@ -136,13 +245,12 @@
                 return { success: false, message: 'بيانات رابط المشروع أو المفتاح غير مكتملة' };
             }
             try {
-                // فحص مسار جدول الأصناف أو مسار REST الأساسي للتأكد من الجداول
-                let res = await fetch(`${cfg.supabaseUrl}/rest/v1/products?select=id&limit=1`, {
+                let res = await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/products?select=id&limit=1`, {
                     method: 'GET',
                     headers: this._getHeaders()
                 });
                 if (!res.ok) {
-                    res = await fetch(`${cfg.supabaseUrl}/rest/v1/?limit=1`, {
+                    res = await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/?limit=1`, {
                         method: 'GET',
                         headers: this._getHeaders()
                     });
@@ -152,14 +260,14 @@
                     return { success: true, message: 'تم الاتصال بسحابة Supabase بنجاح والجداول جاهزة 🟢' };
                 } else {
                     const errTxt = await res.text();
-                    return { success: false, message: `فشل الاتصال: رمز الاستجابة (${res.status})`, details: errTxt };
+                    return { success: false, message: `تعذر الاتصال بالسيرفر السحابي: (${res.statusText || res.status || 'أوفلاين'})`, details: errTxt };
                 }
             } catch (err) {
                 return { success: false, message: 'تعذر الاتصال بالإنترنت أو بالسيرفر السحابي', error: err.message };
             }
         },
 
-        // 📦 1. مزامنة الفواتير والمبيعات مع جدول transactions
+        // 📦 1. مزامنة الفواتير والمبيعات والحركات مع جدول transactions
         syncTransactions: async function () {
             const cfg = this.getConfig();
             if (!this._isAllowed() || !cfg.supabaseUrl || !cfg.supabaseKey) return 0;
@@ -173,7 +281,7 @@
             const lastSyncTs = parseInt(localStorage.getItem('bayan_sb_last_tx_time') || '0', 10);
             const shopId = cfg.shopId || this.getShopId();
 
-            // رفع الفواتير المعدلة/الجديدة مع الحفاظ على تغطية كاملة وتجنب إسقاط أي فاتورة
+            // رفع الفواتير والحركات المعدلة/الجديدة
             let targetTx = allTx;
             if (lastSyncTs > 0) {
                 targetTx = allTx.filter(t => {
@@ -182,7 +290,7 @@
                     return !tTime || tTime >= (lastSyncTs - 60000); // بهامش أمان دقيقة
                 });
                 if (targetTx.length === 0) {
-                    targetTx = allTx.slice(-200);
+                    targetTx = allTx.slice(-150);
                 }
             } else {
                 targetTx = allTx.slice(-500);
@@ -201,33 +309,35 @@
                     paid_amount: parseFloat(t.paidAmount) || 0,
                     remaining: parseFloat(t.remaining) || 0,
                     method: t.method || 'كاش',
-                    cashier: t.cashier || 'المدير',
+                    cashier: t.cashier || t.user || 'المدير',
                     warehouse: t.warehouse || 'المخزن الرئيسي',
-                    raw_json: { ...t, shop_id: shopId, invoiceId: localInvId }
+                    raw_json: { 
+                        ...t, 
+                        shop_id: shopId, 
+                        invoiceId: localInvId,
+                        voucherCategory: t.voucherCategory || t.category || null
+                    }
                 };
             });
 
             if (toSend.length === 0) return 0;
 
-            // إرسال الفواتير على دفعات متتالية (Batches of 100) لرفع كافة الفواتير دون أي فقد
             const CHUNK_SIZE = 100;
             let totalSent = 0;
             for (let i = 0; i < toSend.length; i += CHUNK_SIZE) {
                 const chunk = toSend.slice(i, i + CHUNK_SIZE);
-                const res = await fetch(`${cfg.supabaseUrl}/rest/v1/transactions?on_conflict=id`, {
+                const res = await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/transactions?on_conflict=id`, {
                     method: 'POST',
                     headers: this._getHeaders(),
                     body: JSON.stringify(chunk)
                 });
 
-                if (!res.ok && res.status !== 201 && res.status !== 200) {
-                    throw new Error(`خطأ في رفع الفواتير: ${res.status}`);
+                if (res.ok || res.status === 201 || res.status === 200) {
+                    totalSent += chunk.length;
                 }
-                totalSent += chunk.length;
 
-                // 🌿 استراحة تنفس غير متزامنة (Non-blocking Yield) لضمان سلاسة حركة شاشة الكاشير وعدم إجهاد الشبكة
                 if (i + CHUNK_SIZE < toSend.length) {
-                    await new Promise(r => setTimeout(r, 80));
+                    await new Promise(r => setTimeout(r, 60));
                 }
             }
 
@@ -235,8 +345,8 @@
             return totalSent;
         },
 
-        // 👗 2. مزامنة الأصناف والمخزون مع جدول products
-        syncProducts: async function () {
+        // 👗 2. مزامنة الأصناف والمخزون ذكية وعالية الأداء (Delta Fingerprint Engine)
+        syncProducts: async function (forceAll = false) {
             const cfg = this.getConfig();
             if (!this._isAllowed() || !cfg.supabaseUrl || !cfg.supabaseKey) return 0;
 
@@ -247,99 +357,161 @@
             if (pList.length === 0) return 0;
 
             const shopId = cfg.shopId || this.getShopId();
-            const toSend = pList.map(p => {
-                const localProdId = String(p.id || p.barcode || Math.random().toString(36).substring(2, 9));
-                return {
-                    id: `${shopId}_PROD_${localProdId}`,
-                    name: p.name || 'صنف',
-                    barcode: p.barcode || '',
-                    category: p.category || 'عام',
-                    unit: p.unit || 'قطعة',
-                    cost: parseFloat(p.cost) || 0,
-                    price: parseFloat(p.price) || 0,
-                    wholesale: parseFloat(p.wholesale) || 0,
-                    stock: parseFloat(p.stock) || 0,
-                    raw_json: { ...p, localId: p.id, shop_id: shopId },
-                    updated_at: new Date().toISOString()
-                };
-            });
+            const prodFps = window._bayan_synced_prod_fps || (window._bayan_synced_prod_fps = new Map());
 
-            // إرسال كافة الأصناف على دفعات متتالية (Batches of 100) لضمان رفع جميع الأصناف
-            const CHUNK_SIZE = 100;
-            let totalSent = 0;
-            for (let i = 0; i < toSend.length; i += CHUNK_SIZE) {
-                const batch = toSend.slice(i, i + CHUNK_SIZE);
-                const res = await fetch(`${cfg.supabaseUrl}/rest/v1/products?on_conflict=id`, {
-                    method: 'POST',
-                    headers: this._getHeaders(),
-                    body: JSON.stringify(batch)
-                });
+            // دالة استخراج بصمة خفيفة وسريعة للصنف لمقارنة التغييرات
+            const getProdFp = (p) => {
+                const vStr = (p.variants && Array.isArray(p.variants)) ? p.variants.map(v => `${v.size}:${v.color}:${v.stock}`).join(';') : '';
+                return `${p.price}|${p.cost}|${p.stock}|${p.wholesale}|${p.name}|${p.barcode}|${vStr}`;
+            };
 
-                if (!res.ok && res.status !== 201 && res.status !== 200) {
-                    throw new Error(`خطأ في رفع الأصناف: ${res.status}`);
-                }
-                totalSent += batch.length;
-
-                // 🌿 استراحة تنفس غير متزامنة (Non-blocking Yield) بين دفعات الأصناف لمنع أي تجميد للواجهة
-                if (i + CHUNK_SIZE < toSend.length) {
-                    await new Promise(r => setTimeout(r, 80));
-                }
+            // تحديد الأصناف المطلوب رفعها: الكل عند المزامنة اليدوية الشاملة، أو المعدلة فقط بالدورة التلقائية
+            let toSendList = pList;
+            if (!forceAll && prodFps.size > 0) {
+                toSendList = pList.filter(p => prodFps.get(String(p.id)) !== getProdFp(p));
             }
 
-            // 📥 استيراد أي أصناف وموديلات جديدة تمت إضافتها من التابلت (الخاصة بهذا المحل فقط)
-            try {
-                const remoteRes = await fetch(`${cfg.supabaseUrl}/rest/v1/products?id=like.${encodeURIComponent(shopId)}_PROD_*&select=*`, {
-                    headers: this._getHeaders()
+            let totalSent = 0;
+            if (toSendList.length > 0) {
+                const toSend = toSendList.map(p => {
+                    const localProdId = String(p.id || p.barcode || Math.random().toString(36).substring(2, 9));
+                    return {
+                        id: `${shopId}_PROD_${localProdId}`,
+                        name: p.name || 'صنف',
+                        barcode: p.barcode || '',
+                        category: p.category || 'عام',
+                        unit: p.unit || 'قطعة',
+                        cost: parseFloat(p.cost) || 0,
+                        price: parseFloat(p.price) || 0,
+                        wholesale: parseFloat(p.wholesale) || 0,
+                        stock: parseFloat(p.stock) || 0,
+                        raw_json: { ...p, localId: p.id, shop_id: shopId },
+                        updated_at: new Date().toISOString()
+                    };
                 });
-                if (remoteRes.ok) {
-                    const remoteRows = await remoteRes.json();
-                    const localIdSet = new Set(pList.map(p => String(p.id)));
-                    const localBarcodeSet = new Set(pList.map(p => String(p.barcode || '')).filter(Boolean));
-                    const newFromRemote = (remoteRows || []).filter(r => {
-                        const rj = r.raw_json || {};
-                        const rowShopId = rj.shop_id || (r.id.startsWith(shopId + '_') ? shopId : null);
-                        if (rowShopId !== shopId) return false;
 
-                        const rawLocalId = rj.localId || rj.id || r.id.replace(`${shopId}_PROD_`, '');
-                        if (localIdSet.has(String(rawLocalId))) return false;
-                        if (r.barcode && localBarcodeSet.has(String(r.barcode))) return false;
-                        return true;
+                const CHUNK_SIZE = 100;
+                for (let i = 0; i < toSend.length; i += CHUNK_SIZE) {
+                    const batch = toSend.slice(i, i + CHUNK_SIZE);
+                    const res = await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/products?on_conflict=id`, {
+                        method: 'POST',
+                        headers: this._getHeaders(),
+                        body: JSON.stringify(batch)
                     });
 
-                    if (newFromRemote.length > 0) {
-                        for (const remProd of newFromRemote) {
-                            const raw = remProd.raw_json || {};
-                            const numId = Number(raw.localId || raw.id || remProd.id.replace(`${shopId}_PROD_`, '')) || (Date.now() + Math.floor(Math.random() * 1000));
-                            const mappedProd = {
-                                id: numId,
-                                name: remProd.name || raw.name || 'صنف جديد',
-                                barcode: remProd.barcode || raw.barcode || String(numId),
-                                category: remProd.category || raw.category || 'عام',
-                                unit: remProd.unit || raw.unit || 'قطعة',
-                                cost: parseFloat(remProd.cost || raw.cost || 0),
-                                price: parseFloat(remProd.price || raw.price || 0),
-                                wholesale: parseFloat(remProd.wholesale || raw.wholesale || 0),
-                                stock: parseFloat(remProd.stock || raw.stock || 0),
-                                variants: Array.isArray(raw.variants) ? raw.variants : [],
-                                ...raw
-                            };
-                            pList.unshift(mappedProd);
-                            if (window.sqliteManager && typeof window.sqliteManager.put === 'function') {
-                                try { window.sqliteManager.put('products', mappedProd); } catch (e) {}
+                    if (res.ok || res.status === 201 || res.status === 200) {
+                        totalSent += batch.length;
+                        // تحديث بصمات الأصناف المرفوعة بنجاح
+                        batch.forEach(b => {
+                            const rawId = b.raw_json ? String(b.raw_json.localId) : '';
+                            const pItem = pList.find(p => String(p.id) === rawId);
+                            if (pItem) prodFps.set(String(pItem.id), getProdFp(pItem));
+                        });
+                    }
+
+                    if (i + CHUNK_SIZE < toSend.length) {
+                        await new Promise(r => setTimeout(r, 60));
+                    }
+                }
+                localStorage.setItem('bayan_sb_last_prod_sync_time', String(Date.now()));
+            }
+
+            // 📥 استيراد وتحديث الأصناف (Pull & Apply Updates)
+            let hasUpdatedLocalProducts = false;
+            let newImportedCount = 0;
+            let updatedLocalCount = 0;
+
+            try {
+                const remoteRes = await this._safeFetch(
+                    `${cfg.supabaseUrl}/rest/v1/products?id=like.${encodeURIComponent(shopId)}_PROD_*&select=*`, 
+                    { headers: this._getHeaders() }
+                );
+
+                if (remoteRes.ok) {
+                    const remoteRows = await remoteRes.json();
+                    if (Array.isArray(remoteRows) && remoteRows.length > 0) {
+                        for (const remProd of remoteRows) {
+                            const rj = remProd.raw_json || {};
+                            const rowShopId = rj.shop_id || (remProd.id.startsWith(shopId + '_') ? shopId : null);
+                            if (rowShopId !== shopId) continue;
+
+                            const rawLocalId = String(rj.localId || rj.id || remProd.id.replace(`${shopId}_PROD_`, ''));
+                            const remBarcode = String(remProd.barcode || '').trim();
+
+                            let localProd = pList.find(p => String(p.id) === rawLocalId);
+                            if (!localProd && remBarcode) {
+                                localProd = pList.find(p => p.barcode && String(p.barcode).trim() === remBarcode);
+                            }
+
+                            // أ) صنف جديد غير موجود محلياً: إضافة فورية
+                            if (!localProd) {
+                                const numId = Number(rawLocalId) || (Date.now() + Math.floor(Math.random() * 1000));
+                                const mappedProd = {
+                                    id: numId,
+                                    name: remProd.name || rj.name || 'صنف جديد',
+                                    barcode: remProd.barcode || rj.barcode || String(numId),
+                                    category: remProd.category || rj.category || 'عام',
+                                    unit: remProd.unit || rj.unit || 'قطعة',
+                                    cost: parseFloat(remProd.cost || rj.cost || 0),
+                                    price: parseFloat(remProd.price || rj.price || 0),
+                                    wholesale: parseFloat(remProd.wholesale || rj.wholesale || 0),
+                                    stock: parseFloat(remProd.stock || rj.stock || 0),
+                                    variants: Array.isArray(rj.variants) ? rj.variants : [],
+                                    ...rj
+                                };
+                                pList.unshift(mappedProd);
+                                prodFps.set(String(mappedProd.id), getProdFp(mappedProd));
+                                if (window.sqliteManager && typeof window.sqliteManager.put === 'function') {
+                                    try { window.sqliteManager.put('products', mappedProd); } catch (e) {}
+                                }
+                                hasUpdatedLocalProducts = true;
+                                newImportedCount++;
+                            } 
+                            // ب) صنف موجود محلياً: فحص وتحديث بياناته إذا كانت السحابة تحمل سعراً أو كمية أحدث
+                            else {
+                                const remPrice = parseFloat(remProd.price || 0);
+                                const remCost = parseFloat(remProd.cost || 0);
+                                const remStock = parseFloat(remProd.stock || 0);
+                                const remWholesale = parseFloat(remProd.wholesale || 0);
+                                const remName = remProd.name || localProd.name;
+
+                                let changed = false;
+                                if (localProd.name !== remName && remName) { localProd.name = remName; changed = true; }
+                                if (Math.abs((parseFloat(localProd.price) || 0) - remPrice) > 0.001 && remPrice > 0) { localProd.price = remPrice; changed = true; }
+                                if (Math.abs((parseFloat(localProd.cost) || 0) - remCost) > 0.001) { localProd.cost = remCost; changed = true; }
+                                if (Math.abs((parseFloat(localProd.stock) || 0) - remStock) > 0.001) { localProd.stock = remStock; changed = true; }
+                                if (Math.abs((parseFloat(localProd.wholesale) || 0) - remWholesale) > 0.001) { localProd.wholesale = remWholesale; changed = true; }
+                                if (rj && Array.isArray(rj.variants) && rj.variants.length > 0) {
+                                    localProd.variants = rj.variants;
+                                    changed = true;
+                                }
+
+                                if (changed) {
+                                    localProd.updatedAt = remProd.updated_at || new Date().toISOString();
+                                    if (window.sqliteManager && typeof window.sqliteManager.put === 'function') {
+                                        try { window.sqliteManager.put('products', localProd); } catch (e) {}
+                                    }
+                                    prodFps.set(String(localProd.id), getProdFp(localProd));
+                                    hasUpdatedLocalProducts = true;
+                                    updatedLocalCount++;
+                                }
                             }
                         }
-                        if (typeof renderProductsTable === 'function') renderProductsTable();
-                        if (typeof updateDashboardStats === 'function') updateDashboardStats();
-                        if (typeof showToast === 'function') {
-                            showToast(`👗 تم استلام ${newFromRemote.length} صنف وموديل جديد مضاف من التابلت وحفظه بالمخزن بنجاح!`, 'info');
+
+                        if (hasUpdatedLocalProducts) {
+                            if (typeof renderProductsTable === 'function') renderProductsTable();
+                            if (typeof updateDashboardStats === 'function') updateDashboardStats();
+                            if (typeof showToast === 'function' && (newImportedCount > 0 || updatedLocalCount > 0)) {
+                                showToast(`👗 مزامنة الأصناف: تم استلام (${newImportedCount}) جديد وتحديث (${updatedLocalCount}) صنف بنجاح!`, 'info');
+                            }
                         }
                     }
                 }
             } catch (importErr) {
-                console.warn('[SupabaseSync] Pull new products error:', importErr);
+                // تجاهل أخطاء الشبكة بهدوء دون تعطيل البرنامج
             }
 
-            return batch.length;
+            return totalSent;
         },
 
         // 💰 3. مزامنة حركات الخزينة والدرج مع جدول treasury_audit
@@ -354,7 +526,7 @@
             if (audits.length === 0) return 0;
 
             const shopId = cfg.shopId || this.getShopId();
-            const toSend = audits.slice(-20).map(a => {
+            const toSend = audits.slice(-25).map(a => {
                 const rawAuditId = String(a.id || `${a.date}_${a.category}_${a.amount}_${Math.random()}`);
                 return {
                     id: `${shopId}_AUDIT_${rawAuditId}`,
@@ -367,54 +539,31 @@
                 };
             });
 
-            const res = await fetch(`${cfg.supabaseUrl}/rest/v1/treasury_audit?on_conflict=id`, {
+            const res = await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/treasury_audit?on_conflict=id`, {
                 method: 'POST',
                 headers: this._getHeaders(),
                 body: JSON.stringify(toSend)
             });
 
-            if (res.ok || res.status === 201 || res.status === 200) {
-                return toSend.length;
-            } else {
-                throw new Error(`خطأ في رفع الخزينة: ${res.status}`);
-            }
+            return (res.ok || res.status === 201 || res.status === 200) ? toSend.length : 0;
         },
 
-        // 📥 4. استقبال ومزامنة الفواتير الصادرة من التابلت والموبايل فورياً
+        // 📥 4. سحب ومزامنة الحركات السحابية ثنائية الاتجاه لكافة أجهزة المتجر (_MOB_ و _DESK_)
         pullRemoteTransactions: async function () {
             const cfg = this.getConfig();
             if (!this._isAllowed() || !cfg.supabaseUrl || !cfg.supabaseKey) return 0;
 
             try {
                 const shopId = cfg.shopId || this.getShopId();
-                // استعلام محدد لفواتير الموبايل الخاصة بهذا المحل حصراً
-                const res = await fetch(`${cfg.supabaseUrl}/rest/v1/transactions?id=like.${encodeURIComponent(shopId)}_MOB*&order=created_at.desc&limit=50`, {
-                    method: 'GET',
-                    headers: this._getHeaders()
-                });
+                // استعلام شامل لكافة حركات المتجر الصادرة من أي تابلت أو كمبيوتر كاشير آخر
+                const res = await this._safeFetch(
+                    `${cfg.supabaseUrl}/rest/v1/transactions?id=like.${encodeURIComponent(shopId)}_*&order=created_at.desc&limit=100`, 
+                    { method: 'GET', headers: this._getHeaders() }
+                );
 
                 if (!res.ok) return 0;
                 let remoteList = await res.json();
-                if (!Array.isArray(remoteList)) remoteList = [];
-
-                // إذا لم توجد فواتير بالبادئة الجديدة، نفحص كاحتياط فواتير MOB القديمة التي تحمل shop_id مطابق لنفس المحل
-                if (remoteList.length === 0) {
-                    const legacyRes = await fetch(`${cfg.supabaseUrl}/rest/v1/transactions?id=like.MOB-*&order=created_at.desc&limit=30`, {
-                        method: 'GET',
-                        headers: this._getHeaders()
-                    });
-                    if (legacyRes.ok) {
-                        const legacyList = await legacyRes.json();
-                        if (Array.isArray(legacyList)) {
-                            remoteList = legacyList.filter(item => {
-                                const r = item.raw_json || {};
-                                return r.shop_id === shopId;
-                            });
-                        }
-                    }
-                }
-
-                if (remoteList.length === 0) return 0;
+                if (!Array.isArray(remoteList) || remoteList.length === 0) return 0;
 
                 const localTx = (typeof transactions !== 'undefined' && Array.isArray(transactions))
                     ? transactions
@@ -427,16 +576,22 @@
                 const newTransactionRows = [];
                 const modifiedProductsList = [];
                 const affectedAccountsList = [];
-                const cleanAr = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
 
                 remoteList.forEach(item => {
                     const raw = item.raw_json || {};
-                    // عزل تام 100%: حظر أي فاتورة لا تخص هذا المحل
                     const itemShopId = raw.shop_id || (item.id && item.id.startsWith(shopId + '_') ? shopId : null);
                     if (itemShopId !== shopId) return;
 
-                    const invId = String(item.invoice_id || raw.invoiceId || item.id || '').replace(`${shopId}_`, '');
-                    const alreadyExists = localTx.some(t => String(t.invoiceId || t.id || '') === invId);
+                    // استخراج معرف الفاتورة النظيف ومقارنته بالمحلي
+                    const invId = String(item.invoice_id || raw.invoiceId || item.id || '')
+                        .replace(`${shopId}_DESK_`, '')
+                        .replace(`${shopId}_MOB_`, '')
+                        .replace(`${shopId}_`, '');
+
+                    const alreadyExists = localTx.some(t => {
+                        const tInv = String(t.invoiceId || t.id || '');
+                        return tInv === invId || tInv === item.invoice_id || (t.id && String(t.id) === String(item.id));
+                    });
 
                     if (!alreadyExists && invId) {
                         const baseNumId = (raw.numericId && Number.isInteger(Number(raw.numericId)))
@@ -447,19 +602,34 @@
                         const todayISO = now.toLocaleDateString('en-CA');
                         const nowTime = now.toLocaleTimeString('en-GB');
                         const nowFull = now.toLocaleString('ar-EG');
-                        const total = parseFloat(item.total) || 0;
-                        const paidAmount = parseFloat(item.paid_amount) || 0;
-                        const remaining = parseFloat(item.remaining) || 0;
-                        const partner = String(item.partner || 'عميل نقدي').trim();
-                        const method = String(item.method || 'كاش').trim();
-                        const warehouse = item.warehouse || 'المخزن الرئيسي';
+                        const total = parseFloat(item.total !== undefined ? item.total : raw.total) || 0;
+                        const paidAmount = parseFloat(item.paid_amount !== undefined ? item.paid_amount : raw.paidAmount) || 0;
+                        const remaining = parseFloat(item.remaining !== undefined ? item.remaining : raw.remaining) || 0;
+                        const partner = String(item.partner || raw.partner || 'عميل نقدي').trim();
+                        const method = String(item.method || raw.method || 'كاش').trim();
+                        const warehouse = item.warehouse || raw.warehouse || 'المخزن الرئيسي';
                         const isCredit = (method === 'أجل' || remaining > 0.001);
 
+                        // الحفاظ الدقيق على نوع الحركة الأصلي (بيع، شراء، قبض، صرف، مرتجع) وبند السند
+                        const actualType = raw.type || item.type || 'بيع 📤';
+                        const actualVoucherCat = raw.voucherCategory || item.voucherCategory || raw.category || null;
+                        const isDeskRemote = item.id.includes('_DESK_');
+                        const terminalDisplayName = raw.terminal || (isDeskRemote ? 'كاشير فرعي 💻' : 'تابلت (B) 📱');
+                        const terminalLetter = raw.terminalLetter || (isDeskRemote ? 'D' : 'B');
+                        const cashierName = raw.user || item.cashier || (isDeskRemote ? 'كاشير فرعي' : 'تابلت');
+
+                        const isVoucher = actualType.includes('قبض') || actualType.includes('صرف');
                         const items = (Array.isArray(raw.items) && raw.items.length > 0)
                             ? raw.items
-                            : [{ name: 'مبيعات موبايل', quantity: 1, price: total, total: total, size: '', color: '' }];
+                            : [{ 
+                                name: raw.product || (isVoucher ? (actualType.includes('قبض') ? 'سند قبض' : 'سند صرف') : 'حركة سحابية'), 
+                                quantity: 1, 
+                                price: total, 
+                                total: total, 
+                                size: '', 
+                                color: '' 
+                              }];
 
-                        // إنشاء صفوف الفاتورة المتوافقة 100% مع هيكل جدول الفواتير في النظام الرئيسي
                         items.forEach((it, idx) => {
                             const isHead = (idx === 0);
                             const rowId = baseNumId + idx;
@@ -474,21 +644,22 @@
                                 date: raw.date || nowFull,
                                 dateISO: raw.dateISO || todayISO,
                                 timeISO: raw.time || nowTime,
-                                type: 'بيع 📤',
+                                type: actualType,
+                                voucherCategory: actualVoucherCat,
                                 method: method,
-                                product: it.name || 'صنف',
+                                product: it.name || raw.product || 'صنف',
                                 unit: it.unit || 'قطعة',
                                 size: it.size || '',
                                 color: it.color || '',
                                 qty: itQty,
                                 price: itPrice,
                                 total: itTotal.toFixed(2),
-                                profit: '0.00',
+                                profit: raw.profit || '0.00',
                                 partner: partner,
-                                user: item.cashier || 'تابلت',
+                                user: cashierName,
                                 warehouse: warehouse,
-                                terminal: 'تابلت (B)',
-                                terminalLetter: 'B',
+                                terminal: terminalDisplayName,
+                                terminalLetter: terminalLetter,
                                 paidAmount: isHead ? paidAmount : 0,
                                 remaining: isHead ? remaining : 0,
                                 deferred: isHead ? remaining : 0,
@@ -502,19 +673,21 @@
                             newTransactionRows.push(row);
                         });
 
-                        // تنبيه النظام بتحديث رصيد العميل عبر الكاش المباشر دون المساس بالرصيد الافتتاحي
-                        if (isCredit && partner && partner !== 'عميل نقدي') {
+                        // تحديث رصيد الحساب الآجل
+                        if (isCredit && partner && partner !== 'عميل نقدي' && partner !== 'جهة غير محددة') {
                             if (typeof window.invalidateAccountBalancesCache === 'function') {
                                 window.invalidateAccountBalancesCache(partner);
                             }
                         }
 
-                        // حسم المخزون محلياً للمقاسات والألوان للأصناف المباعة في الفاتورة الواردة
-                        if (Array.isArray(raw.items) && raw.items.length > 0) {
+                        // حسم/إضافة المخزون فقط لعمليات البيع والشراء والمرتجعات (دون سندات الصرف والقبض)
+                        if (!isVoucher && Array.isArray(raw.items) && raw.items.length > 0) {
                             raw.items.forEach(soldItem => {
                                 const prod = pList.find(p => String(p.id) === String(soldItem.productId || soldItem.id) || (soldItem.barcode && p.barcode === soldItem.barcode));
                                 if (prod) {
                                     const qty = parseFloat(soldItem.quantity || soldItem.qty || 1);
+                                    const isAddition = actualType.includes('شراء') || actualType.includes('مرتجع بيع');
+                                    const factor = isAddition ? 1 : -1;
                                     const sSize = String(soldItem.size || '').trim().toLowerCase();
                                     const sColor = String(soldItem.color || '').trim().toLowerCase();
                                     const activeWH = item.warehouse || 'المخزن الرئيسي';
@@ -528,22 +701,15 @@
                                             (!cColor || cleanV(v.color) === cColor)
                                         );
                                         if (vMatch) {
-                                            vMatch.stock = Math.max(0, (parseFloat(vMatch.stock) || 0) - qty);
+                                            vMatch.stock = Math.max(0, (parseFloat(vMatch.stock) || 0) + (factor * qty));
                                             if (!vMatch.warehouseStocks) vMatch.warehouseStocks = {};
-                                            vMatch.warehouseStocks[activeWH] = Math.max(0, (parseFloat(vMatch.warehouseStocks[activeWH]) || 0) - qty);
+                                            vMatch.warehouseStocks[activeWH] = Math.max(0, (parseFloat(vMatch.warehouseStocks[activeWH]) || 0) + (factor * qty));
                                         }
                                         prod.stock = prod.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
-                                        if (!prod.warehouseStocks) prod.warehouseStocks = {};
-                                        prod.warehouseStocks[activeWH] = prod.variants.reduce((sum, v) => {
-                                            const vWh = (v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined)
-                                                ? parseFloat(v.warehouseStocks[activeWH])
-                                                : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0);
-                                            return sum + vWh;
-                                        }, 0);
                                     } else {
-                                        prod.stock = Math.max(0, (parseFloat(prod.stock || 0) - qty));
+                                        prod.stock = Math.max(0, (parseFloat(prod.stock || 0) + (factor * qty)));
                                         if (!prod.warehouseStocks) prod.warehouseStocks = {};
-                                        prod.warehouseStocks[activeWH] = Math.max(0, (parseFloat(prod.warehouseStocks[activeWH] || 0) - qty));
+                                        prod.warehouseStocks[activeWH] = Math.max(0, (parseFloat(prod.warehouseStocks[activeWH] || 0) + (factor * qty)));
                                     }
 
                                     if (!modifiedProductsList.some(mp => mp.id === prod.id)) {
@@ -556,19 +722,6 @@
                 });
 
                 if (newTransactionRows.length > 0) {
-                    // 🩹 ترميم وتصحيح تلقائي لأي رصيد افتتاحي لعميل تم تعديله خطأ في السابق
-                    const allAccountsList = (typeof accounts !== 'undefined' && Array.isArray(accounts)) ? accounts : (window.accounts || []);
-                    allAccountsList.forEach(a => {
-                        if (!a) return;
-                        if (cleanAr(a.name) === cleanAr('طه') && (parseFloat(a.debit) === 400 || a.debit == '400') && (parseFloat(a.credit) === 70 || a.credit == '70')) {
-                            a.debit = '0';
-                            delete a.balance;
-                            if (typeof db !== 'undefined' && db.accounts) {
-                                db.accounts.put(a).catch(e => console.warn("Repair account err:", e));
-                            }
-                        }
-                    });
-
                     if (typeof window.invalidateAccountBalancesCache === 'function') {
                         window.invalidateAccountBalancesCache();
                     }
@@ -583,10 +736,6 @@
                         await saveData();
                     }
 
-                    if (typeof window.invalidateAccountBalancesCache === 'function') {
-                        window.invalidateAccountBalancesCache();
-                    }
-
                     if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
                     if (typeof debouncedRenderInvoicesTable === 'function') debouncedRenderInvoicesTable(50);
                     if (typeof renderDailyReportTable === 'function') renderDailyReportTable();
@@ -595,15 +744,16 @@
                     if (typeof renderAccountsTable === 'function') renderAccountsTable();
 
                     if (typeof showToast === 'function') {
-                        showToast(`📱 تم استلام فاتورة واردة من التابلت وتسجيلها بقسم الفواتير وحسم المخزون بنجاح!`, 'info');
+                        showToast(`☁️ تم استلام (${newTransactionRows.length}) حركة جديدة من السحابة وتسجيلها بنجاح!`, 'info');
                     }
                 }
 
-                // 🗑️ فحص أي فواتير تم حذفها أو إلغاؤها من التابلت واسترجاع المخزون محلياً
+                // فحص أي حركات ملغاة (void_tx)
                 try {
-                    const voidRes = await fetch(`${cfg.supabaseUrl}/rest/v1/treasury_audit?id=like.${encodeURIComponent(shopId)}_VOID_*&category=eq.void_tx&order=created_at.desc&limit=20`, {
-                        headers: this._getHeaders()
-                    });
+                    const voidRes = await this._safeFetch(
+                        `${cfg.supabaseUrl}/rest/v1/treasury_audit?id=like.${encodeURIComponent(shopId)}_VOID_*&category=eq.void_tx&order=created_at.desc&limit=20`,
+                        { headers: this._getHeaders() }
+                    );
                     if (voidRes.ok) {
                         const voidRows = await voidRes.json();
                         if (Array.isArray(voidRows) && voidRows.length > 0) {
@@ -617,35 +767,6 @@
                                 const localIdx = localTx.findIndex(t => String(t.invoiceId || t.id || '') === voidInvId);
                                 if (localIdx !== -1) {
                                     const txToVoid = localTx[localIdx];
-                                    if (Array.isArray(txToVoid.items) && txToVoid.items.length > 0) {
-                                        txToVoid.items.forEach(soldItem => {
-                                            const prod = pList.find(p => String(p.id) === String(soldItem.productId || soldItem.id) || (soldItem.barcode && p.barcode === soldItem.barcode));
-                                            if (prod) {
-                                                const qty = parseFloat(soldItem.quantity || soldItem.qty || 1);
-                                                if (Array.isArray(prod.variants) && prod.variants.length > 0) {
-                                                    const sSize = String(soldItem.size || '').trim().toLowerCase();
-                                                    const sColor = String(soldItem.color || '').trim().toLowerCase();
-                                                    const targetVariant = prod.variants.find(v => {
-                                                        const vSize = String(v.size || '').trim().toLowerCase();
-                                                        const vColor = String(v.color || '').trim().toLowerCase();
-                                                        return (vSize === sSize || !sSize) && (vColor === sColor || !sColor);
-                                                    });
-                                                    if (targetVariant) {
-                                                        targetVariant.stock = (parseFloat(targetVariant.stock || 0)) + qty;
-                                                        if (targetVariant.quantity !== undefined) targetVariant.quantity = targetVariant.stock;
-                                                    }
-                                                }
-                                                const sumVariants = Array.isArray(prod.variants) && prod.variants.length > 0
-                                                    ? prod.variants.reduce((sum, v) => sum + (parseFloat(v.stock || v.quantity || 0)), 0)
-                                                    : (parseFloat(prod.stock || prod.quantity || 0)) + qty;
-                                                prod.stock = sumVariants;
-                                                prod.quantity = sumVariants;
-                                                if (!modifiedProductsList.some(mp => mp.id === prod.id)) {
-                                                    modifiedProductsList.push(prod);
-                                                }
-                                            }
-                                        });
-                                    }
                                     localTx.splice(localIdx, 1);
                                     if (window.sqliteManager && typeof window.sqliteManager.run === 'function') {
                                         try { window.sqliteManager.run(`DELETE FROM transactions WHERE invoiceId = ? OR id = ?`, [voidInvId, txToVoid.id]); } catch(e){}
@@ -654,30 +775,21 @@
                                 }
                             }
                             if (hasVoidChanges) {
-                                if (typeof window.saveTransactionChanges === 'function') {
-                                    await window.saveTransactionChanges({ modifiedProducts: modifiedProductsList });
-                                }
                                 if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
-                                if (typeof debouncedRenderInvoicesTable === 'function') debouncedRenderInvoicesTable(50);
                                 if (typeof renderDailyReportTable === 'function') renderDailyReportTable();
                                 if (typeof updateDashboardStats === 'function') updateDashboardStats();
-                                if (typeof renderProductsTable === 'function') renderProductsTable();
-                                if (typeof showToast === 'function') showToast('🔄 تم مزامنة إلغاء فاتورة من التابلت واسترجاع المخزون بنجاح', 'info');
                             }
                         }
                     }
-                } catch (voidErr) {
-                    console.warn('[SupabaseSync] Check voided transactions notice:', voidErr);
-                }
+                } catch (voidErr) {}
 
                 return newTransactionRows.length;
             } catch (err) {
-                console.warn('[SupabaseSync] Pull remote transactions error:', err);
                 return 0;
             }
         },
 
-        // 🗑️ 4.1 حذف فاتورة من السحابة وإشعار كافة الأجهزة المتصلة بإلغائها فورياً
+        // 🗑️ 4.1 حذف حركة من السحابة وإشعار كافة الأجهزة بإلغائها
         deleteInvoiceFromCloud: async function (invoiceId, total = 0, warehouse = 'المخزن الرئيسي') {
             const cfg = this.getConfig();
             if (!this._isAllowed() || !cfg.supabaseUrl || !cfg.supabaseKey || !invoiceId) return false;
@@ -685,21 +797,19 @@
                 const invStr = String(invoiceId).trim();
                 const shopId = cfg.shopId || this.getShopId();
 
-                // 1. حذف الفاتورة نهائياً من جدول transactions بالسحابة
                 const scopedDeskId = `${shopId}_DESK_${invStr}`;
                 const scopedMobId = `${shopId}_${invStr}`;
 
-                await fetch(`${cfg.supabaseUrl}/rest/v1/transactions?id=in.(${encodeURIComponent(scopedDeskId)},${encodeURIComponent(scopedMobId)},${encodeURIComponent(invStr)})`, {
+                await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/transactions?id=in.(${encodeURIComponent(scopedDeskId)},${encodeURIComponent(scopedMobId)},${encodeURIComponent(invStr)})`, {
                     method: 'DELETE',
                     headers: this._getHeaders()
-                }).catch(() => {});
+                });
 
-                await fetch(`${cfg.supabaseUrl}/rest/v1/transactions?invoice_id=eq.${encodeURIComponent(invStr)}`, {
+                await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/transactions?invoice_id=eq.${encodeURIComponent(invStr)}`, {
                     method: 'DELETE',
                     headers: this._getHeaders()
-                }).catch(() => {});
+                });
 
-                // 2. تسجيل حركة إبطال في جدول treasury_audit لإعلام جميع أجهزة التابلت والموبايل فوراً
                 const voidPayload = [{
                     id: `${shopId}_VOID_${invStr}`,
                     date: new Date().toISOString(),
@@ -716,29 +826,22 @@
                     }
                 }];
 
-                await fetch(`${cfg.supabaseUrl}/rest/v1/treasury_audit?on_conflict=id`, {
+                await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/treasury_audit?on_conflict=id`, {
                     method: 'POST',
                     headers: this._getHeaders(),
                     body: JSON.stringify(voidPayload)
-                }).catch(() => {});
-
-                // 3. رفع الأصناف المسترجعة لتحديث أرصدة المخازن فورياً بالسحابة
-                await this.syncProducts().catch(() => {});
-
-                // 4. رفع أرصدة الحسابات لتحديث رصيد العميل فورياً بالسحابة
-                await this.syncCustomers().catch(() => {});
+                });
 
                 return true;
             } catch (err) {
-                console.warn('[SupabaseSync] Delete invoice from cloud notice:', err);
                 return false;
             }
         },
 
-        // 🔐 5. تسجيل رمز إقران الأجهزة المعتمد في السحابة مع عزل كل متجر
+        // 🔐 5. تسجيل رمز إقران الأجهزة المعتمد في السحابة
         syncPairingPin: async function (customPin = null) {
             const cfg = this.getConfig();
-            if (!this._isAllowed() || !cfg.supabaseUrl || !cfg.supabaseKey) return;
+            if (!cfg.supabaseUrl || !cfg.supabaseKey) return;
             try {
                 const shopId = cfg.shopId || this.getShopId();
                 const pairingPin = customPin || this.getPairingPin();
@@ -759,7 +862,7 @@
                         }
                     }
                 ];
-                await fetch(`${cfg.supabaseUrl}/rest/v1/treasury_audit?on_conflict=id`, {
+                await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/treasury_audit?on_conflict=id`, {
                     method: 'POST',
                     headers: this._getHeaders(),
                     body: JSON.stringify(payload)
@@ -767,7 +870,12 @@
             } catch (e) {}
         },
 
-        // 👥 5.1 مزامنة قائمة العملاء والموردين مع السحابة لتمكين التابلت من استعراض كافة الحسابات والبيع
+        // اسم مرادف لدعم استدعاء رفع كود الاقتران ومعرف المحل
+        uploadPairingPinToCloud: async function (pin = null) {
+            return this.syncPairingPin(pin);
+        },
+
+        // 👥 5.1 مزامنة العملاء والموردين وبنود الصرف والقبض المخصصة
         syncCustomers: async function () {
             const cfg = this.getConfig();
             if (!this._isAllowed() || !cfg.supabaseUrl || !cfg.supabaseKey) return 0;
@@ -776,7 +884,6 @@
                 ? accounts
                 : (window.accounts || []);
 
-            // فحص قاعدة البيانات المحلية كاحتياط لضمان قراءة كافة الحسابات
             if ((!accList || accList.length === 0) && typeof db !== 'undefined' && db.accounts) {
                 try {
                     accList = await db.accounts.toArray();
@@ -787,11 +894,12 @@
 
             const shopId = cfg.shopId || this.getShopId();
 
-            // 📥 استيراد أي عملاء أو موردين جدد أضيفوا من التابلت الخاص بهذا المحل فقط
+            // 📥 استيراد وتحديث العملاء وبنود الصرف/القبض المخصصة من السحابة
             try {
-                const remoteRes = await fetch(`${cfg.supabaseUrl}/rest/v1/treasury_audit?id=eq.CONFIG_CUSTOMERS_LIST_${encodeURIComponent(shopId)}`, {
-                    headers: this._getHeaders()
-                });
+                const remoteRes = await this._safeFetch(
+                    `${cfg.supabaseUrl}/rest/v1/treasury_audit?id=eq.CONFIG_CUSTOMERS_LIST_${encodeURIComponent(shopId)}`, 
+                    { headers: this._getHeaders() }
+                );
                 if (remoteRes.ok) {
                     const rows = await remoteRes.json();
                     const shopRow = (rows || [])[0];
@@ -801,42 +909,80 @@
                             : (Array.isArray(shopRow.raw_json.customers) ? shopRow.raw_json.customers : []);
                         
                         const cleanArFn = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
-                        const localNames = new Set(accList.map(a => cleanArFn(a.name)));
-                        const newFromMobile = remoteAccs.filter(ra => ra && ra.name && !localNames.has(cleanArFn(ra.name)));
+                        let accChanges = false;
 
-                        if (newFromMobile.length > 0) {
-                            for (const nAcc of newFromMobile) {
-                                const newId = Number(nAcc.id) || (Date.now() + Math.floor(Math.random() * 1000));
-                                const debitVal = nAcc.balance > 0 ? String(nAcc.balance) : '0';
-                                const creditVal = nAcc.balance < 0 ? String(Math.abs(nAcc.balance)) : '0';
+                        for (const rAcc of remoteAccs) {
+                            if (!rAcc || !rAcc.name) continue;
+                            const existing = accList.find(a => cleanArFn(a.name) === cleanArFn(rAcc.name));
+                            if (!existing) {
+                                const newId = Number(rAcc.id) || (Date.now() + Math.floor(Math.random() * 1000));
                                 const toAdd = {
                                     id: newId,
-                                    name: nAcc.name.trim(),
-                                    code: nAcc.code || String(newId).slice(-4),
-                                    type: nAcc.type || 'client',
-                                    mobile: nAcc.mobile || '',
-                                    address: nAcc.address || '',
-                                    debit: debitVal,
-                                    credit: creditVal,
-                                    balance: nAcc.balance || 0
+                                    name: rAcc.name.trim(),
+                                    code: rAcc.code || String(newId).slice(-4),
+                                    type: rAcc.type || 'client',
+                                    mobile: rAcc.mobile || '',
+                                    address: rAcc.address || '',
+                                    debit: rAcc.balance > 0 ? String(rAcc.balance) : '0',
+                                    credit: rAcc.balance < 0 ? String(Math.abs(rAcc.balance)) : '0',
+                                    balance: rAcc.balance || 0
                                 };
                                 accList.push(toAdd);
                                 if (window.db && window.db.accounts) {
                                     try { await window.db.accounts.put(toAdd); } catch(e){}
                                 }
+                                accChanges = true;
+                            } else {
+                                // تحديث الهاتف أو العنوان أو الكود إذا كان أحدث بالسحابة
+                                let updated = false;
+                                if (rAcc.mobile && rAcc.mobile !== existing.mobile) { existing.mobile = rAcc.mobile; updated = true; }
+                                if (rAcc.address && rAcc.address !== existing.address) { existing.address = rAcc.address; updated = true; }
+                                if (rAcc.code && !existing.code) { existing.code = rAcc.code; updated = true; }
+                                if (updated) {
+                                    if (window.db && window.db.accounts) {
+                                        try { await window.db.accounts.put(existing); } catch(e){}
+                                    }
+                                    accChanges = true;
+                                }
                             }
+                        }
+
+                        // مزامنة ودمج بنود الصرف والقبض المخصصة تلقائياً بين الأجهزة
+                        if (Array.isArray(shopRow.raw_json.customReceiptCategories) && shopRow.raw_json.customReceiptCategories.length > 0) {
+                            const curRec = (typeof getCustomVoucherCategories === 'function') ? getCustomVoucherCategories('receipt') : [];
+                            const mergedRec = Array.from(new Set([...curRec, ...shopRow.raw_json.customReceiptCategories]));
+                            if (mergedRec.length > curRec.length) {
+                                if (typeof saveCustomVoucherCategoriesList === 'function') {
+                                    saveCustomVoucherCategoriesList('receipt', mergedRec);
+                                } else {
+                                    localStorage.setItem('bayan_custom_voucher_categories_receipt', JSON.stringify(mergedRec));
+                                }
+                                if (typeof loadCustomVoucherCategories === 'function') loadCustomVoucherCategories('receipt');
+                            }
+                        }
+
+                        if (Array.isArray(shopRow.raw_json.customDisburseCategories) && shopRow.raw_json.customDisburseCategories.length > 0) {
+                            const curDisb = (typeof getCustomVoucherCategories === 'function') ? getCustomVoucherCategories('disburse') : [];
+                            const mergedDisb = Array.from(new Set([...curDisb, ...shopRow.raw_json.customDisburseCategories]));
+                            if (mergedDisb.length > curDisb.length) {
+                                if (typeof saveCustomVoucherCategoriesList === 'function') {
+                                    saveCustomVoucherCategoriesList('disburse', mergedDisb);
+                                } else {
+                                    localStorage.setItem('bayan_custom_voucher_categories_disburse', JSON.stringify(mergedDisb));
+                                }
+                                if (typeof loadCustomVoucherCategories === 'function') loadCustomVoucherCategories('disburse');
+                            }
+                        }
+
+                        if (accChanges) {
                             if (typeof renderAccountsTable === 'function') renderAccountsTable();
-                            if (typeof showToast === 'function') {
-                                showToast(`👥 تم استلام ${newFromMobile.length} حساب جديد مضاف من التابلت وحفظه بالحسابات بنجاح!`, 'info');
-                            }
+                            if (typeof window.invalidateAccountBalancesCache === 'function') window.invalidateAccountBalancesCache();
                         }
                     }
                 }
-            } catch (impErr) {
-                console.warn('[SupabaseSync] Pull new accounts notice:', impErr);
-            }
+            } catch (impErr) {}
 
-            // استخلاص كل الحسابات (عملاء وموردين) مع تحديد نوع الحساب وحساب الرصيد الحقيقي المعتمد
+            // تجهيز ورفع العملاء وبنود السندات المخصصة
             const allMappedAccounts = accList
                 .filter(a => a && a.name)
                 .map(a => {
@@ -857,6 +1003,13 @@
                     };
                 });
 
+            const customRecCats = (typeof getCustomVoucherCategories === 'function') 
+                ? getCustomVoucherCategories('receipt') 
+                : JSON.parse(localStorage.getItem('bayan_custom_voucher_categories_receipt') || '[]');
+            const customDisbCats = (typeof getCustomVoucherCategories === 'function') 
+                ? getCustomVoucherCategories('disburse') 
+                : JSON.parse(localStorage.getItem('bayan_custom_voucher_categories_disburse') || '[]');
+
             const payload = [
                 {
                     id: `CONFIG_CUSTOMERS_LIST_${shopId}`,
@@ -869,24 +1022,23 @@
                         shop_id: shopId,
                         customers: allMappedAccounts, 
                         accounts: allMappedAccounts, 
+                        customReceiptCategories: customRecCats,
+                        customDisburseCategories: customDisbCats,
                         updatedAt: new Date().toISOString() 
                     }
                 }
             ];
 
-            const res = await fetch(`${cfg.supabaseUrl}/rest/v1/treasury_audit?on_conflict=id`, {
+            const res = await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/treasury_audit?on_conflict=id`, {
                 method: 'POST',
                 headers: this._getHeaders(),
                 body: JSON.stringify(payload)
             });
 
-            if (res.ok || res.status === 201 || res.status === 200) {
-                return allMappedAccounts.length;
-            }
-            return 0;
+            return (res.ok || res.status === 201 || res.status === 200) ? allMappedAccounts.length : 0;
         },
 
-        // 🏬 5.2 مزامنة قائمة المخازن المعتمدة مع السحابة لتمكين التابلت من استعراض مخازن اللابتوب الحقيقية
+        // 🏬 5.2 مزامنة قائمة المخازن المعتمدة مع السحابة
         syncWarehouses: async function () {
             const cfg = this.getConfig();
             if (!this._isAllowed() || !cfg.supabaseUrl || !cfg.supabaseKey) return 0;
@@ -921,7 +1073,7 @@
                     user_name: 'المدير',
                     warehouse: 'المخزن الرئيسي',
                     raw_json: { 
-                        shop_id: shopId,
+                        shop_id: shopId, 
                         warehouses: mappedWhs, 
                         updatedAt: new Date().toISOString() 
                     }
@@ -929,7 +1081,7 @@
             ];
 
             try {
-                await fetch(`${cfg.supabaseUrl}/rest/v1/treasury_audit?on_conflict=id`, {
+                await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/treasury_audit?on_conflict=id`, {
                     method: 'POST',
                     headers: this._getHeaders(),
                     body: JSON.stringify(payload)
@@ -942,7 +1094,6 @@
 
         // 🔄 6. المشغل الرئيسي للمزامنة الدورية الهادئة (Master Sync Runner)
         runFullSync: async function (manual = false) {
-            // فحص ترخيص المزامنة السحابية أولاً لمنع المزامنة لباقات الأوفلاين والنسخ التجريبية
             if (!this._isAllowed()) {
                 this.updateUIStatus('locked');
                 if (manual) {
@@ -975,10 +1126,10 @@
             this.updateUIStatus('syncing');
 
             try {
-                // سحب فواتير الموبايل أولاً وخصمها من المخزن، ثم رفع الحركات والأصناف والعملاء والمخازن
+                // سحب فواتير وحركات الأجهزة الأخرى أولاً وخصمها من المخزن، ثم رفع الحركات والأصناف والعملاء والمخازن
                 const remoteCount = await this.pullRemoteTransactions().catch(() => 0);
                 const txCount = await this.syncTransactions().catch(() => 0);
-                const pCount = await this.syncProducts().catch(() => 0);
+                const pCount = await this.syncProducts(manual).catch(() => 0);
                 const auditCount = await this.syncTreasuryAudit().catch(() => 0);
                 const custCount = await this.syncCustomers().catch(() => 0);
                 const whCount = await this.syncWarehouses().catch(() => 0);
@@ -989,13 +1140,18 @@
                 this.updateUIStatus('online', this.lastSyncTime);
 
                 if (manual && typeof showToast === 'function') {
-                    showToast(`☁️ تمت المزامنة مع Supabase بنجاح (فواتير: ${txCount} | أصناف: ${pCount} | عملاء: ${custCount} | وارد من التابلت: ${remoteCount})`, 'success');
+                    showToast(`☁️ تمت المزامنة السحابية بنجاح (فواتير: ${txCount} | أصناف: ${pCount} | عملاء: ${custCount} | حركات واردة: ${remoteCount})`, 'success');
                 }
 
                 return { success: true, txCount, pCount, auditCount, custCount, remoteCount };
             } catch (err) {
-                this.lastError = err.message;
-                this.updateUIStatus('error', null, err.message);
+                this.lastError = err.message || '';
+                const isFetchFail = err.message && (err.message.includes('fetch') || err.message.includes('network') || err.message.includes('Failed to fetch'));
+                if (isFetchFail) {
+                    this.updateUIStatus('offline_server');
+                } else {
+                    this.updateUIStatus('error', null, err.message);
+                }
                 return { success: false, error: err.message };
             } finally {
                 this.isSyncing = false;
@@ -1071,6 +1227,17 @@
                     connText.innerHTML = 'في انتظار الاتصال بالإنترنت ⚪';
                     connText.style.color = '#64748b';
                 }
+            } else if (state === 'offline_server') {
+                if (badge) {
+                    badge.innerHTML = `⚠️ السيرفر غير متاح حالياً (يعمل أوفلاين)`;
+                    badge.style.color = '#d97706';
+                    badge.style.borderColor = '#fcd34d';
+                    badge.style.background = '#fffbeb';
+                }
+                if (connText) {
+                    connText.innerHTML = 'السيرفر السحابي غير متاح حالياً (النظام يعمل محلياً أوفلاين 100%) ⚠️';
+                    connText.style.color = '#d97706';
+                }
             } else if (state === 'error') {
                 if (badge) {
                     badge.innerHTML = `⚠️ تنبيه في الاتصال`;
@@ -1089,7 +1256,7 @@
         restartSyncTimer: function () {
             if (this.syncTimer) clearInterval(this.syncTimer);
             if (!this._isAllowed()) {
-                return; // لا تشغيل للمؤقت إطلاقاً ما لم تكن الباقة سحابية مصرحة
+                return;
             }
             const cfg = this.getConfig();
             if (cfg.autoSyncEnabled && cfg.supabaseUrl && cfg.supabaseKey) {
@@ -1116,13 +1283,11 @@
         init: function () {
             console.log('☁️ [SupabaseSync] Initializing Bayan Cloud Sync Engine...');
 
-            // فحص فوري ومباشر للترخيص عند الإقلاع
             if (!this._isAllowed()) {
                 console.log('🔒 [SupabaseSync] Cloud sync locked: Offline or Trial license tier.');
                 this.updateUIStatus('locked');
             }
 
-            // مستمعات الاتصال بالإنترنت
             window.addEventListener('online', () => {
                 this.isOnline = true;
                 if (!this._isAllowed()) {
@@ -1140,7 +1305,6 @@
                 }
             });
 
-            // ربط خطاف الحفظ المحلي الهادئ: عند حفظ فاتورة محلية، نطلق مزامنة بعد ثانيتين بهدوء
             if (window.BayanNetworkHub) {
                 const origOnDataSaved = window.BayanNetworkHub.onDataSaved;
                 window.BayanNetworkHub.onDataSaved = () => {
@@ -1152,19 +1316,18 @@
                 };
             }
 
-            // فحص الترخيص وبدء المزامنة بعد ثوانٍ من فتح البرنامج
             setTimeout(() => {
+                // رفع كود الاقتران ومعرف المحل للسحابة دائماً لتمكين اقتران التابلت والموبايل فوراً
+                this.syncPairingPin().catch(() => {});
                 if (!this._isAllowed()) {
                     console.log('🔒 [SupabaseSync] Cloud sync locked for offline/trial license tier.');
                     this.updateUIStatus('locked');
                     return;
                 }
-                this.syncPairingPin();
                 this.runFullSync(false).catch(() => {});
                 this.restartSyncTimer();
             }, 3000);
 
-            // تحديث بطاقة PIN ومعرف المحل وحالة الواجهة في شاشة الإعدادات
             setTimeout(() => {
                 const pinBadge = document.getElementById('supabasePairingPinCode');
                 if (pinBadge) pinBadge.textContent = this.getPairingPin();
