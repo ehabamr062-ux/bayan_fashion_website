@@ -17,7 +17,7 @@
         supabaseUrl: 'https://kxhhdskmpaiitsojwcgu.supabase.co',
         supabaseKey: 'sb_publishable_-4w34DQF7f2nsijk_xCuhg_NKWSHFoc',
         autoSyncEnabled: true,
-        syncIntervalSeconds: 180
+        syncIntervalSeconds: 15
     };
 
     const BayanSupabaseSync = {
@@ -296,28 +296,68 @@
                 targetTx = allTx.slice(-500);
             }
 
-            const toSend = targetTx.map(t => {
+            // تجميع أسطر الفاتورة الواحدة في كائن موحد يضم مصفوفة items لمنع استبدال الأصناف في السحابة
+            const groupedMap = new Map();
+            targetTx.forEach(t => {
+                if (!t) return;
                 const localInvId = String(t.invoiceId || t.id || Math.random().toString(36).substring(2, 9));
-                return {
+                if (!groupedMap.has(localInvId)) {
+                    const invoiceRows = allTx.filter(row => row && String(row.invoiceId || row.id) === localInvId);
+                    groupedMap.set(localInvId, invoiceRows.length > 0 ? invoiceRows : [t]);
+                }
+            });
+
+            const toSend = [];
+            groupedMap.forEach((rows, localInvId) => {
+                const headRow = rows.find(r => r.isInvoiceHead) || rows[0];
+                const isVoucher = (headRow.type || '').includes('قبض') || (headRow.type || '').includes('صرف');
+
+                const itemsList = rows.map(r => ({
+                    productId: r.productId || r.id || '',
+                    id: r.productId || r.id || '',
+                    name: r.product || r.name || (isVoucher ? headRow.type : 'صنف'),
+                    product: r.product || r.name || (isVoucher ? headRow.type : 'صنف'),
+                    quantity: parseFloat(r.qty !== undefined ? r.qty : (r.quantity || 1)),
+                    qty: parseFloat(r.qty !== undefined ? r.qty : (r.quantity || 1)),
+                    price: parseFloat(r.price || 0),
+                    total: parseFloat(r.total || 0),
+                    cost: parseFloat(r.cost || 0),
+                    profit: parseFloat(r.profit || 0),
+                    unit: r.unit || 'قطعة',
+                    size: r.size || r.selectedSize || '',
+                    color: r.color || r.selectedColor || '',
+                    barcode: r.barcode || '',
+                    notes: r.notes || ''
+                }));
+
+                const calcTotal = rows.reduce((sum, r) => sum + (parseFloat(r.total) || 0), 0);
+                const grandTotal = (headRow.invoiceGrandTotal !== undefined && headRow.invoiceGrandTotal !== 0)
+                    ? parseFloat(headRow.invoiceGrandTotal)
+                    : (parseFloat(headRow.total) || calcTotal);
+
+                toSend.push({
                     id: `${shopId}_DESK_${localInvId}`,
                     invoice_id: localInvId,
-                    date_iso: t.dateISO || t.date || new Date().toISOString(),
-                    time: t.time || '',
-                    type: t.type || 'مبيعات',
-                    partner: t.partner || 'عميل نقدي',
-                    total: parseFloat(t.total) || 0,
-                    paid_amount: parseFloat(t.paidAmount) || 0,
-                    remaining: parseFloat(t.remaining) || 0,
-                    method: t.method || 'كاش',
-                    cashier: t.cashier || t.user || 'المدير',
-                    warehouse: t.warehouse || 'المخزن الرئيسي',
+                    date_iso: headRow.dateISO || headRow.date || new Date().toISOString(),
+                    time: headRow.time || headRow.timeISO || '',
+                    type: headRow.type || 'مبيعات',
+                    partner: headRow.partner || 'عميل نقدي',
+                    total: grandTotal,
+                    paid_amount: parseFloat(headRow.paidAmount !== undefined ? headRow.paidAmount : (headRow.isInvoiceHead ? grandTotal : 0)) || 0,
+                    remaining: parseFloat(headRow.remaining !== undefined ? headRow.remaining : 0) || 0,
+                    method: headRow.method || 'كاش',
+                    cashier: headRow.cashier || headRow.user || 'المدير',
+                    warehouse: headRow.warehouse || 'المخزن الرئيسي',
                     raw_json: { 
-                        ...t, 
+                        ...headRow,
+                        items: itemsList,
                         shop_id: shopId, 
                         invoiceId: localInvId,
-                        voucherCategory: t.voucherCategory || t.category || null
+                        total: grandTotal,
+                        invoiceGrandTotal: grandTotal,
+                        voucherCategory: headRow.voucherCategory || headRow.category || null
                     }
-                };
+                });
             });
 
             if (toSend.length === 0) return 0;
@@ -686,8 +726,10 @@
                                 const prod = pList.find(p => String(p.id) === String(soldItem.productId || soldItem.id) || (soldItem.barcode && p.barcode === soldItem.barcode));
                                 if (prod) {
                                     const qty = parseFloat(soldItem.quantity || soldItem.qty || 1);
+                                    const isAdjustment = actualType.includes('تسوية') || actualType.includes('جرد');
                                     const isAddition = actualType.includes('شراء') || actualType.includes('مرتجع بيع');
-                                    const factor = isAddition ? 1 : -1;
+                                    // في التسويات المخزنية تكون الكمية مسجلة بالفعل بالفارق (+ للزيادة، - للعجز)
+                                    const factor = isAdjustment ? 1 : (isAddition ? 1 : -1);
                                     const sSize = String(soldItem.size || '').trim().toLowerCase();
                                     const sColor = String(soldItem.color || '').trim().toLowerCase();
                                     const activeWH = item.warehouse || 'المخزن الرئيسي';
@@ -1260,7 +1302,8 @@
             }
             const cfg = this.getConfig();
             if (cfg.autoSyncEnabled && cfg.supabaseUrl && cfg.supabaseKey) {
-                const intervalMs = Math.max(120, cfg.syncIntervalSeconds || 180) * 1000;
+                // دورة سحب ومزامنة سريعة ومثالية (15 ثانية افتراضياً لتطابق سرعة الموبايل)
+                const intervalMs = Math.max(10, cfg.syncIntervalSeconds || 15) * 1000;
                 this.syncTimer = setInterval(() => {
                     this.runFullSync(false).catch(() => {});
                 }, intervalMs);
@@ -1312,7 +1355,17 @@
                     if (!this._isAllowed()) {
                         return;
                     }
-                    setTimeout(() => this.runFullSync(false).catch(() => {}), 2000);
+                    setTimeout(() => this.runFullSync(false).catch(() => {}), 1500);
+                };
+
+                const origOnDeltaSaved = window.BayanNetworkHub.onDeltaSaved;
+                window.BayanNetworkHub.onDeltaSaved = (deltaData) => {
+                    if (typeof origOnDeltaSaved === 'function') origOnDeltaSaved(deltaData);
+                    if (!this._isAllowed()) {
+                        return;
+                    }
+                    // ⚡ رفع فوري ولحظي في الخلفية لأي فاتورة أو حركة أو حساب يتم حفظه على اللابتوب
+                    setTimeout(() => this.runFullSync(false).catch(() => {}), 800);
                 };
             }
 

@@ -801,7 +801,7 @@
             try {
                 this.db.run(`
                     CREATE TABLE IF NOT EXISTS transactions (
-                        id INTEGER PRIMARY KEY,
+                        id TEXT PRIMARY KEY,
                         invoiceId TEXT,
                         originalInvoiceId TEXT,
                         dateISO TEXT,
@@ -830,9 +830,72 @@
                 console.warn("[SQLite] transactions table schema notice:", txErr.message);
             }
 
+            // 🛡️ فحص وترقية جدول transactions ليكون id TEXT PRIMARY KEY في قواعد البيانات القائمة
+            try {
+                const infoTx = this.db.exec("PRAGMA table_info(transactions);");
+                if (infoTx && infoTx[0] && infoTx[0].values) {
+                    const idCol = infoTx[0].values.find(v => v[1] === 'id');
+                    if (idCol && String(idCol[2]).toUpperCase().includes('INT')) {
+                        console.log("[SQLite Migration] Migrating transactions table id from INTEGER to TEXT PRIMARY KEY...");
+                        this.db.run(`
+                            CREATE TABLE IF NOT EXISTS transactions_mig (
+                                id TEXT PRIMARY KEY,
+                                invoiceId TEXT,
+                                originalInvoiceId TEXT,
+                                dateISO TEXT,
+                                time TEXT,
+                                type TEXT,
+                                partner TEXT,
+                                total REAL DEFAULT 0,
+                                paidAmount REAL DEFAULT 0,
+                                remaining REAL DEFAULT 0,
+                                method TEXT,
+                                cashier TEXT,
+                                warehouse TEXT,
+                                raw_json TEXT
+                            );
+                            INSERT OR REPLACE INTO transactions_mig SELECT CAST(id AS TEXT), invoiceId, originalInvoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, raw_json FROM transactions;
+                            DROP TABLE transactions;
+                            ALTER TABLE transactions_mig RENAME TO transactions;
+                            CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(dateISO);
+                            CREATE INDEX IF NOT EXISTS idx_tx_partner ON transactions(partner);
+                            CREATE INDEX IF NOT EXISTS idx_tx_invoiceId ON transactions(invoiceId);
+                            CREATE INDEX IF NOT EXISTS idx_tx_type ON transactions(type);
+                            CREATE INDEX IF NOT EXISTS idx_tx_date_type ON transactions(dateISO, type);
+                            CREATE INDEX IF NOT EXISTS idx_tx_date_method ON transactions(dateISO, method);
+                            CREATE INDEX IF NOT EXISTS idx_tx_date_wh ON transactions(dateISO, warehouse);
+                            CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);
+                            CREATE INDEX IF NOT EXISTS idx_tx_date_type_wh ON transactions(dateISO, type, warehouse);
+                        `);
+                    }
+                }
+            } catch(migErr) {
+                console.warn("[SQLite] transactions id migration notice:", migErr.message);
+            }
+
             // 🛡️ ترقية الأعمدة والفهارس المضافة لقواعد البيانات المفتوحة مسبقاً لمنع أي خطأ
             try {
                 this.db.run("ALTER TABLE transactions ADD COLUMN originalInvoiceId TEXT;");
+            } catch(e) {}
+            try {
+                this.db.run("ALTER TABLE transactions ADD COLUMN status TEXT;");
+            } catch(e) {}
+            try {
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_status ON transactions(status);");
+            } catch(e) {}
+            try {
+                this.db.run("ALTER TABLE accounts ADD COLUMN debit REAL DEFAULT 0;");
+            } catch(e) {}
+            try {
+                this.db.run("ALTER TABLE accounts ADD COLUMN credit REAL DEFAULT 0;");
+            } catch(e) {}
+            try {
+                this.db.run(`
+                    UPDATE accounts 
+                    SET debit = COALESCE(CAST(json_extract(raw_json, '$.debit') AS REAL), 0),
+                        credit = COALESCE(CAST(json_extract(raw_json, '$.credit') AS REAL), 0)
+                    WHERE (debit IS NULL OR debit = 0) AND (credit IS NULL OR credit = 0) AND raw_json IS NOT NULL;
+                `);
             } catch(e) {}
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_origInvId ON transactions(originalInvoiceId);");
@@ -851,7 +914,7 @@
             this.db.run(`
                 CREATE TABLE IF NOT EXISTS transaction_items (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    tx_id INTEGER,
+                    tx_id TEXT,
                     invoiceId TEXT,
                     dateISO TEXT,
                     time TEXT,
@@ -1121,16 +1184,14 @@
             let insStmt = optCachedStmts ? optCachedStmts.insTiStmt : null;
             const shouldFree = !optCachedStmts;
             try {
-                const sInvoiceId = String(item.invoiceId || '');
-                const sProd = String(item.product || item.productName || item.name || '');
-                const sSize = String(item.size || item.selectedSize || '');
-                const sColor = String(item.color || item.selectedColor || '');
+                const sTxId = String(item.id);
+                const sInvoiceId = String(item.invoiceId || item.id || '');
 
                 // حذف البنود القديمة لنفس السجل لتجنب الازدواجية عند التعديل
                 if (!delStmt) {
                     delStmt = this.db.prepare("DELETE FROM transaction_items WHERE tx_id = ?;");
                 }
-                delStmt.run([item.id]);
+                delStmt.run([sTxId]);
 
                 if (!insStmt) {
                     insStmt = this.db.prepare(`
@@ -1140,12 +1201,11 @@
                 `);
                 }
 
-                const dateISO = item.dateISO || '';
-                const time = item.time || '';
-                const type = item.type || '';
-                const partner = item.partner || '';
-                const invoiceId = String(item.invoiceId || '');
-                const warehouse = item.warehouse || '';
+                const dateISO = String(item.dateISO || item.date || '');
+                const time = String(item.time || '');
+                const type = String(item.type || 'sale');
+                const partner = String(item.partner || item.customer || item.client || '');
+                const warehouse = String(item.warehouse || '');
 
                 // قائمة الحقول المخزنة كأعمدة لتجريدها من raw_json
                 const itemColKeys = [
@@ -1163,19 +1223,24 @@
                         const pName = String(line.product || line.productName || line.name || '');
                         const size = String(line.size || line.selectedSize || '');
                         const color = String(line.color || line.selectedColor || '');
-                        const qty = parseFloat(line.qty != null ? line.qty : (line.quantity || 0)) || 0;
-                        const price = parseFloat(line.price != null ? line.price : 0) || 0;
-                        const cost = parseFloat(line.cost != null ? line.cost : (line.costPrice || 0)) || 0;
-                        const discount = parseFloat(line.discount != null ? line.discount : (line.itemDiscount || 0)) || 0;
-                        const addition = parseFloat(line.addition != null ? line.addition : (line.extra || 0)) || 0;
-                        const total = parseFloat(line.total != null ? line.total : (qty * price - discount + addition)) || 0;
-                        const profit = parseFloat(line.profit != null ? line.profit : ((price - cost) * qty)) || 0;
+                        const qty = Number(line.qty != null ? line.qty : (line.quantity || 0)) || 0;
+                        const price = Number(line.price != null ? line.price : 0) || 0;
+                        const cost = Number(line.cost != null ? line.cost : (line.costPrice || 0)) || 0;
+                        const discount = Number(line.discount != null ? line.discount : (line.itemDiscount || 0)) || 0;
+                        const addition = Number(line.addition != null ? line.addition : (line.extra || 0)) || 0;
+                        const total = Number(line.total != null ? line.total : (qty * price - discount + addition)) || 0;
+                        const profit = Number(line.profit != null ? line.profit : ((price - cost) * qty)) || 0;
 
                         // تجريد الحقول المكررة من raw_json وتخزين الإضافات فقط أو null
-                        const lineRawJson = this._extractExtraFields(line, itemColKeys);
+                        let lineRawJson = this._extractExtraFields(line, itemColKeys);
+                        if (typeof lineRawJson === 'object' && lineRawJson !== null) {
+                            try { lineRawJson = JSON.stringify(lineRawJson); } catch(e) { lineRawJson = '{}'; }
+                        } else if (typeof lineRawJson !== 'string') {
+                            lineRawJson = String(lineRawJson || '{}');
+                        }
 
                         insStmt.run(this._safeBind([
-                            item.id, invoiceId, dateISO, time, type, partner,
+                            sTxId, sInvoiceId, dateISO, time, type, partner,
                             barcode, pName, size, color, qty, price, cost,
                             discount, addition, total, profit, warehouse,
                             lineRawJson
@@ -1188,18 +1253,23 @@
                     const pName = String(item.product || item.productName || item.name || '');
                     const size = String(item.size || item.selectedSize || '');
                     const color = String(item.color || item.selectedColor || '');
-                    const qty = parseFloat(item.qty != null ? item.qty : (item.quantity || 0)) || 0;
-                    const price = parseFloat(item.price != null ? item.price : 0) || 0;
-                    const cost = parseFloat(item.cost != null ? item.cost : (item.costPrice || 0)) || 0;
-                    const discount = parseFloat(item.discount != null ? item.discount : 0) || 0;
-                    const addition = parseFloat(item.addition != null ? item.addition : 0) || 0;
-                    const total = parseFloat(item.total != null ? item.total : (qty * price - discount + addition)) || 0;
-                    const profit = parseFloat(item.profit != null ? item.profit : ((price - cost) * qty)) || 0;
+                    const qty = Number(item.qty != null ? item.qty : (item.quantity || 0)) || 0;
+                    const price = Number(item.price != null ? item.price : 0) || 0;
+                    const cost = Number(item.cost != null ? item.cost : (item.costPrice || 0)) || 0;
+                    const discount = Number(item.discount != null ? item.discount : 0) || 0;
+                    const addition = Number(item.addition != null ? item.addition : 0) || 0;
+                    const total = Number(item.total != null ? item.total : (qty * price - discount + addition)) || 0;
+                    const profit = Number(item.profit != null ? item.profit : ((price - cost) * qty)) || 0;
 
-                    const singleRawJson = this._extractExtraFields(item, itemColKeys);
+                    let singleRawJson = this._extractExtraFields(item, itemColKeys);
+                    if (typeof singleRawJson === 'object' && singleRawJson !== null) {
+                        try { singleRawJson = JSON.stringify(singleRawJson); } catch(e) { singleRawJson = '{}'; }
+                    } else if (typeof singleRawJson !== 'string') {
+                        singleRawJson = String(singleRawJson || '{}');
+                    }
 
                     insStmt.run(this._safeBind([
-                        item.id, invoiceId, dateISO, time, type, partner,
+                        sTxId, sInvoiceId, dateISO, time, type, partner,
                         barcode, pName, size, color, qty, price, cost,
                         discount, addition, total, profit, warehouse,
                         singleRawJson
@@ -1423,37 +1493,45 @@
                 } else if (tableName === 'transactions') {
                     // 🔒 تغليف إدخال رأس الفاتورة وبنودها داخل Transaction ذرية موحدة لمنع الفواتير اليتيمة
                     this.runInTransaction(() => {
-                        // تجريد أعمدة الفاتورة الأساسية مع الاحتفاظ بالمصفوفات مثل items والخصومات والإضافات وإجمالي الفاتورة
-                        const rawJson = this._extractExtraFields(item, ['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'user', 'warehouse']);
+                        const cleanId = String(item.id != null && item.id !== '' ? item.id : (item.invoiceId || ('TX_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6))));
+                        item.id = cleanId;
+                        const cleanInvoiceId = String(item.invoiceId != null && item.invoiceId !== '' ? item.invoiceId : cleanId);
+                        const cleanOrigInvId = (item.originalInvoiceId != null && item.originalInvoiceId !== '') ? String(item.originalInvoiceId) : null;
+                        const cleanDateISO = String(item.dateISO || item.date || new Date().toISOString());
+                        const cleanTime = String(item.time || '');
+                        const cleanType = String(item.type || 'sale');
+                        const cleanPartner = String(item.partner || item.customer || item.client || '');
+                        const cleanTotal = Number(item.total != null && !isNaN(item.total) ? item.total : (item.finalTotal || item.grandTotal || 0)) || 0;
+                        const cleanPaid = Number(item.paidAmount != null && !isNaN(item.paidAmount) ? item.paidAmount : (item.paid != null ? item.paid : 0)) || 0;
+                        const cleanRemaining = Number(item.remaining != null && !isNaN(item.remaining) ? item.remaining : 0) || 0;
+                        const cleanMethod = String(item.method || item.paymentMethod || '');
+                        const cleanCashier = String(item.cashier || item.user || '');
+                        const cleanWarehouse = String(item.warehouse || '');
+
+                        let rawJson = this._extractExtraFields(item, ['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'user', 'warehouse']);
+                        if (typeof rawJson === 'object' && rawJson !== null) {
+                            try { rawJson = JSON.stringify(rawJson); } catch (e) { rawJson = '{}'; }
+                        } else if (typeof rawJson !== 'string') {
+                            rawJson = String(rawJson || '{}');
+                        }
+
                         const stmt = this.db.prepare(`INSERT OR REPLACE INTO transactions (id, invoiceId, originalInvoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
-                        const runRes = stmt.run(this._safeBind([
-                            item.id,
-                            String(item.invoiceId || ''),
-                            item.originalInvoiceId != null && item.originalInvoiceId !== '' ? String(item.originalInvoiceId) : null,
-                            item.dateISO || '',
-                            item.time || '',
-                            item.type || '',
-                            item.partner || '',
-                            parseFloat(item.total) != null && !isNaN(parseFloat(item.total)) ? parseFloat(item.total) : 0,
-                            parseFloat(item.paidAmount) || 0,
-                            parseFloat(item.remaining) || 0,
-                            item.method || '',
-                            item.cashier || item.user || '',
-                            item.warehouse || '',
+                        stmt.run(this._safeBind([
+                            cleanId,
+                            cleanInvoiceId,
+                            cleanOrigInvId,
+                            cleanDateISO,
+                            cleanTime,
+                            cleanType,
+                            cleanPartner,
+                            cleanTotal,
+                            cleanPaid,
+                            cleanRemaining,
+                            cleanMethod,
+                            cleanCashier,
+                            cleanWarehouse,
                             rawJson
                         ]));
-                        if (!item.id) {
-                            if (runRes && runRes.lastInsertRowid) {
-                                item.id = Number(runRes.lastInsertRowid);
-                            } else {
-                                try {
-                                    const lastRow = this.db.exec("SELECT last_insert_rowid() AS id;");
-                                    if (lastRow && lastRow[0] && lastRow[0].values && lastRow[0].values[0]) {
-                                        item.id = Number(lastRow[0].values[0][0]);
-                                    }
-                                } catch(e) {}
-                            }
-                        }
                         stmt.free();
                         this._syncTransactionItems(item);
                     });
@@ -1581,53 +1659,103 @@
                             const cachedStmts = { delTiStmt, insTiStmt };
                             for (const item of items) {
                                 if (!item) continue;
-                                const rawJson = this._extractExtraFields(item, ['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'user', 'warehouse']);
-                                const runRes = mainStmt.run(this._safeBind([
-                                    item.id,
-                                    String(item.invoiceId || ''),
-                                    item.originalInvoiceId != null && item.originalInvoiceId !== '' ? String(item.originalInvoiceId) : null,
-                                    item.dateISO || '',
-                                    item.time || '',
-                                    item.type || '',
-                                    item.partner || '',
-                                    parseFloat(item.total) != null && !isNaN(parseFloat(item.total)) ? parseFloat(item.total) : 0,
-                                    parseFloat(item.paidAmount) || 0,
-                                    parseFloat(item.remaining) || 0,
-                                    item.method || '',
-                                    item.cashier || item.user || '',
-                                    item.warehouse || '',
+                                const cleanId = String(item.id != null && item.id !== '' ? item.id : (item.invoiceId || ('TX_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6))));
+                                item.id = cleanId;
+                                const cleanInvoiceId = String(item.invoiceId != null && item.invoiceId !== '' ? item.invoiceId : cleanId);
+                                const cleanOrigInvId = (item.originalInvoiceId != null && item.originalInvoiceId !== '') ? String(item.originalInvoiceId) : null;
+                                const cleanDateISO = String(item.dateISO || item.date || new Date().toISOString());
+                                const cleanTime = String(item.time || '');
+                                const cleanType = String(item.type || 'sale');
+                                const cleanPartner = String(item.partner || item.customer || item.client || '');
+                                const cleanTotal = Number(item.total != null && !isNaN(item.total) ? item.total : (item.finalTotal || item.grandTotal || 0)) || 0;
+                                const cleanPaid = Number(item.paidAmount != null && !isNaN(item.paidAmount) ? item.paidAmount : (item.paid != null ? item.paid : 0)) || 0;
+                                const cleanRemaining = Number(item.remaining != null && !isNaN(item.remaining) ? item.remaining : 0) || 0;
+                                const cleanMethod = String(item.method || item.paymentMethod || '');
+                                const cleanCashier = String(item.cashier || item.user || '');
+                                const cleanWarehouse = String(item.warehouse || '');
+
+                                let rawJson = this._extractExtraFields(item, ['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'user', 'warehouse']);
+                                if (typeof rawJson === 'object' && rawJson !== null) {
+                                    try { rawJson = JSON.stringify(rawJson); } catch (e) { rawJson = '{}'; }
+                                } else if (typeof rawJson !== 'string') {
+                                    rawJson = String(rawJson || '{}');
+                                }
+
+                                mainStmt.run(this._safeBind([
+                                    cleanId,
+                                    cleanInvoiceId,
+                                    cleanOrigInvId,
+                                    cleanDateISO,
+                                    cleanTime,
+                                    cleanType,
+                                    cleanPartner,
+                                    cleanTotal,
+                                    cleanPaid,
+                                    cleanRemaining,
+                                    cleanMethod,
+                                    cleanCashier,
+                                    cleanWarehouse,
                                     rawJson
                                 ]));
-                                if (!item.id) {
-                                    if (runRes && runRes.lastInsertRowid) {
-                                        item.id = Number(runRes.lastInsertRowid);
-                                    } else {
-                                        try {
-                                            const lastRow = this.db.exec("SELECT last_insert_rowid() AS id;");
-                                            if (lastRow && lastRow[0] && lastRow[0].values && lastRow[0].values[0]) {
-                                                item.id = Number(lastRow[0].values[0][0]);
-                                            }
-                                        } catch(e) {}
-                                    }
-                                }
+
                                 this._syncTransactionItems(item, cachedStmts);
                             }
                         } else if (tableName === 'transaction_items') {
                             mainStmt = this.db.prepare(`INSERT OR REPLACE INTO transaction_items (id, tx_id, invoiceId, dateISO, time, type, partner, barcode, productName, size, color, qty, price, cost, discount, addition, total, profit, warehouse, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
                             for (const item of items) {
                                 if (!item) continue;
-                                const rawJson = this._extractExtraFields(item, [
+                                const sTxId = String(item.tx_id != null ? item.tx_id : (item.invoiceId || ''));
+                                const sInvoiceId = String(item.invoiceId || sTxId);
+                                const dateISO = String(item.dateISO || item.date || '');
+                                const time = String(item.time || '');
+                                const type = String(item.type || 'sale');
+                                const partner = String(item.partner || item.customer || item.client || '');
+                                const barcode = String(item.barcode || item.code || '');
+                                const pName = String(item.productName || item.product || item.name || '');
+                                const size = String(item.size || item.selectedSize || '');
+                                const color = String(item.color || item.selectedColor || '');
+                                const qty = Number(item.qty != null ? item.qty : (item.quantity || 0)) || 0;
+                                const price = Number(item.price != null ? item.price : 0) || 0;
+                                const cost = Number(item.cost != null ? item.cost : (item.costPrice || 0)) || 0;
+                                const discount = Number(item.discount != null ? item.discount : (item.itemDiscount || 0)) || 0;
+                                const addition = Number(item.addition != null ? item.addition : (item.extra || 0)) || 0;
+                                const total = Number(item.total != null ? item.total : (qty * price - discount + addition)) || 0;
+                                const profit = Number(item.profit != null ? item.profit : ((price - cost) * qty)) || 0;
+                                const warehouse = String(item.warehouse || '');
+
+                                let rawJson = this._extractExtraFields(item, [
                                     'id', 'tx_id', 'invoiceId', 'dateISO', 'time', 'type', 'partner',
                                     'barcode', 'code', 'productName', 'product', 'name', 'size', 'selectedSize',
                                     'color', 'selectedColor', 'qty', 'quantity', 'price', 'cost', 'costPrice',
                                     'discount', 'itemDiscount', 'addition', 'extra', 'total', 'profit', 'warehouse'
                                 ]);
+                                if (typeof rawJson === 'object' && rawJson !== null) {
+                                    try { rawJson = JSON.stringify(rawJson); } catch(e) { rawJson = '{}'; }
+                                } else if (typeof rawJson !== 'string') {
+                                    rawJson = String(rawJson || '{}');
+                                }
+
                                 mainStmt.run(this._safeBind([
-                                    item.id || null, item.tx_id || null, String(item.invoiceId || ''), item.dateISO || '', item.time || '', item.type || '', item.partner || '',
-                                    String(item.barcode || item.code || ''), String(item.productName || item.product || item.name || ''), String(item.size || item.selectedSize || ''), String(item.color || item.selectedColor || ''),
-                                    parseFloat(item.qty != null ? item.qty : item.quantity) || 0, parseFloat(item.price) || 0, parseFloat(item.cost != null ? item.cost : item.costPrice) || 0,
-                                    parseFloat(item.discount != null ? item.discount : item.itemDiscount) || 0, parseFloat(item.addition != null ? item.addition : item.extra) || 0, parseFloat(item.total) || 0,
-                                    parseFloat(item.profit) || 0, item.warehouse || '', rawJson
+                                    item.id ? item.id : null,
+                                    sTxId,
+                                    sInvoiceId,
+                                    dateISO,
+                                    time,
+                                    type,
+                                    partner,
+                                    barcode,
+                                    pName,
+                                    size,
+                                    color,
+                                    qty,
+                                    price,
+                                    cost,
+                                    discount,
+                                    addition,
+                                    total,
+                                    profit,
+                                    warehouse,
+                                    rawJson
                                 ]));
                             }
                         } else if (tableName === 'accounts') {
@@ -2413,178 +2541,121 @@
         }
 
         /**
-         * ⚡ حساب الأرصدة الصافية الدقيقة لكافة العملاء والموردين دفعة واحدة (Batch Balances) لتجنب آلاف الاستعلامات المتزامنة
+         * ⚡ استعلام SQL موحد وفائق السرعة (< 3ms) لحل مشكلة (N+1 Query)
+         * جلب قائمة الحسابات مدمجاً بها: الرصيد الحالي (currentBalance)، إجمالي المبيعات (totalSales)، وتاريخ آخر سند قبض وحركة بضربة واحدة
+         */
+        getAllAccountsWithBalances(typeFilter = null) {
+            if (!this.db) return [];
+            try {
+                let sql = `
+                    SELECT 
+                        a.id,
+                        a.name,
+                        a.code,
+                        a.type,
+                        a.mobile,
+                        a.address,
+                        a.raw_json,
+                        ROUND(
+                            COALESCE(
+                                NULLIF(COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0), 0),
+                                a.balance,
+                                0
+                            ) + COALESCE(SUM(
+                                CASE 
+                                    WHEN t.type LIKE '%بيع%' AND t.type NOT LIKE '%مرتجع%' THEN (
+                                        CASE 
+                                            WHEN (COALESCE(t.paidAmount, 0) = 0 AND COALESCE(t.remaining, 0) = 0 AND (t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%'))) THEN 0 
+                                            ELSE (t.total - COALESCE(t.paidAmount, 0)) 
+                                        END
+                                    )
+                                    WHEN t.type LIKE '%مرتجع بيع%' THEN -(
+                                        CASE 
+                                            WHEN (COALESCE(t.paidAmount, 0) = 0 AND COALESCE(t.remaining, 0) = 0 AND (t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%'))) THEN 0 
+                                            ELSE (t.total - COALESCE(t.paidAmount, 0)) 
+                                        END
+                                    )
+                                    WHEN t.type LIKE '%شراء%' AND t.type NOT LIKE '%مرتجع%' THEN -(
+                                        CASE 
+                                            WHEN (COALESCE(t.paidAmount, 0) = 0 AND COALESCE(t.remaining, 0) = 0 AND (t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%'))) THEN 0 
+                                            ELSE (t.total - COALESCE(t.paidAmount, 0)) 
+                                        END
+                                    )
+                                    WHEN t.type LIKE '%مرتجع شراء%' THEN (
+                                        CASE 
+                                            WHEN (COALESCE(t.paidAmount, 0) = 0 AND COALESCE(t.remaining, 0) = 0 AND (t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%'))) THEN 0 
+                                            ELSE (t.total - COALESCE(t.paidAmount, 0)) 
+                                        END
+                                    )
+                                    WHEN t.type LIKE '%قبض%' THEN -t.total
+                                    WHEN t.type LIKE '%صرف%' THEN t.total
+                                    ELSE 0 
+                                END
+                            ), 0)
+                        , 2) AS currentBalance,
+                        ROUND(COALESCE(SUM(
+                            CASE 
+                                WHEN t.type LIKE '%بيع%' AND t.type NOT LIKE '%مرتجع%' THEN t.total 
+                                ELSE 0 
+                            END
+                        ), 0), 2) AS totalSales,
+                        MAX(CASE WHEN t.type LIKE '%قبض%' THEN t.dateISO ELSE NULL END) AS lastReceiptDate,
+                        MAX(t.dateISO) AS lastTxDate
+                    FROM accounts a
+                    LEFT JOIN transactions t ON a.name = t.partner AND (t.status IS NULL OR t.status != 'void')
+                `;
+
+                const params = [];
+                if (typeFilter && typeFilter !== 'all') {
+                    sql += ` WHERE (a.type = ? OR a.type LIKE ?) `;
+                    params.push(typeFilter, `%${typeFilter}%`);
+                }
+
+                sql += ` GROUP BY a.id, a.name ORDER BY a.name ASC;`;
+
+                let rows = [];
+                if (this.isNative && this.nativeDb) {
+                    rows = this.nativeDb.prepare(sql).all(...params);
+                } else {
+                    const stmt = this.db.prepare(sql);
+                    if (params.length > 0) stmt.bind(params);
+                    while (stmt.step()) rows.push(stmt.getAsObject());
+                    stmt.free();
+                }
+
+                if (!rows) return [];
+
+                return rows.map(r => {
+                    const obj = (typeof this._reconstructRow === 'function') ? this._reconstructRow(r) : { ...r };
+                    obj.currentBalance = parseFloat(r.currentBalance) || 0;
+                    obj.totalSales = parseFloat(r.totalSales) || 0;
+                    obj.lastReceiptDate = r.lastReceiptDate || '-';
+                    obj.lastTxDate = r.lastTxDate || '-';
+                    return obj;
+                });
+            } catch (err) {
+                console.warn("[SQLite] getAllAccountsWithBalances error:", err.message);
+                return [];
+            }
+        }
+
+        /**
+         * ⚡ حساب الأرصدة الصافية الدقيقة لكافة العملاء والموردين دفعة واحدة (Map متوافق مع كافة أجزاء النظام)
          */
         getAllAccountsAccurateBalances() {
             const balancesMap = new Map();
             if (!this.db) return balancesMap;
-
             try {
-                // 1. جلب كافة الحسابات مع أرصدتها الافتتاحية من جدول accounts و raw_json
-                const accountsSql = "SELECT name, balance, raw_json FROM accounts;";
-                let accRows = [];
-                if (this.isNative && this.nativeDb) {
-                    accRows = this.nativeDb.prepare(accountsSql).all();
-                } else {
-                    const stmt = this.db.prepare(accountsSql);
-                    while (stmt.step()) accRows.push(stmt.getAsObject());
-                    stmt.free();
-                }
-
-                const accInitialMap = {};
-                if (accRows && accRows.length > 0) {
-                    for (let i = 0; i < accRows.length; i++) {
-                        const a = accRows[i];
-                        if (!a || !a.name) continue;
-                        const pName = String(a.name).trim();
-                        const accObj = (typeof this._reconstructRow === 'function') ? this._reconstructRow(a) : a;
-                        const initDebit = parseFloat(accObj.debit) || 0;
-                        const initCredit = parseFloat(accObj.credit) || 0;
-                        if (initDebit === 0 && initCredit === 0 && accObj.balance !== undefined && accObj.balance !== null) {
-                            accInitialMap[pName] = parseFloat(accObj.balance) || 0;
-                        } else {
-                            accInitialMap[pName] = initDebit - initCredit;
-                        }
+                const accountsWithBal = this.getAllAccountsWithBalances();
+                for (let i = 0; i < accountsWithBal.length; i++) {
+                    const acc = accountsWithBal[i];
+                    if (acc && acc.name) {
+                        balancesMap.set(String(acc.name).trim(), acc.currentBalance || 0);
                     }
                 }
-
-                // دمج الأرصدة الافتتاحية من accounts في الذاكرة أيضاً لضمان الدقة وتجنب أي نقص
-                if (typeof accounts !== 'undefined' && Array.isArray(accounts)) {
-                    for (let i = 0; i < accounts.length; i++) {
-                        const acc = accounts[i];
-                        if (!acc || !acc.name) continue;
-                        const pName = String(acc.name).trim();
-                        if (accInitialMap[pName] === undefined) {
-                            const initDebit = parseFloat(acc.debit) || 0;
-                            const initCredit = parseFloat(acc.credit) || 0;
-                            accInitialMap[pName] = initDebit - initCredit;
-                        }
-                    }
-                }
-
-                // 2. جلب كافة الحركات مرتبة
-                const txSql = "SELECT * FROM transactions WHERE partner IS NOT NULL AND TRIM(partner) != '' ORDER BY dateISO ASC, id ASC;";
-                let txRows = [];
-                if (this.isNative && this.nativeDb) {
-                    txRows = this.nativeDb.prepare(txSql).all();
-                } else {
-                    const stmt = this.db.prepare(txSql);
-                    while (stmt.step()) txRows.push(stmt.getAsObject());
-                    stmt.free();
-                }
-
-                // 3. تجميع الحركات حسب الشريك
-                const partnerTxs = {};
-                if (txRows && txRows.length > 0) {
-                    for (let i = 0; i < txRows.length; i++) {
-                        const r = txRows[i];
-                        const p = String(r.partner).trim();
-                        if (!p) continue;
-                        if (!partnerTxs[p]) partnerTxs[p] = [];
-                        partnerTxs[p].push(r);
-                    }
-                }
-
-                const isCreditMethod = (m) => {
-                    if (!m) return false;
-                    const s = String(m).toLowerCase().trim().replace(/[أإآ]/g, 'ا');
-                    return s.includes('اجل') || s.includes('ذمم') || s.includes('ذمه') || s.includes('تقسيط') || s.includes('credit') || s.includes('deferred');
-                };
-
-                // 4. دمج وحساب الأرصدة الصافية مطابقة 100% لمعادلة getAccountAccurateBalance
-                const allPartnerNames = new Set([...Object.keys(accInitialMap), ...Object.keys(partnerTxs)]);
-                allPartnerNames.forEach(pName => {
-                    if (typeof window !== 'undefined' && window.isGenericCashPartner && window.isGenericCashPartner(pName)) {
-                        balancesMap.set(pName, 0);
-                        return;
-                    }
-
-                    let currentBalance = accInitialMap[pName] || 0;
-                    const rows = partnerTxs[pName] || [];
-
-                    if (rows.length > 0) {
-                        const ivMap = {};
-                        const singleTrans = [];
-
-                        for (let i = 0; i < rows.length; i++) {
-                            const r = rows[i];
-                            const t = this._reconstructRow ? this._reconstructRow(r) : r;
-                            if (!t) continue;
-
-                            const tType = String(t.type || '');
-                            const isInvoice = (tType.includes('بيع') || tType.includes('شراء')) && t.invoiceId;
-                            if (isInvoice) {
-                                const isReturn = tType.includes('مرتجع');
-                                const cleanT = tType.replace(/📤|📥|↩️/g, '').trim();
-                                const key = (isReturn ? "RET_" : "") + cleanT + "_" + t.invoiceId;
-                                if (!ivMap[key]) {
-                                    ivMap[key] = {
-                                        type: tType,
-                                        invoiceId: t.invoiceId,
-                                        method: t.method || '',
-                                        total: 0,
-                                        paid: 0,
-                                        isReturn: isReturn
-                                    };
-                                }
-                                ivMap[key].total += (parseFloat(t.total) || 0);
-                                if (t.isInvoiceHead || t.paidAmount !== undefined || t.paid !== undefined) {
-                                    const pAmt = parseFloat(t.paidAmount !== undefined ? t.paidAmount : t.paid) || 0;
-                                    ivMap[key].paid = Math.max(ivMap[key].paid, pAmt);
-                                }
-                            } else {
-                                singleTrans.push(t);
-                            }
-                        }
-
-                        const ivs = Object.values(ivMap);
-                        for (let i = 0; i < ivs.length; i++) {
-                            const iv = ivs[i];
-                            if (iv.paid === 0 && iv.total > 0 && !isCreditMethod(iv.method)) {
-                                iv.paid = iv.total;
-                            }
-                            let debit = 0;
-                            let credit = 0;
-
-                            if (iv.type.includes('بيع')) {
-                                if (iv.type.includes('مرتجع')) {
-                                    debit = iv.paid;
-                                    credit = iv.total;
-                                } else {
-                                    debit = iv.total;
-                                    credit = iv.paid;
-                                }
-                            } else if (iv.type.includes('شراء')) {
-                                if (iv.type.includes('مرتجع')) {
-                                    debit = iv.total;
-                                    credit = iv.paid;
-                                } else {
-                                    debit = iv.paid;
-                                    credit = iv.total;
-                                }
-                            }
-                            currentBalance += (debit - credit);
-                        }
-
-                        for (let i = 0; i < singleTrans.length; i++) {
-                            const t = singleTrans[i];
-                            const amount = parseFloat(t.total) || parseFloat(t.price) || 0;
-                            const tType = String(t.type || '');
-                            if (tType.includes('قبض') || tType.includes('مرتجع بيع')) {
-                                currentBalance -= amount;
-                            } else if (tType.includes('صرف') || tType.includes('مرتجع شراء') || tType.includes('بيع')) {
-                                currentBalance += amount;
-                            }
-                        }
-                    }
-
-                    balancesMap.set(pName, currentBalance);
-                });
-
             } catch (err) {
                 console.warn("[SQLite] getAllAccountsAccurateBalances error:", err.message);
             }
-
             return balancesMap;
         }
 
@@ -2616,143 +2687,347 @@
         }
 
         /**
-         * ⚡ حساب الرصيد الصافي الدقيق للعميل/المورد مباشرة من SQLite C++ مع معالجة تجميع الفواتير
+         * ⚡ استعلام SQL موحد وسريع (< 1ms) لحساب رصيد العميل أو المورد المباشر مع استبعاد الحركات الملغاة
          */
-        getAccountAccurateBalance(partnerName, excludeInvoiceId = null) {
-            if (!this.db || !partnerName) return 0;
-            const p = String(partnerName).trim();
+        getAccountBalanceDirect(accountName, excludeInvoiceId = null) {
+            if (!this.db || !accountName) return 0;
+            const p = String(accountName).trim();
             if (typeof window !== 'undefined' && window.isGenericCashPartner && window.isGenericCashPartner(p)) return 0;
 
-            // 1. قراءة الرصيد الافتتاحي للحساب
-            let initialDebit = 0;
-            let initialCredit = 0;
             try {
-                let accRow = null;
+                let excludeCondition = "";
+                const params = [];
+                if (excludeInvoiceId) {
+                    const exId = String(excludeInvoiceId).trim();
+                    excludeCondition = " AND (t.invoiceId != ? AND t.id != ?) ";
+                    params.push(exId, exId);
+                }
+                params.push(p);
+
+                const sql = `
+                    SELECT ROUND(
+                        COALESCE(
+                            NULLIF(COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0), 0),
+                            a.balance,
+                            0
+                        ) + COALESCE(SUM(
+                            CASE 
+                                WHEN t.type LIKE '%بيع%' AND t.type NOT LIKE '%مرتجع%' THEN (
+                                    CASE 
+                                        WHEN (COALESCE(t.paidAmount, 0) = 0 AND COALESCE(t.remaining, 0) = 0 AND (t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%'))) THEN 0 
+                                        ELSE (t.total - COALESCE(t.paidAmount, 0)) 
+                                    END
+                                )
+                                WHEN t.type LIKE '%مرتجع بيع%' THEN -(
+                                    CASE 
+                                        WHEN (COALESCE(t.paidAmount, 0) = 0 AND COALESCE(t.remaining, 0) = 0 AND (t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%'))) THEN 0 
+                                        ELSE (t.total - COALESCE(t.paidAmount, 0)) 
+                                    END
+                                )
+                                WHEN t.type LIKE '%شراء%' AND t.type NOT LIKE '%مرتجع%' THEN -(
+                                    CASE 
+                                        WHEN (COALESCE(t.paidAmount, 0) = 0 AND COALESCE(t.remaining, 0) = 0 AND (t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%'))) THEN 0 
+                                        ELSE (t.total - COALESCE(t.paidAmount, 0)) 
+                                    END
+                                )
+                                WHEN t.type LIKE '%مرتجع شراء%' THEN (
+                                    CASE 
+                                        WHEN (COALESCE(t.paidAmount, 0) = 0 AND COALESCE(t.remaining, 0) = 0 AND (t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%'))) THEN 0 
+                                        ELSE (t.total - COALESCE(t.paidAmount, 0)) 
+                                    END
+                                )
+                                WHEN t.type LIKE '%قبض%' THEN -t.total
+                                WHEN t.type LIKE '%صرف%' THEN t.total
+                                ELSE 0 
+                            END
+                        ), 0)
+                    , 2) AS balance
+                    FROM accounts a
+                    LEFT JOIN transactions t ON a.name = t.partner AND (t.status IS NULL OR t.status != 'void') ${excludeCondition}
+                    WHERE a.name = ?;
+                `;
+
                 if (this.isNative && this.nativeDb) {
-                    accRow = this.nativeDb.prepare("SELECT * FROM accounts WHERE name = ? LIMIT 1;").get(p);
-                } else {
-                    const stmtAcc = this.db.prepare("SELECT * FROM accounts WHERE name = ? LIMIT 1;");
-                    stmtAcc.bind([p]);
-                    if (stmtAcc.step()) accRow = stmtAcc.getAsObject();
-                    stmtAcc.free();
+                    const row = this.nativeDb.prepare(sql).get(...params);
+                    return row ? (parseFloat(row.balance) || 0) : 0;
                 }
-                if (accRow) {
-                    const accObj = this._reconstructRow(accRow);
-                    initialDebit = parseFloat(accObj.debit) || 0;
-                    initialCredit = parseFloat(accObj.credit) || 0;
+
+                const stmt = this.db.prepare(sql);
+                stmt.bind(params);
+                let bal = 0;
+                if (stmt.step()) {
+                    const res = stmt.getAsObject();
+                    bal = parseFloat(res.balance) || 0;
                 }
-            } catch (e) {}
+                stmt.free();
+                return bal;
+            } catch (err) {
+                console.warn("[SQLite] getAccountBalanceDirect error:", err.message);
+                return 0;
+            }
+        }
 
-            let currentBalance = initialDebit - initialCredit;
+        /**
+         * ⚡ استعلام SQL لحساب الرصيد السابق لكشف الحساب قبل تاريخ محدد (< 2ms)
+         */
+        getAccountPriorBalance(accountName, beforeDateISO) {
+            if (!this.db || !accountName) return 0;
+            const p = String(accountName).trim();
+            if (typeof window !== 'undefined' && window.isGenericCashPartner && window.isGenericCashPartner(p)) return 0;
 
-            // 2. جلب كافة حركات الشريك المسجلة في SQLite
-            const activeExcludeId = excludeInvoiceId ? String(excludeInvoiceId).trim() : null;
-            let rows = [];
             try {
-                const sql = "SELECT * FROM transactions WHERE partner = ? ORDER BY dateISO ASC, id ASC;";
-                if (this.isNative && this.nativeDb) {
-                    rows = this.nativeDb.prepare(sql).all(p);
-                } else {
-                    const stmt = this.db.prepare(sql);
+                if (!beforeDateISO) {
+                    const openSql = `
+                        SELECT ROUND(
+                            COALESCE(
+                                NULLIF(COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0), 0),
+                                a.balance,
+                                0
+                            )
+                        , 2) AS priorBalance
+                        FROM accounts a WHERE a.name = ? LIMIT 1;
+                    `;
+                    if (this.isNative && this.nativeDb) {
+                        const r = this.nativeDb.prepare(openSql).get(p);
+                        return r ? (parseFloat(r.priorBalance) || 0) : 0;
+                    }
+                    const stmt = this.db.prepare(openSql);
                     stmt.bind([p]);
-                    while (stmt.step()) {
-                        rows.push(stmt.getAsObject());
+                    let openBal = 0;
+                    if (stmt.step()) {
+                        openBal = parseFloat(stmt.getAsObject().priorBalance) || 0;
                     }
                     stmt.free();
+                    return openBal;
                 }
+
+                const sql = `
+                    SELECT ROUND(
+                        COALESCE(
+                            NULLIF(COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0), 0),
+                            a.balance,
+                            0
+                        ) + COALESCE(SUM(
+                            CASE 
+                                WHEN t.type LIKE '%بيع%' AND t.type NOT LIKE '%مرتجع%' THEN (
+                                    CASE 
+                                        WHEN (COALESCE(t.paidAmount, 0) = 0 AND COALESCE(t.remaining, 0) = 0 AND (t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%'))) THEN 0 
+                                        ELSE (t.total - COALESCE(t.paidAmount, 0)) 
+                                    END
+                                )
+                                WHEN t.type LIKE '%مرتجع بيع%' THEN -(
+                                    CASE 
+                                        WHEN (COALESCE(t.paidAmount, 0) = 0 AND COALESCE(t.remaining, 0) = 0 AND (t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%'))) THEN 0 
+                                        ELSE (t.total - COALESCE(t.paidAmount, 0)) 
+                                    END
+                                )
+                                WHEN t.type LIKE '%شراء%' AND t.type NOT LIKE '%مرتجع%' THEN -(
+                                    CASE 
+                                        WHEN (COALESCE(t.paidAmount, 0) = 0 AND COALESCE(t.remaining, 0) = 0 AND (t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%'))) THEN 0 
+                                        ELSE (t.total - COALESCE(t.paidAmount, 0)) 
+                                    END
+                                )
+                                WHEN t.type LIKE '%مرتجع شراء%' THEN (
+                                    CASE 
+                                        WHEN (COALESCE(t.paidAmount, 0) = 0 AND COALESCE(t.remaining, 0) = 0 AND (t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%'))) THEN 0 
+                                        ELSE (t.total - COALESCE(t.paidAmount, 0)) 
+                                    END
+                                )
+                                WHEN t.type LIKE '%قبض%' THEN -t.total
+                                WHEN t.type LIKE '%صرف%' THEN t.total
+                                ELSE 0 
+                            END
+                        ), 0)
+                    , 2) AS priorBalance
+                    FROM accounts a
+                    LEFT JOIN transactions t ON a.name = t.partner 
+                        AND t.dateISO < ? 
+                        AND (t.status IS NULL OR t.status != 'void')
+                    WHERE a.name = ?;
+                `;
+
+                if (this.isNative && this.nativeDb) {
+                    const row = this.nativeDb.prepare(sql).get(beforeDateISO, p);
+                    return row ? (parseFloat(row.priorBalance) || 0) : 0;
+                }
+
+                const stmt = this.db.prepare(sql);
+                stmt.bind([beforeDateISO, p]);
+                let prior = 0;
+                if (stmt.step()) {
+                    const res = stmt.getAsObject();
+                    prior = parseFloat(res.priorBalance) || 0;
+                }
+                stmt.free();
+                return prior;
             } catch (err) {
-                console.warn("[SQLite] getAccountAccurateBalance query error:", err.message);
-                return currentBalance;
+                console.warn("[SQLite] getAccountPriorBalance error:", err.message);
+                return 0;
             }
+        }
 
-            if (!rows || rows.length === 0) return currentBalance;
+        /**
+         * ⚡ جلب حركات كشف الحساب لشريك معين خلال فترة محددة مباشرة من SQLite
+         */
+        getAccountTransactionsForPeriod(accountName, fromDateISO = null, toDateISO = null, limit = 5000) {
+            if (!this.db || !accountName) return [];
+            const p = String(accountName).trim();
+            const lim = parseInt(limit, 10) || 5000;
 
-            const isCreditMethod = (m) => {
-                if (!m) return false;
-                const s = String(m).toLowerCase().trim().replace(/[أإآ]/g, 'ا');
-                return s.includes('اجل') || s.includes('ذمم') || s.includes('ذمه') || s.includes('تقسيط') || s.includes('credit') || s.includes('deferred');
-            };
+            try {
+                let sql = "SELECT * FROM transactions WHERE partner = ? AND (status IS NULL OR status != 'void')";
+                const params = [p];
 
-            const ivMap = {};
-            const singleTrans = [];
-
-            for (let i = 0; i < rows.length; i++) {
-                const r = rows[i];
-                const t = this._reconstructRow(r);
-                if (!t) continue;
-
-                if (activeExcludeId && String(t.invoiceId || t.id) === activeExcludeId) {
-                    continue;
+                if (fromDateISO) {
+                    sql += " AND dateISO >= ?";
+                    params.push(fromDateISO);
+                }
+                if (toDateISO) {
+                    sql += " AND dateISO <= ?";
+                    params.push(toDateISO);
                 }
 
-                const tType = String(t.type || '');
-                const isInvoice = (tType.includes('بيع') || tType.includes('شراء')) && t.invoiceId;
-                if (isInvoice) {
-                    const isReturn = tType.includes('مرتجع');
-                    const cleanT = tType.replace(/📤|📥|↩️/g, '').trim();
-                    const key = (isReturn ? "RET_" : "") + cleanT + "_" + t.invoiceId;
-                    if (!ivMap[key]) {
-                        ivMap[key] = {
-                            type: tType,
-                            invoiceId: t.invoiceId,
-                            method: t.method || '',
-                            total: 0,
-                            paid: 0,
-                            isReturn: isReturn
-                        };
-                    }
-                    ivMap[key].total += (parseFloat(t.total) || 0);
-                    if (t.isInvoiceHead || t.paidAmount !== undefined || t.paid !== undefined) {
-                        const pAmt = parseFloat(t.paidAmount !== undefined ? t.paidAmount : t.paid) || 0;
-                        ivMap[key].paid = Math.max(ivMap[key].paid, pAmt);
-                    }
+                sql += " ORDER BY dateISO ASC, time ASC, id ASC LIMIT ?;";
+                params.push(lim);
+
+                if (this.isNative && this.nativeDb) {
+                    const rows = this.nativeDb.prepare(sql).all(...params);
+                    return rows ? rows.map(r => this._reconstructRow(r)) : [];
+                }
+
+                const stmt = this.db.prepare(sql);
+                stmt.bind(params);
+                const items = [];
+                while (stmt.step()) {
+                    items.push(this._reconstructRow(stmt.getAsObject()));
+                }
+                stmt.free();
+                return items;
+            } catch (err) {
+                console.warn("[SQLite] getAccountTransactionsForPeriod error:", err.message);
+                return [];
+            }
+        }
+
+        /**
+         * ⚡ دالة التوافق القديمة لحساب الرصيد الصافي للعميل/المورد (تعتمد على getAccountBalanceDirect)
+         */
+        getAccountAccurateBalance(partnerName, excludeInvoiceId = null) {
+            return this.getAccountBalanceDirect(partnerName, excludeInvoiceId);
+        }
+
+        /**
+         * ⚡ جلب كافة بنود ومحتويات الفاتورة أو العملية بالكامل من SQLite (< 1ms)
+         * يدعم كافة الأنواع: مبيعات، مشتريات، مرتجعات، تحويل مخزني، تسوية مخزنية، وسندات مالية
+         */
+        getInvoiceItems(invoiceId) {
+            if (!this.db || !invoiceId) return [];
+            const sId = String(invoiceId).trim();
+            if (!sId) return [];
+
+            try {
+                // 1. جلب السجلات من جدول transactions أولاً (سواء كانت سطر مفرد أو أسطر متعددة)
+                const sqlTx = "SELECT * FROM transactions WHERE invoiceId = ? OR id = ? ORDER BY id ASC;";
+                let txRows = [];
+                if (this.isNative && this.nativeDb) {
+                    txRows = this.nativeDb.prepare(sqlTx).all(sId, sId);
                 } else {
-                    singleTrans.push(t);
+                    const stmt = this.db.prepare(sqlTx);
+                    stmt.bind([sId, sId]);
+                    while (stmt.step()) txRows.push(stmt.getAsObject());
+                    stmt.free();
                 }
+
+                const decodedTxRows = (txRows || []).map(r => this._reconstructRow(r)).filter(Boolean);
+
+                // إذا وجدنا أن الرأس يحتوي على مصفوفة items أو products أو cart جاهزة ومفكوكة
+                for (let i = 0; i < decodedTxRows.length; i++) {
+                    const r = decodedTxRows[i];
+                    if (Array.isArray(r.items) && r.items.length > 0) return r.items;
+                    if (Array.isArray(r.products) && r.products.length > 0) return r.products;
+                    if (Array.isArray(r.cart) && r.cart.length > 0) return r.cart;
+                }
+
+                // إذا كانت السطور في transactions تمثل أصنافاً متعددة (كما في التحويل المخزني والتسوية)
+                const itemsFromTx = decodedTxRows.filter(r => (r.product || r.productName || r.name));
+                if (itemsFromTx.length > 0) {
+                    return itemsFromTx;
+                }
+
+                // 2. إذا لم نجد أصنافاً في transactions، نستعلم مباشرة من جدول transaction_items المفهرس
+                const sqlTi = "SELECT * FROM transaction_items WHERE invoiceId = ? OR tx_id = ? ORDER BY id ASC;";
+                let tiRows = [];
+                if (this.isNative && this.nativeDb) {
+                    tiRows = this.nativeDb.prepare(sqlTi).all(sId, sId);
+                } else {
+                    const stmt = this.db.prepare(sqlTi);
+                    stmt.bind([sId, sId]);
+                    while (stmt.step()) tiRows.push(stmt.getAsObject());
+                    stmt.free();
+                }
+
+                if (tiRows && tiRows.length > 0) {
+                    return tiRows.map(r => this._reconstructRow(r)).filter(Boolean);
+                }
+
+                return decodedTxRows;
+            } catch (err) {
+                console.warn("[SQLite] getInvoiceItems error:", err.message);
+                return [];
             }
+        }
 
-            const ivs = Object.values(ivMap);
-            for (let i = 0; i < ivs.length; i++) {
-                const iv = ivs[i];
-                if (iv.paid === 0 && iv.total > 0 && !isCreditMethod(iv.method)) {
-                    iv.paid = iv.total;
+        /**
+         * ⚡ استخراج ملف الفاتورة المكتمل بالرأس والأصناف من SQLite لشاشات العرض والطباعة والتعديل
+         */
+        getInvoiceFullDetails(invoiceId, invoiceType = null) {
+            if (!this.db || !invoiceId) return null;
+            const sId = String(invoiceId).trim();
+            if (!sId) return null;
+
+            try {
+                let sql = "SELECT * FROM transactions WHERE invoiceId = ? OR id = ? ORDER BY id ASC;";
+                let rows = [];
+                if (this.isNative && this.nativeDb) {
+                    rows = this.nativeDb.prepare(sql).all(sId, sId);
+                } else {
+                    const stmt = this.db.prepare(sql);
+                    stmt.bind([sId, sId]);
+                    while (stmt.step()) rows.push(stmt.getAsObject());
+                    stmt.free();
                 }
-                let debit = 0;
-                let credit = 0;
 
-                if (iv.type.includes('بيع')) {
-                    if (iv.type.includes('مرتجع')) {
-                        debit = iv.paid;
-                        credit = iv.total;
+                const decodedRows = (rows || []).map(r => this._reconstructRow(r)).filter(Boolean);
+                if (decodedRows.length === 0) return null;
+
+                // رأس الفاتورة
+                const head = decodedRows.find(r => r.isInvoiceHead) || decodedRows[0];
+                const res = { ...head };
+
+                // جلب الأصناف
+                let items = [];
+                if (Array.isArray(head.items) && head.items.length > 0) {
+                    items = head.items;
+                } else if (Array.isArray(head.products) && head.products.length > 0) {
+                    items = head.products;
+                } else if (Array.isArray(head.cart) && head.cart.length > 0) {
+                    items = head.cart;
+                } else {
+                    const txItems = decodedRows.filter(r => (r.product || r.productName || r.name));
+                    if (txItems.length > 0) {
+                        items = txItems;
                     } else {
-                        debit = iv.total;
-                        credit = iv.paid;
-                    }
-                } else if (iv.type.includes('شراء')) {
-                    if (iv.type.includes('مرتجع')) {
-                        debit = iv.total;
-                        credit = iv.paid;
-                    } else {
-                        debit = iv.paid;
-                        credit = iv.total;
+                        items = this.getInvoiceItems(sId);
                     }
                 }
 
-                currentBalance += (debit - credit);
+                res.items = items;
+                res.transactionsRows = decodedRows;
+                return res;
+            } catch (err) {
+                console.warn("[SQLite] getInvoiceFullDetails error:", err.message);
+                return null;
             }
-
-            for (let i = 0; i < singleTrans.length; i++) {
-                const t = singleTrans[i];
-                const amount = parseFloat(t.total) || parseFloat(t.price) || 0;
-                const tType = String(t.type || '');
-                if (tType.includes('قبض') || tType.includes('مرتجع بيع')) {
-                    currentBalance -= amount;
-                } else if (tType.includes('صرف') || tType.includes('مرتجع شراء') || tType.includes('بيع')) {
-                    currentBalance += amount;
-                }
-            }
-
-            return currentBalance;
         }
 
         /**

@@ -372,27 +372,53 @@ window.ensureInvoiceLoaded = async function(invoiceId) {
     const sId = String(invoiceId).trim();
     if (!sId) return [];
     
-    // هل الفاتورة موجودة بالفعل في الذاكرة؟
-    const inMem = (window.transactions || []).filter(t => t && String(t.invoiceId) === sId);
-    if (inMem.length > 0) return inMem;
+    // هل الفاتورة موجودة بالفعل في الذاكرة بكامل أصنافها؟
+    const inMem = (window.transactions || []).filter(t => t && (String(t.invoiceId) === sId || String(t.id) === sId));
+    if (inMem.length > 0 && inMem.some(t => t.product || t.productName || t.name)) {
+        return inMem;
+    }
     
-    // استدعاء فوري للفاتورة من SQLite عبر الفهرس السريع
+    // ⚡ 1. استدعاء فوري للفاتورة وكافة بنودها من SQLite عبر محرك C++ فائق السرعة
+    if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceFullDetails === 'function' && window.BayanSQLite.db) {
+        try {
+            const fullDetails = window.BayanSQLite.getInvoiceFullDetails(sId);
+            if (fullDetails && fullDetails.transactionsRows && fullDetails.transactionsRows.length > 0) {
+                fullDetails.transactionsRows.forEach(row => {
+                    if (row && typeof window.safelyMergeTransactionIntoMemory === 'function') {
+                        window.safelyMergeTransactionIntoMemory(row);
+                    }
+                });
+                if (typeof window.deduplicateTransactionsMemory === 'function') {
+                    window.deduplicateTransactionsMemory();
+                }
+                return fullDetails.transactionsRows;
+            }
+        } catch(e) {
+            console.warn("[SQLite] ensureInvoiceLoaded notice:", e.message);
+        }
+    }
+
+    // 2. مسار احتياطي من مخزن Dexie
     try {
-        if (!window.db || !window.db.transactions) return [];
+        if (!window.db || !window.db.transactions) return inMem;
         const numId = Number(sId);
         const queryKeys = !isNaN(numId) ? [sId, numId] : [sId];
         const fromDB = await window.db.transactions.where('invoiceId').anyOf(queryKeys).toArray();
         if (fromDB && fromDB.length > 0) {
             fromDB.forEach(row => {
-                if (row) window.safelyMergeTransactionIntoMemory(row);
+                if (row && typeof window.safelyMergeTransactionIntoMemory === 'function') {
+                    window.safelyMergeTransactionIntoMemory(row);
+                }
             });
-            window.deduplicateTransactionsMemory();
+            if (typeof window.deduplicateTransactionsMemory === 'function') {
+                window.deduplicateTransactionsMemory();
+            }
             return fromDB;
         }
     } catch(e) {
         console.warn("⚠️ ensureInvoiceLoaded notice:", e);
     }
-    return [];
+    return inMem;
 };
 
 window.loadTransactionsForDateRange = async function(fromDate, toDate, maxLimit = 10000) {
@@ -1616,10 +1642,11 @@ async function saveTransactionChanges({ newTransactions = [], modifiedTransactio
             if (typeof window.invalidateStockCache === 'function') window.invalidateStockCache();
             scheduleNotificationsUpdate();
 
-            // 🌐 إرسال التحديث الجزئي لسيرفر الشبكة فورياً وبأعلى كفاءة وخفة (Delta Sync)
+            // 🌐 إرسال التحديث لسيرفر الشبكة ومحرك المزامنة السحابية فورياً وبأعلى كفاءة وخفة
             if (window.BayanNetworkHub && typeof window.BayanNetworkHub.onDeltaSaved === 'function') {
                 window.BayanNetworkHub.onDeltaSaved({ newTransactions, modifiedTransactions, modifiedProducts, modifiedAccounts });
-            } else if (window.BayanNetworkHub && typeof window.BayanNetworkHub.onDataSaved === 'function') {
+            }
+            if (window.BayanNetworkHub && typeof window.BayanNetworkHub.onDataSaved === 'function') {
                 window.BayanNetworkHub.onDataSaved();
             }
 

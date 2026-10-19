@@ -2620,7 +2620,24 @@
             }
 
             const sId = String(targetId).trim();
-            const pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+            let pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+
+            // ⚡ التأكد أولاً من تحميل الفاتورة/المستند بكافة بنوده من محرك SQLite إذا لم تكن موجودة أو كانت مقتصرة على سطر الرأس
+            if (typeof window.ensureInvoiceLoaded === 'function') {
+                const sampleInPool = pool.find(t => t && ((t.invoiceId != null && String(t.invoiceId) === sId) ||
+                                                        (t.id != null && String(t.id) === sId) ||
+                                                        (t.transferId != null && String(t.transferId) === sId) ||
+                                                        (t.adjId != null && String(t.adjId) === sId)));
+                const hasItemsInPool = pool.some(t => t && ((t.invoiceId != null && String(t.invoiceId) === sId) ||
+                                                           (t.id != null && String(t.id) === sId)) &&
+                                                           (t.product || t.productName || t.name));
+                if (!sampleInPool || !hasItemsInPool) {
+                    try {
+                        await window.ensureInvoiceLoaded(sId);
+                        pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+                    } catch(e) {}
+                }
+            }
 
             // 🎯 الخطوة 0: تحديد نوع العملية أولاً بدقة فائقة
             let cleanType = String(targetType || '').trim().toLowerCase();
@@ -2716,6 +2733,22 @@
                     }
                 }
 
+                if (adjMatches.length === 0 && typeof window.ensureInvoiceLoaded === 'function') {
+                    try {
+                        await window.ensureInvoiceLoaded(sId);
+                        pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+                        adjMatches = pool.filter(t => {
+                            if (!t) return false;
+                            const tType = String(t.type || '').toLowerCase();
+                            const isAdjType = tType.includes('تسوية') || tType.includes('adjustment') || tType.includes('جرد') || tType.includes('عجز') || tType.includes('زيادة');
+                            if (!isAdjType) return false;
+                            return (t.invoiceId != null && String(t.invoiceId) === sId) ||
+                                   (t.adjId != null && String(t.adjId) === sId) ||
+                                   (t.id != null && String(t.id) === sId);
+                        });
+                    } catch(e) {}
+                }
+
                 if (adjMatches.length === 0) {
                     return showCustomAlert({
                         type: 'error',
@@ -2735,8 +2768,8 @@
                 tx.notes = adjMatches.find(t => t.notes)?.notes || head.notes || '';
 
                 const seenAdj = new Set();
-                const uniqueAdjMatches = adjMatches.filter(i => {
-                    if (!i || (!i.product && !i.name)) return false;
+                let uniqueAdjMatches = adjMatches.filter(i => {
+                    if (!i || (!i.product && !i.productName && !i.name)) return false;
                     const p = (i.product || i.productName || i.name || '').trim();
                     const s = (i.size || i.selectedSize || '').trim();
                     const c = (i.color || i.selectedColor || '').trim();
@@ -2748,6 +2781,28 @@
                     return true;
                 });
 
+                // إذا كانت البنود غير مفككة في أسطر الذاكرة، نستخرجها من head.items أو head.products أو BayanSQLite
+                if (uniqueAdjMatches.length === 0) {
+                    let extractedItems = [];
+                    if (Array.isArray(head.items) && head.items.length > 0) extractedItems = head.items;
+                    else if (Array.isArray(head.products) && head.products.length > 0) extractedItems = head.products;
+                    else if (Array.isArray(head.cart) && head.cart.length > 0) extractedItems = head.cart;
+                    else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
+                        extractedItems = window.BayanSQLite.getInvoiceItems(sId) || [];
+                    }
+                    if (extractedItems.length > 0) {
+                        uniqueAdjMatches = extractedItems.map(it => ({
+                            product: it.product || it.productName || it.name || 'صنف تسوية',
+                            qty: it.qty != null ? it.qty : (it.quantity || 0),
+                            price: it.price != null ? it.price : (it.costPrice || 0),
+                            unit: it.unit || '-',
+                            size: it.size || it.selectedSize || '',
+                            color: it.color || it.selectedColor || '',
+                            total: it.total != null ? it.total : ((it.qty || 0) * (it.price || 0))
+                        }));
+                    }
+                }
+
                 tx.items = uniqueAdjMatches.map(i => {
                     const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 0));
                     const price = parseFloat(i.price != null ? i.price : (i.costPrice || 0));
@@ -2755,8 +2810,8 @@
                         name: i.product || i.productName || i.name || 'صنف تسوية',
                         qty: qty,
                         unit: i.unit || '-',
-                        size: i.size || '',
-                        color: i.color || '',
+                        size: i.size || i.selectedSize || '',
+                        color: i.color || i.selectedColor || '',
                         price: price,
                         costPrice: price,
                         discount: 0,
@@ -2765,6 +2820,9 @@
                         total: parseFloat(i.total != null ? i.total : (qty * price))
                     };
                 });
+
+                const calculatedTotal = tx.items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0);
+                tx.total = (parseFloat(head.total) > 0) ? parseFloat(head.total) : calculatedTotal;
 
                 return window.renderCustomInvoiceModal(tx);
             }
@@ -2791,6 +2849,21 @@
                     }
                 }
 
+                if (transferMatches.length === 0 && typeof window.ensureInvoiceLoaded === 'function') {
+                    try {
+                        await window.ensureInvoiceLoaded(sId);
+                        pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+                        transferMatches = pool.filter(t => {
+                            if (!t) return false;
+                            const tType = String(t.type || '').toLowerCase();
+                            if (!tType.includes('تحويل') && !tType.includes('transfer')) return false;
+                            return (t.invoiceId != null && String(t.invoiceId) === sId) ||
+                                   (t.transferId != null && String(t.transferId) === sId) ||
+                                   (t.id != null && String(t.id) === sId);
+                        });
+                    } catch(e) {}
+                }
+
                 if (transferMatches.length === 0) {
                     return showCustomAlert({
                         type: 'error',
@@ -2811,8 +2884,8 @@
                 tx.notes = transferMatches.find(t => t.notes)?.notes || head.notes || '';
 
                 const seenTr = new Set();
-                const uniqueTrMatches = transferMatches.filter(i => {
-                    if (!i || (!i.product && !i.name)) return false;
+                let uniqueTrMatches = transferMatches.filter(i => {
+                    if (!i || (!i.product && !i.productName && !i.name)) return false;
                     const p = (i.product || i.productName || i.name || '').trim();
                     const s = (i.size || i.selectedSize || '').trim();
                     const c = (i.color || i.selectedColor || '').trim();
@@ -2823,6 +2896,28 @@
                     return true;
                 });
 
+                // إذا كانت البنود غير مفككة في أسطر الذاكرة، نستخرجها من head.items أو head.products أو BayanSQLite
+                if (uniqueTrMatches.length === 0) {
+                    let extractedItems = [];
+                    if (Array.isArray(head.items) && head.items.length > 0) extractedItems = head.items;
+                    else if (Array.isArray(head.products) && head.products.length > 0) extractedItems = head.products;
+                    else if (Array.isArray(head.cart) && head.cart.length > 0) extractedItems = head.cart;
+                    else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
+                        extractedItems = window.BayanSQLite.getInvoiceItems(sId) || [];
+                    }
+                    if (extractedItems.length > 0) {
+                        uniqueTrMatches = extractedItems.map(it => ({
+                            product: it.product || it.productName || it.name || 'صنف محول',
+                            qty: it.qty != null ? it.qty : (it.quantity || 0),
+                            price: it.price != null ? it.price : (it.costPrice || 0),
+                            unit: it.unit || '-',
+                            size: it.size || it.selectedSize || '',
+                            color: it.color || it.selectedColor || '',
+                            total: it.total != null ? it.total : ((it.qty || 0) * (it.price || 0))
+                        }));
+                    }
+                }
+
                 tx.items = uniqueTrMatches.map(i => {
                     const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 0));
                     const price = parseFloat(i.price != null ? i.price : (i.costPrice || 0));
@@ -2830,8 +2925,8 @@
                         name: i.product || i.productName || i.name || 'صنف محول',
                         qty: qty,
                         unit: i.unit || '-',
-                        size: i.size || '',
-                        color: i.color || '',
+                        size: i.size || i.selectedSize || '',
+                        color: i.color || i.selectedColor || '',
                         price: price,
                         costPrice: price,
                         discount: 0,
@@ -2840,6 +2935,9 @@
                         total: parseFloat(i.total != null ? i.total : (qty * price))
                     };
                 });
+
+                const calculatedTotal = tx.items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0);
+                tx.total = (parseFloat(head.total) > 0) ? parseFloat(head.total) : calculatedTotal;
 
                 return window.renderCustomInvoiceModal(tx);
             }
@@ -2896,8 +2994,8 @@
                 tx.notes = purchaseMatches.find(t => t.notes)?.notes || head.notes || '';
 
                 const seenPur = new Set();
-                const uniquePurMatches = purchaseMatches.filter(i => {
-                    if (!i || (!i.product && !i.name)) return false;
+                let uniquePurMatches = purchaseMatches.filter(i => {
+                    if (!i || (!i.product && !i.productName && !i.name)) return false;
                     const p = (i.product || i.productName || i.name || '').trim();
                     const s = (i.size || i.selectedSize || '').trim();
                     const c = (i.color || i.selectedColor || '').trim();
@@ -2908,6 +3006,32 @@
                     seenPur.add(sig);
                     return true;
                 });
+
+                // إذا لم توجد بنود في أسطر الذاكرة، نستخرجها من رأس الفاتورة أو SQLite
+                if (uniquePurMatches.length === 0) {
+                    let extracted = [];
+                    if (Array.isArray(head.items) && head.items.length > 0) extracted = head.items;
+                    else if (Array.isArray(head.products) && head.products.length > 0) extracted = head.products;
+                    else if (Array.isArray(head.cart) && head.cart.length > 0) extracted = head.cart;
+                    else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
+                        extracted = window.BayanSQLite.getInvoiceItems(sId) || [];
+                    }
+                    if (extracted.length > 0) {
+                        uniquePurMatches = extracted.map(it => ({
+                            product: it.product || it.productName || it.name || 'صنف مشتريات',
+                            qty: it.qty != null ? it.qty : (it.quantity || 0),
+                            price: it.price != null ? it.price : (it.costPrice || it.purchasePrice || 0),
+                            costPrice: it.costPrice || it.purchasePrice || it.price || 0,
+                            discount: it.discount || it.itemDiscount || 0,
+                            discountType: it.discountType || 'val',
+                            addition: it.addition || it.extra || 0,
+                            unit: it.unit || '-',
+                            size: it.size || it.selectedSize || '',
+                            color: it.color || it.selectedColor || '',
+                            total: it.total != null ? it.total : ((it.qty || 0) * (it.price || 0))
+                        }));
+                    }
+                }
 
                 tx.items = uniquePurMatches.map(i => {
                     const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 0));
@@ -3004,8 +3128,8 @@
             tx.notes = saleMatches.find(t => t.notes)?.notes || head.notes || '';
 
             const seenSale = new Set();
-            const uniqueSaleMatches = saleMatches.filter(i => {
-                if (!i || (!i.product && !i.name)) return false;
+            let uniqueSaleMatches = saleMatches.filter(i => {
+                if (!i || (!i.product && !i.productName && !i.name)) return false;
                 const p = (i.product || i.productName || i.name || '').trim();
                 const s = (i.size || i.selectedSize || '').trim();
                 const c = (i.color || i.selectedColor || '').trim();
@@ -3016,6 +3140,32 @@
                 seenSale.add(sig);
                 return true;
             });
+
+            // إذا لم توجد بنود في أسطر الذاكرة، نستخرجها من رأس الفاتورة أو SQLite
+            if (uniqueSaleMatches.length === 0) {
+                let extracted = [];
+                if (Array.isArray(head.items) && head.items.length > 0) extracted = head.items;
+                else if (Array.isArray(head.products) && head.products.length > 0) extracted = head.products;
+                else if (Array.isArray(head.cart) && head.cart.length > 0) extracted = head.cart;
+                else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
+                    extracted = window.BayanSQLite.getInvoiceItems(sId) || [];
+                }
+                if (extracted.length > 0) {
+                    uniqueSaleMatches = extracted.map(it => ({
+                        product: it.product || it.productName || it.name || 'صنف',
+                        qty: it.qty != null ? it.qty : (it.quantity || 0),
+                        price: it.price != null ? it.price : 0,
+                        costPrice: it.costPrice || it.price || 0,
+                        discount: it.discount || it.itemDiscount || 0,
+                        discountType: it.discountType || 'val',
+                        addition: it.addition || it.extra || 0,
+                        unit: it.unit || '-',
+                        size: it.size || it.selectedSize || '',
+                        color: it.color || it.selectedColor || '',
+                        total: it.total != null ? it.total : ((it.qty || 0) * (it.price || 0))
+                    }));
+                }
+            }
 
             tx.items = uniqueSaleMatches.map(i => {
                 const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 0));

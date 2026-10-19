@@ -3351,47 +3351,36 @@ async function saveBill(force = false, accountChecked = false) {
             };
         }
 
-        showCustomAlert({
-
-            type: 'success',
-
-            titleText: isEditMode ? '✅ تم تحديث الفاتورة' : '✅ تم الحفظ بنجاح',
-
-            msg: `تم ${isEditMode ? 'تحديث' : 'حفظ'} فاتورة البيع رقم #${newInvoiceId} ومعالجة فرق المخزون والمديونية.`
-
-        });
-
-        if (isEditMode) {
-            if (typeof window.invalidateAccountBalancesCache === 'function') window.invalidateAccountBalancesCache();
-        } else if (!isGenericCustomer && customerName) {
-            if (typeof window.invalidateAccountBalancesCache === 'function') window.invalidateAccountBalancesCache(customerName);
-        }
-
-        // إعادة ضبط وضع التعديل (Reset Edit State)
-
+        // ⚡ تفريغ السلة وإعادة ضبط الواجهة فوراً للكاشير دون أي انتظار (Ultra-Fast UI Release)
+        const wasEditMode = isEditMode;
         isEditMode = false;
         window.isEditMode = false;
-
         editingInvoiceId = null;
         window.editingInvoiceId = null;
-
         editingOriginalDate = null;
         window.editingOriginalDate = null;
-
         editingOriginalItems = [];
         window.editingOriginalItems = [];
 
         const mainSaveBtn = document.querySelector('#sales-section .btn-save');
-
         if (mainSaveBtn) {
-
             mainSaveBtn.style.background = '';
-
             mainSaveBtn.innerHTML = '<span>✅ حفظ الفاتورة</span><span class="shortcut">F9</span>';
-
         }
 
         resetBill();
+
+        showCustomAlert({
+            type: 'success',
+            titleText: wasEditMode ? '✅ تم تحديث الفاتورة' : '✅ تم الحفظ بنجاح',
+            msg: `تم ${wasEditMode ? 'تحديث' : 'حفظ'} فاتورة البيع رقم #${newInvoiceId} ومعالجة فرق المخزون والمديونية.`
+        });
+
+        if (wasEditMode) {
+            if (typeof window.invalidateAccountBalancesCache === 'function') window.invalidateAccountBalancesCache();
+        } else if (!isGenericCustomer && customerName) {
+            if (typeof window.invalidateAccountBalancesCache === 'function') window.invalidateAccountBalancesCache(customerName);
+        }
 
         // 🖨️ إرسال أمر الطباعة التلقائي المباشر (صامت تماماً وفوري دون أي نوافذ)
         if (shouldAutoPrint && autoPrintInvoiceData && typeof printInvoice === 'function') {

@@ -244,6 +244,7 @@
                         isValid = true;
                         matchedShopId = match.raw_json.shopId || match.id.replace('CONFIG_DEVICE_PAIRING_', '');
                         matchedShopName = match.raw_json.shopName || 'بَيَان فاشون';
+                        syncStoreProfile(match.raw_json);
                     }
                 }
             }
@@ -271,6 +272,93 @@
         } catch (e) {
             console.warn('[submitPinVerification] Network error:', e);
             showToast('تعذر التحقق: تأكد من اتصال الإنترنت بالسيرفر', 'error');
+        }
+    }
+
+    // ============================================================
+    // 🏪 STORE PROFILE SYNC (مزامنة بيانات وهوية المتجر التلقائية)
+    // ============================================================
+    function syncStoreProfile(data) {
+        if (!data || typeof data !== 'object') return;
+        const shopName = data.shopName || data.shop_name || data.name || State.shopName || 'بَيَان فاشون';
+        const phone = data.phone || data.shopPhone || data.shop_phone || data.tel || '';
+        const address = data.address || data.shopAddress || data.shop_address || '';
+        const footer = data.invoiceFooter || data.invoice_footer || data.footer || '';
+
+        const storeInfo = {
+            shopName,
+            phone,
+            address,
+            invoiceFooter: footer,
+            updatedAt: data.updatedAt || new Date().toISOString()
+        };
+
+        localStorage.setItem('bayan_mob_store_info', JSON.stringify(storeInfo));
+        localStorage.setItem('bayan_mob_shop_name', shopName);
+
+        State.storeInfo = storeInfo;
+        State.shopName = shopName;
+
+        let curSettings = {};
+        try { curSettings = JSON.parse(localStorage.getItem('bayan_mob_settings') || '{}'); } catch (e) {}
+        curSettings.shop_name = shopName;
+        if (phone) curSettings.shop_phone = phone;
+        if (address) curSettings.shop_address = address;
+        if (footer) curSettings.invoice_footer = footer;
+        localStorage.setItem('bayan_mob_settings', JSON.stringify(curSettings));
+        State.settings = curSettings;
+
+        applyStoreProfileToUI(storeInfo);
+    }
+
+    function applyStoreProfileToUI(storeInfo) {
+        if (!storeInfo) {
+            try { storeInfo = JSON.parse(localStorage.getItem('bayan_mob_store_info') || 'null'); } catch (e) {}
+        }
+        if (!storeInfo) return;
+
+        const sName = storeInfo.shopName || 'بَيَان فاشون';
+        const sPhone = storeInfo.phone || '';
+        const sAddr = storeInfo.address || '';
+
+        // 1. تحديث الهيدر العلوي للموبايل
+        const topbarNameEl = document.getElementById('topbarShopName');
+        const topbarSubEl = document.getElementById('topbarShopSub');
+        if (topbarNameEl) {
+            topbarNameEl.innerHTML = `<span class="shop-title-text">${sName}</span> <span class="badge-tag">موبايل 📱</span>`;
+        }
+        if (topbarSubEl) {
+            if (sPhone) {
+                topbarSubEl.textContent = `📞 ${sPhone} ${sAddr ? '• ' + sAddr : ''}`;
+            } else if (sAddr) {
+                topbarSubEl.textContent = `📍 ${sAddr}`;
+            } else {
+                topbarSubEl.textContent = 'متابعة الخزينة والبيع السريع 👗';
+            }
+        }
+
+        // 2. تحديث حقول شاشة الإعدادات
+        const nameInp = document.getElementById('settingShopNameInput');
+        const phoneInp = document.getElementById('settingShopPhoneInput');
+        const addrInp = document.getElementById('settingShopAddressInput');
+        const footerInp = document.getElementById('settingInvoiceFooterInput');
+
+        if (nameInp) nameInp.value = sName;
+        if (phoneInp && sPhone) phoneInp.value = sPhone;
+        if (addrInp && sAddr) addrInp.value = sAddr;
+        if (footerInp && storeInfo.invoiceFooter) footerInp.value = storeInfo.invoiceFooter;
+
+        // 3. تحديث مقتطفات القائمة الرئيسية للإعدادات
+        const snippetBranch = document.getElementById('settingSnippetBranch');
+        const snippetInvoice = document.getElementById('settingSnippetInvoice');
+        const currentWh = State.activeWarehouse || 'المخزن الرئيسي';
+
+        if (snippetBranch) snippetBranch.textContent = `${sName} • ${currentWh}`;
+        if (snippetInvoice) snippetInvoice.textContent = `${sName}${sPhone ? ' • ' + sPhone : ''}`;
+
+        // 4. تحديث معاينة رسالة الواتساب إن وجدت
+        if (typeof updateInvoiceWaPreview === 'function') {
+            updateInvoiceWaPreview(sName, storeInfo.invoiceFooter);
         }
     }
 
@@ -316,9 +404,24 @@
 
             const [pRes, tRes, cRes] = await Promise.all([
                 safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/products?id=like.${encodeURIComponent(currentShopId)}_PROD_*&select=*`),
-                safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/transactions?id=like.${encodeURIComponent(currentShopId)}_*&select=*&order=created_at.desc&limit=150`),
-                safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?id=like.${encodeURIComponent(currentShopId)}_*&select=*&order=date.desc&limit=50`)
+                safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/transactions?or=(id.like.${encodeURIComponent(currentShopId)}_*,raw_json->>shop_id.eq.${encodeURIComponent(currentShopId)})&select=*&order=created_at.desc&limit=150`),
+                safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?or=(id.like.*${encodeURIComponent(currentShopId)}*,id.like.${encodeURIComponent(currentShopId)}_*)&select=*&order=date.desc&limit=100`)
             ]);
+
+            // 0. مزامنة بيانات المتجر التلقائية (Store Profile Sync)
+            if (Array.isArray(cRes) && cRes.length > 0) {
+                const storeRow = cRes.find(r => 
+                    r.id === `CONFIG_DEVICE_PAIRING_${currentShopId}` || 
+                    r.id === 'CONFIG_DEVICE_PAIRING' ||
+                    (r.category === 'اقتران' && r.raw_json && (
+                        String(r.raw_json.shopId || '').toUpperCase() === currentShopId.toUpperCase() ||
+                        String(r.raw_json.shop_id || '').toUpperCase() === currentShopId.toUpperCase()
+                    ))
+                );
+                if (storeRow && storeRow.raw_json) {
+                    syncStoreProfile(storeRow.raw_json);
+                }
+            }
 
             // 1. معالجة وتوحيد الفواتير مع الاكتشاف الذكي لمعرف المحل
             // تجميع كل الفواتير الملغاة لحظرها وتصفيتها فوراً من الذاكرة والعرض
@@ -540,8 +643,19 @@
     // ============================================================
     function parseDateToISO(dateStr) {
         if (!dateStr) return '';
-        if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateStr)) {
-            return dateStr.slice(0, 10);
+        // إذا كان التاريخ بتنسيق YYYY-MM-DD الخالص
+        if (typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateStr.trim())) {
+            return dateStr.trim();
+        }
+        // إذا كان طابعاً زمنياً يحوي T (مثل 2026-10-05T21:45:00Z)، يحول للتوقيت المحلي للجهاز بدقة
+        if (typeof dateStr === 'string' && dateStr.includes('T')) {
+            const p = new Date(dateStr);
+            if (!isNaN(p.getTime())) {
+                const y = p.getFullYear();
+                const m = String(p.getMonth() + 1).padStart(2, '0');
+                const d = String(p.getDate()).padStart(2, '0');
+                return `${y}-${m}-${d}`;
+            }
         }
         // Normalize Arabic digits
         const normalized = String(dateStr).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
@@ -582,6 +696,15 @@
         return `${y}-${m}-${d}`;
     }
 
+    function getYesterdayISO() {
+        const yDate = new Date();
+        yDate.setDate(yDate.getDate() - 1);
+        const y = yDate.getFullYear();
+        const m = String(yDate.getMonth() + 1).padStart(2, '0');
+        const d = String(yDate.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+
     function isNonCash(m) {
         if (!m) return false;
         const str = String(m).toLowerCase().trim();
@@ -607,9 +730,9 @@
         const now = new Date();
 
         if (period === 'yesterday') {
+            const yISO = getYesterdayISO();
             const yDate = new Date();
             yDate.setDate(yDate.getDate() - 1);
-            const yISO = formatDateISO(yDate);
             return {
                 start: yISO,
                 end: yISO,
@@ -783,15 +906,21 @@
     async function syncPeriodTransactionsFromCloud(startISO, endISO) {
         if (!startISO || !endISO || !navigator.onLine) return;
         try {
-            const url = `${SUPABASE_CONFIG.url}/rest/v1/transactions?select=*&date_iso=gte.${startISO}&date_iso=lte.${endISO}T23:59:59&order=created_at.desc&limit=300`;
+            const currentShopId = State.shopId || CONFIG.SHOP_ID || 'SHOP_DEFAULT';
+            let url = `${SUPABASE_CONFIG.url}/rest/v1/transactions?select=*&order=created_at.desc&limit=300`;
+            if (currentShopId && currentShopId !== 'SHOP_DEFAULT') {
+                url += `&or=(id.like.${encodeURIComponent(currentShopId)}_*,raw_json->>shop_id.eq.${encodeURIComponent(currentShopId)})`;
+            }
+            url += `&or=(and(date_iso.gte.${startISO},date_iso.lte.${endISO}),and(created_at.gte.${startISO}T00:00:00Z,created_at.lte.${endISO}T23:59:59Z))`;
+
             const res = await fetch(url, { headers: getSupabaseHeaders() });
             if (res.ok) {
                 const rows = await res.json();
                 if (Array.isArray(rows) && rows.length > 0) {
-                    const currentShopId = State.shopId || CONFIG.SHOP_ID || 'SHOP_DEFAULT';
                     const shopRows = rows.filter(r => {
                         const raw = r.raw_json || {};
-                        return !raw.shop_id || raw.shop_id === currentShopId || currentShopId === 'SHOP_DEFAULT';
+                        const rowShopId = raw.shop_id || (r.id && r.id.startsWith(currentShopId + '_') ? currentShopId : null);
+                        return !rowShopId || rowShopId === currentShopId || currentShopId === 'SHOP_DEFAULT';
                     });
 
                     const mapped = shopRows.map(row => {
@@ -802,10 +931,11 @@
                         const txTime = row.time || raw.time || (row.created_at ? new Date(row.created_at).toTimeString().slice(0, 5) : '12:00');
                         const totVal = parseFloat(row.total !== undefined ? row.total : (raw.total !== undefined ? raw.total : (raw.invoiceGrandTotal || 0))) || 0;
                         const paidVal = parseFloat(row.paid_amount !== undefined ? row.paid_amount : (raw.paidAmount !== undefined ? raw.paidAmount : (raw.paid || totVal))) || 0;
+                        const cleanInvId = String(row.invoice_id || raw.invoiceId || row.id || '').replace(`${currentShopId}_`, '');
 
                         return {
                             id: String(row.id || raw.id),
-                            invoiceId: String(row.invoice_id || raw.invoiceId || row.id || ''),
+                            invoiceId: cleanInvId,
                             dateISO: parsedDateISO,
                             timeISO: txTime,
                             type: row.type || raw.type || 'مبيعات',
@@ -869,6 +999,11 @@
 
         const range = getPeriodDateRange(period);
         syncPeriodTransactionsFromCloud(range.start, range.end);
+    }
+
+    // دالة مرادفة معتمدة لفلترة المبيعات حسب الفترة
+    function filterSalesByPeriod(period) {
+        return setDashboardPeriod(period);
     }
 
     function toggleCustomDateRange() {
@@ -989,10 +1124,17 @@
         if (!listEl) return;
 
         if (stats.periodTxs.length === 0) {
+            const emptyLabel = (period === 'today') ? 'اليوم' : (period === 'yesterday' ? 'الأمس' : range.label);
             listEl.innerHTML = `
-                <div style="text-align: center; padding: 25px 15px; color: var(--text-dim);">
-                    <div style="font-size: 2rem; margin-bottom: 6px;">🧾</div>
-                    <p style="font-size: 0.85rem; font-weight: 700;">لا توجد فواتير أو حركات مسجلة في فترة (${range.label})</p>
+                <div class="empty-sales-card">
+                    <div class="empty-sales-icon-wrap">
+                        <span class="empty-sales-icon">🛍️</span>
+                    </div>
+                    <h4 class="empty-sales-title">لا توجد مبيعات مسجلة في هذا اليوم 🛍️</h4>
+                    <p class="empty-sales-desc">فترة (${emptyLabel}) لا تحتوي على أي فواتير مسجلة بعد. يمكنك بدء تسجيل أول عملية بيع فوري الآن بنقرة واحدة.</p>
+                    <button type="button" class="btn-empty-pos-shortcut" onclick="window.BayanMobile.switchTab('pos')">
+                        <span>🛒</span> إنشاء فاتورة بيع جديدة
+                    </button>
                 </div>
             `;
             return;
@@ -1449,6 +1591,55 @@
         if (btnCheckout) btnCheckout.disabled = false;
     }
 
+    /**
+     * ============================================================
+     * 🔢 GENERATE SHORT SEQUENTIAL INVOICE ID (ترقيم تسلسلي يومي ذكي)
+     * الصيغة: MOB-YYMMDD-XXX (مثال: MOB-261019-001)
+     * يتم حفظ ومتابعة العداد في localStorage بمفتاح 'bayan_mob_last_invoice_seq'
+     * ============================================================
+     */
+    function generateInvoiceId() {
+        const now = new Date();
+        const yy = String(now.getFullYear()).slice(-2);
+        const mm = String(now.getMonth() + 1).padStart(2, '0');
+        const dd = String(now.getDate()).padStart(2, '0');
+        const dateKey = `${yy}${mm}${dd}`; // e.g. "261019"
+
+        const lastDate = localStorage.getItem('bayan_mob_last_invoice_date') || '';
+        let lastSeq = parseInt(localStorage.getItem('bayan_mob_last_invoice_seq') || '0', 10);
+
+        if (isNaN(lastSeq) || lastSeq < 0) {
+            lastSeq = 0;
+        }
+
+        // إذا بدأ يوم جديد، يتم تصفير العداد لليوم الجديد
+        if (lastDate !== dateKey) {
+            lastSeq = 0;
+            localStorage.setItem('bayan_mob_last_invoice_date', dateKey);
+        }
+
+        // فحص وقائي في الفواتير المسجلة محلياً لمنع أي تكرار لنفس اليوم
+        if (Array.isArray(State.transactions) && State.transactions.length > 0) {
+            const prefix = `MOB-${dateKey}-`;
+            State.transactions.forEach(t => {
+                const id = String(t.invoiceId || t.id || '');
+                if (id.startsWith(prefix)) {
+                    const rawPart = id.replace(prefix, '');
+                    const numPart = parseInt(rawPart, 10);
+                    if (!isNaN(numPart) && numPart > lastSeq) {
+                        lastSeq = numPart;
+                    }
+                }
+            });
+        }
+
+        const nextSeq = lastSeq + 1;
+        localStorage.setItem('bayan_mob_last_invoice_seq', String(nextSeq));
+
+        const seqStr = String(nextSeq).padStart(3, '0');
+        return `MOB-${dateKey}-${seqStr}`;
+    }
+
     // Submit Mobile Invoice
     async function submitMobileInvoice() {
         if (State.cart.length === 0) return;
@@ -1458,7 +1649,7 @@
 
         try {
             const timestamp = Date.now();
-            const invoiceId = `MOB-${State.terminalLetter}-${timestamp.toString().slice(-6)}`;
+            const invoiceId = generateInvoiceId();
             const total = State.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
             const custName = (document.getElementById('posCustomerInput')?.value || State.selectedCustomer || 'عميل نقدي').trim() || 'عميل نقدي';
 
@@ -1492,7 +1683,7 @@
             const currentShopId = State.shopId || CONFIG.SHOP_ID || 'SHOP_DEFAULT';
 
             const newTx = {
-                id: timestamp,
+                id: invoiceId,
                 numericId: timestamp,
                 invoiceId: invoiceId,
                 type: 'sale',
@@ -2959,7 +3150,7 @@
         const previewBox = document.getElementById('invoiceWaPreviewBox');
         if (!previewBox) return;
         previewBox.textContent = `🧾 *فاتورة مشتريات من ${shopName || 'بَيَان فاشون'}*
-رقم الفاتورة: #MOB-101
+رقم الفاتورة: #MOB-261019-001
 العميل: عميل نقدي
 التاريخ: ${new Date().toLocaleDateString('ar-EG')}
 
@@ -3046,17 +3237,12 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         const address = (document.getElementById('settingShopAddressInput')?.value || '').trim();
         const footer = (document.getElementById('settingInvoiceFooterInput')?.value || '').trim();
 
-        const settingsObj = {
-            shop_name: name,
-            shop_phone: phone,
-            shop_address: address,
-            invoice_footer: footer
-        };
-
-        localStorage.setItem('bayan_mob_settings', JSON.stringify(settingsObj));
-        localStorage.setItem('bayan_mob_shop_name', name);
-        State.settings = settingsObj;
-        State.shopName = name;
+        syncStoreProfile({
+            shopName: name,
+            phone: phone,
+            address: address,
+            invoiceFooter: footer
+        });
 
         renderSettingsView();
         showToast('تم حفظ بيانات المتجر والفاتورة بنجاح! 🧾✨', 'success');
@@ -3721,7 +3907,11 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                                 ${typeBadge}
                             </div>
                             <div class="account-meta-row">
-                                ${cleanPhone ? `<span class="acc-phone"><a href="tel:${cleanPhone}">📱 ${cleanPhone}</a></span>` : '<span class="acc-phone-dim" style="color:var(--text-dim); opacity:0.6;">بدون هاتف</span>'}
+                                ${cleanPhone ? `
+                                <a href="tel:${cleanPhone}" class="acc-phone-badge" title="اتصال مباشر بالهاتف">
+                                    <span class="phone-call-icon">📞</span>
+                                    <span class="phone-num-text" dir="ltr">${cleanPhone}</span>
+                                </a>` : '<span class="acc-phone-dim" style="color:var(--text-dim); opacity:0.6;">بدون هاتف</span>'}
                                 ${a.code ? `<span class="acc-code">كود: ${a.code}</span>` : ''}
                                 ${a.address ? `<span class="acc-address">📍 ${a.address}</span>` : ''}
                             </div>
@@ -3733,7 +3923,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                             <span class="acc-bal-icon">${balIcon}</span>
                             <span class="acc-bal-label">${balStatusText}:</span>
                         </div>
-                        <div class="acc-bal-val">${balDisplayVal}</div>
+                        <div class="acc-bal-val ${balBoxClass}">${balDisplayVal}</div>
                     </div>
 
                     <div class="account-card-actions">
@@ -3761,7 +3951,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
 
     function setAccountFilter(filter) {
         State.accountFilter = filter;
-        document.querySelectorAll('#view-accounts .cat-chip').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('#view-accounts .acc-pill-btn, #view-accounts .cat-chip').forEach(c => c.classList.remove('active'));
         const chipMap = {
             'all': 'accFilterAll',
             'clients': 'accFilterClients',
@@ -3777,7 +3967,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
     function onAccountSearchInput(query) {
         State.accountSearchQuery = query;
         const clearBtn = document.getElementById('accountSearchClear');
-        if (clearBtn) clearBtn.style.display = query.trim() ? 'block' : 'none';
+        if (clearBtn) clearBtn.style.display = query.trim() ? 'flex' : 'none';
         renderAccountsView();
     }
 
@@ -4096,6 +4286,9 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
     // 🚀 INITIALIZATION
     // ============================================================
     async function init() {
+        // تطبيق فوري لبيانات المتجر المخزنة محلياً على الهيدر والإعدادات فور بدء التشغيل
+        applyStoreProfileToUI();
+
         // Setup Search Input Listener
         const searchInput = document.getElementById('productSearchInput');
         if (searchInput) {
@@ -4161,6 +4354,8 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         if (isOnline) {
             await pullMasterData();
             processOfflineQueue();
+        } else {
+            applyStoreProfileToUI();
         }
         startAutoSyncPoll();
 
@@ -4261,8 +4456,12 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         onAccountTypeChange,
         submitNewAccount,
         setDashboardPeriod,
+        filterSalesByPeriod,
         toggleCustomDateRange,
         applyCustomDateRange,
+        generateInvoiceId,
+        syncStoreProfile,
+        applyStoreProfileToUI,
         reconnect: async () => {
             showToast('جاري إعادة فحص الاتصال بالسحابة...', 'warning');
             const ok = await checkServerInfo();

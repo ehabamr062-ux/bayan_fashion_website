@@ -308,12 +308,15 @@
                 return window.accountBalancesCache[cacheKey];
             }
 
-            // ⚡ 1. حساب الرصيد الصافي الدقيق مباشرة من محرك SQLite C++ بكامل الأرشيف التاريخي
-            if (window.BayanSQLite && typeof window.BayanSQLite.getAccountAccurateBalance === 'function' && window.BayanSQLite.db) {
-                const accurateBal = window.BayanSQLite.getAccountAccurateBalance(name, activeExcludeId);
-                if (!window.accountBalancesCache) window.accountBalancesCache = {};
-                window.accountBalancesCache[cacheKey] = accurateBal;
-                return accurateBal;
+            // ⚡ 1. حساب الرصيد الصافي الدقيق مباشرة من محرك SQLite بنسبة 100% عبر استعلام SQL تجميعي (< 1ms)
+            if (window.BayanSQLite && window.BayanSQLite.db) {
+                const sqliteBalanceFn = window.BayanSQLite.getAccountBalanceDirect || window.BayanSQLite.getAccountAccurateBalance;
+                if (typeof sqliteBalanceFn === 'function') {
+                    const directBal = sqliteBalanceFn.call(window.BayanSQLite, name, activeExcludeId);
+                    if (!window.accountBalancesCache) window.accountBalancesCache = {};
+                    window.accountBalancesCache[cacheKey] = directBal;
+                    return directBal;
+                }
             }
 
             const acc = getAccountByNameCached(targetNameClean);
@@ -1896,6 +1899,13 @@
                 return;
             }
 
+            // ⚡ تحميل الفاتورة وبنودها بالكامل من محرك SQLite في الذاكرة مسبقاً قبل أي فحص
+            if (typeof window.ensureInvoiceLoaded === 'function') {
+                try {
+                    await window.ensureInvoiceLoaded(invId);
+                } catch(e) {}
+            }
+
             // البحث عن الفاتورة باستخدام الرقم والنوع لضمان الدقة المطلقة وعدم تداخل البيع مع المرتجع
             const typeClean = String(type || '').trim();
             let t = transactions.find(tx => (String(tx.invoiceId) === String(invId) || String(tx.id) === String(invId)) && (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(tx.type, typeClean) : true));
@@ -1924,12 +1934,34 @@
                 onConfirm: async () => {
 
                     // جلب كافة بنود الفاتورة بالكامل بدقة برقم الفاتورة ونوعها لمنع ظهور أو سحب أي مرتجع داخل فاتورة البيع أو العكس
-                    const invItems = transactions.filter(x => {
+                    let invItems = transactions.filter(x => {
                         const hasInvId = x.invoiceId != null && x.invoiceId !== '';
                         const idMatch = hasInvId ? (String(x.invoiceId) === String(invId)) : (String(x.id) === String(invId));
                         if (!idMatch) return false;
                         return (typeof window.isMatchingInvoiceType === 'function') ? window.isMatchingInvoiceType(x.type, targetType) : true;
                     });
+
+                    // ⚡ استرداد بنود الفاتورة مباشرة من SQLite في حال كانت العملية مسجلة كسطر رأس فقط في الذاكرة
+                    if (invItems.length === 0 || !invItems.some(x => x && (x.product || x.productName || x.name))) {
+                        if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceFullDetails === 'function') {
+                            const fullDoc = window.BayanSQLite.getInvoiceFullDetails(invId);
+                            if (fullDoc) {
+                                if (Array.isArray(fullDoc.transactionsRows) && fullDoc.transactionsRows.length > 0) {
+                                    invItems = fullDoc.transactionsRows;
+                                } else if (Array.isArray(fullDoc.items) && fullDoc.items.length > 0) {
+                                    invItems = fullDoc.items.map(it => ({
+                                        ...it,
+                                        invoiceId: invId,
+                                        type: targetType,
+                                        product: it.product || it.productName || it.name,
+                                        qty: it.qty != null ? it.qty : (it.quantity || 1),
+                                        price: it.price || 0
+                                    }));
+                                }
+                            }
+                        }
+                    }
+
                     const head = invItems.find(x => x.isInvoiceHead) || invItems[0] || t;
 
                     // استخراج أدق البيانات الأصلية للفاتورة
@@ -2031,14 +2063,15 @@
 
                         if (section === 'sales') {
 
-                            cart = invItems.filter(x => x.product).map(it => {
-                                const p = productsDB.find(x => x.name === it.product);
+                            cart = invItems.filter(x => x && (x.product || x.productName || x.name)).map(it => {
+                                const prodName = it.product || it.productName || it.name;
+                                const p = productsDB.find(x => x.name === prodName);
                                 const u = (p && p.units) ? p.units.find(un => un.unitName === it.unit) : null;
                                 return {
                                     id: p ? p.id : (Date.now() + Math.random()),
                                     code: it.code || (p ? p.code : ''),
-                                    name: it.product,
-                                    qty: parseFloat(it.qty || 1),
+                                    name: prodName,
+                                    qty: parseFloat(it.qty != null ? it.qty : (it.quantity || 1)),
                                     price: parseFloat(it.price || 0),
                                     unit: it.unit || 'قطعة',
                                     unitFactor: parseFloat(it.unitFactor) || (u ? (parseFloat(u.factor) || 1) : 1),
@@ -2114,20 +2147,21 @@
 
                         } else if (section === 'purchase') {
 
-                            purchaseCart = invItems.filter(x => x.product).map(it => {
-                                const p = productsDB.find(x => x.name === it.product);
+                            purchaseCart = invItems.filter(x => x && (x.product || x.productName || x.name)).map(it => {
+                                const prodName = it.product || it.productName || it.name;
+                                const p = productsDB.find(x => x.name === prodName);
                                 const u = (p && p.units) ? p.units.find(un => un.unitName === it.unit) : null;
                                 const defaultSale = u ? (parseFloat(u.price) || 0) : (p ? (parseFloat(p.price) || 0) : 0);
                                 const defaultWholesale = u ? (parseFloat(u.wholesale) || 0) : (p ? (parseFloat(p.wholesale) || 0) : 0);
                                 return {
                                     id: p ? p.id : (Date.now() + Math.random()),
                                     code: it.code || (p ? p.code : ''),
-                                    name: it.product,
+                                    name: prodName,
                                     selectedSize: it.selectedSize || it.size || '',
                                     selectedColor: it.selectedColor || it.color || '',
                                     size: it.selectedSize || it.size || '',
                                     color: it.selectedColor || it.color || '',
-                                    qty: parseFloat(it.qty || 1),
+                                    qty: parseFloat(it.qty != null ? it.qty : (it.quantity || 1)),
                                     price: parseFloat(it.price || 0),
                                     salePrice: parseFloat(it.salePrice) > 0 ? parseFloat(it.salePrice) : defaultSale,
                                     wholesalePrice: parseFloat(it.wholesalePrice) > 0 ? parseFloat(it.wholesalePrice) : defaultWholesale,
@@ -2310,18 +2344,19 @@
 
                         } else if (section === 'transfer') {
 
-                            window.transferItemsBatch = invItems.filter(x => x.product).map(it => {
-                                const p = productsDB.find(x => x.name === it.product || x.id === it.productId);
+                            window.transferItemsBatch = invItems.filter(x => x && (x.product || x.productName || x.name)).map(it => {
+                                const prodName = it.product || it.productName || it.name;
+                                const p = productsDB.find(x => x.name === prodName || x.id === it.productId);
                                 return {
-                                    id: p ? p.id : (Date.now() + Math.random()),
-                                    name: it.product,
+                                    id: p ? p.id : (it.productId || it.id || (Date.now() + Math.random())),
+                                    name: prodName,
                                     selectedSize: it.selectedSize || it.size || '',
                                     selectedColor: it.selectedColor || it.color || '',
                                     size: it.selectedSize || it.size || '',
                                     color: it.selectedColor || it.color || '',
                                     stock: p ? p.stock : 0,
-                                    qty: parseFloat(it.qty),
-                                    price: parseFloat(it.price),
+                                    qty: parseFloat(it.qty != null ? it.qty : (it.quantity || 1)),
+                                    price: parseFloat(it.price != null ? it.price : 0),
                                     unit: it.unit || 'قطعة',
                                     unitFactor: parseFloat(it.unitFactor) || 1
                                 };
@@ -2409,11 +2444,12 @@
                         } else if (section === 'adjustment') {
 
                             const activeWH = (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي';
-                            adjCart = invItems.filter(x => x.product).map(it => {
-                                const p = productsDB.find(x => x.name === it.product || x.id === it.productId);
+                            adjCart = invItems.filter(x => x && (x.product || x.productName || x.name)).map(it => {
+                                const prodName = it.product || it.productName || it.name;
+                                const p = productsDB.find(x => x.name === prodName || x.id === it.productId);
                                 const u = (p && p.units) ? p.units.find(un => un.unitName === it.unit) : null;
                                 const factor = parseFloat(it.unitFactor) || 1;
-                                const baseAdjDiff = (parseFloat(it.qty) || 0) * factor;
+                                const baseAdjDiff = (parseFloat(it.qty != null ? it.qty : (it.quantity || 0))) * factor;
 
                                 let liveStock = 0;
                                 if (p) {
@@ -2435,7 +2471,7 @@
 
                                 // في التسوية: الفرق = الفعلي - الدفتري، وبالتالي: الدفتري = الحالي - الفرق، والفعلي المجرود = الدفتري + الفرق = الحالي
                                 let origStockBefore = (liveStock - baseAdjDiff) / factor;
-                                let origCountedQty = origStockBefore + (parseFloat(it.qty) || 0);
+                                let origCountedQty = origStockBefore + (parseFloat(it.qty != null ? it.qty : (it.quantity || 0)));
 
                                 if (it.notes && typeof it.notes === 'string') {
                                     const actualMatch = it.notes.match(/فعلي\s+([\d.-]+)/);
@@ -2449,15 +2485,15 @@
                                 }
 
                                 return {
-                                    id: p ? p.id : (Date.now() + Math.random()),
-                                    name: it.product,
+                                    id: p ? p.id : (it.productId || it.id || (Date.now() + Math.random())),
+                                    name: prodName,
                                     code: (p && p.variants && (it.selectedSize || it.size)) ? (p.variants.find(v => (v.size === (it.selectedSize || it.size) && (!it.color || v.color === (it.selectedColor || it.color))))?.barcode || p.code) : (p ? p.code : ''),
                                     selectedSize: it.selectedSize || it.size || '',
                                     selectedColor: it.selectedColor || it.color || '',
                                     size: it.selectedSize || it.size || '',
                                     color: it.selectedColor || it.color || '',
                                     qty: Math.max(0, origCountedQty),
-                                    price: parseFloat(it.price) || 0,
+                                    price: parseFloat(it.price != null ? it.price : 0),
                                     unit: it.unit || 'قطعة',
                                     unitFactor: factor,
                                     selectedUnit: u,
