@@ -236,7 +236,7 @@
     // حالة نظام التحديث
     // =========================================================================
     const state = {
-        currentVersion: window.appVersion || '4.5.0',
+        currentVersion: window.appVersion || '4.6.1',
         latestVersion: null,
         releaseNotes: '',
         downloadUrl: '',
@@ -265,7 +265,7 @@
     }
 
     function getCurrentAppVersion() {
-        return window.appVersion || '4.5.0';
+        return window.appVersion || '4.6.1';
     }
 
     function fmtNotes(notes) {

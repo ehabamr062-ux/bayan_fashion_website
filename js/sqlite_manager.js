@@ -430,12 +430,10 @@
                                 console.warn("[SQLite] Schema warning:", sErr.message);
                             }
 
-                            // تنفيذ مهام ما بعد التهيئة والفحص الصامت
-                            try {
-                                await this._runPostInitTasks();
-                            } catch(pErr) {
-                                console.warn("[SQLite] Post-init warning:", pErr.message);
-                            }
+                            // تنفيذ مهام ما بعد التهيئة والفحص الصامت بهدوء في الخلفية دون تعطيل الإقلاع أو تسجيل الدخول
+                            setTimeout(() => {
+                                this._runPostInitTasks().catch(pErr => console.warn("[SQLite] Post-init warning:", pErr.message));
+                            }, 2500);
 
                             this.isInitialized = true;
                             // 🧹 تحرير فوري لذاكرة الرام بإلغاء حزمة الـ WASM Base64 في بيئة Native SQLite
@@ -662,12 +660,10 @@
                         console.warn("[SQLite] Schema warning:", sErr.message);
                     }
 
-                    // تنفيذ مهام ما بعد التهيئة والفحص الصامت
-                    try {
-                        await this._runPostInitTasks();
-                    } catch(pErr) {
-                        console.warn("[SQLite] Post-init warning:", pErr.message);
-                    }
+                    // تنفيذ مهام ما بعد التهيئة والفحص الصامت بهدوء في الخلفية دون تعطيل الإقلاع أو تسجيل الدخول
+                    setTimeout(() => {
+                        this._runPostInitTasks().catch(pErr => console.warn("[SQLite] Post-init warning:", pErr.message));
+                    }, 2500);
 
                     this.isInitialized = true;
                     console.info("ℹ️ [SQLite Engine] WASM Fallback ACTIVE (sql.js) at:", this.dbPath || 'Browser Local Storage');

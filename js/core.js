@@ -73,18 +73,24 @@ window.BayanNetworkHub = {
 // 🔢 المزامنة التلقائية لرقم الإصدار الموحد (Single Source of Truth Unification)
 // المصدر الرسمي الوحيد هو package.json عبر app.getVersion()
 // =========================================================================
-window.appVersion = '4.5.0';
-window.APP_VERSION = '4.5.0';
+window.appVersion = '4.6.1';
+window.APP_VERSION = '4.6.1';
 
 async function fetchAppVersion() {
-    let version = '4.5.0';
+    let version = '4.6.1';
     try {
         if (typeof window !== 'undefined' && window.require) {
             const electron = window.require('electron');
             if (electron && electron.ipcRenderer) {
                 const ver = await electron.ipcRenderer.invoke('get-app-version');
-                if (ver) version = ver;
+                if (ver) return ver;
             }
+        }
+        // في بيئة المتصفح: جلب الإصدار المحدث من version.json مباشرة
+        const res = await fetch('version.json?t=' + Date.now()).catch(() => null);
+        if (res && res.ok) {
+            const vData = await res.json().catch(() => null);
+            if (vData && vData.version) return vData.version;
         }
     } catch (e) { }
     return version;

@@ -331,17 +331,27 @@
                 // ⚡ صمام أمان فوري ضد سباق السرعة (Fast Login Fix):
                 // إذا لم يكن المستخدم موجوداً في الذاكرة بعد أو كان الـ PIN غير محمل (كاش سريع)، نجلبه مباشرة من SQLite
                 if (!foundUser || foundUser.pin === undefined) {
-                    const targetDb = window.db || window.bayanDB;
-                    if (targetDb && targetDb.users && typeof targetDb.users.toArray === 'function') {
+                    if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
                         try {
-                            const dbUsers = await targetDb.users.toArray();
-                            if (dbUsers && dbUsers.length > 0) {
-                                window.users = dbUsers;
-                                users = dbUsers;
-                                foundUser = dbUsers.find(u => u.name === username);
+                            const uRow = window.BayanSQLite.nativeDb.prepare("SELECT * FROM users WHERE name = ? LIMIT 1;").get(username);
+                            if (uRow) {
+                                foundUser = window.BayanSQLite._reconstructRow ? window.BayanSQLite._reconstructRow(uRow) : uRow;
                             }
-                        } catch(dbErr) {
-                            console.warn("DB user fetch error during login:", dbErr);
+                        } catch(nErr) {}
+                    }
+                    if (!foundUser || foundUser.pin === undefined) {
+                        const targetDb = window.db || window.bayanDB;
+                        if (targetDb && targetDb.users && typeof targetDb.users.toArray === 'function') {
+                            try {
+                                const dbUsers = await targetDb.users.toArray();
+                                if (dbUsers && dbUsers.length > 0) {
+                                    window.users = dbUsers;
+                                    users = dbUsers;
+                                    foundUser = dbUsers.find(u => u.name === username);
+                                }
+                            } catch(dbErr) {
+                                console.warn("DB user fetch error during login:", dbErr);
+                            }
                         }
                     }
                 }
@@ -474,16 +484,18 @@
                         }
                         if (typeof applyPermissions === 'function') applyPermissions();
                         if (typeof updateDashboardPermissions === 'function') updateDashboardPermissions();
-                        updateNotifications();
+                        setTimeout(() => {
+                            if (typeof updateNotifications === 'function') updateNotifications();
+                        }, 800);
                     };
-
-                    // 🚀 تشغيل محرك البيانات بالخلفية إن لم يكن بدأ بالفعل والانتقال الفوري السلس
-                    if (typeof window.startDataLoader === 'function') {
-                        window.startDataLoader();
-                    }
 
                     // ⚡ انتقال فوري مباشر للواجهة الرئيسية أو نقطة البيع في أجزاء من الثانية (0ms)
                     proceedToTargetSection();
+
+                    // 🚀 تشغيل محرك البيانات بالخلفية إن لم يكن بدأ بالفعل بهدوء
+                    if (typeof window.startDataLoader === 'function') {
+                        setTimeout(() => window.startDataLoader(), 50);
+                    }
                 } else {
                     failedLoginAttempts++;
                     if (failedLoginAttempts >= 5) {

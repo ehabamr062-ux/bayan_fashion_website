@@ -40,7 +40,7 @@
                 window.users = uData;
                 if (typeof users !== 'undefined') users = uData;
                 try {
-                    const safeCache = uData.map(u => ({ id: u.id, name: u.name, role: u.role, assignedWarehouse: u.assignedWarehouse }));
+                    const safeCache = uData.map(u => ({ id: u.id, name: u.name, role: u.role, assignedWarehouse: u.assignedWarehouse, pin: u.pin }));
                     localStorage.setItem('bayan_cached_users', JSON.stringify(safeCache));
                 } catch(e) {}
             }

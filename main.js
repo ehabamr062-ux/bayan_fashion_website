@@ -35,6 +35,7 @@ let openWindows = new Set();
 let mainWindow;
 let isQuitting = false;
 let autoUpdater = null;
+const isDev = !app.isPackaged;
 const LICENSE_SECRET = 'BAYAN_POS_SECRET_KEY_2026';
 
 function createWindow() {
@@ -49,7 +50,7 @@ function createWindow() {
             nodeIntegration: true,
             contextIsolation: false,
             sandbox: false,
-            devTools: false, // أدوات المطورين مغلقة تماماً ومحمية
+            devTools: true, // متاح في وضع التطوير والتجربة
             spellcheck: false, // تعطيل التدقيق الإملائي لتوفير الرامات والمعالج
             backgroundThrottling: true // إراحة المعالج وكارت الشاشة عند تصغير البرنامج
         },
@@ -128,12 +129,19 @@ function createWindow() {
             return;
         }
 
-        // منع F12 و Ctrl+Shift+I و Ctrl+Shift+J و Ctrl+Shift+C و Ctrl+U
-        if (
+        // فتح وإغلاق أدوات المطورين F12 أو Ctrl+Shift+I في بيئة التطوير (npm start)
+        if (isDev && (input.key === 'F12' || (input.control && input.shift && key === 'i'))) {
+            event.preventDefault();
+            win.webContents.toggleDevTools();
+            return;
+        }
+
+        // منع F12 و Ctrl+Shift+I و Ctrl+Shift+J و Ctrl+Shift+C و Ctrl+U في الإنتاج فقط
+        if (!isDev && (
             input.key === 'F12' || 
             (input.control && input.shift && (key === 'i' || key === 'j' || key === 'c')) ||
             (input.control && key === 'u')
-        ) {
+        )) {
             event.preventDefault();
             return;
         }
@@ -164,10 +172,12 @@ function createWindow() {
         e.preventDefault();
     });
 
-    // 🔒 إغلاق أدوات المطور فوراً
-    win.webContents.on('devtools-opened', () => {
-        win.webContents.closeDevTools();
-    });
+    // 🔒 إغلاق أدوات المطور في النسخة النهائية المجمعة فقط
+    if (!isDev) {
+        win.webContents.on('devtools-opened', () => {
+            win.webContents.closeDevTools();
+        });
+    }
 
     // إغلاق نظيف وسريع مع حماية البيانات غير المحفوظة والنسخ الاحتياطي التلقائي
     win.on('close', (event) => {

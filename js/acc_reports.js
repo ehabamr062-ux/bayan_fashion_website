@@ -639,7 +639,9 @@
 
             // ⚡ فحص الذاكرة المخبأة للفترة لتفادي تكرار الاستعلام من قاعدة البيانات إذا تم جلبها بالفعل
             const rangeKey = `${fromDate}_${toDate}`;
-            const isAlreadyLoadedInMemory = (window._loadedTxDateRanges && window._loadedTxDateRanges.has(rangeKey) && !window._dailyReportNeedsRefresh);
+            const isToday = (fromDate === todayISO && toDate === todayISO);
+            const isAlreadyLoadedInMemory = (isToday && Array.isArray(window.transactions) && window.transactions.length > 0 && !window._dailyReportNeedsRefresh) ||
+                (window._loadedTxDateRanges && window._loadedTxDateRanges.has(rangeKey) && !window._dailyReportNeedsRefresh);
 
             // ⚡ إظهار نافذة التحميل ولفت النظر فقط في التقارير الكبيرة جداً (مثل تقرير العام الكلي الشامل أو فترات تتجاوز 45 يوماً) وعند عدم توفر البيانات مسبقاً بالذاكرة
             // أما الفترات اليومية والعادية (اليوم، الأمس، الأسبوع، الفترات المحدودة) فلا تظهر أي نافذة مزعجة وتُجلب بسلاسة وفورية في الخلفية
@@ -901,8 +903,24 @@
                 dbPriorCalculated = true;
             } else if (window.BayanSQLite && window.BayanSQLite.db) {
                 try {
-                    // ⚡ استعلام تجميعي مباشر (Direct SQL Aggregate) على مستوى نواة SQLite C++ لحساب الرصيد السابق في 2ms
-                    let sql = `
+                    // فحص فوري: إذا لم توجد أي حركات سابقة قبل هذا التاريخ فالرصيد السابق 0 فوراً في 0.01ms
+                    let hasPrior = false;
+                    if (window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+                        const cntRow = window.BayanSQLite.nativeDb.prepare("SELECT 1 FROM transactions WHERE dateISO < ? LIMIT 1;").get(fromDate);
+                        hasPrior = !!cntRow;
+                    } else if (window.BayanSQLite.db) {
+                        const cntStmt = window.BayanSQLite.db.prepare("SELECT 1 FROM transactions WHERE dateISO < ? LIMIT 1;");
+                        cntStmt.bind([fromDate]);
+                        hasPrior = cntStmt.step();
+                        cntStmt.free();
+                    }
+                    if (!hasPrior) {
+                        previousBalance = 0;
+                        dbPriorCalculated = true;
+                        window._cachedDailyReportPriorBalance = { key: priorCacheKey, val: 0 };
+                    } else {
+                        // ⚡ استعلام تجميعي مباشر (Direct SQL Aggregate) على مستوى نواة SQLite C++ لحساب الرصيد السابق في 2ms
+                        let sql = `
                         SELECT COALESCE(SUM(
                             CASE 
                                 WHEN type LIKE '%قبض%' THEN total
@@ -999,20 +1017,21 @@
                         }
                     }
 
-                    if (window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
-                        const row = window.BayanSQLite.nativeDb.prepare(sql).get(...params);
-                        previousBalance = row ? (parseFloat(row.balance) || 0) : 0;
-                    } else if (window.BayanSQLite.db) {
-                        const stmt = window.BayanSQLite.db.prepare(sql);
-                        stmt.bind(params);
-                        if (stmt.step()) {
-                            const obj = stmt.getAsObject();
-                            previousBalance = parseFloat(obj.balance) || 0;
+                        if (window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+                            const row = window.BayanSQLite.nativeDb.prepare(sql).get(...params);
+                            previousBalance = row ? (parseFloat(row.balance) || 0) : 0;
+                        } else if (window.BayanSQLite.db) {
+                            const stmt = window.BayanSQLite.db.prepare(sql);
+                            stmt.bind(params);
+                            if (stmt.step()) {
+                                const obj = stmt.getAsObject();
+                                previousBalance = parseFloat(obj.balance) || 0;
+                            }
+                            stmt.free();
                         }
-                        stmt.free();
+                        dbPriorCalculated = true;
+                        window._cachedDailyReportPriorBalance = { key: priorCacheKey, val: previousBalance };
                     }
-                    dbPriorCalculated = true;
-                    window._cachedDailyReportPriorBalance = { key: priorCacheKey, val: previousBalance };
                 } catch (e) {
                     console.warn("DB prior balance notice:", e);
                 }
@@ -1047,9 +1066,13 @@
                 });
             }
 
-            // 2. فلترة وتجميع حركات الفترة المحددة مباشرة من SQLite
+            // 2. فلترة وتجميع حركات الفترة المحددة مباشرة من SQLite أو الذاكرة
             let periodAllRaw = [];
-            if (window.BayanSQLite && typeof window.BayanSQLite.getTransactionsForPeriod === 'function') {
+            // استغلال فوري في 0ms إذا كانت الفواتير محملة مسبقاً بالذاكرة
+            if (isAlreadyLoadedInMemory && Array.isArray(window.transactions) && window.transactions.length > 0) {
+                periodAllRaw = window.transactions.filter(t => t && t.dateISO && t.dateISO >= fromDate && t.dateISO <= toDate);
+            }
+            if ((!periodAllRaw || periodAllRaw.length === 0) && window.BayanSQLite && typeof window.BayanSQLite.getTransactionsForPeriod === 'function') {
                 // جلب كافة حركات الفترة للمخزن المحدد دون استبعاد مسبق للكاشير على مستوى SQLite للسماح باحتساب حركات الدرج المشتركة
                 periodAllRaw = window.BayanSQLite.getTransactionsForPeriod(fromDate, toDate, 10000, selectedWarehouse, 'all');
             }
