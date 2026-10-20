@@ -1554,11 +1554,13 @@ try {
                 return;
             }
 
-            // 2. إذا كانت كافة البيانات محفوظة، نقوم بالنسخ الاحتياطي إذا كان مفعلاً
+            // 2. إذا كانت كافة البيانات محفوظة، نقوم بالنسخ الاحتياطي فقط إذا كان مفعلاً صراحة
             try {
-                const settings = JSON.parse(getStore('pos_settings') || '{}');
-                const isAutoBackupEnabled = (settings.autoBackup === true || settings.autoBackup === 'true');
-                const shouldBackup = isAutoBackupEnabled;
+                let shouldBackup = false;
+                try {
+                    const settings = JSON.parse(getStore('pos_settings') || '{}');
+                    shouldBackup = (settings.autoBackup === true || settings.autoBackup === 'true');
+                } catch(e) {}
 
                 if (shouldBackup) {
                     if (typeof window.showBackupProgressOverlay === 'function') {
@@ -1567,39 +1569,25 @@ try {
                     if (typeof window.executeAutoBackupToFile === 'function') {
                         await window.executeAutoBackupToFile(true);
                     }
-                    // مهلة بصرية قصيرة جداً (350ms) لإتمام الرسم والحفظ بسلاسة
-                    await new Promise(r => setTimeout(r, 350));
                 }
             } catch (err) {
                 console.error("Backup before quit error:", err);
             } finally {
-                // 🔒 صمام أمان حاسم: تفريغ وتثبيت كافة بيانات SQLite على القرص الصلب 100% وإغلاق الاتصال بأمان قبل إنهاء العملية
+                // 🔒 حفظ وتثبيت سريع لبيانات SQLite فوراً قبل الخروج
                 try {
-                    if (window.BayanSQLite) {
-                        if (typeof window.BayanSQLite.flush === 'function') {
-                            await window.BayanSQLite.flush();
-                        } else if (typeof window.BayanSQLite.flushSync === 'function') {
-                            window.BayanSQLite.flushSync();
-                        }
-                        if (typeof window.BayanSQLite.close === 'function') {
-                            window.BayanSQLite.close();
-                        }
+                    if (window.BayanSQLite && typeof window.BayanSQLite.flushSync === 'function') {
+                        window.BayanSQLite.flushSync();
                     }
                 } catch(flErr) {
                     console.error("Error finalizing SQLite before quit:", flErr);
-                    try {
-                        if (window.BayanSQLite && typeof window.BayanSQLite.close === 'function') {
-                            window.BayanSQLite.close();
-                        } else if (window.BayanSQLite && typeof window.BayanSQLite.flushSync === 'function') {
-                            window.BayanSQLite.flushSync();
-                        }
-                    } catch(e) {}
                 }
 
-                // إكمال عملية الخروج بأمان بعد إنهاء النسخ الاحتياطي وحفظ قاعدة البيانات
-                if (electron && electron.ipcRenderer) {
-                    electron.ipcRenderer.send('proceed-quit');
-                }
+                // إكمال عملية الخروج فوراً وبدون أي تأخير
+                try {
+                    if (electron && electron.ipcRenderer) {
+                        electron.ipcRenderer.send('proceed-quit');
+                    }
+                } catch(e) {}
             }
         });
     }

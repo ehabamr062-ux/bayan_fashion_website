@@ -97,15 +97,31 @@ async function exportElementToPDF(elementOrId, fileName) {
     
     if (typeof showToast === 'function') showToast("🔄 جاري إنشاء وتنزيل ملف PDF...", "info");
 
+    const origDisplay = element.style.display;
+    const origPos = element.style.position;
+    const origLeft = element.style.left;
+    const origTop = element.style.top;
+    const origZIndex = element.style.zIndex;
+    const origWidth = element.style.width;
+    const origBackground = element.style.background;
+
     try {
         const computed = window.getComputedStyle(element);
         const isHidden = (computed.display === 'none' || computed.visibility === 'hidden' || element.offsetWidth === 0);
 
-        const origDisplay = element.style.display;
-        const origPos = element.style.position;
-        const origLeft = element.style.left;
-        const origTop = element.style.top;
-        const origZIndex = element.style.zIndex;
+        if (element.id === 'receipt-area') {
+            let targetRenderWidth = '302px';
+            try {
+                const savedSettings = JSON.parse(getStore('bayan_print_template_choice') || '{}');
+                const templateChoice = savedSettings.template || '80mm Standard';
+                if (templateChoice === 'A4 Professional' || templateChoice === 'A4') targetRenderWidth = '794px';
+                else if (templateChoice === 'A5 Modern' || templateChoice === 'A5') targetRenderWidth = '560px';
+                else if (templateChoice === '57mm Mobile' || templateChoice === '57mm') targetRenderWidth = '216px';
+                else targetRenderWidth = '302px';
+            } catch (_) {}
+            element.style.width = targetRenderWidth;
+            element.style.background = '#ffffff';
+        }
 
         if (isHidden) {
             element.style.display = 'block';
@@ -130,6 +146,10 @@ async function exportElementToPDF(elementOrId, fileName) {
                 element.style.top = origTop;
                 element.style.zIndex = origZIndex;
             }
+            if (element.id === 'receipt-area') {
+                element.style.width = origWidth;
+                element.style.background = origBackground;
+            }
 
             const imgData = canvas.toDataURL('image/jpeg', 0.95);
             const pdfBlob = createPDFBlobFromDataURL(imgData, canvas.width, canvas.height);
@@ -153,10 +173,25 @@ async function exportElementToPDF(elementOrId, fileName) {
                 element.style.top = origTop;
                 element.style.zIndex = origZIndex;
             }
+            if (element.id === 'receipt-area') {
+                element.style.width = origWidth;
+                element.style.background = origBackground;
+            }
             window.print();
         }
     } catch(err) {
         console.error("PDF Export Error:", err);
+        if (element) {
+            element.style.display = origDisplay;
+            element.style.position = origPos;
+            element.style.left = origLeft;
+            element.style.top = origTop;
+            element.style.zIndex = origZIndex;
+            if (element.id === 'receipt-area') {
+                element.style.width = origWidth;
+                element.style.background = origBackground;
+            }
+        }
         window.print();
         if (typeof showToast === 'function') showToast("ℹ️ تم فتح نافذة الطباعة/الحفظ كـ PDF", "info");
     }
@@ -501,14 +536,14 @@ async function shareTransactionWithImage(type, targetPhone) {
         const origWidth = receiptArea.style.width;
         const origBackground = receiptArea.style.background;
 
-        let targetRenderWidth = '340px';
+        let targetRenderWidth = '302px';
         try {
             const savedSettings = JSON.parse(getStore('bayan_print_template_choice') || '{}');
             const templateChoice = savedSettings.template || '80mm Standard';
             if (templateChoice === 'A4 Professional' || templateChoice === 'A4') targetRenderWidth = '794px';
             else if (templateChoice === 'A5 Modern' || templateChoice === 'A5') targetRenderWidth = '560px';
-            else if (templateChoice === '57mm Mobile' || templateChoice === '57mm') targetRenderWidth = '240px';
-            else targetRenderWidth = '340px';
+            else if (templateChoice === '57mm Mobile' || templateChoice === '57mm') targetRenderWidth = '216px';
+            else targetRenderWidth = '302px';
         } catch (_) {}
 
         receiptArea.style.display = 'block';
@@ -516,7 +551,7 @@ async function shareTransactionWithImage(type, targetPhone) {
         receiptArea.style.left = '-9999px';
         receiptArea.style.top = '0px';
         receiptArea.style.zIndex = '-99999';
-        receiptArea.style.width = (type === 'sales' ? targetRenderWidth : '680px');
+        receiptArea.style.width = (type === 'sales' || type === 'salesReturn' ? targetRenderWidth : '680px');
         receiptArea.style.background = '#ffffff';
 
         let canvas;
@@ -634,19 +669,8 @@ async function shareTransactionWithImage(type, targetPhone) {
             }
         }
 
-        const shopName = (typeof getMerchantStoreName === 'function' ? getMerchantStoreName() : (document.getElementById('shopName')?.value || 'بَيَان POS'));
-        const partnerName = getPartnerNameForType(type) || 'عميلنا العزيز';
-        
-        let invoiceSummary = '';
-        if (type === 'sales' && typeof cart !== 'undefined' && cart.length > 0) {
-            const tot = (typeof currentTotal !== 'undefined' ? currentTotal : 0).toFixed(2);
-            invoiceSummary = `\n💰 الإجمالي: *${tot} ج.م*` +
-                             `\n📋 عدد الأصناف: *${cart.length}*`;
-        }
-
-        const greeting = `مرحباً بك *${partnerName}* ✨\nمن: *${shopName}*\nمرفق لسيادتكم (${docTitle}) رقم: *#${docNo}*${invoiceSummary}\n\nشكراً لتعاملكم الراقي معنا! 🙏`;
-        const encodedText = encodeURIComponent(greeting);
-        const waUrl = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodedText}` : `https://wa.me/?text=${encodedText}`;
+        // فتح محادثة الواتساب نظيفة تماماً بدون أي نص مرفق لإرسال صورة الفاتورة فقط عبر (Ctrl + V)
+        const waUrl = cleanPhone ? `https://wa.me/${cleanPhone}` : `https://wa.me/`;
 
         if (typeof openExternalUrl === 'function') {
             try {
@@ -1626,12 +1650,58 @@ function prepareBillHTML(type) {
         const isPurRet = (type === 'purchaseReturn' || type === 'purchase-return' || type === 'return_purchase' || (String(type).includes('مرتجع') && (String(type).includes('شراء') || String(type).includes('مشتريات'))));
         const isSales = (type === 'sales' || type === 'sale' || type === 'بيع');
 
-        // في فواتير المبيعات: استخدام نفس كود وتصميم قالب الطباعة الفعلي المعتمد 100% (80mm/A4/A5)
+        // في فواتير المبيعات: استخدام نفس دالة وتصميم قالب الطباعة الفعلي المعتمد 100% بدون أي تكرار
         if (isSales && typeof window.buildInvoiceDocumentHTML === 'function' && typeof window.getSalesInvoicePrintData === 'function') {
             const invData = window.getSalesInvoicePrintData();
+            if ((!invData.items || invData.items.length === 0) && typeof editingOriginalItems !== 'undefined' && Array.isArray(editingOriginalItems) && editingOriginalItems.length > 0) {
+                invData.items = editingOriginalItems.map(item => ({
+                    name: item.product || item.name,
+                    qty: item.qty,
+                    price: item.price,
+                    unit: item.unit,
+                    selectedUnit: item.unit
+                }));
+            }
             const rendered = window.buildInvoiceDocumentHTML(invData);
             receiptArea.innerHTML = `
-                <div style="background:#ffffff; color:#000000; padding:4mm; margin:0 auto; width:100%; max-width:${rendered.pageWidth}; box-sizing:border-box; font-family:'Arial','Segoe UI',Tahoma,sans-serif; text-align:right; direction:rtl;">
+                <div class="print-container receipt-table" style="background:#ffffff !important; color:#000000 !important; margin:0 auto !important; width:100% !important; max-width:${rendered.pageWidth || '80mm'} !important; box-sizing:border-box !important; font-family:'Arial','Tahoma','Segoe UI','Cairo',sans-serif !important; text-align:right !important; direction:rtl !important;">
+                    <style>
+                        #receipt-area, #receipt-area * {
+                            box-sizing: border-box !important;
+                            color: #000000 !important;
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                        }
+                        #receipt-area {
+                            background: #ffffff !important;
+                            color: #000000 !important;
+                            font-family: 'Arial', 'Tahoma', 'Segoe UI', 'Cairo', sans-serif !important;
+                            direction: rtl !important;
+                            text-align: right !important;
+                        }
+                        #receipt-area table {
+                            border-collapse: collapse !important;
+                            width: 100% !important;
+                            margin: 0 auto !important;
+                        }
+                        #receipt-area th, #receipt-area td {
+                            box-sizing: border-box !important;
+                            color: #000000 !important;
+                            font-weight: 900 !important;
+                            line-height: 1.3 !important;
+                        }
+                        #receipt-area th::before, #receipt-area th::after,
+                        #receipt-area td::before, #receipt-area td::after {
+                            content: none !important;
+                            display: none !important;
+                        }
+                        #receipt-area th {
+                            cursor: default !important;
+                            user-select: none !important;
+                            padding-right: 3px !important;
+                            background: transparent !important;
+                        }
+                    </style>
                     ${rendered.content}
                 </div>
             `;
@@ -1724,21 +1794,35 @@ window.prepareBillHTML = prepareBillHTML;
 
 // ================= تصدير العناصر كصورة عالية الجودة =================
 async function exportElementToImage(elementOrId, fileName) {
-    try {
-        let element = typeof elementOrId === 'string' ? document.getElementById(elementOrId) : elementOrId;
-        if (!element) throw new Error("العنصر المراد تصديره غير موجود!");
+    let element = typeof elementOrId === 'string' ? document.getElementById(elementOrId) : elementOrId;
+    if (!element) throw new Error("العنصر المراد تصديره غير موجود!");
 
-        let isHidden = false;
-        let origDisplay = '', origPos = '', origLeft = '', origTop = '', origZIndex = '';
+    const origDisplay = element.style.display;
+    const origPos = element.style.position;
+    const origLeft = element.style.left;
+    const origTop = element.style.top;
+    const origZIndex = element.style.zIndex;
+    const origWidth = element.style.width;
+    const origBackground = element.style.background;
+
+    let isHidden = false;
+    try {
+        if (element.id === 'receipt-area') {
+            let targetRenderWidth = '302px';
+            try {
+                const savedSettings = JSON.parse(getStore('bayan_print_template_choice') || '{}');
+                const templateChoice = savedSettings.template || '80mm Standard';
+                if (templateChoice === 'A4 Professional' || templateChoice === 'A4') targetRenderWidth = '794px';
+                else if (templateChoice === 'A5 Modern' || templateChoice === 'A5') targetRenderWidth = '560px';
+                else if (templateChoice === '57mm Mobile' || templateChoice === '57mm') targetRenderWidth = '216px';
+                else targetRenderWidth = '302px';
+            } catch (_) {}
+            element.style.width = targetRenderWidth;
+            element.style.background = '#ffffff';
+        }
 
         if (window.getComputedStyle(element).display === 'none') {
             isHidden = true;
-            origDisplay = element.style.display;
-            origPos = element.style.position;
-            origLeft = element.style.left;
-            origTop = element.style.top;
-            origZIndex = element.style.zIndex;
-
             element.style.display = 'block';
             element.style.position = 'absolute';
             element.style.left = '-9999px';
@@ -1761,6 +1845,10 @@ async function exportElementToImage(elementOrId, fileName) {
                 element.style.top = origTop;
                 element.style.zIndex = origZIndex;
             }
+            if (element.id === 'receipt-area') {
+                element.style.width = origWidth;
+                element.style.background = origBackground;
+            }
 
             const imgData = canvas.toDataURL('image/png');
             const link = document.createElement('a');
@@ -1780,10 +1868,25 @@ async function exportElementToImage(elementOrId, fileName) {
                 element.style.top = origTop;
                 element.style.zIndex = origZIndex;
             }
+            if (element.id === 'receipt-area') {
+                element.style.width = origWidth;
+                element.style.background = origBackground;
+            }
             showToast("⚠️ مكتبة تحويل الصور غير محملة", "error");
         }
     } catch(err) {
         console.error("Image Export Error:", err);
+        if (element) {
+            element.style.display = origDisplay;
+            element.style.position = origPos;
+            element.style.left = origLeft;
+            element.style.top = origTop;
+            element.style.zIndex = origZIndex;
+            if (element.id === 'receipt-area') {
+                element.style.width = origWidth;
+                element.style.background = origBackground;
+            }
+        }
         if (typeof showToast === 'function') showToast("❌ فشل تصدير الصورة: " + err.message, "error");
     }
 }

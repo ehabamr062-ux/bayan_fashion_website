@@ -9,10 +9,12 @@ const crypto = require('crypto');
 // 💾 تقليل العمليات الخلفية المجهدة للهارد الميكانيكي HDD
 app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling,CalculateNativeWinOcclusion,SpareRendererForSitePerProcess');
 // 🧠 ضبط استهلاك الذاكرة لمحرك V8 لتحفيز تنظيف الذاكرة التلقائي (GC) مبكراً
-app.commandLine.appendSwitch('js-flags', '--max-old-space-size=1024');
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=1024 --expose-gc');
 // 🎮 حماية كروت الشاشة المدمجة القديمة (Intel HD) من تسريب الذاكرة والتجميد
 app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
 app.commandLine.appendSwitch('disable-gpu-memory-buffer-video-frames');
+app.commandLine.appendSwitch('enable-raster-multithread');
+app.commandLine.appendSwitch('disable-breakpad');
 
 
 const gotTheLock = app.requestSingleInstanceLock();
@@ -199,13 +201,12 @@ function createWindow() {
             return;
         }
 
-        // صمام أمان زمني في حال تعليق الريندرر (10 ثوانٍ كحد أقصى لمنع تعليق النظام في القواعد الضخمة)
+        // صمام أمان زمني في حال تعليق الريندرر (1.5 ثانية كحد أقصى للخروج الفوري بدلاً من 10 ثوانٍ)
         if (global.quitTimeout) clearTimeout(global.quitTimeout);
         global.quitTimeout = setTimeout(() => {
-            console.warn('⚠️ Backup before quit timeout reached, forcing exit...');
             isQuitting = true;
             app.exit(0);
-        }, 10000);
+        }, 1500);
     });
 
     win.on('closed', () => {
@@ -214,19 +215,6 @@ function createWindow() {
             app.exit(0);
         }
     });
-
-// 🔒 استقبال إشارة إتمام النسخ الاحتياطي والخروج فوراً
-ipcMain.on('proceed-quit', () => {
-    if (global.quitTimeout) clearTimeout(global.quitTimeout);
-    isQuitting = true;
-    app.exit(0);
-});
-
-// 🔒 استقبال إشارة إلغاء الإغلاق لوجود بيانات غير محفوظة
-ipcMain.on('cancel-quit', () => {
-    if (global.quitTimeout) clearTimeout(global.quitTimeout);
-    console.log('ℹ️ [Main] تم إلغاء إغلاق البرنامج لوجود بيانات غير محفوظة في أحد التبويبات.');
-});
 
     // إدارة التحميلات الآمنة
     win.webContents.session.on('will-download', (event, item, webContents) => {

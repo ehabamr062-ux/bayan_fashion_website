@@ -850,7 +850,7 @@
         }
 
         /* --- تحسينات فرز الجداول (Sortable Headers) --- */
-        th {
+        th:not(#receipt-area th):not(.print-container th):not(.receipt-table th) {
             cursor: pointer;
             position: relative;
             user-select: none;
@@ -859,12 +859,12 @@
             /* مساحة للأيقونة */
         }
 
-        th:hover {
+        th:not(#receipt-area th):not(.print-container th):not(.receipt-table th):hover {
             background-color: rgba(212, 175, 55, 0.2) !important;
             color: var(--accent-gold) !important;
         }
 
-        th::after {
+        th:not(#receipt-area th):not(.print-container th):not(.receipt-table th)::after {
             content: '↕';
             position: absolute;
             right: 8px;
@@ -874,7 +874,7 @@
             transition: transform 0.3s ease, opacity 0.3s ease, background-color 0.3s ease;
         }
 
-        th.sort-asc::after {
+        th:not(#receipt-area th):not(.print-container th):not(.receipt-table th).sort-asc::after {
             content: '▲';
             opacity: 1;
             color: var(--main-green) !important;
@@ -883,7 +883,7 @@
             text-shadow: 0 0 8px rgba(39, 174, 96, 0.4);
         }
 
-        th.sort-desc::after {
+        th:not(#receipt-area th):not(.print-container th):not(.receipt-table th).sort-desc::after {
             content: '▼';
             opacity: 1;
             color: var(--main-orange) !important;
@@ -892,8 +892,40 @@
             text-shadow: 0 0 8px rgba(230, 126, 34, 0.4);
         }
 
-        body.dark-mode th:hover {
+        body.dark-mode th:not(#receipt-area th):not(.print-container th):not(.receipt-table th):hover {
             background-color: rgba(255, 255, 255, 0.1) !important;
+        }
+
+        /* 🖨️ عزل قاطع وحصين لترويسات الفواتير والطباعة عن أي أسهم أو مسافات تشوه الفاتورة */
+        #receipt-area th,
+        .print-container th,
+        .receipt-table th {
+            cursor: default !important;
+            position: static !important;
+            user-select: auto !important;
+            padding-right: 3px !important;
+            background: transparent !important;
+            background-color: transparent !important;
+            color: #000000 !important;
+            transition: none !important;
+        }
+
+        #receipt-area th::after,
+        .print-container th::after,
+        .receipt-table th::after,
+        #receipt-area th::before,
+        .print-container th::before,
+        .receipt-table th::before {
+            display: none !important;
+            content: none !important;
+        }
+
+        #receipt-area th:hover,
+        .print-container th:hover,
+        .receipt-table th:hover {
+            background: transparent !important;
+            background-color: transparent !important;
+            color: #000000 !important;
         }
 
 

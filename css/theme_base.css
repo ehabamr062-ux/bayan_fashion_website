@@ -428,16 +428,13 @@ input, textarea, [contenteditable="true"] {
         }
 
         @keyframes pulse-green {
-            0% {
-                box-shadow: 0 0 0 0 rgba(39, 174, 96, 0.7);
+            0%, 100% {
+                transform: scale(1);
+                opacity: 1;
             }
-
-            70% {
-                box-shadow: 0 0 0 10px rgba(39, 174, 96, 0);
-            }
-
-            100% {
-                box-shadow: 0 0 0 0 rgba(39, 174, 96, 0);
+            50% {
+                transform: scale(1.02);
+                opacity: 0.92;
             }
         }
 
@@ -1965,6 +1962,7 @@ body.has-wallpaper .login-overlay {
     height: 200%;
     background: conic-gradient(from 0deg, #00f2fe, #38bdf8, #818cf8, #c084fc, #38bdf8, #00f2fe); 
     animation: rotateBorder 6s linear infinite;
+    will-change: transform;
     z-index: -1;
 }
 
@@ -2334,22 +2332,13 @@ body.dark-mode .moon-icon {
         }
 
         @keyframes golden-glow {
-            0% {
-                text-shadow: 0 0 5px #d4af37, 0 0 10px #d4af37;
+            0%, 100% {
                 transform: scale(1);
-                color: #ffd700;
+                opacity: 0.95;
             }
-
             50% {
-                text-shadow: 0 0 20px #fbbf24, 0 0 30px #fbbf24;
-                transform: scale(1.05);
-                color: #fbbf24;
-            }
-
-            100% {
-                text-shadow: 0 0 5px #d4af37, 0 0 10px #d4af37;
-                transform: scale(1);
-                color: #ffd700;
+                transform: scale(1.04);
+                opacity: 1;
             }
         }
 
@@ -3610,13 +3599,11 @@ body.is-logged-out .main-container {
     0%, 100% {
         transform: scale(1);
         opacity: 1;
-        box-shadow: 0 0 8px #10b981;
     }
 
     50% {
         transform: scale(0.85);
-        opacity: 0.5;
-        box-shadow: 0 0 3px #10b981;
+        opacity: 0.55;
     }
 }
 

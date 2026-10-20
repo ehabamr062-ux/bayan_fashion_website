@@ -460,6 +460,10 @@
                 if (!window.accountsRenderLimit) window.accountsRenderLimit = 50;
                 if (!window.invoicesRenderLimit) window.invoicesRenderLimit = 50;
                 if (!window.historyRenderLimit) window.historyRenderLimit = 100;
+                // 🧠 تحفيز تنظيف الذاكرة التلقائي (GC) لتفريغ الذاكرة غير المستخدمة فور التنقل
+                if (typeof window.gc === 'function') {
+                    window.gc();
+                }
             } catch (errCleanup) {}
 
             activeTabId = targetTab.id;

@@ -1790,3 +1790,9 @@ document.addEventListener('mousedown', function (e) {
     }
 }, true);
 
+// 🧠 تنظيف دوري للذاكرة العشوائية RAM كل 3 دقائق لضمان استقرار وسرعة إلكترون لفترات تشغيل طويلة
+setInterval(() => {
+    if (typeof window.gc === 'function') {
+        try { window.gc(); } catch (_) {}
+    }
+}, 180000);
