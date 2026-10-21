@@ -3358,73 +3358,171 @@ function changeLanguage(lang) {
 }
 
 /**
- * دالة تصفير قاعدة البيانات بالكامل (Reset Database)
- * تقوم بحذف كافة البيانات من SQLite ومسح الإعدادات مع الحفاظ على هوية الجهاز
+ * دالة تصفير قاعدة البيانات بالكامل (Reset Database) - نظام الأمان المزدوج Double PIN
+ * تقوم بحذف كافة الحركات والأصناف مع الحفاظ التام على الترخيص والمدير وتصفير العداد لرقم 1
  */
-async function confirmFullReset() {
-    if (typeof showCustomAlert !== 'function') {
-        alert("وظيفة التنبيهات المخصصة غير متوفرة.");
-        return;
+function confirmFullReset() {
+    window.openFactoryResetModal();
+}
+
+window.openFactoryResetModal = function() {
+    const modal = document.getElementById('factoryResetModal');
+    if (!modal) return;
+    const pin1 = document.getElementById('factoryResetPin1');
+    const pin2 = document.getElementById('factoryResetPin2');
+    const errMsg = document.getElementById('factoryResetErrorMsg');
+    const confirmBtn = document.getElementById('btnConfirmFactoryReset');
+    if (pin1) pin1.value = '';
+    if (pin2) pin2.value = '';
+    if (errMsg) {
+        errMsg.style.display = 'none';
+        errMsg.innerText = '';
+    }
+    if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = '<span>💣</span> تأكيد تصفير النظام الآن';
+    }
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    setTimeout(() => { if (pin1) pin1.focus(); }, 120);
+};
+
+window.closeFactoryResetModal = function() {
+    const modal = document.getElementById('factoryResetModal');
+    if (!modal) return;
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+};
+
+window.executeConfirmedFactoryReset = async function() {
+    const pin1 = (document.getElementById('factoryResetPin1')?.value || '').trim();
+    const pin2 = (document.getElementById('factoryResetPin2')?.value || '').trim();
+    const errEl = document.getElementById('factoryResetErrorMsg');
+    const showErr = (msg) => {
+        if (errEl) {
+            errEl.innerText = msg;
+            errEl.style.display = 'block';
+        } else if (typeof showToast === 'function') {
+            showToast(msg, 'error');
+        }
+    };
+
+    if (!pin1 || !pin2) {
+        return showErr('⚠️ يرجى إدخال رمز المرور وتأكيده في كلا الحقلين.');
+    }
+    if (pin1 !== pin2) {
+        return showErr('❌ الرمزان غير متطابقين! يرجى التأكد من كتابة نفس الرمز في الخانتين.');
     }
 
-    showCustomAlert({
-        type: 'error',
-        titleText: '🚨 تحذير نهائي خطير',
-        msg: `
-            <div style="text-align: right; color: #b91c1c;">
-                <p style="font-weight: 900; font-size: 1.1rem; margin-bottom: 10px;">هل أنت متأكد من رغبتك في تدمير كافة البيانات؟</p>
-                <p style="font-size: 0.9rem; margin-bottom: 20px; color: #475569;">لا يمكن استعادة البيانات بعد هذه الخطوة نهائياً إلا إذا كنت تملك نسخة احتياطية خارجية.</p>
-                <label style="font-weight: bold; color: #1e293b;">🔐 للأمان، يرجى إدخال رمز الدخول (PIN) لتأكيد العملية:</label>
-                <input type="password" id="resetPinInput" placeholder="****" 
-                    style="width: 100%; padding: 12px; margin-top: 10px; border-radius: 10px; border: 2px solid #cbd5e1; text-align: center; font-size: 1.5rem; letter-spacing: 5px; outline: none; transition: 0.3s;"
-                    onfocus="this.style.borderColor='#e11d48'">
-            </div>
-        `,
-        confirmText: 'تدمير كافة البيانات 💣',
-        cancelText: 'إلغاء 🛡️',
-        showCancel: true,
-        onConfirm: async () => {
-            const pinInput = document.getElementById('resetPinInput');
-            const pin = pinInput ? pinInput.value.trim() : '';
+    let isPinValid = false;
+    if (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function') {
+        isPinValid = (typeof currentUser !== 'undefined' && currentUser && window.BayanSecurity.verifyPin(pin1, currentUser.pin)) ||
+                     (await window.BayanSecurity.verifyAdminPin(pin1));
+    } else if (typeof currentUser !== 'undefined' && currentUser) {
+        isPinValid = (currentUser.pin === pin1);
+    }
 
-            if (!pin) {
-                return showToast("❌ تم إلغاء العملية: يجب إدخال الرمز السري.", "error");
+    if (!isPinValid) {
+        return showErr('❌ رمز مرور المدير غير صحيح!');
+    }
+
+    const confirmBtn = document.getElementById('btnConfirmFactoryReset');
+    if (confirmBtn) {
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '<span>⏳</span> جاري حفظ نسخة احتياطية وتصفير البيانات...';
+    }
+
+    try {
+        if (typeof showToast === 'function') {
+            showToast("⏳ جاري إنشاء نسخة احتياطية وتصفير قاعدة البيانات...", "info");
+        }
+
+        // 1. أخذ نسخة احتياطية فورية تلقائياً قبل الحذف لضمان الأمان التام
+        try {
+            if (typeof window.executeAutoBackupToFile === 'function') {
+                await window.executeAutoBackupToFile(true, false);
             }
-            
-            const isPinValid = (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function')
-                ? (window.BayanSecurity.verifyPin(pin, currentUser.pin) || await window.BayanSecurity.verifyAdminPin(pin))
-                : (currentUser.pin === pin);
-            if (typeof currentUser !== 'undefined' && !isPinValid) {
-                return showToast("❌ رمز الدخول غير صحيح، تم إلغاء العملية.", "error");
-            }
+        } catch (backupErr) {
+            console.warn("Auto-backup before reset note:", backupErr);
+        }
 
-            showToast("⏳ جاري تصفير قاعدة البيانات... يرجى عدم إغلاق المتصفح", "info");
-
+        // 2. استخراج وحماية حساب المدير الحالي وهوية الجهاز والترخيص
+        let preservedAdmin = null;
+        if (typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || currentUser.id === 1)) {
+            preservedAdmin = JSON.parse(JSON.stringify(currentUser));
+        } else if (typeof db !== 'undefined' && db.users) {
             try {
-                // 1. مسح جداول البيانات فقط من SQLite (نحافظ على جدول settings الذي يحتوي HWID + الترخيص)
-                const tables = ['products', 'transactions', 'accounts', 'users', 'trash', 'auditLogs', 'wallpapers'];
-                if (typeof db !== 'undefined') {
-                    for (const table of tables) {
-                        if (db[table]) await db[table].clear();
-                    }
+                const allUsers = await db.users.toArray();
+                preservedAdmin = allUsers.find(u => u.role === 'admin' || u.id === 1) || allUsers[0];
+            } catch (e) {}
+        }
+
+        const preservedSettings = {};
+        const preserveKeys = [
+            'bayan_hwid', 'hwid', 'bayan_license', 'pos_license',
+            'bayan_license_key', 'bayan_active', 'bayan_install_date',
+            'pos_theme', 'app_theme', 'bayan_device_prefix', 'pos_warehouses'
+        ];
+        if (typeof getStore === 'function') {
+            preserveKeys.forEach(k => {
+                const val = getStore(k);
+                if (val !== null && val !== undefined) preservedSettings[k] = val;
+            });
+        }
+
+        // 3. مسح جداول البيانات من SQLite / IndexedDB
+        const tables = ['products', 'transactions', 'accounts', 'trash', 'auditLogs', 'wallpapers'];
+        if (typeof db !== 'undefined') {
+            for (const table of tables) {
+                if (db[table] && typeof db[table].clear === 'function') {
+                    await db[table].clear();
                 }
-
-                // 2. مسح جدول settings في SQLite بالكامل عبر clearStore()
-                clearStore();
-
-                showToast("✅ تم تصفير النظام بنجاح. سيتم إعادة تحميل الصفحة الآن.", "success");
-                
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
-
-            } catch (error) {
-                console.error("فشل تصفير قاعدة البيانات:", error);
-                showToast("❌ حدث خطأ أثناء تصفير البيانات: " + error.message, "error");
+            }
+            if (db.users && typeof db.users.clear === 'function') {
+                await db.users.clear();
+                if (preservedAdmin) {
+                    await db.users.add(preservedAdmin);
+                }
             }
         }
-    });
-}
+
+        // 4. تصفير الذاكرة الدائمة Store ومسح عدادات الفواتير
+        if (typeof clearStore === 'function') {
+            clearStore();
+        }
+        if (typeof setStore === 'function') {
+            Object.keys(preservedSettings).forEach(k => {
+                setStore(k, preservedSettings[k]);
+            });
+        }
+
+        // 5. مسح مفاتيح التخزين المؤقت وحذف أي عدادات فواتير متبقية للبدء من رقم 1
+        try {
+            for (let i = localStorage.length - 1; i >= 0; i--) {
+                const key = localStorage.key(i);
+                if (key && (key.startsWith('bayan_last_seq_') || key.startsWith('pos_last_') || key === 'pos_products' || key === 'pos_transactions' || key === 'pos_accounts')) {
+                    localStorage.removeItem(key);
+                }
+            }
+        } catch (e) {}
+
+        if (typeof showToast === 'function') {
+            showToast("✅ تم تصفير كافة البيانات وبدء عداد الفواتير من رقم 1 بنجاح!", "success");
+        }
+
+        setTimeout(() => {
+            window.location.reload();
+        }, 1500);
+
+    } catch (err) {
+        console.error("فشل تصفير قاعدة البيانات:", err);
+        showErr("❌ حدث خطأ أثناء تصفير البيانات: " + err.message);
+        if (confirmBtn) {
+            confirmBtn.disabled = false;
+            confirmBtn.innerHTML = '<span>💣</span> تأكيد تصفير النظام الآن';
+        }
+    }
+};
 
 async function toggleTheme() {
     document.body.classList.toggle('dark-mode');
