@@ -139,7 +139,7 @@ async function handleCustomerSearch(query) {
     if (!query) { resultsDiv.style.display = 'none'; return; }
 
     // البحث بالاسم أو الكود مباشرة في المصفوفة المحلية لسرعة الاستجابة
-
+    const queryLower = (query || '').toLowerCase();
     const combined = (window.BayanInvoiceEngine && typeof BayanInvoiceEngine.searchAccounts === 'function')
         ? BayanInvoiceEngine.searchAccounts(query, 'client')
         : accounts.filter(a =>
@@ -2025,6 +2025,21 @@ function renderCart() {
     const tbody = document.getElementById('cartTableBody');
     if (!tbody) return;
 
+    // حفظ حالة التركيز الحالية قبل تفريغ الجدول
+    const activeEl = document.activeElement;
+    let restoreFocus = null;
+    if (activeEl && tbody.contains(activeEl)) {
+        const row = activeEl.closest('tr');
+        const rowIndex = row ? Array.from(tbody.children).indexOf(row) : -1;
+        if (rowIndex !== -1) {
+            if (activeEl.classList.contains('qty-input')) {
+                restoreFocus = { rowIndex, selector: '.qty-input' };
+            } else if (activeEl.classList.contains('price-input')) {
+                restoreFocus = { rowIndex, selector: '.price-input' };
+            }
+        }
+    }
+
     tbody.innerHTML = '';
     const fragment = document.createDocumentFragment();
 
@@ -2169,6 +2184,17 @@ function renderCart() {
     });
 
     tbody.appendChild(fragment);
+
+    if (restoreFocus) {
+        const rows = tbody.querySelectorAll('tr');
+        if (rows[restoreFocus.rowIndex]) {
+            const target = rows[restoreFocus.rowIndex].querySelector(restoreFocus.selector);
+            if (target) {
+                target.focus();
+                try { target.select(); } catch(e) {}
+            }
+        }
+    }
 
     document.getElementById('subTotalDisplay').innerText = subTotal.toFixed(2);
 

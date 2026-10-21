@@ -13,7 +13,7 @@
 
     <!-- خط القاهرة والأيقونات -->
     <link rel="stylesheet" href="../fonts/cairo.css">
-    <link rel="stylesheet" href="css/mobile_fashion.css?v=4.6.1">
+    <link rel="stylesheet" href="css/mobile_fashion.css?v=4.9.1">
     <style id="mobile-fashion-android-overhaul">
         /* 📱 MOBILE-FIRST ANDROID ULTRA-PREMIUM ARCHITECTURE */
         html, body {
@@ -1142,7 +1142,7 @@
                         <div class="settings-item-icon" style="background: rgba(100, 116, 139, 0.15); color: var(--text-dim);">ℹ️</div>
                         <div class="settings-item-content">
                             <div class="settings-item-title">معلومات النظام والدعم الفني</div>
-                            <div class="settings-item-subtitle">الإصدار v4.5.0 • واتساب المساعدة</div>
+                            <div class="settings-item-subtitle">الإصدار v4.9.1 • واتساب المساعدة</div>
                         </div>
                         <div class="settings-item-arrow">‹</div>
                     </div>
@@ -1469,7 +1469,7 @@
                     <div class="settings-card" style="text-align: center; padding: 24px 18px;">
                         <div style="font-size: 3rem; margin-bottom: 8px;">👗</div>
                         <h3 style="font-size: 1.3rem; font-weight: 900; color: var(--text-main); margin-bottom: 4px;">بَيَان فاشون كاشير كلاود</h3>
-                        <p style="font-size: 0.82rem; color: var(--text-dim); margin-bottom: 14px;">إصدار الهواتف والتابلت الفاخر • الإصدار 4.5.0</p>
+                        <p style="font-size: 0.82rem; color: var(--text-dim); margin-bottom: 14px;">إصدار الهواتف والتابلت الفاخر • الإصدار 4.9.1</p>
 
                         <div class="branch-info-box" style="text-align: right; margin-bottom: 20px;">
                             <div class="branch-info-row">
@@ -1713,40 +1713,34 @@
         </div>
     </div>
 
-    <!-- نافذة إدخال رمز الإقران PIN (لأول مرة أو من الإعدادات) -->
+    <!-- نافذة إدخال رمز الإقران PIN وكود المحل -->
     <div id="pinModalOverlay" class="modal-overlay" onclick="if(event.target===this)window.BayanMobile.closePinModal()">
         <div class="bottom-sheet" style="text-align: center;">
             <div class="sheet-handle"></div>
             <div style="font-size: 2.8rem; margin-bottom: 6px;">🔐</div>
             <h3 style="font-size: 1.2rem; font-weight: 900; color: #ffffff; margin-bottom: 4px;">إقران الهاتف بالبرنامج الرئيسي</h3>
             <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px;">
-                يرجى إدخال رمز الـ PIN المكون من 4 أرقام المعروض الآن على شاشة الكمبيوتر
+                أدخل كود المحل ورمز PIN المعروضين الآن في شاشة إعدادات المزامنة بالكمبيوتر
             </p>
 
-            <input type="text" id="pinInput" maxlength="20" placeholder="••••"
-                style="width: 200px; height: 50px; text-align: center; font-size: 1.6rem; font-weight: 900; letter-spacing: 6px; background: rgba(0,0,0,0.5); border: 2px solid var(--primary); border-radius: 14px; color: #ffffff; margin-bottom: 14px; outline: none;" autocomplete="off">
+            <div style="text-align: right; margin-bottom: 6px;">
+                <label style="font-size: 0.75rem; color: var(--text-dim); font-weight: 700; margin-bottom: 4px; display: block;">1. كود المحل السحابي (Shop ID):</label>
+                <input type="text" id="directShopIdInput" placeholder="SHOP_XXXXXXXXXX"
+                    style="width: 100%; height: 44px; text-align: center; font-size: 0.95rem; font-weight: 800; font-family: monospace; background: rgba(0,0,0,0.4); border: 1.5px dashed var(--border-subtle); border-radius: 12px; color: #ffffff; outline: none; padding: 0 10px; margin-bottom: 12px;" autocomplete="off">
+            </div>
 
-            <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+            <div style="text-align: right; margin-bottom: 16px;">
+                <label style="font-size: 0.75rem; color: var(--text-dim); font-weight: 700; margin-bottom: 4px; display: block;">2. رمز الـ PIN السري للمحل:</label>
+                <input type="text" id="pinInput" maxlength="20" placeholder="••••••"
+                    style="width: 100%; height: 50px; text-align: center; font-size: 1.5rem; font-weight: 900; letter-spacing: 6px; background: rgba(0,0,0,0.5); border: 2px solid var(--primary); border-radius: 14px; color: #ffffff; outline: none;" autocomplete="off">
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 6px;">
                 <button type="button" class="btn-complete-invoice" style="flex: 2;" onclick="window.BayanMobile.submitPinVerification(document.getElementById('pinInput').value)">
-                    اعتماد رمز الـ PIN 🚀
+                    اعتماد وإقران الجهاز 🚀
                 </button>
                 <button type="button" class="btn-complete-invoice" style="flex: 1; background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); box-shadow: none;" onclick="window.BayanMobile.closePinModal()">
                     إلغاء
-                </button>
-            </div>
-
-            <!-- خيار الربط المباشر بكود المحل (Shop ID) -->
-            <div style="margin: 12px 0 10px; display: flex; align-items: center; gap: 8px;">
-                <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.15);"></div>
-                <span style="font-size: 0.75rem; color: var(--text-dim); font-weight: 700;">أو الربط المباشر بكود المحل (Shop ID)</span>
-                <div style="flex: 1; height: 1px; background: rgba(255,255,255,0.15);"></div>
-            </div>
-
-            <div style="display: flex; gap: 8px; margin-bottom: 6px;">
-                <input type="text" id="directShopIdInput" placeholder="SHOP_XXXXXXXXXX"
-                    style="flex: 1; height: 44px; text-align: center; font-size: 0.95rem; font-weight: 800; font-family: monospace; background: rgba(0,0,0,0.4); border: 1.5px dashed var(--border-subtle); border-radius: 12px; color: #ffffff; outline: none; padding: 0 10px;" autocomplete="off">
-                <button type="button" class="btn-complete-invoice" style="width: auto; padding: 0 16px; height: 44px; font-size: 0.85rem; background: linear-gradient(135deg, #0284c7, #0369a1); margin-top: 0;" onclick="window.BayanMobile.submitDirectShopId(document.getElementById('directShopIdInput').value)">
-                    ربط 🔗
                 </button>
             </div>
         </div>
@@ -1936,7 +1930,7 @@
 
     <!-- سكريبتات التشغيل والمكتبات المدمجة -->
     <script src="../lib/html2canvas.min.js"></script>
-    <script src="js/mobile_fashion.js?v=4.6.1"></script>
+    <script src="js/mobile_fashion.js?v=4.9.1"></script>
 </body>
 
 </html>

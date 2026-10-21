@@ -3238,12 +3238,13 @@
                 setFocus();
                 requestAnimationFrame(setFocus);
                 setTimeout(setFocus, 25);
-                setTimeout(setFocus, 80);
+                setTimeout(setFocus, 50); // تركيز فوري صريح عند 50ms
+                setTimeout(setFocus, 100);
 
-                // 🛡️ 3. Focus Trap ذكي: النقر داخل صندوق المودال يعيد التركيز للحقل تلقائياً
+                // 🛡️ 3. Focus Trap ذكي: النقر داخل صندوق المودال يعيد التركيز للحقل تلقائياً مع منع ضياع الفوكس
                 const card = modal.querySelector('.alert-card') || modal;
                 const cardTrapHandler = (e) => {
-                    if (e.target !== confirmBtn && e.target !== cancelBtn) {
+                    if (e.target !== confirmBtn && e.target !== cancelBtn && e.target !== input) {
                         input.focus();
                     }
                 };
@@ -3270,6 +3271,7 @@
                 };
                 
                 input.onkeydown = (e) => {
+                    e.stopPropagation(); // منع المستمعات العامة والسكانر من مصادرة المدخلات
                     if (e.key === 'Enter') {
                         confirmBtn.click();
                     } else if (e.key === 'Escape') {
@@ -3462,8 +3464,16 @@
             modal.classList.remove('hidden');
 
             setTimeout(() => {
-                try { if (confirmBtn) confirmBtn.focus(); } catch (e) {}
-            }, 30);
+                const targetInp = modal.querySelector('input:not([type="hidden"])');
+                if (targetInp) {
+                    try {
+                        targetInp.focus();
+                        if (typeof targetInp.select === 'function') targetInp.select();
+                    } catch (e) {}
+                } else {
+                    try { if (confirmBtn) confirmBtn.focus(); } catch (e) {}
+                }
+            }, 50);
 
             if (timeout && typeof timeout === 'number') {
                 activeAlertTimeout = setTimeout(() => {

@@ -810,17 +810,21 @@
                         method TEXT,
                         cashier TEXT,
                         warehouse TEXT,
+                        status TEXT,
                         raw_json TEXT
                     );
                     CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(dateISO);
                     CREATE INDEX IF NOT EXISTS idx_tx_partner ON transactions(partner);
                     CREATE INDEX IF NOT EXISTS idx_tx_invoiceId ON transactions(invoiceId);
                     CREATE INDEX IF NOT EXISTS idx_tx_type ON transactions(type);
-                    CREATE INDEX IF NOT EXISTS idx_tx_date_type ON transactions(dateISO, type);
+                    CREATE INDEX IF NOT EXISTS idx_tx_status ON transactions(status);
+                    CREATE INDEX IF NOT EXISTS idx_tx_date_type ON transactions(dateISO, type, status);
                     CREATE INDEX IF NOT EXISTS idx_tx_date_method ON transactions(dateISO, method);
                     CREATE INDEX IF NOT EXISTS idx_tx_date_wh ON transactions(dateISO, warehouse);
                     CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);
                     CREATE INDEX IF NOT EXISTS idx_tx_date_type_wh ON transactions(dateISO, type, warehouse);
+                    CREATE INDEX IF NOT EXISTS idx_tx_partner_date ON transactions(partner, dateISO);
+                    CREATE INDEX IF NOT EXISTS idx_tx_partner_type ON transactions(partner, type);
                 `);
             } catch(txErr) {
                 console.warn("[SQLite] transactions table schema notice:", txErr.message);
@@ -848,16 +852,18 @@
                                 method TEXT,
                                 cashier TEXT,
                                 warehouse TEXT,
+                                status TEXT,
                                 raw_json TEXT
                             );
-                            INSERT OR REPLACE INTO transactions_mig SELECT CAST(id AS TEXT), invoiceId, originalInvoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, raw_json FROM transactions;
+                            INSERT OR REPLACE INTO transactions_mig SELECT CAST(id AS TEXT), invoiceId, originalInvoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, COALESCE(status, ''), raw_json FROM transactions;
                             DROP TABLE transactions;
                             ALTER TABLE transactions_mig RENAME TO transactions;
                             CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(dateISO);
                             CREATE INDEX IF NOT EXISTS idx_tx_partner ON transactions(partner);
                             CREATE INDEX IF NOT EXISTS idx_tx_invoiceId ON transactions(invoiceId);
                             CREATE INDEX IF NOT EXISTS idx_tx_type ON transactions(type);
-                            CREATE INDEX IF NOT EXISTS idx_tx_date_type ON transactions(dateISO, type);
+                            CREATE INDEX IF NOT EXISTS idx_tx_status ON transactions(status);
+                            CREATE INDEX IF NOT EXISTS idx_tx_date_type ON transactions(dateISO, type, status);
                             CREATE INDEX IF NOT EXISTS idx_tx_date_method ON transactions(dateISO, method);
                             CREATE INDEX IF NOT EXISTS idx_tx_date_wh ON transactions(dateISO, warehouse);
                             CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);
@@ -875,6 +881,13 @@
             } catch(e) {}
             try {
                 this.db.run("ALTER TABLE transactions ADD COLUMN status TEXT;");
+            } catch(e) {}
+            try {
+                // ترقية الفهرس المركب للتاريخ والنوع والحالة للبحث التاريخي فائق السرعة
+                this.db.run("DROP INDEX IF EXISTS idx_tx_date_type;");
+            } catch(e) {}
+            try {
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_type ON transactions(dateISO, type, status);");
             } catch(e) {}
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_status ON transactions(status);");
@@ -934,6 +947,7 @@
                 CREATE INDEX IF NOT EXISTS idx_ti_barcode ON transaction_items(barcode);
                 CREATE INDEX IF NOT EXISTS idx_ti_date ON transaction_items(dateISO);
                 CREATE INDEX IF NOT EXISTS idx_ti_productName ON transaction_items(productName);
+                CREATE INDEX IF NOT EXISTS idx_items_date_prod ON transaction_items(dateISO, productName);
                 CREATE INDEX IF NOT EXISTS idx_ti_tx_id ON transaction_items(tx_id);
                 CREATE INDEX IF NOT EXISTS idx_ti_date_barcode ON transaction_items(dateISO, barcode);
                 CREATE INDEX IF NOT EXISTS idx_ti_date_type ON transaction_items(dateISO, type);
@@ -976,13 +990,30 @@
             // 6. جداول المستخدمين وسلة المحذوفات وسجل التدقيق
             this.db.run(`
                 CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT, pin TEXT, role TEXT, raw_json TEXT);
-                CREATE TABLE IF NOT EXISTS trash (id INTEGER PRIMARY KEY, type TEXT, deletedAt TEXT, raw_json TEXT);
+                CREATE TABLE IF NOT EXISTS trash (id INTEGER PRIMARY KEY, type TEXT, deletedAt TEXT, deleted_at TEXT, raw_json TEXT);
                 CREATE TABLE IF NOT EXISTS auditLogs (id INTEGER PRIMARY KEY, timestamp TEXT, action TEXT, raw_json TEXT);
                 CREATE TABLE IF NOT EXISTS treasuryAudit (id INTEGER PRIMARY KEY, date TEXT, category TEXT, raw_json TEXT);
                 CREATE TABLE IF NOT EXISTS wallpapers (id INTEGER PRIMARY KEY, name TEXT, raw_json TEXT);
                 CREATE TABLE IF NOT EXISTS backups (id INTEGER PRIMARY KEY, timestamp TEXT, raw_json TEXT);
                 CREATE TABLE IF NOT EXISTS syncQueue (id INTEGER PRIMARY KEY, timestamp TEXT, action TEXT, type TEXT, status TEXT, raw_json TEXT);
             `);
+
+            // ترقية وتأكيد وجود عمود وفهرس سلة المحذوفات idx_trash_date
+            try {
+                this.db.run("ALTER TABLE trash ADD COLUMN deleted_at TEXT;");
+            } catch(e) {}
+            try {
+                this.db.run("UPDATE trash SET deleted_at = deletedAt WHERE (deleted_at IS NULL OR deleted_at = '') AND deletedAt IS NOT NULL;");
+            } catch(e) {}
+            try {
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_trash_date ON trash(deleted_at);");
+            } catch(e) {}
+            try {
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_trash_deletedAt ON trash(deletedAt);");
+            } catch(e) {}
+            try {
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_items_date_prod ON transaction_items(dateISO, productName);");
+            } catch(e) {}
         }
 
         /**
@@ -1788,6 +1819,19 @@
                                 if (!item) continue;
                                 const rawJson = JSON.stringify(item);
                                 mainStmt.run(this._safeBind([item.id, item.timestamp || item.time || '', item.action || '', rawJson]));
+                            }
+                        } else if (tableName === 'settings') {
+                            mainStmt = this.db.prepare(`INSERT OR REPLACE INTO settings (id, value) VALUES (?, ?);`);
+                            for (const item of items) {
+                                if (!item) continue;
+                                const key = item.id || item.key || 'main';
+                                let val = '';
+                                if (item.value !== undefined) {
+                                    val = typeof item.value === 'object' && item.value !== null ? JSON.stringify(item.value) : String(item.value);
+                                } else {
+                                    val = JSON.stringify(item);
+                                }
+                                mainStmt.run(this._safeBind([String(key), val]));
                             }
                         } else {
                             mainStmt = this.db.prepare(`INSERT OR REPLACE INTO ${tableName} (id, raw_json) VALUES (?, ?);`);
@@ -2865,14 +2909,20 @@
         /**
          * ⚡ جلب حركات كشف الحساب لشريك معين خلال فترة محددة مباشرة من SQLite
          */
-        getAccountTransactionsForPeriod(accountName, fromDateISO = null, toDateISO = null, limit = 5000) {
+        getAccountTransactionsForPeriod(accountName, fromDateISO = null, toDateISO = null, limit = 5000, accountCode = null) {
             if (!this.db || !accountName) return [];
             const p = String(accountName).trim();
+            const c = accountCode ? String(accountCode).trim() : '';
             const lim = parseInt(limit, 10) || 5000;
 
             try {
                 let sql = "SELECT * FROM transactions WHERE partner = ? AND (status IS NULL OR status != 'void')";
                 const params = [p];
+
+                if (c && c !== p) {
+                    sql = "SELECT * FROM transactions WHERE (partner = ? OR partner = ?) AND (status IS NULL OR status != 'void')";
+                    params.push(c);
+                }
 
                 if (fromDateISO) {
                     sql += " AND dateISO >= ?";
@@ -4160,9 +4210,13 @@
         }
 
         /**
-         * 🔒 إغلاق قاعدة البيانات بشكل نظيف وآمن
+         * 🔒 إغلاق كافة اتصالات قاعدة البيانات بشكل نظيف وآمن (Zero-Shutdown Lag)
          */
         close() {
+            if (this._saveTimer) {
+                clearTimeout(this._saveTimer);
+                this._saveTimer = null;
+            }
             if (this.isNative && this.nativeDb) {
                 try {
                     this.nativeDb.pragma('wal_checkpoint(TRUNCATE)');
@@ -4184,6 +4238,19 @@
                     this.isInitialized = false;
                 } catch(e) {}
             }
+        }
+
+        /**
+         * 🧠 تفريغ ذاكرة التخزين المؤقت لمحرك SQLite واستعادة الصفحات للنظام (24/7 Stability & Memory Leak Prevention)
+         */
+        purgeMemory() {
+            try {
+                if (this.isNative && this.nativeDb) {
+                    this.nativeDb.pragma('shrink_memory');
+                } else if (this.db && typeof this.db.run === 'function') {
+                    this.db.run('PRAGMA shrink_memory;');
+                }
+            } catch(e) {}
         }
 
         /**

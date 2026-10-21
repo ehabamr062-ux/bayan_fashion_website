@@ -11,11 +11,18 @@
     // ============================================================
     // ⚙️ STATE & CONFIGURATION
     // ============================================================
+    // إزالة أي قيمة قديمة غير صالحة مثل SHOP_DEFAULT
+    if (localStorage.getItem('bayan_mob_shop_id') === 'SHOP_DEFAULT') {
+        localStorage.removeItem('bayan_mob_shop_id');
+    }
+
+    const savedShopId = localStorage.getItem('bayan_mob_shop_id') || '';
+
     const CONFIG = {
         STORAGE_PREFIX: 'bayan_mob_',
         DEVICE_ID: localStorage.getItem('bayan_mob_device_id') || ('MOB-' + Math.random().toString(36).substring(2, 9).toUpperCase()),
         DEVICE_NAME: localStorage.getItem('bayan_mob_device_name') || 'بيان فاشون موبايل 📱',
-        SHOP_ID: localStorage.getItem('bayan_mob_shop_id') || 'SHOP_DEFAULT',
+        SHOP_ID: savedShopId,
         SHOP_NAME: localStorage.getItem('bayan_mob_shop_name') || 'بَيَان فاشون',
         ACTIVE_WAREHOUSE: localStorage.getItem('bayan_mob_active_warehouse') || 'المخزن الرئيسي'
     };
@@ -34,13 +41,18 @@
         };
     }
 
+    // 🛡️ دالة فحص صارمة لعزل المتاجر والتأكد من اقتران الجهاز بمتجر حقيقي
+    function isValidPairedShop(id) {
+        return Boolean(id && typeof id === 'string' && id.startsWith('SHOP_') && id !== 'SHOP_DEFAULT' && id.length >= 10);
+    }
+
     // Save persistent device ID
     localStorage.setItem('bayan_mob_device_id', CONFIG.DEVICE_ID);
 
     const State = {
         token: localStorage.getItem(CONFIG.STORAGE_PREFIX + 'token') || '',
         terminalLetter: localStorage.getItem(CONFIG.STORAGE_PREFIX + 'terminal_letter') || 'B',
-        shopId: localStorage.getItem('bayan_mob_shop_id') || 'SHOP_DEFAULT',
+        shopId: savedShopId,
         shopName: localStorage.getItem('bayan_mob_shop_name') || 'بَيَان فاشون',
         activeWarehouse: localStorage.getItem('bayan_mob_active_warehouse') || 'المخزن الرئيسي',
         warehouses: JSON.parse(localStorage.getItem(CONFIG.STORAGE_PREFIX + 'warehouses') || '["المخزن الرئيسي"]'),
@@ -183,96 +195,125 @@
         openPinModal();
     }
 
-    // 🔗 الربط المباشر بمعرّف المحل السحابي (Direct Shop ID Pairing)
-    async function submitDirectShopId(rawShopId) {
-        const clean = String(rawShopId || '').trim();
-        if (!clean || clean.length < 4) {
-            showToast('يرجى إدخال كود محل صالح (Shop ID)', 'error');
-            return;
+    // 🔐 آلية الإقران الصارمة بالتحقق المزدوج (Shop ID + Pairing PIN)
+    async function verifyAndPairDevice(shopIdInput, pinInput) {
+        let cleanShopId = String(shopIdInput || '').trim();
+        let cleanPin = String(pinInput || '').trim();
+
+        // دعم إدخال الكود المدمج إذا كتب المستخدم كود المحل والـ PIN معاً في حقل واحد (مثل SHOP_XXX:123456 أو SHOP_XXX-123456)
+        if (cleanShopId && (!cleanPin || cleanPin.length < 4)) {
+            const parts = cleanShopId.split(/[:\-\s_#]+/);
+            if (parts.length >= 3 && cleanShopId.toUpperCase().startsWith('SHOP_')) {
+                cleanShopId = parts.slice(0, 2).join('_');
+                cleanPin = parts[2];
+            } else if (parts.length === 2) {
+                cleanShopId = parts[0];
+                cleanPin = parts[1];
+            }
         }
-        const finalShopId = clean.startsWith('SHOP_') ? clean : ('SHOP_' + clean);
+        if (cleanPin && (!cleanShopId || !cleanShopId.startsWith('SHOP_'))) {
+            const parts = cleanPin.split(/[:\-\s_#]+/);
+            if (parts.length >= 2 && cleanPin.toUpperCase().startsWith('SHOP_')) {
+                cleanShopId = parts.slice(0, 2).join('_');
+                cleanPin = parts[parts.length - 1];
+            }
+        }
 
-        State.token = 'PAIRED_' + CONFIG.DEVICE_ID;
-        State.terminalLetter = 'B';
-        State.shopId = finalShopId;
-        CONFIG.SHOP_ID = finalShopId;
-
-        localStorage.setItem(CONFIG.STORAGE_PREFIX + 'token', State.token);
-        localStorage.setItem(CONFIG.STORAGE_PREFIX + 'terminal_letter', State.terminalLetter);
-        localStorage.setItem('bayan_mob_shop_id', finalShopId);
-
-        closePinModal();
-        showToast(`تم ربط الهاتف بكود المحل (${finalShopId}) بنجاح! 🚀`, 'success');
-        updateConnectionStatus(true);
-        await pullMasterData();
-        startAutoSyncPoll();
-    }
-
-    async function submitPinVerification(pin) {
-        const cleanPin = String(pin || '').trim();
+        if (!cleanShopId) {
+            const directEl = document.getElementById('directShopIdInput');
+            if (directEl && directEl.value.trim()) cleanShopId = directEl.value.trim();
+            else cleanShopId = State.shopId || localStorage.getItem('bayan_mob_shop_id') || '';
+        }
         if (!cleanPin) {
-            showToast('يرجى إدخال رمز الـ PIN أو كود المحل', 'error');
-            return;
+            const pinEl = document.getElementById('pinInput');
+            if (pinEl && pinEl.value.trim()) cleanPin = pinEl.value.trim();
         }
 
-        // إذا تم إدخال معرّف المحل مباشرة
-        if (cleanPin.toUpperCase().startsWith('SHOP_') || cleanPin.length >= 8) {
-            await submitDirectShopId(cleanPin);
-            return;
+        cleanShopId = cleanShopId.trim();
+        cleanPin = cleanPin.trim();
+
+        if (!cleanShopId.startsWith('SHOP_')) {
+            cleanShopId = 'SHOP_' + cleanShopId;
         }
 
-        showToast('جاري التحقق من رمز المحل بالسحابة... ⏳', 'warning');
+        if (!isValidPairedShop(cleanShopId)) {
+            showToast('يرجى إدخال كود محل صحيح (Shop ID يبدأ بـ SHOP_)', 'error');
+            return false;
+        }
+
+        if (!cleanPin || cleanPin.length < 4) {
+            showToast('يرجى إدخال رمز الـ PIN المعروض على شاشة الكمبيوتر (6 أرقام)', 'error');
+            return false;
+        }
+
+        showToast('جاري التحقق من هوية المحل والرمز السحابي... ⏳', 'warning');
 
         try {
-            let matchedShopId = null;
-            let matchedShopName = 'بَيَان فاشون';
-            let isValid = false;
-
-            // 1. فحص سجلات الاقتران السحابية للتعرف على المحل المرتبط بالـ PIN
-            const res = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?category=eq.اقتران&order=date.desc&limit=100`, {
+            // استعلام مباشر ومحصور حصراً على سجل هذا المتجر بعينه لمنع تسريب أو سحب بيانات متاجر أخرى
+            const queryUrl = `${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?id=eq.CONFIG_DEVICE_PAIRING_${encodeURIComponent(cleanShopId)}&select=*`;
+            const res = await fetch(queryUrl, {
                 headers: getSupabaseHeaders()
             });
 
-            if (res.ok) {
-                const rows = await res.json();
-                if (Array.isArray(rows) && rows.length > 0) {
-                    const match = rows.find(r => r.raw_json && (
-                        String(r.raw_json.pairingPin || '').trim() === cleanPin ||
-                        String(r.raw_json.shopId || '').toUpperCase() === cleanPin.toUpperCase()
-                    ));
-                    if (match && match.raw_json) {
-                        isValid = true;
-                        matchedShopId = match.raw_json.shopId || match.id.replace('CONFIG_DEVICE_PAIRING_', '');
-                        matchedShopName = match.raw_json.shopName || 'بَيَان فاشون';
-                        syncStoreProfile(match.raw_json);
-                    }
-                }
+            if (!res.ok) {
+                showToast('تعذر الاتصال بالسيرفر السحابي للتحقق من بيانات الإقران ⚠️', 'error');
+                return false;
             }
 
-            if (isValid && matchedShopId) {
-                State.token = 'PAIRED_' + CONFIG.DEVICE_ID;
-                State.terminalLetter = 'B';
-                State.shopId = matchedShopId;
-                CONFIG.SHOP_ID = matchedShopId;
-                State.shopName = matchedShopName;
-
-                localStorage.setItem(CONFIG.STORAGE_PREFIX + 'token', State.token);
-                localStorage.setItem(CONFIG.STORAGE_PREFIX + 'terminal_letter', State.terminalLetter);
-                localStorage.setItem('bayan_mob_shop_id', State.shopId);
-                localStorage.setItem('bayan_mob_shop_name', State.shopName);
-
-                closePinModal();
-                showToast(`تم إقران التابلت بمحل (${matchedShopName}) بنجاح! 🚀`, 'success');
-                updateConnectionStatus(true);
-                await pullMasterData();
-                startAutoSyncPoll();
-            } else {
-                showToast('رمز الـ PIN غير صحيح، تأكد من الرمز المعروض بشاشة الكمبيوتر أو استخدم كود المحل ❌', 'error');
+            const rows = await res.json();
+            if (!Array.isArray(rows) || rows.length === 0) {
+                showToast('لم يتم العثور على كود المحل في السحابة. تأكد من فتح البرنامج على الكمبيوتر وتفعيله ❌', 'error', 5000);
+                return false;
             }
+
+            const pairingRecord = rows[0];
+            const raw = pairingRecord.raw_json || {};
+            const cloudPin = String(raw.pairingPin || '').trim();
+
+            if (!cloudPin || cloudPin !== cleanPin) {
+                showToast('رمز الـ PIN غير صحيح لهذا المحل! راجع الرمز المعروض على شاشة الكمبيوتر ❌', 'error', 5000);
+                return false;
+            }
+
+            // التحقق المزدوج نجح 100%
+            const matchedShopName = raw.shopName || raw.shop_name || 'بَيَان فاشون';
+            State.token = 'PAIRED_' + CONFIG.DEVICE_ID;
+            State.terminalLetter = 'B';
+            State.shopId = cleanShopId;
+            CONFIG.SHOP_ID = cleanShopId;
+            State.shopName = matchedShopName;
+
+            localStorage.setItem(CONFIG.STORAGE_PREFIX + 'token', State.token);
+            localStorage.setItem(CONFIG.STORAGE_PREFIX + 'terminal_letter', State.terminalLetter);
+            localStorage.setItem('bayan_mob_shop_id', cleanShopId);
+            localStorage.setItem('bayan_mob_shop_name', matchedShopName);
+
+            syncStoreProfile(raw);
+            closePinModal();
+            showToast(`تم إقران الهاتف بنجاح مع (${matchedShopName}) 🚀`, 'success');
+            updateConnectionStatus(true);
+            await pullMasterData();
+            startAutoSyncPoll();
+            return true;
         } catch (e) {
-            console.warn('[submitPinVerification] Network error:', e);
+            console.warn('[verifyAndPairDevice] Error:', e);
             showToast('تعذر التحقق: تأكد من اتصال الإنترنت بالسيرفر', 'error');
+            return false;
         }
+    }
+
+    // 🔗 الربط المباشر بمعرّف المحل السحابي (يتطلب أيضاً PIN ساري للمحل)
+    async function submitDirectShopId(rawShopId) {
+        const pinInp = document.getElementById('pinInput');
+        const pin = pinInp ? pinInp.value : '';
+        return verifyAndPairDevice(rawShopId, pin);
+    }
+
+    // 🔑 اعتماد رمز الـ PIN (يتحقق بالاقتران مع Shop ID المعرف)
+    async function submitPinVerification(pin) {
+        const shopInp = document.getElementById('directShopIdInput');
+        const shopId = shopInp ? shopInp.value : '';
+        return verifyAndPairDevice(shopId, pin);
     }
 
     // ============================================================
@@ -364,11 +405,13 @@
 
     function startAutoSyncPoll() {
         if (State.pollTimer) clearInterval(State.pollTimer);
+        if (!isValidPairedShop(State.shopId)) return;
+        // ترشيد دورة الفحص الدوري كل 30 ثانية لتوفير البطارية والبيانات
         State.pollTimer = setInterval(() => {
-            if (navigator.onLine) {
+            if (navigator.onLine && isValidPairedShop(State.shopId)) {
                 pullMasterData(false);
             }
-        }, 15000);
+        }, 30000);
     }
 
     // ============================================================
@@ -376,17 +419,20 @@
     // ============================================================
     async function pullMasterData(showIndicator = true) {
         try {
-            let currentShopId = State.shopId || CONFIG.SHOP_ID || localStorage.getItem('bayan_mob_shop_id') || localStorage.getItem('bayan_shop_id');
-            if (currentShopId && currentShopId !== 'SHOP_DEFAULT') {
-                State.shopId = currentShopId;
-                CONFIG.SHOP_ID = currentShopId;
-            }
+            let currentShopId = State.shopId || CONFIG.SHOP_ID || localStorage.getItem('bayan_mob_shop_id');
+            if (currentShopId === 'SHOP_DEFAULT') currentShopId = '';
 
-            // إذا لم يكن الهاتف مقترناً بمحل معتمد، لا نوقف الاتصال بل ننبه لحالة الانتظار
-            if (!currentShopId || currentShopId === 'SHOP_DEFAULT') {
+            // 🛡️ حارس أمان صارم: منع إرسال أي طلب شبكة إذا كان المتجر غير مقترن أو المعرف غير صالح
+            if (!isValidPairedShop(currentShopId)) {
+                State.shopId = '';
+                CONFIG.SHOP_ID = '';
                 updateConnectionStatus(false, 'في انتظار الاقتران بكود المحل 🟡');
+                if (showIndicator) openPinModal();
                 return;
             }
+
+            State.shopId = currentShopId;
+            CONFIG.SHOP_ID = currentShopId;
 
             const safeFetchJson = async (url) => {
                 try {
@@ -412,7 +458,6 @@
             if (Array.isArray(cRes) && cRes.length > 0) {
                 const storeRow = cRes.find(r => 
                     r.id === `CONFIG_DEVICE_PAIRING_${currentShopId}` || 
-                    r.id === 'CONFIG_DEVICE_PAIRING' ||
                     (r.category === 'اقتران' && r.raw_json && (
                         String(r.raw_json.shopId || '').toUpperCase() === currentShopId.toUpperCase() ||
                         String(r.raw_json.shop_id || '').toUpperCase() === currentShopId.toUpperCase()
@@ -905,12 +950,12 @@
     // مزامنة فواتير ومعاملات فترة زمنية محددة من سحابة Supabase
     async function syncPeriodTransactionsFromCloud(startISO, endISO) {
         if (!startISO || !endISO || !navigator.onLine) return;
+        const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
+        if (!isValidPairedShop(currentShopId)) return;
+
         try {
-            const currentShopId = State.shopId || CONFIG.SHOP_ID || 'SHOP_DEFAULT';
             let url = `${SUPABASE_CONFIG.url}/rest/v1/transactions?select=*&order=created_at.desc&limit=300`;
-            if (currentShopId && currentShopId !== 'SHOP_DEFAULT') {
-                url += `&or=(id.like.${encodeURIComponent(currentShopId)}_*,raw_json->>shop_id.eq.${encodeURIComponent(currentShopId)})`;
-            }
+            url += `&or=(id.like.${encodeURIComponent(currentShopId)}_*,raw_json->>shop_id.eq.${encodeURIComponent(currentShopId)})`;
             url += `&or=(and(date_iso.gte.${startISO},date_iso.lte.${endISO}),and(created_at.gte.${startISO}T00:00:00Z,created_at.lte.${endISO}T23:59:59Z))`;
 
             const res = await fetch(url, { headers: getSupabaseHeaders() });
@@ -920,7 +965,7 @@
                     const shopRows = rows.filter(r => {
                         const raw = r.raw_json || {};
                         const rowShopId = raw.shop_id || (r.id && r.id.startsWith(currentShopId + '_') ? currentShopId : null);
-                        return !rowShopId || rowShopId === currentShopId || currentShopId === 'SHOP_DEFAULT';
+                        return rowShopId === currentShopId;
                     });
 
                     const mapped = shopRows.map(row => {
@@ -1680,7 +1725,7 @@
             }
 
             const activeWh = State.activeWarehouse || 'المخزن الرئيسي';
-            const currentShopId = State.shopId || CONFIG.SHOP_ID || 'SHOP_DEFAULT';
+            const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
 
             const newTx = {
                 id: invoiceId,
@@ -2377,47 +2422,36 @@
                 } catch (e) {}
 
                 // ترحيل كشف حساب العملاء بعد الخصم للسحابة
-                const currentShopId = State.shopId || CONFIG.SHOP_ID || 'SHOP_DEFAULT';
-                const custUpdatePayload = [
-                    {
-                        id: `CONFIG_CUSTOMERS_LIST_${currentShopId}`,
-                        date: new Date().toISOString(),
-                        category: 'customers',
-                        amount: State.accounts.length,
-                        user_name: `تابلت (${State.terminalLetter})`,
-                        warehouse: targetWh,
-                        raw_json: {
-                            shop_id: currentShopId,
-                            customers: State.accounts,
-                            accounts: State.accounts,
-                            updatedAt: new Date().toISOString()
+                const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
+                if (isValidPairedShop(currentShopId)) {
+                    const custUpdatePayload = [
+                        {
+                            id: `CONFIG_CUSTOMERS_LIST_${currentShopId}`,
+                            date: new Date().toISOString(),
+                            category: 'customers',
+                            amount: State.accounts.length,
+                            user_name: `تابلت (${State.terminalLetter})`,
+                            warehouse: targetWh,
+                            raw_json: {
+                                shop_id: currentShopId,
+                                customers: State.accounts,
+                                accounts: State.accounts,
+                                updatedAt: new Date().toISOString()
+                            }
                         }
-                    },
-                    {
-                        id: 'CONFIG_CUSTOMERS_LIST',
-                        date: new Date().toISOString(),
-                        category: 'customers',
-                        amount: State.accounts.length,
-                        user_name: `تابلت (${State.terminalLetter})`,
-                        warehouse: targetWh,
-                        raw_json: {
-                            shop_id: currentShopId,
-                            customers: State.accounts,
-                            accounts: State.accounts,
-                            updatedAt: new Date().toISOString()
-                        }
-                    }
-                ];
-                fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?on_conflict=id`, {
-                    method: 'POST',
-                    headers: getSupabaseHeaders(),
-                    body: JSON.stringify(custUpdatePayload)
-                }).catch(() => {});
+                    ];
+                    fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?on_conflict=id`, {
+                        method: 'POST',
+                        headers: getSupabaseHeaders(),
+                        body: JSON.stringify(custUpdatePayload)
+                    }).catch(() => {});
+                }
             }
 
             // 3. تحديث المخزون المسترجع بالسحابة
             if (updatedProductsList.length > 0) {
-                const currentShopId = State.shopId || CONFIG.SHOP_ID || 'SHOP_DEFAULT';
+                const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
+                if (!isValidPairedShop(currentShopId)) return;
                 const prodBatch = updatedProductsList.map(p => ({
                     id: String(p.id),
                     name: p.name || 'صنف',
@@ -2685,7 +2719,7 @@
         let totalStock = 0;
 
         const activeWh = State.activeWarehouse || 'المخزن الرئيسي';
-        const currentShopId = State.shopId || CONFIG.SHOP_ID || 'SHOP_DEFAULT';
+        const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
 
         if (rowItems.length > 0) {
             rowItems.forEach((row) => {
@@ -3042,7 +3076,7 @@
         const posWhBadge = document.getElementById('posActiveWarehouseBadge');
 
         const currentName = State.shopName || localStorage.getItem('bayan_mob_shop_name') || 'بَيَان فاشون';
-        const currentId = State.shopId || CONFIG.SHOP_ID || localStorage.getItem('bayan_mob_shop_id') || 'SHOP_DEFAULT';
+        const currentId = (State.shopId && State.shopId !== 'SHOP_DEFAULT') ? State.shopId : ((CONFIG.SHOP_ID && CONFIG.SHOP_ID !== 'SHOP_DEFAULT') ? CONFIG.SHOP_ID : '');
         const currentWh = State.activeWarehouse || localStorage.getItem('bayan_mob_active_warehouse') || 'المخزن الرئيسي';
 
         if (nameEl) nameEl.textContent = currentName;
@@ -4221,52 +4255,40 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
             renderAccountsView();
 
             // 2. ترحيل الحساب للسحابة مع عزل المتجر
-            const currentShopId = State.shopId || CONFIG.SHOP_ID || 'SHOP_DEFAULT';
-            const payload = [
-                {
-                    id: `CONFIG_CUSTOMERS_LIST_${currentShopId}`,
-                    date: new Date().toISOString(),
-                    category: 'customers',
-                    amount: State.accounts.length,
-                    user_name: 'تابلت',
-                    warehouse: 'المخزن الرئيسي',
-                    raw_json: {
-                        shop_id: currentShopId,
-                        customers: State.accounts,
-                        accounts: State.accounts,
-                        updatedAt: new Date().toISOString()
+            const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
+            if (isValidPairedShop(currentShopId)) {
+                const payload = [
+                    {
+                        id: `CONFIG_CUSTOMERS_LIST_${currentShopId}`,
+                        date: new Date().toISOString(),
+                        category: 'customers',
+                        amount: State.accounts.length,
+                        user_name: 'تابلت',
+                        warehouse: 'المخزن الرئيسي',
+                        raw_json: {
+                            shop_id: currentShopId,
+                            customers: State.accounts,
+                            accounts: State.accounts,
+                            updatedAt: new Date().toISOString()
+                        }
                     }
-                },
-                {
-                    id: 'CONFIG_CUSTOMERS_LIST',
-                    date: new Date().toISOString(),
-                    category: 'customers',
-                    amount: State.accounts.length,
-                    user_name: 'تابلت',
-                    warehouse: 'المخزن الرئيسي',
-                    raw_json: {
-                        shop_id: currentShopId,
-                        customers: State.accounts,
-                        accounts: State.accounts,
-                        updatedAt: new Date().toISOString()
-                    }
-                }
-            ];
+                ];
 
-            if (!navigator.onLine) {
-                enqueueOfflineItem({ id: 'CONFIG_CUSTOMERS_' + Date.now(), custPayload: payload, createdAt: new Date().toISOString() });
-                showToast(`✅ تم حفظ ${type === 'supplier' ? 'المورد' : 'العميل'} (${name}) محلياً وفي طابور المزامنة التلقائية ⚡`, 'info');
-            } else {
-                fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?on_conflict=id`, {
-                    method: 'POST',
-                    headers: getSupabaseHeaders(),
-                    body: JSON.stringify(payload)
-                }).then(() => {
-                    showToast(`✅ تمت إضافة ${type === 'supplier' ? 'المورد' : 'العميل'} (${name}) وترحيله بنجاح!`, 'success');
-                }).catch(() => {
+                if (!navigator.onLine) {
                     enqueueOfflineItem({ id: 'CONFIG_CUSTOMERS_' + Date.now(), custPayload: payload, createdAt: new Date().toISOString() });
-                    showToast(`تم حفظ الحساب محلياً وفي طابور المزامنة التلقائية ✅`, 'info');
-                });
+                    showToast(`✅ تم حفظ ${type === 'supplier' ? 'المورد' : 'العميل'} (${name}) محلياً وفي طابور المزامنة التلقائية ⚡`, 'info');
+                } else {
+                    fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?on_conflict=id`, {
+                        method: 'POST',
+                        headers: getSupabaseHeaders(),
+                        body: JSON.stringify(payload)
+                    }).then(() => {
+                        showToast(`✅ تمت إضافة ${type === 'supplier' ? 'المورد' : 'العميل'} (${name}) وترحيله بنجاح!`, 'success');
+                    }).catch(() => {
+                        enqueueOfflineItem({ id: 'CONFIG_CUSTOMERS_' + Date.now(), custPayload: payload, createdAt: new Date().toISOString() });
+                        showToast(`تم حفظ الحساب محلياً وفي طابور المزامنة التلقائية ✅`, 'info');
+                    });
+                }
             }
 
             closeAddAccountModal();
@@ -4349,15 +4371,21 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         // Initialize Theme (Default Light)
         setTheme(getSavedTheme());
 
-        // Connect & Pull Initial Data فوراً وسحب البيانات دون حجب
-        const isOnline = await checkServerInfo();
-        if (isOnline) {
-            await pullMasterData();
-            processOfflineQueue();
-        } else {
+        // Connect & Pull Initial Data مع حارس الإقران الصارم
+        if (!isValidPairedShop(State.shopId)) {
+            updateConnectionStatus(false, 'في انتظار الاقتران بكود المحل 🟡');
             applyStoreProfileToUI();
+            openPinModal();
+        } else {
+            const isOnline = await checkServerInfo();
+            if (isOnline) {
+                await pullMasterData();
+                processOfflineQueue();
+            } else {
+                applyStoreProfileToUI();
+            }
+            startAutoSyncPoll();
         }
-        startAutoSyncPoll();
 
         if (!State.token) {
             State.token = 'PAIRED_' + CONFIG.DEVICE_ID;

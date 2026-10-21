@@ -183,7 +183,7 @@ function renderDualQrCodesHtml(d, size = 80, isNarrow = false) {
             html: `
             <div style="text-align:center; width:${containerWidth}px; display:inline-block; vertical-align:top;">
                 ${invoiceQrHtml}
-                <div style="font-size:${labelFontSize}; font-weight:900; margin-top:3px; -webkit-text-stroke:0.6px #000; line-height:1.2; text-align:center;">بيانات الفاتورة</div>
+                <div style="font-size:${labelFontSize}; font-weight:900; margin-top:3px; line-height:1.2; text-align:center;">بيانات الفاتورة</div>
             </div>`
         };
     }
@@ -200,7 +200,7 @@ function renderDualQrCodesHtml(d, size = 80, isNarrow = false) {
             html: `
             <div style="text-align:center; width:${containerWidth}px; display:inline-block; vertical-align:top;">
                 ${qrHtml1}
-                <div style="font-size:${labelFontSize}; font-weight:900; margin-top:3px; -webkit-text-stroke:0.6px #000; line-height:1.2; text-align:center; letter-spacing:0.5px;">${label1}</div>
+                <div style="font-size:${labelFontSize}; font-weight:900; margin-top:3px; line-height:1.2; text-align:center; letter-spacing:normal;">${label1}</div>
             </div>`
         };
     }
@@ -217,7 +217,7 @@ function renderDualQrCodesHtml(d, size = 80, isNarrow = false) {
             html: `
             <div style="text-align:center; width:${containerWidth}px; display:inline-block; vertical-align:top;">
                 ${qrHtml2}
-                <div style="font-size:${labelFontSize}; font-weight:900; margin-top:3px; -webkit-text-stroke:0.6px #000; line-height:1.2; text-align:center; letter-spacing:0.5px;">${label2}</div>
+                <div style="font-size:${labelFontSize}; font-weight:900; margin-top:3px; line-height:1.2; text-align:center; letter-spacing:normal;">${label2}</div>
             </div>`
         };
     }
@@ -407,19 +407,19 @@ function buildInvoiceDocumentHTML(invoiceData) {
                 fashionText = `(لون: ${escapePrintHtml(cVal)})`;
             }
         }
-        const fashionDetails = fashionText ? `<div style="font-size:12px; color:#000000 !important; font-weight:900; line-height:1.2; margin-top:2px; -webkit-text-stroke:0.5px #000;">${fashionText}</div>` : '';
+        const fashionDetails = fashionText ? `<div style="font-size:12px; color:#000000 !important; font-weight:900; line-height:1.2; margin-top:2px;">${fashionText}</div>` : '';
 
         return `<tr>
             <td style="text-align:right; padding:5px 4px; border:2px solid #000; word-break:break-word;">
-                <div style="font-weight:900; line-height:1.25; font-size:14px; color:#000; -webkit-text-stroke:0.65px #000;">${escapePrintHtml(item.name || item.product || '')}</div>
+                <div style="font-weight:900; line-height:1.25; font-size:14px; color:#000;">${escapePrintHtml(item.name || item.product || '')}</div>
                 ${fashionDetails}
             </td>
-            <td style="text-align:center; padding:5px 1px; border:2px solid #000; font-weight:900; color:#000; font-size:13.5px; line-height:1.2; -webkit-text-stroke:0.65px #000;">
+            <td style="text-align:center; padding:5px 1px; border:2px solid #000; font-weight:900; color:#000; font-size:13.5px; line-height:1.2;">
                 <div style="font-weight:900; font-size:14.5px; line-height:1.1;">${qty}</div>
-                ${unitName ? `<div style="font-size:11px; font-weight:900; line-height:1.1; color:#000; -webkit-text-stroke:0.5px #000;">${escapePrintHtml(unitName)}</div>` : ''}
+                ${unitName ? `<div style="font-size:11px; font-weight:900; line-height:1.1; color:#000;">${escapePrintHtml(unitName)}</div>` : ''}
             </td>
-            <td style="text-align:center; padding:5px 1px; border:2px solid #000; font-weight:900; color:#000; font-size:13.5px; white-space:nowrap; -webkit-text-stroke:0.65px #000;">${price.toFixed(2)}</td>
-            <td style="text-align:center; padding:5px 1px; border:2px solid #000; font-weight:900; color:#000; font-size:13.5px; white-space:nowrap; -webkit-text-stroke:0.75px #000;">${lineTotal}</td>
+            <td style="text-align:center; padding:5px 1px; border:2px solid #000; font-weight:900; color:#000; font-size:13.5px; white-space:nowrap;">${price.toFixed(2)}</td>
+            <td style="text-align:center; padding:5px 1px; border:2px solid #000; font-weight:900; color:#000; font-size:13.5px; white-space:nowrap;">${lineTotal}</td>
         </tr>`;
     }).join('');
 
@@ -446,18 +446,18 @@ function buildInvoiceDocumentHTML(invoiceData) {
                 fashionText = `(لون: ${escapePrintHtml(cVal)})`;
             }
         }
-        const fashionDetails = fashionText ? `<div style="font-size:12px; color:#000000 !important; font-weight:900; line-height:1.2; margin-top:2px; -webkit-text-stroke:0.5px #000;">${fashionText}</div>` : '';
+        const fashionDetails = fashionText ? `<div style="font-size:12px; color:#000000 !important; font-weight:900; line-height:1.2; margin-top:2px;">${fashionText}</div>` : '';
 
         return `<tr>
-            <td style="text-align:right; padding:5px 4px; border-bottom:2px solid #000; font-weight:900; font-size:14px; -webkit-text-stroke:0.65px #000;">
+            <td style="text-align:right; padding:5px 4px; border-bottom:2px solid #000; font-weight:900; font-size:14px;">
                 <div style="line-height:1.25;">${escapePrintHtml(item.name || item.product || '')}</div>
                 ${fashionDetails}
             </td>
-            <td style="text-align:center; padding:5px 1px; border-bottom:2px solid #000; font-weight:900; color:#000; font-size:13.5px; line-height:1.2; -webkit-text-stroke:0.65px #000;">
+            <td style="text-align:center; padding:5px 1px; border-bottom:2px solid #000; font-weight:900; color:#000; font-size:13.5px; line-height:1.2;">
                 <div style="font-weight:900; font-size:14.5px; line-height:1.1;">${qty}</div>
-                ${unitName ? `<div style="font-size:11px; font-weight:900; line-height:1.1; color:#000; -webkit-text-stroke:0.5px #000;">${escapePrintHtml(unitName)}</div>` : ''}
+                ${unitName ? `<div style="font-size:11px; font-weight:900; line-height:1.1; color:#000;">${escapePrintHtml(unitName)}</div>` : ''}
             </td>
-            <td style="text-align:center; padding:5px 4px; border-bottom:2px solid #000; font-weight:900; color:#000; font-size:13.5px; -webkit-text-stroke:0.75px #000;">${lineTotal}</td>
+            <td style="text-align:center; padding:5px 4px; border-bottom:2px solid #000; font-weight:900; color:#000; font-size:13.5px;">${lineTotal}</td>
         </tr>`;
     }).join('');
 
@@ -898,28 +898,28 @@ function build80mmStandard(d) {
     return `
     <div style="width:72mm; max-width:72mm; margin:0 auto; font-family:'Arial','Tahoma','Segoe UI',sans-serif; direction:rtl; padding:1mm 2mm; color:#000000; box-sizing:border-box; line-height:1.35; font-weight:900;">
         <div style="text-align:center; border-bottom:3px solid #000000; padding-bottom:6px; margin-bottom:6px;">
-            <div style="font-size:24px; font-weight:900; line-height:1.2; letter-spacing:-0.2px; -webkit-text-stroke:0.9px #000;">${d.shopName}</div>
-            ${d.shopAddress ? `<div style="font-size:13px; font-weight:900; margin-top:2px; -webkit-text-stroke:0.55px #000;">${d.shopAddress}</div>` : ''}
-            ${d.shopPhone   ? `<div style="font-size:13px; font-weight:900; margin-top:2px; -webkit-text-stroke:0.6px #000;">📞 ${d.shopPhone}</div>` : ''}
-            <div style="font-size:16px; font-weight:900; border:2.5px solid #000000; display:inline-block; padding:4px 22px; margin-top:6px; border-radius:4px; letter-spacing:0.5px; -webkit-text-stroke:0.8px #000;">${d.docTitle}</div>
+            <div style="font-size:24px; font-weight:900; line-height:1.2; letter-spacing:normal;">${d.shopName}</div>
+            ${d.shopAddress ? `<div style="font-size:13px; font-weight:900; margin-top:2px;">${d.shopAddress}</div>` : ''}
+            ${d.shopPhone   ? `<div style="font-size:13px; font-weight:900; margin-top:2px;">📞 ${d.shopPhone}</div>` : ''}
+            <div style="font-size:16px; font-weight:900; border:2.5px solid #000000; display:inline-block; padding:4px 22px; margin-top:6px; border-radius:4px; letter-spacing:normal;">${d.docTitle}</div>
         </div>
 
         <div style="font-size:13px; font-weight:900; margin-bottom:6px; border-bottom:2.5px solid #000000; padding-bottom:5px; line-height:1.4;">
-            <div style="display:flex; justify-content:space-between; padding:0 2px;">
-                <span>رقم الفاتورة: <b style="font-size:15px; font-weight:900; -webkit-text-stroke:0.8px #000;">#${d.invoiceNumber}</b></span>
-                <span style="-webkit-text-stroke:0.6px #000;">التاريخ: ${d.date}</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:0 2px; gap:6px;">
+                <span style="white-space:nowrap;">رقم الفاتورة: <b style="font-size:15px; font-weight:900;">#${d.invoiceNumber}</b></span>
+                <span style="white-space:nowrap; direction:ltr; text-align:left;"><span style="direction:rtl; display:inline-block;">التاريخ:</span> ${d.date}</span>
             </div>
-            <div style="display:flex; justify-content:space-between; padding:0 2px; margin-top:3px;">
-                <span style="-webkit-text-stroke:0.6px #000;">طريقة الدفع: ${d.invoiceType}</span>
-                <span style="-webkit-text-stroke:0.6px #000;">الوقت: ${d.time}</span>
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:0 2px; margin-top:3px; gap:6px;">
+                <span style="white-space:nowrap;">طريقة الدفع: ${d.invoiceType}</span>
+                <span style="white-space:nowrap;">الوقت: ${d.time}</span>
             </div>
-            ${!isCashBuyer && d.customer ? `<div style="border-top:2px dashed #000000; margin-top:4px; padding-top:3px; padding-right:2px; font-weight:900; font-size:13.5px; -webkit-text-stroke:0.7px #000;">العميل: ${d.customer}</div>` : ''}
-            <div style="display:flex; justify-content:space-between; padding:0 2px; margin-top:3px; font-size:12.5px; -webkit-text-stroke:0.55px #000;">
-                ${d.cashier ? `<span>الكاشير: ${d.cashier}</span>` : '<span></span>'}
-                <span>الفرع: ${d.warehouse}</span>
+            ${!isCashBuyer && d.customer ? `<div style="border-top:2px dashed #000000; margin-top:4px; padding-top:3px; padding-right:2px; font-weight:900; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">العميل: ${d.customer}</div>` : ''}
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:0 2px; margin-top:3px; font-size:12.5px; gap:6px;">
+                ${d.cashier ? `<span style="white-space:nowrap;">الكاشير: ${d.cashier}</span>` : '<span></span>'}
+                <span style="white-space:nowrap;">الفرع: ${d.warehouse}</span>
             </div>
-            ${d.terminal ? `<div style="padding:0 2px; font-size:11.5px; display:flex; justify-content:space-between; margin-top:2px; -webkit-text-stroke:0.5px #000;"><span>الجهاز: ${d.terminal}</span>${(!d.isTaxSeqActive && d.dailyTaxSeq && d.rawInvoiceNumber && String(d.dailyTaxSeq) !== String(d.rawInvoiceNumber)) ? `<span>Ref: ${d.rawInvoiceNumber}</span>` : ''}</div>` : ''}
-            ${d.dueDate  ? `<div style="padding-right:2px; margin-top:2px; -webkit-text-stroke:0.55px #000;">تاريخ الاستحقاق: ${d.dueDate}</div>`  : ''}
+            ${d.terminal ? `<div style="padding:0 2px; font-size:11.5px; display:flex; justify-content:space-between; margin-top:2px; white-space:nowrap;"><span>الجهاز: ${d.terminal}</span>${(!d.isTaxSeqActive && d.dailyTaxSeq && d.rawInvoiceNumber && String(d.dailyTaxSeq) !== String(d.rawInvoiceNumber)) ? `<span>Ref: ${d.rawInvoiceNumber}</span>` : ''}</div>` : ''}
+            ${d.dueDate  ? `<div style="padding-right:2px; margin-top:2px; white-space:nowrap;">تاريخ الاستحقاق: ${d.dueDate}</div>`  : ''}
         </div>
 
         <table style="width:100%; border-collapse:collapse; font-size:13px; margin-bottom:6px; border:2.5px solid #000000; font-weight:900; table-layout:fixed; box-sizing:border-box;">
@@ -931,10 +931,10 @@ function build80mmStandard(d) {
             </colgroup>
             <thead>
                 <tr style="border-bottom:2.5px solid #000000; background:#ffffff;">
-                    <th style="text-align:right; padding:6px 3px; border:2px solid #000000; font-size:13px; font-weight:900; overflow:hidden; -webkit-text-stroke:0.75px #000;">الصنف</th>
-                    <th style="text-align:center; padding:6px 1px; border:2px solid #000000; font-size:13px; font-weight:900; -webkit-text-stroke:0.75px #000;">الكمية</th>
-                    <th style="text-align:center; padding:6px 1px; border:2px solid #000000; font-size:13px; font-weight:900; -webkit-text-stroke:0.75px #000;">السعر</th>
-                    <th style="text-align:center; padding:6px 1px; border:2px solid #000000; font-size:13px; font-weight:900; -webkit-text-stroke:0.75px #000;">الإجمالي</th>
+                    <th style="text-align:right; padding:6px 3px; border:2px solid #000000; font-size:13px; font-weight:900; overflow:hidden;">الصنف</th>
+                    <th style="text-align:center; padding:6px 1px; border:2px solid #000000; font-size:13px; font-weight:900;">الكمية</th>
+                    <th style="text-align:center; padding:6px 1px; border:2px solid #000000; font-size:13px; font-weight:900;">السعر</th>
+                    <th style="text-align:center; padding:6px 1px; border:2px solid #000000; font-size:13px; font-weight:900;">الإجمالي</th>
                 </tr>
             </thead>
             <tbody>${cleanItemsRows}</tbody>
@@ -942,56 +942,56 @@ function build80mmStandard(d) {
 
         <table style="width:100%; border-collapse:collapse; font-size:13.5px; margin-bottom:6px; border:2.5px solid #000000; font-weight:900;">
             <tr style="font-size:14.5px; font-weight:900;">
-                <td style="padding:6px 6px; border:2px solid #000000; font-weight:900; text-align:right; width:56%; -webkit-text-stroke:0.8px #000;">مبلغ الفاتورة</td>
-                <td style="padding:6px 6px; border:2px solid #000000; text-align:center; direction:ltr; font-weight:900; font-size:15.5px; -webkit-text-stroke:0.85px #000;">${parseFloat(d.totalAmount).toFixed(2)}</td>
+                <td style="padding:6px 6px; border:2px solid #000000; font-weight:900; text-align:right; width:56%;">مبلغ الفاتورة</td>
+                <td style="padding:6px 6px; border:2px solid #000000; text-align:center; direction:ltr; font-weight:900; font-size:15.5px;">${parseFloat(d.totalAmount).toFixed(2)}</td>
             </tr>
             ${d.discount && parseFloat(d.discount) > 0 ? `
             <tr>
-                <td style="padding:5px 6px; border:2px solid #000000; font-weight:900; text-align:right; -webkit-text-stroke:0.7px #000;">خصم (-)</td>
-                <td style="padding:5px 6px; border:2px solid #000000; text-align:center; direction:ltr; font-weight:900; -webkit-text-stroke:0.75px #000;">${parseFloat(d.discount).toFixed(2)}</td>
+                <td style="padding:5px 6px; border:2px solid #000000; font-weight:900; text-align:right;">خصم (-)</td>
+                <td style="padding:5px 6px; border:2px solid #000000; text-align:center; direction:ltr; font-weight:900;">${parseFloat(d.discount).toFixed(2)}</td>
             </tr>
             ` : ''}
             ${d.tax && parseFloat(d.tax) > 0 ? `
             <tr>
-                <td style="padding:5px 6px; border:2px solid #000000; font-weight:900; text-align:right; -webkit-text-stroke:0.7px #000;">${d.taxLabel} (+)</td>
-                <td style="padding:5px 6px; border:2px solid #000000; text-align:center; direction:ltr; font-weight:900; -webkit-text-stroke:0.75px #000;">${parseFloat(d.tax).toFixed(2)}</td>
+                <td style="padding:5px 6px; border:2px solid #000000; font-weight:900; text-align:right;">${d.taxLabel} (+)</td>
+                <td style="padding:5px 6px; border:2px solid #000000; text-align:center; direction:ltr; font-weight:900;">${parseFloat(d.tax).toFixed(2)}</td>
             </tr>
             ` : ''}
             ${d.globalTax && parseFloat(d.globalTax) > 0 ? `
             <tr>
-                <td style="padding:5px 6px; border:2px solid #000000; font-weight:900; text-align:right; -webkit-text-stroke:0.7px #000;">ضريبة القيمة المضافة</td>
-                <td style="padding:5px 6px; border:2px solid #000000; text-align:center; direction:ltr; font-weight:900; -webkit-text-stroke:0.75px #000;">${parseFloat(d.globalTax).toFixed(2)}</td>
+                <td style="padding:5px 6px; border:2px solid #000000; font-weight:900; text-align:right;">ضريبة القيمة المضافة</td>
+                <td style="padding:5px 6px; border:2px solid #000000; text-align:center; direction:ltr; font-weight:900;">${parseFloat(d.globalTax).toFixed(2)}</td>
             </tr>
             ` : ''}
             ${!isCashBuyer && parseFloat(d.prevBalance) !== 0 ? `
             <tr>
-                <td style="padding:5px 6px; border:2px solid #000000; font-weight:900; text-align:right; -webkit-text-stroke:0.7px #000;">الرصيد السابق</td>
-                <td style="padding:5px 6px; border:2px solid #000000; text-align:center; direction:ltr; font-weight:900; -webkit-text-stroke:0.75px #000;">${parseFloat(d.prevBalance).toFixed(2)}</td>
+                <td style="padding:5px 6px; border:2px solid #000000; font-weight:900; text-align:right;">الرصيد السابق</td>
+                <td style="padding:5px 6px; border:2px solid #000000; text-align:center; direction:ltr; font-weight:900;">${parseFloat(d.prevBalance).toFixed(2)}</td>
             </tr>
             <tr style="border-top:3px solid #000000; border-bottom:3px solid #000000; font-weight:900; font-size:15px;">
-                <td style="padding:6px 6px; border:2px solid #000000; font-weight:900; text-align:right; -webkit-text-stroke:0.85px #000;">الإجمالي المطلوب</td>
-                <td style="padding:6px 6px; border:2px solid #000000; text-align:center; direction:ltr; font-weight:900; font-size:16px; -webkit-text-stroke:0.9px #000;">${(parseFloat(d.totalAmount) + parseFloat(d.prevBalance)).toFixed(2)}</td>
+                <td style="padding:6px 6px; border:2px solid #000000; font-weight:900; text-align:right;">الإجمالي المطلوب</td>
+                <td style="padding:6px 6px; border:2px solid #000000; text-align:center; direction:ltr; font-weight:900; font-size:16px;">${(parseFloat(d.totalAmount) + parseFloat(d.prevBalance)).toFixed(2)}</td>
             </tr>
             ` : ''}
             <tr>
-                <td style="padding:5px 6px; border:2px solid #000000; font-weight:900; text-align:right; -webkit-text-stroke:0.75px #000;">المدفوع</td>
-                <td style="padding:5px 6px; border:2px solid #000000; text-align:center; direction:ltr; font-weight:900; font-size:15px; -webkit-text-stroke:0.8px #000;">${parseFloat(d.paid).toFixed(2)}</td>
+                <td style="padding:5px 6px; border:2px solid #000000; font-weight:900; text-align:right;">المدفوع</td>
+                <td style="padding:5px 6px; border:2px solid #000000; text-align:center; direction:ltr; font-weight:900; font-size:15px;">${parseFloat(d.paid).toFixed(2)}</td>
             </tr>
             ${!isCashBuyer ? `
             <tr style="border-top:3px solid #000000; font-weight:900; font-size:15px;">
-                <td style="padding:6px 6px; border:2px solid #000000; font-weight:900; text-align:right; -webkit-text-stroke:0.85px #000;">الرصيد المستحق (الباقي)</td>
-                <td style="padding:6px 6px; border:2px solid #000000; text-align:center; direction:ltr; font-weight:900; font-size:16px; -webkit-text-stroke:0.9px #000;">${(parseFloat(d.totalAmount) + parseFloat(d.prevBalance) - parseFloat(d.paid)).toFixed(2)}</td>
+                <td style="padding:6px 6px; border:2px solid #000000; font-weight:900; text-align:right;">الرصيد المستحق (الباقي)</td>
+                <td style="padding:6px 6px; border:2px solid #000000; text-align:center; direction:ltr; font-weight:900; font-size:16px;">${(parseFloat(d.totalAmount) + parseFloat(d.prevBalance) - parseFloat(d.paid)).toFixed(2)}</td>
             </tr>
             ` : (parseFloat(d.paid) > parseFloat(d.totalAmount) ? `
             <tr style="border-top:2.5px solid #000000; font-weight:900; font-size:14.5px;">
-                <td style="padding:5px 6px; border:2px solid #000000; font-weight:900; text-align:right; -webkit-text-stroke:0.8px #000;">الباقي للعميل</td>
-                <td style="padding:5px 6px; border:2px solid #000000; text-align:center; direction:ltr; font-weight:900; font-size:15.5px; -webkit-text-stroke:0.85px #000;">${(parseFloat(d.paid) - parseFloat(d.totalAmount)).toFixed(2)}</td>
+                <td style="padding:5px 6px; border:2px solid #000000; font-weight:900; text-align:right;">الباقي للعميل</td>
+                <td style="padding:5px 6px; border:2px solid #000000; text-align:center; direction:ltr; font-weight:900; font-size:15.5px;">${(parseFloat(d.paid) - parseFloat(d.totalAmount)).toFixed(2)}</td>
             </tr>
             ` : '')}
         </table>
 
         <div style="text-align:center; border-top:3px solid #000000; padding-top:6px; margin-top:6px;">
-            ${d.footerMsg ? `<div style="font-size:14px; font-weight:900; line-height:1.45; white-space: pre-line; -webkit-text-stroke:0.7px #000;">${d.footerMsg}</div>` : ''}
+            ${d.footerMsg ? `<div style="font-size:14px; font-weight:900; line-height:1.45; white-space: pre-line;">${d.footerMsg}</div>` : ''}
             
             ${qrSectionHtml}
         </div>
@@ -1010,17 +1010,17 @@ function build80mmCompact(d) {
     return `
     <div style="width:72mm; max-width:72mm; margin:0 auto; font-family:'Arial','Tahoma','Segoe UI',sans-serif; direction:rtl; padding:1mm 2mm; color:#000000; font-size:13.5px; font-weight:900; box-sizing:border-box;">
         <div style="text-align:center; border-bottom:3px solid #000000; padding-bottom:6px; margin-bottom:6px;">
-            <div style="font-size:24px; font-weight:900; line-height:1.2; -webkit-text-stroke:0.9px #000;">${d.shopName}</div>
-            ${d.shopAddress ? `<div style="font-size:13px; font-weight:900; margin-top:2px; -webkit-text-stroke:0.55px #000;">${d.shopAddress}</div>` : ''}
-            ${d.shopPhone   ? `<div style="font-size:13px; font-weight:900; margin-top:2px; -webkit-text-stroke:0.6px #000;">ت: ${d.shopPhone}</div>` : ''}
-            <div style="font-size:16px; font-weight:900; border:2.5px solid #000000; padding:4px 20px; display:inline-block; margin-top:6px; border-radius:4px; -webkit-text-stroke:0.8px #000;">${d.docTitle}</div>
+            <div style="font-size:24px; font-weight:900; line-height:1.2; letter-spacing:normal;">${d.shopName}</div>
+            ${d.shopAddress ? `<div style="font-size:13px; font-weight:900; margin-top:2px;">${d.shopAddress}</div>` : ''}
+            ${d.shopPhone   ? `<div style="font-size:13px; font-weight:900; margin-top:2px;">ت: ${d.shopPhone}</div>` : ''}
+            <div style="font-size:16px; font-weight:900; border:2.5px solid #000000; padding:4px 20px; display:inline-block; margin-top:6px; border-radius:4px; letter-spacing:normal;">${d.docTitle}</div>
         </div>
 
-        <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:900; margin-bottom:5px; padding:0 3px; -webkit-text-stroke:0.6px #000;">
-            <div>كاشير: ${d.cashier}<br>التاريخ: ${d.date}</div>
-            <div style="text-align:left;">رقم: <b style="font-size:14.5px; -webkit-text-stroke:0.75px #000;">#${d.invoiceNumber}</b><br>${d.time}</div>
+        <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:900; margin-bottom:5px; padding:0 3px; white-space:nowrap; gap:6px;">
+            <div>كاشير: ${d.cashier}<br><span style="direction:ltr; display:inline-block;">التاريخ: ${d.date}</span></div>
+            <div style="text-align:left;">رقم: <b style="font-size:14.5px;">#${d.invoiceNumber}</b><br>${d.time}</div>
         </div>
-        ${!isCashBuyer && d.customer ? `<div style="font-size:13.5px; border-bottom:2.5px solid #000000; padding-bottom:4px; margin-bottom:5px; font-weight:900; padding-right:3px; -webkit-text-stroke:0.7px #000;">العميل: ${d.customer}</div>` : ''}
+        ${!isCashBuyer && d.customer ? `<div style="font-size:13.5px; border-bottom:2.5px solid #000000; padding-bottom:4px; margin-bottom:5px; font-weight:900; padding-right:3px;">العميل: ${d.customer}</div>` : ''}
 
         <table style="width:100%; border-collapse:collapse; margin-bottom:6px; border-top:2.5px solid #000000; border-bottom:2.5px solid #000000; font-weight:900; table-layout:fixed;">
             <colgroup>
@@ -1030,46 +1030,46 @@ function build80mmCompact(d) {
             </colgroup>
             <thead>
                 <tr style="border-bottom:2px solid #000000;">
-                    <th style="text-align:right; padding:5px 2px; font-size:13px; font-weight:900; -webkit-text-stroke:0.75px #000;">الصنف</th>
-                    <th style="text-align:center; padding:5px 1px; font-size:13px; font-weight:900; -webkit-text-stroke:0.75px #000;">الكمية</th>
-                    <th style="text-align:center; padding:5px 2px; font-size:13px; font-weight:900; -webkit-text-stroke:0.75px #000;">الإجمالي</th>
+                    <th style="text-align:right; padding:5px 2px; font-size:13px; font-weight:900;">الصنف</th>
+                    <th style="text-align:center; padding:5px 1px; font-size:13px; font-weight:900;">الكمية</th>
+                    <th style="text-align:center; padding:5px 2px; font-size:13px; font-weight:900;">الإجمالي</th>
                 </tr>
             </thead>
             <tbody>${cleanItemsRows}</tbody>
         </table>
 
         <div style="font-size:13.5px; font-weight:900;">
-            <div style="display:flex; justify-content:space-between; font-size:15px; margin:4px 0; -webkit-text-stroke:0.8px #000;">
+            <div style="display:flex; justify-content:space-between; font-size:15px; margin:4px 0;">
                 <span>مبلغ الفاتورة:</span>
                 <span>${parseFloat(d.totalAmount).toFixed(2)} ${typeof getCurrencySymbol === 'function' ? getCurrencySymbol() : 'ج.م'}</span>
             </div>
             ${d.discount && parseFloat(d.discount) > 0 ? `
-            <div style="display:flex; justify-content:space-between; margin:2px 0; -webkit-text-stroke:0.7px #000;"><span>خصم (-):</span><span>${parseFloat(d.discount).toFixed(2)}</span></div>
+            <div style="display:flex; justify-content:space-between; margin:2px 0;"><span>خصم (-):</span><span>${parseFloat(d.discount).toFixed(2)}</span></div>
             ` : ''}
             ${d.tax && parseFloat(d.tax) > 0 ? `
-            <div style="display:flex; justify-content:space-between; margin:2px 0; -webkit-text-stroke:0.7px #000;"><span>${d.taxLabel} (+):</span><span>${parseFloat(d.tax).toFixed(2)}</span></div>
+            <div style="display:flex; justify-content:space-between; margin:2px 0;"><span>${d.taxLabel} (+):</span><span>${parseFloat(d.tax).toFixed(2)}</span></div>
             ` : ''}
             ${d.globalTax && parseFloat(d.globalTax) > 0 ? `
-            <div style="display:flex; justify-content:space-between; margin:2px 0; -webkit-text-stroke:0.7px #000;"><span>ضريبة القيمة المضافة:</span><span>${parseFloat(d.globalTax).toFixed(2)}</span></div>
+            <div style="display:flex; justify-content:space-between; margin:2px 0;"><span>ضريبة القيمة المضافة:</span><span>${parseFloat(d.globalTax).toFixed(2)}</span></div>
             ` : ''}
             ${!isCashBuyer && parseFloat(d.prevBalance) !== 0 ? `
-            <div style="display:flex; justify-content:space-between; margin:2px 0; -webkit-text-stroke:0.7px #000;"><span>الرصيد السابق:</span><span>${parseFloat(d.prevBalance).toFixed(2)}</span></div>
-            <div style="display:flex; justify-content:space-between; font-size:15px; border-top:2.5px solid #000000; border-bottom:2.5px solid #000000; margin:3px 0; padding:4px 0; -webkit-text-stroke:0.85px #000;">
+            <div style="display:flex; justify-content:space-between; margin:2px 0;"><span>الرصيد السابق:</span><span>${parseFloat(d.prevBalance).toFixed(2)}</span></div>
+            <div style="display:flex; justify-content:space-between; font-size:15px; border-top:2.5px solid #000000; border-bottom:2.5px solid #000000; margin:3px 0; padding:4px 0;">
                 <span>الإجمالي المطلوب:</span>
                 <span>${(parseFloat(d.totalAmount) + parseFloat(d.prevBalance)).toFixed(2)}</span>
             </div>
             ` : ''}
-            <div style="display:flex; justify-content:space-between; border-top:2px dashed #000000; padding-top:4px; margin-top:4px; -webkit-text-stroke:0.75px #000;">
+            <div style="display:flex; justify-content:space-between; border-top:2px dashed #000000; padding-top:4px; margin-top:4px;">
                 <span>المدفوع:</span>
                 <span>${parseFloat(d.paid).toFixed(2)}</span>
             </div>
             ${!isCashBuyer ? `
-            <div style="display:flex; justify-content:space-between; font-size:15px; border-top:3px solid #000000; padding-top:5px; margin-top:4px; -webkit-text-stroke:0.9px #000;">
+            <div style="display:flex; justify-content:space-between; font-size:15px; border-top:3px solid #000000; padding-top:5px; margin-top:4px;">
                 <span>الرصيد المستحق (الباقي):</span>
                 <span>${(parseFloat(d.totalAmount) + parseFloat(d.prevBalance) - parseFloat(d.paid)).toFixed(2)}</span>
             </div>
             ` : (parseFloat(d.paid) > parseFloat(d.totalAmount) ? `
-            <div style="display:flex; justify-content:space-between; font-size:14.5px; border-top:2px dashed #000000; padding-top:4px; margin-top:4px; -webkit-text-stroke:0.8px #000;">
+            <div style="display:flex; justify-content:space-between; font-size:14.5px; border-top:2px dashed #000000; padding-top:4px; margin-top:4px;">
                 <span>الباقي للعميل:</span>
                 <span>${(parseFloat(d.paid) - parseFloat(d.totalAmount)).toFixed(2)}</span>
             </div>
@@ -1077,7 +1077,7 @@ function build80mmCompact(d) {
         </div>
 
         <div style="text-align:center; border-top:3px solid #000000; padding-top:6px; margin-top:6px; font-size:14px; font-weight:900;">
-            <div style="white-space: pre-line; -webkit-text-stroke:0.7px #000;">${d.footerMsg}</div>
+            <div style="white-space: pre-line;">${d.footerMsg}</div>
 
             ${qrSectionHtml}
         </div>
@@ -1092,46 +1092,46 @@ function build57mm(d) {
     return `
     <div style="width:57mm; font-family:'Arial','Tahoma',sans-serif; direction:rtl; padding:2mm; color:#000000; font-size:12px; font-weight:900;">
         <div style="text-align:center; border-bottom:2.5px solid #000; padding-bottom:5px; margin-bottom:5px;">
-            <strong style="font-size:16px; -webkit-text-stroke:0.8px #000;">${d.shopName}</strong><br>
-            <span style="font-size:13px; font-weight:900; -webkit-text-stroke:0.6px #000;">${d.docTitle}</span>
+            <strong style="font-size:16px;">${d.shopName}</strong><br>
+            <span style="font-size:13px; font-weight:900;">${d.docTitle}</span>
         </div>
-        <div style="font-size:11.5px; margin-bottom:5px; font-weight:900; -webkit-text-stroke:0.55px #000;">
+        <div style="font-size:11.5px; margin-bottom:5px; font-weight:900;">
             #${d.invoiceNumber} | ${d.date}<br>
             ${!isCashBuyer && d.customer ? `العميل: ${d.customer}<br>` : ''}
             ${d.cashier  ? `كاشير: ${d.cashier}` : ''}
         </div>
         <table style="width:100%; border-collapse:collapse; border-top:2px solid #000; border-bottom:2px solid #000; margin-bottom:5px;">
             <tr style="border-bottom:2px solid #000;">
-                <th style="text-align:right; font-size:12px; -webkit-text-stroke:0.7px #000;">الصنف</th>
-                <th style="text-align:center; font-size:12px; -webkit-text-stroke:0.7px #000;">ك</th>
-                <th style="text-align:center; font-size:12px; -webkit-text-stroke:0.7px #000;">إجمالي</th>
+                <th style="text-align:right; font-size:12px;">الصنف</th>
+                <th style="text-align:center; font-size:12px;">ك</th>
+                <th style="text-align:center; font-size:12px;">إجمالي</th>
             </tr>
             ${d.itemsRowsCompact}
         </table>
-        <div style="display:flex; justify-content:space-between; font-weight:900; font-size:13px; border-top:2px solid #000; padding-top:4px; -webkit-text-stroke:0.75px #000;">
+        <div style="display:flex; justify-content:space-between; font-weight:900; font-size:13px; border-top:2px solid #000; padding-top:4px;">
             <span>مبلغ الفاتورة:</span><span>${parseFloat(d.totalAmount).toFixed(2)}</span>
         </div>
         ${!isCashBuyer && parseFloat(d.prevBalance) !== 0 ? `
-        <div style="display:flex; justify-content:space-between; font-size:11.5px; font-weight:900; -webkit-text-stroke:0.6px #000;">
+        <div style="display:flex; justify-content:space-between; font-size:11.5px; font-weight:900;">
             <span>رصيد سابق:</span><span>${parseFloat(d.prevBalance).toFixed(2)}</span>
         </div>
-        <div style="display:flex; justify-content:space-between; font-weight:900; font-size:13px; border-top:2px solid #000; padding-top:3px; -webkit-text-stroke:0.8px #000;">
+        <div style="display:flex; justify-content:space-between; font-weight:900; font-size:13px; border-top:2px solid #000; padding-top:3px;">
             <span>الإجمالي المطلوب:</span><span>${(parseFloat(d.totalAmount) + parseFloat(d.prevBalance)).toFixed(2)}</span>
         </div>
         ` : ''}
-        <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:900; -webkit-text-stroke:0.65px #000;">
+        <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:900;">
             <span>المدفوع:</span><span>${parseFloat(d.paid).toFixed(2)}</span>
         </div>
         ${!isCashBuyer ? `
-        <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:900; border-top:2.5px solid #000; padding-top:3px; -webkit-text-stroke:0.85px #000;">
+        <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:900; border-top:2.5px solid #000; padding-top:3px;">
             <span>الرصيد المستحق:</span><span>${(parseFloat(d.totalAmount) + parseFloat(d.prevBalance) - parseFloat(d.paid)).toFixed(2)}</span>
         </div>
         ` : (parseFloat(d.paid) > parseFloat(d.totalAmount) ? `
-        <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:900; -webkit-text-stroke:0.65px #000;">
+        <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:900;">
             <span>الباقي:</span><span>${(parseFloat(d.paid) - parseFloat(d.totalAmount)).toFixed(2)}</span>
         </div>
         ` : '')}
-        <div style="text-align:center; border-top:2px solid #000; padding-top:5px; margin-top:5px; font-size:11px; font-weight:900; white-space: pre-line; -webkit-text-stroke:0.6px #000;">
+        <div style="text-align:center; border-top:2px solid #000; padding-top:5px; margin-top:5px; font-size:11px; font-weight:900; white-space: pre-line;">
             ${d.footerMsg}
             ${qrSectionHtml}
         </div>

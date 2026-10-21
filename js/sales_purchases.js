@@ -455,9 +455,6 @@ function handlePurchaseSearchKeydown(e) {
         if (e.key === 'Enter') {
             e.preventDefault();
             handlePurchaseSearchEnter(e.target.value, e);
-        } else if (e.key === 'ArrowLeft') {
-            e.preventDefault();
-            document.getElementById('purchaseHeaderQty')?.focus();
         }
         return;
     }
@@ -490,9 +487,6 @@ function handlePurchaseSearchKeydown(e) {
     } else if (e.key === 'Escape') {
         e.preventDefault();
         resultsDiv.style.display = 'none';
-    } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        document.getElementById('purchaseHeaderQty')?.focus();
     }
 }
 window.handlePurchaseSearchKeydown = handlePurchaseSearchKeydown;
@@ -1022,6 +1016,23 @@ function renderPurchaseCart_Finalized_V3() {
 
     if (!tbody) return;
 
+    // حفظ حالة التركيز الحالية قبل تفريغ الجدول
+    const activeEl = document.activeElement;
+    let restoreFocus = null;
+    if (activeEl && tbody.contains(activeEl)) {
+        const row = activeEl.closest('tr');
+        const rowIdx = row ? row.getAttribute('data-index') : null;
+        if (rowIdx !== null) {
+            if (activeEl.classList.contains('qty-input-styled')) {
+                restoreFocus = { rowIdx, selector: '.qty-input-styled' };
+            } else if (activeEl.classList.contains('final-editable-purchase-price')) {
+                restoreFocus = { rowIdx, selector: '.final-editable-purchase-price' };
+            } else if (activeEl.classList.contains('retail-input-styled')) {
+                restoreFocus = { rowIdx, selector: '.retail-input-styled' };
+            }
+        }
+    }
+
     tbody.innerHTML = '';
 
     updateHeaderPartnerInfo();
@@ -1100,6 +1111,17 @@ function renderPurchaseCart_Finalized_V3() {
         tbody.appendChild(tr);
 
     });
+
+    if (restoreFocus) {
+        const targetRow = tbody.querySelector(`tr[data-index="${restoreFocus.rowIdx}"]`);
+        if (targetRow) {
+            const targetInput = targetRow.querySelector(restoreFocus.selector);
+            if (targetInput) {
+                targetInput.focus();
+                try { targetInput.select(); } catch(e) {}
+            }
+        }
+    }
 
     const subTotalEl = document.getElementById('purchaseSubTotal');
 

@@ -1060,19 +1060,30 @@ const BayanBarcode = (function () {
     }
 
     function autoFocusActiveInput() {
+        // 🛡️ صمام أمان حاسم: لا تسرق التركيز أبداً إذا كان المستخدم يركز أو يكتب في أي حقل إدخال
+        const active = document.activeElement;
+        if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable)) {
+            return;
+        }
+        // لا تسرق التركيز إذا كانت هناك أي نافذة منبثقة مفتوحة
+        const hasOpenModal = document.querySelector('.confirm-modal-overlay:not(.hidden), .modal-overlay:not(.hidden), #customPromptModal:not(.hidden), #alertModal:not(.hidden), #confirmModal:not(.hidden), #loginModal:not(.hidden), #searchInvoiceModal:not(.hidden), #newItemModal:not(.hidden)');
+        if (hasOpenModal) {
+            return;
+        }
+
         const target = getActiveScanTarget();
         if (target === 'sales') {
             const el = document.getElementById('productSearch');
-            if (el) el.focus();
+            if (el && document.activeElement !== el) el.focus();
         } else if (target === 'purchase') {
             const el = document.getElementById('purchaseSearch');
-            if (el) el.focus();
+            if (el && document.activeElement !== el) el.focus();
         } else if (target === 'adjustment') {
             const el = document.getElementById('adjSearch');
-            if (el) el.focus();
+            if (el && document.activeElement !== el) el.focus();
         } else if (target === 'transfer') {
             const el = document.getElementById('transferProductSearch');
-            if (el) el.focus();
+            if (el && document.activeElement !== el) el.focus();
         }
     }
 

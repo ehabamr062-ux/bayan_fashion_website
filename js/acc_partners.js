@@ -1556,11 +1556,16 @@
             // ⚡ 2. جلب حركات كشف الحساب للفترة المحددة مباشرة من محرك SQLite بنسبة 100%
             let accTrans = [];
             if (usedSqliteStatement && typeof window.BayanSQLite.getAccountTransactionsForPeriod === 'function') {
-                accTrans = window.BayanSQLite.getAccountTransactionsForPeriod(acc.name, fromDate || null, toDate || null, 5000);
+                try {
+                    accTrans = window.BayanSQLite.getAccountTransactionsForPeriod(acc.name, fromDate || null, toDate || null, 5000, targetAccCode || null);
+                } catch (sqErr) {
+                    console.warn("[SQLite] getAccountTransactionsForPeriod error:", sqErr);
+                    usedSqliteStatement = false;
+                }
             }
 
-            // مسار احتياطي في حال عدم استخدام SQLite
-            if (!accTrans || accTrans.length === 0) {
+            // مسار احتياطي في حال عدم استخدام أو تعذر SQLite فقط (Fallback)
+            if (!usedSqliteStatement) {
                 let dbPartnerTxs = [];
                 if (typeof db !== 'undefined' && db.transactions) {
                     try {
@@ -1960,14 +1965,32 @@
                 return clean(tType) === clean(targetType) || clean(tType).includes(clean(targetType)) || clean(targetType).includes(clean(tType));
             };
 
-            const txList = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : [];
-            let invoiceItems = txList.filter(t => String(t.invoiceId) === String(invoiceId) && matchesStmtType(t.type, type) && t.product);
-            
-            if (invoiceItems.length === 0) {
-                invoiceItems = txList.filter(t => String(t.invoiceId) === String(invoiceId) && matchesStmtType(t.type, type));
+            // ⚡ 1. استعلام بنود الفاتورة فورياً عبر محرك SQLite بنسبة 100% (< 1ms)
+            let invoiceItems = [];
+            if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function' && window.BayanSQLite.db) {
+                try {
+                    const sqItems = window.BayanSQLite.getInvoiceItems(invoiceId);
+                    if (sqItems && sqItems.length > 0) {
+                        invoiceItems = sqItems.filter(t => matchesStmtType(t.type, type) && (t.product || t.productName || t.name));
+                        if (invoiceItems.length === 0) {
+                            invoiceItems = sqItems.filter(t => matchesStmtType(t.type, type));
+                        }
+                    }
+                } catch (sqErr) {
+                    console.warn("[SQLite] getInvoiceItems in statement error:", sqErr);
+                }
             }
 
-            // ⚡ صمام أمان تاريخي فائق: إذا كانت الفاتورة من تواريخ سابقة غير محملة بالذاكرة، نستعلم عنها عبر فهرس SQLite فوراً
+            // ⚡ 2. مسار احتياطي من مصفوفة الذاكرة الحالية
+            if (invoiceItems.length === 0) {
+                const txList = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : [];
+                invoiceItems = txList.filter(t => String(t.invoiceId) === String(invoiceId) && matchesStmtType(t.type, type) && t.product);
+                if (invoiceItems.length === 0) {
+                    invoiceItems = txList.filter(t => String(t.invoiceId) === String(invoiceId) && matchesStmtType(t.type, type));
+                }
+            }
+
+            // ⚡ 3. صمام أمان أخير من IndexedDB للفواتير القديمة غير المحملة
             if (invoiceItems.length === 0 && typeof db !== 'undefined' && db.transactions) {
                 try {
                     let dbItems = await db.transactions.where('invoiceId').equals(String(invoiceId)).toArray().catch(() => []);

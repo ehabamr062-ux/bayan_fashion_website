@@ -919,29 +919,21 @@
                         dbPriorCalculated = true;
                         window._cachedDailyReportPriorBalance = { key: priorCacheKey, val: 0 };
                     } else {
-                        // ⚡ استعلام تجميعي مباشر (Direct SQL Aggregate) على مستوى نواة SQLite C++ لحساب الرصيد السابق في 2ms
+                        // ⚡ استعلام تجميعي مباشر فائق السرعة عبر فهارس SQLite دون أي Subquery أو Group By معقد
                         let sql = `
                         SELECT COALESCE(SUM(
                             CASE 
                                 WHEN type LIKE '%قبض%' THEN total
                                 WHEN type LIKE '%صرف%' THEN -total
-                                WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN paid
-                                WHEN (type LIKE '%شراء%' OR type LIKE '%مشتريات%') AND type NOT LIKE '%مرتجع%' THEN -paid
-                                WHEN type LIKE '%مرتجع بيع%' THEN -paid
-                                WHEN type LIKE '%مرتجع شراء%' THEN paid
+                                WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN COALESCE(paidAmount, total)
+                                WHEN (type LIKE '%شراء%' OR type LIKE '%مشتريات%') AND type NOT LIKE '%مرتجع%' THEN -COALESCE(paidAmount, total)
+                                WHEN type LIKE '%مرتجع بيع%' THEN -COALESCE(paidAmount, total)
+                                WHEN type LIKE '%مرتجع شراء%' THEN COALESCE(paidAmount, total)
                                 ELSE 0
                             END
                         ), 0) AS balance
-                        FROM (
-                            SELECT 
-                                type, 
-                                MAX(method) as method, 
-                                MAX(warehouse) as warehouse, 
-                                MAX(cashier) as cashier, 
-                                MAX(paidAmount) as paid, 
-                                MAX(total) as total
-                            FROM transactions 
-                            WHERE dateISO < ?
+                        FROM transactions 
+                        WHERE dateISO < ?
                     `;
                     const params = [fromDate];
                     if (selectedWarehouse && selectedWarehouse !== 'all') {
@@ -952,7 +944,7 @@
                         sql += " AND (cashier = ? OR type LIKE '%شراء%' OR type LIKE '%مشتريات%' OR type LIKE '%صرف%' OR type LIKE '%قبض%')";
                         params.push(selectedUser);
                     }
-                    sql += ` GROUP BY (CASE WHEN invoiceId IS NOT NULL AND TRIM(invoiceId) != '' AND invoiceId != '---' THEN invoiceId ELSE id END), type ) subTx WHERE `;
+                    sql += " AND ";
 
                     // تصفية نوع الخزينة (نقدية الدرج أو وسيلة دفع/محفظة محددة) مباشرة في SQL
                     if (selectedTreasury === 'all' || !isTreasurySpecificNonCash) {
@@ -993,7 +985,7 @@
                                         LOWER(method) NOT LIKE '%ذمم%' AND 
                                         LOWER(method) NOT LIKE '%credit%' AND 
                                         LOWER(method) NOT LIKE '%deferred%'
-                                    ) OR paid > 0
+                                    ) OR paidAmount > 0
                                 ) AND 
                                 LOWER(method) != 'vodafone_cash'
                             )
@@ -1074,7 +1066,7 @@
             }
             if ((!periodAllRaw || periodAllRaw.length === 0) && window.BayanSQLite && typeof window.BayanSQLite.getTransactionsForPeriod === 'function') {
                 // جلب كافة حركات الفترة للمخزن المحدد دون استبعاد مسبق للكاشير على مستوى SQLite للسماح باحتساب حركات الدرج المشتركة
-                periodAllRaw = window.BayanSQLite.getTransactionsForPeriod(fromDate, toDate, 10000, selectedWarehouse, 'all');
+                periodAllRaw = window.BayanSQLite.getTransactionsForPeriod(fromDate, toDate, 15000, selectedWarehouse, 'all');
             }
             if (!periodAllRaw || periodAllRaw.length === 0) {
                 periodAllRaw = (typeof transactions !== 'undefined' && Array.isArray(transactions)) 
@@ -6375,14 +6367,12 @@
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        layout: {
+                            padding: { top: 4, bottom: 2, left: 2, right: 2 }
+                        },
                         plugins: {
                             legend: { display: false },
-                            title: {
-                                display: true,
-                                text: '📈 اتجاه صافي المبيعات اليومية',
-                                font: { family: 'Cairo', size: 13, weight: 'bold' },
-                                color: '#1e293b'
-                            },
+                            title: { display: false },
                             tooltip: {
                                 titleFont: { family: 'Cairo' },
                                 bodyFont: { family: 'Cairo' }
@@ -6403,28 +6393,16 @@
                 });
             }
 
-            // Chart 2: Top Selling Products
+            // Chart 2: Top Selling Products (أعلى الأصناف مبيعاً بألوان زاهية ومتنوعة تمنع سيطرة لون واحد)
             let productSalesArray = Object.keys(catData).map(name => ({
                 name: name,
                 total: catData[name]
-            })).sort((a, b) => b.total - a.total);
+            })).filter(p => p.total > 0).sort((a, b) => b.total - a.total);
 
-            let finalLabels = [];
-            let finalValues = [];
-
-            if (productSalesArray.length > 6) {
-                const top6 = productSalesArray.slice(0, 6);
-                const others = productSalesArray.slice(6).reduce((sum, p) => sum + p.total, 0);
-                finalLabels = top6.map(p => p.name);
-                finalValues = top6.map(p => Math.round(p.total * 100) / 100);
-                if (others > 0) {
-                    finalLabels.push("أصناف أخرى");
-                    finalValues.push(Math.round(others * 100) / 100);
-                }
-            } else {
-                finalLabels = productSalesArray.map(p => p.name);
-                finalValues = productSalesArray.map(p => Math.round(p.total * 100) / 100);
-            }
+            // نأخذ أعلى 6 أصناف متصدرة لعرض نسبهم بوضوح وتنوع لوني كامل
+            const topProducts = productSalesArray.slice(0, 6);
+            let finalLabels = topProducts.map(p => p.name);
+            let finalValues = topProducts.map(p => Math.round(p.total * 100) / 100);
 
             const catCtx = document.getElementById('categoryChart');
             if (catCtx) {
@@ -6433,7 +6411,15 @@
                     categoryChartInstance = null;
                 }
 
-                const colors = ['#4f46e5', '#059669', '#d97706', '#e11d48', '#7c3aed', '#0284c7', '#64748b'];
+                // باليتة ألوان عصرية وزاهية وعالية التباين (تمنع تشابه أو اندماج الألوان)
+                const vibrantColors = [
+                    '#4f46e5', // أزرق نيلي جذاب (Indigo)
+                    '#10b981', // أخضر زمردي مشرق (Emerald)
+                    '#f59e0b', // كهرماني ذهبي متوهج (Amber)
+                    '#f43f5e', // وردي قرمزي ناصع (Rose)
+                    '#8b5cf6', // بنفسجي ملكي فاخر (Purple)
+                    '#06b6d4'  // تركواز سماوي ناصع (Cyan)
+                ];
 
                 categoryChartInstance = new Chart(catCtx.getContext('2d'), {
                     type: 'doughnut',
@@ -6441,34 +6427,46 @@
                         labels: finalLabels.length ? finalLabels : ['لا توجد مبيعات'],
                         datasets: [{
                             data: finalValues.length ? finalValues : [1],
-                            backgroundColor: finalValues.length ? colors.slice(0, finalLabels.length) : ['#e2e8f0'],
+                            backgroundColor: finalValues.length ? vibrantColors.slice(0, finalLabels.length) : ['#e2e8f0'],
                             borderWidth: 2,
-                            borderColor: '#ffffff'
+                            borderColor: '#ffffff',
+                            hoverOffset: 4
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        layout: {
+                            padding: { top: 4, bottom: 4, left: 4, right: 4 }
+                        },
                         plugins: {
                             legend: {
                                 position: 'right',
+                                rtl: true,
                                 labels: {
-                                    boxWidth: 12,
-                                    font: { family: 'Cairo', size: 10, weight: 'bold' }
+                                    boxWidth: 10,
+                                    padding: 6,
+                                    font: { family: 'Cairo', size: 9.5, weight: 'bold' },
+                                    color: '#1e293b'
                                 }
                             },
                             title: {
-                                display: true,
-                                text: '🏆 الأصناف الأعلى مبيعاً',
-                                font: { family: 'Cairo', size: 13, weight: 'bold' },
-                                color: '#1e293b'
+                                display: false
                             },
                             tooltip: {
-                                titleFont: { family: 'Cairo' },
-                                bodyFont: { family: 'Cairo' }
+                                titleFont: { family: 'Cairo', weight: 'bold' },
+                                bodyFont: { family: 'Cairo' },
+                                callbacks: {
+                                    label: function(context) {
+                                        const val = context.parsed || 0;
+                                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                        const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                                        return ` ${context.label}: ${val.toLocaleString('en-US')} ج.م (${pct}%)`;
+                                    }
+                                }
                             }
                         },
-                        cutout: '68%'
+                        cutout: '60%'
                     }
                 });
             }

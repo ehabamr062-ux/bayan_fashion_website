@@ -77,18 +77,27 @@
             }
         },
 
-        // 🏪 استرجاع أو توليد معرّف المحل الفريد المستقر (Shop Isolation)
+        // 🏪 استرجاع أو تثبيت معرّف المحل الفريد المستقر والمحمي من التغير (Shop Isolation & Lock)
         getShopId: function () {
-            let shopId = localStorage.getItem('bayan_shop_id');
-            if (!shopId && typeof getStore === 'function') {
-                shopId = getStore('bayan_shop_id');
-            }
+            let shopId = (typeof getStore === 'function' ? getStore('bayan_shop_id') : null) || localStorage.getItem('bayan_shop_id');
             if (!shopId) {
                 try {
-                    const settings = JSON.parse(localStorage.getItem('pos_settings') || '{}');
+                    const settings = (typeof getStore === 'function') 
+                        ? JSON.parse(getStore('pos_settings') || '{}')
+                        : JSON.parse(localStorage.getItem('pos_settings') || '{}');
                     if (settings.shopId) shopId = settings.shopId;
                 } catch (e) {}
             }
+
+            // 🔒 حظر إعادة التوليد العشوائي: إذا لم يتوفر بعد ولم تكتمل تهيئة الـ Store، لا نولد فوراً بل ننتظر
+            if (!shopId) {
+                if (typeof window !== 'undefined' && !window._appStoreInitialized && typeof localStorage !== 'undefined') {
+                    const cachedLocal = localStorage.getItem('bayan_shop_id');
+                    if (cachedLocal) shopId = cachedLocal;
+                }
+            }
+
+            // توليد لمرة واحدة فقط عند أول تثبيت في تاريخ البرنامج
             if (!shopId) {
                 const randPart = (typeof crypto !== 'undefined' && crypto.randomUUID)
                     ? crypto.randomUUID().replace(/-/g, '').substring(0, 10).toUpperCase()
@@ -96,23 +105,38 @@
                 shopId = 'SHOP_' + randPart;
                 localStorage.setItem('bayan_shop_id', shopId);
                 if (typeof setStore === 'function') setStore('bayan_shop_id', shopId);
+                try {
+                    const curSettings = JSON.parse((typeof getStore === 'function' ? getStore('pos_settings') : null) || localStorage.getItem('pos_settings') || '{}');
+                    curSettings.shopId = shopId;
+                    if (typeof setStore === 'function') setStore('pos_settings', JSON.stringify(curSettings));
+                } catch (e) {}
+                console.log("🔒 [SupabaseSync] تم توليد وتثبيت كود المحل السحابي الدائم لأول مرة:", shopId);
             }
             return shopId;
         },
 
-        // ✏️ تعيين وتوحيد كود المحل السحابي (Shop ID) لربط جهازين معاً كمرآة واحدة
+        // ✏️ تعيين وتوحيد كود المحل السحابي (Shop ID) لربط جهازين معاً كمرآة واحدة بأمان تام
         setShopId: function (newId) {
             const clean = String(newId || '').trim();
             if (!clean || clean.length < 5) return false;
             const finalId = clean.startsWith('SHOP_') ? clean : ('SHOP_' + clean);
+            if (finalId === 'SHOP_DEFAULT' || finalId.length < 10) {
+                console.warn('[SupabaseSync] كود المحل غير صالح:', finalId);
+                return false;
+            }
             localStorage.setItem('bayan_shop_id', finalId);
             if (typeof setStore === 'function') {
                 setStore('bayan_shop_id', finalId);
             }
             try {
+                const curSettings = JSON.parse((typeof getStore === 'function' ? getStore('pos_settings') : null) || localStorage.getItem('pos_settings') || '{}');
+                curSettings.shopId = finalId;
+                if (typeof setStore === 'function') setStore('pos_settings', JSON.stringify(curSettings));
+            } catch (e) {}
+            try {
                 const cfg = this.getConfig();
                 cfg.shopId = finalId;
-                localStorage.setItem('bayan_supabase_config', JSON.stringify(cfg));
+                this.saveConfig(cfg);
             } catch (e) {}
 
             // تصفير طوابع المزامنة السابقة لفرض سحب شامل وتحديث كامل للبيانات
@@ -122,6 +146,9 @@
 
             const badge = document.getElementById('supabaseShopIdBadge');
             if (badge) badge.textContent = finalId;
+
+            // رفع السجل الإقراني فوراً بالمعرف الجديد
+            this.syncPairingPin().catch(() => {});
 
             return finalId;
         },
@@ -173,47 +200,54 @@
             await this.runFullSync(true);
         },
 
-        // 🔐 استرجاع أو توليد رمز الاقتران PIN الفريد لهذا المحل (Pairing PIN Isolation)
+        // 🔐 استرجاع أو توليد رمز الاقتران PIN الفريد لهذا المحل (منع الـ 2026 الافتراضية وحفظه في SQLite)
         getPairingPin: function () {
-            let pin = localStorage.getItem('bayan_shop_pin');
-            if (!pin) {
-                pin = '2026';
+            let pin = (typeof getStore === 'function' ? getStore('bayan_shop_pin') : null) || localStorage.getItem('bayan_shop_pin');
+            if (!pin || pin === '2026') {
+                // توليد رمز PIN عشوائي فريد مكون من 6 أرقام يمنع تداخل المتاجر نهائياً
+                pin = Math.floor(100000 + Math.random() * 900000).toString();
                 localStorage.setItem('bayan_shop_pin', pin);
+                if (typeof setStore === 'function') setStore('bayan_shop_pin', pin);
+                console.log("🔐 [SupabaseSync] تم توليد رمز PIN فريد للمحل:", pin);
             }
             return pin;
         },
 
-        // ✏️ تعيين وتحديث رمز PIN الخاص بالمحل ورفعه للسحابة فوراً
+        // ✏️ تعيين وتحديث رمز PIN الخاص بالمحل وحفظه في SQLite والسحابة
         setPairingPin: function (newPin) {
             const clean = String(newPin || '').trim();
             if (clean && clean.length >= 4) {
                 localStorage.setItem('bayan_shop_pin', clean);
+                if (typeof setStore === 'function') setStore('bayan_shop_pin', clean);
                 this.syncPairingPin(clean).catch(() => {});
                 return true;
             }
             return false;
         },
 
-        // ⚙️ استرجاع إعدادات المزامنة السحابية من التخزين المحلي
+        // ⚙️ استرجاع إعدادات المزامنة السحابية من SQLite والتخزين المحلي
         getConfig: function () {
             let saved = {};
             try {
-                saved = JSON.parse(localStorage.getItem('bayan_supabase_config') || '{}');
+                const rawCfg = (typeof getStore === 'function' ? getStore('bayan_supabase_config') : null) || localStorage.getItem('bayan_supabase_config');
+                saved = JSON.parse(rawCfg || '{}');
             } catch (e) {}
             return {
                 supabaseUrl: (saved.supabaseUrl || DEFAULT_CONFIG.supabaseUrl).replace(/\/+$/, ''),
                 supabaseKey: saved.supabaseKey || DEFAULT_CONFIG.supabaseKey,
                 shopId: saved.shopId || this.getShopId(),
                 autoSyncEnabled: saved.autoSyncEnabled !== undefined ? Boolean(saved.autoSyncEnabled) : DEFAULT_CONFIG.autoSyncEnabled,
-                syncIntervalSeconds: parseInt(saved.syncIntervalSeconds, 10) || DEFAULT_CONFIG.syncIntervalSeconds
+                syncIntervalSeconds: parseInt(saved.syncIntervalSeconds, 10) || 45
             };
         },
 
-        // 💾 حفظ إعدادات المزامنة
+        // 💾 حفظ إعدادات المزامنة في SQLite و localStorage
         saveConfig: function (newConfig) {
             const current = this.getConfig();
             const merged = { ...current, ...newConfig };
-            localStorage.setItem('bayan_supabase_config', JSON.stringify(merged));
+            const jsonStr = JSON.stringify(merged);
+            localStorage.setItem('bayan_supabase_config', jsonStr);
+            if (typeof setStore === 'function') setStore('bayan_supabase_config', jsonStr);
             this.restartSyncTimer();
             return merged;
         },
@@ -270,7 +304,9 @@
         // 📦 1. مزامنة الفواتير والمبيعات والحركات مع جدول transactions
         syncTransactions: async function () {
             const cfg = this.getConfig();
+            const shopId = cfg.shopId || this.getShopId();
             if (!this._isAllowed() || !cfg.supabaseUrl || !cfg.supabaseKey) return 0;
+            if (!shopId || shopId === 'SHOP_DEFAULT' || !shopId.startsWith('SHOP_') || shopId.length < 10) return 0;
 
             const allTx = (typeof transactions !== 'undefined' && Array.isArray(transactions))
                 ? transactions
@@ -279,7 +315,6 @@
             if (allTx.length === 0) return 0;
 
             const lastSyncTs = parseInt(localStorage.getItem('bayan_sb_last_tx_time') || '0', 10);
-            const shopId = cfg.shopId || this.getShopId();
 
             // رفع الفواتير والحركات المعدلة/الجديدة
             let targetTx = allTx;
@@ -388,7 +423,9 @@
         // 👗 2. مزامنة الأصناف والمخزون ذكية وعالية الأداء (Delta Fingerprint Engine)
         syncProducts: async function (forceAll = false) {
             const cfg = this.getConfig();
+            const shopId = cfg.shopId || this.getShopId();
             if (!this._isAllowed() || !cfg.supabaseUrl || !cfg.supabaseKey) return 0;
+            if (!shopId || shopId === 'SHOP_DEFAULT' || !shopId.startsWith('SHOP_') || shopId.length < 10) return 0;
 
             const pList = (typeof productsDB !== 'undefined' && Array.isArray(productsDB))
                 ? productsDB
@@ -396,7 +433,6 @@
 
             if (pList.length === 0) return 0;
 
-            const shopId = cfg.shopId || this.getShopId();
             const prodFps = window._bayan_synced_prod_fps || (window._bayan_synced_prod_fps = new Map());
 
             // دالة استخراج بصمة خفيفة وسريعة للصنف لمقارنة التغييرات
@@ -557,7 +593,9 @@
         // 💰 3. مزامنة حركات الخزينة والدرج مع جدول treasury_audit
         syncTreasuryAudit: async function () {
             const cfg = this.getConfig();
+            const shopId = cfg.shopId || this.getShopId();
             if (!this._isAllowed() || !cfg.supabaseUrl || !cfg.supabaseKey) return 0;
+            if (!shopId || shopId === 'SHOP_DEFAULT' || !shopId.startsWith('SHOP_') || shopId.length < 10) return 0;
 
             const audits = (typeof treasuryAuditRecords !== 'undefined' && Array.isArray(treasuryAuditRecords))
                 ? treasuryAuditRecords
@@ -565,7 +603,6 @@
 
             if (audits.length === 0) return 0;
 
-            const shopId = cfg.shopId || this.getShopId();
             const toSend = audits.slice(-25).map(a => {
                 const rawAuditId = String(a.id || `${a.date}_${a.category}_${a.amount}_${Math.random()}`);
                 return {
@@ -591,10 +628,11 @@
         // 📥 4. سحب ومزامنة الحركات السحابية ثنائية الاتجاه لكافة أجهزة المتجر (_MOB_ و _DESK_)
         pullRemoteTransactions: async function () {
             const cfg = this.getConfig();
+            const shopId = cfg.shopId || this.getShopId();
             if (!this._isAllowed() || !cfg.supabaseUrl || !cfg.supabaseKey) return 0;
+            if (!shopId || shopId === 'SHOP_DEFAULT' || !shopId.startsWith('SHOP_') || shopId.length < 10) return 0;
 
             try {
-                const shopId = cfg.shopId || this.getShopId();
                 // استعلام شامل لكافة حركات المتجر الصادرة من أي تابلت أو كمبيوتر كاشير آخر
                 const res = await this._safeFetch(
                     `${cfg.supabaseUrl}/rest/v1/transactions?id=like.${encodeURIComponent(shopId)}_*&order=created_at.desc&limit=100`, 
@@ -834,10 +872,12 @@
         // 🗑️ 4.1 حذف حركة من السحابة وإشعار كافة الأجهزة بإلغائها
         deleteInvoiceFromCloud: async function (invoiceId, total = 0, warehouse = 'المخزن الرئيسي') {
             const cfg = this.getConfig();
+            const shopId = cfg.shopId || this.getShopId();
             if (!this._isAllowed() || !cfg.supabaseUrl || !cfg.supabaseKey || !invoiceId) return false;
+            if (!shopId || shopId === 'SHOP_DEFAULT' || !shopId.startsWith('SHOP_') || shopId.length < 10) return false;
+
             try {
                 const invStr = String(invoiceId).trim();
-                const shopId = cfg.shopId || this.getShopId();
 
                 const scopedDeskId = `${shopId}_DESK_${invStr}`;
                 const scopedMobId = `${shopId}_${invStr}`;
@@ -884,8 +924,10 @@
         syncPairingPin: async function (customPin = null) {
             const cfg = this.getConfig();
             if (!cfg.supabaseUrl || !cfg.supabaseKey) return;
+            const shopId = cfg.shopId || this.getShopId();
+            if (!shopId || shopId === 'SHOP_DEFAULT' || !shopId.startsWith('SHOP_') || shopId.length < 10) return;
+
             try {
-                const shopId = cfg.shopId || this.getShopId();
                 const pairingPin = customPin || this.getPairingPin();
                 const shopName = cfg.shopName || (typeof settings !== 'undefined' ? (settings.shop_name || settings.shopName) : '') || 'بَيَان فاشون';
                 const payload = [
@@ -920,7 +962,9 @@
         // 👥 5.1 مزامنة العملاء والموردين وبنود الصرف والقبض المخصصة
         syncCustomers: async function () {
             const cfg = this.getConfig();
+            const shopId = cfg.shopId || this.getShopId();
             if (!this._isAllowed() || !cfg.supabaseUrl || !cfg.supabaseKey) return 0;
+            if (!shopId || shopId === 'SHOP_DEFAULT' || !shopId.startsWith('SHOP_') || shopId.length < 10) return 0;
 
             let accList = (typeof accounts !== 'undefined' && Array.isArray(accounts) && accounts.length > 0)
                 ? accounts
@@ -933,8 +977,6 @@
             }
 
             if (!accList || accList.length === 0) return 0;
-
-            const shopId = cfg.shopId || this.getShopId();
 
             // 📥 استيراد وتحديث العملاء وبنود الصرف/القبض المخصصة من السحابة
             try {
@@ -1083,7 +1125,9 @@
         // 🏬 5.2 مزامنة قائمة المخازن المعتمدة مع السحابة
         syncWarehouses: async function () {
             const cfg = this.getConfig();
+            const shopId = cfg.shopId || this.getShopId();
             if (!this._isAllowed() || !cfg.supabaseUrl || !cfg.supabaseKey) return 0;
+            if (!shopId || shopId === 'SHOP_DEFAULT' || !shopId.startsWith('SHOP_') || shopId.length < 10) return 0;
 
             let whList = (typeof warehouses !== 'undefined' && Array.isArray(warehouses) && warehouses.length > 0)
                 ? warehouses
@@ -1099,7 +1143,6 @@
                 whList = [{ id: 1, name: 'المخزن الرئيسي' }];
             }
 
-            const shopId = cfg.shopId || this.getShopId();
             const mappedWhs = whList.map(w => ({
                 id: w.id || w.name,
                 name: (w.name || 'المخزن الرئيسي').trim(),
@@ -1155,6 +1198,13 @@
                     }
                 }
                 return { status: 'locked', message: 'Cloud sync not licensed' };
+            }
+
+            const cfg = this.getConfig();
+            const shopId = cfg.shopId || this.getShopId();
+            if (!shopId || shopId === 'SHOP_DEFAULT' || !shopId.startsWith('SHOP_') || shopId.length < 10) {
+                console.warn('[SupabaseSync] إلغاء المزامنة: Shop ID غير صالح:', shopId);
+                return { status: 'invalid_shop', message: 'Shop ID غير صالح' };
             }
 
             if (this.isSyncing) return { status: 'busy' };
@@ -1301,13 +1351,30 @@
                 return;
             }
             const cfg = this.getConfig();
-            if (cfg.autoSyncEnabled && cfg.supabaseUrl && cfg.supabaseKey) {
-                // دورة سحب ومزامنة سريعة ومثالية (15 ثانية افتراضياً لتطابق سرعة الموبايل)
-                const intervalMs = Math.max(10, cfg.syncIntervalSeconds || 15) * 1000;
-                this.syncTimer = setInterval(() => {
-                    this.runFullSync(false).catch(() => {});
-                }, intervalMs);
+            const shopId = cfg.shopId || this.getShopId();
+            if (!shopId || shopId === 'SHOP_DEFAULT' || !shopId.startsWith('SHOP_') || shopId.length < 10) {
+                return;
             }
+            if (cfg.autoSyncEnabled && cfg.supabaseUrl && cfg.supabaseKey) {
+                // ترشيد دورة الفحص الدوري الكامل إلى 45-60 ثانية مع بقاء الرفع الفوري عبر onDeltaSaved
+                const intervalMs = Math.max(45, cfg.syncIntervalSeconds || 45) * 1000;
+                this.syncTimer = setInterval(() => {
+                    if (navigator.onLine && this._isAllowed()) {
+                        this.runFullSync(false).catch(() => {});
+                    }
+                }, intervalMs);
+                if (window._bayanActiveIntervals) window._bayanActiveIntervals.push(this.syncTimer);
+            }
+        },
+
+        // 🛑 إيقاف وفصل مؤقت المزامنة السحابية بسلام عند إغلاق التطبيق
+        disconnect: function () {
+            if (this.syncTimer) {
+                clearInterval(this.syncTimer);
+                this.syncTimer = null;
+            }
+            this._isSyncing = false;
+            console.log('☁️ [SupabaseSync] Disconnected successfully for shutdown.');
         },
 
         // 🛡️ إعادة فحص الترخيص فوراً وتحديث الواجهة والمؤقت
@@ -1323,8 +1390,17 @@
         },
 
         // 🚀 تهيئة النظام عند إقلاع الواجهة
-        init: function () {
+        init: async function () {
             console.log('☁️ [SupabaseSync] Initializing Bayan Cloud Sync Engine...');
+
+            // التأكد من اكتمال تحميل AppStore من SQLite قبل المزامنة لتفادي الـ Race Condition
+            if (!window._appStoreInitialized && typeof window.initAppStore === 'function') {
+                try {
+                    await window.initAppStore();
+                } catch (e) {
+                    console.warn('[SupabaseSync] Waiting for AppStore init...', e);
+                }
+            }
 
             if (!this._isAllowed()) {
                 console.log('🔒 [SupabaseSync] Cloud sync locked: Offline or Trial license tier.');

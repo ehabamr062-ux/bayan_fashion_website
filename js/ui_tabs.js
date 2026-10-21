@@ -544,18 +544,15 @@
                     if (targetTab.type === 'sales' && typeof loadPinnedPriceLevel === 'function') loadPinnedPriceLevel();
                 }
                 const instantFocusInput = (elemId) => {
+                    const active = document.activeElement;
+                    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) {
+                        return;
+                    }
                     const el = document.getElementById(elemId);
                     if (el) {
                         el.focus();
                         try { el.select(); } catch(e) {}
                     }
-                    requestAnimationFrame(() => {
-                        const rel = document.getElementById(elemId);
-                        if (rel && document.activeElement !== rel) {
-                            rel.focus();
-                            try { rel.select(); } catch(e) {}
-                        }
-                    });
                 };
 
                 if (targetTab.type === 'sales') {
@@ -700,12 +697,11 @@
 
                         // تركيز تلقائي ولحظي على البحث عند فتح قسم البيع
                         if (config.s === 'sales') {
-                            const ps = document.getElementById('productSearch');
-                            if (ps) { ps.focus(); try { ps.select(); } catch(e) {} }
-                            requestAnimationFrame(() => {
-                                const ps2 = document.getElementById('productSearch');
-                                if (ps2 && document.activeElement !== ps2) { ps2.focus(); try { ps2.select(); } catch(e) {} }
-                            });
+                            const active = document.activeElement;
+                            if (!active || (active.tagName !== 'INPUT' && active.tagName !== 'TEXTAREA' && active.tagName !== 'SELECT')) {
+                                const ps = document.getElementById('productSearch');
+                                if (ps) { ps.focus(); try { ps.select(); } catch(e) {} }
+                            }
                         }
 
                         // --- تلقائياً فتح نافذة البحث عند فتح أقسام المرتجعات ---
@@ -1781,19 +1777,17 @@
                     showToast(`📑 تم فتح ${newTab.label} جديدة بنجاح!`, 'success');
                 }
                 if (sectionType === 'sales') {
-                    const el = document.getElementById('productSearch');
-                    if (el) { el.focus(); try { el.select(); } catch(e) {} }
-                    requestAnimationFrame(() => {
-                        const el2 = document.getElementById('productSearch');
-                        if (el2 && document.activeElement !== el2) { el2.focus(); try { el2.select(); } catch(e) {} }
-                    });
+                    const active = document.activeElement;
+                    if (!active || (active.tagName !== 'INPUT' && active.tagName !== 'TEXTAREA' && active.tagName !== 'SELECT')) {
+                        const el = document.getElementById('productSearch');
+                        if (el) { el.focus(); try { el.select(); } catch(e) {} }
+                    }
                 } else if (sectionType === 'purchase') {
-                    const el = document.getElementById('purchaseSearch');
-                    if (el) { el.focus(); try { el.select(); } catch(e) {} }
-                    requestAnimationFrame(() => {
-                        const el2 = document.getElementById('purchaseSearch');
-                        if (el2 && document.activeElement !== el2) { el2.focus(); try { el2.select(); } catch(e) {} }
-                    });
+                    const active = document.activeElement;
+                    if (!active || (active.tagName !== 'INPUT' && active.tagName !== 'TEXTAREA' && active.tagName !== 'SELECT')) {
+                        const el = document.getElementById('purchaseSearch');
+                        if (el) { el.focus(); try { el.select(); } catch(e) {} }
+                    }
                 }
             }, 25);
 

@@ -1213,7 +1213,7 @@
 
         .plan-card.featured::after,
         .plan-card#plan-الباقة\ المتقدمة::after {
-            content: "🔥 الأكثر مبيعاً وتوفيراً";
+            content: "🔥 الأكثر توفيراً والأفضل قيمة (2,200 ج.م)";
             position: absolute;
             top: -13px;
             left: 50%;
@@ -1242,7 +1242,7 @@
         }
 
         .plan-card#plan-الباقة\ الاحترافية::after {
-            content: "👑 باقة VIP الملكية";
+            content: "👑 امتلاك دائم للأبد (6,000 ج.م)";
             position: absolute;
             top: -13px;
             left: 50%;

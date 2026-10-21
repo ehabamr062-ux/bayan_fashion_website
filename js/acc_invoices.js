@@ -768,7 +768,9 @@
                     limit: 5000
                 });
                 if (sqlFiltered && sqlFiltered.length > 0) {
-                    if (typeof window.safelyMergeTransactionIntoMemory === 'function') {
+                    if (typeof window.safelyMergeTransactionsBulk === 'function') {
+                        window.safelyMergeTransactionsBulk(sqlFiltered);
+                    } else if (typeof window.safelyMergeTransactionIntoMemory === 'function') {
                         sqlFiltered.forEach(t => { if (t) window.safelyMergeTransactionIntoMemory(t); });
                     }
                     if (typeof window.deduplicateTransactionsMemory === 'function') {

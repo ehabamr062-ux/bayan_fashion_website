@@ -99,12 +99,14 @@ const trashManager = {
      */
     async moveToTrash(data, type, label, warehouse = null) {
         const activeWH = warehouse || (data && data.warehouse) || (data && data.sourceWarehouse) || ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي');
+        const now = new Date().toISOString();
         const trashItem = {
             type: type,
             label: label,
             warehouse: (type === 'account') ? 'كافة المخازن / عام' : activeWH,
             originalData: data,
-            deletedAt: new Date().toISOString(),
+            deletedAt: now,
+            deleted_at: now,
             deletedBy: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.name : 'نظام آلي'
         };
 
@@ -134,6 +136,7 @@ const trashManager = {
             warehouse: (type === 'account') ? 'كافة المخازن / عام' : (item.warehouse || activeWH),
             originalData: item,
             deletedAt: now,
+            deleted_at: now,
             deletedBy: deletedBy
         }));
 
@@ -524,6 +527,13 @@ const trashManager = {
         const itemLabel = item ? (item.label || item.type || 'عنصر') : 'عنصر';
 
         if (typeof window.verifyAdminPinAuthorization === 'function') {
+            setTimeout(() => {
+                const pinInp = document.getElementById('customPromptInput');
+                if (pinInp) {
+                    pinInp.focus();
+                    try { pinInp.select(); } catch(e) {}
+                }
+            }, 50);
             const isAuthorized = await window.verifyAdminPinAuthorization(
                 '🗑️ تأكيد الحذف النهائي من السلة',
                 `سيتم حذف "${itemLabel}" بشكل نهائي ولا يمكن استعادته لاحقاً.`
@@ -556,6 +566,13 @@ const trashManager = {
 
         const count = list.length;
         if (typeof window.verifyAdminPinAuthorization === 'function') {
+            setTimeout(() => {
+                const pinInp = document.getElementById('customPromptInput');
+                if (pinInp) {
+                    pinInp.focus();
+                    try { pinInp.select(); } catch(e) {}
+                }
+            }, 50);
             const isAuthorized = await window.verifyAdminPinAuthorization(
                 '🚨 إفراغ سلة المحذوفات بالكامل',
                 `تحذير أمني: سيتم حذف كافة العناصر (${count} عنصر) بشكل نهائي لا رجعة فيه!`

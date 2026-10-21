@@ -1671,6 +1671,14 @@ function prepareBillHTML(type) {
                             color: #000000 !important;
                             -webkit-print-color-adjust: exact !important;
                             print-color-adjust: exact !important;
+                            letter-spacing: normal !important;
+                            word-spacing: normal !important;
+                            -webkit-text-stroke: 0 !important;
+                            text-stroke: 0 !important;
+                            text-shadow: none !important;
+                            font-feature-settings: "liga" 1, "calt" 1 !important;
+                            font-variant-ligatures: normal !important;
+                            -webkit-font-smoothing: antialiased !important;
                         }
                         #receipt-area {
                             background: #ffffff !important;
@@ -1757,11 +1765,25 @@ function prepareBillHTML(type) {
         let grandTotal = (subTotal - discountAmount + taxAmount);
 
         receiptArea.innerHTML = `
-            <div class="print-container" style="direction:rtl; padding:20px; font-family:'Arial',sans-serif; background:#fff; color:#000; width:100%; box-sizing:border-box;">
+            <div class="print-container" style="direction:rtl; padding:20px; font-family:'Arial','Tahoma','Segoe UI',sans-serif; background:#fff; color:#000; width:100%; box-sizing:border-box;">
+                <style>
+                    #receipt-area, #receipt-area * {
+                        box-sizing: border-box !important;
+                        color: #000000 !important;
+                        letter-spacing: normal !important;
+                        word-spacing: normal !important;
+                        -webkit-text-stroke: 0 !important;
+                        text-stroke: 0 !important;
+                        text-shadow: none !important;
+                        font-feature-settings: "liga" 1, "calt" 1 !important;
+                        font-variant-ligatures: normal !important;
+                        -webkit-font-smoothing: antialiased !important;
+                    }
+                </style>
                 <div style="text-align:center; border-bottom:2px solid #000; padding-bottom:12px; margin-bottom:12px;">
-                    <div style="font-size:24px; font-weight:900;">${shopName}</div>
+                    <div style="font-size:24px; font-weight:900; letter-spacing:normal;">${shopName}</div>
                     ${shopAddress ? `<div style="font-size:13px; color:#555;">${shopAddress} ${shopPhone ? ' | ' + shopPhone : ''}</div>` : ''}
-                    <div style="font-size:18px; font-weight:bold; border:2px solid #000; display:inline-block; padding:4px 18px; margin-top:8px; border-radius:6px; background:#f8fafc;">${title}</div>
+                    <div style="font-size:18px; font-weight:bold; border:2px solid #000; display:inline-block; padding:4px 18px; margin-top:8px; border-radius:6px; background:#f8fafc; letter-spacing:normal;">${title}</div>
                 </div>
                 <table style="width:100%; margin-bottom:12px; font-size:13px; font-weight:bold; line-line:1.6;">
                     <tr><td><b>رقم الفاتورة:</b> ${invId}</td><td style="text-align:left;"><b>التاريخ والوقت:</b> ${dt.full || dt.iso || todayDate}</td></tr>

@@ -1,12 +1,12 @@
 # 👑 بَيَان POS - نظام إدارة الفاشون ونقاط البيع المتكامل
-### **Bayan POS Fashion System — Professional Edition (V4.5.0)**
+### **Bayan POS Fashion System — Professional Edition (V4.9.1)**
 
 <p align="center">
   <img src="media/bayan_logo.png" alt="Bayan POS Logo" width="160"/>
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-4.5.0-emerald.svg?style=for-the-badge&logo=semver" alt="Version 4.5.0"/>
+  <img src="https://img.shields.io/badge/version-4.9.1-emerald.svg?style=for-the-badge&logo=semver" alt="Version 4.9.1"/>
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Web%20%7C%20PWA-blue.svg?style=for-the-badge&logo=windows" alt="Platform"/>
   <img src="https://img.shields.io/badge/license-Commercial%20HWID-purple.svg?style=for-the-badge" alt="License"/>
   <img src="https://img.shields.io/badge/offline-100%25%20Supported-success.svg?style=for-the-badge&logo=pwa" alt="Offline Mode"/>

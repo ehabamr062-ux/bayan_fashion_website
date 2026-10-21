@@ -2699,6 +2699,7 @@ async function executeInvoiceSearch() {
                 isSalesReturn,
                 limit: 300
             });
+            sqliteLoaded = true;
             if (foundRows && foundRows.length > 0) {
                 const invoiceIds = [];
                 foundRows.forEach(row => {
@@ -2713,7 +2714,6 @@ async function executeInvoiceSearch() {
                         invoiceIds.push(row.invoiceId);
                     }
                 });
-                sqliteLoaded = true;
 
                 // ⚡ جلب أي مرتجعات سابقة مرتبطة بهذه الفواتير بدقة من SQLite لضمان صحة رصيد المرتجع السابق
                 if (window.BayanSQLite && invoiceIds.length > 0) {

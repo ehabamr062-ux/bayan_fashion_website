@@ -82,9 +82,9 @@
             window._secondaryLibsLoadingStarted = true;
             const secondaryList = [
                 'lib/html2canvas.min.js', 'lib/xlsx.full.min.js', 'lib/chart.min.js',
-                'lib/Sortable.min.js', 'js/barcode_print.js?v=4.6.1',
-                'js/cloud_telemetry.js?v=4.6.1', 'js/updater.js?v=4.6.1',
-                'js/treasury_audit.js?v=4.6.1'
+                'lib/Sortable.min.js', 'js/barcode_print.js?v=4.9.1',
+                'js/cloud_telemetry.js?v=4.9.1', 'js/updater.js?v=4.9.1',
+                'js/treasury_audit.js?v=4.9.1'
             ];
             secondaryList.forEach(src => {
                 const s = document.createElement('script');
@@ -133,61 +133,61 @@
     <!-- استيراد خط القاهرة محلياً 100% أوفلاين فائق السرعة -->
     <link rel="stylesheet" href="fonts/cairo.css">
 
-    <link rel="stylesheet" href="css/theme_base.css?v=4.6.1">
-    <link rel="stylesheet" href="css/sales_pos.css?v=4.6.1">
-    <link rel="stylesheet" href="css/inventory_products.css?v=4.6.1">
-    <link rel="stylesheet" href="css/accounts_reports.css?v=4.6.1">
-    <link rel="stylesheet" href="css/ui_modals.css?v=4.6.1">
-    <link rel="stylesheet" href="css/scrollbars.css?v=4.6.1">
-    <link rel="stylesheet" href="css/treasury_audit.css?v=4.6.1">
-    <link rel="stylesheet" href="css/barcode_print.css?v=4.6.1">
-    <link rel="stylesheet" href="css/premium.css?v=4.6.1">
+    <link rel="stylesheet" href="css/theme_base.css?v=4.9.1">
+    <link rel="stylesheet" href="css/sales_pos.css?v=4.9.1">
+    <link rel="stylesheet" href="css/inventory_products.css?v=4.9.1">
+    <link rel="stylesheet" href="css/accounts_reports.css?v=4.9.1">
+    <link rel="stylesheet" href="css/ui_modals.css?v=4.9.1">
+    <link rel="stylesheet" href="css/scrollbars.css?v=4.9.1">
+    <link rel="stylesheet" href="css/treasury_audit.css?v=4.9.1">
+    <link rel="stylesheet" href="css/barcode_print.css?v=4.9.1">
+    <link rel="stylesheet" href="css/premium.css?v=4.9.1">
 
-    <script src="lib/sql-wasm-binary.js?v=4.6.1"></script>
-    <script src="lib/sql-wasm.js?v=4.6.1"></script>
-    <script src="js/sqlite_manager.js?v=4.6.1" defer></script>
-    <script src="js/db_adapter.js?v=4.6.1" defer></script>
-    <script src="js/store.js?v=4.6.1" defer></script>
-    <script src="js/security.js?v=4.6.1" defer></script>
-    <script src="js/core.js?v=4.6.1" defer></script>
+    <script src="lib/sql-wasm-binary.js?v=4.9.1"></script>
+    <script src="lib/sql-wasm.js?v=4.9.1"></script>
+    <script src="js/sqlite_manager.js?v=4.9.1" defer></script>
+    <script src="js/db_adapter.js?v=4.9.1" defer></script>
+    <script src="js/store.js?v=4.9.1" defer></script>
+    <script src="js/security.js?v=4.9.1" defer></script>
+    <script src="js/core.js?v=4.9.1" defer></script>
     <script src="lib/JsBarcode.all.min.js"></script>
     <script src="lib/qrcode.min.js"></script>
-    <script src="js/utils_helpers.js?v=4.6.1" defer></script>
-    <script src="js/app_units_payments.js?v=4.6.1" defer></script>
-    <script src="js/app_license.js?v=4.6.1" defer></script>
-    <script src="js/settings.js?v=4.6.1" defer></script>
-    <script src="js/ui_theme_custom.js?v=4.6.1" defer></script>
-    <script src="js/ui_tabs.js?v=4.6.1" defer></script>
-    <script src="js/ui_modals_notifications.js?v=4.6.1" defer></script>
-    <script src="js/ui_auth.js?v=4.6.1" defer></script>
-    <script src="js/ui_calculator.js?v=4.6.1" defer></script>
-    <script src="js/inv_core.js?v=4.6.1" defer></script>
-    <script src="js/inv_products.js?v=4.6.1" defer></script>
-    <script src="js/inv_variants.js?v=4.6.1" defer></script>
-    <script src="js/inv_adjustments.js?v=4.6.1" defer></script>
-    <script src="js/trash.js?v=4.6.1" defer></script>
-    <script src="js/engine_invoices.js?v=4.6.1" defer></script>
-    <script src="js/sales_purchases.js?v=4.6.1" defer></script>
-    <script src="js/sales_pos.js?v=4.6.1" defer></script>
-    <script src="js/sales_fashion_picker.js?v=4.6.1" defer></script>
-    <script src="js/sales_inquiry_modal.js?v=4.6.1" defer></script>
-    <script src="js/sales_returns.js?v=4.6.1" defer></script>
-    <script src="js/sales_history_view.js?v=4.6.1" defer></script>
-    <script src="js/inv_transfers.js?v=4.6.1" defer></script>
-    <script src="js/acc_invoices.js?v=4.6.1" defer></script>
-    <script src="js/acc_vouchers.js?v=4.6.1" defer></script>
-    <script src="js/acc_reports.js?v=4.6.1" defer></script>
-    <script src="js/acc_partners.js?v=4.6.1" defer></script>
-    <script src="js/app_backup.js?v=4.6.1" defer></script>
-    <script src="js/app_export_share.js?v=4.6.1" defer></script>
-    <script src="js/init.js?v=4.6.1" defer></script>
-    <script src="js/print.js?v=4.6.1" defer></script>
-    <script src="js/receipt_disburse_fixes.js?v=4.6.1" defer></script>
-    <script src="js/history_enhancements.js?v=4.6.1" defer></script>
-    <script src="js/barcode.js?v=4.6.1" defer></script>
-    <script src="js/cloud_drive_backup.js?v=4.6.1" defer></script>
-    <script src="js/supabase_sync.js?v=4.6.1" defer></script>
-    <script src="js/login_update_card.js?v=4.6.1" defer></script>
+    <script src="js/utils_helpers.js?v=4.9.1" defer></script>
+    <script src="js/app_units_payments.js?v=4.9.1" defer></script>
+    <script src="js/app_license.js?v=4.9.1" defer></script>
+    <script src="js/settings.js?v=4.9.1" defer></script>
+    <script src="js/ui_theme_custom.js?v=4.9.1" defer></script>
+    <script src="js/ui_tabs.js?v=4.9.1" defer></script>
+    <script src="js/ui_modals_notifications.js?v=4.9.1" defer></script>
+    <script src="js/ui_auth.js?v=4.9.1" defer></script>
+    <script src="js/ui_calculator.js?v=4.9.1" defer></script>
+    <script src="js/inv_core.js?v=4.9.1" defer></script>
+    <script src="js/inv_products.js?v=4.9.1" defer></script>
+    <script src="js/inv_variants.js?v=4.9.1" defer></script>
+    <script src="js/inv_adjustments.js?v=4.9.1" defer></script>
+    <script src="js/trash.js?v=4.9.1" defer></script>
+    <script src="js/engine_invoices.js?v=4.9.1" defer></script>
+    <script src="js/sales_purchases.js?v=4.9.1" defer></script>
+    <script src="js/sales_pos.js?v=4.9.1" defer></script>
+    <script src="js/sales_fashion_picker.js?v=4.9.1" defer></script>
+    <script src="js/sales_inquiry_modal.js?v=4.9.1" defer></script>
+    <script src="js/sales_returns.js?v=4.9.1" defer></script>
+    <script src="js/sales_history_view.js?v=4.9.1" defer></script>
+    <script src="js/inv_transfers.js?v=4.9.1" defer></script>
+    <script src="js/acc_invoices.js?v=4.9.1" defer></script>
+    <script src="js/acc_vouchers.js?v=4.9.1" defer></script>
+    <script src="js/acc_reports.js?v=4.9.1" defer></script>
+    <script src="js/acc_partners.js?v=4.9.1" defer></script>
+    <script src="js/app_backup.js?v=4.9.1" defer></script>
+    <script src="js/app_export_share.js?v=4.9.1" defer></script>
+    <script src="js/init.js?v=4.9.1" defer></script>
+    <script src="js/print.js?v=4.9.1" defer></script>
+    <script src="js/receipt_disburse_fixes.js?v=4.9.1" defer></script>
+    <script src="js/history_enhancements.js?v=4.9.1" defer></script>
+    <script src="js/barcode.js?v=4.9.1" defer></script>
+    <script src="js/cloud_drive_backup.js?v=4.9.1" defer></script>
+    <script src="js/supabase_sync.js?v=4.9.1" defer></script>
+    <script src="js/login_update_card.js?v=4.9.1" defer></script>
 
 
 </head>
@@ -859,7 +859,7 @@
                             oninput="debouncedHandleSearch(this.value)"
                             onfocus="this.select(); this.style.boxShadow='0 0 0 3px rgba(16,185,129,0.15)';"
                             onblur="this.style.boxShadow='none';"
-                            onkeydown="if(event.key === 'Enter') { event.preventDefault(); handleSearchEnter(this.value, event); } else if(event.key === 'ArrowLeft') { event.preventDefault(); document.getElementById('headerQty').focus(); }"
+                            onkeydown="if(event.key === 'Enter') { event.preventDefault(); handleSearchEnter(this.value, event); }"
                             autocomplete="off">
                         <span onclick="document.getElementById('productSearch').value=''; debouncedHandleSearch('');"
                             style="position: absolute; left: 10px; bottom: 10px; font-size: 0.85rem; cursor: pointer; color: #475569; z-index: 10; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; font-weight: 900;">✕</span>
@@ -875,7 +875,7 @@
                         <input type="number" id="headerQty" value="1" min="0" step="any" class="header-input-unified"
                             style="width: 100%; height: 40px; border: 1.5px solid #ef4444 !important; background: #ffffff !important; color: #991b1b !important; text-align: center; font-size: 1.15rem; font-weight: 900; border-radius: 8px; box-sizing: border-box;"
                             onfocus="this.select()"
-                            onkeydown="if(event.key === 'Enter') { event.preventDefault(); document.getElementById('headerPrice').focus(); } else if(event.key === 'ArrowRight') { event.preventDefault(); document.getElementById('productSearch').focus(); } else if(event.key === 'ArrowLeft') { event.preventDefault(); document.getElementById('headerPrice').focus(); }">
+                            onkeydown="if(event.key === 'Enter') { event.preventDefault(); document.getElementById('headerPrice').focus(); }">
                     </div>
 
                     <!-- 7. السعر -->
@@ -886,7 +886,7 @@
                         <input type="number" id="headerPrice" step="0.01" class="header-input-unified"
                             style="width: 100%; height: 40px; border: 1.5px solid #3b82f6 !important; background: #ffffff !important; color: #0f172a !important; text-align: center; font-size: 1.1rem; font-weight: 900; border-radius: 8px; box-sizing: border-box; padding: 0 4px;"
                             placeholder="0.00" onfocus="this.select()"
-                            onkeydown="if(event.key === 'Enter') { event.preventDefault(); handleSearchEnter(document.getElementById('productSearch').value, event, true); } else if(event.key === 'ArrowRight') { event.preventDefault(); document.getElementById('headerQty').focus(); }">
+                            onkeydown="if(event.key === 'Enter') { event.preventDefault(); handleSearchEnter(document.getElementById('productSearch').value, event, true); }">
                     </div>
 
                     <!-- 8. زر أضف -->
@@ -1335,7 +1335,7 @@
                             onfocus="this.select(); this.style.boxShadow='0 0 0 3px rgba(239,68,68,0.15)';"
                             onblur="this.style.boxShadow='none';"
                             oninput="debouncedHandleReturnSearch(this.value, 'sales')"
-                            onkeydown="if(event.key === 'Enter') { event.preventDefault(); handleReturnSearchEnter(this.value, event, 'sales'); } else if(event.key === 'ArrowLeft') { event.preventDefault(); document.getElementById('returnHeaderQty').focus(); }"
+                            onkeydown="if(event.key === 'Enter') { event.preventDefault(); handleReturnSearchEnter(this.value, event, 'sales'); }"
                             autocomplete="off">
                         <span
                             onclick="document.getElementById('returnProductSearch').value=''; debouncedHandleReturnSearch('', 'sales');"
@@ -1353,7 +1353,7 @@
                             class="header-input-unified"
                             style="width: 100%; height: 40px; border: 1.5px solid #f87171 !important; background: #fff !important; color: #b91c1c !important; text-align: center; font-size: 1.15rem; font-weight: 900; border-radius: 8px; box-sizing: border-box;"
                             onfocus="this.select()"
-                            onkeydown="if(event.key === 'Enter') { event.preventDefault(); document.getElementById('returnHeaderPrice').focus(); } else if(event.key === 'ArrowRight') { event.preventDefault(); document.getElementById('returnProductSearch').focus(); } else if(event.key === 'ArrowLeft') { event.preventDefault(); document.getElementById('returnHeaderPrice').focus(); }">
+                            onkeydown="if(event.key === 'Enter') { event.preventDefault(); document.getElementById('returnHeaderPrice').focus(); }">
                     </div>
 
                     <!-- 5. سعر المرتجع -->
@@ -1364,7 +1364,7 @@
                         <input type="number" id="returnHeaderPrice" step="0.01" class="header-input-unified"
                             style="width: 100%; height: 40px; border: 1.5px solid #60a5fa; border-radius: 8px; background: #ffffff; color: #0f172a; text-align: center; font-size: 1.1rem; font-weight: 800; box-sizing: border-box;"
                             placeholder="0.00" onfocus="this.select()"
-                            onkeydown="if(event.key === 'Enter') { event.preventDefault(); handleReturnSearchEnter(document.getElementById('returnProductSearch').value, event, 'sales', true); } else if(event.key === 'ArrowRight') { event.preventDefault(); document.getElementById('returnHeaderQty').focus(); }">
+                            onkeydown="if(event.key === 'Enter') { event.preventDefault(); handleReturnSearchEnter(document.getElementById('returnProductSearch').value, event, 'sales', true); }">
                     </div>
 
                     <!-- 6. زر الإرجاع -->
@@ -1690,7 +1690,7 @@
                             onfocus="this.select(); this.style.boxShadow='0 0 0 3px rgba(225,29,72,0.15)';"
                             onblur="this.style.boxShadow='none';"
                             oninput="debouncedHandleReturnSearch(this.value, 'purchase')"
-                            onkeydown="if(event.key === 'Enter') { event.preventDefault(); handleReturnSearchEnter(this.value, event, 'purchase'); } else if(event.key === 'ArrowLeft') { event.preventDefault(); document.getElementById('purReturnHeaderQty').focus(); }"
+                            onkeydown="if(event.key === 'Enter') { event.preventDefault(); handleReturnSearchEnter(this.value, event, 'purchase'); }"
                             autocomplete="off">
                         <span
                             onclick="document.getElementById('purReturnProductSearch').value=''; debouncedHandleReturnSearch('', 'purchase');"
@@ -1708,7 +1708,7 @@
                             class="header-input-unified"
                             style="width: 100%; height: 40px; border: 1.5px solid #fb7185 !important; background: #fff !important; color: #be123c !important; text-align: center; font-size: 1.15rem; font-weight: 900; border-radius: 8px; box-sizing: border-box;"
                             onfocus="this.select()"
-                            onkeydown="if(event.key === 'Enter') { event.preventDefault(); document.getElementById('purReturnHeaderPrice').focus(); } else if(event.key === 'ArrowRight') { event.preventDefault(); document.getElementById('purReturnProductSearch').focus(); } else if(event.key === 'ArrowLeft') { event.preventDefault(); document.getElementById('purReturnHeaderPrice').focus(); }">
+                            onkeydown="if(event.key === 'Enter') { event.preventDefault(); document.getElementById('purReturnHeaderPrice').focus(); }">
                     </div>
 
                     <!-- 5. سعر المرتجع -->
@@ -1719,7 +1719,7 @@
                         <input type="number" id="purReturnHeaderPrice" step="0.01" class="header-input-unified"
                             style="width: 100%; height: 40px; border: 1.5px solid #60a5fa; border-radius: 8px; background: #ffffff; color: #0f172a; text-align: center; font-size: 1.1rem; font-weight: 800; box-sizing: border-box;"
                             placeholder="0.00" onfocus="this.select()"
-                            onkeydown="if(event.key === 'Enter') { event.preventDefault(); handleReturnSearchEnter(document.getElementById('purReturnProductSearch').value, event, 'purchase', true); } else if(event.key === 'ArrowRight') { event.preventDefault(); document.getElementById('purReturnHeaderQty').focus(); }">
+                            onkeydown="if(event.key === 'Enter') { event.preventDefault(); handleReturnSearchEnter(document.getElementById('purReturnProductSearch').value, event, 'purchase', true); }">
                     </div>
 
                     <!-- 6. زر الإرجاع -->
@@ -2876,7 +2876,7 @@
                         class="header-input-unified"
                         style="width: 100%; height: 40px; border: 1.5px solid #60a5fa !important; background: #fff !important; color: #1e3a8a !important; text-align: center; font-size: 1.15rem; font-weight: 900; border-radius: 8px; box-sizing: border-box;"
                         onfocus="this.select()"
-                        onkeydown="if(event.key === 'Enter') { event.preventDefault(); document.getElementById('purchaseHeaderPrice').focus(); } else if(event.key === 'ArrowRight') { event.preventDefault(); document.getElementById('purchaseSearch').focus(); } else if(event.key === 'ArrowLeft') { event.preventDefault(); document.getElementById('purchaseHeaderPrice').focus(); }">
+                        onkeydown="if(event.key === 'Enter') { event.preventDefault(); document.getElementById('purchaseHeaderPrice').focus(); }">
                 </div>
 
                 <!-- 5. التكلفة -->
@@ -2887,7 +2887,7 @@
                     <input type="number" id="purchaseHeaderPrice" step="0.01" class="header-input-unified"
                         style="width: 100%; height: 40px; border: 1.5px solid #34d399 !important; background: #fff !important; color: #0f172a !important; text-align: center; font-size: 1.1rem; font-weight: 900; border-radius: 8px; box-sizing: border-box; padding: 0 4px;"
                         placeholder="0.00" onfocus="this.select()"
-                        onkeydown="if(event.key === 'Enter') { event.preventDefault(); handlePurchaseSearchEnter(document.getElementById('purchaseSearch').value, event, true); } else if(event.key === 'ArrowRight') { event.preventDefault(); document.getElementById('purchaseHeaderQty').focus(); }">
+                        onkeydown="if(event.key === 'Enter') { event.preventDefault(); handlePurchaseSearchEnter(document.getElementById('purchaseSearch').value, event, true); }">
                 </div>
 
                 <!-- 6. قطاعي (مخفي بطلب المستخدم) -->
@@ -3454,14 +3454,24 @@
 
             <!-- 4. الرسوم البيانية التفاعلية القابلة للطي (Charts Area - مخفية افتراضياً لتوفير المساحة) -->
             <div id="analysis-charts-area"
-                style="display: none; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 8px; margin-bottom: 5px; flex-shrink: 0; transition: all 0.25s ease;">
+                style="display: none; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 8px; margin-bottom: 5px; flex-shrink: 0; transition: all 0.25s ease;">
                 <div
-                    style="background: white; border-radius: 8px; padding: 6px 10px; border: 1px solid #e2e8f0; height: 130px; position: relative; box-shadow: 0 1px 4px rgba(0,0,0,0.02);">
-                    <canvas id="salesTrendChart"></canvas>
+                    style="background: white; border-radius: 8px; padding: 6px 12px; border: 1px solid #e2e8f0; height: 145px; position: relative; box-shadow: 0 1px 4px rgba(0,0,0,0.02); display: flex; flex-direction: column;">
+                    <div style="font-weight: 800; font-size: 0.82rem; color: #1e293b; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                        <span>📈 اتجاه صافي المبيعات اليومية</span>
+                    </div>
+                    <div style="flex: 1; position: relative; min-height: 0; width: 100%;">
+                        <canvas id="salesTrendChart"></canvas>
+                    </div>
                 </div>
                 <div
-                    style="background: white; border-radius: 8px; padding: 6px 10px; border: 1px solid #e2e8f0; height: 130px; position: relative; box-shadow: 0 1px 4px rgba(0,0,0,0.02);">
-                    <canvas id="categoryChart"></canvas>
+                    style="background: white; border-radius: 8px; padding: 6px 12px; border: 1px solid #e2e8f0; height: 145px; position: relative; box-shadow: 0 1px 4px rgba(0,0,0,0.02); display: flex; flex-direction: column;">
+                    <div style="font-weight: 800; font-size: 0.82rem; color: #1e293b; margin-bottom: 2px; display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+                        <span>🏆 الأصناف الأعلى مبيعاً</span>
+                    </div>
+                    <div style="flex: 1; position: relative; min-height: 0; width: 100%;">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
                 </div>
             </div>
 
@@ -5072,7 +5082,7 @@
                                     oninput="handleAdjSearch(this.value)"
                                     onfocus="this.style.borderColor='#2563eb'; this.style.background='#ffffff'; this.style.boxShadow='0 0 0 3px rgba(37,99,235,0.12)';"
                                     onblur="this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc'; this.style.boxShadow='none';"
-                                    onkeydown="if(event.key === 'Enter') { event.preventDefault(); if(this.value && this.value.trim() !== '' && typeof handleAdjSearchEnter === 'function') { handleAdjSearchEnter(this.value, event); } else { document.getElementById('adjQty').focus(); } } else if(event.key === 'ArrowLeft') { event.preventDefault(); document.getElementById('adjQty').focus(); }"
+                                    onkeydown="if(event.key === 'Enter') { event.preventDefault(); if(this.value && this.value.trim() !== '' && typeof handleAdjSearchEnter === 'function') { handleAdjSearchEnter(this.value, event); } else { document.getElementById('adjQty').focus(); } }"
                                     autocomplete="off">
                                 <span onclick="document.getElementById('adjSearch').value=''; handleAdjSearch('');"
                                     style="position: absolute; left: 10px; font-size: 0.95rem; cursor: pointer; color: #94a3b8; transition: 0.2s; z-index: 10;"
@@ -5089,7 +5099,7 @@
                                 style="width: 100%; height: 40px; font-size: 1.05rem; text-align: center; padding: 0; border-radius: 9px; border: 1.5px solid #cbd5e1; font-weight: 900; background: #f8fafc; color: #0f172a;"
                                 onfocus="this.style.borderColor='#2563eb'; this.style.background='#ffffff';"
                                 onblur="this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc';"
-                                onkeydown="if(event.key==='Enter') { event.preventDefault(); addAdjItem(); } else if(event.key === 'ArrowRight') { event.preventDefault(); document.getElementById('adjSearch').focus(); } else if(event.key === 'ArrowLeft') { event.preventDefault(); document.getElementById('adjPrice').focus(); }">
+                                onkeydown="if(event.key==='Enter') { event.preventDefault(); addAdjItem(); }">
                         </div>
                         <div style="flex: 1; min-width: 120px;">
                             <label class="form-label" id="adjPriceLabel"
@@ -5099,7 +5109,7 @@
                                 style="width: 100%; height: 40px; font-size: 1.05rem; text-align: center; padding: 0; border-radius: 9px; border: 1.5px solid #cbd5e1; font-weight: 900; background: #f8fafc; color: #0f172a;"
                                 onfocus="this.select(); this.style.borderColor='#2563eb'; this.style.background='#ffffff';"
                                 onblur="this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc';"
-                                onkeydown="if(event.key==='Enter') { event.preventDefault(); document.getElementById('adjNotes').focus(); } else if(event.key==='ArrowRight') { event.preventDefault(); document.getElementById('adjQty').focus(); } else if(event.key==='ArrowLeft') { event.preventDefault(); document.getElementById('adjNotes').focus(); }">
+                                onkeydown="if(event.key==='Enter') { event.preventDefault(); document.getElementById('adjNotes').focus(); }">
                         </div>
 
                         <!-- الملاحظات -->
@@ -5112,7 +5122,7 @@
                                 placeholder="اكتب ملاحظة..."
                                 onfocus="this.style.borderColor='#2563eb'; this.style.background='#ffffff';"
                                 onblur="this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc';"
-                                onkeydown="if(event.key==='Enter') { event.preventDefault(); addAdjItem(); } else if(event.key==='ArrowRight') { event.preventDefault(); document.getElementById('adjPrice').focus(); }">
+                                onkeydown="if(event.key==='Enter') { event.preventDefault(); addAdjItem(); }">
                         </div>
 
                         <div style="flex: 0 0 auto;">
@@ -9336,7 +9346,7 @@
                                     <div>
                                         <span id="aboutAppVersionBadge" class="dynamic-app-version-badge"
                                             style="display: inline-block; background: #059669; color: #ffffff; padding: 6px 16px; border-radius: 10px; font-weight: 900; font-size: 0.95rem; border: 2px solid #047857;">
-                                            الإصدار الرسمي V4.6.1 ⚡
+                                            الإصدار الرسمي V4.9.1 ⚡
                                         </span>
                                     </div>
                                 </div>
@@ -9434,7 +9444,7 @@
                                             المثبت:</div>
                                         <div id="updateCurrentVerLabel"
                                             style="margin: 2px 0; color: #0f172a; font-size: 1.15rem; font-weight: 900; font-family: monospace;">
-                                            V4.6.1
+                                            V4.9.1
                                         </div>
                                         <div style="font-size: 0.7rem; color: #059669; font-weight: 800;">✅ نسخة مستقرة
                                             ومحدثة</div>
@@ -9453,7 +9463,7 @@
                                             التحديثات:</div>
                                         <div id="totalUpdatesCountLabel"
                                             style="margin: 2px 0; color: #6d28d9; font-size: 1.15rem; font-weight: 900;">
-                                            20 تحديثاً معتمداً
+                                            21 تحديثاً معتمداً
                                         </div>
                                         <div style="font-size: 0.7rem; color: #7c3aed; font-weight: 800;">👗 تحديثات
                                             مستمرة</div>
@@ -9467,7 +9477,7 @@
                                         🔄 المزامنة والفحص المباشر:
                                     </div>
                                     <button class="settings-save-btn"
-                                        onclick="if(typeof checkUpdates==='function'){checkUpdates(true);}else if(typeof checkGitHubReleases==='function'){checkGitHubReleases(true);}else{if(typeof showToast==='function')showToast('✅ نظام بيان POS يعمل بأحدث إصدار مستقر (V4.5.0)','success');else alert('✅ نظام بيان POS يعمل بأحدث إصدار مستقر (V4.5.0)');}"
+                                        onclick="if(typeof checkUpdates==='function'){checkUpdates(true);}else if(typeof checkGitHubReleases==='function'){checkGitHubReleases(true);}else{if(typeof showToast==='function')showToast('✅ نظام بيان POS يعمل بأحدث إصدار مستقر (V4.9.1)','success');else alert('✅ نظام بيان POS يعمل بأحدث إصدار مستقر (V4.9.1)');}"
                                         style="height: 36px; font-size: 0.82rem; width: 100%; justify-content: center;">
                                         <span>🔍</span> فحص التحديثات الآن
                                     </button>
@@ -9488,12 +9498,12 @@
                                             <span>إدارة وتجميد التحديثات التلقائية</span>
                                             <span id="updatePolicyBadge"
                                                 style="font-size: 0.74rem; padding: 3px 10px; border-radius: 8px; font-weight: 900; background: #ecfdf5; color: #059669; border: 1.5px solid #a7f3d0; transition: all 0.3s ease;">تلقائي
-                                                نشط ⚡ (V4.5.0)</span>
+                                                نشط ⚡ (V4.9.1)</span>
                                         </div>
                                         <div
                                             style="font-size: 0.82rem; color: #64748b; font-weight: 700; margin-top: 4px;">
                                             يمكنك إيقاف البحث التلقائي عن التحديثات وتثبيت نسختك الحالية (<span
-                                                style="color: #2563eb; font-weight: 900; font-family: monospace;">V4.5.0</span>)
+                                                style="color: #2563eb; font-weight: 900; font-family: monospace;">V4.9.1</span>)
                                             لمنع أي إشعارات أو ترقيات مستقبلاً.
                                         </div>
                                     </div>
@@ -9514,7 +9524,7 @@
                                     <span id="toggleAutoUpdatesText"
                                         onclick="document.getElementById('toggleAutoUpdatesSwitch').click()"
                                         style="font-weight: 900; font-size: 0.9rem; color: #059669; min-width: 145px; cursor: pointer; user-select: none; transition: color 0.3s ease;">التحديثات
-                                        مفعلة (V4.5.0)</span>
+                                        مفعلة (V4.9.1)</span>
                                 </div>
                             </div>
 
@@ -9526,23 +9536,42 @@
                                     </h3>
                                     <span
                                         style="font-size: 0.75rem; background: #ecfdf5; color: #047857; padding: 3px 10px; border-radius: 8px; font-weight: 800; border: 1px solid #a7f3d0;">
-                                        V4.5.0 👗 أحدث إصدار
+                                        V4.9.1 👗 أحدث إصدار
                                     </span>
                                 </div>
 
                                 <div id="updateReleaseNotesBox"
                                     style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; font-size: 0.85rem; color: #334155; line-height: 1.6; display: flex; flex-direction: column; gap: 10px;">
 
-                                    <!-- التحديث الأحدث V4.5.0 -->
+                                    <!-- التحديث الأحدث V4.9.1 -->
                                     <details open
                                         style="background: white; border: 1.5px solid #10b981; border-radius: 12px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);">
                                         <summary
                                             style="font-weight: 900; color: #065f46; font-size: 0.94rem; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none;">
-                                            <span>✨ الإصدار الجديد المعتمد V4.5.0 (08/10/2026) - كبسولة التحكم العلوية
-                                                الفاخرة، تسريع فتح النوافذ، وإلغاء شريط التمرير الأفقي</span>
+                                            <span>✨ الإصدار الجديد المعتمد V4.9.1 (21/10/2026) - محرك التقارير اللحظي، تسريع استعلامات أرشيف SQLite، وتحسين وتنسيق الرسوم البيانية الإحصائية</span>
                                             <span
                                                 style="font-size: 0.72rem; background: #ecfdf5; color: #047857; padding: 3px 9px; border-radius: 6px; border: 1px solid #a7f3d0; font-weight: 900;">الإصدار
                                                 الحالي المثبت ⭐</span>
+                                        </summary>
+                                        <ul
+                                            style="margin: 12px 0 0; padding-right: 22px; color: #064e3b; font-weight: 700; font-size: 0.83rem; line-height: 1.85;">
+                                            <li><strong>⚡ محرك التقارير الفوري والمعالجة اللحظية:</strong> تطوير آلية دمج حركات اليومية والأرشيف في الذاكرة لتتم في أجزاء من الثانية دون أي تجميد للشاشة أو بطء عند استعراض الفترات الزمنية الطويلة والسنوية.</li>
+                                            <li><strong>🚀 تسريع وتوجيه استعلامات الأرشيف عبر محرك SQLite:</strong> قراءة تقرير الحركة اليومية وسجل الفواتير مباشرة من الفهارس المفهرسة عالية السرعة لضمان استجابة لحظية حتى مع مئات الآلاف من الحركات.</li>
+                                            <li><strong>📊 تطوير وتنسيق رسم بياني الأصناف الأكثر مبيعاً:</strong> فصل عنوان الإحصائيات عن الرسم البياني لمنع التداخل في كافة الشاشات، مع توزيع ألوان متناسقة وجذابة وفواصل أنيقة وتوضيح نسب وقيم المبيعات بدقة وسلاسة.</li>
+                                            <li><strong>🛡️ استقرار احتساب الرصيد السابق التراكمي وحفظ الإعدادات:</strong> تعزيز دقة معادلات الأرصدة التراكمية في تقارير الحركة وضمان تكامل وحفظ إعدادات النظام بسلاسة وأمان تام.</li>
+                                        </ul>
+                                    </details>
+
+                                    <!-- التحديث السابق V4.5.0 -->
+                                    <details
+                                        style="background: white; border: 1px solid #cbd5e1; border-radius: 12px; padding: 12px 16px;">
+                                        <summary
+                                            style="font-weight: 900; color: #1e293b; font-size: 0.94rem; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none;">
+                                            <span>✨ الإصدار السابق V4.5.0 (08/10/2026) - كبسولة التحكم العلوية
+                                                الفاخرة، تسريع فتح النوافذ، وإلغاء شريط التمرير الأفقي</span>
+                                            <span
+                                                style="font-size: 0.72rem; background: #f1f5f9; color: #475569; padding: 3px 9px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 900;">إصدار
+                                                سابق 📦</span>
                                         </summary>
                                         <ul
                                             style="margin: 12px 0 0; padding-right: 22px; color: #064e3b; font-weight: 700; font-size: 0.83rem; line-height: 1.85;">
@@ -12655,7 +12684,7 @@
                         <span style="color: #ffffff; font-size: 1.15rem; font-weight: 900;">مركز طباعة الباركود وملصقات
                             الملابس</span>
                         <span class="dynamic-app-version-badge"
-                            style="font-size: 0.72rem; background: #0284c7; color: #ffffff; padding: 2px 8px; border-radius: 6px; font-weight: 800; letter-spacing: 0.5px;">V4.5.0
+                            style="font-size: 0.72rem; background: #0284c7; color: #ffffff; padding: 2px 8px; border-radius: 6px; font-weight: 800; letter-spacing: 0.5px;">V4.9.1
                             ⚡</span>
                     </h2>
                     <p style="margin: 2px 0 0 0; color: #94a3b8; font-size: 0.74rem; font-weight: 600;">طباعة ليزرية
@@ -14750,6 +14779,7 @@
                 style="margin: 0 0 14px 0; font-size: 1.25rem; color: #0f172a; font-weight: 900; direction: rtl;">تنبيه
             </h3>
             <input type="text" id="customPromptInput" class="header-input-unified"
+                autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
                 style="width: 100%; height: 48px; margin: 0 0 20px 0; border: 2px solid #3b82f6; padding: 0 14px; border-radius: 12px; font-size: 1.05rem; text-align: center; box-sizing: border-box; font-weight: 800; color: #0f172a; background: #ffffff; outline: none; box-shadow: 0 2px 8px rgba(59, 130, 246, 0.1);"
                 placeholder="...">
             <div class="alert-footer"
@@ -14918,32 +14948,29 @@
                     <!-- 2. الباقة الشهرية (Monthly) -->
                     <div class="plan-card" id="plan-الباقة الأساسية">
                         <div class="active-marker">بـاقتـك الـحـالـيـة ⚡</div>
-                        <div class="cloud-highlight-badge">☁️ باقة المزامنة السحابية</div>
                         <div class="plan-badge-icon plan-badge-monthly" id="planMonthlyIcon">🌱</div>
                         <h3 class="plan-name">الباقة الشهرية</h3>
-                        <p class="plan-desc" id="planMonthlyDesc">مرونة شهرية مع تحديثات ودعم فني مستمر</p>
+                        <p class="plan-desc" id="planMonthlyDesc">مرونة شهرية شاملة البرنامج + المزامنة السحابية والموبايل</p>
 
                         <div class="plan-price-box">
                             <div class="plan-price">
-                                <span id="planMonthlyPrice">150</span>
+                                <span id="planMonthlyPrice">300</span>
                                 <span class="currency">ج.م</span>
                                 <span id="planMonthlyPeriod" class="billing-period">/ شهرياً</span>
                             </div>
-                            <div id="planMonthlySubtext" class="plan-price-subtext" style="color: #3b82f6;">تجديد شهري
-                                مرن ومريح</div>
+                            <div id="planMonthlySubtext" class="plan-price-subtext" style="color: #3b82f6;">☁️ شاملة المزامنة السحابية وتطبيق الهاتف</div>
                         </div>
 
                         <ul class="plan-features">
-                            <li><span class="check-icon">✓</span> إدارة مبيعات ومشتريات احترافية</li>
-                            <li><span class="check-icon">✓</span> عدد فواتير غير محدود ♾️</li>
-                            <li id="planMonthlyFeatCloud"><span class="check-icon">✓</span> نظام مخازن وباركود وحسابات
-                                متكامل</li>
+                            <li><span class="check-icon">✓</span> إدارة مبيعات ومشتريات ومخازن احترافية</li>
+                            <li><span class="check-icon">✓</span> عدد فواتير وأصناف غير محدود ♾️</li>
+                            <li id="planMonthlyFeatCloud"><span class="check-icon">✓</span> سيرفر سحابي ومزامنة مع تطبيق الموبايل 📱</li>
                             <li><span class="check-icon">✓</span> دعم فني وتحديثات مستمرة للنظام</li>
                         </ul>
 
                         <div class="plan-actions">
                             <button id="planMonthlyBtn" class="sub-btn"
-                                onclick="requestActivation('الباقة الشهرية (أوفلاين)', 150)">اشترك الآن 💳</button>
+                                onclick="requestActivation('الباقة الشهرية', 300)">اشترك الآن 💳</button>
                             <button class="details-btn" onclick="showPackageFeatures('الباقة الأساسية')"
                                 title="عرض كافة المميزات">👁️</button>
                         </div>
@@ -14952,34 +14979,32 @@
                     <!-- 3. الباقة السنوية (Annual - Featured) -->
                     <div class="plan-card featured" id="plan-الباقة المتقدمة">
                         <div class="active-marker">بـاقتـك الـحـالـيـة ⚡</div>
-                        <div class="cloud-highlight-badge">☁️ باقة المزامنة السحابية</div>
                         <div class="plan-badge-icon plan-badge-annual">🚀</div>
                         <h3 class="plan-name">الباقة السنوية</h3>
-                        <p class="plan-desc">الخيار الأذكى والأكثر توفيراً لأصحاب المتاجر</p>
+                        <p class="plan-desc">الخيار الأذكى والأوفر (سيرفر سنوي + تطبيق الموبايل)</p>
 
                         <div class="plan-price-box">
                             <div class="plan-price">
                                 <del id="planAnnualOldPrice"
-                                    style="display: none; text-decoration: line-through; color: #ef4444; font-size: 1.25rem; font-weight: 900; opacity: 0.85; margin-left: 6px;">3600</del>
-                                <span id="planAnnualPrice">1200</span>
+                                    style="display: inline; text-decoration: line-through; color: #ef4444; font-size: 1.25rem; font-weight: 900; opacity: 0.85; margin-left: 6px;">3600</del>
+                                <span id="planAnnualPrice">2200</span>
                                 <span class="currency">ج.م</span>
                                 <span id="planAnnualPeriod" class="billing-period">/ سنوياً</span>
                             </div>
-                            <div id="planAnnualSubtext" class="plan-price-subtext">✨ يعادل 100 ج.م / شهر فقط</div>
+                            <div id="planAnnualSubtext" class="plan-price-subtext">🚀 وفر 1,400 ج.م (يعادل ~183 ج.م / شهر فقط)</div>
                         </div>
 
                         <ul class="plan-features">
-                            <li><span class="check-icon">✓</span> كافة مميزات الباقة الأساسية بالكامل</li>
-                            <li><span class="check-icon">✓</span> عدد فواتير وأصناف غير محدود ♾️</li>
-                            <li><span class="check-icon">✓</span> نسخ احتياطي آمن وتحديثات مجانية</li>
-                            <li id="planAnnualFeatBadge" class="feature-chip-green">💰 خصم مميز: وفر 600 جنيه سنوياً!
-                            </li>
+                            <li><span class="check-icon">✓</span> كافة مميزات النظام ومخازن وفواتير غير محدودة ♾️</li>
+                            <li><span class="check-icon">✓</span> سيرفر سحابي سنوي متواصل بدون انقطاع ☁️</li>
+                            <li><span class="check-icon">✓</span> ربط تطبيق الموبايل ومزامنة الأجهزة الإضافية 📱</li>
+                            <li id="planAnnualFeatBadge" class="feature-chip-green">🛡️ نسخ احتياطي سحابي تلقائي + دعم VIP</li>
                         </ul>
 
                         <div class="plan-actions">
                             <button id="planAnnualBtn" class="sub-btn"
                                 style="background: linear-gradient(135deg, #059669, #047857) !important;"
-                                onclick="requestActivation('الباقة السنوية (أوفلاين)', 1200)">اشترك الآن 🚀</button>
+                                onclick="requestActivation('الباقة السنوية', 2200)">اشترك الآن 🚀</button>
                             <button class="details-btn" onclick="showPackageFeatures('الباقة المتقدمة')"
                                 title="عرض كافة المميزات">👁️</button>
                         </div>
@@ -14988,44 +15013,38 @@
                     <!-- 4. الباقة مدى الحياة (Lifetime - VIP) -->
                     <div class="plan-card" id="plan-الباقة الاحترافية">
                         <div class="active-marker">بـاقتـك الـحـالـيـة ⚡</div>
-                        <div class="cloud-highlight-badge"
-                            style="background: linear-gradient(135deg, #d97706, #b45309) !important;">👑 ترخيص دائم +
-                            سنة سيرفر هدية 🎁</div>
                         <div class="plan-badge-icon plan-badge-lifetime">👑</div>
                         <h3 class="plan-name">الباقة مدى الحياة</h3>
-                        <p class="plan-desc">شراء البرنامج لمرة واحدة واستثمار دائم للأبد</p>
+                        <p class="plan-desc">امتلاك البرنامج لمرة واحدة واستثمار دائم للأبد</p>
 
                         <div class="plan-price-box">
                             <div class="plan-price">
                                 <del id="planLifetimeOldPrice"
-                                    style="text-decoration: line-through; color: #ef4444; font-size: 1.25rem; font-weight: 900; opacity: 0.85; margin-left: 6px;">5500</del>
-                                <span id="planLifetimePrice" style="color: #b45309;">4000</span>
+                                    style="text-decoration: line-through; color: #ef4444; font-size: 1.25rem; font-weight: 900; opacity: 0.85; margin-left: 6px;">5000</del>
+                                <span id="planLifetimePrice" style="color: #b45309;">3500</span>
                                 <span class="currency">ج.م</span>
                                 <span id="planLifetimePeriod" class="billing-period">/ مدى الحياة</span>
                             </div>
-                            <div id="planLifetimeSubtext" class="plan-price-subtext" style="color: #b45309;">🔒 امتلاك
-                                دائم للأبد بدون أي تجديد</div>
+                            <div id="planLifetimeSubtext" class="plan-price-subtext" style="color: #b45309;">🔒 امتلاك دائم للأبد بدون أي تجديد إجباري</div>
                         </div>
 
-                        <!-- شارة الهدية السحابية الاستثنائية التي تظهر في وضع السحابي -->
+                        <!-- شارة المتابعة السحابية وتطبيق الهاتف -->
                         <div id="planLifetimeGiftBox" class="lifetime-cloud-gift-box">
-                            🎁 <b>هدية خاصة:</b> سنة كاملة مجاناً سيرفر سحابي ومزامنة للأجهزة والموبايل!<br>
-                            <span style="font-size: 0.73rem; opacity: 0.95; color: #78350f;">(تجديد السيرفر بعد انتهاء
-                                السنة اختياري بـ 2,200 ج.م/سنة)</span>
+                            📱 <b>للمتابعة الكاملة وتطبيق الموبايل:</b><br>
+                            ربط تطبيق الهاتف ومزامنة الأجهزة الإضافية باشتراك شهري رمزي <b>(100 ج.م/شهرياً فقط)</b> عند الرغبة.
                         </div>
 
                         <ul class="plan-features">
                             <li><span class="check-icon">✓</span> امتلاك البرنامج للأبد (بدون أي اشتراك إجباري)</li>
                             <li><span class="check-icon">✓</span> عدد فواتير ومخازن غير محدود ♾️</li>
-                            <li><span class="check-icon">✓</span> أولوية ودعم فني شامل مدى الحياة</li>
-                            <li id="planLifetimeFeatBadge" class="feature-chip-gold">⚡ "اشتري دماغك": مرة واحدة وللأبد!
-                            </li>
+                            <li><span class="check-icon">✓</span> أولوية ودعم فني شامل وتحديثات دائمة</li>
+                            <li id="planLifetimeFeatBadge" class="feature-chip-gold">⚡ "امتلاك دائم": اشترِ البرنامج مرة واحدة وللأبد!</li>
                         </ul>
 
                         <div class="plan-actions">
                             <button id="planLifetimeBtn" class="sub-btn"
                                 style="background: linear-gradient(135deg, #d97706, #b45309) !important;"
-                                onclick="requestActivation('الباقة مدى الحياة (أوفلاين)', 4000)">اشترك الآن 👑</button>
+                                onclick="requestActivation('الباقة مدى الحياة (امتلاك دائم)', 3500)">اشترك الآن 👑</button>
                             <button class="details-btn" onclick="showPackageFeatures('الباقة الاحترافية')"
                                 title="عرض كافة المميزات">👁️</button>
                         </div>

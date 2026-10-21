@@ -1114,7 +1114,7 @@ window.compileBayanBackupPayload = async function() {
     const subTrialConsumed = isPlanPaid ? 'true' : (getStore('bayan_trial_consumed') || localStorage.getItem('bayan_trial_consumed') || '');
 
     const data = {
-        version: window.appVersion || "4.5.0",
+        version: window.appVersion || "4.9.1",
         backupDate: new Date().toISOString(),
         hwid: activeHwid,
         deviceMachineId: activeHwid,
@@ -1573,13 +1573,19 @@ try {
             } catch (err) {
                 console.error("Backup before quit error:", err);
             } finally {
-                // 🔒 حفظ وتثبيت سريع لبيانات SQLite فوراً قبل الخروج
+                // 🛑 إغلاق نظيف لجميع الاتصالات والمؤقتات وقواعد البيانات فوراً (Zero-Shutdown Lag)
                 try {
-                    if (window.BayanSQLite && typeof window.BayanSQLite.flushSync === 'function') {
-                        window.BayanSQLite.flushSync();
+                    if (typeof window.gracefulCleanShutdown === 'function') {
+                        window.gracefulCleanShutdown();
+                    } else {
+                        if (window.BayanSQLite && typeof window.BayanSQLite.close === 'function') {
+                            window.BayanSQLite.close();
+                        } else if (window.BayanSQLite && typeof window.BayanSQLite.flushSync === 'function') {
+                            window.BayanSQLite.flushSync();
+                        }
                     }
-                } catch(flErr) {
-                    console.error("Error finalizing SQLite before quit:", flErr);
+                } catch(cleanErr) {
+                    console.error("Clean shutdown notice:", cleanErr);
                 }
 
                 // إكمال عملية الخروج فوراً وبدون أي تأخير

@@ -85,12 +85,7 @@ function createWindow() {
         console.log("✅ [Main] Window has recovered responsiveness.");
     });
 
-    // 🛡️ حماية تركيز الكيبورد في ويندوز فور تنشيط النافذة لمنع سقوط الحروف
-    win.on('focus', () => {
-        if (win && !win.isDestroyed() && win.webContents) {
-            win.webContents.focus();
-        }
-    });
+    // نافذة إلكترون تدير التركيز والمربعات تلقائياً عبر نواة كروميوم بدون سرقة التركيز
 
     if (!mainWindow || mainWindow.isDestroyed()) {
         mainWindow = win;
@@ -211,12 +206,12 @@ function createWindow() {
             return;
         }
 
-        // صمام أمان زمني في حال تعليق الريندرر (1.5 ثانية كحد أقصى للخروج الفوري بدلاً من 10 ثوانٍ)
+        // صمام أمان زمني فائق السرعة في حال تعليق الريندرر (ثانية واحدة كحد أقصى للخروج الفوري Zero-Shutdown Lag)
         if (global.quitTimeout) clearTimeout(global.quitTimeout);
         global.quitTimeout = setTimeout(() => {
             isQuitting = true;
             app.exit(0);
-        }, 1500);
+        }, 1000);
     });
 
     win.on('closed', () => {
@@ -1173,7 +1168,7 @@ ipcMain.handle('quit-and-install-update', () => {
 
 try { ipcMain.removeHandler('get-app-version'); } catch(e) {}
 ipcMain.handle('get-app-version', () => {
-    return app.getVersion() || '4.5.0';
+    return app.getVersion() || '4.9.1';
 });
 
 // =========================================================================

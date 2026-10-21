@@ -49,7 +49,8 @@ function initAppStore() {
                             'bayan_activation_date', 'bayan_install_date', 'bayan_subscription_history',
                             'license_info', 'bayan_used_license_codes', 'bayan_trial_consumed',
                             'bayan_trial_final_count', 'bayan_active', 'bayan_master_license',
-                            'bayan_remote_extra_trial_limit', 'bayan_drawer_closures', 'bayan_zreport_saved_phones'
+                            'bayan_remote_extra_trial_limit', 'bayan_drawer_closures', 'bayan_zreport_saved_phones',
+                            'bayan_shop_id', 'bayan_shop_pin', 'bayan_supabase_config'
                         ];
                         const toInsert = [];
                         legacyKeys.forEach(k => {
@@ -68,6 +69,7 @@ function initAppStore() {
                 } catch (migErr) {}
 
                 isAppStoreInitialized = true;
+                window._appStoreInitialized = true;
                 console.log("✅ تم تجهيز الـ Store عبر محرك SQLite بنجاح:", Object.keys(window.AppStore).length, "عنصر محمل.");
             } catch (error) {
                 console.error("❌ خطأ أثناء تهيئة الـ Store:", error);

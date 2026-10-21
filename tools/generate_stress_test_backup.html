@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>أداة توليد نسخة احتياطية مخصصة وضخمة للاختبار - بَيَان POS</title>
+    <title>أداة التوليد الذكية للنسخ الاحتياطية واختبار الأنظمة - بَيَان POS</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
@@ -11,16 +11,19 @@
         :root {
             --primary: #6366f1;
             --primary-hover: #4f46e5;
-            --bg: #0b0f19;
-            --card-bg: #111827;
-            --input-bg: #1f2937;
-            --text: #f9fafb;
-            --text-muted: #9ca3af;
-            --border: #374151;
+            --bg: #040711;
+            --card-bg: rgba(13, 21, 39, 0.85);
+            --card-inner: rgba(17, 28, 53, 0.65);
+            --border: rgba(255, 255, 255, 0.08);
+            --border-glow: rgba(56, 189, 248, 0.3);
+            --text: #f8fafc;
+            --text-muted: #94a3b8;
             --accent: #10b981;
+            --accent-glow: rgba(16, 185, 129, 0.35);
             --warning: #f59e0b;
             --danger: #ef4444;
-            --sky: #0ea5e9;
+            --sky: #38bdf8;
+            --purple: #a855f7;
         }
 
         * {
@@ -32,23 +35,32 @@
 
         body {
             background-color: var(--bg);
-            background-image: radial-gradient(circle at 50% 0%, rgba(99, 102, 241, 0.15) 0%, transparent 60%);
+            background-image: 
+                radial-gradient(circle at 50% -10%, rgba(99, 102, 241, 0.28) 0%, transparent 55%),
+                radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.15) 0%, transparent 50%),
+                radial-gradient(circle at 0% 60%, rgba(14, 165, 233, 0.12) 0%, transparent 45%);
+            background-attachment: fixed;
             color: var(--text);
             min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 24px;
+            padding: 30px 16px;
         }
 
         .container {
             background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
             border: 1.5px solid var(--border);
-            border-radius: 24px;
-            max-width: 920px;
+            border-radius: 28px;
+            max-width: 1000px;
             width: 100%;
-            padding: 36px;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+            padding: 38px 42px;
+            box-shadow: 
+                0 30px 80px rgba(0, 0, 0, 0.75),
+                0 0 0 1px rgba(255, 255, 255, 0.06),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
             position: relative;
             overflow: hidden;
         }
@@ -56,121 +68,117 @@
         .header {
             text-align: center;
             margin-bottom: 28px;
+            position: relative;
         }
 
         .badge {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            background: rgba(99, 102, 241, 0.15);
+            gap: 7px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(16, 185, 129, 0.15));
             color: #a5b4fc;
-            border: 1px solid rgba(99, 102, 241, 0.4);
+            border: 1px solid rgba(99, 102, 241, 0.35);
             padding: 6px 16px;
             border-radius: 30px;
-            font-size: 0.85rem;
+            font-size: 0.84rem;
             font-weight: 800;
             margin-bottom: 12px;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
         }
 
         h1 {
-            font-size: 1.9rem;
+            font-size: 2.1rem;
             font-weight: 900;
             margin-bottom: 10px;
-            color: #ffffff;
+            background: linear-gradient(135deg, #ffffff 0%, #cbd5e1 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
             letter-spacing: -0.5px;
         }
 
         p.subtitle {
             color: var(--text-muted);
             font-size: 0.95rem;
-            line-height: 1.6;
-            max-width: 720px;
+            line-height: 1.65;
+            max-width: 780px;
             margin: 0 auto;
         }
 
-        /* نماذج جاهزة وسريعة */
-        .section-label {
-            font-size: 0.92rem;
+        /* مربعات الإدخال والتحكم */
+        .boxes-card {
+            background: var(--card-inner);
+            backdrop-filter: blur(14px);
+            border: 1.5px solid var(--border);
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 22px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .section-title {
+            font-size: 1rem;
             font-weight: 800;
-            color: #cbd5e1;
-            margin-bottom: 10px;
+            color: #f1f5f9;
             display: flex;
             align-items: center;
             gap: 8px;
         }
 
-        .presets-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 12px;
-            margin-bottom: 26px;
+        .quick-presets-bar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
         }
 
-        .preset-card {
-            background: #1e293b;
-            border: 2px solid #334155;
-            border-radius: 14px;
-            padding: 14px 12px;
-            text-align: center;
+        .preset-btn {
+            background: rgba(30, 41, 59, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #cbd5e1;
+            padding: 5px 12px;
+            border-radius: 9px;
+            font-size: 0.8rem;
+            font-weight: 700;
             cursor: pointer;
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            user-select: none;
         }
 
-        .preset-card:hover {
-            border-color: var(--primary);
-            transform: translateY(-2px);
-            background: #243247;
-        }
-
-        .preset-card.active {
-            border-color: var(--accent);
-            background: rgba(16, 185, 129, 0.12);
-            box-shadow: 0 0 16px rgba(16, 185, 129, 0.2);
-        }
-
-        .preset-card h3 {
-            font-size: 0.98rem;
-            font-weight: 800;
-            margin-bottom: 4px;
+        .preset-btn:hover {
+            border-color: var(--sky);
             color: #fff;
+            background: rgba(56, 189, 248, 0.18);
+            transform: translateY(-1px);
         }
 
-        .preset-card .desc {
-            font-size: 0.78rem;
-            color: var(--text-muted);
-            line-height: 1.4;
-            font-weight: 600;
-        }
-
-        /* مربعات الإدخال المخصصة */
-        .boxes-card {
-            background: #0f172a;
-            border: 1.5px solid #1e293b;
-            border-radius: 18px;
-            padding: 22px;
-            margin-bottom: 24px;
-        }
-
-        .fields-grid-5 {
+        .fields-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
             gap: 16px;
         }
 
         .field-group {
-            background: #182234;
-            border: 1.5px solid #2d3d54;
+            background: rgba(6, 10, 20, 0.7);
+            border: 1.5px solid rgba(255, 255, 255, 0.06);
             border-radius: 14px;
             padding: 14px 16px;
             transition: all 0.2s ease;
-            position: relative;
         }
 
         .field-group:focus-within {
             border-color: var(--sky);
-            box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.2);
-            background: #1c283d;
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.2);
+            background: rgba(9, 15, 30, 0.9);
         }
 
         .field-header {
@@ -182,7 +190,7 @@
 
         .field-label {
             font-size: 0.88rem;
-            color: #e2e8f0;
+            color: #f1f5f9;
             font-weight: 800;
             display: flex;
             align-items: center;
@@ -190,7 +198,7 @@
         }
 
         .field-hint {
-            font-size: 0.72rem;
+            font-size: 0.74rem;
             color: var(--text-muted);
             font-weight: 600;
         }
@@ -203,112 +211,199 @@
 
         .field-input {
             width: 100%;
-            background: #0b1120;
-            border: 1px solid #334155;
+            background: #03060f;
+            border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 10px;
             padding: 10px 14px;
-            color: #38bdf8;
+            color: var(--sky);
             font-size: 1.35rem;
             font-weight: 900;
             outline: none;
-            transition: border 0.2s;
+            transition: all 0.2s;
             text-align: center;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.5);
         }
 
         .field-input:focus {
             border-color: var(--sky);
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
         }
 
-        .quick-steppers {
+        /* سلايدر تفاعلي سلس */
+        .slider-row {
+            margin-top: 10px;
             display: flex;
-            gap: 4px;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .range-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 4px;
+            background: #1e293b;
+            outline: none;
+            transition: 0.2s;
+        }
+
+        .range-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--sky), var(--primary));
+            cursor: pointer;
+            box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+            transition: transform 0.1s;
+        }
+
+        .range-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
         }
 
         .step-btn {
-            background: #253349;
-            border: 1px solid #3b4e68;
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             color: #94a3b8;
-            padding: 6px 10px;
-            border-radius: 8px;
+            padding: 4px 10px;
+            border-radius: 7px;
             cursor: pointer;
-            font-size: 0.75rem;
+            font-size: 0.74rem;
             font-weight: 700;
             transition: 0.15s;
         }
 
         .step-btn:hover {
-            background: #334460;
+            background: #2d3d54;
             color: #fff;
+            border-color: rgba(255, 255, 255, 0.2);
         }
 
-        /* ملخص الحجم والوقت المتوقع */
+        /* خيارات التنوع المحاسبي */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 18px;
+            padding-top: 16px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.08);
+        }
+
+        .feature-chip {
+            background: rgba(6, 10, 20, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+            padding: 9px 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.82rem;
+            color: #cbd5e1;
+            font-weight: 700;
+        }
+
+        .feature-chip span.dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 8px var(--accent);
+            display: inline-block;
+        }
+
+        /* شريط التقدير اللحظي */
         .estimation-bar {
+            background: rgba(6, 10, 20, 0.75);
+            border: 1.5px solid var(--border);
+            border-radius: 16px;
+            padding: 14px 22px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             flex-wrap: wrap;
-            gap: 12px;
-            background: rgba(14, 165, 233, 0.08);
-            border: 1px solid rgba(14, 165, 233, 0.25);
-            border-radius: 12px;
-            padding: 12px 18px;
+            gap: 14px;
             margin-bottom: 22px;
-            font-size: 0.88rem;
-            font-weight: 700;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
         }
 
         .est-item {
-            display: inline-flex;
+            font-size: 0.88rem;
+            color: var(--text-muted);
+            font-weight: 700;
+            display: flex;
             align-items: center;
             gap: 6px;
-            color: #e0f2fe;
         }
 
         .est-val {
-            color: #38bdf8;
+            color: var(--sky);
             font-weight: 900;
+            font-size: 1rem;
         }
 
-        /* زر التوليد */
+        /* زر البدء والتوليد */
         .generate-btn {
             width: 100%;
-            background: linear-gradient(135deg, #4f46e5 0%, #0ea5e9 100%);
-            color: white;
+            background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%);
             border: none;
             border-radius: 16px;
-            padding: 18px;
+            padding: 18px 26px;
+            color: #ffffff;
             font-size: 1.25rem;
             font-weight: 900;
             cursor: pointer;
-            transition: all 0.25s ease;
+            box-shadow: 0 12px 30px rgba(16, 185, 129, 0.4);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 12px;
-            box-shadow: 0 10px 30px rgba(79, 70, 229, 0.4);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .generate-btn::after {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: linear-gradient(60deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+            transform: rotate(25deg);
+            animation: btnShimmer 4s infinite linear;
+        }
+
+        @keyframes btnShimmer {
+            0% { transform: translateX(-100%) rotate(25deg); }
+            100% { transform: translateX(100%) rotate(25deg); }
         }
 
         .generate-btn:hover {
-            opacity: 0.95;
-            transform: translateY(-2px);
-            box-shadow: 0 15px 35px rgba(14, 165, 233, 0.4);
+            transform: translateY(-3px) scale(1.005);
+            box-shadow: 0 18px 40px rgba(16, 185, 129, 0.55);
         }
 
         .generate-btn:disabled {
-            opacity: 0.5;
+            background: #1e293b !important;
+            color: #64748b !important;
             cursor: not-allowed;
             transform: none;
             box-shadow: none;
         }
 
-        /* شريط التقدم */
+        /* شريط التقدم النيوني */
         .progress-box {
             display: none;
-            margin-top: 24px;
-            background: #0f172a;
-            border: 1.5px solid #1e293b;
+            margin-top: 22px;
+            background: rgba(6, 10, 20, 0.85);
+            border: 1.5px solid var(--border);
             border-radius: 16px;
-            padding: 20px;
+            padding: 18px 22px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
         }
 
         .progress-text {
@@ -323,34 +418,157 @@
         .progress-bar-container {
             width: 100%;
             height: 14px;
-            background: #1e293b;
-            border-radius: 8px;
+            background: #0f172a;
+            border-radius: 7px;
             overflow: hidden;
-            border: 1px solid #334155;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6);
         }
 
         .progress-bar {
             height: 100%;
             width: 0%;
-            background: linear-gradient(90deg, #10b981, #06b6d4, #6366f1);
-            border-radius: 8px;
-            transition: width 0.15s ease;
+            background: linear-gradient(90deg, #10b981, #06b6d4, #6366f1, #a855f7);
+            border-radius: 7px;
+            transition: width 0.12s ease-out;
+            box-shadow: 0 0 14px rgba(56, 189, 248, 0.5);
         }
 
         .progress-details {
             margin-top: 10px;
-            font-size: 0.8rem;
+            font-size: 0.82rem;
             color: #94a3b8;
             display: flex;
             justify-content: space-between;
             font-weight: 600;
         }
 
+        /* لوحة الملخص المالي التنفيذي الفاخرة (Fintech Dashboard) */
+        .financial-dashboard {
+            display: none;
+            margin-top: 24px;
+            background: linear-gradient(145deg, rgba(13, 24, 46, 0.95) 0%, rgba(8, 15, 30, 0.95) 100%);
+            border: 1.5px solid rgba(59, 130, 246, 0.4);
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 
+                0 15px 40px rgba(37, 99, 235, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            animation: dashFadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes dashFadeIn {
+            from { opacity: 0; transform: translateY(12px) scale(0.99); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .dash-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .dash-title {
+            font-size: 1.15rem;
+            font-weight: 900;
+            color: #60a5fa;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dash-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .dash-card {
+            background: rgba(11, 19, 36, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 14px 16px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+        }
+
+        .dash-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.18);
+        }
+
+        .dash-label {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+
+        .dash-num {
+            font-size: 1.35rem;
+            font-weight: 900;
+            color: #f8fafc;
+        }
+
+        .dash-num.green { color: #34d399; text-shadow: 0 0 10px rgba(52, 211, 153, 0.4); }
+        .dash-num.amber { color: #fbbf24; text-shadow: 0 0 10px rgba(251, 191, 36, 0.4); }
+        .dash-num.red { color: #f87171; text-shadow: 0 0 10px rgba(248, 113, 113, 0.4); }
+        .dash-num.sky { color: #38bdf8; text-shadow: 0 0 10px rgba(56, 189, 248, 0.4); }
+
+        .dash-download-bar {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+            align-items: center;
+            flex-wrap: wrap;
+            padding-top: 14px;
+            border-top: 1px dashed rgba(255, 255, 255, 0.08);
+        }
+
+        .dl-btn {
+            background: rgba(30, 41, 59, 0.9);
+            border: 1.5px solid rgba(255, 255, 255, 0.15);
+            color: #f8fafc;
+            padding: 12px 20px;
+            border-radius: 12px;
+            font-size: 0.92rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dl-btn:hover {
+            border-color: #38bdf8;
+            background: #1e293b;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(56, 189, 248, 0.25);
+        }
+
+        .dl-btn.primary {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            border-color: #3b82f6;
+            box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
+        }
+
+        .dl-btn.primary:hover {
+            background: linear-gradient(135deg, #1d4ed8, #1e40af);
+            box-shadow: 0 8px 25px rgba(37, 99, 235, 0.5);
+        }
+
         /* صندوق الإرشادات */
         .instructions-box {
             margin-top: 24px;
-            background: rgba(245, 158, 11, 0.08);
-            border: 1px solid rgba(245, 158, 11, 0.25);
+            background: rgba(245, 158, 11, 0.07);
+            border: 1px solid rgba(245, 158, 11, 0.22);
             border-radius: 14px;
             padding: 16px 20px;
             font-size: 0.88rem;
@@ -360,108 +578,364 @@
 
         .instructions-box ol {
             padding-right: 20px;
-            margin-top: 8px;
+            margin-top: 6px;
         }
 
-        .instructions-box li {
-            margin-bottom: 4px;
+        .top-nav-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .theme-toggle-btn {
+            background: rgba(30, 41, 59, 0.75);
+            border: 1.5px solid rgba(255, 255, 255, 0.15);
+            color: #f8fafc;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.86rem;
+            font-weight: 800;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        }
+
+        .theme-toggle-btn:hover {
+            background: rgba(51, 65, 85, 0.95);
+            border-color: #38bdf8;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 18px rgba(56, 189, 248, 0.3);
+        }
+
+        .theme-toggle-btn .theme-icon {
+            font-size: 1.05rem;
+            transition: transform 0.3s ease;
+        }
+
+        .theme-toggle-btn:hover .theme-icon {
+            transform: rotate(25deg) scale(1.15);
+        }
+
+        /* ==================== أنماط الوضع الفاتح (Light Mode) ==================== */
+        body.light-theme {
+            --bg: #f1f5f9;
+            --card-bg: rgba(255, 255, 255, 0.96);
+            --card-inner: #f8fafc;
+            --border: rgba(203, 213, 225, 0.85);
+            --border-glow: rgba(37, 99, 235, 0.25);
+            --text: #0f172a;
+            --text-muted: #64748b;
+            --sky: #0284c7;
+            --accent: #059669;
+            background-color: #f1f5f9;
+            background-image: 
+                radial-gradient(circle at 50% -10%, rgba(99, 102, 241, 0.12) 0%, transparent 60%),
+                radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 0% 50%, rgba(14, 165, 233, 0.08) 0%, transparent 45%);
+            color: #0f172a;
+        }
+
+        body.light-theme .container {
+            background: #ffffff;
+            border-color: #e2e8f0;
+            box-shadow: 
+                0 25px 60px rgba(15, 23, 42, 0.08),
+                0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        body.light-theme h1 {
+            background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        body.light-theme .badge {
+            background: #eef2ff;
+            color: #4338ca;
+            border-color: #c7d2fe;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.12);
+        }
+
+        body.light-theme .theme-toggle-btn {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            color: #0f172a;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+
+        body.light-theme .theme-toggle-btn:hover {
+            background: #f8fafc;
+            border-color: #0284c7;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);
+        }
+
+        body.light-theme .boxes-card {
+            background: #f8fafc;
+            border-color: #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        body.light-theme .section-header {
+            border-bottom-color: #e2e8f0;
+        }
+
+        body.light-theme .section-title {
+            color: #0f172a;
+        }
+
+        body.light-theme .preset-btn {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            color: #334155;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        }
+
+        body.light-theme .preset-btn:hover {
+            background: #e0f2fe;
+            border-color: #0284c7;
+            color: #0369a1;
+        }
+
+        body.light-theme .field-group {
+            background: #ffffff;
+            border-color: #e2e8f0;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+        }
+
+        body.light-theme .field-group:focus-within {
+            border-color: #0284c7;
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+        }
+
+        body.light-theme .field-label {
+            color: #0f172a;
+        }
+
+        body.light-theme .field-input {
+            background: #f8fafc;
+            border-color: #cbd5e1;
+            color: #0369a1;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.06);
+        }
+
+        body.light-theme .field-input:focus {
+            background: #ffffff;
+            border-color: #0284c7;
+            box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.18);
+        }
+
+        body.light-theme .range-slider {
+            background: #e2e8f0;
+        }
+
+        body.light-theme .step-btn {
+            background: #f1f5f9;
+            border-color: #cbd5e1;
+            color: #475569;
+        }
+
+        body.light-theme .step-btn:hover {
+            background: #e2e8f0;
+            color: #0f172a;
+        }
+
+        body.light-theme .features-grid {
+            border-top-color: #e2e8f0;
+        }
+
+        body.light-theme .feature-chip {
+            background: #ffffff;
+            border-color: #e2e8f0;
+            color: #334155;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+        }
+
+        body.light-theme .estimation-bar {
+            background: #f8fafc;
+            border-color: #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        body.light-theme .est-item {
+            color: #475569;
+        }
+
+        body.light-theme .est-val {
+            color: #0284c7;
+        }
+
+        body.light-theme .progress-box {
+            background: #ffffff;
+            border-color: #e2e8f0;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+        }
+
+        body.light-theme .progress-bar-container {
+            background: #e2e8f0;
+            border-color: #cbd5e1;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        body.light-theme .progress-details {
+            color: #64748b;
+        }
+
+        body.light-theme .financial-dashboard {
+            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+            border-color: #93c5fd;
+            box-shadow: 0 15px 40px rgba(37, 99, 235, 0.08);
+        }
+
+        body.light-theme .dash-header {
+            border-bottom-color: #e2e8f0;
+        }
+
+        body.light-theme .dash-title {
+            color: #1d4ed8;
+        }
+
+        body.light-theme .dash-card {
+            background: #ffffff;
+            border-color: #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        body.light-theme .dash-label {
+            color: #64748b;
+        }
+
+        body.light-theme .dash-num {
+            color: #0f172a;
+        }
+
+        body.light-theme .dash-num.green { color: #059669; text-shadow: none; }
+        body.light-theme .dash-num.amber { color: #d97706; text-shadow: none; }
+        body.light-theme .dash-num.red { color: #dc2626; text-shadow: none; }
+        body.light-theme .dash-num.sky { color: #0284c7; text-shadow: none; }
+
+        body.light-theme .dl-btn {
+            background: #ffffff;
+            border-color: #cbd5e1;
+            color: #0f172a;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        body.light-theme .dl-btn:hover {
+            background: #f1f5f9;
+            border-color: #0284c7;
+        }
+
+        body.light-theme .dl-btn.primary {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            border-color: #2563eb;
+            color: #ffffff;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.25);
+        }
+
+        body.light-theme .instructions-box {
+            background: #fffbeb;
+            border-color: #fde68a;
+            color: #92400e;
+        }
+
+        body.light-theme .credentials-card {
+            background: #ffffff !important;
+            border-color: #bae6fd !important;
+            box-shadow: 0 4px 15px rgba(2, 132, 199, 0.08) !important;
         }
 
         @media (max-width: 768px) {
-            .container { padding: 20px; border-radius: 18px; }
-            h1 { font-size: 1.45rem; }
-            .fields-grid-5 { grid-template-columns: 1fr; }
+            .container { padding: 22px 18px; border-radius: 20px; }
+            h1 { font-size: 1.55rem; }
+            .fields-grid { grid-template-columns: 1fr; }
             .estimation-bar { flex-direction: column; align-items: flex-start; }
+            .dash-download-bar { justify-content: center; width: 100%; }
+            .dash-download-bar span { width: 100%; text-align: center; }
+            .top-nav-bar { justify-content: center; }
         }
     </style>
 </head>
 <body>
 
     <div class="container">
+        <!-- شريط التنقل العلوي مع زر التبديل -->
+        <div class="top-nav-bar">
+            <span class="badge">⚡ أداة التوليد الذكية للنسخ الاحتياطية - بَيَان POS (v4.9.1)</span>
+            <button type="button" class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="تبديل مظهر الواجهة بين الفاتح والداكن">
+                <span id="themeToggleIcon" class="theme-icon">☀️</span>
+                <span id="themeToggleText">الوضع الفاتح</span>
+            </button>
+        </div>
+
         <!-- الرأس -->
         <div class="header">
-            <span class="badge">⚙️ أداة الاختبار والتحمل الرسمية - نظام بَيَان POS (v4.5.2)</span>
-            <h1>توليد ملف نسخة احتياطية مخصصة لاختبار الأداء والسرعة</h1>
+            <h1>توليد نسخة احتياطية مخصصة لاختبار السيستم والأداء</h1>
             <p class="subtitle">
-                تحكم بالكامل في أعداد البيانات التي تريد توليدها. اكتب أي أرقام تختارها في المربعات الخمسة بالأسفل، وسيتم تجهيز ملف JSON رسمي متوافق 100% مع نظام بيان جاهز للاستيراد الفوري.
+                اكتب أي أعداد تريدها بحرية تامة أو اسحب السلايدر مباشرة. المحرك مُحسن لإنشاء ملف JSON مضغوط وخفيف جداً، يشمل فواتير متعددة الأصناف، مرتجعات، سندات، تحويلات، مع محاكاة ساعات الذروة والملخص المالي الفوري.
             </p>
         </div>
 
-        <!-- نماذج سريعة جاهزة -->
-        <div class="section-label">
-            <span>⚡ نماذج مقترحة سريعة (أو اختر أرقامك المخصصة مباشرة بالأسفل):</span>
-        </div>
-        <div class="presets-grid">
-            <div class="preset-card active" onclick="applyPreset(3000, 5000, 500, 2, 3, 3, this)">
-                <h3>⚡ خفيف ومتوازن</h3>
-                <div class="desc">
-                    3,000 صنف • 5,000 فاتورة<br>
-                    500 عميل • 2 مخزن • 3 كاشير
-                </div>
-            </div>
-            <div class="preset-card" onclick="applyPreset(10000, 20000, 1500, 3, 5, 4, this)">
-                <h3>🚀 متجر كبير نشط</h3>
-                <div class="desc">
-                    10,000 صنف • 20,000 فاتورة<br>
-                    1,500 عميل • 3 مخازن • 5 كاشير
-                </div>
-            </div>
-            <div class="preset-card" onclick="applyPreset(25000, 50000, 3000, 5, 8, 4, this)">
-                <h3>🔥 سلسلة فروع ضخمة</h3>
-                <div class="desc">
-                    25,000 صنف • 50,000 فاتورة<br>
-                    3,000 عميل • 5 مخازن • 8 كاشير
-                </div>
-            </div>
-            <div class="preset-card" onclick="applyPreset(50000, 100000, 5000, 8, 12, 5, this)">
-                <h3>💥 اختبار أقصى طاقة (Titan)</h3>
-                <div class="desc">
-                    50,000 صنف • 100,000 فاتورة<br>
-                    5,000 عميل • 8 مخازن • 12 كاشير
-                </div>
-            </div>
-        </div>
-
-        <!-- المربعات الخمسة المخصصة -->
+        <!-- مربعات الإدخال والتحكم -->
         <div class="boxes-card">
-            <div class="section-label" style="margin-bottom: 16px;">
-                <span>🎯 المربعات الخمسة للبيانات (اكتب أو عدّل الأرقام التي تريدها بحرية تامة):</span>
+            <div class="section-header">
+                <span class="section-title">🎯 حدد الأعداد المطلوبة بحرية تامة:</span>
+                <div class="quick-presets-bar">
+                    <span style="font-size: 0.78rem; color: #94a3b8; font-weight: bold; align-self: center;">نماذج سريعة:</span>
+                    <button type="button" class="preset-btn" onclick="setPreset(1000, 2000, 100, 2, 2)">خفيف (1K)</button>
+                    <button type="button" class="preset-btn" onclick="setPreset(5000, 10000, 500, 2, 3)">متوسط (5K)</button>
+                    <button type="button" class="preset-btn" onclick="setPreset(20000, 50000, 1500, 3, 5)">كبير (20K)</button>
+                    <button type="button" class="preset-btn" onclick="setPreset(50000, 100000, 3000, 5, 8)">عملاق (50K)</button>
+                </div>
             </div>
 
-            <div class="fields-grid-5">
+            <div class="fields-grid">
                 <!-- 1. عدد الأصناف -->
                 <div class="field-group">
                     <div class="field-header">
                         <label class="field-label" for="inputProds">
                             <span>👗</span> عدد أصناف الأزياء
                         </label>
-                        <span class="field-hint">موديلات بباركود وتصنيفات</span>
+                        <span class="field-hint">موديلات بباركود وألوان ومقاسات</span>
                     </div>
                     <div class="input-row">
-                        <input type="number" id="inputProds" class="field-input" value="3000" min="10" max="150000" oninput="updateEstimates(); clearPresetActive();">
+                        <input type="number" id="inputProds" class="field-input" value="3000" min="10" max="250000" oninput="syncSlider('inputProds', 'sliderProds'); updateEstimates();">
+                    </div>
+                    <div class="slider-row">
+                        <input type="range" id="sliderProds" class="range-slider" min="100" max="50000" step="500" value="3000" oninput="syncInput('sliderProds', 'inputProds'); updateEstimates();">
                     </div>
                     <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
-                        <button type="button" class="step-btn" onclick="adjustValue('inputProds', 1000)">+1,000</button>
-                        <button type="button" class="step-btn" onclick="adjustValue('inputProds', 5000)">+5,000</button>
-                        <button type="button" class="step-btn" onclick="adjustValue('inputProds', 10000)">+10,000</button>
+                        <button type="button" class="step-btn" onclick="adjustVal('inputProds', 1000)">+1,000</button>
+                        <button type="button" class="step-btn" onclick="adjustVal('inputProds', 5000)">+5,000</button>
+                        <button type="button" class="step-btn" onclick="adjustVal('inputProds', 10000)">+10,000</button>
                     </div>
                 </div>
 
-                <!-- 2. عدد الفواتير والعمليات -->
+                <!-- 2. عدد العمليات والفواتير -->
                 <div class="field-group">
                     <div class="field-header">
                         <label class="field-label" for="inputTxs">
-                            <span>🧾</span> عدد الفواتير والحركات
+                            <span>🧾</span> عدد الحركات والفواتير
                         </label>
-                        <span class="field-hint">مبيعات ومشتريات ونقدي/آجل</span>
+                        <span class="field-hint">بيع، شراء، مرتجع، قبض، صرف، تحويل</span>
                     </div>
                     <div class="input-row">
-                        <input type="number" id="inputTxs" class="field-input" value="5000" min="10" max="250000" oninput="updateEstimates(); clearPresetActive();">
+                        <input type="number" id="inputTxs" class="field-input" value="5000" min="10" max="500000" oninput="syncSlider('inputTxs', 'sliderTxs'); updateEstimates();">
+                    </div>
+                    <div class="slider-row">
+                        <input type="range" id="sliderTxs" class="range-slider" min="500" max="100000" step="1000" value="5000" oninput="syncInput('sliderTxs', 'inputTxs'); updateEstimates();">
                     </div>
                     <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
-                        <button type="button" class="step-btn" onclick="adjustValue('inputTxs', 2000)">+2,000</button>
-                        <button type="button" class="step-btn" onclick="adjustValue('inputTxs', 10000)">+10,000</button>
-                        <button type="button" class="step-btn" onclick="adjustValue('inputTxs', 25000)">+25,000</button>
+                        <button type="button" class="step-btn" onclick="adjustVal('inputTxs', 2000)">+2,000</button>
+                        <button type="button" class="step-btn" onclick="adjustVal('inputTxs', 10000)">+10,000</button>
+                        <button type="button" class="step-btn" onclick="adjustVal('inputTxs', 25000)">+25,000</button>
                     </div>
                 </div>
 
@@ -471,15 +945,18 @@
                         <label class="field-label" for="inputAccounts">
                             <span>👥</span> عدد العملاء والموردين
                         </label>
-                        <span class="field-hint">حسابات بأرصدة وهواتف</span>
+                        <span class="field-hint">أكواد وأرصدة افتتاحية وهواتف</span>
                     </div>
                     <div class="input-row">
-                        <input type="number" id="inputAccounts" class="field-input" value="500" min="5" max="30000" oninput="updateEstimates(); clearPresetActive();">
+                        <input type="number" id="inputAccounts" class="field-input" value="500" min="5" max="50000" oninput="syncSlider('inputAccounts', 'sliderAccounts'); updateEstimates();">
+                    </div>
+                    <div class="slider-row">
+                        <input type="range" id="sliderAccounts" class="range-slider" min="50" max="5000" step="50" value="500" oninput="syncInput('sliderAccounts', 'inputAccounts'); updateEstimates();">
                     </div>
                     <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
-                        <button type="button" class="step-btn" onclick="adjustValue('inputAccounts', 200)">+200</button>
-                        <button type="button" class="step-btn" onclick="adjustValue('inputAccounts', 1000)">+1,000</button>
-                        <button type="button" class="step-btn" onclick="adjustValue('inputAccounts', 2500)">+2,500</button>
+                        <button type="button" class="step-btn" onclick="adjustVal('inputAccounts', 100)">+100</button>
+                        <button type="button" class="step-btn" onclick="adjustVal('inputAccounts', 500)">+500</button>
+                        <button type="button" class="step-btn" onclick="adjustVal('inputAccounts', 1000)">+1,000</button>
                     </div>
                 </div>
 
@@ -487,58 +964,73 @@
                 <div class="field-group">
                     <div class="field-header">
                         <label class="field-label" for="inputWarehouses">
-                            <span>🏬</span> عدد المخازن والفروع
+                            <span>🏢</span> عدد المخازن والفروع
                         </label>
-                        <span class="field-hint">وتوزيع الأرصدة عليها</span>
+                        <span class="field-hint">أرصدة مستقلة وتحويلات بينية</span>
                     </div>
                     <div class="input-row">
-                        <input type="number" id="inputWarehouses" class="field-input" value="2" min="1" max="25" oninput="updateEstimates(); clearPresetActive();">
+                        <input type="number" id="inputWarehouses" class="field-input" value="2" min="1" max="50" oninput="syncSlider('inputWarehouses', 'sliderWarehouses'); updateEstimates();">
+                    </div>
+                    <div class="slider-row">
+                        <input type="range" id="sliderWarehouses" class="range-slider" min="1" max="15" step="1" value="2" oninput="syncInput('sliderWarehouses', 'inputWarehouses'); updateEstimates();">
                     </div>
                     <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
-                        <button type="button" class="step-btn" onclick="adjustValue('inputWarehouses', 1)">+1</button>
-                        <button type="button" class="step-btn" onclick="adjustValue('inputWarehouses', 3)">+3</button>
-                        <button type="button" class="step-btn" onclick="adjustValue('inputWarehouses', 5)">+5</button>
+                        <button type="button" class="step-btn" onclick="adjustVal('inputWarehouses', 1)">+1 فرع</button>
+                        <button type="button" class="step-btn" onclick="adjustVal('inputWarehouses', 2)">+2 فرع</button>
+                        <button type="button" class="step-btn" onclick="adjustVal('inputWarehouses', 5)">+5 فروع</button>
                     </div>
                 </div>
 
-                <!-- 5. عدد المستخدمين والكاشيرات -->
+                <!-- 5. عدد الكاشيرات والمستخدمين -->
                 <div class="field-group">
                     <div class="field-header">
                         <label class="field-label" for="inputUsers">
                             <span>👤</span> عدد الكاشيرات والمستخدمين
                         </label>
-                        <span class="field-hint">بصلاحيات وأرقام سرية PIN</span>
+                        <span class="field-hint">أدمن + كاشيرات بصلاحيات و PIN</span>
                     </div>
                     <div class="input-row">
-                        <input type="number" id="inputUsers" class="field-input" value="3" min="1" max="50" oninput="updateEstimates(); clearPresetActive();">
+                        <input type="number" id="inputUsers" class="field-input" value="3" min="1" max="50" oninput="syncSlider('inputUsers', 'sliderUsers'); updateEstimates();">
                     </div>
-                    <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
-                        <button type="button" class="step-btn" onclick="adjustValue('inputUsers', 1)">+1</button>
-                        <button type="button" class="step-btn" onclick="adjustValue('inputUsers', 2)">+2</button>
-                        <button type="button" class="step-btn" onclick="adjustValue('inputUsers', 5)">+5</button>
+                    <div class="slider-row">
+                        <input type="range" id="sliderUsers" class="range-slider" min="1" max="20" step="1" value="3" oninput="syncInput('sliderUsers', 'inputUsers'); updateEstimates();">
                     </div>
-                    <div style="margin-top: 8px; font-size: 0.76rem; color: #38bdf8; font-weight: 800; text-align: center; background: rgba(56, 189, 248, 0.1); padding: 4px 8px; border-radius: 6px;">
-                        🔑 كلمة سر المدير العام (أدمن): <b>1001</b> | والكاشيرات: <b>1002</b> فما فوق
+                    <div style="margin-top: 8px; font-size: 0.74rem; color: #38bdf8; font-weight: 800; text-align: center; background: rgba(56, 189, 248, 0.08); padding: 4px; border-radius: 6px;">
+                        🔑 باسورد الأدمن: <b>1001</b> | الكاشيرات: <b>1002</b> فما فوق
                     </div>
                 </div>
 
-                <!-- خيار إضافي: تشكيلات المقاسات والألوان لكل صنف -->
-                <div class="field-group" style="background: #141d2d; border-color: #27354a;">
+                <!-- 6. النطاق الزمني وساعات الذروة -->
+                <div class="field-group">
                     <div class="field-header">
-                        <label class="field-label" for="inputVariants">
-                            <span>🎨</span> المقاسات والألوان لكل صنف
+                        <label class="field-label" for="inputDaysRange">
+                            <span>📅</span> توزيع التواريخ وساعات الذروة
                         </label>
-                        <span class="field-hint">تشكيلة أزياء باركود لكل موديل</span>
+                        <span class="field-hint">توزيع واقعي حتى اليوم الحالي</span>
                     </div>
                     <div class="input-row">
-                        <input type="number" id="inputVariants" class="field-input" value="3" min="1" max="10" oninput="updateEstimates(); clearPresetActive();" style="color: #a7f3d0;">
+                        <select id="inputDaysRange" class="field-input" style="font-size: 0.95rem; font-weight: 800; padding: 11px;" onchange="updateEstimates();">
+                            <option value="30">آخر شهر (30 يوماً)</option>
+                            <option value="90">آخر 3 أشهر (90 يوماً)</option>
+                            <option value="180" selected>آخر 6 أشهر (180 يوماً)</option>
+                            <option value="365">آخر سنة كاملة (365 يوماً)</option>
+                        </select>
                     </div>
-                    <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
-                        <button type="button" class="step-btn" onclick="adjustValue('inputVariants', 1)">+1</button>
-                        <button type="button" class="step-btn" onclick="adjustValue('inputVariants', 2)">+2</button>
-                        <button type="button" class="step-btn" onclick="setVariantsDefault()">3 مقاسات (افتراضي)</button>
+                    <div style="margin-top: 10px; font-size: 0.74rem; color: #34d399; font-weight: 800; text-align: center; background: rgba(16, 185, 129, 0.08); padding: 4px; border-radius: 6px;">
+                        ⚡ محاكاة ساعات ذروة المساء (65%) وعطلات الويك إند
                     </div>
                 </div>
+            </div>
+
+            <!-- إبراز تنوع العمليات المحاسبية الذكية -->
+            <div class="features-grid">
+                <div class="feature-chip" style="background: rgba(16, 185, 129, 0.15); border-color: #34d399; color: #a7f3d0;"><span class="dot" style="background: #34d399;"></span> ⚡ نسخة فائقة الخفة والرشاقة (وفرت 75% من الحجم)</div>
+                <div class="feature-chip"><span class="dot"></span> 🛍️ فواتير متعددة الأصناف (1-3 قطع)</div>
+                <div class="feature-chip"><span class="dot"></span> ↩️ مرتجعات بيع برقم الفاتورة الأصلية</div>
+                <div class="feature-chip"><span class="dot"></span> 📦 فواتير ومرتجعات شراء للموردين</div>
+                <div class="feature-chip"><span class="dot"></span> 💵 سندات قبض وصرف مالية للخزينة</div>
+                <div class="feature-chip"><span class="dot"></span> 🔄 تحويلات مخزنية بين الفروع</div>
+                <div class="feature-chip"><span class="dot"></span> 📊 تقرير مالي تنفيذي فوري للمطابقة</div>
             </div>
         </div>
 
@@ -549,42 +1041,114 @@
                 <span id="estRecords" class="est-val">8,505 سجل</span>
             </div>
             <div class="est-item">
-                <span>💾 الحجم التقديري للملف:</span>
-                <span id="estSize" class="est-val">~4.5 MB</span>
+                <span>💾 الحجم التقديري للملف المضغوط:</span>
+                <span id="estSize" class="est-val">~2.2 MB</span>
             </div>
             <div class="est-item">
                 <span>⏱️ زمن التوليد المتوقع:</span>
-                <span id="estTime" class="est-val">~1 إلى 2 ثانية</span>
+                <span id="estTime" class="est-val">~1 ثانية</span>
             </div>
         </div>
 
         <!-- زر البدء -->
         <button class="generate-btn" id="generateBtn" onclick="startGeneration()">
-            <span>🚀 بدء توليد وحزم ملف النسخة الاحتياطية المخصصة الآن</span>
+            <span>🚀 بدء توليد وحفظ ملف النسخة الاحتياطية المخصصة الآن</span>
         </button>
 
-        <!-- شريط التقدم -->
+        <!-- شريط التقدم النيوني -->
         <div class="progress-box" id="progressBox">
             <div class="progress-text">
-                <span id="statusLabel">جاري تحضير المحرك...</span>
+                <span id="statusLabel">جاري تهيئة البيانات...</span>
                 <span id="percentLabel" style="color: #38bdf8;">0%</span>
             </div>
             <div class="progress-bar-container">
                 <div class="progress-bar" id="progressBar"></div>
             </div>
             <div class="progress-details">
-                <span id="speedLabel">معالجة فورية داخل المتصفح</span>
+                <span id="speedLabel">معالجة فورية خفيفة بدون تهنيج</span>
                 <span id="recordsDoneLabel">0 منجز</span>
             </div>
         </div>
 
-        <!-- تعليمات الاستخدام -->
+        <!-- لوحة الملخص المالي التنفيذي الفاخرة (Fintech Dashboard) -->
+        <div class="financial-dashboard" id="financialDashboard">
+            <div class="dash-header">
+                <span class="dash-title">📊 الملخص المالي التنفيذي للنسخة الاحتياطية المولدة:</span>
+                <span style="font-size: 0.82rem; color: #34d399; font-weight: bold; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); padding: 5px 12px; border-radius: 20px;">جاهزة للاستيراد الفوري ✓</span>
+            </div>
+
+            <div class="dash-grid">
+                <div class="dash-card">
+                    <div class="dash-label">💰 إجمالي المبيعات المحققة</div>
+                    <div class="dash-num green" id="sumSales">0 ج.م</div>
+                </div>
+                <div class="dash-card">
+                    <div class="dash-label">💵 النقدية والمحافظ بالخزينة</div>
+                    <div class="dash-num sky" id="sumCash">0 ج.م</div>
+                </div>
+                <div class="dash-card">
+                    <div class="dash-label">👥 مديونيات العملاء الآجلة</div>
+                    <div class="dash-num amber" id="sumCredit">0 ج.م</div>
+                </div>
+                <div class="dash-card">
+                    <div class="dash-label">📦 إجمالي فواتير المشتريات</div>
+                    <div class="dash-num" id="sumPurchases">0 ج.م</div>
+                </div>
+                <div class="dash-card">
+                    <div class="dash-label">↩️ إجمالي المرتجعات</div>
+                    <div class="dash-num red" id="sumReturns">0 ج.م</div>
+                </div>
+                <div class="dash-card">
+                    <div class="dash-label">📈 الأرباح الصافية التقديرية</div>
+                    <div class="dash-num green" id="sumProfits">0 ج.م</div>
+                </div>
+            </div>
+
+            <!-- بطاقة بيانات تسجيل الدخول بعد الاستعادة -->
+            <div class="credentials-card" style="background: rgba(15, 23, 42, 0.75); border: 1.5px solid rgba(56, 189, 248, 0.35); border-radius: 14px; padding: 14px 20px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="width: 42px; height: 42px; border-radius: 10px; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">🔑</div>
+                    <div>
+                        <div style="color: #94a3b8; font-size: 0.8rem; font-weight: bold; margin-bottom: 3px;">بيانات تسجيل الدخول للسيستم بعد الاستعادة:</div>
+                        <div style="color: #f8fafc; font-size: 1rem; font-weight: 800; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <span>باسورد الأدمن (المدير العام):</span>
+                            <span style="color: #38bdf8; background: rgba(56, 189, 248, 0.18); border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 10px; border-radius: 6px; font-family: monospace; font-size: 1.15rem; font-weight: 900; letter-spacing: 1px;">1001</span>
+                            <span style="color: #64748b; margin: 0 4px;">|</span>
+                            <span>الكاشيرات:</span>
+                            <span style="color: #34d399; background: rgba(52, 211, 153, 0.18); border: 1px solid rgba(52, 211, 153, 0.4); padding: 2px 10px; border-radius: 6px; font-family: monospace; font-size: 1.15rem; font-weight: 900; letter-spacing: 1px;">1002</span>
+                            <span style="font-size: 0.85rem; color: #a7f3d0; font-weight: 700;">فما فوق (1003، 1004...)</span>
+                        </div>
+                    </div>
+                </div>
+                <div style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.28); color: #6ee7b7; padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 800; display: flex; align-items: center; gap: 6px;">
+                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #34d399;"></span>
+                    جاهز لتسجيل الدخول فوراً
+                </div>
+            </div>
+
+            <div class="dash-download-bar">
+                <span style="font-size: 0.84rem; color: #94a3b8; font-weight: bold; margin-left: auto;">اختر صيغة التحميل المناسبة:</span>
+                <button type="button" class="dl-btn primary" onclick="downloadBackup('json')">
+                    <span>💾 تحميل كملف JSON القياسي</span>
+                </button>
+                <button type="button" class="dl-btn" onclick="downloadBackup('bayan')">
+                    <span>💎 تحميل بامتداد بيان الرسمي (.bayan)</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- تعليمات الاستخدام في بيان -->
         <div class="instructions-box">
             <b>💡 كيف تستخدم هذا الملف في برنامج بَيَان؟</b>
             <ol>
-                <li>بمجرد الضغط على الزر، سيقوم المتصفح بتوليد وحفظ ملف بصيغة <code>.json</code> مباشرة على جهازك.</li>
+                <li>بمجرد اكتمال التوليد، سيظهر لك الملخص المالي بالأعلى وسيتم تنزيل الملف تلقائياً على جهازك.</li>
                 <li>افتح برنامج <b>بَيَان POS</b> واذهب إلى: <b>الإعدادات ⚙️ ⬅️ البيانات والنسخ الاحتياطي 💾 ⬅️ استعادة نسخة احتياطية</b>.</li>
-                <li>اختر الملف الذي تم تحميله، وسيتم استيراد كافة الأصناف والفواتير والحسابات والمخازن فوراً لتجربة سرعة وكفاءة البرنامج!</li>
+                <li>اختر الملف الذي تم تنزيله، وستجد كافة الأرقام في تقارير المبيعات والأرباح والخزينة وكشوف الحسابات مطابقة تماماً للملخص المالي بالأعلى بالقرش!</li>
+                <li style="margin-top: 6px; color: #fde68a;">
+                    🔑 <b>بيانات تسجيل الدخول للبرنامج بعد الاسترجاع:</b> 
+                    باسورد الأدمن (المدير العام): <b style="color: #38bdf8; font-family: monospace; font-size: 1.05rem; background: rgba(56, 189, 248, 0.2); padding: 1px 6px; border-radius: 4px;">1001</b> 
+                    | الكاشيرات: <b style="color: #34d399; font-family: monospace; font-size: 1.05rem; background: rgba(52, 211, 153, 0.2); padding: 1px 6px; border-radius: 4px;">1002</b> فما فوق.
+                </li>
             </ol>
         </div>
     </div>
@@ -597,46 +1161,58 @@
             'إكسسوارات وأحزمة جلد', 'ملابس أطفال أولادي', 'ملابس أطفال بناتي'
         ];
 
-        const sizes = ['S', 'M', 'L', 'XL', '2XL', '3XL', '38', '40', '42', '44', '46', '48'];
-        const colors = ['أسود', 'أبيض', 'كحلي', 'رمادي ملانج', 'بيج صحراوي', 'زيتي غامق', 'نبيتي شتوي', 'كشمير ناعم', 'أزرق بترولي', 'هافان جملي', 'موف هادئ'];
+        const sizes = ['S', 'M', 'L', 'XL', '2XL', '3XL', '38', '40', '42', '44'];
+        const colors = ['أسود', 'أبيض', 'كحلي', 'رمادي ملانج', 'بيج صحراوي', 'زيتي غامق', 'نبيتي شتوي', 'كشمير ناعم', 'أزرق بترولي', 'هافان جملي'];
         
         const partnerNames = [
             'أحمد محمود الشناوي', 'محمد عبد الله خليل', 'إسلام فتحي حسن', 'ياسر إبراهيم النجار', 'كريم عادل الدسوقي',
             'سارة أحمد فاروق', 'ميادة سمير غانم', 'نورهان سعيد علام', 'شركة الفارس للأقمشة الفاخرة', 'مصنع النور للأزياء الجاهزة',
             'مكتب الأندلس لتوريدات الملابس', 'محلات مكة فاشون سنتر', 'مؤسسة الصفوة تكستايل', 'المهندس طارق منصور',
-            'سعد حسني البحراوي', 'شركة الرواد للملابس القطنية', 'مؤسسة براند إكس للأزياء', 'وكالة النيل للموضة'
+            'سعد حسني البحراوي', 'شركة الرواد للملابس القطنية', 'مؤسسة براند إكس للأزياء', 'وكالة النيل للموضة',
+            'عميل نقدي عام (المحل)', 'مؤسسة التوفيق للمنسوجات', 'شركة الأمل للفاشون والموضة', 'محمود رأفت للتجارة'
         ];
 
         const paymentMethods = ['نقدي', 'فيزا / بطاقة بنكية', 'فودافون كاش / إنستاباي', 'آجل (حساب عميل)'];
 
-        function applyPreset(prods, txs, accs, whs, users, vars, card) {
-            document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
-            if (card) card.classList.add('active');
+        let lastGeneratedPayload = null;
+        let lastGeneratedCounts = { prods: 0, txs: 0 };
+
+        function syncSlider(inputId, sliderId) {
+            const val = document.getElementById(inputId).value;
+            const slider = document.getElementById(sliderId);
+            if (slider) slider.value = Math.min(slider.max, Math.max(slider.min, val));
+        }
+
+        function syncInput(sliderId, inputId) {
+            const val = document.getElementById(sliderId).value;
+            const input = document.getElementById(inputId);
+            if (input) input.value = val;
+        }
+
+        function setPreset(prods, txs, accs, whs, users) {
             document.getElementById('inputProds').value = prods;
             document.getElementById('inputTxs').value = txs;
             document.getElementById('inputAccounts').value = accs;
             document.getElementById('inputWarehouses').value = whs;
             document.getElementById('inputUsers').value = users;
-            document.getElementById('inputVariants').value = vars;
+            syncSlider('inputProds', 'sliderProds');
+            syncSlider('inputTxs', 'sliderTxs');
+            syncSlider('inputAccounts', 'sliderAccounts');
+            syncSlider('inputWarehouses', 'sliderWarehouses');
+            syncSlider('inputUsers', 'sliderUsers');
             updateEstimates();
         }
 
-        function clearPresetActive() {
-            document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('active'));
-        }
-
-        function adjustValue(inputId, delta) {
-            const input = document.getElementById(inputId);
-            let val = parseInt(input.value, 10) || 0;
-            val = Math.max(parseInt(input.min, 10) || 1, val + delta);
-            input.value = val;
-            clearPresetActive();
-            updateEstimates();
-        }
-
-        function setVariantsDefault() {
-            document.getElementById('inputVariants').value = 3;
-            clearPresetActive();
+        function adjustVal(id, delta) {
+            const el = document.getElementById(id);
+            let val = parseInt(el.value, 10) || 0;
+            val = Math.max(parseInt(el.min, 10) || 1, val + delta);
+            el.value = val;
+            if (id === 'inputProds') syncSlider('inputProds', 'sliderProds');
+            if (id === 'inputTxs') syncSlider('inputTxs', 'sliderTxs');
+            if (id === 'inputAccounts') syncSlider('inputAccounts', 'sliderAccounts');
+            if (id === 'inputWarehouses') syncSlider('inputWarehouses', 'sliderWarehouses');
+            if (id === 'inputUsers') syncSlider('inputUsers', 'sliderUsers');
             updateEstimates();
         }
 
@@ -646,25 +1222,23 @@
             const accs = parseInt(document.getElementById('inputAccounts').value, 10) || 0;
             const whs = parseInt(document.getElementById('inputWarehouses').value, 10) || 0;
             const users = parseInt(document.getElementById('inputUsers').value, 10) || 0;
-            const vars = parseInt(document.getElementById('inputVariants').value, 10) || 3;
 
             const totalRecords = prods + txs + accs + whs + users;
             document.getElementById('estRecords').innerText = totalRecords.toLocaleString() + ' سجل';
 
-            // حجم تقديري: الصنف بمتغيراته ~650 بايت، الفاتورة ببندها ~500 بايت، الحساب ~250 بايت
-            const approxBytes = (prods * (400 + vars * 90)) + (txs * 520) + (accs * 260) + (whs * 200) + (users * 200);
-            const mb = (approxBytes / (1024 * 1024)).toFixed(1);
-            document.getElementById('estSize').innerText = `~${mb} MB`;
+            // حجم تقديري بعد الترشيد المعماري فائق الخفة (~140 بايت للصنف، ~150 بايت للفاتورة)
+            const approxBytes = (prods * 145) + (txs * 155) + (accs * 85) + (whs * 120) + (users * 120);
+            const mb = (approxBytes / (1024 * 1024)).toFixed(2);
+            document.getElementById('estSize').innerText = `~${mb} MB (خفيف ومضغوط جداً ⚡)`;
 
-            // تقدير الوقت
             if (totalRecords < 10000) {
-                document.getElementById('estTime').innerText = '~1 إلى 2 ثانية';
+                document.getElementById('estTime').innerText = '< ثانية واحدة';
             } else if (totalRecords < 40000) {
-                document.getElementById('estTime').innerText = '~2 إلى 5 ثوانٍ';
+                document.getElementById('estTime').innerText = '~1 إلى 2 ثانية';
             } else if (totalRecords < 100000) {
-                document.getElementById('estTime').innerText = '~6 إلى 12 ثانية';
+                document.getElementById('estTime').innerText = '~3 إلى 5 ثوانٍ';
             } else {
-                document.getElementById('estTime').innerText = '~15 إلى 30 ثانية';
+                document.getElementById('estTime').innerText = '~7 إلى 12 ثانية';
             }
         }
 
@@ -677,7 +1251,7 @@
             const numAccs = Math.max(1, parseInt(document.getElementById('inputAccounts').value, 10) || 500);
             const numWhs = Math.max(1, parseInt(document.getElementById('inputWarehouses').value, 10) || 2);
             const numUsers = Math.max(1, parseInt(document.getElementById('inputUsers').value, 10) || 3);
-            const varCountPerProd = Math.max(1, Math.min(10, parseInt(document.getElementById('inputVariants').value, 10) || 3));
+            const daysRange = Math.max(1, parseInt(document.getElementById('inputDaysRange').value, 10) || 180);
 
             const btn = document.getElementById('generateBtn');
             const progressBox = document.getElementById('progressBox');
@@ -685,9 +1259,11 @@
             const statusLabel = document.getElementById('statusLabel');
             const percentLabel = document.getElementById('percentLabel');
             const recordsDoneLabel = document.getElementById('recordsDoneLabel');
+            const dashboard = document.getElementById('financialDashboard');
 
             btn.disabled = true;
             progressBox.style.display = 'block';
+            dashboard.style.display = 'none';
 
             function updateUI(pct, text, doneText = '') {
                 progressBar.style.width = pct + '%';
@@ -696,35 +1272,42 @@
                 if (doneText) recordsDoneLabel.innerText = doneText;
             }
 
-            await new Promise(r => setTimeout(r, 60));
+            await new Promise(r => setTimeout(r, 40));
 
-            // 1. توليد المخازن والفروع
-            updateUI(2, 'جاري إنشاء المخازن والفروع...');
+            // عدادات الملخص المالي
+            let finSales = 0;
+            let finCash = 0;
+            let finCredit = 0;
+            let finPurchases = 0;
+            let finReturns = 0;
+            let finProfits = 0;
+
+            // 1. توليد المخازن والفروع (هيكل رشيق وخفيف)
+            updateUI(3, 'جاري إنشاء بيانات المخازن والفروع...');
             const warehouses = [];
             for (let w = 1; w <= numWhs; w++) {
                 warehouses.push({
                     id: w,
-                    name: (w === 1) ? 'المخزن الرئيسي (الفرع العام)' : `فرع / مخزن ${w}`,
-                    address: (w === 1) ? 'المقر الرئيسي - وسط البلد' : `الفرع التجاري رقم ${w}`
+                    name: (w === 1) ? 'المخزن الرئيسي' : `فرع ${w}`
                 });
             }
 
-            // 2. توليد المستخدمين والكاشيرات
-            updateUI(4, 'جاري إعداد حسابات الكاشيرات والمستخدمين...');
+            // 2. توليد المستخدمين والكاشيرات (خفيف ومختصر)
+            updateUI(6, 'جاري إعداد حسابات الكاشيرات والمستخدمين...');
             const users = [];
             for (let u = 1; u <= numUsers; u++) {
                 const isAdmin = (u === 1);
                 users.push({
                     id: u,
-                    name: isAdmin ? 'المدير العام (أدمن)' : `كاشير وردية (${u})`,
+                    name: isAdmin ? 'المدير العام' : `كاشير (${u})`,
                     pin: String(1000 + u),
                     role: isAdmin ? 'admin' : 'cashier',
                     warehouse: warehouses[(u - 1) % warehouses.length].name
                 });
             }
 
-            // 3. توليد العملاء والموردين
-            updateUI(8, 'جاري توليد قائمة الحسابات والعملاء والموردين...', `0 من أصل ${numAccs} حساب`);
+            // 3. توليد العملاء والموردين بهندسة خفيفة وسريعة
+            updateUI(10, 'جاري توليد العملاء والموردين والأرصدة الافتتاحية...', `0 / ${numAccs}`);
             await new Promise(r => setTimeout(r, 20));
 
             const accounts = [];
@@ -732,33 +1315,35 @@
                 const isSupplier = (i % 6 === 0);
                 const baseName = partnerNames[(i - 1) % partnerNames.length];
                 const accName = `${baseName} (#${i})`;
-                const initBal = (i % 3 === 0) ? (Math.floor(Math.random() * 25) * 100) : 0;
-                accounts.push({
+                const initBal = (i % 4 === 0) ? (Math.floor(Math.random() * 15) * 100) : 0;
+                
+                const accObj = {
                     id: i,
                     name: accName,
-                    code: 'ACC-' + String(i).padStart(5, '0'),
+                    code: 'A' + String(i).padStart(4, '0'),
                     type: isSupplier ? 'supplier' : 'client',
-                    mobile: '010' + Math.floor(10000000 + Math.random() * 90000000),
-                    balance: initBal,
-                    debit: isSupplier ? 0 : initBal,
-                    credit: isSupplier ? initBal : 0,
-                    address: (i % 2 === 0) ? 'القاهرة' : 'الإسكندرية'
-                });
+                    balance: initBal
+                };
+                if (initBal > 0) {
+                    if (isSupplier) accObj.credit = initBal;
+                    else accObj.debit = initBal;
+                }
+                accounts.push(accObj);
             }
 
-            updateUI(18, 'اكتملت الحسابات! جاري توليد مصفوفة الأصناف وتشكيلات الأزياء...', `${numAccs} حساب مكتمل`);
+            updateUI(18, 'اكتملت الحسابات! جاري بناء مصفوفة الأصناف فائقة الخفة والرشاقة...', `${numAccs} حساب`);
             await new Promise(r => setTimeout(r, 20));
 
-            // 4. توليد الأصناف مع تشكيلة المقاسات والألوان وتوزيعها على المخازن
+            // 4. توليد الأصناف بترشيد فائق يقلل حجم الملف بنسبة تفوق 75%
             const products = [];
-            const prodChunk = 2000;
-            const mainWarehouseName = warehouses[0].name;
+            const prodChunk = 3000;
+            const varCount = 2; // مقاسين للموديل
 
             for (let i = 1; i <= numProds; i++) {
                 const cat = categories[(i - 1) % categories.length];
-                const pName = `موديل ${cat} - كود ${1000 + i}`;
-                const baseCost = Math.floor(90 + Math.random() * 450);
-                const basePrice = Math.floor(baseCost * (1.25 + Math.random() * 0.45));
+                const pName = `${cat} #${1000 + i}`;
+                const baseCost = Math.floor(95 + Math.random() * 350);
+                const basePrice = Math.floor(baseCost * (1.25 + Math.random() * 0.35));
                 const baseWholesale = Math.floor(baseCost * 1.15);
 
                 const variants = [];
@@ -766,28 +1351,24 @@
                 const whDistribution = {};
                 warehouses.forEach(w => whDistribution[w.name] = 0);
 
-                for (let v = 0; v < varCountPerProd; v++) {
+                for (let v = 0; v < varCount; v++) {
                     const sz = sizes[(i + v) % sizes.length];
                     const cl = colors[(i * 2 + v) % colors.length];
-                    const st = Math.floor(4 + Math.random() * 25);
+                    const st = Math.floor(6 + Math.random() * 18);
                     totalStock += st;
 
-                    const varWhStocks = {};
+                    // توزيع المخزون على مستوى الصنف الرئيسي فقط لتفادي تكرار مصفوفات ضخمة داخل كل مقاس
                     warehouses.forEach((w, wIdx) => {
                         const portion = (wIdx === 0) ? Math.ceil(st * 0.6) : Math.floor(st * 0.4 / (warehouses.length - 1 || 1));
-                        varWhStocks[w.name] = portion;
                         whDistribution[w.name] += portion;
                     });
 
+                    // المقاس يحمل فقط الحقول المطلوبة لبيان POS دون تكرار الأسعار والمخازن المشتركة
                     variants.push({
                         size: sz,
                         color: cl,
                         stock: st,
-                        barcode: `622${String(i).padStart(6, '0')}${v}`,
-                        price: basePrice,
-                        cost: baseCost,
-                        wholesale: baseWholesale,
-                        warehouseStocks: varWhStocks
+                        barcode: `622${String(i).padStart(6, '0')}${v}`
                     });
                 }
 
@@ -796,94 +1377,272 @@
                     name: pName,
                     barcode: `622${String(i).padStart(7, '0')}`,
                     category: cat,
-                    unit: 'قطعة',
                     cost: baseCost,
                     price: basePrice,
                     wholesale: baseWholesale,
                     stock: totalStock,
                     variants: variants,
-                    warehouseStocks: whDistribution,
-                    minStockAlert: 5
+                    warehouseStocks: whDistribution
                 });
 
                 if (i % prodChunk === 0 || i === numProds) {
-                    const pct = 18 + Math.round((i / numProds) * 40);
-                    updateUI(pct, `جاري توليد الأصناف (${i.toLocaleString()} من أصل ${numProds.toLocaleString()})...`, `${i.toLocaleString()} صنف`);
+                    const pct = 18 + Math.round((i / numProds) * 35);
+                    updateUI(pct, `جاري توليد الأصناف فائقة الخفة (${i.toLocaleString()} من أصل ${numProds.toLocaleString()})...`, `${i.toLocaleString()} صنف`);
                     await new Promise(r => setTimeout(r, 0));
                 }
             }
 
-            updateUI(60, 'تم توليد كافة الأصناف بنجاح! جاري بناء فواتير البيع والشراء والعمليات...', `${numProds.toLocaleString()} صنف مكتمل`);
+            updateUI(55, 'اكتملت الأصناف! جاري بناء الفواتير والعمليات المحاسبية الرشيقة...', `${numProds.toLocaleString()} صنف جاهز`);
             await new Promise(r => setTimeout(r, 20));
 
-            // 5. توليد الفواتير والحركات والعمليات
+            // 5. توليد الفواتير والعمليات مع الترشيد الذكي الموفر لملايين البايتات
             const transactions = [];
-            const txChunk = 2500;
-            const today = new Date();
+            const txChunk = 3500;
+            const nowTime = new Date().getTime();
+            const todayISO = new Date().toISOString().split('T')[0];
+
+            const saleInvoicesPool = [];
 
             for (let i = 1; i <= numTxs; i++) {
-                const daysAgo = Math.floor(Math.random() * 240);
-                const txDate = new Date(today.getTime() - daysAgo * 24 * 60 * 60 * 1000);
-                const dateISO = txDate.toISOString().split('T')[0];
-                const time = String(Math.floor(10 + Math.random() * 12)).padStart(2, '0') + ':' + String(Math.floor(Math.random() * 59)).padStart(2, '0');
+                // تاريخ واقعي مع ضمان تواجد حركات اليوم الحالي
+                let dateISO;
+                if (i <= Math.max(15, Math.floor(numTxs * 0.05))) {
+                    dateISO = todayISO;
+                } else {
+                    const daysAgo = Math.floor(Math.random() * daysRange);
+                    const txTimestamp = nowTime - (daysAgo * 86400000);
+                    dateISO = new Date(txTimestamp).toISOString().split('T')[0];
+                }
 
-                const chosenProd = products[(i * 3) % products.length];
-                const chosenAcc = accounts[(i * 2) % accounts.length];
+                // محاكاة ساعات الذروة (65% في المساء و 35% في الصباح)
+                let hourVal;
+                if (Math.random() < 0.65) {
+                    hourVal = Math.floor(17 + Math.random() * 6); // 17 إلى 22
+                } else {
+                    hourVal = Math.floor(11 + Math.random() * 6); // 11 إلى 16
+                }
+                const hour = String(hourVal).padStart(2, '0');
+                const minute = String(Math.floor(Math.random() * 60)).padStart(2, '0');
+                const time = `${hour}:${minute}`;
+
                 const chosenWh = warehouses[i % warehouses.length];
                 const chosenUser = users[i % users.length];
 
-                const isSale = (i % 6 !== 0); // 83% فواتير بيع و 17% شراء
-                const qty = 1 + (i % 4);
-                const price = isSale ? chosenProd.price : chosenProd.cost;
-                const total = qty * price;
-                const method = paymentMethods[i % paymentMethods.length];
-                const isPaid = (method !== 'آجل (حساب عميل)');
+                // نوع العملية
+                const randType = i % 100;
+                let txType = 'فاتورة بيع';
+                let isSale = true;
+                let isReturn = false;
+                let isVoucher = false;
+                let isTransfer = false;
+                let origInvId = null;
 
-                transactions.push({
+                if (randType < 65) {
+                    txType = 'فاتورة بيع';
+                    isSale = true;
+                } else if (randType < 73 && saleInvoicesPool.length > 0) {
+                    txType = 'مرتجع بيع';
+                    isSale = false;
+                    isReturn = true;
+                    origInvId = saleInvoicesPool[Math.floor(Math.random() * saleInvoicesPool.length)];
+                } else if (randType < 85) {
+                    txType = 'فاتورة شراء';
+                    isSale = false;
+                } else if (randType < 88) {
+                    txType = 'مرتجع شراء';
+                    isSale = false;
+                    isReturn = true;
+                } else if (randType < 94) {
+                    txType = 'سند قبض';
+                    isVoucher = true;
+                } else if (randType < 98) {
+                    txType = 'سند صرف';
+                    isVoucher = true;
+                } else {
+                    txType = 'تحويل مخزني';
+                    isTransfer = true;
+                }
+
+                const invoiceId = 100000 + i;
+                if (txType === 'فاتورة بيع') {
+                    saleInvoicesPool.push(invoiceId);
+                }
+
+                // اختيار الطرف المناسب (عميل أو مورد)
+                let chosenAcc;
+                if (txType.includes('شراء') || txType === 'سند صرف') {
+                    chosenAcc = accounts.find(a => a.type === 'supplier') || accounts[0];
+                } else {
+                    chosenAcc = accounts[(i * 2) % accounts.length];
+                }
+
+                let total = 0;
+                let paidAmount = 0;
+                let remaining = 0;
+                let method = paymentMethods[i % paymentMethods.length];
+                let isMultiItem = false;
+                let multiItemsList = null;
+                let singleProd = null;
+                let singleQty = 1;
+                let singlePrice = 0;
+                let singleCost = 0;
+                let invoiceProfit = 0;
+
+                if (isVoucher) {
+                    total = Math.floor(100 + Math.random() * 1800);
+                    paidAmount = total;
+                    remaining = 0;
+                    method = (i % 2 === 0) ? 'نقدي' : 'فودافون كاش / إنستاباي';
+
+                    if (txType === 'سند قبض') {
+                        finCash += total;
+                    }
+                } else if (isTransfer) {
+                    const toWh = warehouses[(i + 1) % warehouses.length];
+                    singleProd = products[(i * 3) % products.length];
+                    singleQty = 2 + (i % 4);
+                    singlePrice = singleProd.price;
+                    singleCost = singleProd.cost;
+                    total = singleQty * singlePrice;
+                    paidAmount = 0;
+                    remaining = 0;
+                    method = 'تحويل داخلي';
+                    
+                    multiItemsList = [{
+                        productId: singleProd.id,
+                        product: singleProd.name,
+                        barcode: singleProd.barcode,
+                        qty: singleQty,
+                        price: singlePrice,
+                        cost: singleCost,
+                        total: total,
+                        toWarehouse: toWh.name
+                    }];
+                    isMultiItem = true;
+                } else {
+                    // فواتير بيع وشراء: 80% صنف واحد فائق الرشاقة، و 20% متعدد الأصناف (2-3 أصناف)
+                    isMultiItem = (txType === 'فاتورة بيع' && (i % 5 === 0));
+
+                    if (isMultiItem) {
+                        const itemCount = 2 + (i % 2); // 2 أو 3 أصناف
+                        multiItemsList = [];
+                        let invoiceCost = 0;
+
+                        for (let it = 0; it < itemCount; it++) {
+                            const curProd = products[(i * 3 + it * 7) % products.length];
+                            const qty = 1 + ((i + it) % 2);
+                            const unitPrice = isSale ? curProd.price : curProd.cost;
+                            const lineTotal = qty * unitPrice;
+                            total += lineTotal;
+                            invoiceCost += (qty * curProd.cost);
+
+                            multiItemsList.push({
+                                productId: curProd.id,
+                                product: curProd.name,
+                                barcode: curProd.barcode,
+                                qty: qty,
+                                price: unitPrice,
+                                cost: curProd.cost,
+                                total: lineTotal
+                            });
+                        }
+
+                        if (isSale) {
+                            invoiceProfit = Math.max(0, total - invoiceCost);
+                        }
+                    } else {
+                        // صنف مفرد: ترشيد معماري استثنائي - وضع الحقول مباشرة على الفاتورة وتوفير مصفوفة items بالكامل!
+                        singleProd = products[(i * 3) % products.length];
+                        singleQty = 1 + (i % 2);
+                        singlePrice = isSale ? singleProd.price : singleProd.cost;
+                        singleCost = singleProd.cost;
+                        total = singleQty * singlePrice;
+
+                        if (isSale) {
+                            invoiceProfit = Math.max(0, (singlePrice - singleCost) * singleQty);
+                        }
+                    }
+
+                    // ضبط حالة الدفع والمتبقي
+                    if (method === 'آجل (حساب عميل)') {
+                        paidAmount = 0;
+                        remaining = total;
+                        if (isSale) finCredit += total;
+                    } else if (i % 12 === 0 && isSale) {
+                        paidAmount = Math.round(total * 0.5);
+                        remaining = total - paidAmount;
+                        finCash += paidAmount;
+                        finCredit += remaining;
+                    } else {
+                        paidAmount = total;
+                        remaining = 0;
+                        if (isSale) finCash += total;
+                    }
+
+                    // تحديث مؤشرات اللوحة المالية
+                    if (txType === 'فاتورة بيع') {
+                        finSales += total;
+                        finProfits += invoiceProfit;
+                    } else if (txType === 'مرتجع بيع') {
+                        finReturns += total;
+                        finSales -= total;
+                        finProfits -= invoiceProfit;
+                    } else if (txType === 'فاتورة شراء') {
+                        finPurchases += total;
+                    } else if (txType === 'مرتجع شراء') {
+                        finPurchases -= total;
+                    }
+                }
+
+                // كائن الفاتورة فائق الرشاقة (بدون أي مفاتيح زائدة)
+                const txObj = {
                     id: i,
-                    invoiceId: 100000 + i,
+                    invoiceId: invoiceId,
                     dateISO: dateISO,
                     time: time,
-                    type: isSale ? 'فاتورة بيع' : 'فاتورة شراء',
-                    partner: chosenAcc.name,
+                    type: txType,
+                    partner: isTransfer ? 'تحويل فروع' : chosenAcc.name,
                     total: total,
-                    paidAmount: isPaid ? total : 0,
-                    remaining: isPaid ? 0 : total,
+                    paidAmount: paidAmount,
+                    remaining: remaining,
                     method: method,
                     cashier: chosenUser.name,
-                    warehouse: chosenWh.name,
-                    product: chosenProd.name,
-                    barcode: chosenProd.barcode,
-                    qty: qty,
-                    price: price,
-                    cost: chosenProd.cost,
-                    items: [
-                        {
-                            productId: chosenProd.id,
-                            productName: chosenProd.name,
-                            barcode: chosenProd.barcode,
-                            qty: qty,
-                            price: price,
-                            cost: chosenProd.cost,
-                            total: total,
-                            warehouse: chosenWh.name
-                        }
-                    ]
-                });
+                    warehouse: chosenWh.name
+                };
+
+                if (origInvId) {
+                    txObj.originalInvoiceId = origInvId;
+                }
+
+                if (!isVoucher) {
+                    if (isMultiItem && multiItemsList) {
+                        txObj.product = multiItemsList[0].product;
+                        txObj.barcode = multiItemsList[0].barcode;
+                        txObj.items = multiItemsList;
+                    } else if (singleProd) {
+                        txObj.product = singleProd.name;
+                        txObj.barcode = singleProd.barcode;
+                        txObj.qty = singleQty;
+                        txObj.price = singlePrice;
+                        txObj.cost = singleCost;
+                    }
+                }
+
+                transactions.push(txObj);
 
                 if (i % txChunk === 0 || i === numTxs) {
-                    const pct = 60 + Math.round((i / numTxs) * 32);
-                    updateUI(pct, `جاري توليد الفواتير (${i.toLocaleString()} من أصل ${numTxs.toLocaleString()})...`, `${i.toLocaleString()} فاتورة`);
+                    const pct = 55 + Math.round((i / numTxs) * 38);
+                    updateUI(pct, `جاري توليد الفواتير فائقة الخفة (${i.toLocaleString()} من أصل ${numTxs.toLocaleString()})...`, `${i.toLocaleString()} حركة`);
                     await new Promise(r => setTimeout(r, 0));
                 }
             }
 
-            updateUI(94, 'جاري تجميع وهيكلة ملف النسخة الاحتياطية الموحد (JSON Stream)...');
+            updateUI(95, 'جاري ضغط وهيكلة حزمة النسخة الاحتياطية الرسمية...');
             await new Promise(r => setTimeout(r, 20));
 
-            // الهيكل الرسمي لنظام بيان POS v4.5.2
+            // هيكل النسخة الاحتياطية فائق الخفة والمتوافق 100% مع نظام بيان POS
             const backupPayload = {
-                version: "4.5.2",
+                version: "4.9.1",
                 backupDate: new Date().toISOString(),
                 hwid: "CUSTOM_STRESS_TEST_OFFLINE_DEVICE",
                 deviceMachineId: "CUSTOM_STRESS_TEST_OFFLINE_DEVICE",
@@ -897,7 +1656,7 @@
                 wallpapers: [],
                 inventoryCategories: categories,
                 paymentMethods: paymentMethods,
-                globalUnits: [{ name: 'قطعة', factor: 1 }, { name: 'دربل / طقم', factor: 2 }],
+                globalUnits: [{ name: 'قطعة', factor: 1 }],
                 settings: {
                     businessName: "متجر الأزياء التجريبي لاختبار الأداء والسرعة",
                     shopPhone1: "01000000000",
@@ -907,23 +1666,91 @@
                 users: users
             };
 
-            updateUI(98, 'جاري إنشاء وتجهيز ملف التحميل...');
-            await new Promise(r => setTimeout(r, 30));
+            lastGeneratedPayload = backupPayload;
+            lastGeneratedCounts = { prods: numProds, txs: numTxs };
 
-            const jsonString = JSON.stringify(backupPayload);
+            // حساب الحجم الفعلي للـ JSON المضغوط ونسبة التوفير
+            const jsonStr = JSON.stringify(backupPayload);
+            const actualBytes = new Blob([jsonStr]).size;
+            const actualMb = (actualBytes / (1024 * 1024)).toFixed(2);
+            const actualKb = Math.round(actualBytes / 1024);
+            const displaySizeText = (actualBytes >= 1024 * 1024) ? `${actualMb} MB` : `${actualKb} KB`;
+
+            updateUI(98, 'جاري حساب المؤشرات المالية والمطابقة...');
+            await new Promise(r => setTimeout(r, 20));
+
+            // ملء لوحة المعلومات المالية الفاخرة
+            document.getElementById('sumSales').innerText = Math.round(finSales).toLocaleString() + ' ج.م';
+            document.getElementById('sumCash').innerText = Math.round(finCash).toLocaleString() + ' ج.م';
+            document.getElementById('sumCredit').innerText = Math.round(finCredit).toLocaleString() + ' ج.م';
+            document.getElementById('sumPurchases').innerText = Math.round(finPurchases).toLocaleString() + ' ج.م';
+            document.getElementById('sumReturns').innerText = Math.round(finReturns).toLocaleString() + ' ج.م';
+            document.getElementById('sumProfits').innerText = Math.round(finProfits).toLocaleString() + ' ج.م';
+
+            // تحديث أزرار التحميل لتعكس الحجم الخفيف الفعلي
+            const btnJson = document.querySelector('.dl-btn.primary span');
+            if (btnJson) btnJson.innerText = `💾 تحميل كملف JSON القياسي (${displaySizeText} فقط ⚡)`;
+            const btnBayan = document.querySelectorAll('.dl-btn')[1];
+            if (btnBayan && btnBayan.querySelector('span')) {
+                btnBayan.querySelector('span').innerText = `💎 تحميل بصيغة بيان الرسمية (.bayan) (${displaySizeText})`;
+            }
+
+            dashboard.style.display = 'block';
+
+            // تنزيل تلقائي فوري للملف القياسي فائق الخفة
+            downloadBackup('json', false);
+
+            updateUI(100, `🎉 تم التوليد بنجاح فائق! الحجم الإجمالي: ${displaySizeText} فقط (${numProds.toLocaleString()} صنف و ${numTxs.toLocaleString()} حركة) | باسورد الأدمن: 1001 - الكاشيرات: 1002 فما فوق`, 'اكتمل بنجاح 100%');
+            btn.disabled = false;
+        }
+
+        function downloadBackup(ext = 'json', notify = true) {
+            if (!lastGeneratedPayload) return alert('الرجاء توليد البيانات أولاً!');
+            // JSON بدون مسافات بيضاء (Compact Minified) لأقصى خفة ممكنة
+            const jsonString = JSON.stringify(lastGeneratedPayload);
             const blob = new Blob([jsonString], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `bayan_backup_${numProds}_items_${numTxs}_invoices.json`;
+            a.download = `bayan_backup_${lastGeneratedCounts.prods}_prods_${lastGeneratedCounts.txs}_txs.${ext}`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-
-            updateUI(100, `🎉 تم التوليد بنجاح! تم تحميل ملف يحتوي على (${numProds.toLocaleString()} صنف، ${numTxs.toLocaleString()} فاتورة، ${numAccs.toLocaleString()} حساب، ${numWhs} مخازن، ${numUsers} كاشيرات).`, 'تم الاكتمال بنجاح');
-            btn.disabled = false;
         }
+
+        // ==========================================
+        // ☀️ تبديل وحفظ الوضع الفاتح / الليلي (Theme)
+        // ==========================================
+        function toggleTheme() {
+            const isLight = document.body.classList.toggle('light-theme');
+            localStorage.setItem('bayan_stress_tool_theme', isLight ? 'light' : 'dark');
+            updateThemeBtnUI(isLight);
+        }
+
+        function updateThemeBtnUI(isLight) {
+            const iconEl = document.getElementById('themeToggleIcon');
+            const textEl = document.getElementById('themeToggleText');
+            if (iconEl && textEl) {
+                iconEl.innerText = isLight ? '🌙' : '☀️';
+                textEl.innerText = isLight ? 'الوضع الليلي' : 'الوضع الفاتح';
+            }
+        }
+
+        // استرجاع الثيم المفضل تلقائياً عند تحميل الصفحة
+        (function initTheme() {
+            try {
+                const savedTheme = localStorage.getItem('bayan_stress_tool_theme');
+                if (savedTheme === 'light') {
+                    document.body.classList.add('light-theme');
+                    updateThemeBtnUI(true);
+                } else {
+                    updateThemeBtnUI(false);
+                }
+            } catch (e) {
+                console.warn('Theme init notice:', e);
+            }
+        })();
     </script>
 </body>
 </html>

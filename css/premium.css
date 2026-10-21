@@ -245,6 +245,12 @@ body.dark-mode table tbody tr:hover {
     display: block;
 }
 
+.plan-card.active-plan::after,
+.plan-card.plan-active-emerald::after,
+.plan-card.plan-expired-card::after {
+    display: none !important;
+}
+
 .plan-badge-icon {
     width: 54px;
     height: 54px;
@@ -676,15 +682,16 @@ body.dark-mode table tbody tr:hover {
 .pricing-mode-banner {
     max-width: 900px !important;
     width: 100% !important;
+    margin: 14px auto 16px auto !important;
     background: #f8fafc !important;
     border: 1.5px solid #cbd5e1 !important;
     border-radius: 14px !important;
-    padding: 9px 18px !important;
+    padding: 10px 20px !important;
     display: flex !important;
     align-items: center !important;
     gap: 10px !important;
     font-size: 0.88rem !important;
-    color: #334155 !important;
+    color: #1e293b !important;
     transition: all 0.3s ease !important;
     box-sizing: border-box !important;
 }
@@ -700,23 +707,13 @@ body.dark-mode table tbody tr:hover {
     color: #0284c7 !important;
 }
 
-/* شارات وكروت المزامنة السحابية */
+/* إخفاء الشارة المكررة داخل الكروت لمنع تكرار وتداخل النصوص */
 .cloud-highlight-badge {
     display: none !important;
-    background: linear-gradient(135deg, #0284c7, #0369a1) !important;
-    color: #ffffff !important;
-    font-size: 0.74rem !important;
-    font-weight: 900 !important;
-    padding: 4px 12px !important;
-    border-radius: 20px !important;
-    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3) !important;
-    margin-bottom: 8px !important;
-    letter-spacing: -0.2px !important;
 }
 
 .cloud-mode-active .cloud-highlight-badge {
-    display: inline-block !important;
-    animation: fadeInGift 0.3s ease !important;
+    display: none !important;
 }
 
 .cloud-mode-active #plan-الباقة\ الأساسية {
@@ -736,6 +733,24 @@ body.dark-mode table tbody tr:hover {
     box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35) !important;
 }
 
+.cloud-mode-active #plan-الباقة\ الأساسية:not(.active-plan):not(.plan-active-emerald)::after {
+    content: "🌱 مرونة شهرية متكاملة";
+    position: absolute;
+    top: -13px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    color: #ffffff;
+    padding: 4px 16px;
+    border-radius: 50px;
+    font-size: 0.76rem;
+    font-weight: 900;
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.35);
+    border: 2px solid #ffffff;
+    white-space: nowrap;
+    z-index: 10;
+}
+
 .cloud-mode-active #plan-الباقة\ المتقدمة {
     border: 2.5px solid #0284c7 !important;
     box-shadow: 0 16px 36px -6px rgba(2, 132, 199, 0.35) !important;
@@ -743,34 +758,100 @@ body.dark-mode table tbody tr:hover {
 
 .cloud-mode-active #plan-الباقة\ المتقدمة::after {
     background: linear-gradient(135deg, #0284c7, #0369a1) !important;
-    content: "☁️ السنوية السحابية - الأكثر توفيراً" !important;
+    content: "🔥 الأكثر توفيراً والأفضل قيمة (2,200 ج.م)" !important;
     box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45) !important;
 }
 
 .cloud-mode-active #plan-الباقة\ الاحترافية::after {
     background: linear-gradient(135deg, #b45309, #d97706) !important;
-    content: "👑 ترخيص دائم + سنة سيرفر هدية 🎁" !important;
+    content: "👑 امتلاك دائم للأبد (6,000 ج.م)" !important;
     box-shadow: 0 4px 14px rgba(217, 119, 6, 0.45) !important;
 }
 
 .lifetime-cloud-gift-box {
-    display: none;
+    display: block !important;
     background: linear-gradient(135deg, #fffbeb, #fef3c7);
     border: 1.5px dashed #f59e0b;
     border-radius: 12px;
-    padding: 8px 10px;
+    padding: 8px 12px;
     margin: 8px 0;
     color: #92400e;
     font-size: 0.78rem;
     font-weight: 900;
-    line-height: 1.4;
+    line-height: 1.45;
     box-shadow: 0 2px 6px rgba(245, 158, 11, 0.15);
     text-align: right;
 }
 
-.cloud-mode-active .lifetime-cloud-gift-box {
-    display: block !important;
-    animation: fadeInGift 0.3s ease;
+/* ======================================================== */
+/* 🌙 دعم الثيم الداكن لكروت الباقات والتراخيص (Dark Mode) */
+/* ======================================================== */
+body.dark-mode .sub-plans {
+    background: #0f172a !important;
+}
+
+body.dark-mode .plan-card {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
+}
+
+body.dark-mode .plan-card:hover {
+    border-color: #475569 !important;
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45) !important;
+}
+
+body.dark-mode .plan-name {
+    color: #f8fafc !important;
+}
+
+body.dark-mode .plan-desc {
+    color: #94a3b8 !important;
+}
+
+body.dark-mode .plan-price {
+    color: #ffffff !important;
+}
+
+body.dark-mode #trialInvoicesCount {
+    color: #38bdf8 !important;
+}
+
+body.dark-mode .plan-features li {
+    color: #cbd5e1 !important;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.08) !important;
+}
+
+body.dark-mode .plan-features li .check-icon {
+    color: #34d399 !important;
+}
+
+body.dark-mode .pricing-mode-banner {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f1f5f9 !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+}
+
+body.dark-mode .pricing-mode-banner b {
+    color: #38bdf8 !important;
+}
+
+body.dark-mode .pricing-mode-banner.is-cloud {
+    background: #0c4a6e !important;
+    border-color: #0284c7 !important;
+    color: #f0f9ff !important;
+    box-shadow: 0 4px 18px rgba(2, 132, 199, 0.35) !important;
+}
+
+body.dark-mode .pricing-mode-banner.is-cloud b {
+    color: #7dd3fc !important;
+}
+
+body.dark-mode .lifetime-cloud-gift-box {
+    background: linear-gradient(135deg, #2d2010, #38230b) !important;
+    border-color: #d97706 !important;
+    color: #fde68a !important;
 }
 
 @keyframes fadeInGift {
