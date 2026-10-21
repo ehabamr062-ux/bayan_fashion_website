@@ -1014,6 +1014,13 @@
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_items_date_prod ON transaction_items(dateISO, productName);");
             } catch(e) {}
+            // تأمين وجود مستخدم ومخزن افتراضي في حال كانت الجداول فارغة عند التثبيت الجديد أو بعد التصفير
+            try {
+                this.db.run(`
+                    INSERT OR IGNORE INTO warehouses (id, name, address) VALUES (1, 'المخزن الرئيسي', 'المقر الرئيسي');
+                    INSERT OR IGNORE INTO users (id, name, pin, role) VALUES (1, 'المدير', '1234', 'admin');
+                `);
+            } catch(e) {}
         }
 
         /**

@@ -7925,6 +7925,11 @@
                                     style="background: #ffffff; color: #475569; border: 1.5px solid #cbd5e1; padding: 7px 14px; border-radius: 10px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s;">
                                     <span>⏰</span> النسخ التلقائي
                                 </button>
+                                <button type="button" class="data-subnav-pill" data-subnav="reset"
+                                    onclick="window.switchDataSubSection('reset')"
+                                    style="background: #ffffff; color: #dc2626; border: 1.5px solid #fecaca; padding: 7px 14px; border-radius: 10px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s;">
+                                    <span>💣</span> تصفير البيانات
+                                </button>
                                 <button type="button" class="data-subnav-pill" data-subnav="all"
                                     onclick="window.switchDataSubSection('all')"
                                     style="background: #ffffff; color: #64748b; border: 1.5px solid #e2e8f0; padding: 7px 14px; border-radius: 10px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; margin-right: auto; transition: 0.2s;">
@@ -8105,6 +8110,39 @@
                                         <span style="font-size: 0.82rem; font-weight: 900; color: #475569;">ضبط مواعيد
                                             التكرار</span>
                                         <span style="font-size: 1rem; color: #475569; font-weight: 900;">⬅️</span>
+                                    </div>
+                                </div>
+
+                                <!-- 6. كارت تصفير قاعدة البيانات والبدء من الصفر -->
+                                <div onclick="window.switchDataSubSection('reset')"
+                                    style="background: linear-gradient(145deg, #ffffff, #fef2f2); border: 2px solid #fecaca; border-radius: 22px; padding: 24px; cursor: pointer; transition: all 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); box-shadow: 0 4px 15px rgba(220,38,38,0.05); display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden;"
+                                    onmouseover="this.style.transform='translateY(-6px) scale(1.02)'; this.style.borderColor='#ef4444'; this.style.boxShadow='0 20px 35px rgba(220,38,38,0.12), 0 0 0 4px rgba(220,38,38,0.08)';"
+                                    onmouseout="this.style.transform='translateY(0) scale(1)'; this.style.borderColor='#fecaca'; this.style.boxShadow='0 4px 15px rgba(220,38,38,0.05)';">
+                                    <div>
+                                        <div
+                                            style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 14px;">
+                                            <div
+                                                style="width: 52px; height: 52px; border-radius: 16px; background: linear-gradient(135deg, #fee2e2, #fecaca); border: 1px solid #f87171; display: flex; align-items: center; justify-content: center; font-size: 1.7rem; box-shadow: inset 0 2px 5px rgba(255,255,255,0.9), 0 4px 12px rgba(220,38,38,0.15);">
+                                                💣
+                                            </div>
+                                            <span
+                                                style="background: #fee2e2; color: #b91c1c; border: 1px solid #fca5a5; padding: 3px 10px; border-radius: 14px; font-size: 0.78rem; font-weight: 900;">
+                                                🔐 حماية المدير فقط
+                                            </span>
+                                        </div>
+                                        <h4
+                                            style="margin: 0 0 6px; color: #991b1b; font-size: 1.12rem; font-weight: 900;">
+                                            تصفير قاعدة البيانات (إعادة ضبط المصنع)
+                                        </h4>
+                                        <p
+                                            style="margin: 0; font-size: 0.85rem; color: #475569; font-weight: 700; line-height: 1.5;">
+                                            مسح الفواتير والأصناف للبدء من الفاتورة رقم 1 مع الحفاظ التام على الترخيص والمدير.
+                                        </p>
+                                    </div>
+                                    <div
+                                        style="display: flex; justify-content: space-between; align-items: center; margin-top: 18px; border-top: 1px dashed #fecaca; padding-top: 12px;">
+                                        <span style="font-size: 0.82rem; font-weight: 900; color: #dc2626;">فتح قسم التصفير</span>
+                                        <span style="font-size: 1rem; color: #dc2626; font-weight: 900;">⬅️</span>
                                     </div>
                                 </div>
 
