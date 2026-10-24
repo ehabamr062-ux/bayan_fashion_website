@@ -768,15 +768,9 @@
                     limit: 5000
                 });
                 if (sqlFiltered && sqlFiltered.length > 0) {
-                    if (typeof window.safelyMergeTransactionsBulk === 'function') {
-                        window.safelyMergeTransactionsBulk(sqlFiltered);
-                    } else if (typeof window.safelyMergeTransactionIntoMemory === 'function') {
-                        sqlFiltered.forEach(t => { if (t) window.safelyMergeTransactionIntoMemory(t); });
-                    }
-                    if (typeof window.deduplicateTransactionsMemory === 'function') {
-                        window.deduplicateTransactionsMemory();
-                    }
                     rawData = sqlFiltered;
+                } else {
+                    rawData = [];
                 }
             } else if ((fromDate || toDate) && typeof window.loadTransactionsForDateRange === 'function') {
                 const todayISO = new Date().toLocaleDateString('en-CA');
@@ -1010,33 +1004,55 @@
             finalData.reverse(); // عرض الأحدث أولاً
 
             // 🆕 حساب الإجماليات للشريط الملخص
-
             let sumTotal = 0, sumPaid = 0, sumDebt = 0, sumProfit = 0;
+            let totalMatchingInvoices = finalData.length;
+            let hasSqlSummary = false;
 
-            finalData.forEach(t => {
-                const isRejectedTransfer = t.type && t.type.includes('تحويل') && t.transferStatus === 'rejected';
-                if (isRejectedTransfer) {
-                    // التحويلات المرفوضة ملغاة ولا تدخل في إجماليات الفواتير المحاسبية
-                    return;
+            if (window.BayanSQLite && typeof window.BayanSQLite.getInvoicesSummary === 'function' && !searchProduct && searchMethod === 'all' && (fromDate || toDate || searchId || searchPartner || (typeFilter && typeFilter !== 'all') || whFilterVal)) {
+                try {
+                    const sqlInvSummary = window.BayanSQLite.getInvoicesSummary({
+                        fromDate,
+                        toDate,
+                        type: typeFilter,
+                        warehouse: whFilterVal,
+                        partner: searchPartner,
+                        searchId: searchId
+                    });
+                    if (sqlInvSummary && sqlInvSummary.invCount > 0) {
+                        sumTotal = sqlInvSummary.sumTotal;
+                        sumPaid = sqlInvSummary.sumPaid;
+                        sumDebt = sqlInvSummary.sumRemaining;
+                        sumProfit = sqlInvSummary.sumProfit;
+                        totalMatchingInvoices = sqlInvSummary.invCount;
+                        hasSqlSummary = true;
+                    }
+                } catch (e) {
+                    console.warn("[Invoices] SQLite summary fallback:", e);
                 }
+            }
 
-                sumTotal += (parseFloat(t.total) || 0);
+            if (!hasSqlSummary) {
+                finalData.forEach(t => {
+                    const isRejectedTransfer = t.type && t.type.includes('تحويل') && t.transferStatus === 'rejected';
+                    if (isRejectedTransfer) {
+                        // التحويلات المرفوضة ملغاة ولا تدخل في إجماليات الفواتير المحاسبية
+                        return;
+                    }
 
-                sumPaid += (parseFloat(t.paid) || 0);
+                    sumTotal += (parseFloat(t.total) || 0);
+                    sumPaid += (parseFloat(t.paid) || 0);
+                    sumDebt += (parseFloat(t.remaining) || 0);
 
-                sumDebt += (parseFloat(t.remaining) || 0);
+                    // حساب وتخصيص الربح الصافي بما يشمل خصم مرتجع البيع بالسالب
+                    const rawP = parseFloat(t.profit) || 0;
+                    if (t.type && t.type.includes('مرتجع بيع')) {
+                        sumProfit += (rawP > 0 ? -rawP : rawP);
+                    } else if (t.type && !t.type.includes('مرتجع')) {
+                        sumProfit += rawP;
+                    }
+                });
+            }
 
-                // حساب وتخصيص الربح الصافي بما يشمل خصم مرتجع البيع بالسالب
-                const rawP = parseFloat(t.profit) || 0;
-                if (t.type && t.type.includes('مرتجع بيع')) {
-                    sumProfit += (rawP > 0 ? -rawP : rawP);
-                } else if (t.type && !t.type.includes('مرتجع')) {
-                    sumProfit += rawP;
-                }
-
-            });
-
-            const totalMatchingInvoices = finalData.length;
             const limit = window.invoicesRenderLimit || 500;
             const displayedInvoices = finalData.slice(0, limit);
             const hasMore = totalMatchingInvoices > displayedInvoices.length;

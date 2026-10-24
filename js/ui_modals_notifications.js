@@ -3192,6 +3192,7 @@
 
         function selectHistoryRow(idx) {
             selectedHistoryIndex = idx;
+            window.selectedHistoryIndex = idx;
             const tbody = document.getElementById('historyTableBody');
             if (!tbody) return;
             tbody.querySelectorAll('tr').forEach(tr => {
@@ -3204,6 +3205,16 @@
                 targetRow.classList.add('selected-row');
                 const rad = targetRow.querySelector('input[type="radio"]');
                 if (rad) rad.checked = true;
+                const invId = targetRow.getAttribute('data-invoice-id');
+                const invType = targetRow.getAttribute('data-invoice-type');
+                if (invId) {
+                    window.selectedHistoryInvoiceId = invId;
+                    window.selectedInvoiceId = invId;
+                }
+                if (invType) {
+                    window.selectedHistoryInvoiceType = invType;
+                    window.selectedInvoiceType = invType;
+                }
             }
         }
 
@@ -3261,6 +3272,8 @@
                 const activeIdx = (isInv ? selectedInvoiceIndex : selectedHistoryIndex);
                 if (activeIdx !== null && activeIdx !== undefined && transactions[activeIdx]) {
                     t = transactions[activeIdx];
+                } else if (!isInv && window._currentHistoryDisplayed && activeIdx !== null && window._currentHistoryDisplayed[activeIdx]) {
+                    t = window._currentHistoryDisplayed[activeIdx];
                 }
             }
 
@@ -3431,11 +3444,11 @@
 
         function editSelectedInvoice() {
             const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
-            let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : null;
-            let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : null;
+            let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : (window.selectedInvoiceId || window.selectedHistoryInvoiceId || null);
+            let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : (window.selectedInvoiceType || window.selectedHistoryInvoiceType || null);
             let t = null;
 
-            if (isInv && invId) {
+            if (invId) {
                 t = transactions.find(x => String(x.invoiceId) === String(invId) && (!invType || (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(x.type, invType) : x.type === invType)));
                 if (!t) t = transactions.find(x => String(x.invoiceId) === String(invId));
             }
@@ -3444,6 +3457,10 @@
                 const activeIdx = isInv ? selectedInvoiceIndex : selectedHistoryIndex;
                 if (activeIdx !== null && activeIdx !== undefined && activeIdx !== -1 && transactions[activeIdx]) {
                     t = transactions[activeIdx];
+                    if (!invId) invId = t.invoiceId;
+                    if (!invType) invType = t.type;
+                } else if (!isInv && window._currentHistoryDisplayed && activeIdx !== null && window._currentHistoryDisplayed[activeIdx]) {
+                    t = window._currentHistoryDisplayed[activeIdx];
                     if (!invId) invId = t.invoiceId;
                     if (!invType) invType = t.type;
                 }

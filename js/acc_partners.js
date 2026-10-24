@@ -254,6 +254,12 @@
             }
         }
 
+        window.invalidateAccountBalancesCache = function() {
+            window._cachedSqliteAccountsMap = null;
+            window._cachedSqliteAccountsMapTime = 0;
+            if (window.accountBalancesCache) window.accountBalancesCache = {};
+        };
+
         // ================= منطق جدول الحسابات العام (Accounts Table Logic) =================
 
         // --- تحسينات إدارة الحسابات (Accounts Enhancements) ---
@@ -728,8 +734,12 @@
 
             // ⚡ جلب إحصائيات وأرصدة الشركاء دفعة واحدة (Batch/Group Queries) لتجنب كثرة الاستعلامات المتزامنة
             // ⚡ جلب الحسابات مدمجاً بها الأرصدة الصافية وإحصائيات المبيعات مباشرة من محرك SQLite بنسبة 100% بضربة واحدة (< 3ms)
+            // مع التخزين المؤقت الذكي لتفادي تكرار استعلام 10,000 حساب عند كل حرف بحث في الجدول
             let sqliteAccountsMap = null;
-            if (window.BayanSQLite && typeof window.BayanSQLite.getAllAccountsWithBalances === 'function' && window.BayanSQLite.db) {
+            const nowBalTs = Date.now();
+            if (window._cachedSqliteAccountsMap && (nowBalTs - (window._cachedSqliteAccountsMapTime || 0) < 15000)) {
+                sqliteAccountsMap = window._cachedSqliteAccountsMap;
+            } else if (window.BayanSQLite && typeof window.BayanSQLite.getAllAccountsWithBalances === 'function' && window.BayanSQLite.db) {
                 try {
                     const allWithBalances = window.BayanSQLite.getAllAccountsWithBalances();
                     if (Array.isArray(allWithBalances) && allWithBalances.length > 0) {
@@ -742,6 +752,8 @@
                             const cleanKey = (typeof cleanArabicCached === 'function' ? cleanArabicCached(pName) : cleanArabicStr(pName)) + "_none";
                             window.accountBalancesCache[cleanKey] = item.currentBalance;
                         }
+                        window._cachedSqliteAccountsMap = sqliteAccountsMap;
+                        window._cachedSqliteAccountsMapTime = nowBalTs;
                     }
                 } catch (e) {
                     console.warn("[SQLite] getAllAccountsWithBalances fetch error:", e);
@@ -1557,7 +1569,7 @@
             let accTrans = [];
             if (usedSqliteStatement && typeof window.BayanSQLite.getAccountTransactionsForPeriod === 'function') {
                 try {
-                    accTrans = window.BayanSQLite.getAccountTransactionsForPeriod(acc.name, fromDate || null, toDate || null, 5000, targetAccCode || null);
+                    accTrans = window.BayanSQLite.getAccountTransactionsForPeriod(acc.name, fromDate || null, toDate || null, 50000, targetAccCode || null);
                 } catch (sqErr) {
                     console.warn("[SQLite] getAccountTransactionsForPeriod error:", sqErr);
                     usedSqliteStatement = false;

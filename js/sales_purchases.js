@@ -1069,13 +1069,16 @@ function renderPurchaseCart_Finalized_V3() {
             ? renderVariantSelectElements(item, idx, 'purchase')
             : { sizeElement: `<span style="color:#cbd5e1;">-</span>`, colorElement: `<span style="color:#cbd5e1;">-</span>` };
 
+        const safeItemName = (typeof escapeHtml === 'function') ? escapeHtml(item.name || '') : (item.name || '');
+        const safeItemCode = (typeof escapeHtml === 'function') ? escapeHtml(item.code || '---') : (item.code || '---');
+
         const tr = document.createElement('tr');
         tr.setAttribute('data-index', idx);
         tr.className = 'purchase-row';
         tr.innerHTML = `
                     <td style="text-align: center; color: #94a3b8; font-size: 0.8rem;">${idx + 1}</td>
-                    <td style="font-size: 0.85rem; color: #64748b; text-align: center; font-family: monospace;">${item.code || '---'}</td>
-                    <td style="font-weight: 700; color: #1e293b;">${item.name}</td>
+                    <td style="font-size: 0.85rem; color: #64748b; text-align: center; font-family: monospace;">${safeItemCode}</td>
+                    <td style="font-weight: 700; color: #1e293b;">${safeItemName}</td>
                     <td class="col-variant-size" style="text-align: center;">${sizeElement}</td>
                     <td class="col-variant-color" style="text-align: center;">${colorElement}</td>
                     <td>

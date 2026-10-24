@@ -23,6 +23,41 @@ function restoreData(input, isEmergencyBypass = false) {
         }
         return;
     }
+
+    // ⚡ استرجاع مباشر وفوري لملفات قاعدة بيانات SQLite الأصلية (.db / .sqlite) في أجزاء من الثانية
+    const isDbFile = file.name && (file.name.toLowerCase().endsWith('.db') || file.name.toLowerCase().endsWith('.sqlite'));
+    if (isDbFile) {
+        let ipc = null;
+        try {
+            if (typeof window !== 'undefined' && window.require) ipc = window.require('electron').ipcRenderer;
+            else if (typeof require !== 'undefined') ipc = require('electron').ipcRenderer;
+        } catch(e) {}
+
+        const filePath = file.path;
+        if (ipc && filePath) {
+            const confirmMsg = "⚠️ هل أنت متأكد من استعادة ملف قاعدة البيانات SQLite هذا؟ سيتم استبدال البيانات الحالية بالكامل وإعادة تشغيل البرنامج.";
+            const proceed = (typeof showCustomAlert === 'function') ? true : confirm(confirmMsg);
+            if (proceed) {
+                ipc.invoke('restore-sqlite-direct-backup', filePath).then(res => {
+                    if (res && res.success) {
+                        alert("✅ تم استرجاع قاعدة البيانات بنجاح! سيتم إعادة تحميل البرنامج الآن.");
+                        window.location.reload();
+                    } else {
+                        alert("❌ فشل استرجاع ملف قاعدة البيانات: " + (res?.error || 'خطأ غير معروف'));
+                        if (input) input.value = '';
+                    }
+                }).catch(err => {
+                    alert("❌ خطأ أثناء الاسترجاع: " + err.message);
+                    if (input) input.value = '';
+                });
+                return;
+            } else {
+                if (input) input.value = '';
+                return;
+            }
+        }
+    }
+
     const reader = new FileReader();
 
     // 📊 متابعة تقدم قراءة الملفات الكبيرة لحظياً (حتى لو وصل حجم الملف لعشرات الميجابايت)
@@ -168,12 +203,54 @@ window.restoreDataFromContent = async function (jsonContent, fileName = '', isEm
                     restoredUsers = data.users.filter(u => u && typeof u === 'object').map(u => {
                         const copy = { ...u };
                         const rawPin = copy.pin;
-                        const plainPin = (typeof window.BayanSecurity !== 'undefined' && typeof window.BayanSecurity.decryptPin === 'function')
-                            ? window.BayanSecurity.decryptPin(rawPin)
-                            : rawPin;
-                        copy.pin = (typeof window.BayanSecurity !== 'undefined' && typeof window.BayanSecurity.encryptPin === 'function')
-                            ? window.BayanSecurity.encryptPin(plainPin)
-                            : rawPin;
+
+                        // إذا كان الـ PIN في النسخة مشفراً بالهاش الأحادي الحديث HASH:v1: نحفظه كما هو ونمنع أي تصفير
+                        if (typeof rawPin === 'string' && rawPin.startsWith('HASH:v1:')) {
+                            copy.pin = rawPin;
+                            return copy;
+                        }
+
+                        // إذا كان الـ PIN في النسخة الاحتياطية فارغاً أو غير محدد
+                        if (rawPin === null || rawPin === undefined || String(rawPin).trim() === '') {
+                            copy.pin = (typeof window.BayanSecurity !== 'undefined' && typeof window.BayanSecurity.encryptPin === 'function')
+                                ? window.BayanSecurity.encryptPin('')
+                                : '';
+                            return copy;
+                        }
+
+                        // 1. فك تشفير الـ PIN القادم من ملف الباك أب بالترتيب الآمن
+                        let plainPin = null;
+                        if (typeof window.BayanSecurity !== 'undefined' && typeof window.BayanSecurity.decryptPinFromBackup === 'function') {
+                            plainPin = window.BayanSecurity.decryptPinFromBackup(rawPin);
+                        } else if (typeof window.BayanSecurity !== 'undefined' && typeof window.BayanSecurity.decryptPin === 'function') {
+                            plainPin = window.BayanSecurity.decryptPin(rawPin);
+                        } else {
+                            plainPin = String(rawPin).trim();
+                        }
+
+                        // 2. صمام أمان حرج: التحقق من أن plainPin صالح وغير فارغ قبل تشفيره ببصمة الجهاز الجديد
+                        if (plainPin !== null && String(plainPin).trim().length > 0) {
+                            copy.pin = (typeof window.BayanSecurity !== 'undefined' && typeof window.BayanSecurity.encryptPin === 'function')
+                                ? window.BayanSecurity.encryptPin(String(plainPin).trim())
+                                : plainPin;
+                        } else {
+                            // 3. إذا تعذر فك التشفير (نسخة قديمة مأخوذة من جهاز مختلف قبل التحديث):
+                            // لا نقوم بتشفير نص فارغ أو تالف نهائياً لتفادي قفل البرنامج في وجه العميل!
+                            console.warn(`⚠️ [Backup Security] تعذر فك تشفير PIN للمستخدم (${copy.name || copy.id}) من جهاز قديم.`);
+                            
+                            // للمدير أو الحساب الأساسي: وضع PIN فارغ للطوارئ حتى يدخل ويغيره فوراً دون قفل
+                            if (copy.role === 'admin' || copy.id === 1 || copy.id === '1') {
+                                console.warn("🛡️ [Emergency Bypass] تم تصفير PIN للمدير تلقائياً لضمان عدم قفل النظام.");
+                                copy.pin = (typeof window.BayanSecurity !== 'undefined' && typeof window.BayanSecurity.encryptPin === 'function')
+                                    ? window.BayanSecurity.encryptPin('')
+                                    : '';
+                            } else {
+                                // للموظف: PIN افتراضي آمن 1234
+                                copy.pin = (typeof window.BayanSecurity !== 'undefined' && typeof window.BayanSecurity.encryptPin === 'function')
+                                    ? window.BayanSecurity.encryptPin('1234')
+                                    : '1234';
+                            }
+                        }
                         return copy;
                     });
                 }
@@ -1080,8 +1157,22 @@ window.compileBayanBackupPayload = async function() {
     const securedUsers = (usersList || []).filter(u => u && typeof u === 'object').map(u => {
         if (!u) return u;
         const copy = { ...u };
-        if (copy.pin != null && copy.pin !== '' && typeof window.BayanSecurity !== 'undefined' && typeof window.BayanSecurity.encryptPin === 'function') {
-            copy.pin = window.BayanSecurity.encryptPin(copy.pin);
+        if (copy.pin != null && copy.pin !== '' && typeof window.BayanSecurity !== 'undefined') {
+            // إذا كان مشفراً بالهاش الأحادي الحديث، فهو محمول وآمن بالفعل ونحتفظ به دون مساس
+            if (typeof copy.pin === 'string' && copy.pin.startsWith('HASH:v1:')) {
+                return copy;
+            }
+            // فك تشفير الـ PIN على الجهاز الحالي أولاً
+            let plainPin = copy.pin;
+            if (typeof window.BayanSecurity.decryptPin === 'function') {
+                plainPin = window.BayanSecurity.decryptPin(copy.pin);
+            }
+            // إذا نجح فك التشفير وكان الناتج صالحاً، تشفيره بالملح المحمول المخصص للنسخ الاحتياطية
+            if (plainPin && String(plainPin).trim().length > 0 && typeof window.BayanSecurity.encryptPinForBackup === 'function') {
+                copy.pin = window.BayanSecurity.encryptPinForBackup(plainPin);
+            } else if (plainPin && String(plainPin).trim().length > 0 && typeof window.BayanSecurity.encryptPin === 'function') {
+                copy.pin = window.BayanSecurity.encryptPin(plainPin);
+            }
         }
         return copy;
     });
@@ -1114,7 +1205,7 @@ window.compileBayanBackupPayload = async function() {
     const subTrialConsumed = isPlanPaid ? 'true' : (getStore('bayan_trial_consumed') || localStorage.getItem('bayan_trial_consumed') || '');
 
     const data = {
-        version: window.appVersion || "4.9.1",
+        version: window.appVersion || "4.9.2",
         backupDate: new Date().toISOString(),
         hwid: activeHwid,
         deviceMachineId: activeHwid,
@@ -1242,19 +1333,48 @@ window.executeAutoBackupToFile = async function(silent = false, isManual = false
         }
     } catch (e) {}
 
-    // ⚡ حل جذري لتجميد النظام (1-2 دقيقة): في النسخ التلقائي في بيئة Electron، يتم نسخ ملف SQLite مباشرة في 0.05 ثانية
-    // دون الحاجة لتسلسل 50 ألف صنف ومئات آلاف الحركات في الرام عبر JSON
-    if (ipc && typeof ipc.invoke === 'function' && !isManual && window.BayanSQLite) {
+    // ⚡ حل جذري لتجميد النظام (1-2 دقيقة): في بيئة Electron، يتم نسخ ملف SQLite مباشرة في 0.05 ثانية
+    // دون الحاجة لتسلسل 50 ألف صنف ومئات آلاف الحركات في الرام عبر JSON وتفادي أخطاء الذاكرة نهائياً
+    if (ipc && typeof ipc.invoke === 'function' && window.BayanSQLite) {
         try {
-            const directRes = await ipc.invoke('save-sqlite-direct-backup', { isManual: false });
+            const directRes = await ipc.invoke('save-sqlite-direct-backup', { isManual });
             if (directRes && directRes.success) {
                 setStore('pos_last_backup_time', Date.now());
-                console.log("⚡ [Ultra-Fast Backup] تم النسخ الاحتياطي التلقائي الفوري لملف الداتابيز بنجاح في أجزاء من الثانية:", directRes.filePath);
+                console.log(`⚡ [Ultra-Fast Backup] تم النسخ الاحتياطي ${isManual ? 'اليدوي' : 'التلقائي'} لملف الداتابيز بنجاح في أجزاء من الثانية:`, directRes.filePath);
                 try {
                     const settings = JSON.parse(getStore('pos_settings') || '{}');
                     const maxBackups = parseInt(settings.maxBackupFiles) || 30;
                     await ipc.invoke('rotate-backups', maxBackups);
                 } catch(rotErr) {}
+
+                if (!silent) {
+                    await new Promise(resolve => setTimeout(resolve, 300));
+                    window.hideBackupProgressOverlay();
+                    if (typeof showCustomAlert === 'function') {
+                        showCustomAlert({
+                            type: 'success',
+                            titleText: '✅ تم حفظ النسخة الاحتياطية بنجاح',
+                            msg: `
+                                <div style="text-align: right; direction: rtl; font-family: 'Cairo', sans-serif;">
+                                    <p style="margin-bottom: 12px; font-weight: 800; color: #1e293b;">تم تأمين وحفظ كامل قاعدة البيانات (الأصناف، الفواتير، الحسابات، والخزينة) بنجاح فائق في أجزاء من الثانية.</p>
+                                    <div style="background: #eff6ff; padding: 12px; border-radius: 12px; border: 1.5px solid #93c5fd; margin-bottom: 15px;">
+                                        <div style="font-size: 0.85rem; color: #1d4ed8; font-weight: 800; margin-bottom: 4px;">📍 مكان وجود النسخة على جهازك:</div>
+                                        <div style="font-size: 0.95rem; font-weight: 900; color: #1e3a8a; margin-bottom: 4px;">
+                                            📁 سطح المكتب (Desktop) ومجلد النسخ
+                                        </div>
+                                        <div style="font-size: 0.8rem; font-weight: 800; color: #475569; direction: ltr; text-align: left; font-family: monospace; word-break: break-all;">
+                                            📄 ${directRes.fileName || 'backup_pos.db'}
+                                        </div>
+                                    </div>
+                                    <button onclick="window.openBackupFolder()" style="width: 100%; height: 45px; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: 900; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
+                                        📂 فتح مجلد النسخ الاحتياطية الآن
+                                    </button>
+                                </div>
+                            `,
+                            confirmText: 'تم ✖️'
+                        });
+                    }
+                }
                 return true;
             }
         } catch(directErr) {

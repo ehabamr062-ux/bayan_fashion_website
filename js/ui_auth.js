@@ -419,7 +419,6 @@
 
                     // ✅ أمان: نحفظ في SQLite حصراً - الدور والصلاحيات تُحمَّل من DB
                     currentUser = { ...foundUser, warehouseName: whName };
-                    window.currentUser = currentUser;
 
                     // 🔒 حماية فولاذية: إذا كان الحساب كاشير، نحجب رموز PIN للمدراء من الذاكرة تماماً
                     if (foundUser.role !== 'admin' && !foundUser.isAdmin) {
@@ -433,6 +432,46 @@
                             });
                         }
                     }
+
+                    // 🔒 تحصين الدور والصلاحيات ضد التلاعب في كونسول المتصفح (Tamper-proof Role)
+                    try {
+                        Object.defineProperty(currentUser, 'role', {
+                            value: String(foundUser.role || 'cashier'),
+                            writable: false,
+                            configurable: false,
+                            enumerable: true
+                        });
+                        Object.defineProperty(currentUser, 'isAdmin', {
+                            value: Boolean(foundUser.isAdmin || foundUser.role === 'admin'),
+                            writable: false,
+                            configurable: false,
+                            enumerable: true
+                        });
+                        if (foundUser.role !== 'admin' && !foundUser.isAdmin) {
+                            Object.defineProperty(currentUser, 'maxDiscountPercent', {
+                                value: foundUser.maxDiscountPercent !== undefined ? foundUser.maxDiscountPercent : 5,
+                                writable: false,
+                                configurable: false,
+                                enumerable: true
+                            });
+                            Object.defineProperty(currentUser, 'lockPriceEdit', {
+                                value: !!foundUser.lockPriceEdit,
+                                writable: false,
+                                configurable: false,
+                                enumerable: true
+                            });
+                            Object.defineProperty(currentUser, 'maxAdditionPercent', {
+                                value: foundUser.maxAdditionPercent !== undefined ? foundUser.maxAdditionPercent : 15,
+                                writable: false,
+                                configurable: false,
+                                enumerable: true
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('Session user hardening notice:', e);
+                    }
+
+                    window.currentUser = currentUser;
 
                     // 🔒 حفظ اسم المستخدم والمستودع فقط في الجلسة دون حفظ الـ PIN لمنع أي تسريب
                     if (typeof setStore === 'function') {
@@ -797,6 +836,48 @@
             }
 
             currentUser = { ...foundUser, warehouseName: whName };
+            if (foundUser.role !== 'admin' && !foundUser.isAdmin) {
+                delete currentUser.pin;
+            }
+
+            // 🔒 تحصين الدور والصلاحيات ضد التلاعب في كونسول المتصفح عند الدخول بـ NFC
+            try {
+                Object.defineProperty(currentUser, 'role', {
+                    value: String(foundUser.role || 'cashier'),
+                    writable: false,
+                    configurable: false,
+                    enumerable: true
+                });
+                Object.defineProperty(currentUser, 'isAdmin', {
+                    value: Boolean(foundUser.isAdmin || foundUser.role === 'admin'),
+                    writable: false,
+                    configurable: false,
+                    enumerable: true
+                });
+                if (foundUser.role !== 'admin' && !foundUser.isAdmin) {
+                    Object.defineProperty(currentUser, 'maxDiscountPercent', {
+                        value: foundUser.maxDiscountPercent !== undefined ? foundUser.maxDiscountPercent : 5,
+                        writable: false,
+                        configurable: false,
+                        enumerable: true
+                    });
+                    Object.defineProperty(currentUser, 'lockPriceEdit', {
+                        value: !!foundUser.lockPriceEdit,
+                        writable: false,
+                        configurable: false,
+                        enumerable: true
+                    });
+                    Object.defineProperty(currentUser, 'maxAdditionPercent', {
+                        value: foundUser.maxAdditionPercent !== undefined ? foundUser.maxAdditionPercent : 15,
+                        writable: false,
+                        configurable: false,
+                        enumerable: true
+                    });
+                }
+            } catch (e) {
+                console.warn('Session user NFC hardening notice:', e);
+            }
+
             window.currentUser = currentUser;
             if (typeof setStore === 'function') {
                 setStore('pos_session_user', JSON.stringify({ userName: foundUser.name, warehouseName: whName }));
@@ -1383,7 +1464,7 @@
                 ctx.fillStyle = '#64748b';
                 ctx.font = 'bold 13px "Cairo", "Segoe UI", Tahoma, sans-serif';
                 const todayStr = new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
-                ctx.fillText(`⚡ نظام بَيَان POS (Fashion Edition v${window.appVersion || '4.9.1'}) | تاريخ التفعيل: ${todayStr}`, 340, 460);
+                ctx.fillText(`⚡ نظام بَيَان POS (Fashion Edition v${window.appVersion || '4.9.2'}) | تاريخ التفعيل: ${todayStr}`, 340, 460);
 
                 ctx.fillStyle = '#f59e0b';
                 ctx.font = 'bold 12px "Cairo", "Segoe UI", Tahoma, sans-serif';

@@ -12,7 +12,12 @@
         }
     } catch (e) { }
 
+    // 🔒 ملح محمول ثابت ومخصص للنسخ الاحتياطية لفك الارتباط بعتاد جهاز محدد ومنع قفل الـ PIN
+    const PORTABLE_BACKUP_SALT = 'B@Y4N_PORTABLE_BACKUP_SALT_2026';
+
     window.BayanSecurity = {
+        PORTABLE_BACKUP_SALT: PORTABLE_BACKUP_SALT,
+
         // تشفير خفيف للبيانات الحساسة (Legacy Obfuscation)
         obfuscate: function (str) {
             if (!str) return '';
@@ -209,9 +214,9 @@
             return mismatch === 0;
         },
 
-        // 🔒 تشفير متقدم v4 بمعيار AES-256-CBC مع بصمة العتاد و IV عشوائي
-        _encryptV4: function (plainText) {
-            const salt = this._getMachineSalt();
+        // 🔒 تشفير متقدم v4 بمعيار AES-256-CBC مع بصمة العتاد أو ملح مخصص
+        _encryptV4: function (plainText, customSalt = null) {
+            const salt = customSalt || this._getMachineSalt();
             if (_nodeCrypto && typeof _nodeCrypto.createCipheriv === 'function') {
                 try {
                     const key = _nodeCrypto.createHash('sha256').update("BAYAN_AES_KEY_2026_" + salt).digest();
@@ -227,9 +232,9 @@
             return this._secureTransformV3(salt + plainText);
         },
 
-        // 🔓 فك تشفير v4 بمعيار AES-256-CBC
-        _decryptV4: function (payload) {
-            const salt = this._getMachineSalt();
+        // 🔓 فك تشفير v4 بمعيار AES-256-CBC مع دعم الملح المخصص
+        _decryptV4: function (payload, customSalt = null) {
+            const salt = customSalt || this._getMachineSalt();
             if (_nodeCrypto && typeof _nodeCrypto.createDecipheriv === 'function') {
                 try {
                     const parts = payload.split(':');
@@ -242,99 +247,155 @@
                         return decrypted;
                     }
                 } catch (e) {
-                    console.warn('[Security] AES-256 decrypt notice:', e);
+                    // فشل فك التشفير بسبب عدم تطابق الملح (Wrong Salt / Bad Decrypt)
+                    return null;
                 }
             }
-            const restored = this._secureRestoreV3(payload);
-            if (restored.startsWith(salt)) {
-                return restored.substring(salt.length);
-            }
-            return restored;
+            try {
+                const restored = this._secureRestoreV3(payload);
+                if (restored && typeof restored === 'string' && restored.startsWith(salt)) {
+                    return restored.substring(salt.length);
+                }
+            } catch (e) {}
+            return null;
         },
 
-        // 🔒 تشفير آمن لرمز PIN لحفظه في قاعدة البيانات والنسخ الاحتياطية (v4 AES)
+        // 🛡️ دالة مساعدة داخلية لفك تشفير PIN باستخدام ملح محدد والتحقق من التوقيع الأمني
+        _decryptPinWithSalt: function (encPin, salt) {
+            if (!encPin) return '';
+            const sEnc = String(encPin).trim();
+            if (!sEnc.startsWith('ENC:')) return sEnc;
+
+            const PIN_SALT = "B@Y4N_SEC_2026_#";
+
+            // 1. الإصدار الأحدث ENC:v4:
+            if (sEnc.startsWith('ENC:v4:')) {
+                try {
+                    const raw = sEnc.substring(7);
+                    const restored = this._decryptV4(raw, salt);
+                    if (restored && typeof restored === 'string' && restored.startsWith(PIN_SALT)) {
+                        return restored.substring(PIN_SALT.length);
+                    }
+                } catch (e) {}
+                return null;
+            }
+
+            // 2. الإصدار ENC:v3:
+            if (sEnc.startsWith('ENC:v3:')) {
+                try {
+                    const raw = sEnc.substring(7);
+                    const restored = this._secureRestoreV3(raw);
+                    if (restored && typeof restored === 'string' && restored.startsWith(PIN_SALT)) {
+                        return restored.substring(PIN_SALT.length);
+                    }
+                } catch (e) {}
+                return null;
+            }
+
+            // 3. الإصدار ENC:v2:
+            if (sEnc.startsWith('ENC:v2:')) {
+                try {
+                    const raw = sEnc.substring(7);
+                    const restored = this._secureRestore(raw);
+                    if (restored && typeof restored === 'string' && restored.startsWith(PIN_SALT)) {
+                        return restored.substring(PIN_SALT.length);
+                    }
+                } catch (e) {}
+                return null;
+            }
+
+            // 4. الإصدار القديم ENC:
+            try {
+                const LEGACY_SALT = "B@Y4N_2026_";
+                const raw = sEnc.substring(4);
+                const decrypted = this.deobfuscate(raw);
+                if (decrypted && typeof decrypted === 'string' && decrypted.startsWith(LEGACY_SALT)) {
+                    return decrypted.substring(LEGACY_SALT.length);
+                }
+            } catch (e) {}
+            return null;
+        },
+
+        // 🔒 تجزئة آمنة قطعية أحادية الاتجاه لرمز PIN لحفظه في قاعدة البيانات (غير قابلة للفك نهائياً)
         encryptPin: function (pin) {
             if (pin === null || pin === undefined || pin === '') return '';
             const sPin = String(pin).trim();
-            if (sPin.startsWith('ENC:v4:') || sPin.startsWith('HASH:v1:')) return sPin; // محمي بالفعل بالإصدار الأحدث
+            if (sPin.startsWith('HASH:v1:')) return sPin; // محمي بالفعل بالتجزئة الأقوى
 
-            // إذا كان مشفراً بإصدار قديم، نقوم بفكه أولاً لإعادة تشفيره بـ v4
+            // إذا كان مشفراً بإصدار قديم، نفكه أولاً لتحويله إلى تجزئة أحادية آمنة
             let cleanPin = sPin;
-            if (sPin.startsWith('ENC:v3:') || sPin.startsWith('ENC:v2:') || sPin.startsWith('ENC:')) {
+            if (sPin.startsWith('ENC:')) {
                 cleanPin = this.decryptPin(sPin);
             }
+            if (!cleanPin) return sPin;
+            return this.hashPin(cleanPin);
+        },
 
+        // 🔒 تشفير مخصص ومحمول لرمز PIN خاص بالنسخ الاحتياطية (Portable Backup PIN)
+        encryptPinForBackup: function (plainPin) {
+            if (plainPin === null || plainPin === undefined || plainPin === '') return '';
+            const sPin = String(plainPin).trim();
+            let cleanPin = sPin;
+            if (sPin.startsWith('ENC:')) {
+                cleanPin = this.decryptPin(sPin);
+            }
+            if (!cleanPin) return '';
+
+            const PIN_SALT = "B@Y4N_SEC_2026_#";
             try {
-                const PIN_SALT = "B@Y4N_SEC_2026_#";
-                return 'ENC:v4:' + this._encryptV4(PIN_SALT + cleanPin);
+                return 'ENC:v4:' + this._encryptV4(PIN_SALT + cleanPin, PORTABLE_BACKUP_SALT);
             } catch (e) {
-                return 'ENC:v3:' + this._secureTransformV3("B@Y4N_SEC_2026_#" + cleanPin);
+                return 'ENC:v3:' + this._secureTransformV3(PIN_SALT + cleanPin);
             }
         },
 
-        // 🔓 فك تشفير رمز PIN للتحقق في الذاكرة (يدعم الإصدارات v4 و v3 و v2 و v1 والتوافقية القديمة 100%)
+        // 🔓 فك تشفير آمن ومرتب لرموز الـ PIN المسترجعة من ملفات النسخ الاحتياطية
+        decryptPinFromBackup: function (cipherText) {
+            if (cipherText === null || cipherText === undefined) return '';
+            const sCipher = String(cipherText).trim();
+            if (sCipher === '') return '';
+
+            // ثالثاً: إذا كان النص أصلاً أرقاماً أو نصاً صريحاً غير مشفر (لا يبدأ بـ ENC:)
+            if (!sCipher.startsWith('ENC:')) {
+                return sCipher;
+            }
+
+            // أولاً: محاولة فك التشفير باستخدام الملح المحمول الثابت المخصص للنسخ الاحتياطية
+            let decrypted = this._decryptPinWithSalt(sCipher, PORTABLE_BACKUP_SALT);
+            if (decrypted !== null && typeof decrypted === 'string') {
+                return decrypted;
+            }
+
+            // ثانياً: إذا فشل، محاولة فك التشفير بملح الجهاز الحالي (لدعم النسخ المأخوذة سابقاً من نفس الجهاز)
+            decrypted = this._decryptPinWithSalt(sCipher, this._getMachineSalt());
+            if (decrypted !== null && typeof decrypted === 'string') {
+                return decrypted;
+            }
+
+            // في حال تعذر فك التشفير بالملحين، إرجاع null لمنع حفظ نص تالف
+            return null;
+        },
+
+        // 🔓 فك تشفير رمز PIN للتحقق في الذاكرة (يدعم الإصدارات v4 و v3 و v2 و v1 والتوافقية القديمة والمسار الاحتياطي)
         decryptPin: function (encPin) {
             if (!encPin) return '';
             const sEnc = String(encPin).trim();
             if (!sEnc.startsWith('ENC:')) return sEnc; // غير مشفر، قيمة بنص صريح
 
-            // 🛡️ الإصدار الأحدث والأقوى ENC:v4: (AES-256 + HWID)
-            if (sEnc.startsWith('ENC:v4:')) {
-                try {
-                    const raw = sEnc.substring(7);
-                    const PIN_SALT = "B@Y4N_SEC_2026_#";
-                    const restored = this._decryptV4(raw);
-                    if (restored.startsWith(PIN_SALT)) {
-                        return restored.substring(PIN_SALT.length);
-                    }
-                    return restored;
-                } catch (e) {
-                    return sEnc;
-                }
-            }
-
-            // الإصدار السابق ENC:v3:
-            if (sEnc.startsWith('ENC:v3:')) {
-                try {
-                    const raw = sEnc.substring(7);
-                    const PIN_SALT = "B@Y4N_SEC_2026_#";
-                    const restored = this._secureRestoreV3(raw);
-                    if (restored.startsWith(PIN_SALT)) {
-                        return restored.substring(PIN_SALT.length);
-                    }
-                    return restored;
-                } catch (e) {
-                    return sEnc;
-                }
-            }
-
-            // الإصدار المطور ENC:v2:
-            if (sEnc.startsWith('ENC:v2:')) {
-                try {
-                    const raw = sEnc.substring(7);
-                    const PIN_SALT = "B@Y4N_SEC_2026_#";
-                    const restored = this._secureRestore(raw);
-                    if (restored.startsWith(PIN_SALT)) {
-                        return restored.substring(PIN_SALT.length);
-                    }
-                    return restored;
-                } catch (e) {
-                    return sEnc;
-                }
-            }
-
-            // دعم التوافقية العكسية للرموز القديمة المشفرة بـ ENC:
-            try {
-                const PIN_SALT = "B@Y4N_2026_";
-                const raw = sEnc.substring(4);
-                const decrypted = this.deobfuscate(raw);
-                if (decrypted.startsWith(PIN_SALT)) {
-                    return decrypted.substring(PIN_SALT.length);
-                }
+            // أولاً: المحاولة بملح الجهاز الحالي
+            const machineSalt = this._getMachineSalt();
+            let decrypted = this._decryptPinWithSalt(sEnc, machineSalt);
+            if (decrypted !== null && typeof decrypted === 'string') {
                 return decrypted;
-            } catch (e) {
-                return sEnc;
             }
+
+            // ثانياً: مسار احتياطي ذكي بملح النسخ الاحتياطية PORTABLE_BACKUP_SALT
+            decrypted = this._decryptPinWithSalt(sEnc, PORTABLE_BACKUP_SALT);
+            if (decrypted !== null && typeof decrypted === 'string') {
+                return decrypted;
+            }
+
+            return sEnc;
         },
 
         // 🔑 تجزئة آمنة أحادية الاتجاه لرمز PIN (One-way Salted Hash)
@@ -342,7 +403,7 @@
             if (!pin) return '';
             const sPin = String(pin).trim();
             const salt = customSalt || (Math.random().toString(36).substring(2, 10) + Date.now().toString(36));
-            const hash = this._sha256Hex(sPin + salt + this._getMachineSalt());
+            const hash = this._sha256Hex(sPin + ':' + salt + ':' + PORTABLE_BACKUP_SALT);
             return 'HASH:v1:' + salt + ':' + hash;
         },
 
@@ -359,9 +420,14 @@
                 if (parts.length === 4) {
                     const salt = parts[2];
                     const expectedHash = parts[3];
-                    const actualHash = this._sha256Hex(cleanEntered + salt + this._getMachineSalt());
-                    return this._timingSafeEqual(actualHash, expectedHash);
+                    // فحص التجزئة المحمولة المحدثة
+                    const hashPortable = this._sha256Hex(cleanEntered + ':' + salt + ':' + PORTABLE_BACKUP_SALT);
+                    if (this._timingSafeEqual(hashPortable, expectedHash)) return true;
+                    // التوافق مع التجزئة بملح العتاد المحلي القديم إن وجد
+                    const hashMachine = this._sha256Hex(cleanEntered + salt + this._getMachineSalt());
+                    if (this._timingSafeEqual(hashMachine, expectedHash)) return true;
                 }
+                return false;
             }
 
             // 2. التحقق من التطابق المباشر

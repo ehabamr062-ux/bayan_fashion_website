@@ -663,9 +663,11 @@ function applyPermissions() {
     if (typeof currentUser !== 'undefined' && currentUser) {
         const uTarget = (typeof users !== 'undefined') ? users.find(u => u.pin === currentUser.pin) || currentUser : currentUser;
         if (uTarget) {
-            if (uTarget.lockPriceEdit !== undefined) currentUser.lockPriceEdit = !!uTarget.lockPriceEdit;
-            if (uTarget.maxDiscountPercent !== undefined) currentUser.maxDiscountPercent = uTarget.maxDiscountPercent;
-            if (uTarget.maxAdditionPercent !== undefined) currentUser.maxAdditionPercent = uTarget.maxAdditionPercent;
+            try {
+                if (uTarget.lockPriceEdit !== undefined) currentUser.lockPriceEdit = !!uTarget.lockPriceEdit;
+                if (uTarget.maxDiscountPercent !== undefined) currentUser.maxDiscountPercent = uTarget.maxDiscountPercent;
+                if (uTarget.maxAdditionPercent !== undefined) currentUser.maxAdditionPercent = uTarget.maxAdditionPercent;
+            } catch (e) {}
         }
         if (uTarget && uTarget.permissions && uTarget.permissions.general) {
             if (uTarget.permissions.general.hideShare !== undefined) hideShare = !!uTarget.permissions.general.hideShare;
@@ -1363,19 +1365,28 @@ async function addUser() {
         }
     }
 
-    if (!name || !pin) return showToast("⚠️ يرجى إدخال اسم المستخدم ورمز الدخول", "error");
+    const existingTarget = window.editingUserId ? users.find(u => u.id === window.editingUserId) : null;
+    let finalPin = pin;
+    if (!finalPin && existingTarget) {
+        finalPin = existingTarget.pin;
+    }
+
+    if (!name || !finalPin) return showToast("⚠️ يرجى إدخال اسم المستخدم ورمز الدخول", "error");
 
     const duplicateNameUser = users.find(u => u.name && u.name.trim().toLowerCase() === name.toLowerCase() && u.id !== (window.editingUserId || 0));
     if (duplicateNameUser) {
         return showToast(`🚫 اسم الموظف (${name}) مستخدم بالفعل لموظف آخر!`, "error");
     }
 
-    const duplicatePinUser = users.find(u => u.id !== (window.editingUserId || 0) && (
-        u.pin === pin ||
-        (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function' && window.BayanSecurity.verifyPin(pin, u.pin))
-    ));
-    if (duplicatePinUser) {
-        return showToast(`🚫 رمز الدخول PIN (${pin}) مستخدم بالفعل للموظف (${duplicatePinUser.name})!`, "error");
+    if (pin) {
+        const duplicatePinUser = users.find(u => u.id !== (window.editingUserId || 0) && (
+            (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function')
+                ? window.BayanSecurity.verifyPin(pin, u.pin)
+                : (u.pin === pin)
+        ));
+        if (duplicatePinUser) {
+            return showToast(`🚫 رمز الدخول PIN مستخدم بالفعل للموظف (${duplicatePinUser.name})!`, "error");
+        }
     }
 
     if (window.editingUserId === 1 || window.editingUserId === '1') {
@@ -1482,7 +1493,6 @@ async function addUser() {
         }
     };
 
-    const existingTarget = window.editingUserId ? users.find(u => u.id === window.editingUserId) : null;
     const isFrozen = existingTarget ? !!existingTarget.isFrozen : false;
 
     let maxDiscountPercent = 5;
@@ -1511,10 +1521,14 @@ async function addUser() {
         ? false
         : (document.getElementById('perm_wh_lock_switching') ? document.getElementById('perm_wh_lock_switching').checked : true);
 
+    const securePin = (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
+        ? window.BayanSecurity.encryptPin(finalPin)
+        : finalPin;
+
     const newUser = { 
         id: window.editingUserId || Date.now(), 
         name, 
-        pin, 
+        pin: securePin, 
         role, 
         nfcUid: nfcUid || '',
         isFrozen: isFrozen,
@@ -1590,9 +1604,11 @@ function editUser(idx) {
     if (!u) return;
     window.editingUserId = u.id;
     document.getElementById('newUserName').value = u.name;
-    document.getElementById('newUserPin').value = (window.BayanSecurity && typeof window.BayanSecurity.decryptPin === 'function')
-        ? window.BayanSecurity.decryptPin(u.pin)
-        : (u.pin || '');
+    const pinInput = document.getElementById('newUserPin');
+    if (pinInput) {
+        pinInput.value = '';
+        pinInput.placeholder = 'اتركه فارغاً للإبقاء على الرمز الحالي 🔒';
+    }
     document.getElementById('newUserRole').value = u.role;
     if (document.getElementById('newUserNfcUid')) {
         document.getElementById('newUserNfcUid').value = u.nfcUid || '';
@@ -1788,7 +1804,11 @@ function editUser(idx) {
 function resetUserForm() {
     window.editingUserId = null;
     document.getElementById('newUserName').value = '';
-    document.getElementById('newUserPin').value = '';
+    const pinInput = document.getElementById('newUserPin');
+    if (pinInput) {
+        pinInput.value = '';
+        pinInput.placeholder = 'رمز الدخول PIN (4 أرقام على الأقل)';
+    }
     document.getElementById('newUserRole').value = 'user';
     if (document.getElementById('newUserNfcUid')) {
         document.getElementById('newUserNfcUid').value = '';

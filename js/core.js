@@ -73,11 +73,11 @@ window.BayanNetworkHub = {
 // 🔢 المزامنة التلقائية لرقم الإصدار الموحد (Single Source of Truth Unification)
 // المصدر الرسمي الوحيد هو package.json عبر app.getVersion()
 // =========================================================================
-window.appVersion = '4.9.1';
-window.APP_VERSION = '4.9.1';
+window.appVersion = '4.9.2';
+window.APP_VERSION = '4.9.2';
 
 async function fetchAppVersion() {
-    let version = '4.9.1';
+    let version = '4.9.2';
     try {
         if (typeof window !== 'undefined' && window.require) {
             const electron = window.require('electron');
@@ -97,7 +97,7 @@ async function fetchAppVersion() {
 }
 
 function syncAppVersionUI(version) {
-    if (!version) version = window.appVersion || '4.9.1';
+    if (!version) version = window.appVersion || '4.9.2';
     window.appVersion = version;
     window.APP_VERSION = version;
 
@@ -802,8 +802,8 @@ async function loadData() {
         }).map(u => {
             if (!u) return u;
             const rawPin = u.pin;
-            // 🔒 نحافظ على حماية وتشفير رمز PIN في الذاكرة لمنع كشفه بنص صريح
-            if (rawPin != null && rawPin !== '' && !String(rawPin).startsWith('ENC:') && !String(rawPin).startsWith('HASH:')) {
+            // 🔒 نحافظ على حماية وتشفير رمز PIN في الذاكرة لمنع كشفه بنص صريح وترقيته للتجزئة الأقوى
+            if (rawPin != null && rawPin !== '' && !String(rawPin).startsWith('HASH:v1:')) {
                 pinMigrationNeeded = true;
             }
             return { ...u };

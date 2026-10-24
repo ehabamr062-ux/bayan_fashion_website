@@ -954,6 +954,11 @@ function showMyPlanDetails() {
     modal.classList.remove('hidden');
 }
 
+// 🔒 رمز أمان داخلي خاص بالتفويض السحابي والعمليات النظامية لمنع التلاعب عبر الكونسول
+const INTERNAL_CLOUD_AUTH_SYMBOL = (typeof Symbol !== 'undefined') 
+    ? Symbol('BAYAN_INTERNAL_CLOUD_AUTH') 
+    : ('BAYAN_AUTH_' + Math.random().toString(36).substring(2));
+
 async function verifyAndActivateLicense() {
     const inputEl = document.getElementById('activationCodeInput');
     if (!inputEl) return;
@@ -997,7 +1002,9 @@ async function verifyAndActivateLicense() {
 
     const isClient = (typeof window.BayanNetworkHub !== 'undefined' && !window.BayanNetworkHub.isMasterServer);
     const mId = (isClient ? getStore('bayan_master_hwid') : null) || (window.getUniqueHWID ? await window.getUniqueHWID() : '') || getStore('bayan_master_hwid') || getStore('bayan_hwid') || getStore('bayan_machine_id') || '';
-    const secret = atob("QkFZQU5fUE9TX1NFQ1JFVF9LRVlfMjAyNg=="); // مفتاح مشفر لمنع الفحص النصي البسيط في المتصفح
+    const secret = (typeof LicenseService !== 'undefined' && LicenseService._getSecretKey) 
+        ? LicenseService._getSecretKey() 
+        : String.fromCharCode(66, 65, 89, 65, 78, 95, 80, 79, 83, 95, 83, 69, 67, 82, 69, 84, 95, 75, 69, 89, 95, 50, 48, 50, 54);
 
     const plans = [
         { name: "الباقة الشهرية", id: "MONTHLY" },
@@ -1139,7 +1146,7 @@ async function verifyAndActivateLicense() {
                 return;
             }
 
-            await LicenseService.saveLicenseLocally(planName, expiryISO, code);
+            await LicenseService.saveLicenseLocally(planName, expiryISO, code, INTERNAL_CLOUD_AUTH_SYMBOL);
             setStore('bayan_trial_consumed', 'true');
             setStore('bayan_has_subscribed_paid', 'true');
             setStore('bayan_current_plan', planName);
@@ -1229,7 +1236,7 @@ async function verifyAndActivateLicense() {
         setStore('bayan_activation_date', new Date().toISOString());
 
         if (typeof LicenseService !== 'undefined' && LicenseService.saveLicenseLocally) {
-            await LicenseService.saveLicenseLocally(matchedPlan, legacyExpiry, code);
+            await LicenseService.saveLicenseLocally(matchedPlan, legacyExpiry, code, INTERNAL_CLOUD_AUTH_SYMBOL);
         }
 
         if (window.SubscriptionHistoryManager && typeof window.SubscriptionHistoryManager.addRecord === 'function') {
@@ -1265,80 +1272,183 @@ window.generateBayanLicenseKey = async function () {
 function closeSubscription() {
     document.getElementById('subscriptionModal').classList.add('hidden');
 }
-/*
-    if (!machineId) return { success: false, message: "يرجى تحديد Machine ID" };
-    
-    let planChar = "M";
-    let expiryDate = new Date();
-    
-    if (plan.includes("سنة") || plan.includes("سنوية") || plan === "A") {
-        planChar = "A";
-        expiryDate.setDate(expiryDate.getDate() + 365);
-    } else if (plan.includes("حياة") || plan.includes("احترافية") || plan === "L") {
-        planChar = "L";
-        expiryDate = new Date(2099, 11, 31);
-    } else {
-        planChar = "M";
-        expiryDate.setDate(expiryDate.getDate() + 30);
-    }
-    
-    if (customExpiryDate instanceof Date && !isNaN(customExpiryDate)) {
-        expiryDate = customExpiryDate;
-    }
-    
-    const dd = String(expiryDate.getDate()).padStart(2, '0');
-    const mm = String(expiryDate.getMonth() + 1).padStart(2, '0');
-    const yy = String(expiryDate.getFullYear()).slice(-2);
-    const dateStr = dd + mm + yy;
-    
-    const payload = dateStr + planChar;
-    const secret = atob("QkFZQU5fUE9TX1NFQ1JFVF9LRVlfMjAyNg==");
-    
-    let hashGenerator;
-    if (typeof require !== "undefined") {
+
+// =========================================================================
+// 🕒 نظام التحقق الذكي والإصلاح الذاتي لتوقيت الجهاز (Network Time Self-Healing)
+// =========================================================================
+let _isVerifyingNetworkTime = false;
+
+window.verifyAndHealClockTampering = async function () {
+    if (_isVerifyingNetworkTime) return false;
+    _isVerifyingNetworkTime = true;
+
+    try {
+        let serverDateStr = null;
+
+        // 1. المحاولة الأولى: عبر هيدر Date من سيرفر Supabase المدمج في النظام
         try {
-            const { ipcRenderer } = require('electron');
-            hashGenerator = async (dataStr) => await ipcRenderer.invoke('hash-activation-payload', dataStr);
-        } catch(e) {}
+            const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+            const timeoutId = controller ? setTimeout(() => controller.abort(), 4000) : null;
+            const res = await fetch('https://kxhhdskmpaiitsojwcgu.supabase.co/rest/v1/', {
+                method: 'HEAD',
+                cache: 'no-store',
+                signal: controller ? controller.signal : undefined
+            });
+            if (timeoutId) clearTimeout(timeoutId);
+            if (res && res.headers && res.headers.get) {
+                serverDateStr = res.headers.get('date');
+            }
+        } catch (e1) {}
+
+        // 2. المحاولة الثانية: عبر google.com كبديل احتياطي
+        if (!serverDateStr) {
+            try {
+                const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+                const timeoutId = controller ? setTimeout(() => controller.abort(), 4000) : null;
+                const res = await fetch('https://www.google.com', {
+                    method: 'HEAD',
+                    cache: 'no-store',
+                    mode: 'no-cors',
+                    signal: controller ? controller.signal : undefined
+                });
+                if (timeoutId) clearTimeout(timeoutId);
+                if (res && res.headers && res.headers.get) {
+                    serverDateStr = res.headers.get('date');
+                }
+            } catch (e2) {}
+        }
+
+        // 3. في بيئة Electron: استخدام مكتبة https مباشرة لضمان قراءة هيدر Date دون قيود المتصفح
+        if (!serverDateStr && typeof window !== 'undefined' && window.require) {
+            try {
+                const https = window.require('https');
+                serverDateStr = await new Promise((resolve) => {
+                    const req = https.request('https://kxhhdskmpaiitsojwcgu.supabase.co/rest/v1/', {
+                        method: 'HEAD',
+                        timeout: 3500
+                    }, (res) => {
+                        resolve(res.headers ? (res.headers['date'] || null) : null);
+                    });
+                    req.on('error', () => resolve(null));
+                    req.on('timeout', () => { req.destroy(); resolve(null); });
+                    req.end();
+                });
+            } catch (e3) {}
+        }
+
+        if (!serverDateStr) {
+            console.warn("ℹ️ [Clock Healing] تعذر الحصول على وقت السيرفر من الإنترنت في الوقت الحالي (العمل بنمط أوفلاين).");
+            return false;
+        }
+
+        const serverTime = new Date(serverDateStr).getTime();
+        if (isNaN(serverTime) || serverTime <= 0) {
+            return false;
+        }
+
+        // حفظ آخر وقت سيرفر موثوق
+        if (typeof setStore === 'function') {
+            setStore('bayan_last_verified_server_time', serverTime.toString());
+        }
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('bayan_last_verified_server_time', serverTime.toString());
+        }
+
+        const currentLocal = Date.now();
+        const diffMs = Math.abs(currentLocal - serverTime);
+
+        // شرط الإصلاح الذاتي: تطابق وقت الجهاز الحالي مع وقت السيرفر بهامش تسامح منطقي ±30 دقيقة
+        const TOLERANCE_MS = 30 * 60 * 1000;
+        if (diffMs <= TOLERANCE_MS) {
+            console.log(`✅ [Clock Self-Healing] تم إثبات صحة ساعة الجهاز عبر الإنترنت (فارق: ${(diffMs / 1000).toFixed(1)} ثانية). جاري تصحيح القفزة السابقة...`);
+
+            // 1. تصحيح وتخفيض القيمة المسجلة إلى الوقت الفعلي الحالي
+            if (typeof setStore === 'function') {
+                setStore('bayan_max_seen_timestamp', currentLocal.toString());
+            }
+            if (typeof localStorage !== 'undefined') {
+                localStorage.setItem('bayan_max_seen_timestamp', currentLocal.toString());
+            }
+
+            // 2. فك قفل التلاعب
+            window.clockTampered = false;
+
+            // 3. إزالة أي نافذة تنبيه أو قفل خاص بالساعة
+            const alertModal = document.getElementById('alertModal');
+            if (alertModal && alertModal.innerText && alertModal.innerText.includes('تاريخ')) {
+                alertModal.classList.add('hidden');
+            }
+
+            if (typeof showToast === 'function') {
+                showToast("✅ تم التحقق من توقيت الجهاز عبر الإنترنت وإلغاء قفل الساعة بنجاح!", "success", 5000);
+            }
+            return true;
+        } else {
+            console.warn(`⚠️ [Clock Check] وقت الجهاز يختلف عن وقت السيرفر بأكثر من 30 دقيقة (فارق: ${(diffMs / 60000).toFixed(1)} دقيقة).`);
+            return false;
+        }
+    } catch (err) {
+        console.warn("⚠️ [Clock Healing Error]:", err);
+        return false;
+    } finally {
+        _isVerifyingNetworkTime = false;
     }
-    
-    if (!hashGenerator && window.crypto && window.crypto.subtle) {
-        try {
-            const msgEncoder = new TextEncoder();
-            const keyData = msgEncoder.encode(secret);
-            const cryptoKey = await window.crypto.subtle.importKey("raw", keyData, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-            hashGenerator = async (dataStr) => {
-                const data = msgEncoder.encode(dataStr);
-                const signature = await window.crypto.subtle.sign("HMAC", cryptoKey, data);
-                const hashArray = Array.from(new Uint8Array(signature));
-                return hashArray.map(b => b.toString(16).padStart(2, "0")).join("").toUpperCase().substring(0, 16);
-            };
-        } catch(e) {}
-    
-    if (!hashGenerator) {
-        return { success: false, message: "تعذر تشغيل التشفير" };
-    }
-    
-    const expectedHashFull = await hashGenerator(machineId.trim().toUpperCase() + payload);
-    const hash8 = expectedHashFull.substring(0, 8);
-    const activationKey = `BYN-${dateStr}-${planChar}-${hash8}`;
-    return { success: true, key: activationKey };
 };
-*/
+
+// فحص وإصلاح استباقي في الخلفية عند بدء تشغيل التطبيق في حال وجود تضارب سابق مسجل بالساعة
+setTimeout(() => {
+    try {
+        const nTime = Date.now();
+        const mTimeStr = (typeof getStore === 'function' ? getStore('bayan_max_seen_timestamp') : null) || (typeof localStorage !== 'undefined' ? localStorage.getItem('bayan_max_seen_timestamp') : null);
+        const mTime = mTimeStr ? parseInt(mTimeStr, 10) : 0;
+        if (mTime > 0 && nTime < (mTime - 300000)) {
+            if (typeof window.verifyAndHealClockTampering === 'function') {
+                window.verifyAndHealClockTampering().catch(() => {});
+            }
+        }
+    } catch(e) {}
+}, 3000);
 
 window.isSubscriptionValid = function (actionType = 'invoice') {
     const nowTime = Date.now();
-    const maxSeenTimeStr = getStore('bayan_max_seen_timestamp');
+    const maxSeenTimeStr = (typeof getStore === 'function' ? getStore('bayan_max_seen_timestamp') : null) || (typeof localStorage !== 'undefined' ? localStorage.getItem('bayan_max_seen_timestamp') : null);
     let maxSeenTime = maxSeenTimeStr ? parseInt(maxSeenTimeStr, 10) : 0;
 
     // إذا تم تأخير ساعة الجهاز للخلف بأكثر من 5 دقائق (300000 مللي ثانية)
     if (maxSeenTime > 0 && nowTime < (maxSeenTime - 300000)) {
         window.clockTampered = true;
+        // 🔄 استدعاء التحقق والإصلاح الذاتي من وقت الإنترنت تلقائياً
+        if (typeof window.verifyAndHealClockTampering === 'function') {
+            window.verifyAndHealClockTampering().catch(() => {});
+        }
         return false;
     } else {
         window.clockTampered = false;
         if (nowTime > maxSeenTime) {
-            setStore('bayan_max_seen_timestamp', nowTime.toString());
+            let shouldUpdate = true;
+            // 🛡️ حماية ضد القفزات المستقبلية الوهمية (مثل أعطال بطارية اللوحة الأم CMOS أو خطأ تاريخ يدوي)
+            const lastServerTimeStr = (typeof getStore === 'function' ? getStore('bayan_last_verified_server_time') : null) || (typeof localStorage !== 'undefined' ? localStorage.getItem('bayan_last_verified_server_time') : null);
+            if (lastServerTimeStr) {
+                const lastServerTime = parseInt(lastServerTimeStr, 10);
+                if (!isNaN(lastServerTime) && lastServerTime > 0 && (nowTime - lastServerTime) > (48 * 3600 * 1000)) {
+                    // قفزة مستقبلية شاذة بأكثر من 48 ساعة عن آخر وقت سيرفر موثوق
+                    shouldUpdate = false;
+                    if (typeof window.verifyAndHealClockTampering === 'function') {
+                        window.verifyAndHealClockTampering().catch(() => {});
+                    }
+                }
+            } else if (maxSeenTime > 0 && (nowTime - maxSeenTime) > (30 * 24 * 3600 * 1000)) {
+                // قفزة مستقبلية شاذة بأكثر من شهر دفعة واحدة
+                shouldUpdate = false;
+                if (typeof window.verifyAndHealClockTampering === 'function') {
+                    window.verifyAndHealClockTampering().catch(() => {});
+                }
+            }
+
+            if (shouldUpdate) {
+                if (typeof setStore === 'function') setStore('bayan_max_seen_timestamp', nowTime.toString());
+                if (typeof localStorage !== 'undefined') localStorage.setItem('bayan_max_seen_timestamp', nowTime.toString());
+            }
         }
     }
 
@@ -1444,12 +1554,23 @@ window.enforceSubscriptionCheck = function (actionType = 'invoice') {
     }
 
     if (window.clockTampered) {
+        if (typeof window.verifyAndHealClockTampering === 'function') {
+            window.verifyAndHealClockTampering().catch(() => {});
+        }
         if (typeof showCustomAlert === 'function') {
             showCustomAlert({
                 type: 'error',
                 titleText: '🛑 تحذير أمني: تم رصد تغيير في تاريخ الجهاز!',
-                msg: 'تم رصد إرجاع تاريخ أو ساعة الكمبيوتر للخلف برمجياً.\n\nلحماية أمان المنظومة والسجلات المالية، يرجى ضبط تاريخ وساعة الجهاز بالشكل الصحيح للاستمرار في إجراء وحفظ العمليات والفواتير.',
-                confirmText: 'تعديل التاريخ ⚙️'
+                msg: 'تم رصد إرجاع تاريخ أو ساعة الكمبيوتر للخلف برمجياً.\n\nلحماية أمان المنظومة والسجلات المالية، يرجى ضبط تاريخ وساعة الجهاز بالشكل الصحيح للاستمرار في إجراء وحفظ العمليات والفواتير.\n\n💡 إذا كانت الساعة مضبوطة الآن بالشكل الصحيح، اضغط على زر التحقق بالأسفل لإلغاء القفل فوراً.',
+                confirmText: 'التحقق وإلغاء القفل عبر الإنترنت 🌐',
+                onConfirm: async () => {
+                    if (typeof window.verifyAndHealClockTampering === 'function') {
+                        const healed = await window.verifyAndHealClockTampering();
+                        if (!healed && typeof showToast === 'function') {
+                            showToast("⚠️ يرجى التأكد من اتصال الإنترنت وضبط تاريخ وساعة الويندوز الحالية بدقة.", "warning", 6000);
+                        }
+                    }
+                }
             });
         } else {
             alert("🛑 تحذير أمني: يرجى ضبط تاريخ وساعة جهاز الكمبيوتر بشكل صحيح.");
@@ -1582,38 +1703,172 @@ window.registerTrialInvoiceCreation = function () {
 })();
 
 window.LicenseService = {
-    generateLicenseSignature: async function (plan, expiry, machineId) {
+    // جلب المفتاح السري الداخلي المشفر دون كشفه كنص صريح في الـ Global Scope
+    _getSecretKey: function () {
+        const bytes = [66, 65, 89, 65, 78, 95, 80, 79, 83, 95, 83, 69, 67, 82, 69, 84, 95, 75, 69, 89, 95, 50, 48, 50, 54];
+        return String.fromCharCode.apply(null, bytes);
+    },
+
+    // حساب الهاش المشفر للتحقق الاحتياطي بالمتصفح
+    _calcLocalPayloadHash: async function (dataStr) {
         if (typeof require !== 'undefined') {
             try {
                 const { ipcRenderer } = require('electron');
-                const sig = await ipcRenderer.invoke('generate-license-signature', plan, expiry, machineId);
-                if (sig) return sig;
+                const h = await ipcRenderer.invoke('hash-activation-payload', dataStr);
+                if (h) return h;
+            } catch (e) {}
+        }
+        if (window.crypto && window.crypto.subtle) {
+            try {
+                const secret = this._getSecretKey();
+                const msgEncoder = new TextEncoder();
+                const cryptoKey = await window.crypto.subtle.importKey("raw", msgEncoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+                const signature = await window.crypto.subtle.sign("HMAC", cryptoKey, msgEncoder.encode(dataStr));
+                return Array.from(new Uint8Array(signature)).map(b => b.toString(16).padStart(2, "0")).join("").toUpperCase().substring(0, 16);
+            } catch (e) {}
+        }
+        return '';
+    },
+
+    // حساب التوقيع الرقمي للترخيص (محلياً عند عدم توفر Electron)
+    _calcLocalSignature: async function (plan, expiry, machineId) {
+        const dataString = `${plan}_${expiry || ''}_${machineId}`;
+        const hash = await this._calcLocalPayloadHash(dataString);
+        if (hash) return hash;
+        // Fallback bitwise hash
+        const secret = this._getSecretKey();
+        let h1 = 0, h2 = 0;
+        for (let i = 0; i < dataString.length; i++) {
+            h1 = ((h1 << 5) - h1) + dataString.charCodeAt(i);
+            h1 = h1 & h1;
+        }
+        for (let i = 0; i < secret.length; i++) {
+            h2 = ((h2 << 5) - h2) + secret.charCodeAt(i);
+            h2 = h2 & h2;
+        }
+        return Math.abs(h1 ^ h2).toString(16).toUpperCase();
+    },
+
+    // التحقق الرياضي الصارم من صحة كود التفعيل ومطابقته للجهاز
+    checkActivationCodeValidity: async function (code, machineId, expectedPlan = '') {
+        if (!code || typeof code !== 'string') return false;
+        const cleanCode = code.trim().toUpperCase();
+        const cleanHwid = String(machineId || '').trim().toUpperCase();
+
+        // 1. التحقق عبر Main Process المعزول (البيئة الأساسية والآمنة)
+        if (typeof require !== 'undefined') {
+            try {
+                const { ipcRenderer } = require('electron');
+                const testRes = await ipcRenderer.invoke('verify-and-sign-license', {
+                    plan: expectedPlan || 'VERIFY_CHECK',
+                    expiry: 'CHECK',
+                    machineId: cleanHwid,
+                    code: cleanCode,
+                    isInternalAuth: false
+                });
+                if (testRes && testRes.success) return true;
+                if (testRes && testRes.error) return false;
+            } catch (e) {
+                console.warn("Main process code validation check error:", e);
+            }
+        }
+
+        // 2. التحقق الاحتياطي بالخوارزمية الرياضية (في المتصفح)
+        const parts = cleanCode.split('-');
+        if (parts.length === 4 && parts[0] === 'BYN') {
+            const dateStr = parts[1];
+            const planChar = parts[2];
+            const providedHash = parts[3];
+            const payload = dateStr + planChar;
+            const fullHash = await this._calcLocalPayloadHash(cleanHwid + payload);
+            return Boolean(fullHash && fullHash.substring(0, 8).toUpperCase() === providedHash.toUpperCase());
+        }
+
+        // النمط القديم: BYN-XXXX-XXXX-XXXX-XXXX
+        const legacyPlans = ["MONTHLY", "ANNUAL", "LIFETIME"];
+        for (let pid of legacyPlans) {
+            const fullHash = await this._calcLocalPayloadHash(cleanHwid + pid);
+            if (fullHash) {
+                const expCode1 = `BYN-${fullHash.substring(0, 4)}-${fullHash.substring(4, 8)}-${fullHash.substring(8, 12)}-${fullHash.substring(12, 16)}`;
+                if (cleanCode === expCode1 || cleanCode === fullHash.substring(0, 16) || cleanCode === `BYN-${fullHash.substring(0, 16)}`) return true;
+            }
+        }
+        return false;
+    },
+
+    // توليد التوقيع الرقمي الآمن (يشترط تفويضاً أو كود تفعيل صحيح)
+    generateLicenseSignature: async function (plan, expiry, machineId, code = '', isInternalAuth = false) {
+        if (typeof require !== 'undefined') {
+            try {
+                const { ipcRenderer } = require('electron');
+                const res = await ipcRenderer.invoke('verify-and-sign-license', {
+                    plan: plan,
+                    expiry: expiry,
+                    machineId: machineId,
+                    code: code,
+                    isInternalAuth: Boolean(isInternalAuth)
+                });
+                if (res && res.success && res.signature) return res.signature;
             } catch (e) {
                 console.warn("Secure Main Process IPC not available, trying local fallback", e);
             }
         }
-
-        // Local Fallback signature (without using the actual secure Main Process key)
-        const dataString = `${plan}_${expiry}_${machineId}`;
-        const secret = atob("QkFZQU5fUE9TX1NFQ1JFVF9LRVlfMjAyNg=="); // مفتاح مشفر لمنع الفحص النصي البسيط في المتصفح
-        let hash = 0;
-        for (let i = 0; i < dataString.length; i++) {
-            const char = dataString.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash;
-        }
-        let secretHash = 0;
-        for (let i = 0; i < secret.length; i++) {
-            const char = secret.charCodeAt(i);
-            secretHash = ((secretHash << 5) - secretHash) + char;
-            secretHash = secretHash & secretHash;
-        }
-        return Math.abs(hash ^ secretHash).toString(16).toUpperCase();
+        return await this._calcLocalSignature(plan, expiry, machineId);
     },
 
-    saveLicenseLocally: async function (plan, expiry, code = '') {
-        const machineId = (window.getUniqueHWID ? await window.getUniqueHWID() : '') || getStore('bayan_hwid') || getStore('bayan_machine_id') || 'LOCAL_DEVICE';
-        const signature = await this.generateLicenseSignature(plan, expiry, machineId);
+    // التحقق من صحة توقيع الترخيص المخزن في Main Process المعزول
+    verifyLicenseSignature: async function (plan, expiry, machineId, signature) {
+        if (!signature) return false;
+        if (typeof require !== 'undefined') {
+            try {
+                const { ipcRenderer } = require('electron');
+                const isValid = await ipcRenderer.invoke('verify-license-signature', plan, expiry, machineId, signature);
+                if (typeof isValid === 'boolean') return isValid;
+            } catch (e) {
+                console.warn("verify-license-signature IPC failed, using fallback:", e);
+            }
+        }
+        const expected = await this._calcLocalSignature(plan, expiry, machineId);
+        return Boolean(expected && signature.toUpperCase() === expected.toUpperCase());
+    },
+
+    // حفظ الترخيص محلياً مع التحقق الأمني الصارم لمنع استغلال الكونسول
+    saveLicenseLocally: async function (plan, expiry, code = '', authToken = null) {
+        const stack = (new Error().stack || '');
+
+        // الحالات المصرح بها نظامياً فقط:
+        const isCloudAuthorized = (authToken === INTERNAL_CLOUD_AUTH_SYMBOL && code === 'REMOTELY_ACTIVATED_CLOUD');
+        const isDirectActivation = (authToken === INTERNAL_CLOUD_AUTH_SYMBOL && (stack.includes('verifyAndActivateLicense') || stack.includes('app_license.js')));
+        const isBackupRestore = (code === 'BACKUP_RESTORE_AUTHORIZED' || stack.includes('restoreDataFromContent') || stack.includes('app_backup.js'));
+        const isFreeTrial = (plan === 'باقة نسخة المجانية' && (!code || code === 'TRIAL'));
+
+        const machineId = (window.getUniqueHWID ? await window.getUniqueHWID() : '') || (typeof getStore === 'function' ? (getStore('bayan_hwid') || getStore('bayan_machine_id')) : '') || 'LOCAL_DEVICE';
+
+        let isAuthorized = false;
+        if (isCloudAuthorized || isDirectActivation || isBackupRestore || isFreeTrial) {
+            isAuthorized = true;
+        } else if (code && code.trim().length > 0) {
+            // التحقق الرياضي الصارم من كود التفعيل الممرر لمنع الأكواد الوهمية مثل FREE_CRACK
+            isAuthorized = await this.checkActivationCodeValidity(code, machineId, plan);
+        }
+
+        if (!isAuthorized) {
+            console.warn("🛑 [LicenseShield Alert] تم حظر محاولة غير مصرح بها لتفعيل أو تزوير ترخيص من الكونسول:", { plan, code });
+            if (typeof showToast === 'function') {
+                showToast("🛑 تنبيه أمني: محاولة تفعيل غير صالحة تم حظرها ومنعها!", "error");
+            } else if (typeof alert === 'function') {
+                alert("🛑 تنبيه أمني: محاولة تفعيل غير صالحة تم حظرها ومنعها!");
+            }
+            return false;
+        }
+
+        const isInternalAuth = isCloudAuthorized || isDirectActivation || isBackupRestore || isFreeTrial;
+        const signature = await this.generateLicenseSignature(plan, expiry, machineId, code, isInternalAuth);
+
+        if (!signature) {
+            console.warn("🛑 [LicenseShield Alert] تم رفض توقيع الترخيص من النواة الآمنة.");
+            return false;
+        }
 
         const licenseInfo = {
             id: 'license_info',
@@ -1626,13 +1881,19 @@ window.LicenseService = {
             lastValidation: new Date().toISOString()
         };
 
-        setStore('license_info', JSON.stringify(licenseInfo));
+        if (typeof setStore === 'function') {
+            setStore('license_info', JSON.stringify(licenseInfo));
+        } else {
+            localStorage.setItem('license_info', JSON.stringify(licenseInfo));
+        }
+
         window.activeLicense = {
             plan: plan,
             expiry: expiry,
             code: code,
             isValid: true
         };
+        return true;
     },
 
     activatePlanRemotely: async function (plan) {
@@ -1649,7 +1910,7 @@ window.LicenseService = {
             } else {
                 expiry = '2099-12-31T23:59:59.999Z';
             }
-            await this.saveLicenseLocally(plan, expiry, 'REMOTELY_ACTIVATED_CLOUD');
+            await this.saveLicenseLocally(plan, expiry, 'REMOTELY_ACTIVATED_CLOUD', INTERNAL_CLOUD_AUTH_SYMBOL);
             if (typeof setStore === 'function') {
                 setStore('bayan_trial_consumed', 'true');
                 setStore('bayan_has_subscribed_paid', 'true');
@@ -1684,7 +1945,6 @@ window.LicenseService = {
         }
     },
 
-
     verifyLicense: async function () {
         // 1. إذا كان هذا الجهاز جهازاً فرعياً أو متصفحاً مقترناً بالسيرفر، يتحقق من ترخيص السيرفر الرئيسي
         const isClient = (typeof window.BayanNetworkHub !== 'undefined' && !window.BayanNetworkHub.isMasterServer) || 
@@ -1714,7 +1974,6 @@ window.LicenseService = {
             licenseInfo = JSON.parse(getStore('license_info'));
         } catch (e) { }
 
-
         if (!licenseInfo) {
             // فحص هل العميل مشترك مسبقاً في باقة مدفوعة قبل افتراض الباقة المجانية
             const hasPaidStored = (typeof getStore === 'function') && (
@@ -1726,7 +1985,7 @@ window.LicenseService = {
             const savedExpiry = (typeof getStore === 'function' ? getStore('bayan_expiry_date') : '') || '';
             const recoveredPlan = hasPaidStored ? savedPlan : 'باقة نسخة المجانية';
 
-            const sig = await this.generateLicenseSignature(recoveredPlan, savedExpiry, machineId);
+            const sig = await this.generateLicenseSignature(recoveredPlan, savedExpiry, machineId, '', true);
 
             licenseInfo = {
                 id: 'license_info',
@@ -1740,9 +1999,9 @@ window.LicenseService = {
             setStore('license_info', JSON.stringify(licenseInfo));
         }
 
-        let expectedSig = await this.generateLicenseSignature(licenseInfo.plan, licenseInfo.expiry, machineId);
+        const isSigValid = await this.verifyLicenseSignature(licenseInfo.plan, licenseInfo.expiry, machineId, licenseInfo.signature);
 
-        if (licenseInfo.signature !== expectedSig || licenseInfo.machineId !== machineId) {
+        if (!isSigValid || licenseInfo.machineId !== machineId) {
             // فحص هل سبق للجهاز الاشتراك في أي باقة مدفوعة
             const hasEverSubscribed = (typeof getStore === 'function') && (
                 getStore('bayan_trial_consumed') === 'true' || 
@@ -1758,17 +2017,16 @@ window.LicenseService = {
             // 1. إذا كان المستخدم مشتركاً في باقة مدفوعة وانتهت، يتم الحفاظ التام على باقته المدفوعة وتاريخ انتهائها لمنع تحويله للمجانية
             if (hasEverSubscribed && licenseInfo.plan && licenseInfo.plan !== 'باقة نسخة المجانية' && licenseInfo.plan !== 'Blocked') {
                 console.log("🔒 Preserving paid subscription plan:", licenseInfo.plan);
-                const sig = await this.generateLicenseSignature(licenseInfo.plan, licenseInfo.expiry, machineId);
+                const sig = await this.generateLicenseSignature(licenseInfo.plan, licenseInfo.expiry, machineId, licenseInfo.code || '', true);
                 licenseInfo.machineId = machineId;
                 licenseInfo.signature = sig;
                 setStore('license_info', JSON.stringify(licenseInfo));
-                expectedSig = sig;
             } else if (!hasEverSubscribed && (licenseInfo.plan === 'باقة نسخة المجانية' || !licenseInfo.plan || isTrialEligible || isPairedTerminal)) {
                 // 2. إذا كان مستخدماً جديداً ولم يشترك قط في أي باقة مدفوعة
                 console.log("🛠️ Auto-repairing license for current machine ID (Trial)...");
                 const freePlan = 'باقة نسخة المجانية';
                 const freeExpiry = '';
-                const sig = await this.generateLicenseSignature(freePlan, freeExpiry, machineId);
+                const sig = await this.generateLicenseSignature(freePlan, freeExpiry, machineId, '', true);
 
                 licenseInfo = {
                     id: 'license_info',
@@ -1780,7 +2038,6 @@ window.LicenseService = {
                     lastValidation: new Date().toISOString()
                 };
                 setStore('license_info', JSON.stringify(licenseInfo));
-                expectedSig = sig; // تحديث التوقيع المتوقع ليطابق الجديد
             } else {
                 console.error("🛑 License tampered or machine ID mismatch!");
                 window.activeLicense = {

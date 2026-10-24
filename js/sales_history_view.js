@@ -174,16 +174,7 @@ window.historyRenderLimit = 500;
 
 window.loadMoreHistory = function(step) {
     if (step === 0) {
-        const MAX_SAFE_CEILING = 300;
-        const total = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions.length : 0;
-        if (total > MAX_SAFE_CEILING) {
-            window.historyRenderLimit = MAX_SAFE_CEILING;
-            if (typeof showToast === 'function') {
-                showToast(`⚡ تم عرض أول ${MAX_SAFE_CEILING} حركة لحماية سرعة جهازك. استخدم فلتر الفترة أو شريط البحث للوصول الفوري لأي حركة.`, 'info');
-            }
-        } else {
-            window.historyRenderLimit = Infinity;
-        }
+        window.historyRenderLimit = 50000;
     } else {
         window.historyRenderLimit = (window.historyRenderLimit || 500) + step;
     }
@@ -446,6 +437,161 @@ async function renderHistoryTable(filterName = null) {
     if (!filterName) {
         const searchVal = document.getElementById('historySearch')?.value?.trim();
         if (searchVal) filterName = searchVal;
+    }
+
+    // ⚡ المسار فائق السرعة عبر محرك SQLite وفهارس transaction_items المباشرة (< 20ms)
+    if (window.BayanSQLite && typeof window.BayanSQLite.getItemMovementHistory === 'function' && window.BayanSQLite.db) {
+        try {
+            const activeUser = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : window.currentUser;
+            const invClientFilter = document.getElementById('historyInvoiceClientFilter')?.value?.trim();
+            const limit = window.historyRenderLimit || 500;
+
+            const histResult = window.BayanSQLite.getItemMovementHistory({
+                filterText: filterName || '',
+                fromDate: fromDate || null,
+                toDate: toDate || null,
+                warehouse: whFilter || 'all',
+                type: typeFilter || 'all',
+                method: methodFilter || 'all',
+                invoiceOrClient: invClientFilter || null,
+                limit: limit,
+                currentUser: activeUser
+            });
+
+            if (histResult && Array.isArray(histResult.rows)) {
+                const totalInQty = histResult.totalInQty || 0;
+                const totalOutQty = histResult.totalOutQty || 0;
+                const netQty = histResult.netQty || 0;
+                const totalAmountSum = histResult.totalAmountSum || 0;
+                const totalMatchingCount = histResult.totalMatchingCount || 0;
+                const displayedData = histResult.rows || [];
+                const hasMore = totalMatchingCount > displayedData.length;
+
+                // تحديث الكروت العلوية
+                const inCardEl = document.getElementById('histCardInQty');
+                const outCardEl = document.getElementById('histCardOutQty');
+                const netCardEl = document.getElementById('histCardNetQty');
+                const amtCardEl = document.getElementById('histCardTotalAmount');
+
+                if (inCardEl) inCardEl.innerText = totalInQty % 1 === 0 ? totalInQty : totalInQty.toFixed(2);
+                if (outCardEl) outCardEl.innerText = totalOutQty % 1 === 0 ? totalOutQty : totalOutQty.toFixed(2);
+                if (netCardEl) {
+                    netCardEl.innerText = (netQty > 0 ? '+' : '') + (netQty % 1 === 0 ? netQty : netQty.toFixed(2));
+                    netCardEl.style.color = netQty >= 0 ? '#1e40af' : '#dc2626';
+                }
+                if (amtCardEl) amtCardEl.innerHTML = `${totalAmountSum.toFixed(2)} <span style="font-size:0.75rem;">ج.م</span>`;
+
+                tbody.innerHTML = '';
+                let rowsHtml = '';
+                const esc = (typeof escapeHtml === 'function') ? escapeHtml : (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+
+                displayedData.forEach((t, rowIdx) => {
+                    const isSelected = (selectedHistoryIndex === rowIdx);
+                    const sSize = t.size || '';
+                    const sColor = t.color || '';
+                    const whName = t.warehouse || '';
+
+                    let fashionBadges = '';
+                    if (sSize || sColor || whName) {
+                        fashionBadges = `
+                            <div style="display: flex; gap: 4px; margin-top: 3px; font-size: 0.75rem; flex-wrap: wrap; align-items: center;">
+                                ${sSize ? `<span style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; padding: 1px 6px; border-radius: 4px; font-weight: 800;">${esc(sSize)}</span>` : ''}
+                                ${sColor ? `<span style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; padding: 1px 6px; border-radius: 4px; font-weight: 800;">${esc(sColor)}</span>` : ''}
+                                ${whName ? `<span style="background: #f8fafc; color: #475569; border: 1px solid #e2e8f0; padding: 1px 6px; border-radius: 4px; font-weight: 700;">🏢 ${esc(whName)}</span>` : ''}
+                            </div>
+                        `;
+                    }
+
+                    // الرصيد بعد العملية التراكمي الفعلي
+                    const bal = t.balanceAfter;
+                    let balHtml = '<span style="color:#94a3b8; font-weight:700;">—</span>';
+                    if (bal !== undefined && bal !== null) {
+                        if (bal > 0) {
+                            balHtml = `<span style="color: #059669; font-weight: 900;">▲ ${bal % 1 === 0 ? bal : bal.toFixed(2)}</span>`;
+                        } else if (bal < 0) {
+                            balHtml = `<span style="color: #dc2626; font-weight: 900;">▼ ${Math.abs(bal % 1 === 0 ? bal : bal.toFixed(2))}</span>`;
+                        } else {
+                            balHtml = `<span style="color: #94a3b8; font-weight: 800;">0</span>`;
+                        }
+                    }
+
+                    const displayDate = t.dateFormatted || (t.dateISO ? (t.time ? `${t.dateISO} ${t.time}` : t.dateISO) : '-');
+
+                    rowsHtml += `
+                        <tr data-orig-index="${rowIdx}" data-invoice-id="${esc(t.invoiceId || '')}" data-invoice-type="${esc(t.type || '')}" class="${isSelected ? 'selected-row' : ''}" onclick="selectHistoryRow(${rowIdx})">
+                            <td class="col-hist-0"><input type="radio" name="histRad" ${isSelected ? 'checked' : ''}></td>
+                            <td class="col-hist-1"><span style="background:#eee; padding:2px 6px; border-radius:4px; font-weight:bold;">${esc(t.invoiceId || '-')}</span></td>
+                            <td class="col-hist-2">${esc(displayDate)}</td>
+                            <td class="col-hist-3" style="text-align: center;">
+                                <span class="stock-badge ${t.type.includes('بيع') ? (t.type.includes('مرتجع') ? 'badge-return-sale' : 'badge-sale') :
+                                    (t.type.includes('شراء') ? (t.type.includes('مرتجع') ? 'badge-return-purchase' : 'badge-purchase') :
+                                    (t.type.includes('قبض') ? 'badge-receipt' : (t.type.includes('صرف') ? 'badge-disburse' : (t.type.includes('تحويل') ? 'badge-transfer' : ''))))}">
+                                    ${(() => {
+                                        const tp = t.type || '';
+                                        if (tp.includes('مرتجع') && (tp.includes('بيع') || tp.includes('مبيعات'))) return '↩️ مرتجع بيع';
+                                        if (tp.includes('مرتجع') && (tp.includes('شراء') || tp.includes('مشتريات'))) return '🔄 مرتجع شراء';
+                                        if (tp.includes('بيع') || tp.includes('مبيعات')) return '🛒 فاتورة بيع';
+                                        if (tp.includes('شراء') || tp.includes('مشتريات')) return '📦 فاتورة شراء';
+                                        return esc(tp);
+                                    })()}
+                                </span>
+                                ${t.type.includes('تحويل') ? (
+                                    t.transferStatus === 'pending' ? '<span style="display:block; margin-top:2px; font-size:0.72rem; color:#b45309; font-weight:800; background:#fef3c7; border:1px solid #fde68a; border-radius:10px; padding:1px 6px;">معلق ⏳</span>' :
+                                    (t.transferStatus === 'rejected' ? '<span style="display:block; margin-top:2px; font-size:0.72rem; color:#b91c1c; font-weight:800; background:#fee2e2; border:1px solid #fca5a5; border-radius:10px; padding:1px 6px;">مرفوض ❌</span>' :
+                                    '<span style="display:block; margin-top:2px; font-size:0.72rem; color:#15803d; font-weight:800; background:#dcfce7; border:1px solid #86efac; border-radius:10px; padding:1px 6px;">مستلم ✅</span>')
+                                ) : ''}
+                            </td>
+                            <td class="col-hist-4" style="text-align: right;">
+                                <div style="font-weight: 800; color: #1e293b;">${esc(t.product || '-')}</div>
+                                ${fashionBadges}
+                            </td>
+                            <td class="col-hist-5" style="font-weight: bold;">${t.qty || 0}</td>
+                            <td class="col-hist-6">${parseFloat(t.price || 0).toFixed(2)}</td>
+                            <td class="col-hist-7" style="font-weight:bold; color:var(--main-blue);">${parseFloat(t.total || 0).toFixed(2)}</td>
+                            <td class="col-hist-8">${esc(t.partner || '-')}</td>
+                            <td class="col-hist-9" style="font-size:0.75rem; color:#64748b;">${esc(t.editDate || '-')}</td>
+                            <td class="col-hist-10" style="font-size:0.85rem; color:#0f766e; font-weight:bold;">${esc(t.user || '-')}</td>
+                            <td class="col-hist-11" style="text-align: center; background: linear-gradient(135deg, rgba(124,58,237,0.05), rgba(245,158,11,0.05)); font-weight: 900;">${balHtml}</td>
+                        </tr>`;
+                });
+
+                if (hasMore) {
+                    rowsHtml += `
+                        <tr id="historyLoadMoreRow" style="background: linear-gradient(135deg, #f8fafc, #f1f5f9); text-align: center;">
+                            <td colspan="12" style="padding: 16px; border-top: 2px dashed #cbd5e1;">
+                                <div style="display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap;">
+                                    <span style="font-weight: 800; color: #475569; font-size: 0.92rem;">
+                                        📊 تم عرض <strong style="color: #7c3aed; font-size: 1.05rem;">${displayedData.length}</strong> من إجمالي <strong style="color: #1e293b; font-size: 1.05rem;">${totalMatchingCount}</strong> حركة
+                                    </span>
+                                    <button type="button" onclick="loadMoreHistory(500)" style="background: linear-gradient(135deg, #7c3aed, #6d28d9); color: white; border: none; padding: 7px 18px; border-radius: 8px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(124,58,237,0.3); font-family: 'Cairo', sans-serif; transition: 0.2s;">
+                                        ➕ عرض 500 أخرى
+                                    </button>
+                                    <button type="button" onclick="loadMoreHistory(0)" style="background: white; color: #475569; border: 1.5px solid #cbd5e1; padding: 7px 16px; border-radius: 8px; font-weight: 800; cursor: pointer; font-family: 'Cairo', sans-serif; transition: 0.2s;">
+                                        ⚡ عرض الكل (${totalMatchingCount})
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>`;
+                }
+
+                tbody.innerHTML = rowsHtml || '<tr><td colspan="12" style="text-align:center; padding:20px;">لا توجد حركات مسجلة</td></tr>';
+
+                if (document.getElementById('historyBadgeCount')) {
+                    document.getElementById('historyBadgeCount').innerText = hasMore
+                        ? `معروض ${displayedData.length} من ${totalMatchingCount}`
+                        : 'عدد: ' + totalMatchingCount;
+                }
+
+                if (typeof applyHistoryColumnVisibility === 'function') {
+                    applyHistoryColumnVisibility();
+                }
+
+                window._currentHistoryDisplayed = displayedData;
+                return;
+            }
+        } catch(e) {
+            console.warn("[History] SQLite query error, falling back:", e);
+        }
     }
 
     // ⚡ جلب حركات الصنف التاريخية الشاملة من جدول transaction_items المفهرس في SQLite

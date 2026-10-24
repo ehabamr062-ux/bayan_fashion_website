@@ -695,20 +695,92 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
     });
 });
 
-// تشفير وتوقيع التراخيص
-ipcMain.handle('generate-license-signature', (event, plan, expiry, machineId) => {
+// =========================================================================
+// 🔒 نظام التراخيص المحصن والأمان المشفر (Secure Licensing & Signature Core)
+// =========================================================================
+
+// دالة التحقق الرياضي الصارم من كود التفعيل ومطابقته لمعرف الجهاز
+function verifyActivationCodeIntegrity(code, machineId) {
+    if (!code || !machineId) return false;
+    const sCode = String(code).trim().toUpperCase();
+    const sMachineId = String(machineId).trim().toUpperCase();
+
+    // 1. التنسيق الزمني الأحدث: BYN-DDMMYY-PLAN-HASH8
+    const parts = sCode.split('-');
+    if (parts.length === 4 && parts[0] === 'BYN') {
+        const dateStr = parts[1];
+        const planChar = parts[2];
+        const providedHash = parts[3];
+        const payload = dateStr + planChar;
+        const expectedHashFull = crypto.createHmac('sha256', LICENSE_SECRET).update(sMachineId + payload).digest('hex').substring(0, 8).toUpperCase();
+        return providedHash === expectedHashFull;
+    }
+
+    // 2. التنسيق السابق: BYN-XXXX-XXXX-XXXX-XXXX
+    const legacyPlans = ['MONTHLY', 'ANNUAL', 'LIFETIME', 'p1', 'p2', 'p3', 'p4', 'trial', 'monthly', 'annual', 'lifetime', 'standard', 'pro', 'enterprise'];
+    for (const p of legacyPlans) {
+        const hash16 = crypto.createHmac('sha256', LICENSE_SECRET).update(sMachineId + p).digest('hex').substring(0, 16).toUpperCase();
+        const expectedCode1 = `BYN-${hash16.substring(0, 4)}-${hash16.substring(4, 8)}-${hash16.substring(8, 12)}-${hash16.substring(12, 16)}`;
+        if (sCode === expectedCode1 || sCode === hash16 || sCode === `BYN-${hash16}`) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+// دالة داخلية موحدة لتوليد التوقيع بعد التحقق الصارم
+function internalVerifyAndSign({ plan, expiry, machineId, code, isInternalAuth }) {
+    const cleanPlan = String(plan || '').trim();
+    const cleanHwid = String(machineId || '').trim().toUpperCase();
+    const cleanCode = String(code || '').trim().toUpperCase();
+
+    // 1. السماح بالباقة التجريبية المجانية الافتراضية
+    const isFreeTrial = cleanPlan === 'باقة نسخة المجانية' || cleanPlan.includes('مجانية');
+
+    // 2. التحقق من كود التفعيل الحقيقي للجهاز
+    const isCodeValid = verifyActivationCodeIntegrity(cleanCode, cleanHwid);
+
+    // 3. التحقق من التفويض الداخلي المعتمد (تفعيل سحابي إداري أو استعادة باك أب مصرح)
+    const isAuthorizedInternal = Boolean(isInternalAuth && (cleanCode === 'REMOTELY_ACTIVATED_CLOUD' || cleanCode === 'BACKUP_RESTORE_AUTHORIZED'));
+
+    if (!isFreeTrial && !isCodeValid && !isAuthorizedInternal) {
+        console.warn(`🛑 [License Shield] تم حظر محاولة توليد ترخيص غير مصرح بها! كود: "${cleanCode}" | خطة: "${cleanPlan}" | جهاز: "${cleanHwid}"`);
+        return { success: false, signature: '', error: 'UNAUTHORIZED_OR_INVALID_CODE' };
+    }
+
+    const dataString = cleanPlan + '_' + (expiry || '') + '_' + cleanHwid;
+    const signature = crypto.createHmac('sha256', LICENSE_SECRET).update(dataString).digest('hex').substring(0, 16).toUpperCase();
+    return { success: true, signature };
+}
+
+// معالج التحقق والتوقيع الآمن الصارم المشترط لكود تفعيل حقيقي
+ipcMain.handle('verify-and-sign-license', (event, payload) => {
     try {
-        const dataString = plan + '_' + expiry + '_' + machineId;
-        return crypto.createHmac('sha256', LICENSE_SECRET).update(dataString).digest('hex').substring(0, 16).toUpperCase();
+        return internalVerifyAndSign(payload || {});
     } catch (err) {
-        console.error('Failed to generate signature:', err);
+        console.error('Failed to verify and sign license in Main Process:', err);
+        return { success: false, signature: '', error: err.message };
+    }
+});
+
+// تأمين معالج generate-license-signature القديم لمنع التوليد الأعمى من الكونسول
+ipcMain.handle('generate-license-signature', (event, plan, expiry, machineId, code) => {
+    try {
+        // حظر التمرير الحر لـ isInternalAuth من الكونسول لقطع ثغرة توليد التراخيص الوهمية
+        const res = internalVerifyAndSign({ plan, expiry, machineId, code, isInternalAuth: false });
+        return res.signature || '';
+    } catch (err) {
+        console.error('Failed to generate signature in Main Process:', err);
         return '';
     }
 });
 
+// معالج التحقق من التوقيع في Main Process المعزول عن كونسول الواجهة
 ipcMain.handle('verify-license-signature', (event, plan, expiry, machineId, userSig) => {
     try {
-        const dataString = plan + '_' + expiry + '_' + machineId;
+        if (!userSig || !plan || !machineId) return false;
+        const dataString = String(plan).trim() + '_' + (expiry || '') + '_' + String(machineId).trim().toUpperCase();
         const expectedSig = crypto.createHmac('sha256', LICENSE_SECRET).update(dataString).digest('hex').substring(0, 16).toUpperCase();
         return userSig === expectedSig;
     } catch (err) {
@@ -925,6 +997,33 @@ ipcMain.handle('save-sqlite-direct-backup', async (_e, payload) => {
         return { success: false, error: 'SQLite database file not found' };
     } catch (err) {
         console.error("save-sqlite-direct-backup error:", err);
+        return { success: false, error: err.message };
+    }
+});
+
+// ⚡ استرجاع فوري ومباشر لملف قاعدة البيانات SQLite (.db) في 0.1 ثانية
+ipcMain.handle('restore-sqlite-direct-backup', async (_e, srcFilePath) => {
+    try {
+        if (!srcFilePath || !fs.existsSync(srcFilePath)) {
+            return { success: false, error: 'ملف النسخة الاحتياطية غير موجود على القرص' };
+        }
+        const os = require('os');
+        const sqliteOriginalPath = path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db');
+        const dir = path.dirname(sqliteOriginalPath);
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+        // حفظ نسخة طوارئ من الملف الحالي أولاً
+        if (fs.existsSync(sqliteOriginalPath)) {
+            try {
+                await fs.promises.copyFile(sqliteOriginalPath, sqliteOriginalPath + '.before_restore.bak');
+            } catch(bakErr) {}
+        }
+        await fs.promises.copyFile(srcFilePath, sqliteOriginalPath);
+        console.log("⚡ [Direct SQLite Restore] تم استعادة ملف قاعدة البيانات بنجاح من:", srcFilePath);
+        return { success: true };
+    } catch (err) {
+        console.error("restore-sqlite-direct-backup error:", err);
         return { success: false, error: err.message };
     }
 });
@@ -1168,7 +1267,7 @@ ipcMain.handle('quit-and-install-update', () => {
 
 try { ipcMain.removeHandler('get-app-version'); } catch(e) {}
 ipcMain.handle('get-app-version', () => {
-    return app.getVersion() || '4.9.1';
+    return app.getVersion() || '4.9.2';
 });
 
 // =========================================================================

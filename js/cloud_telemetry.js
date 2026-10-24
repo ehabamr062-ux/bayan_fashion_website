@@ -98,7 +98,7 @@
                 triggerSource: triggerSource,
                 installDate: installDate ? new Date(installDate).toLocaleDateString('ar-EG') : '---',
                 lastActive: new Date().toLocaleString('ar-EG'),
-                appVersion: window.appVersion || 'V4.9.1'
+                appVersion: window.appVersion || 'V4.9.2'
             };
         },
 

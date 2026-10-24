@@ -11,11 +11,24 @@
             loadWallpaper().catch(() => {});
         }
 
-        // ⚡ قراءة الكاش السريع للمستخدمين فوراً في أول جزء من الملي ثانية لمنع أي ارتعاش أو وميض
+        // ⚡ قراءة الكاش السريع للمستخدمين فوراً في أول جزء من الملي ثانية لمنع أي ارتعاش أو وميض (بدون حفظ أي PIN)
         if ((!window.users || window.users.length === 0) && typeof localStorage !== 'undefined') {
             try {
-                const cachedU = JSON.parse(localStorage.getItem('bayan_cached_users') || '[]');
+                let cachedU = JSON.parse(localStorage.getItem('bayan_cached_users') || '[]');
                 if (Array.isArray(cachedU) && cachedU.length > 0) {
+                    // 🛡️ تطهير أمني فوري: إزالة أي رموز PIN كانت مخزنة في الكاش القديم
+                    let cleaned = false;
+                    cachedU = cachedU.map(u => {
+                        if (u && u.pin !== undefined) {
+                            cleaned = true;
+                            const { pin, ...rest } = u;
+                            return rest;
+                        }
+                        return u;
+                    });
+                    if (cleaned) {
+                        try { localStorage.setItem('bayan_cached_users', JSON.stringify(cachedU)); } catch(ce) {}
+                    }
                     window.users = cachedU;
                     if (typeof users !== 'undefined') users = cachedU;
                 }
@@ -40,7 +53,8 @@
                 window.users = uData;
                 if (typeof users !== 'undefined') users = uData;
                 try {
-                    const safeCache = uData.map(u => ({ id: u.id, name: u.name, role: u.role, assignedWarehouse: u.assignedWarehouse, pin: u.pin }));
+                    // 🔒 أمان صارم: تخزين بيانات العرض فقط واستبعاد الـ PIN تماماً من localStorage
+                    const safeCache = uData.map(u => ({ id: u.id, name: u.name, role: u.role, assignedWarehouse: u.assignedWarehouse }));
                     localStorage.setItem('bayan_cached_users', JSON.stringify(safeCache));
                 } catch(e) {}
             }
@@ -156,7 +170,7 @@ window.startDataLoader = function() {
             // 4. صمام الأمان الفولاذي: إنشاء نسخة احتياطية تلقائية وفورية في الخلفية عند الترقية لإصدار جديد
             try {
                 const lastVer = getStore('bayan_last_run_version');
-                const curVer = window.appVersion || '4.9.1';
+                const curVer = window.appVersion || '4.9.2';
                 if (lastVer && lastVer !== curVer) {
                     console.log(`🛡️ [Safety Shield] Version upgrade detected (${lastVer} ➔ ${curVer}). Creating automatic background backup...`);
                     if (typeof window.executeAutoBackupToFile === 'function') {

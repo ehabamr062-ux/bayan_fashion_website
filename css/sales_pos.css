@@ -2759,3 +2759,33 @@
         body.dark-mode .pos-nav-action-btn:hover {
             background: linear-gradient(135deg, #d97706, #92400e) !important;
         }
+
+        /* 📸 مربع صورة الموديل في شاشة البيع - ملء كامل 100% بدون أي حواف أو فراغات بيضاء */
+        #posProductImageCard {
+            padding: 0 !important;
+            overflow: hidden !important;
+        }
+
+        #posProductActiveImg {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            object-fit: cover !important;
+            object-position: center center !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            display: block !important;
+            border-radius: inherit !important;
+        }
+
+        #posProductImagePlaceholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 12px;
+            box-sizing: border-box;
+        }

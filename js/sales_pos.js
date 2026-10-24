@@ -47,7 +47,7 @@ function handleGeneralAccountSearch(query, inputId, resultsId) {
 
         resultsDiv.style.display = 'block';
 
-        filtered.forEach(a => {
+        filtered.slice(0, 40).forEach(a => {
 
             const div = document.createElement('div');
 
@@ -152,7 +152,7 @@ async function handleCustomerSearch(query) {
 
         resultsDiv.style.display = 'block';
 
-        combined.forEach(a => {
+        combined.slice(0, 40).forEach(a => {
 
             const div = document.createElement('div');
 
@@ -2102,12 +2102,15 @@ function renderCart() {
                       title="${isPriceLocked ? '🔒 تعديل سعر البيع مقفل ومحمي لهذا الحساب' : '🔒 تعديل سعر البيع مقفل للكاشير ومصرح به للمدير فقط'}"
                       style="width: 100px; max-width: 100%; height: 34px; font-size: 0.95rem; font-weight: 900; text-align: center; border-radius: 8px; border: 1.5px dashed #cbd5e1; background: #f8fafc; color: #64748b; cursor: not-allowed; box-sizing: border-box; padding: 2px 4px;">`;
 
+        const safeItemName = (typeof escapeHtml === 'function') ? escapeHtml(item.name || '') : (item.name || '');
+        const safeItemCode = (typeof escapeHtml === 'function') ? escapeHtml(item.code || '---') : (item.code || '---');
+
         tr.innerHTML = `
                     <td style="font-weight: 800; color: #64748b;">${index + 1}</td>
-                    <td style="font-size: 0.82rem; color: #475569; font-weight: bold;">${item.code || '---'}</td>
+                    <td style="font-size: 0.82rem; color: #475569; font-weight: bold;">${safeItemCode}</td>
                     <td style="font-weight: 900; color: #1e293b; text-align: right; vertical-align: middle; min-width: 140px;">
                         <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 100%;">
-                            <span style="width: 100%; line-height: 1.35; font-size: 0.92rem; color: #0f172a; word-break: normal; white-space: normal;">${item.name}</span>
+                            <span style="width: 100%; line-height: 1.35; font-size: 0.92rem; color: #0f172a; word-break: normal; white-space: normal;">${safeItemName}</span>
                             <button type="button" onclick="event.stopPropagation(); window.openInquiryForCartItem(${index});"
                                 title="استعلام فوري عن رصيد ومقاسات وألوان هذا الموديل بكافة المخازن والفروع"
                                 style="background: #ecfdf5; border: 1px solid #10b981; color: #047857; border-radius: 6px; padding: 1px 7px; font-size: 0.74rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 3px; transition: all 0.15s; margin-top: 1px; box-shadow: 0 1px 2px rgba(0,0,0,0.04);"
@@ -3847,32 +3850,71 @@ function updatePOSProductImagePreview(productOrId, variant = null) {
     const activeImg = document.getElementById('posProductActiveImg');
     const badgeEl = document.getElementById('posActiveProductBadge');
     const cardEl = document.getElementById('posProductImageCard');
+    const zoomBtn = document.getElementById('posZoomModelBtn');
 
     if (!placeholder || !activeImg) return;
 
     if (badgeEl) badgeEl.innerText = 'المحدد 🎯';
 
-    // عرض صورة الموديل فقط بدون أي نصوص أو تفاصيل إضافية مع إطار متوهج وواضح
+    // 📸 عرض صورة الموديل ملء المربع بالكامل 100% من الحافة للحافة بدون أي فراغات بيضاء
     if (product.image && typeof product.image === 'string' && product.image.trim() !== '') {
         activeImg.src = product.image;
-        activeImg.style.display = 'block';
+        activeImg.style.setProperty('display', 'block', 'important');
+        activeImg.style.setProperty('width', '100%', 'important');
+        activeImg.style.setProperty('height', '100%', 'important');
+        activeImg.style.setProperty('max-width', '100%', 'important');
+        activeImg.style.setProperty('max-height', '100%', 'important');
+        activeImg.style.setProperty('object-fit', 'cover', 'important');
+        activeImg.style.setProperty('object-position', 'center center', 'important');
+        activeImg.style.setProperty('margin', '0', 'important');
+        activeImg.style.setProperty('padding', '0', 'important');
+        activeImg.style.setProperty('border-radius', 'inherit', 'important');
+
         placeholder.style.display = 'none';
         if (cardEl) {
+            cardEl.style.setProperty('padding', '0', 'important');
+            cardEl.style.setProperty('overflow', 'hidden', 'important');
             cardEl.style.border = '3.5px solid #2563eb';
-            cardEl.style.background = '#f0f7ff';
+            cardEl.style.background = '#0f172a';
             cardEl.style.boxShadow = '0 0 0 4px rgba(37, 99, 235, 0.25), 0 10px 25px rgba(37, 99, 235, 0.3)';
+            cardEl.style.cursor = 'pointer';
+            cardEl.title = '🔍 اضغط لتكبير ومعاينة صورة الموديل';
+            cardEl.onclick = () => {
+                if (typeof window.openProductImagePreview === 'function') {
+                    window.openProductImagePreview(product.id);
+                }
+            };
+        }
+        if (zoomBtn) {
+            zoomBtn.style.display = 'inline-flex';
+            zoomBtn.onclick = (e) => {
+                if (e) e.stopPropagation();
+                if (typeof window.openProductImagePreview === 'function') {
+                    window.openProductImagePreview(product.id);
+                }
+            };
         }
     } else {
         activeImg.style.display = 'none';
+        activeImg.src = '';
         placeholder.style.display = 'flex';
         placeholder.innerHTML = `
             <span style="font-size: 3.5rem; opacity: 0.85;">👗</span>
             <div style="font-weight: 800; font-size: 0.78rem; color: #94a3b8; margin-top: 6px;">(لا توجد صورة للموديل)</div>
         `;
         if (cardEl) {
+            cardEl.style.setProperty('padding', '0', 'important');
+            cardEl.style.setProperty('overflow', 'hidden', 'important');
             cardEl.style.border = '3px solid #3b82f6';
             cardEl.style.background = '#f8fafc';
             cardEl.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.2), 0 6px 18px rgba(59, 130, 246, 0.2)';
+            cardEl.style.cursor = 'default';
+            cardEl.title = '';
+            cardEl.onclick = null;
+        }
+        if (zoomBtn) {
+            zoomBtn.style.display = 'none';
+            zoomBtn.onclick = null;
         }
     }
 }
@@ -3882,6 +3924,7 @@ function resetPOSProductImagePreview() {
     const activeImg = document.getElementById('posProductActiveImg');
     const badgeEl = document.getElementById('posActiveProductBadge');
     const cardEl = document.getElementById('posProductImageCard');
+    const zoomBtn = document.getElementById('posZoomModelBtn');
 
     if (badgeEl) badgeEl.innerText = 'جاهز';
     if (activeImg) {
@@ -3897,9 +3940,18 @@ function resetPOSProductImagePreview() {
         `;
     }
     if (cardEl) {
+        cardEl.style.setProperty('padding', '0', 'important');
+        cardEl.style.setProperty('overflow', 'hidden', 'important');
         cardEl.style.border = '2.5px dashed #cbd5e1';
         cardEl.style.background = '#ffffff';
         cardEl.style.boxShadow = 'none';
+        cardEl.style.cursor = 'default';
+        cardEl.title = '';
+        cardEl.onclick = null;
+    }
+    if (zoomBtn) {
+        zoomBtn.style.display = 'none';
+        zoomBtn.onclick = null;
     }
 }
 

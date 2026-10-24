@@ -272,6 +272,9 @@ function renderReturnCart() {
             (item.code && (p.code === item.code || p.barcode === item.code))
         );
         const displayName = item.name || item.product || item.productName || (product ? product.name : '') || 'صنف غير محدد';
+        const safeDisplayName = (typeof escapeHtml === 'function') ? escapeHtml(displayName) : displayName;
+        const rawCode = item.code || item.barcode || (product ? (product.code || product.barcode) : '---');
+        const safeCode = (typeof escapeHtml === 'function') ? escapeHtml(rawCode) : rawCode;
 
         let unitOptions = `<option value="base" ${!item.selectedUnit ? 'selected' : ''}>${(product ? (product.unit || 'قطعة') : 'قطعة')}</option>`;
 
@@ -292,8 +295,8 @@ function renderReturnCart() {
         tr.style.transition = "0.2s";
         tr.innerHTML = `
                     <td style="text-align: center; color: #94a3b8; font-size: 0.8rem;">${idx + 1}</td>
-                    <td style="font-size: 0.85rem; color: #64748b; text-align: center; font-family: monospace;">${item.code || item.barcode || (product ? (product.code || product.barcode) : '---')}</td>
-                    <td style="font-weight: 600; color: #1e293b;">${displayName}</td>
+                    <td style="font-size: 0.85rem; color: #64748b; text-align: center; font-family: monospace;">${safeCode}</td>
+                    <td style="font-weight: 600; color: #1e293b;">${safeDisplayName}</td>
                     <td class="col-variant-size" style="text-align: center;">${sizeElement}</td>
                     <td class="col-variant-color" style="text-align: center;">${colorElement}</td>
                     <td>
@@ -391,9 +394,26 @@ function updateReturnItem(idx, field, val, shouldReRender = true) {
 
     if (!item) return;
 
-    let numericVal = parseFloat(val) || 0;
+    let numericVal = parseFloat(val);
 
     if (field === 'qty') {
+
+        // 🛡️ حارس أمان صارم: منع القيم غير الرقمية أو الأقل من أو المساوية للصفر
+        if (isNaN(numericVal) || numericVal <= 0) {
+            if (typeof showToast === 'function' && (shouldReRender || parseFloat(val) <= 0)) {
+                showToast("⚠️ يجب أن تكون كمية المرتجع أكبر من الصفر!", "warning");
+            }
+            numericVal = 1;
+
+            const tbody = document.getElementById('returnCartBody');
+            if (tbody && (shouldReRender || parseFloat(val) <= 0)) {
+                const row = tbody.querySelector(`tr[data-index="${idx}"]`);
+                if (row) {
+                    const qtyInput = row.querySelector('input[inputmode="decimal"]');
+                    if (qtyInput) qtyInput.value = numericVal;
+                }
+            }
+        }
 
         if (numericVal > item.maxQty) {
 
@@ -422,6 +442,10 @@ function updateReturnItem(idx, field, val, shouldReRender = true) {
         item.qty = numericVal;
 
     } else if (field === 'price') {
+
+        if (isNaN(numericVal) || numericVal < 0) {
+            numericVal = 0;
+        }
 
         item.price = numericVal;
 
@@ -463,9 +487,26 @@ function updatePurReturnItem(idx, field, val, shouldReRender = true) {
 
     if (!item) return;
 
-    let numericVal = parseFloat(val) || 0;
+    let numericVal = parseFloat(val);
 
     if (field === 'qty') {
+
+        // 🛡️ حارس أمان صارم: منع القيم غير الرقمية أو الأقل من أو المساوية للصفر
+        if (isNaN(numericVal) || numericVal <= 0) {
+            if (typeof showToast === 'function' && (shouldReRender || parseFloat(val) <= 0)) {
+                showToast("⚠️ يجب أن تكون كمية المرتجع أكبر من الصفر!", "warning");
+            }
+            numericVal = 1;
+
+            const tbody = document.getElementById('purReturnCartBody');
+            if (tbody && (shouldReRender || parseFloat(val) <= 0)) {
+                const row = tbody.querySelector(`tr[data-index="${idx}"]`);
+                if (row) {
+                    const qtyInput = row.querySelector('input[inputmode="decimal"]');
+                    if (qtyInput) qtyInput.value = numericVal;
+                }
+            }
+        }
 
         if (numericVal > item.maxQty) {
 
@@ -494,6 +535,10 @@ function updatePurReturnItem(idx, field, val, shouldReRender = true) {
         item.qty = numericVal;
 
     } else if (field === 'price') {
+
+        if (isNaN(numericVal) || numericVal < 0) {
+            numericVal = 0;
+        }
 
         item.price = numericVal;
 
@@ -565,6 +610,32 @@ async function saveSalesReturn(force = false, accountChecked = false) {
 
             return false;
 
+        }
+
+        // 🛡️ فحص أمان صارم: التأكد من عدم وجود كميات صفرية أو سالبة أو أسعار غير صالحة في بنود المرتجع
+        const invalidReturnItem = returnCart.find(i => {
+            const q = parseFloat(i.qty);
+            const p = parseFloat(i.price);
+            return isNaN(q) || q <= 0 || isNaN(p) || p < 0;
+        });
+
+        if (invalidReturnItem) {
+            saveBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
+            window.isSavingTransaction = false;
+            const errName = invalidReturnItem.name || invalidReturnItem.product || 'أحد الأصناف';
+            const errMsg = `⚠️ خطأ في كمية الصنف "<b>${errName}</b>": يجب أن تكون الكمية أكبر من الصفر ولا تقبل قيماً صفرية أو سالبة!`;
+            if (typeof showCustomAlert === 'function') {
+                showCustomAlert({
+                    type: 'error',
+                    titleText: '⚠️ خطأ في بيانات المرتجع',
+                    msg: errMsg
+                });
+            } else if (typeof showToast === 'function') {
+                showToast(errMsg, 'error');
+            } else {
+                alert(errMsg);
+            }
+            return false;
         }
 
         let partner = document.getElementById('salesReturnAccountInput')?.value || document.getElementById('salesReturnPartnerDisplay')?.innerText || '';
@@ -664,6 +735,18 @@ async function saveSalesReturn(force = false, accountChecked = false) {
                     const alreadyReturned = otherReturns.reduce((sum, i) => sum + (parseFloat(i.qty) || 0), 0);
                     const maxAllowed = Math.max(0, totalSoldQty - alreadyReturned);
 
+                    if (isNaN(item.qty) || item.qty <= 0) {
+                        const varLabel = (itemSize || itemColor) ? ` (${[itemSize, itemColor].filter(Boolean).join(' - ')})` : '';
+                        saveBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
+                        window.isSavingTransaction = false;
+                        showCustomAlert({
+                            type: 'error',
+                            titleText: '⚠️ خطأ في كمية المرتجع',
+                            msg: `الكمية المراد إرجاعها للصنف "<b>${item.name}${varLabel}</b>" غير صحيحة، يجب أن تكون أكبر من الصفر!`
+                        });
+                        return false;
+                    }
+
                     if (item.qty > maxAllowed) {
                         const varLabel = (itemSize || itemColor) ? ` (${[itemSize, itemColor].filter(Boolean).join(' - ')})` : '';
                         saveBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
@@ -695,7 +778,21 @@ async function saveSalesReturn(force = false, accountChecked = false) {
                 return (isEditMode && origDt && !isDateManuallyChanged) ? origDt : getTransactionDateTime('salesReturnDate', 'salesReturnTime');
             })());
 
-        const subTotal = returnCart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+        const subTotal = returnCart.reduce((sum, i) => sum + (parseFloat(i.price) * parseFloat(i.qty)), 0);
+
+        if (isNaN(subTotal) || subTotal <= 0) {
+            saveBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
+            window.isSavingTransaction = false;
+            const errMsg = "⚠️ إجمالي قيمة أصناف المرتجع يجب أن يكون أكبر من الصفر!";
+            if (typeof showCustomAlert === 'function') {
+                showCustomAlert({ type: 'error', titleText: '⚠️ خطأ في إجمالي المرتجع', msg: errMsg });
+            } else if (typeof showToast === 'function') {
+                showToast(errMsg, 'error');
+            } else {
+                alert(errMsg);
+            }
+            return false;
+        }
 
         const discVal = parseFloat(document.getElementById('salesReturnDiscount').value) || 0;
 
@@ -710,6 +807,20 @@ async function saveSalesReturn(force = false, accountChecked = false) {
         const taxAmount = (taxType === 'perc') ? (subTotal * taxVal / 100) : taxVal;
 
         const finalTotal = subTotal - discAmount + taxAmount;
+
+        if (isNaN(finalTotal) || finalTotal < 0) {
+            saveBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
+            window.isSavingTransaction = false;
+            const errMsg = "⚠️ إجمالي المرتجع النهائي لا يمكن أن يكون سالباً!";
+            if (typeof showCustomAlert === 'function') {
+                showCustomAlert({ type: 'error', titleText: '⚠️ خطأ في الحسابات', msg: errMsg });
+            } else if (typeof showToast === 'function') {
+                showToast(errMsg, 'error');
+            } else {
+                alert(errMsg);
+            }
+            return false;
+        }
 
         const ratio = subTotal > 0 ? (finalTotal / subTotal) : 1;
 
@@ -1233,6 +1344,9 @@ function renderPurReturnCart() {
             (item.code && (p.code === item.code || p.barcode === item.code))
         );
         const displayName = item.name || item.product || item.productName || (product ? product.name : '') || 'صنف غير محدد';
+        const safeDisplayName = (typeof escapeHtml === 'function') ? escapeHtml(displayName) : displayName;
+        const rawCode = item.code || item.barcode || (product ? (product.code || product.barcode) : '---');
+        const safeCode = (typeof escapeHtml === 'function') ? escapeHtml(rawCode) : rawCode;
 
         let unitOptions = `<option value="base" ${!item.selectedUnit ? 'selected' : ''}>${(product ? product.unit : 'قطعة') || 'قطعة'}</option>`;
 
@@ -1252,8 +1366,8 @@ function renderPurReturnCart() {
         tr.setAttribute('data-index', idx);
         tr.innerHTML = `
                     <td style="text-align: center; color: #94a3b8; font-size: 0.8rem;">${idx + 1}</td>
-                    <td style="font-size: 0.85rem; color: #64748b; text-align: center; font-family: monospace;">${item.code || item.barcode || (product ? (product.code || product.barcode) : '---')}</td>
-                    <td style="font-weight: 600; color: #1e293b;">${displayName}</td>
+                    <td style="font-size: 0.85rem; color: #64748b; text-align: center; font-family: monospace;">${safeCode}</td>
+                    <td style="font-weight: 600; color: #1e293b;">${safeDisplayName}</td>
                     <td class="col-variant-size" style="text-align: center;">${sizeElement}</td>
                     <td class="col-variant-color" style="text-align: center;">${colorElement}</td>
                     <td>
@@ -1385,6 +1499,32 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
 
         }
 
+        // 🛡️ فحص أمان صارم: التأكد من عدم وجود كميات صفرية أو سالبة أو أسعار غير صالحة في بنود مرتجع الشراء
+        const invalidPurItem = purReturnCart.find(i => {
+            const q = parseFloat(i.qty);
+            const p = parseFloat(i.price);
+            return isNaN(q) || q <= 0 || isNaN(p) || p < 0;
+        });
+
+        if (invalidPurItem) {
+            saveBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
+            window.isSavingTransaction = false;
+            const errName = invalidPurItem.name || invalidPurItem.product || 'أحد الأصناف';
+            const errMsg = `⚠️ خطأ في كمية الصنف "<b>${errName}</b>": يجب أن تكون الكمية أكبر من الصفر ولا تقبل قيماً صفرية أو سالبة!`;
+            if (typeof showCustomAlert === 'function') {
+                showCustomAlert({
+                    type: 'error',
+                    titleText: '⚠️ خطأ في بيانات المرتجع',
+                    msg: errMsg
+                });
+            } else if (typeof showToast === 'function') {
+                showToast(errMsg, 'error');
+            } else {
+                alert(errMsg);
+            }
+            return false;
+        }
+
         let partner = document.getElementById('purReturnAccountInput')?.value || document.getElementById('purReturnPartnerDisplay')?.innerText || '';
         if (partner === '---') partner = '';
         partner = partner.trim();
@@ -1434,7 +1574,21 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
             }
         }
 
-        const subTotal = purReturnCart.reduce((a, b) => a + (b.price * b.qty), 0);
+        const subTotal = purReturnCart.reduce((a, b) => a + (parseFloat(b.price) * parseFloat(b.qty)), 0);
+
+        if (isNaN(subTotal) || subTotal <= 0) {
+            saveBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
+            window.isSavingTransaction = false;
+            const errMsg = "⚠️ إجمالي قيمة أصناف مرتجع الشراء يجب أن يكون أكبر من الصفر!";
+            if (typeof showCustomAlert === 'function') {
+                showCustomAlert({ type: 'error', titleText: '⚠️ خطأ في إجمالي المرتجع', msg: errMsg });
+            } else if (typeof showToast === 'function') {
+                showToast(errMsg, 'error');
+            } else {
+                alert(errMsg);
+            }
+            return false;
+        }
 
         const discVal = parseFloat(document.getElementById('purReturnDiscount').value) || 0;
 
@@ -1449,6 +1603,20 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
         const taxAmount = (taxType === 'perc') ? (subTotal * taxVal / 100) : taxVal;
 
         const finalTotal = subTotal - discAmount + taxAmount;
+
+        if (isNaN(finalTotal) || finalTotal < 0) {
+            saveBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
+            window.isSavingTransaction = false;
+            const errMsg = "⚠️ إجمالي مرتجع الشراء النهائي لا يمكن أن يكون سالباً!";
+            if (typeof showCustomAlert === 'function') {
+                showCustomAlert({ type: 'error', titleText: '⚠️ خطأ في الحسابات', msg: errMsg });
+            } else if (typeof showToast === 'function') {
+                showToast(errMsg, 'error');
+            } else {
+                alert(errMsg);
+            }
+            return false;
+        }
 
         const ratio = subTotal > 0 ? (finalTotal / subTotal) : 1;
 
@@ -1557,6 +1725,16 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
                     );
                     const alreadyReturned = otherReturns.reduce((sum, i) => sum + (parseFloat(i.qty) || 0), 0);
                     const maxAllowed = Math.max(0, totalBoughtQty - alreadyReturned);
+
+                    if (isNaN(item.qty) || item.qty <= 0) {
+                        const varLabel = (itemSize || itemColor) ? ` (${[itemSize, itemColor].filter(Boolean).join(' - ')})` : '';
+                        showCustomAlert({
+                            type: 'error',
+                            titleText: '⚠️ خطأ في كمية المرتجع',
+                            msg: `الكمية المراد إرجاعها للصنف "<b>${item.name}${varLabel}</b>" غير صحيحة، يجب أن تكون أكبر من الصفر!`
+                        });
+                        return false;
+                    }
 
                     if (item.qty > maxAllowed) {
                         const varLabel = (itemSize || itemColor) ? ` (${[itemSize, itemColor].filter(Boolean).join(' - ')})` : '';
@@ -2072,7 +2250,11 @@ async function handleReturnSearchEnter(query, event, type, forceAdd = false) {
 
         const pSearch = document.getElementById(type === 'sales' ? 'returnProductSearch' : 'purReturnProductSearch');
 
-        const qty = parseFloat(hQty.value) || 1;
+        const rawHQty = parseFloat(hQty ? hQty.value : 1);
+        const qty = (isNaN(rawHQty) || rawHQty <= 0) ? 1 : rawHQty;
+        if (hQty && (isNaN(rawHQty) || rawHQty <= 0)) {
+            hQty.value = 1;
+        }
 
         const price = parseFloat(hPrice.value) || 0;
 

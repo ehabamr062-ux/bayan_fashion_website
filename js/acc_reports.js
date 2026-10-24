@@ -643,12 +643,14 @@
             const isAlreadyLoadedInMemory = (isToday && Array.isArray(window.transactions) && window.transactions.length > 0 && !window._dailyReportNeedsRefresh) ||
                 (window._loadedTxDateRanges && window._loadedTxDateRanges.has(rangeKey) && !window._dailyReportNeedsRefresh);
 
-            // ⚡ إظهار نافذة التحميل ولفت النظر فقط في التقارير الكبيرة جداً (مثل تقرير العام الكلي الشامل أو فترات تتجاوز 45 يوماً) وعند عدم توفر البيانات مسبقاً بالذاكرة
-            // أما الفترات اليومية والعادية (اليوم، الأمس، الأسبوع، الفترات المحدودة) فلا تظهر أي نافذة مزعجة وتُجلب بسلاسة وفورية في الخلفية
+            // ⚡ فحص توفر محرك التجميع فائق السرعة عبر SQLite
+            const hasSqliteAggregates = !!(window.BayanSQLite && typeof window.BayanSQLite.getDailyReportAggregates === 'function' && window.BayanSQLite.db);
+
+            // ⚡ إظهار نافذة التحميل ولفت النظر فقط في التقارير الكبيرة جداً عند استخدام محرك التخزين القديم وعدم توفر SQLite
             const isMassiveArchiveRange = (diffDays > 45 || fromDate < '2025-01-01' || (!fromDate && !toDate));
             let loaderShown = false;
 
-            if (typeof window.loadTransactionsForDateRange === 'function' && !isAlreadyLoadedInMemory) {
+            if (!hasSqliteAggregates && typeof window.loadTransactionsForDateRange === 'function' && !isAlreadyLoadedInMemory) {
                 if (isMassiveArchiveRange && typeof window.showSectionLoader === 'function') {
                     window.showSectionLoader('daily-report-section', 'جاري جلب حركات الأرشيف السنوي...', 'استدعاء بيانات الأرشيف العام من قاعدة البيانات');
                     loaderShown = true;
@@ -1058,30 +1060,15 @@
                 });
             }
 
-            // 2. فلترة وتجميع حركات الفترة المحددة مباشرة من SQLite أو الذاكرة
-            let periodAllRaw = [];
-            // استغلال فوري في 0ms إذا كانت الفواتير محملة مسبقاً بالذاكرة
-            if (isAlreadyLoadedInMemory && Array.isArray(window.transactions) && window.transactions.length > 0) {
-                periodAllRaw = window.transactions.filter(t => t && t.dateISO && t.dateISO >= fromDate && t.dateISO <= toDate);
+            // 2. فحص محرك التحليلات الفوري فائق السرعة عبر SQLite (معالجة مئات الآلاف من الفواتير في < 1 ثانية)
+            let sqliteSummaryLoaded = false;
+            let sqlAggRows = null;
+            if (window.BayanSQLite && typeof window.BayanSQLite.getDailyReportAggregates === 'function' && window.BayanSQLite.db) {
+                sqlAggRows = window.BayanSQLite.getDailyReportAggregates(fromDate, toDate, selectedWarehouse, selectedUser);
+                if (Array.isArray(sqlAggRows)) {
+                    sqliteSummaryLoaded = true;
+                }
             }
-            if ((!periodAllRaw || periodAllRaw.length === 0) && window.BayanSQLite && typeof window.BayanSQLite.getTransactionsForPeriod === 'function') {
-                // جلب كافة حركات الفترة للمخزن المحدد دون استبعاد مسبق للكاشير على مستوى SQLite للسماح باحتساب حركات الدرج المشتركة
-                periodAllRaw = window.BayanSQLite.getTransactionsForPeriod(fromDate, toDate, 15000, selectedWarehouse, 'all');
-            }
-            if (!periodAllRaw || periodAllRaw.length === 0) {
-                periodAllRaw = (typeof transactions !== 'undefined' && Array.isArray(transactions)) 
-                    ? transactions.filter(t => t && t.dateISO && t.dateISO >= fromDate && t.dateISO <= toDate)
-                    : [];
-            }
-            periodAllRaw = periodAllRaw.filter(t => matchesSelectedWarehouse(t) && matchesSelectedUser(t));
-            const periodAllGrouped = getGroupedTransactions(periodAllRaw);
-
-            const currentRaw = (selectedTreasury === 'all') 
-                ? periodAllRaw 
-                : periodAllRaw.filter(t => matchesSelectedTreasury(t));
-            const currentGrouped = (selectedTreasury === 'all') 
-                ? periodAllGrouped 
-                : getGroupedTransactions(currentRaw);
 
             // تهيئة العدادات مع فصل الجملة عن القطاعي وفصل النقدي عن الإلكتروني وفودافون كاش
             let sales = { count: 0, total: 0, cash: 0, nonCash: 0, credit: 0, vodafoneCash: 0 };
@@ -1097,9 +1084,25 @@
             let adjustments = { count: 0, total: 0 };
             let transfers = { count: 0, total: 0 };
 
+            // 🏷️ متغيرات الأرباح والخصومات والإضافات
+            let retailGrossProfit = 0;
+            let wholesaleGrossProfit = 0;
+            let returnSalesProfitLost = 0;
+            let totalSalesDiscounts = 0;
+            let totalSalesAdditions = 0;
+            let discountedInvoicesCount = 0;
+            let addedInvoicesCount = 0;
+
+            const periodDisbursementsList = [];
+            const periodReceiptsList = [];
+            const periodPurchasesList = [];
+            const disbursementsByReason = {};
+            let periodAllRaw = [];
+            let currentRaw = [];
+
             // 📱 تتبع وتجميع تحصيلات وسائل الدفع والمحافظ الإلكترونية بدقة
             const paymentMethodsSummary = {};
-            const recordPaymentMethodOp = (rawMethod, amount, type) => {
+            const recordPaymentMethodOp = (rawMethod, amount, type, opCount = 1) => {
                 if (!amount || amount === 0) return;
                 let method = String(rawMethod || '').trim();
                 if (!method) method = 'كاش (نقدي)';
@@ -1161,230 +1164,260 @@
                 }
 
                 const entry = paymentMethodsSummary[cleanName];
+                const cnt = parseInt(opCount, 10) || 1;
                 if (type === 'sale') {
                     entry.salesTotal += amount;
-                    entry.salesCount++;
+                    entry.salesCount += cnt;
                     entry.netTotal += amount;
                 } else if (type === 'saleReturn') {
                     entry.returnsTotal += amount;
-                    entry.returnsCount++;
+                    entry.returnsCount += cnt;
                     entry.netTotal -= amount;
                 } else if (type === 'receipt') {
                     entry.receiptsTotal = (entry.receiptsTotal || 0) + amount;
-                    entry.receiptsCount = (entry.receiptsCount || 0) + 1;
+                    entry.receiptsCount = (entry.receiptsCount || 0) + cnt;
                     entry.netTotal += amount;
                 } else if (type === 'disbursement') {
                     entry.disbursementsTotal = (entry.disbursementsTotal || 0) + amount;
-                    entry.disbursementsCount = (entry.disbursementsCount || 0) + 1;
+                    entry.disbursementsCount = (entry.disbursementsCount || 0) + cnt;
                     entry.netTotal -= amount;
                 } else if (type === 'purchase') {
                     entry.purchasesTotal = (entry.purchasesTotal || 0) + amount;
-                    entry.purchasesCount = (entry.purchasesCount || 0) + 1;
+                    entry.purchasesCount = (entry.purchasesCount || 0) + cnt;
                     entry.netTotal -= amount;
                 } else if (type === 'purchaseReturn') {
                     entry.purchasesReturnTotal = (entry.purchasesReturnTotal || 0) + amount;
-                    entry.purchasesReturnCount = (entry.purchasesReturnCount || 0) + 1;
+                    entry.purchasesReturnCount = (entry.purchasesReturnCount || 0) + cnt;
                     entry.netTotal += amount;
                 }
             };
 
-            // 📱 تجميع وتتبع وسائل الدفع والمحافظ الإلكترونية من كافة حركات الفترة (لضمان بقاء الشارات العلوية معبرة عن حركة اليوم بدقة)
-            periodAllGrouped.forEach(g => {
-                const paid = g.paid || 0;
-                const total = g.total || 0;
-                const gType = g.type || '';
-                const rawMethod = g.method || g.paymentMethod || 'كاش (نقدي)';
-                if (paid > 0) {
-                    if (gType.includes('مرتجع بيع')) recordPaymentMethodOp(rawMethod, paid, 'saleReturn');
-                    else if (gType.includes('مرتجع شراء')) recordPaymentMethodOp(rawMethod, paid, 'purchaseReturn');
-                    else if (gType.includes('بيع')) recordPaymentMethodOp(rawMethod, paid, 'sale');
-                    else if (gType.includes('شراء') || gType.includes('مشتريات')) recordPaymentMethodOp(rawMethod, paid, 'purchase');
-                }
-                if (total > 0) {
-                    if (gType.includes('قبض')) recordPaymentMethodOp(rawMethod, total, 'receipt');
-                    else if (gType.includes('صرف')) recordPaymentMethodOp(rawMethod, total, 'disbursement');
-                }
-            });
+            if (sqliteSummaryLoaded) {
+                // ⚡ المسار فائق السرعة عبر محرك تجميع SQL: معالجة فورية للملخصات الحسابية
+                // 1. تسجيل شارات طرق الدفع والمحافظ لكافة الحركات
+                sqlAggRows.forEach(row => {
+                    const paid = row.sumPaid || 0;
+                    const total = row.sumTotal || 0;
+                    const gType = row.type || '';
+                    const rawMethod = row.method || 'كاش (نقدي)';
+                    const count = row.invCount || row.rowCount || 1;
 
-            currentGrouped.forEach(g => {
-                const total = g.total || 0;
-                const paid = g.paid || 0;
-                const credit = g.remaining || 0;
-                const gType = g.type || '';
-                const rawMethod = g.method || g.paymentMethod || g.treasury || (g.items && g.items.find(it => it.method || it.paymentMethod)?.method) || '';
-                const isNonCash = isNonCashMethod(rawMethod);
-                const isVf = (typeof window.isVodafonePaymentMethod === 'function') 
-                    ? (window.isVodafonePaymentMethod(rawMethod) || window.isVodafonePaymentMethod(g.treasury)) 
-                    : (String(rawMethod).toLowerCase().includes('فودافون') || String(rawMethod).toLowerCase().includes('voda') || String(g.treasury || '').toLowerCase().includes('فودافون'));
+                    if (paid > 0) {
+                        if (gType.includes('مرتجع بيع')) recordPaymentMethodOp(rawMethod, paid, 'saleReturn', count);
+                        else if (gType.includes('مرتجع شراء')) recordPaymentMethodOp(rawMethod, paid, 'purchaseReturn', count);
+                        else if (gType.includes('بيع')) recordPaymentMethodOp(rawMethod, paid, 'sale', count);
+                        else if (gType.includes('شراء') || gType.includes('مشتريات')) recordPaymentMethodOp(rawMethod, paid, 'purchase', count);
+                    }
+                    if (total > 0) {
+                        if (gType.includes('قبض')) recordPaymentMethodOp(rawMethod, total, 'receipt', count);
+                        else if (gType.includes('صرف')) recordPaymentMethodOp(rawMethod, total, 'disbursement', count);
+                    }
+                });
 
-                const paidVf = isVf ? paid : 0;
-                const paidCash = (isNonCash || isVf) ? 0 : paid;
-                const paidOtherNonCash = (isNonCash && !isVf) ? paid : 0;
+                // 2. تجميع الحركات المالية طبقاً للخزينة المحددة
+                sqlAggRows.forEach(row => {
+                    const total = row.sumTotal || 0;
+                    const paid = row.sumPaid || 0;
+                    const credit = row.sumRemaining || 0;
+                    const count = row.invCount || row.rowCount || 0;
+                    const gType = row.type || '';
+                    const rawMethod = row.method || 'كاش (نقدي)';
 
-                if (gType.includes('مرتجع بيع')) {
-                    salesReturn.count++;
-                    salesReturn.total += total;
-                    salesReturn.cash += paidCash;
-                    salesReturn.vodafoneCash += paidVf;
-                    salesReturn.nonCash += (paidOtherNonCash + paidVf);
-                    salesReturn.credit += credit;
-                } else if (gType.includes('بيع')) {
-                    sales.count++;
-                    sales.total += total;
-                    sales.cash += paidCash;
-                    sales.vodafoneCash += paidVf;
-                    sales.nonCash += (paidOtherNonCash + paidVf);
-                    sales.credit += credit;
-
-                    if (isVf) {
-                        vodafoneSales.count++;
-                        vodafoneSales.total += total;
-                        vodafoneSales.cash += paidCash;
-                        vodafoneSales.nonCash += paidVf;
-                        vodafoneSales.credit += credit;
+                    if (selectedTreasury !== 'all' && !matchesSelectedTreasury({ method: rawMethod, paidAmount: paid })) {
+                        return;
                     }
 
-                    // فحص هل الفاتورة جملة أم قطاعي (تجزئة)
-                    const isWholesale = (g.priceLevel === 'wholesale') || (g.items && g.items.some(it => it.priceLevel === 'wholesale'));
-                    if (isWholesale) {
-                        wholesaleSales.count++;
-                        wholesaleSales.total += total;
-                        wholesaleSales.cash += paidCash;
-                        wholesaleSales.vodafoneCash += paidVf;
-                        wholesaleSales.nonCash += (paidOtherNonCash + paidVf);
-                        wholesaleSales.credit += credit;
-                    } else {
-                        retailSales.count++;
-                        retailSales.total += total;
-                        retailSales.cash += paidCash;
-                        retailSales.vodafoneCash += paidVf;
-                        retailSales.nonCash += (paidOtherNonCash + paidVf);
-                        retailSales.credit += credit;
-                    }
-                } else if (gType.includes('مرتجع شراء')) {
-                    purchasesReturn.count++;
-                    purchasesReturn.total += total;
-                    purchasesReturn.cash += paidCash;
-                    purchasesReturn.vodafoneCash += paidVf;
-                    purchasesReturn.nonCash += (paidOtherNonCash + paidVf);
-                    purchasesReturn.credit += credit;
-                } else if (gType.includes('شراء') || gType.includes('مشتريات')) {
-                    purchases.count++;
-                    purchases.total += total;
-                    purchases.cash += paidCash;
-                    purchases.vodafoneCash += paidVf;
-                    purchases.nonCash += (paidOtherNonCash + paidVf);
-                    purchases.credit += credit;
-                } else if (gType.includes('قبض')) {
-                    receipts.count++;
-                    receipts.total += total;
-                    if (isVf) {
-                        receipts.vodafoneCash += total;
-                        receipts.nonCash = (receipts.nonCash || 0) + total;
-                    } else if (isNonCash) {
-                        receipts.nonCash = (receipts.nonCash || 0) + total;
-                    } else {
-                        receipts.cash = (receipts.cash || 0) + total;
-                    }
-                } else if (gType.includes('صرف')) {
-                    disbursements.count++;
-                    disbursements.total += total;
-                    if (isVf) {
-                        disbursements.vodafoneCash += total;
-                        disbursements.nonCash = (disbursements.nonCash || 0) + total;
-                    } else if (isNonCash) {
-                        disbursements.nonCash = (disbursements.nonCash || 0) + total;
-                    } else {
-                        disbursements.cash = (disbursements.cash || 0) + total;
-                    }
-                } else if (gType.includes('تسوية')) {
-                    adjustments.count++;
-                    adjustments.total += total;
-                } else if (gType.includes('تحويل')) {
-                    if (g.transferStatus !== 'rejected') {
-                        transfers.count++;
+                    const isNonCash = isNonCashMethod(rawMethod);
+                    const isVf = (typeof window.isVodafonePaymentMethod === 'function') 
+                        ? window.isVodafonePaymentMethod(rawMethod) 
+                        : (String(rawMethod).toLowerCase().includes('فودافون') || String(rawMethod).toLowerCase().includes('voda'));
+
+                    const paidVf = isVf ? paid : 0;
+                    const paidCash = (isNonCash || isVf) ? 0 : paid;
+                    const paidOtherNonCash = (isNonCash && !isVf) ? paid : 0;
+
+                    if (gType.includes('مرتجع بيع')) {
+                        salesReturn.count += count;
+                        salesReturn.total += total;
+                        salesReturn.cash += paidCash;
+                        salesReturn.vodafoneCash += paidVf;
+                        salesReturn.nonCash += (paidOtherNonCash + paidVf);
+                        salesReturn.credit += credit;
+                        returnSalesProfitLost += Math.abs(row.returnProfitLost || 0);
+                    } else if (gType.includes('بيع')) {
+                        sales.count += count;
+                        sales.total += total;
+                        sales.cash += paidCash;
+                        sales.vodafoneCash += paidVf;
+                        sales.nonCash += (paidOtherNonCash + paidVf);
+                        sales.credit += credit;
+
+                        if (isVf) {
+                            vodafoneSales.count += count;
+                            vodafoneSales.total += total;
+                            vodafoneSales.cash += paidCash;
+                            vodafoneSales.nonCash += paidVf;
+                            vodafoneSales.credit += credit;
+                        }
+
+                        const wCount = row.wholesaleCount || 0;
+                        const wTotal = row.wholesaleTotal || 0;
+                        const wPaid = row.wholesalePaid || 0;
+                        const wCredit = row.wholesaleRemaining || 0;
+                        const wPaidVf = isVf ? wPaid : 0;
+                        const wPaidCash = (isNonCash || isVf) ? 0 : wPaid;
+                        const wPaidOtherNonCash = (isNonCash && !isVf) ? wPaid : 0;
+
+                        wholesaleSales.count += wCount;
+                        wholesaleSales.total += wTotal;
+                        wholesaleSales.cash += wPaidCash;
+                        wholesaleSales.vodafoneCash += wPaidVf;
+                        wholesaleSales.nonCash += (wPaidOtherNonCash + wPaidVf);
+                        wholesaleSales.credit += wCredit;
+
+                        const rCount = Math.max(0, count - wCount);
+                        const rTotal = Math.max(0, total - wTotal);
+                        const rPaidCash = Math.max(0, paidCash - wPaidCash);
+                        const rPaidVf = Math.max(0, paidVf - wPaidVf);
+                        const rPaidOtherNonCash = Math.max(0, paidOtherNonCash - wPaidOtherNonCash);
+                        const rCredit = Math.max(0, credit - wCredit);
+
+                        retailSales.count += rCount;
+                        retailSales.total += rTotal;
+                        retailSales.cash += rPaidCash;
+                        retailSales.vodafoneCash += rPaidVf;
+                        retailSales.nonCash += (rPaidOtherNonCash + rPaidVf);
+                        retailSales.credit += rCredit;
+
+                        retailGrossProfit += (row.retailProfit || 0);
+                        wholesaleGrossProfit += (row.wholesaleProfit || 0);
+
+                        totalSalesDiscounts += (row.totalDisc || 0);
+                        discountedInvoicesCount += (row.discCount || 0);
+                        totalSalesAdditions += (row.totalExtra || 0);
+                        addedInvoicesCount += (row.extraCount || 0);
+                    } else if (gType.includes('مرتجع شراء')) {
+                        purchasesReturn.count += count;
+                        purchasesReturn.total += total;
+                        purchasesReturn.cash += paidCash;
+                        purchasesReturn.vodafoneCash += paidVf;
+                        purchasesReturn.nonCash += (paidOtherNonCash + paidVf);
+                        purchasesReturn.credit += credit;
+                    } else if (gType.includes('شراء') || gType.includes('مشتريات')) {
+                        purchases.count += count;
+                        purchases.total += total;
+                        purchases.cash += paidCash;
+                        purchases.vodafoneCash += paidVf;
+                        purchases.nonCash += (paidOtherNonCash + paidVf);
+                        purchases.credit += credit;
+                    } else if (gType.includes('قبض')) {
+                        receipts.count += count;
+                        receipts.total += total;
+                        if (isVf) {
+                            receipts.vodafoneCash += total;
+                            receipts.nonCash = (receipts.nonCash || 0) + total;
+                        } else if (isNonCash) {
+                            receipts.nonCash = (receipts.nonCash || 0) + total;
+                        } else {
+                            receipts.cash = (receipts.cash || 0) + total;
+                        }
+                    } else if (gType.includes('صرف')) {
+                        disbursements.count += count;
+                        disbursements.total += total;
+                        if (isVf) {
+                            disbursements.vodafoneCash += total;
+                            disbursements.nonCash = (disbursements.nonCash || 0) + total;
+                        } else if (isNonCash) {
+                            disbursements.nonCash = (disbursements.nonCash || 0) + total;
+                        } else {
+                            disbursements.cash = (disbursements.cash || 0) + total;
+                        }
+                    } else if (gType.includes('تسوية')) {
+                        adjustments.count += count;
+                        adjustments.total += total;
+                    } else if (gType.includes('تحويل')) {
+                        transfers.count += count;
                         transfers.total += total;
                     }
-                }
-            });
+                });
 
-            // 📋 تجميع وتفصيل سندات الصرف والمصروفات وسندات القبض وفواتير المشتريات بدقة تامة طبقاً لفلاتر التقرير
-            const periodDisbursementsList = [];
-            const periodReceiptsList = [];
-            const periodPurchasesList = [];
-            const disbursementsByReason = {};
-            currentRaw.forEach((t, idx) => {
-                if (!t) return;
-                const tType = String(t.type || '');
-                if (tType.includes('صرف')) {
-                    const amt = parseFloat(t.total) || parseFloat(t.price) || parseFloat(t.paidAmount) || 0;
-                    if (amt <= 0) return;
-                    const method = String(t.method || t.paymentMethod || 'كاش (نقدي)').trim();
-                    const isCash = !isNonCashMethod(method);
-                    const reason = String(t.product || t.description || 'مصروف عام').trim();
-                    const payee = String(t.partner || 'جهة غير محددة').trim();
-                    const itemObj = {
-                        id: t.id || t.invoiceId || ('disb_' + idx),
-                        category: String(t.voucherCategory || t.category || t.product || t.description || 'أخرى').trim(),
-                        voucherCategory: t.voucherCategory || null,
-                        reason: reason,
-                        payee: payee,
-                        amount: amt,
-                        method: method,
-                        isCash: isCash,
-                        notes: String(t.notes || '').trim(),
-                        user: String(t.user || 'المدير').trim(),
-                        date: t.date || '',
-                        time: t.time || '',
-                        dateISO: t.dateISO || '',
-                        treasury: t.treasury || selectedTreasury
-                    };
-                    periodDisbursementsList.push(itemObj);
+                // 3. استدعاء تفاصيل السندات والمصروفات للتفاصيل ونوافذ العرض المنبثقة
+                if (typeof window.BayanSQLite.getDailyReportDetailsLists === 'function') {
+                    const details = window.BayanSQLite.getDailyReportDetailsLists(fromDate, toDate, selectedWarehouse, selectedUser, 300);
+                    (details.disbursements || []).forEach((t, idx) => {
+                        if (!t) return;
+                        const amt = parseFloat(t.total) || parseFloat(t.price) || parseFloat(t.paidAmount) || 0;
+                        if (amt <= 0) return;
+                        const method = String(t.method || t.paymentMethod || 'كاش (نقدي)').trim();
+                        const isCash = !isNonCashMethod(method);
+                        const reason = String(t.product || t.description || 'مصروف عام').trim();
+                        const payee = String(t.partner || 'جهة غير محددة').trim();
+                        const itemObj = {
+                            id: t.id || t.invoiceId || ('disb_' + idx),
+                            category: String(t.voucherCategory || t.category || t.product || t.description || 'أخرى').trim(),
+                            voucherCategory: t.voucherCategory || null,
+                            reason: reason,
+                            payee: payee,
+                            amount: amt,
+                            method: method,
+                            isCash: isCash,
+                            notes: String(t.notes || '').trim(),
+                            user: String(t.user || 'المدير').trim(),
+                            date: t.date || '',
+                            time: t.time || '',
+                            dateISO: t.dateISO || '',
+                            treasury: t.treasury || selectedTreasury
+                        };
+                        periodDisbursementsList.push(itemObj);
 
-                    const rKey = reason || 'مصروف عام';
-                    if (!disbursementsByReason[rKey]) {
-                        disbursementsByReason[rKey] = { reason: rKey, total: 0, count: 0, cashTotal: 0, nonCashTotal: 0 };
-                    }
-                    disbursementsByReason[rKey].total += amt;
-                    disbursementsByReason[rKey].count++;
-                    if (isCash) {
-                        disbursementsByReason[rKey].cashTotal += amt;
-                    } else {
-                        disbursementsByReason[rKey].nonCashTotal += amt;
-                    }
-                } else if (tType.includes('قبض')) {
-                    const amt = parseFloat(t.total) || parseFloat(t.price) || parseFloat(t.paidAmount) || 0;
-                    if (amt <= 0) return;
-                    const method = String(t.method || t.paymentMethod || 'كاش (نقدي)').trim();
-                    const isCash = !isNonCashMethod(method);
-                    const reason = String(t.product || t.description || 'قبض').trim();
-                    const category = String(t.voucherCategory || t.category || t.product || t.description || 'أخرى').trim();
-                    const payer = String(t.partner || 'جهة غير محددة').trim();
-                    const itemObj = {
-                        id: t.id || t.invoiceId || ('rec_' + idx),
-                        category: category,
-                        voucherCategory: t.voucherCategory || null,
-                        reason: reason,
-                        payer: payer,
-                        amount: amt,
-                        method: method,
-                        isCash: isCash,
-                        notes: String(t.notes || '').trim(),
-                        user: String(t.user || 'المدير').trim(),
-                        date: t.date || '',
-                        time: t.time || '',
-                        dateISO: t.dateISO || '',
-                        treasury: t.treasury || selectedTreasury
-                    };
-                    periodReceiptsList.push(itemObj);
-                } else if (tType.includes('شراء') || tType.includes('مشتريات')) {
-                    const amt = parseFloat(t.paidAmount != null ? t.paidAmount : (t.paid != null ? t.paid : t.total)) || 0;
-                    if (amt <= 0) return;
-                    const method = String(t.method || t.paymentMethod || 'كاش (نقدي)').trim();
-                    const isCash = !isNonCashMethod(method) || amt > 0;
-                    const supplier = String(t.partner || 'مورد غير محدد').trim();
-                    const invId = t.invoiceId || t.id || ('pur_' + idx);
-                    if (t.isInvoiceHead || !t.invoiceId || !periodPurchasesList.some(p => p.id === invId)) {
+                        const rKey = reason || 'مصروف عام';
+                        if (!disbursementsByReason[rKey]) {
+                            disbursementsByReason[rKey] = { reason: rKey, total: 0, count: 0, cashTotal: 0, nonCashTotal: 0 };
+                        }
+                        disbursementsByReason[rKey].total += amt;
+                        disbursementsByReason[rKey].count++;
+                        if (isCash) {
+                            disbursementsByReason[rKey].cashTotal += amt;
+                        } else {
+                            disbursementsByReason[rKey].nonCashTotal += amt;
+                        }
+                    });
+
+                    (details.receipts || []).forEach((t, idx) => {
+                        if (!t) return;
+                        const amt = parseFloat(t.total) || parseFloat(t.price) || parseFloat(t.paidAmount) || 0;
+                        if (amt <= 0) return;
+                        const method = String(t.method || t.paymentMethod || 'كاش (نقدي)').trim();
+                        const isCash = !isNonCashMethod(method);
+                        const reason = String(t.product || t.description || 'قبض').trim();
+                        const category = String(t.voucherCategory || t.category || t.product || t.description || 'أخرى').trim();
+                        const payer = String(t.partner || 'جهة غير محددة').trim();
+                        periodReceiptsList.push({
+                            id: t.id || t.invoiceId || ('rec_' + idx),
+                            category: category,
+                            voucherCategory: t.voucherCategory || null,
+                            reason: reason,
+                            payer: payer,
+                            amount: amt,
+                            method: method,
+                            isCash: isCash,
+                            notes: String(t.notes || '').trim(),
+                            user: String(t.user || 'المدير').trim(),
+                            date: t.date || '',
+                            time: t.time || '',
+                            dateISO: t.dateISO || '',
+                            treasury: t.treasury || selectedTreasury
+                        });
+                    });
+
+                    (details.purchases || []).forEach((t, idx) => {
+                        if (!t) return;
+                        const amt = parseFloat(t.paidAmount != null ? t.paidAmount : (t.paid != null ? t.paid : t.total)) || 0;
+                        if (amt <= 0) return;
+                        const method = String(t.method || t.paymentMethod || 'كاش (نقدي)').trim();
+                        const isCash = !isNonCashMethod(method) || amt > 0;
+                        const supplier = String(t.partner || 'مورد غير محدد').trim();
+                        const invId = t.invoiceId || t.id || ('pur_' + idx);
                         periodPurchasesList.push({
                             id: invId,
                             invoiceId: invId,
@@ -1403,91 +1436,303 @@
                             warehouse: t.warehouse || selectedWarehouse,
                             treasury: t.treasury || selectedTreasury
                         });
-                    }
+                    });
                 }
-            });
+            } else {
+                // 🔄 المسار الاحتياطي للذاكرة المخبأة أو Dexie
+                if (isAlreadyLoadedInMemory && Array.isArray(window.transactions) && window.transactions.length > 0) {
+                    periodAllRaw = window.transactions.filter(t => t && t.dateISO && t.dateISO >= fromDate && t.dateISO <= toDate);
+                }
+                if ((!periodAllRaw || periodAllRaw.length === 0) && window.BayanSQLite && typeof window.BayanSQLite.getTransactionsForPeriod === 'function') {
+                    periodAllRaw = window.BayanSQLite.getTransactionsForPeriod(fromDate, toDate, 15000, selectedWarehouse, 'all');
+                }
+                if (!periodAllRaw || periodAllRaw.length === 0) {
+                    periodAllRaw = (typeof transactions !== 'undefined' && Array.isArray(transactions)) 
+                        ? transactions.filter(t => t && t.dateISO && t.dateISO >= fromDate && t.dateISO <= toDate)
+                        : [];
+                }
+                periodAllRaw = periodAllRaw.filter(t => matchesSelectedWarehouse(t) && matchesSelectedUser(t));
+                const periodAllGrouped = getGroupedTransactions(periodAllRaw);
 
-            // 🏷️ حساب إجمالي الخصومات والإضافات لفواتير المبيعات بدقة تامة طبقاً لفلاتر التقرير
-            let totalSalesDiscounts = 0;
-            let totalSalesAdditions = 0;
-            let discountedInvoicesCount = 0;
-            let addedInvoicesCount = 0;
+                currentRaw = (selectedTreasury === 'all') 
+                    ? periodAllRaw 
+                    : periodAllRaw.filter(t => matchesSelectedTreasury(t));
+                const currentGrouped = (selectedTreasury === 'all') 
+                    ? periodAllGrouped 
+                    : getGroupedTransactions(currentRaw);
 
-            const salesInvoiceMap = new Map();
-            periodAllRaw.forEach(t => {
-                if (!t) return;
-                const tType = String(t.type || '');
-                if (tType.includes('بيع') && !tType.includes('مرتجع')) {
-                    const invKey = String(t.invoiceId || 'single_' + (t.originalIndex !== undefined ? t.originalIndex : Math.random()));
-                    if (!salesInvoiceMap.has(invKey)) {
-                        salesInvoiceMap.set(invKey, {
-                            head: null,
-                            items: [],
-                            subTotal: 0,
-                            netTotal: 0
+                periodAllGrouped.forEach(g => {
+                    const paid = g.paid || 0;
+                    const total = g.total || 0;
+                    const gType = g.type || '';
+                    const rawMethod = g.method || g.paymentMethod || 'كاش (نقدي)';
+                    if (paid > 0) {
+                        if (gType.includes('مرتجع بيع')) recordPaymentMethodOp(rawMethod, paid, 'saleReturn');
+                        else if (gType.includes('مرتجع شراء')) recordPaymentMethodOp(rawMethod, paid, 'purchaseReturn');
+                        else if (gType.includes('بيع')) recordPaymentMethodOp(rawMethod, paid, 'sale');
+                        else if (gType.includes('شراء') || gType.includes('مشتريات')) recordPaymentMethodOp(rawMethod, paid, 'purchase');
+                    }
+                    if (total > 0) {
+                        if (gType.includes('قبض')) recordPaymentMethodOp(rawMethod, total, 'receipt');
+                        else if (gType.includes('صرف')) recordPaymentMethodOp(rawMethod, total, 'disbursement');
+                    }
+                });
+
+                currentGrouped.forEach(g => {
+                    const total = g.total || 0;
+                    const paid = g.paid || 0;
+                    const credit = g.remaining || 0;
+                    const gType = g.type || '';
+                    const rawMethod = g.method || g.paymentMethod || g.treasury || (g.items && g.items.find(it => it.method || it.paymentMethod)?.method) || '';
+                    const isNonCash = isNonCashMethod(rawMethod);
+                    const isVf = (typeof window.isVodafonePaymentMethod === 'function') 
+                        ? (window.isVodafonePaymentMethod(rawMethod) || window.isVodafonePaymentMethod(g.treasury)) 
+                        : (String(rawMethod).toLowerCase().includes('فودافون') || String(rawMethod).toLowerCase().includes('voda') || String(g.treasury || '').toLowerCase().includes('فودافون'));
+
+                    const paidVf = isVf ? paid : 0;
+                    const paidCash = (isNonCash || isVf) ? 0 : paid;
+                    const paidOtherNonCash = (isNonCash && !isVf) ? paid : 0;
+
+                    if (gType.includes('مرتجع بيع')) {
+                        salesReturn.count++;
+                        salesReturn.total += total;
+                        salesReturn.cash += paidCash;
+                        salesReturn.vodafoneCash += paidVf;
+                        salesReturn.nonCash += (paidOtherNonCash + paidVf);
+                        salesReturn.credit += credit;
+                    } else if (gType.includes('بيع')) {
+                        sales.count++;
+                        sales.total += total;
+                        sales.cash += paidCash;
+                        sales.vodafoneCash += paidVf;
+                        sales.nonCash += (paidOtherNonCash + paidVf);
+                        sales.credit += credit;
+
+                        if (isVf) {
+                            vodafoneSales.count++;
+                            vodafoneSales.total += total;
+                            vodafoneSales.cash += paidCash;
+                            vodafoneSales.nonCash += paidVf;
+                            vodafoneSales.credit += credit;
+                        }
+
+                        const isWholesale = (g.priceLevel === 'wholesale') || (g.items && g.items.some(it => it.priceLevel === 'wholesale'));
+                        if (isWholesale) {
+                            wholesaleSales.count++;
+                            wholesaleSales.total += total;
+                            wholesaleSales.cash += paidCash;
+                            wholesaleSales.vodafoneCash += paidVf;
+                            wholesaleSales.nonCash += (paidOtherNonCash + paidVf);
+                            wholesaleSales.credit += credit;
+                        } else {
+                            retailSales.count++;
+                            retailSales.total += total;
+                            retailSales.cash += paidCash;
+                            retailSales.vodafoneCash += paidVf;
+                            retailSales.nonCash += (paidOtherNonCash + paidVf);
+                            retailSales.credit += credit;
+                        }
+                    } else if (gType.includes('مرتجع شراء')) {
+                        purchasesReturn.count++;
+                        purchasesReturn.total += total;
+                        purchasesReturn.cash += paidCash;
+                        purchasesReturn.vodafoneCash += paidVf;
+                        purchasesReturn.nonCash += (paidOtherNonCash + paidVf);
+                        purchasesReturn.credit += credit;
+                    } else if (gType.includes('شراء') || gType.includes('مشتريات')) {
+                        purchases.count++;
+                        purchases.total += total;
+                        purchases.cash += paidCash;
+                        purchases.vodafoneCash += paidVf;
+                        purchases.nonCash += (paidOtherNonCash + paidVf);
+                        purchases.credit += credit;
+                    } else if (gType.includes('قبض')) {
+                        receipts.count++;
+                        receipts.total += total;
+                        if (isVf) {
+                            receipts.vodafoneCash += total;
+                            receipts.nonCash = (receipts.nonCash || 0) + total;
+                        } else if (isNonCash) {
+                            receipts.nonCash = (receipts.nonCash || 0) + total;
+                        } else {
+                            receipts.cash = (receipts.cash || 0) + total;
+                        }
+                    } else if (gType.includes('صرف')) {
+                        disbursements.count++;
+                        disbursements.total += total;
+                        if (isVf) {
+                            disbursements.vodafoneCash += total;
+                            disbursements.nonCash = (disbursements.nonCash || 0) + total;
+                        } else if (isNonCash) {
+                            disbursements.nonCash = (disbursements.nonCash || 0) + total;
+                        } else {
+                            disbursements.cash = (disbursements.cash || 0) + total;
+                        }
+                    } else if (gType.includes('تسوية')) {
+                        adjustments.count++;
+                        adjustments.total += total;
+                    } else if (gType.includes('تحويل')) {
+                        if (g.transferStatus !== 'rejected') {
+                            transfers.count++;
+                            transfers.total += total;
+                        }
+                    }
+                });
+
+                currentRaw.forEach((t, idx) => {
+                    if (!t) return;
+                    const tType = String(t.type || '');
+                    if (tType.includes('صرف')) {
+                        const amt = parseFloat(t.total) || parseFloat(t.price) || parseFloat(t.paidAmount) || 0;
+                        if (amt <= 0) return;
+                        const method = String(t.method || t.paymentMethod || 'كاش (نقدي)').trim();
+                        const isCash = !isNonCashMethod(method);
+                        const reason = String(t.product || t.description || 'مصروف عام').trim();
+                        const payee = String(t.partner || 'جهة غير محددة').trim();
+                        const itemObj = {
+                            id: t.id || t.invoiceId || ('disb_' + idx),
+                            category: String(t.voucherCategory || t.category || t.product || t.description || 'أخرى').trim(),
+                            voucherCategory: t.voucherCategory || null,
+                            reason: reason,
+                            payee: payee,
+                            amount: amt,
+                            method: method,
+                            isCash: isCash,
+                            notes: String(t.notes || '').trim(),
+                            user: String(t.user || 'المدير').trim(),
+                            date: t.date || '',
+                            time: t.time || '',
+                            dateISO: t.dateISO || '',
+                            treasury: t.treasury || selectedTreasury
+                        };
+                        periodDisbursementsList.push(itemObj);
+
+                        const rKey = reason || 'مصروف عام';
+                        if (!disbursementsByReason[rKey]) {
+                            disbursementsByReason[rKey] = { reason: rKey, total: 0, count: 0, cashTotal: 0, nonCashTotal: 0 };
+                        }
+                        disbursementsByReason[rKey].total += amt;
+                        disbursementsByReason[rKey].count++;
+                        if (isCash) {
+                            disbursementsByReason[rKey].cashTotal += amt;
+                        } else {
+                            disbursementsByReason[rKey].nonCashTotal += amt;
+                        }
+                    } else if (tType.includes('قبض')) {
+                        const amt = parseFloat(t.total) || parseFloat(t.price) || parseFloat(t.paidAmount) || 0;
+                        if (amt <= 0) return;
+                        const method = String(t.method || t.paymentMethod || 'كاش (نقدي)').trim();
+                        const isCash = !isNonCashMethod(method);
+                        const reason = String(t.product || t.description || 'قبض').trim();
+                        const category = String(t.voucherCategory || t.category || t.product || t.description || 'أخرى').trim();
+                        const payer = String(t.partner || 'جهة غير محددة').trim();
+                        periodReceiptsList.push({
+                            id: t.id || t.invoiceId || ('rec_' + idx),
+                            category: category,
+                            voucherCategory: t.voucherCategory || null,
+                            reason: reason,
+                            payer: payer,
+                            amount: amt,
+                            method: method,
+                            isCash: isCash,
+                            notes: String(t.notes || '').trim(),
+                            user: String(t.user || 'المدير').trim(),
+                            date: t.date || '',
+                            time: t.time || '',
+                            dateISO: t.dateISO || '',
+                            treasury: t.treasury || selectedTreasury
                         });
+                    } else if (tType.includes('شراء') || tType.includes('مشتريات')) {
+                        const amt = parseFloat(t.paidAmount != null ? t.paidAmount : (t.paid != null ? t.paid : t.total)) || 0;
+                        if (amt <= 0) return;
+                        const method = String(t.method || t.paymentMethod || 'كاش (نقدي)').trim();
+                        const isCash = !isNonCashMethod(method) || amt > 0;
+                        const supplier = String(t.partner || 'مورد غير محدد').trim();
+                        const invId = t.invoiceId || t.id || ('pur_' + idx);
+                        if (t.isInvoiceHead || !t.invoiceId || !periodPurchasesList.some(p => p.id === invId)) {
+                            periodPurchasesList.push({
+                                id: invId,
+                                invoiceId: invId,
+                                supplier: supplier,
+                                partner: supplier,
+                                amount: amt,
+                                paidAmount: amt,
+                                total: parseFloat(t.total) || amt,
+                                method: method,
+                                isCash: isCash,
+                                notes: String(t.notes || '').trim(),
+                                user: String(t.user || t.cashier || 'المدير').trim(),
+                                date: t.date || '',
+                                time: t.time || '',
+                                dateISO: t.dateISO || '',
+                                warehouse: t.warehouse || selectedWarehouse,
+                                treasury: t.treasury || selectedTreasury
+                            });
+                        }
                     }
-                    const grp = salesInvoiceMap.get(invKey);
-                    if (t.isInvoiceHead) {
-                        grp.head = t;
+                });
+
+                const salesInvoiceMap = new Map();
+                periodAllRaw.forEach(t => {
+                    if (!t) return;
+                    const tType = String(t.type || '');
+                    if (tType.includes('بيع') && !tType.includes('مرتجع')) {
+                        const invKey = String(t.invoiceId || 'single_' + (t.originalIndex !== undefined ? t.originalIndex : Math.random()));
+                        if (!salesInvoiceMap.has(invKey)) {
+                            salesInvoiceMap.set(invKey, {
+                                head: null,
+                                items: [],
+                                subTotal: 0,
+                                netTotal: 0
+                            });
+                        }
+                        const grp = salesInvoiceMap.get(invKey);
+                        if (t.isInvoiceHead) {
+                            grp.head = t;
+                        }
+                        grp.items.push(t);
+                        const q = parseFloat(t.qty) || 1;
+                        const p = parseFloat(t.price) || 0;
+                        const tot = parseFloat(t.total) || (p * q);
+                        grp.subTotal += (p * q);
+                        grp.netTotal += tot;
                     }
-                    grp.items.push(t);
-                    const q = parseFloat(t.qty) || 1;
-                    const p = parseFloat(t.price) || 0;
-                    const tot = parseFloat(t.total) || (p * q);
-                    grp.subTotal += (p * q);
-                    grp.netTotal += tot;
-                }
-            });
+                });
 
-            salesInvoiceMap.forEach(grp => {
-                const head = grp.head || grp.items.find(it => it.isInvoiceHead) || grp.items[0];
-                const subTotal = grp.subTotal;
-                const netTotal = grp.netTotal;
+                salesInvoiceMap.forEach(grp => {
+                    const head = grp.head || grp.items.find(it => it.isInvoiceHead) || grp.items[0];
+                    const subTotal = grp.subTotal;
 
-                // 1. حساب خصم الفاتورة الفعلي بالجنيه
-                let invDisc = 0;
-                if (head && head.invoiceDiscount != null && parseFloat(head.invoiceDiscount) > 0) {
-                    const dVal = parseFloat(head.invoiceDiscount) || 0;
-                    const dType = head.invoiceDiscountType || head.discountType || 'val';
-                    if (dType === 'perc') {
-                        invDisc = (subTotal * dVal / 100);
+                    let invDisc = 0;
+                    if (head && head.invoiceDiscount != null && parseFloat(head.invoiceDiscount) > 0) {
+                        const dVal = parseFloat(head.invoiceDiscount) || 0;
+                        const dType = head.invoiceDiscountType || head.discountType || 'val';
+                        invDisc = (dType === 'perc') ? (subTotal * dVal / 100) : dVal;
                     } else {
-                        invDisc = dVal;
+                        const itemsDiscSum = grp.items.reduce((s, it) => s + (parseFloat(it.discount) || 0), 0);
+                        if (itemsDiscSum > 0) invDisc = itemsDiscSum;
                     }
-                } else {
-                    const itemsDiscSum = grp.items.reduce((s, it) => s + (parseFloat(it.discount) || 0), 0);
-                    if (itemsDiscSum > 0) {
-                        invDisc = itemsDiscSum;
-                    }
-                }
 
-                // 2. حساب إضافات/ضرائب الفاتورة الفعلية بالجنيه
-                let invExtra = 0;
-                if (head && (head.invoiceTax != null || head.invoiceExtra != null) && (parseFloat(head.invoiceTax || head.invoiceExtra) > 0)) {
-                    const xVal = parseFloat(head.invoiceTax || head.invoiceExtra) || 0;
-                    const xType = head.invoiceTaxType || head.invoiceExtraType || head.taxType || 'val';
-                    if (xType === 'perc') {
-                        invExtra = (subTotal * xVal / 100);
+                    let invExtra = 0;
+                    if (head && (head.invoiceTax != null || head.invoiceExtra != null) && (parseFloat(head.invoiceTax || head.invoiceExtra) > 0)) {
+                        const xVal = parseFloat(head.invoiceTax || head.invoiceExtra) || 0;
+                        const xType = head.invoiceTaxType || head.invoiceExtraType || head.taxType || 'val';
+                        invExtra = (xType === 'perc') ? (subTotal * xVal / 100) : xVal;
                     } else {
-                        invExtra = xVal;
+                        const itemsExtraSum = grp.items.reduce((s, it) => s + (parseFloat(it.addition) || 0), 0);
+                        if (itemsExtraSum > 0) invExtra = itemsExtraSum;
                     }
-                } else {
-                    const itemsExtraSum = grp.items.reduce((s, it) => s + (parseFloat(it.addition) || 0), 0);
-                    if (itemsExtraSum > 0) {
-                        invExtra = itemsExtraSum;
-                    }
-                }
 
-                if (invDisc > 0.001) {
-                    totalSalesDiscounts += invDisc;
-                    discountedInvoicesCount++;
-                }
-                if (invExtra > 0.001) {
-                    totalSalesAdditions += invExtra;
-                    addedInvoicesCount++;
-                }
-            });
+                    if (invDisc > 0.001) {
+                        totalSalesDiscounts += invDisc;
+                        discountedInvoicesCount++;
+                    }
+                    if (invExtra > 0.001) {
+                        totalSalesAdditions += invExtra;
+                        addedInvoicesCount++;
+                    }
+                });
+            }
 
             // 📊 حساب إجماليات كافة العمليات المالية بالكامل (بيع قطاعي وجملة + شراء + قبض + صرف + مرتجعات)
             const allOpsCount = sales.count + salesReturn.count + purchases.count + purchasesReturn.count + receipts.count + disbursements.count;
@@ -1888,24 +2133,26 @@
             const totalVfOps = (vfEntry.salesCount || 0) + (vfEntry.returnsCount || 0) + (vfEntry.receiptsCount || 0) + (vfEntry.disbursementsCount || 0) + (vfEntry.purchasesCount || 0) + (vfEntry.purchasesReturnCount || 0);
 
             // حساب الأرباح المفصلة (أرباح قطاعي - أرباح جملة - مرتجعات - الصافي العام) لاستخدامها في الشارات العلوية وجدول الأرباح
-            let retailGrossProfit = 0;
-            let wholesaleGrossProfit = 0;
-            let returnSalesProfitLost = 0;
+            if (!sqliteSummaryLoaded) {
+                retailGrossProfit = 0;
+                wholesaleGrossProfit = 0;
+                returnSalesProfitLost = 0;
 
-            currentRaw.forEach(t => {
-                if (t.invoiceId && t.profit !== undefined && t.profit !== '-') {
-                    const pVal = parseFloat(t.profit) || 0;
-                    if (t.type.includes('بيع') && !t.type.includes('مرتجع')) {
-                        if (t.priceLevel === 'wholesale') {
-                            wholesaleGrossProfit += pVal;
-                        } else {
-                            retailGrossProfit += pVal;
+                currentRaw.forEach(t => {
+                    if (t.invoiceId && t.profit !== undefined && t.profit !== '-') {
+                        const pVal = parseFloat(t.profit) || 0;
+                        if (t.type.includes('بيع') && !t.type.includes('مرتجع')) {
+                            if (t.priceLevel === 'wholesale') {
+                                wholesaleGrossProfit += pVal;
+                            } else {
+                                retailGrossProfit += pVal;
+                            }
+                        } else if (t.type.includes('مرتجع بيع')) {
+                            returnSalesProfitLost += Math.abs(pVal);
                         }
-                    } else if (t.type.includes('مرتجع بيع')) {
-                        returnSalesProfitLost += Math.abs(pVal);
                     }
-                }
-            });
+                });
+            }
 
             const totalGrossProfit = retailGrossProfit + wholesaleGrossProfit;
             const netProfit = totalGrossProfit - returnSalesProfitLost;
@@ -6285,7 +6532,7 @@
             return unitProfit * qty;
         }
 
-        function updateAnalysisCharts(data) {
+        function updateAnalysisCharts(data, sqlSummary = null) {
             if (typeof Chart === 'undefined') return;
 
             const trendData = {};
@@ -6331,10 +6578,17 @@
             const returnCountEl = document.getElementById('kpi-return-count');
             const returnAmountEl = document.getElementById('kpi-return-amount');
 
-            if (invoiceCountEl) invoiceCountEl.innerText = invoiceIds.size.toLocaleString('en-US');
-            if (totalQtyEl) totalQtyEl.innerText = Math.max(0, totalQty).toLocaleString('en-US');
-            if (returnCountEl) returnCountEl.innerText = totalReturnsCount.toLocaleString('en-US');
-            if (returnAmountEl) returnAmountEl.innerText = totalReturnsAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            if (sqlSummary) {
+                if (invoiceCountEl) invoiceCountEl.innerText = (sqlSummary.salesCount || 0).toLocaleString('en-US');
+                if (totalQtyEl) totalQtyEl.innerText = Math.max(0, sqlSummary.netQty || 0).toLocaleString('en-US');
+                if (returnCountEl) returnCountEl.innerText = (sqlSummary.returnCount || 0).toLocaleString('en-US');
+                if (returnAmountEl) returnAmountEl.innerText = (sqlSummary.returnSales || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            } else {
+                if (invoiceCountEl) invoiceCountEl.innerText = invoiceIds.size.toLocaleString('en-US');
+                if (totalQtyEl) totalQtyEl.innerText = Math.max(0, totalQty).toLocaleString('en-US');
+                if (returnCountEl) returnCountEl.innerText = totalReturnsCount.toLocaleString('en-US');
+                if (returnAmountEl) returnAmountEl.innerText = totalReturnsAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            }
 
             // Chart 1: Sales Trend
             const trendLabels = Object.keys(trendData).sort();
@@ -6573,7 +6827,8 @@
             // 1. جلب قيم الفلاتر والبحث
             const fromDate = document.getElementById('anDateFrom')?.value || '';
             const toDate = document.getElementById('anDateTo')?.value || '';
-            if (typeof window.loadTransactionsForDateRange === 'function' && (fromDate || toDate)) {
+            const hasFastSql = window.BayanSQLite && typeof window.BayanSQLite.getSalesAnalyticsSummary === 'function';
+            if (!hasFastSql && typeof window.loadTransactionsForDateRange === 'function' && (fromDate || toDate)) {
                 await window.loadTransactionsForDateRange(fromDate, toDate, 10000);
             }
             const searchQuery = (document.getElementById('anSearchInput')?.value || '').trim().toLowerCase();
@@ -6715,13 +6970,35 @@
                 }
             }
 
-            // 3. فلترة البيانات الأساسية (حركات البيع ومرتجع البيع فقط) باستعلام SQLite السريع
+            // 3. فلترة البيانات الأساسية واستعلام SQLite الإحصائي الفائق
             const targetMethod = methodFilter !== 'all' ? methodFilter.toLowerCase() : null;
             let basePool = [];
+            let sqlSummary = null;
+
+            if (window.BayanSQLite && typeof window.BayanSQLite.getSalesAnalyticsSummary === 'function' && (fromDate || toDate) && catFilter === 'all') {
+                try {
+                    sqlSummary = window.BayanSQLite.getSalesAnalyticsSummary({
+                        fromDate,
+                        toDate,
+                        warehouse: whFilter,
+                        cashier: userFilter,
+                        partner: accFilter,
+                        method: methodFilter,
+                        searchQuery: searchQuery
+                    });
+                } catch (err) {
+                    console.warn("[SalesAnalytics] SQLite summary calculation fallback:", err);
+                }
+            }
+
             if (window.BayanSQLite && typeof window.BayanSQLite.getSalesAnalysisTransactions === 'function' && (fromDate || toDate)) {
-                basePool = window.BayanSQLite.getSalesAnalysisTransactions(fromDate, toDate, whFilter, userFilter, 20000);
+                basePool = window.BayanSQLite.getSalesAnalysisTransactions(fromDate, toDate, whFilter, userFilter, 500, {
+                    partner: accFilter,
+                    method: methodFilter,
+                    searchQuery: searchQuery
+                });
             } else if (window.BayanSQLite && typeof window.BayanSQLite.getTransactionsForPeriod === 'function' && (fromDate || toDate)) {
-                basePool = window.BayanSQLite.getTransactionsForPeriod(fromDate, toDate, 20000, whFilter, userFilter);
+                basePool = window.BayanSQLite.getTransactionsForPeriod(fromDate, toDate, 1000, whFilter, userFilter);
             }
             if (!basePool || basePool.length === 0) {
                 basePool = window.transactions || [];
@@ -6821,62 +7098,88 @@
             let totalPeriodQty = 0;
             let totalReturnsAmount = 0;
             let totalReturnsCount = 0;
-
-            const hourSales = {};
-            const customerSalesMap = {};
-
-            data.forEach(t => {
-                const isReturn = t.type && t.type.includes('مرتجع');
-                const qty = Math.abs(parseFloat(t.qty) || 0);
-                const total = Math.abs(parseFloat(t.total) || (parseFloat(t.price) * qty) || 0);
-                const lineProfit = getTransactionReliableProfit(t);
-
-                if (isReturn) {
-                    totalPeriodSales -= total;
-                    totalPeriodProfit -= lineProfit;
-                    totalPeriodCost -= Math.max(0, total - lineProfit);
-                    totalPeriodQty -= qty;
-                    totalReturnsAmount += total;
-                    totalReturnsCount++;
-                } else {
-                    totalPeriodSales += total;
-                    totalPeriodProfit += lineProfit;
-                    totalPeriodCost += Math.max(0, total - lineProfit);
-                    totalPeriodQty += qty;
-                }
-
-                // حساب ساعة الذروة
-                if (t.timeISO) {
-                    const timeMatch = String(t.timeISO).match(/(\d{1,2}):(\d{2})/);
-                    if (timeMatch) {
-                        let h = parseInt(timeMatch[1], 10);
-                        const isPM = String(t.timeISO).toLowerCase().includes('pm') || String(t.timeISO).includes('م');
-                        const isAM = String(t.timeISO).toLowerCase().includes('am') || String(t.timeISO).includes('ص');
-                        if (isPM && h < 12) h += 12;
-                        if (isAM && h === 12) h = 0;
-                        if (h >= 0 && h <= 23) {
-                            if (!hourSales[h]) hourSales[h] = 0;
-                            hourSales[h] += isReturn ? -total : total;
-                        }
-                    }
-                }
-
-                // حساب مبيعات العملاء لاكتشاف العميل الأكثر شراءً
-                const partnerName = t.partner || 'عميل نقدي';
-                if (!customerSalesMap[partnerName]) customerSalesMap[partnerName] = 0;
-                customerSalesMap[partnerName] += isReturn ? -total : total;
-            });
-
-            // استخراج وتنسيق ساعة الذروة (Peak Hour)
             let peakHour = null;
             let maxHourSales = 0;
-            Object.keys(hourSales).forEach(hKey => {
-                const hVal = hourSales[hKey];
-                if (hVal > maxHourSales) {
-                    maxHourSales = hVal;
-                    peakHour = parseInt(hKey, 10);
-                }
-            });
+            let topCustomerName = null;
+            let maxCustSales = 0;
+
+            if (sqlSummary) {
+                totalPeriodSales = sqlSummary.netSales;
+                totalPeriodProfit = sqlSummary.netProfit;
+                totalReturnsAmount = sqlSummary.returnSales;
+                totalReturnsCount = sqlSummary.returnCount;
+                totalPeriodQty = sqlSummary.netQty;
+                totalPeriodCost = Math.max(0, totalPeriodSales - totalPeriodProfit);
+                peakHour = sqlSummary.peakHour;
+                maxHourSales = sqlSummary.peakHourSales;
+                topCustomerName = sqlSummary.topCustomer;
+                maxCustSales = sqlSummary.topCustomerSales;
+            } else {
+                const hourSales = {};
+                const customerSalesMap = {};
+
+                data.forEach(t => {
+                    const isReturn = t.type && t.type.includes('مرتجع');
+                    const qty = Math.abs(parseFloat(t.qty) || 0);
+                    const total = Math.abs(parseFloat(t.total) || (parseFloat(t.price) * qty) || 0);
+                    const lineProfit = getTransactionReliableProfit(t);
+
+                    if (isReturn) {
+                        totalPeriodSales -= total;
+                        totalPeriodProfit -= lineProfit;
+                        totalPeriodCost -= Math.max(0, total - lineProfit);
+                        totalPeriodQty -= qty;
+                        totalReturnsAmount += total;
+                        totalReturnsCount++;
+                    } else {
+                        totalPeriodSales += total;
+                        totalPeriodProfit += lineProfit;
+                        totalPeriodCost += Math.max(0, total - lineProfit);
+                        totalPeriodQty += qty;
+                    }
+
+                    // حساب ساعة الذروة
+                    if (t.timeISO) {
+                        const timeMatch = String(t.timeISO).match(/(\d{1,2}):(\d{2})/);
+                        if (timeMatch) {
+                            let h = parseInt(timeMatch[1], 10);
+                            const isPM = String(t.timeISO).toLowerCase().includes('pm') || String(t.timeISO).includes('م');
+                            const isAM = String(t.timeISO).toLowerCase().includes('am') || String(t.timeISO).includes('ص');
+                            if (isPM && h < 12) h += 12;
+                            if (isAM && h === 12) h = 0;
+                            if (h >= 0 && h <= 23) {
+                                if (!hourSales[h]) hourSales[h] = 0;
+                                hourSales[h] += isReturn ? -total : total;
+                            }
+                        }
+                    }
+
+                    // حساب مبيعات العملاء لاكتشاف العميل الأكثر شراءً
+                    const partnerName = t.partner || 'عميل نقدي';
+                    if (!customerSalesMap[partnerName]) customerSalesMap[partnerName] = 0;
+                    customerSalesMap[partnerName] += isReturn ? -total : total;
+                });
+
+                // استخراج وتنسيق ساعة الذروة (Peak Hour)
+                Object.keys(hourSales).forEach(hKey => {
+                    const hVal = hourSales[hKey];
+                    if (hVal > maxHourSales) {
+                        maxHourSales = hVal;
+                        peakHour = parseInt(hKey, 10);
+                    }
+                });
+
+                // استخراج وتنسيق العميل الأكثر شراءً
+                const custKeys = Object.keys(customerSalesMap);
+                const namedPool = custKeys.filter(k => k && k !== 'عميل نقدي' && k !== '-' && customerSalesMap[k] > 0);
+                const activePool = namedPool.length > 0 ? namedPool : custKeys.filter(k => customerSalesMap[k] > 0);
+                activePool.forEach(cKey => {
+                    if (customerSalesMap[cKey] > maxCustSales) {
+                        maxCustSales = customerSalesMap[cKey];
+                        topCustomerName = cKey;
+                    }
+                });
+            }
 
             const peakHourEl = document.getElementById('anPeakHourValue');
             if (peakHourEl) {
@@ -6891,20 +7194,6 @@
                     peakHourEl.innerText = 'ساعات متوازنة';
                 }
             }
-
-            // استخراج وتنسيق العميل الأكثر شراءً
-            let topCustomerName = null;
-            let maxCustSales = 0;
-            const custKeys = Object.keys(customerSalesMap);
-            // تفضيل العملاء المعرّفين بالاسم أولاً
-            const namedPool = custKeys.filter(k => k && k !== 'عميل نقدي' && k !== '-' && customerSalesMap[k] > 0);
-            const activePool = namedPool.length > 0 ? namedPool : custKeys.filter(k => customerSalesMap[k] > 0);
-            activePool.forEach(cKey => {
-                if (customerSalesMap[cKey] > maxCustSales) {
-                    maxCustSales = customerSalesMap[cKey];
-                    topCustomerName = cKey;
-                }
-            });
 
             const topCustEl = document.getElementById('anTopCustomerValue');
             if (topCustEl) {
@@ -6934,7 +7223,7 @@
             if (kpiMargin) kpiMargin.innerText = profitMarginPct + '%';
 
             // 6. تحديث الرسوم البيانية والكروت
-            updateAnalysisCharts(data);
+            updateAnalysisCharts(data, sqlSummary);
 
             // 7. توجيه العرض حسب النمط الحالي
             if (currentAnalysisMode === 'returns') {
@@ -6942,6 +7231,20 @@
                 return;
             }
             if (currentAnalysisMode === 'customers') {
+                if (window.BayanSQLite && typeof window.BayanSQLite.getCustomerAnalysisSummary === 'function' && (fromDate || toDate) && catFilter === 'all') {
+                    const custSummaries = window.BayanSQLite.getCustomerAnalysisSummary({
+                        fromDate,
+                        toDate,
+                        warehouse: whFilter,
+                        cashier: userFilter,
+                        partner: accFilter,
+                        limit: 200
+                    });
+                    if (custSummaries && custSummaries.length > 0) {
+                        renderCustomerAnalysisReport(custSummaries, totalPeriodSales);
+                        return;
+                    }
+                }
                 renderCustomerAnalysisReport(data, totalPeriodSales);
                 return;
             }
@@ -7169,80 +7472,101 @@
                 return;
             }
 
-            const custGroups = {};
-            const invoiceTracker = new Set();
+            let sortedCustomers = [];
 
-            data.forEach(t => {
-                const partner = t.partner || 'عميل نقدي';
-                const isReturn = t.type && t.type.includes('مرتجع');
-                const qty = Math.abs(parseFloat(t.qty) || 0);
-                const total = Math.abs(parseFloat(t.total) || (parseFloat(t.price) * qty) || 0);
-                const profit = getTransactionReliableProfit(t);
+            // ⚡ إذا كانت البيانات مجمعة ومفروزة سلفاً باستعلام SQLite السريع
+            if (Array.isArray(data) && data.length > 0 && data[0].hasOwnProperty('netPurchases')) {
+                sortedCustomers = data.map(c => ({
+                    name: c.name || 'عميل نقدي',
+                    grossPurchases: parseFloat(c.grossPurchases) || 0,
+                    totalReturns: parseFloat(c.totalReturns) || 0,
+                    netPurchases: parseFloat(c.netPurchases) || 0,
+                    totalQty: parseFloat(c.totalQty) || 0,
+                    profit: parseFloat(c.profit) || 0,
+                    invoices: { size: parseInt(c.invoiceCount, 10) || 1 },
+                    paid: parseFloat(c.paid) || 0,
+                    remaining: parseFloat(c.remaining) || 0,
+                    products: {},
+                    lastDate: c.lastDate || '-',
+                    latestInvoiceId: c.latestInvoiceId || '',
+                    latestType: 'بيع'
+                }));
+            } else {
+                const custGroups = {};
+                const invoiceTracker = new Set();
 
-                if (!custGroups[partner]) {
-                    custGroups[partner] = {
-                        name: partner,
-                        grossPurchases: 0,
-                        totalReturns: 0,
-                        netPurchases: 0,
-                        totalQty: 0,
-                        profit: 0,
-                        invoices: new Set(),
-                        paid: 0,
-                        remaining: 0,
-                        products: {},
-                        lastDate: t.dateISO || '-',
-                        latestInvoiceId: t.invoiceId || '',
-                        latestType: t.type || 'بيع'
-                    };
-                } else if (t.invoiceId) {
-                    custGroups[partner].latestInvoiceId = t.invoiceId;
-                    custGroups[partner].latestType = t.type || 'بيع';
-                }
+                data.forEach(t => {
+                    const partner = t.partner || 'عميل نقدي';
+                    const isReturn = t.type && t.type.includes('مرتجع');
+                    const qty = Math.abs(parseFloat(t.qty) || 0);
+                    const total = Math.abs(parseFloat(t.total) || (parseFloat(t.price) * qty) || 0);
+                    const profit = getTransactionReliableProfit(t);
 
-                if (isReturn) {
-                    custGroups[partner].totalReturns += total;
-                    custGroups[partner].netPurchases -= total;
-                    custGroups[partner].totalQty -= qty;
-                    custGroups[partner].profit -= profit;
-                } else {
-                    custGroups[partner].grossPurchases += total;
-                    custGroups[partner].netPurchases += total;
-                    custGroups[partner].totalQty += qty;
-                    custGroups[partner].profit += profit;
-                }
+                    if (!custGroups[partner]) {
+                        custGroups[partner] = {
+                            name: partner,
+                            grossPurchases: 0,
+                            totalReturns: 0,
+                            netPurchases: 0,
+                            totalQty: 0,
+                            profit: 0,
+                            invoices: new Set(),
+                            paid: 0,
+                            remaining: 0,
+                            products: {},
+                            lastDate: t.dateISO || '-',
+                            latestInvoiceId: t.invoiceId || '',
+                            latestType: t.type || 'بيع'
+                        };
+                    } else if (t.invoiceId) {
+                        custGroups[partner].latestInvoiceId = t.invoiceId;
+                        custGroups[partner].latestType = t.type || 'بيع';
+                    }
 
-                if (t.invoiceId && t.invoiceId !== '-') {
-                    custGroups[partner].invoices.add(t.invoiceId);
-                    
-                    if (t.isInvoiceHead || !invoiceTracker.has(t.invoiceId)) {
-                        invoiceTracker.add(t.invoiceId);
-                        const invTotal = parseFloat(t.invoiceGrandTotal) || total;
-                        const paid = parseFloat(t.paidAmount);
-                        if (!isNaN(paid) && paid > 0) {
-                            custGroups[partner].paid += paid;
-                            const rem = Math.max(0, invTotal - paid);
-                            custGroups[partner].remaining += rem;
-                        } else {
-                            if (t.method && (t.method.includes('آجل') || t.method.includes('اجل') || t.method.includes('ذمم'))) {
-                                custGroups[partner].remaining += invTotal;
+                    if (isReturn) {
+                        custGroups[partner].totalReturns += total;
+                        custGroups[partner].netPurchases -= total;
+                        custGroups[partner].totalQty -= qty;
+                        custGroups[partner].profit -= profit;
+                    } else {
+                        custGroups[partner].grossPurchases += total;
+                        custGroups[partner].netPurchases += total;
+                        custGroups[partner].totalQty += qty;
+                        custGroups[partner].profit += profit;
+                    }
+
+                    if (t.invoiceId && t.invoiceId !== '-') {
+                        custGroups[partner].invoices.add(t.invoiceId);
+                        
+                        if (t.isInvoiceHead || !invoiceTracker.has(t.invoiceId)) {
+                            invoiceTracker.add(t.invoiceId);
+                            const invTotal = parseFloat(t.invoiceGrandTotal) || total;
+                            const paid = parseFloat(t.paidAmount);
+                            if (!isNaN(paid) && paid > 0) {
+                                custGroups[partner].paid += paid;
+                                const rem = Math.max(0, invTotal - paid);
+                                custGroups[partner].remaining += rem;
                             } else {
-                                custGroups[partner].paid += invTotal;
+                                if (t.method && (t.method.includes('آجل') || t.method.includes('اجل') || t.method.includes('ذمم'))) {
+                                    custGroups[partner].remaining += invTotal;
+                                } else {
+                                    custGroups[partner].paid += invTotal;
+                                }
                             }
                         }
                     }
-                }
 
-                if (t.product) {
-                    custGroups[partner].products[t.product] = (custGroups[partner].products[t.product] || 0) + qty;
-                }
-                if (t.dateISO && t.dateISO > custGroups[partner].lastDate) {
-                    custGroups[partner].lastDate = t.dateISO;
-                }
-            });
+                    if (t.product) {
+                        custGroups[partner].products[t.product] = (custGroups[partner].products[t.product] || 0) + qty;
+                    }
+                    if (t.dateISO && t.dateISO > custGroups[partner].lastDate) {
+                        custGroups[partner].lastDate = t.dateISO;
+                    }
+                });
 
-            // ترتيب العملاء تنازلياً من الأكثر سحباً للأقل سحباً
-            const sortedCustomers = Object.values(custGroups).sort((a, b) => b.netPurchases - a.netPurchases);
+                // ترتيب العملاء تنازلياً من الأكثر سحباً للأقل سحباً
+                sortedCustomers = Object.values(custGroups).sort((a, b) => b.netPurchases - a.netPurchases);
+            }
 
             const rowsHtml = [];
             sortedCustomers.forEach((c, idx) => {
@@ -7650,14 +7974,15 @@
                 toInput.value = '';
             }
 
+            const hasFastSql = window.BayanSQLite && typeof window.BayanSQLite.getSalesAnalyticsSummary === 'function';
             const isHistoricalQuery = (fromInput.value && fromInput.value < todayStr);
-            const showLoader = (isHistoricalQuery && typeof window.showSectionLoader === 'function');
+            const showLoader = (!hasFastSql && isHistoricalQuery && typeof window.showSectionLoader === 'function');
             if (showLoader) {
                 window.showSectionLoader(null, 'جاري تحليل المبيعات والأرباح...', 'قراءة الحركات واحتساب المؤشرات المالية');
                 await new Promise(r => setTimeout(r, 45));
             }
             try {
-                if (typeof window.loadTransactionsForDateRange === 'function' && (fromInput.value || toInput.value)) {
+                if (!hasFastSql && typeof window.loadTransactionsForDateRange === 'function' && (fromInput.value || toInput.value)) {
                     await window.loadTransactionsForDateRange(fromInput.value, toInput.value);
                 }
 

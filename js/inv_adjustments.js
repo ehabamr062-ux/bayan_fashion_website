@@ -1449,9 +1449,12 @@ function loadPriceAdjustmentData(selectedIds = []) {
 
         window.priceAdjData = [];
 
-        // خريطة سريعة لآخر سعر شراء لتسريع الاستجابة
-        const lastBuyMap = {};
-        if (Array.isArray(transactions)) {
+        // خريطة سريعة لآخر سعر شراء لتسريع الاستجابة فائقة السرعة عبر SQLite
+        let lastBuyMap = {};
+        if (window.BayanSQLite && typeof window.BayanSQLite.getLastPurchasePrices === 'function' && window.BayanSQLite.db) {
+            const targetNames = targets.map(p => p.name).filter(Boolean);
+            lastBuyMap = window.BayanSQLite.getLastPurchasePrices(targetNames) || {};
+        } else if (Array.isArray(transactions)) {
             for (let i = transactions.length - 1; i >= 0; i--) {
                 const t = transactions[i];
                 if (t.product && t.type && t.type.includes('شراء') && !t.type.includes('مرتجع')) {
