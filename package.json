@@ -64,6 +64,7 @@
       "!tests/**",
       "!package-lock.json",
       "!.hintrc",
+      "!.gitignore",
       "!service-worker.js",
       "!manifest.json",
       "!announcements.json",
