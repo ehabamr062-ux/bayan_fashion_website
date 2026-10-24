@@ -968,7 +968,7 @@ ipcMain.handle('save-backup-data', async (_e, payload) => {
     }
 });
 
-// ⚡ نسخ احتياطي فوري ومباشر لملف قاعدة البيانات SQLite (في 0.05 ثانية وبدون أي استهلاك للرام)
+// ⚡ نسخ احتياطي فوري ومباشر لملف قاعدة البيانات SQLite (في 0.05 ثانية وبدون أي استهلاك للرام وبدون أقفال)
 ipcMain.handle('save-sqlite-direct-backup', async (_e, payload) => {
     try {
         if (!fs.existsSync(backupDir)) {
@@ -983,18 +983,49 @@ ipcMain.handle('save-sqlite-direct-backup', async (_e, payload) => {
 
         const os = require('os');
         const sqliteOriginalPath = path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db');
+        const sqliteBakPath = path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db.bak');
+
+        let copied = false;
+        // محاولة النسخ أولاً من ملف الداتابيز الرئيسي
         if (fs.existsSync(sqliteOriginalPath)) {
-            await fs.promises.copyFile(sqliteOriginalPath, filePath);
+            try {
+                await fs.promises.copyFile(sqliteOriginalPath, filePath);
+                copied = true;
+            } catch(copyErr) {
+                console.warn("[save-sqlite-direct-backup] Primary db copy busy, attempting fallback to .bak:", copyErr.message);
+            }
+        }
+
+        // إذا كان الملف الرئيسي مشغولاً بنظام WAL أو القفل، ننسخ من ملف الطوارئ (.bak) المحدث بنجاح
+        if (!copied && fs.existsSync(sqliteBakPath)) {
+            try {
+                await fs.promises.copyFile(sqliteBakPath, filePath);
+                copied = true;
+            } catch(bakErr) {
+                console.error("[save-sqlite-direct-backup] Fallback copy error:", bakErr.message);
+            }
+        }
+
+        if (copied) {
+            // إذا كان النسخ يدوياً، ننسخ نسخة إضافية إلى سطح المكتب مباشرة من الملف الذي تم حفظه
             if (payload?.isManual) {
                 try {
-                    const desktopDir = app.getPath('desktop');
-                    const desktopFilePath = path.join(desktopDir, fileName);
-                    await fs.promises.copyFile(sqliteOriginalPath, desktopFilePath);
-                } catch(dErr) {}
+                    let desktopDir = '';
+                    try { desktopDir = app.getPath('desktop'); } catch(e) {}
+                    if (!desktopDir || !fs.existsSync(desktopDir)) {
+                        desktopDir = path.join(os.homedir(), 'Desktop');
+                    }
+                    if (fs.existsSync(desktopDir)) {
+                        const desktopFilePath = path.join(desktopDir, fileName);
+                        await fs.promises.copyFile(filePath, desktopFilePath);
+                    }
+                } catch(dErr) {
+                    console.warn("[save-sqlite-direct-backup] Desktop copy notice:", dErr.message);
+                }
             }
             return { success: true, filePath, fileName, backupDir };
         }
-        return { success: false, error: 'SQLite database file not found' };
+        return { success: false, error: 'SQLite database file not found or inaccessible' };
     } catch (err) {
         console.error("save-sqlite-direct-backup error:", err);
         return { success: false, error: err.message };
@@ -1267,7 +1298,7 @@ ipcMain.handle('quit-and-install-update', () => {
 
 try { ipcMain.removeHandler('get-app-version'); } catch(e) {}
 ipcMain.handle('get-app-version', () => {
-    return app.getVersion() || '4.9.2';
+    return app.getVersion() || '4.9.3';
 });
 
 // =========================================================================

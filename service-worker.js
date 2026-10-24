@@ -3,9 +3,9 @@
 //  النسخة المطورة للعمل أوفلاين 100%
 // ============================================================
 
-const CACHE_NAME = 'bayan-pos-v4.9.2';
-const STATIC_CACHE = 'bayan-static-v4.9.2';
-const DYNAMIC_CACHE = 'bayan-dynamic-v4.9.2';
+const CACHE_NAME = 'bayan-pos-v4.9.3';
+const STATIC_CACHE = 'bayan-static-v4.9.3';
+const DYNAMIC_CACHE = 'bayan-dynamic-v4.9.3';
 
 // كافة ملفات النظام الأساسية المتوفرة محلياً (بدون تكرار لتفادي خطأ Entry already exists على GitHub Pages)
 const STATIC_FILES = [

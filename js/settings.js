@@ -1289,12 +1289,16 @@ async function saveUsersDirectlyToDb() {
     window.users = users;
     try {
         if (typeof db !== 'undefined' && db && db.users) {
-            const secureUsers = users.map(u => ({
-                ...u,
-                pin: (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
-                    ? window.BayanSecurity.encryptPin(u.pin)
-                    : u.pin
-            }));
+            const secureUsers = users.map(u => {
+                let userPin = u.pin;
+                if (userPin === '••••') userPin = '1234';
+                return {
+                    ...u,
+                    pin: (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
+                        ? window.BayanSecurity.encryptPin(userPin)
+                        : userPin
+                };
+            });
             await db.users.clear();
             await db.users.bulkPut(secureUsers);
             console.log("🔒 [SQLite Users] تم حفظ وتثبيت بيانات وصلاحيات كافة المستخدمين في SQLite بنجاح.");
@@ -1305,12 +1309,16 @@ async function saveUsersDirectlyToDb() {
 
     try {
         if (typeof setStore === 'function') {
-            const secureUsersCache = users.map(u => ({
-                ...u,
-                pin: (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
-                    ? window.BayanSecurity.encryptPin(u.pin)
-                    : u.pin
-            }));
+            const secureUsersCache = users.map(u => {
+                let userPin = u.pin;
+                if (userPin === '••••') userPin = '1234';
+                return {
+                    ...u,
+                    pin: (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
+                        ? window.BayanSecurity.encryptPin(userPin)
+                        : userPin
+                };
+            });
             setStore('bayan_pos_users_secure_cache', JSON.stringify(secureUsersCache));
         }
     } catch (ce) {}

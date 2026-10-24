@@ -801,12 +801,32 @@ async function loadData() {
             return true;
         }).map(u => {
             if (!u) return u;
-            const rawPin = u.pin;
+            let rawPin = u.pin;
+            // 🛡️ إصلاح ذاتي فوري لحساب المدير إذا كان رمزه مشوهاً بالنجوم بسبب خطأ الحفظ السابق
+            const isAdmin = u.id === 1 || u.id === '1' || u.role === 'admin';
+            const isCorrupted = isAdmin && (
+                rawPin === '••••' ||
+                !rawPin ||
+                (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function' && window.BayanSecurity.verifyPin('••••', rawPin))
+            );
+            if (isCorrupted) {
+                console.warn("🔧 [Auto-Heal] تم تصحيح رمز المدير التالف واستعادته إلى 1234 تلقائياً.");
+                rawPin = '1234';
+                pinMigrationNeeded = true;
+                if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+                    try {
+                        const enc = (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
+                            ? window.BayanSecurity.encryptPin('1234')
+                            : '1234';
+                        window.BayanSQLite.nativeDb.prepare("UPDATE users SET pin = ? WHERE id = ? OR role = 'admin';").run(enc, u.id);
+                    } catch(e) {}
+                }
+            }
             // 🔒 نحافظ على حماية وتشفير رمز PIN في الذاكرة لمنع كشفه بنص صريح وترقيته للتجزئة الأقوى
             if (rawPin != null && rawPin !== '' && !String(rawPin).startsWith('HASH:v1:')) {
                 pinMigrationNeeded = true;
             }
-            return { ...u };
+            return { ...u, pin: rawPin };
         });
 
         window.users = users;
@@ -1515,19 +1535,26 @@ async function saveData(targetTables = null, deltaOptions = null) {
                     }
 
                     // 4. حفظ وتحديث المستخدمين ومزامنة جدول SQLite 100% لمنع بقاء أي مستخدم محذوف
-                    if (shouldSave('users') && Array.isArray(users)) {
+                    // 🔒 حماية فولاذية: لا نقوم بحفظ جدول المستخدمين إذا كان المستخدم الحالي كاشير (لمنع إفساد بيانات المدير)
+                    if (shouldSave('users') && Array.isArray(users) && (!currentUser || currentUser.role === 'admin' || currentUser.isAdmin)) {
                         window.users = users;
                         if (window.deletedItemIds && window.deletedItemIds.users && window.deletedItemIds.users.length > 0) {
                             await db.users.bulkDelete(window.deletedItemIds.users);
                             window.deletedItemIds.users = [];
                         }
                         if (users.length > 0) {
-                            const secureUsers = users.map(u => ({
-                                ...u,
-                                pin: (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
-                                    ? window.BayanSecurity.encryptPin(u.pin)
-                                    : u.pin
-                            }));
+                            const secureUsers = users.map(u => {
+                                let userPin = u.pin;
+                                if (userPin === '••••') {
+                                    userPin = '1234'; // صمام أمان ضد حفظ النجوم
+                                }
+                                return {
+                                    ...u,
+                                    pin: (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
+                                        ? window.BayanSecurity.encryptPin(userPin)
+                                        : userPin
+                                };
+                            });
                             await db.users.clear();
                             await db.users.bulkPut(secureUsers);
                         }

@@ -820,6 +820,14 @@ window.showBackupProgressOverlay = function() {
         backupPathDisplay = path.join(os.homedir(), 'AppData', 'Roaming', 'Bayan POS', 'backups');
     } catch(e) {}
 
+    // 🛡️ صمام أمان لإخفاء النافذة الزرقاء تلقائياً بعد 8 ثوانٍ كحد أقصى لمنع أي تعليق على الواجهة
+    if (window._backupOverlaySafetyTimer) {
+        clearTimeout(window._backupOverlaySafetyTimer);
+    }
+    window._backupOverlaySafetyTimer = setTimeout(() => {
+        window.hideBackupProgressOverlay();
+    }, 8000);
+
     let overlay = document.getElementById('backupProgressOverlay');
     if (!overlay) {
         overlay = document.createElement('div');
@@ -854,6 +862,10 @@ window.showBackupProgressOverlay = function() {
 };
 
 window.hideBackupProgressOverlay = function() {
+    if (window._backupOverlaySafetyTimer) {
+        clearTimeout(window._backupOverlaySafetyTimer);
+        window._backupOverlaySafetyTimer = null;
+    }
     const overlay = document.getElementById('backupProgressOverlay');
     if (overlay) {
         overlay.style.display = 'none';
@@ -1318,200 +1330,208 @@ window.executeAutoBackupToFile = async function(silent = false, isManual = false
         window.showBackupProgressOverlay();
     }
     
-    // 🛡️ تفريغ أي عمليات معلقة في SQLite وحفظها على القرص أولاً
-    if (window.BayanSQLite && typeof window.BayanSQLite.flush === 'function') {
-        try { await window.BayanSQLite.flush(); } catch(fErr) {}
-    }
-
-    // 1. فحص توفر بيئة إلكترون (Electron)
-    let ipc = null;
-    try {
-        if (typeof window !== 'undefined' && window.require) {
-            ipc = window.require('electron').ipcRenderer;
-        } else if (typeof require !== 'undefined') {
-            ipc = require('electron').ipcRenderer;
-        }
-    } catch (e) {}
-
-    // ⚡ حل جذري لتجميد النظام (1-2 دقيقة): في بيئة Electron، يتم نسخ ملف SQLite مباشرة في 0.05 ثانية
-    // دون الحاجة لتسلسل 50 ألف صنف ومئات آلاف الحركات في الرام عبر JSON وتفادي أخطاء الذاكرة نهائياً
-    if (ipc && typeof ipc.invoke === 'function' && window.BayanSQLite) {
-        try {
-            const directRes = await ipc.invoke('save-sqlite-direct-backup', { isManual });
-            if (directRes && directRes.success) {
-                setStore('pos_last_backup_time', Date.now());
-                console.log(`⚡ [Ultra-Fast Backup] تم النسخ الاحتياطي ${isManual ? 'اليدوي' : 'التلقائي'} لملف الداتابيز بنجاح في أجزاء من الثانية:`, directRes.filePath);
-                try {
-                    const settings = JSON.parse(getStore('pos_settings') || '{}');
-                    const maxBackups = parseInt(settings.maxBackupFiles) || 30;
-                    await ipc.invoke('rotate-backups', maxBackups);
-                } catch(rotErr) {}
-
-                if (!silent) {
-                    await new Promise(resolve => setTimeout(resolve, 300));
-                    window.hideBackupProgressOverlay();
-                    if (typeof showCustomAlert === 'function') {
-                        showCustomAlert({
-                            type: 'success',
-                            titleText: '✅ تم حفظ النسخة الاحتياطية بنجاح',
-                            msg: `
-                                <div style="text-align: right; direction: rtl; font-family: 'Cairo', sans-serif;">
-                                    <p style="margin-bottom: 12px; font-weight: 800; color: #1e293b;">تم تأمين وحفظ كامل قاعدة البيانات (الأصناف، الفواتير، الحسابات، والخزينة) بنجاح فائق في أجزاء من الثانية.</p>
-                                    <div style="background: #eff6ff; padding: 12px; border-radius: 12px; border: 1.5px solid #93c5fd; margin-bottom: 15px;">
-                                        <div style="font-size: 0.85rem; color: #1d4ed8; font-weight: 800; margin-bottom: 4px;">📍 مكان وجود النسخة على جهازك:</div>
-                                        <div style="font-size: 0.95rem; font-weight: 900; color: #1e3a8a; margin-bottom: 4px;">
-                                            📁 سطح المكتب (Desktop) ومجلد النسخ
-                                        </div>
-                                        <div style="font-size: 0.8rem; font-weight: 800; color: #475569; direction: ltr; text-align: left; font-family: monospace; word-break: break-all;">
-                                            📄 ${directRes.fileName || 'backup_pos.db'}
-                                        </div>
-                                    </div>
-                                    <button onclick="window.openBackupFolder()" style="width: 100%; height: 45px; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: 900; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
-                                        📂 فتح مجلد النسخ الاحتياطية الآن
-                                    </button>
-                                </div>
-                            `,
-                            confirmText: 'تم ✖️'
-                        });
-                    }
-                }
-                return true;
-            }
-        } catch(directErr) {
-            console.warn("Direct SQLite backup fallback:", directErr);
-        }
-    }
-
-    const data = await window.compileBayanBackupPayload();
-    setStore('pos_last_backup_time', Date.now());
-    
     let success = false;
     let savedFilePath = '';
     let backupDirDisplay = '';
     let finalFileName = '';
 
-    if (ipc && typeof ipc.invoke === 'function') {
-        try {
-            // ⚡ ضغط الـ JSON بدون مسافات بادئة لتقليص استهلاك الذاكرة وحجم الملف بنسبة 50%
-            const dataStr = JSON.stringify(data);
-            const saveRes = await ipc.invoke('save-backup-data', { isManual, dataStr });
-            if (saveRes && saveRes.success) {
-                savedFilePath = saveRes.filePath;
-                backupDirDisplay = saveRes.backupDir;
-                finalFileName = saveRes.fileName;
-                success = true;
-                console.log("Backup successfully saved via Electron IPC:", savedFilePath);
-
-                // إدارة تدوير النسخ
-                try {
-                    const settings = JSON.parse(getStore('pos_settings') || '{}');
-                    const maxBackups = parseInt(settings.maxBackupFiles) || 30;
-                    await ipc.invoke('rotate-backups', maxBackups);
-                } catch(rotErr) {}
-            }
-        } catch (ipcErr) {
-            console.warn("Electron IPC save-backup-data failed, trying node/browser fallback:", ipcErr);
+    try {
+        // 🛡️ تفريغ أي عمليات معلقة في SQLite وحفظها على القرص أولاً
+        if (window.BayanSQLite && typeof window.BayanSQLite.flush === 'function') {
+            try { await window.BayanSQLite.flush(); } catch(fErr) {}
         }
-    }
 
-    // 2. المحاولة الثانية: عبر Node.js fs مباشرة إن كانت متاحة
-    if (!success) {
+        // 1. فحص توفر بيئة إلكترون (Electron)
+        let ipc = null;
         try {
-            const fs = (typeof window !== 'undefined' && window.require) ? window.require('fs') : (typeof require !== 'undefined' ? require('fs') : null);
-            const path = (typeof window !== 'undefined' && window.require) ? window.require('path') : (typeof require !== 'undefined' ? require('path') : null);
-            const os = (typeof window !== 'undefined' && window.require) ? window.require('os') : (typeof require !== 'undefined' ? require('os') : null);
-
-            if (fs && path && os) {
-                let backupDir = path.join(os.homedir(), 'AppData', 'Roaming', 'Bayan POS', 'backups');
-                if (!fs.existsSync(backupDir)) {
-                    fs.mkdirSync(backupDir, { recursive: true });
-                }
-                const pad = (n) => String(n).padStart(2, '0');
-                const d = new Date();
-                const timestamp = `${d.getFullYear()}_${pad(d.getMonth()+1)}_${pad(d.getDate())}__${pad(d.getHours())}_${pad(d.getMinutes())}`;
-                const prefix = isManual ? 'backup_pos_manual_' : 'backup_pos_auto_';
-                finalFileName = `${prefix}${timestamp}.json`;
-                savedFilePath = path.join(backupDir, finalFileName);
-                backupDirDisplay = backupDir;
-
-                fs.writeFileSync(savedFilePath, JSON.stringify(data), 'utf8');
-                console.log("Backup successfully saved to local fs path:", savedFilePath);
-                success = true;
+            if (typeof window !== 'undefined' && window.require) {
+                ipc = window.require('electron').ipcRenderer;
+            } else if (typeof require !== 'undefined') {
+                ipc = require('electron').ipcRenderer;
             }
-        } catch (fsErr) {
-            console.warn("Node fs fallback failed:", fsErr);
-        }
-    }
+        } catch (e) {}
 
-    // 3. المحاولة الثالثة: عبر تنزيل ملف المتصفح (Web Browser Download)
-    // إذا كان النسخ يدوياً، نقوم بتنزيل الملف دائماً في المتصفح / مجلد Downloads ليراه العميل أمامه فوراً
-    if (isManual || !success) {
-        const settings = JSON.parse(getStore('pos_settings') || '{}');
-        const canDownloadInBrowser = isManual || (settings.autoBackup === true && !silent);
-
-        if (canDownloadInBrowser) {
+        // ⚡ حل جذري لتجميد النظام (1-2 دقيقة): في بيئة Electron، يتم نسخ ملف SQLite مباشرة في 0.05 ثانية
+        // دون الحاجة لتسلسل 50 ألف صنف ومئات آلاف الحركات في الرام عبر JSON وتفادي أخطاء الذاكرة نهائياً
+        if (ipc && typeof ipc.invoke === 'function' && window.BayanSQLite) {
             try {
-                const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                const d = new Date();
-                const pad = (n) => String(n).padStart(2, '0');
-                const timestamp = `${d.getFullYear()}_${pad(d.getMonth()+1)}_${pad(d.getDate())}__${pad(d.getHours())}_${pad(d.getMinutes())}`;
-                finalFileName = `backup_pos_${isManual ? 'manual' : 'auto'}_${timestamp}.json`;
-                a.download = finalFileName;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                setTimeout(() => URL.revokeObjectURL(url), 1000);
-                success = true;
-                backupDirDisplay = 'سطح المكتب (Desktop) ومجلد التنزيلات (Downloads)';
-                savedFilePath = `Downloads/${finalFileName}`;
-                console.log("Backup file downloaded via browser to Downloads folder:", finalFileName);
-            } catch (downloadErr) {
-                console.error("Browser download backup failed:", downloadErr);
+                const directRes = await ipc.invoke('save-sqlite-direct-backup', { isManual });
+                if (directRes && directRes.success) {
+                    setStore('pos_last_backup_time', Date.now());
+                    console.log(`⚡ [Ultra-Fast Backup] تم النسخ الاحتياطي ${isManual ? 'اليدوي' : 'التلقائي'} لملف الداتابيز بنجاح في أجزاء من الثانية:`, directRes.filePath);
+                    try {
+                        const settings = JSON.parse(getStore('pos_settings') || '{}');
+                        const maxBackups = parseInt(settings.maxBackupFiles) || 30;
+                        await ipc.invoke('rotate-backups', maxBackups);
+                    } catch(rotErr) {}
+
+                    if (!silent) {
+                        await new Promise(resolve => setTimeout(resolve, 250));
+                        window.hideBackupProgressOverlay();
+                        if (typeof showCustomAlert === 'function') {
+                            showCustomAlert({
+                                type: 'success',
+                                titleText: '✅ تم حفظ النسخة الاحتياطية بنجاح',
+                                msg: `
+                                    <div style="text-align: right; direction: rtl; font-family: 'Cairo', sans-serif;">
+                                        <p style="margin-bottom: 12px; font-weight: 800; color: #1e293b;">تم تأمين وحفظ كامل قاعدة البيانات (الأصناف، الفواتير، الحسابات، والخزينة) بنجاح فائق في أجزاء من الثانية.</p>
+                                        <div style="background: #eff6ff; padding: 12px; border-radius: 12px; border: 1.5px solid #93c5fd; margin-bottom: 15px;">
+                                            <div style="font-size: 0.85rem; color: #1d4ed8; font-weight: 800; margin-bottom: 4px;">📍 مكان وجود النسخة على جهازك:</div>
+                                            <div style="font-size: 0.95rem; font-weight: 900; color: #1e3a8a; margin-bottom: 4px;">
+                                                📁 سطح المكتب (Desktop) ومجلد النسخ
+                                            </div>
+                                            <div style="font-size: 0.8rem; font-weight: 800; color: #475569; direction: ltr; text-align: left; font-family: monospace; word-break: break-all;">
+                                                📄 ${directRes.fileName || 'backup_pos.db'}
+                                            </div>
+                                        </div>
+                                        <button onclick="window.openBackupFolder()" style="width: 100%; height: 45px; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: 900; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
+                                            📂 فتح مجلد النسخ الاحتياطية الآن
+                                        </button>
+                                    </div>
+                                `,
+                                confirmText: 'تم ✖️'
+                            });
+                        }
+                    }
+                    return true;
+                }
+            } catch(directErr) {
+                console.warn("Direct SQLite backup fallback:", directErr);
             }
         }
-    }
-    
-    if (!silent) {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        window.hideBackupProgressOverlay();
 
-        if (success) {
-            const isDownloads = backupDirDisplay.includes('Downloads') || backupDirDisplay.includes('التنزيلات');
-            if (typeof showCustomAlert === 'function') {
-                showCustomAlert({
-                    type: 'success',
-                    titleText: '✅ تم حفظ النسخة الاحتياطية بنجاح',
-                    msg: `
-                        <div style="text-align: right; direction: rtl; font-family: 'Cairo', sans-serif;">
-                            <p style="margin-bottom: 12px; font-weight: 800; color: #1e293b;">تم تأمين وحفظ كامل بيانات النظام (الأصناف، الفواتير، الحسابات، والخزينة) بنجاح على جهازك.</p>
-                            
-                            <div style="background: ${isDownloads ? '#eff6ff' : '#f1f5f9'}; padding: 12px; border-radius: 12px; border: 1.5px solid ${isDownloads ? '#93c5fd' : '#cbd5e1'}; margin-bottom: 15px;">
-                                <div style="font-size: 0.85rem; color: ${isDownloads ? '#1d4ed8' : '#64748b'}; font-weight: 800; margin-bottom: 4px;">📍 مكان وجود النسخة على جهازك:</div>
-                                <div style="font-size: 0.95rem; font-weight: 900; color: ${isDownloads ? '#1e3a8a' : '#0f172a'}; margin-bottom: 4px;">
-                                    ${isDownloads ? '📁 مجلد التنزيلات (Downloads)' : backupDirDisplay}
+        const data = await window.compileBayanBackupPayload();
+        setStore('pos_last_backup_time', Date.now());
+
+        if (ipc && typeof ipc.invoke === 'function') {
+            try {
+                // ⚡ ضغط الـ JSON بدون مسافات بادئة لتقليص استهلاك الذاكرة وحجم الملف بنسبة 50%
+                const dataStr = JSON.stringify(data);
+                const saveRes = await ipc.invoke('save-backup-data', { isManual, dataStr });
+                if (saveRes && saveRes.success) {
+                    savedFilePath = saveRes.filePath;
+                    backupDirDisplay = saveRes.backupDir;
+                    finalFileName = saveRes.fileName;
+                    success = true;
+                    console.log("Backup successfully saved via Electron IPC:", savedFilePath);
+
+                    // إدارة تدوير النسخ
+                    try {
+                        const settings = JSON.parse(getStore('pos_settings') || '{}');
+                        const maxBackups = parseInt(settings.maxBackupFiles) || 30;
+                        await ipc.invoke('rotate-backups', maxBackups);
+                    } catch(rotErr) {}
+                }
+            } catch (ipcErr) {
+                console.warn("Electron IPC save-backup-data failed, trying node/browser fallback:", ipcErr);
+            }
+        }
+
+        // 2. المحاولة الثانية: عبر Node.js fs مباشرة إن كانت متاحة
+        if (!success) {
+            try {
+                const fs = (typeof window !== 'undefined' && window.require) ? window.require('fs') : (typeof require !== 'undefined' ? require('fs') : null);
+                const path = (typeof window !== 'undefined' && window.require) ? window.require('path') : (typeof require !== 'undefined' ? require('path') : null);
+                const os = (typeof window !== 'undefined' && window.require) ? window.require('os') : (typeof require !== 'undefined' ? require('os') : null);
+
+                if (fs && path && os) {
+                    let backupDir = path.join(os.homedir(), 'AppData', 'Roaming', 'Bayan POS', 'backups');
+                    if (!fs.existsSync(backupDir)) {
+                        fs.mkdirSync(backupDir, { recursive: true });
+                    }
+                    const pad = (n) => String(n).padStart(2, '0');
+                    const d = new Date();
+                    const timestamp = `${d.getFullYear()}_${pad(d.getMonth()+1)}_${pad(d.getDate())}__${pad(d.getHours())}_${pad(d.getMinutes())}`;
+                    const prefix = isManual ? 'backup_pos_manual_' : 'backup_pos_auto_';
+                    finalFileName = `${prefix}${timestamp}.json`;
+                    savedFilePath = path.join(backupDir, finalFileName);
+                    backupDirDisplay = backupDir;
+
+                    fs.writeFileSync(savedFilePath, JSON.stringify(data), 'utf8');
+                    console.log("Backup successfully saved to local fs path:", savedFilePath);
+                    success = true;
+                }
+            } catch (fsErr) {
+                console.warn("Node fs fallback failed:", fsErr);
+            }
+        }
+
+        // 3. المحاولة الثالثة: عبر تنزيل ملف المتصفح (Web Browser Download)
+        if (isManual || !success) {
+            const settings = JSON.parse(getStore('pos_settings') || '{}');
+            const canDownloadInBrowser = isManual || (settings.autoBackup === true && !silent);
+
+            if (canDownloadInBrowser) {
+                try {
+                    const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    const d = new Date();
+                    const pad = (n) => String(n).padStart(2, '0');
+                    const timestamp = `${d.getFullYear()}_${pad(d.getMonth()+1)}_${pad(d.getDate())}__${pad(d.getHours())}_${pad(d.getMinutes())}`;
+                    finalFileName = `backup_pos_${isManual ? 'manual' : 'auto'}_${timestamp}.json`;
+                    a.download = finalFileName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(url), 1000);
+                    success = true;
+                    backupDirDisplay = 'سطح المكتب (Desktop) ومجلد التنزيلات (Downloads)';
+                    savedFilePath = `Downloads/${finalFileName}`;
+                    console.log("Backup file downloaded via browser to Downloads folder:", finalFileName);
+                } catch (downloadErr) {
+                    console.error("Browser download backup failed:", downloadErr);
+                }
+            }
+        }
+        
+        if (!silent) {
+            await new Promise(resolve => setTimeout(resolve, 400));
+            window.hideBackupProgressOverlay();
+
+            if (success) {
+                const isDownloads = backupDirDisplay.includes('Downloads') || backupDirDisplay.includes('التنزيلات');
+                if (typeof showCustomAlert === 'function') {
+                    showCustomAlert({
+                        type: 'success',
+                        titleText: '✅ تم حفظ النسخة الاحتياطية بنجاح',
+                        msg: `
+                            <div style="text-align: right; direction: rtl; font-family: 'Cairo', sans-serif;">
+                                <p style="margin-bottom: 12px; font-weight: 800; color: #1e293b;">تم تأمين وحفظ كامل بيانات النظام (الأصناف، الفواتير، الحسابات، والخزينة) بنجاح على جهازك.</p>
+                                
+                                <div style="background: ${isDownloads ? '#eff6ff' : '#f1f5f9'}; padding: 12px; border-radius: 12px; border: 1.5px solid ${isDownloads ? '#93c5fd' : '#cbd5e1'}; margin-bottom: 15px;">
+                                    <div style="font-size: 0.85rem; color: ${isDownloads ? '#1d4ed8' : '#64748b'}; font-weight: 800; margin-bottom: 4px;">📍 مكان وجود النسخة على جهازك:</div>
+                                    <div style="font-size: 0.95rem; font-weight: 900; color: ${isDownloads ? '#1e3a8a' : '#0f172a'}; margin-bottom: 4px;">
+                                        ${isDownloads ? '📁 مجلد التنزيلات (Downloads)' : backupDirDisplay}
+                                    </div>
+                                    <div style="font-size: 0.8rem; font-weight: 800; color: #475569; direction: ltr; text-align: left; font-family: monospace; word-break: break-all;">
+                                        📄 ${finalFileName || 'backup_pos.json'}
+                                    </div>
                                 </div>
-                                <div style="font-size: 0.8rem; font-weight: 800; color: #475569; direction: ltr; text-align: left; font-family: monospace; word-break: break-all;">
-                                    📄 ${finalFileName || 'backup_pos.json'}
-                                </div>
+
+                                <button onclick="window.openBackupFolder()" style="width: 100%; height: 45px; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: 900; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
+                                    📂 فتح مجلد النسخ الاحتياطية الآن
+                                </button>
                             </div>
-
-                            <button onclick="window.openBackupFolder()" style="width: 100%; height: 45px; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: 900; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
-                                📂 فتح مجلد النسخ الاحتياطية الآن
-                            </button>
-                        </div>
-                    `,
-                    confirmText: 'تم ✖️'
-                });
-            } else {
-                alert(`✅ تم حفظ النسخة الاحتياطية بنجاح في: ${backupDirDisplay}`);
+                        `,
+                        confirmText: 'تم ✖️'
+                    });
+                } else {
+                    alert(`✅ تم حفظ النسخة الاحتياطية بنجاح في: ${backupDirDisplay}`);
+                }
             }
         }
+        
+        return success;
+    } catch(globalBackupErr) {
+        console.error("Global backup error:", globalBackupErr);
+        return false;
+    } finally {
+        if (!silent) {
+            window.hideBackupProgressOverlay();
+        }
     }
-    
-    return success;
 };
 
 // فحص وتكرار النسخ الاحتياطي الدوري في الخلفية (كل ساعة، ساعتين، 12، 24)
