@@ -909,10 +909,17 @@ async function loadData() {
                     if (v.stock !== undefined && (parseFloat(v.stock) < 0 || isNaN(parseFloat(v.stock)))) {
                         v.stock = 0;
                     }
-                    if (v.warehouseStocks && typeof v.warehouseStocks === 'object') {
+                    const vStock = parseFloat(v.stock) || 0;
+                    if (!v.warehouseStocks || typeof v.warehouseStocks !== 'object') {
+                        v.warehouseStocks = { 'المخزن الرئيسي': vStock };
+                    } else {
+                        const mainWhVal = parseFloat(v.warehouseStocks['المخزن الرئيسي']);
+                        if (vStock > 0 && (isNaN(mainWhVal) || mainWhVal < vStock)) {
+                            v.warehouseStocks['المخزن الرئيسي'] = Math.max(isNaN(mainWhVal) ? 0 : mainWhVal, vStock);
+                        }
                         Object.keys(v.warehouseStocks).forEach(wh => {
-                            if (parseFloat(v.warehouseStocks[wh]) < 0 && (parseFloat(v.stock) || 0) > 0) {
-                                if (wh === 'المخزن الرئيسي') v.warehouseStocks[wh] = parseFloat(v.stock) || 0;
+                            if (parseFloat(v.warehouseStocks[wh]) < 0 && vStock > 0) {
+                                if (wh === 'المخزن الرئيسي') v.warehouseStocks[wh] = vStock;
                                 else delete v.warehouseStocks[wh];
                             }
                         });
@@ -920,7 +927,13 @@ async function loadData() {
                     vSum += (parseFloat(v.stock) || 0);
                 }
                 p.stock = vSum;
-                if (p.warehouseStocks && typeof p.warehouseStocks === 'object') {
+                if (!p.warehouseStocks || typeof p.warehouseStocks !== 'object') {
+                    p.warehouseStocks = { 'المخزن الرئيسي': p.stock };
+                } else {
+                    const pMainWh = parseFloat(p.warehouseStocks['المخزن الرئيسي']);
+                    if (p.stock > 0 && (isNaN(pMainWh) || pMainWh < p.stock)) {
+                        p.warehouseStocks['المخزن الرئيسي'] = Math.max(isNaN(pMainWh) ? 0 : pMainWh, p.stock);
+                    }
                     Object.keys(p.warehouseStocks).forEach(wh => {
                         if (parseFloat(p.warehouseStocks[wh]) < 0 && p.stock > 0) {
                             if (wh === 'المخزن الرئيسي') p.warehouseStocks[wh] = p.stock;
@@ -929,14 +942,20 @@ async function loadData() {
                     });
                 }
             } else if (p && p.warehouseStocks && typeof p.warehouseStocks === 'object') {
+                const pGen = parseFloat(p.stock) || 0;
+                const pMainWh = parseFloat(p.warehouseStocks['المخزن الرئيسي']);
+                if (pGen > 0 && (isNaN(pMainWh) || pMainWh < pGen)) {
+                    p.warehouseStocks['المخزن الرئيسي'] = Math.max(isNaN(pMainWh) ? 0 : pMainWh, pGen);
+                }
                 Object.keys(p.warehouseStocks).forEach(wh => {
-                    if (parseFloat(p.warehouseStocks[wh]) < 0 && (parseFloat(p.stock) || 0) > 0) {
-                        if (wh === 'المخزن الرئيسي') p.warehouseStocks[wh] = parseFloat(p.stock) || 0;
+                    if (parseFloat(p.warehouseStocks[wh]) < 0 && pGen > 0) {
+                        if (wh === 'المخزن الرئيسي') p.warehouseStocks[wh] = pGen;
                         else delete p.warehouseStocks[wh];
                     }
                 });
             }
         };
+        window.syncProductVariantsStock = syncProductVariantsStock;
 
         // أ) معالجة وتثبيت أول 100 صنف فوراً لتمكين الكاشير والبحث اللحظي في أقل من 5ms
         try {

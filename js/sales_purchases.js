@@ -1683,10 +1683,12 @@ async function savePurchase(force = false, accountChecked = false) {
                 // 3. تحديث الرصيد المخزني النهائي ورصيد المخزن المحدد
                 if (!p.warehouseStocks || typeof p.warehouseStocks !== 'object') p.warehouseStocks = {};
                 let curProdWhStock = 0;
+                const pGenOld = parseFloat(p.stock) || 0;
                 if (p.warehouseStocks[activeWH] !== undefined) {
-                    curProdWhStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
+                    const pWhVal = parseFloat(p.warehouseStocks[activeWH]);
+                    curProdWhStock = isNaN(pWhVal) ? pGenOld : Math.max(pWhVal, pGenOld);
                 } else {
-                    curProdWhStock = parseFloat(p.stock) || 0;
+                    curProdWhStock = pGenOld;
                 }
                 p.warehouseStocks[activeWH] = curProdWhStock + baseQty;
                 p.stock = finalStockCount;
@@ -1709,7 +1711,8 @@ async function savePurchase(force = false, accountChecked = false) {
                             if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
                             let curVarWhStock = 0;
                             if (matchedVar.warehouseStocks[activeWH] !== undefined) {
-                                curVarWhStock = parseFloat(matchedVar.warehouseStocks[activeWH]) || 0;
+                                const whVal = parseFloat(matchedVar.warehouseStocks[activeWH]);
+                                curVarWhStock = isNaN(whVal) ? oldVarStock : Math.max(whVal, oldVarStock);
                             } else {
                                 curVarWhStock = oldVarStock;
                             }
@@ -1741,11 +1744,13 @@ async function savePurchase(force = false, accountChecked = false) {
                     let totalVarWhStock = 0;
                     let hasExplicitVarWh = false;
                     p.variants.forEach(v => {
+                        const vStock = parseFloat(v.stock) || 0;
                         if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
-                            totalVarWhStock += parseFloat(v.warehouseStocks[activeWH]) || 0;
+                            const whVal = parseFloat(v.warehouseStocks[activeWH]);
+                            totalVarWhStock += isNaN(whVal) ? vStock : Math.max(whVal, vStock);
                             hasExplicitVarWh = true;
                         } else if (activeWH === 'المخزن الرئيسي') {
-                            totalVarWhStock += parseFloat(v.stock) || 0;
+                            totalVarWhStock += vStock;
                         }
                     });
                     if (hasExplicitVarWh || activeWH === 'المخزن الرئيسي') {

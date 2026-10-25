@@ -914,7 +914,7 @@ function addToCart(productId, preSelectedUnit = null, preSelectedVariant = null)
 
     const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
     const prodAvail = typeof getWarehouseStock === 'function' ? getWarehouseStock(product.name, activeWH) : (parseFloat(product.stock) || 0);
-    const varAvail = effVariant ? ((effVariant.warehouseStocks && effVariant.warehouseStocks[activeWH] !== undefined) ? (parseFloat(effVariant.warehouseStocks[activeWH]) || 0) : (parseFloat(effVariant.stock) || 0)) : 0;
+    const varAvail = effVariant ? ((effVariant.warehouseStocks && effVariant.warehouseStocks[activeWH] !== undefined) ? Math.max(parseFloat(effVariant.warehouseStocks[activeWH]) || 0, parseFloat(effVariant.stock) || 0) : (parseFloat(effVariant.stock) || 0)) : 0;
 
     if (prodAvail <= 0 && (!effVariant || varAvail <= 0)) {
         showToast("⚠️ تنبيه: المنتج (" + product.name + ") غير متوفر في المخزن الحالي (" + activeWH + ")!", "warning");
@@ -971,26 +971,23 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
     const factor = selectedUnit ? (parseFloat(selectedUnit.factor) || 1) : 1;
     let availBaseStock = 0;
     if (effVariant) {
+        const vGen = parseFloat(effVariant.stock) || 0;
         if (effVariant.warehouseStocks && typeof effVariant.warehouseStocks === 'object' && effVariant.warehouseStocks[activeWH] !== undefined) {
-            availBaseStock = parseFloat(effVariant.warehouseStocks[activeWH]) || 0;
-        } else if (activeWH === 'المخزن الرئيسي' || !effVariant.warehouseStocks || Object.keys(effVariant.warehouseStocks).length === 0) {
-            availBaseStock = parseFloat(effVariant.stock) || 0;
+            const whVal = parseFloat(effVariant.warehouseStocks[activeWH]);
+            availBaseStock = isNaN(whVal) ? vGen : Math.max(whVal, vGen);
         } else {
-            availBaseStock = (effVariant.warehouseStocks && effVariant.warehouseStocks[activeWH] !== undefined)
-                ? (parseFloat(effVariant.warehouseStocks[activeWH]) || 0)
-                : (parseFloat(effVariant.stock) || 0);
+            availBaseStock = vGen;
         }
     } else {
+        const pGen = parseFloat(product.stock) || 0;
         if (typeof getWarehouseStock === 'function') {
-            availBaseStock = getWarehouseStock(product.name, activeWH);
-        } else if (product.warehouseStocks && product.warehouseStocks[activeWH] !== undefined) {
-            availBaseStock = parseFloat(product.warehouseStocks[activeWH]) || 0;
-        } else if (activeWH === 'المخزن الرئيسي' || !product.warehouseStocks || Object.keys(product.warehouseStocks).length === 0) {
-            availBaseStock = parseFloat(product.stock) || 0;
+            const gwh = getWarehouseStock(product.name, activeWH);
+            availBaseStock = Math.max(gwh, pGen);
+        } else if (product.warehouseStocks && typeof product.warehouseStocks === 'object' && product.warehouseStocks[activeWH] !== undefined) {
+            const whVal = parseFloat(product.warehouseStocks[activeWH]);
+            availBaseStock = isNaN(whVal) ? pGen : Math.max(whVal, pGen);
         } else {
-            availBaseStock = (product.warehouseStocks && product.warehouseStocks[activeWH] !== undefined)
-                ? (parseFloat(product.warehouseStocks[activeWH]) || 0)
-                : (parseFloat(product.stock) || 0);
+            availBaseStock = pGen;
         }
     }
 
@@ -1638,22 +1635,23 @@ function updateQty(index, newQty) {
 
         let currentBaseStock = 0;
         if (effVariant) {
+            const vGen = parseFloat(effVariant.stock) || 0;
             if (effVariant.warehouseStocks && typeof effVariant.warehouseStocks === 'object' && effVariant.warehouseStocks[activeWH] !== undefined) {
-                currentBaseStock = parseFloat(effVariant.warehouseStocks[activeWH]) || 0;
-            } else if (activeWH === 'المخزن الرئيسي') {
-                currentBaseStock = parseFloat(effVariant.stock) || 0;
+                const whVal = parseFloat(effVariant.warehouseStocks[activeWH]);
+                currentBaseStock = isNaN(whVal) ? vGen : Math.max(whVal, vGen);
             } else {
-                currentBaseStock = 0;
+                currentBaseStock = vGen;
             }
         } else {
+            const pGen = parseFloat(product.stock) || 0;
             if (typeof getWarehouseStock === 'function') {
-                currentBaseStock = getWarehouseStock(product.name, activeWH);
-            } else if (product.warehouseStocks && product.warehouseStocks[activeWH] !== undefined) {
-                currentBaseStock = parseFloat(product.warehouseStocks[activeWH]) || 0;
-            } else if (activeWH === 'المخزن الرئيسي') {
-                currentBaseStock = parseFloat(product.stock) || 0;
+                const gwh = getWarehouseStock(product.name, activeWH);
+                currentBaseStock = Math.max(gwh, pGen);
+            } else if (product.warehouseStocks && typeof product.warehouseStocks === 'object' && product.warehouseStocks[activeWH] !== undefined) {
+                const whVal = parseFloat(product.warehouseStocks[activeWH]);
+                currentBaseStock = isNaN(whVal) ? pGen : Math.max(whVal, pGen);
             } else {
-                currentBaseStock = 0;
+                currentBaseStock = pGen;
             }
         }
 
@@ -3202,18 +3200,16 @@ async function saveBill(force = false, accountChecked = false) {
                         );
                         if (matchedVar) {
                             if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
+                            const vGen = parseFloat(matchedVar.stock) || 0;
                             let curVarWhStock = 0;
                             if (matchedVar.warehouseStocks[activeWH] !== undefined) {
-                                curVarWhStock = parseFloat(matchedVar.warehouseStocks[activeWH]) || 0;
-                            } else if (activeWH === 'المخزن الرئيسي' || Object.keys(matchedVar.warehouseStocks).length === 0) {
-                                curVarWhStock = parseFloat(matchedVar.stock) || 0;
+                                const whVal = parseFloat(matchedVar.warehouseStocks[activeWH]);
+                                curVarWhStock = isNaN(whVal) ? vGen : Math.max(whVal, vGen);
                             } else {
-                                curVarWhStock = (matchedVar.warehouseStocks && matchedVar.warehouseStocks[activeWH] !== undefined)
-                                    ? (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0)
-                                    : (parseFloat(matchedVar.stock) || 0);
+                                curVarWhStock = vGen;
                             }
                             matchedVar.warehouseStocks[activeWH] = curVarWhStock - baseQty;
-                            matchedVar.stock = (parseFloat(matchedVar.stock) || 0) - baseQty;
+                            matchedVar.stock = vGen - baseQty;
                         }
                     }
 
@@ -3224,11 +3220,13 @@ async function saveBill(force = false, accountChecked = false) {
                     let totalVarWhStock = 0;
                     let hasExplicitVarWh = false;
                     product.variants.forEach(v => {
+                        const vStock = parseFloat(v.stock) || 0;
                         if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
-                            totalVarWhStock += parseFloat(v.warehouseStocks[activeWH]) || 0;
+                            const whVal = parseFloat(v.warehouseStocks[activeWH]);
+                            totalVarWhStock += isNaN(whVal) ? vStock : Math.max(whVal, vStock);
                             hasExplicitVarWh = true;
                         } else if (activeWH === 'المخزن الرئيسي') {
-                            totalVarWhStock += parseFloat(v.stock) || 0;
+                            totalVarWhStock += vStock;
                         }
                     });
                     if (hasExplicitVarWh || activeWH === 'المخزن الرئيسي') {

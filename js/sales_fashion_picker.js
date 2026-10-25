@@ -39,6 +39,29 @@ function getVariantModalActiveWH(context) {
     return String(activeWH).trim();
 }
 
+// دالة موحدة ودقيقة لحساب الرصيد الفعلي للمقاس/اللون لمنع أي تعارض بين العرض والإضافة مع المزامنة التلقائية اللحظية
+function getVariantEffectiveStock(v, activeWH) {
+    if (!v) return 0;
+    const vGeneralStock = parseFloat(v.stock) || 0;
+    const wh = String(activeWH || 'المخزن الرئيسي').trim();
+    if (!v.warehouseStocks || typeof v.warehouseStocks !== 'object') {
+        v.warehouseStocks = { [wh]: vGeneralStock };
+        return vGeneralStock;
+    }
+    if (v.warehouseStocks[wh] !== undefined) {
+        const whVal = parseFloat(v.warehouseStocks[wh]);
+        const effStock = isNaN(whVal) ? vGeneralStock : Math.max(whVal, vGeneralStock);
+        if (wh === 'المخزن الرئيسي' && (isNaN(whVal) || whVal < vGeneralStock)) {
+            v.warehouseStocks[wh] = effStock;
+        }
+        return effStock;
+    }
+    if (wh === 'المخزن الرئيسي') {
+        v.warehouseStocks[wh] = vGeneralStock;
+    }
+    return vGeneralStock;
+}
+
 // دالة مساعدة لحساب السعر والرصيد لأي تشكيلة
 function getVariantPricingAndStock(product, v, context, activeWH, priceLevel) {
     let vPrice = 0;
@@ -93,14 +116,7 @@ function getVariantPricingAndStock(product, v, context, activeWH, priceLevel) {
         priceTitle = (priceLevel === 'wholesale') ? 'سعر الجملة' : 'سعر البيع';
     }
 
-    let stockVal = 0;
-    const vGeneralStock = parseFloat(v.stock) || 0;
-    if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
-        const whVal = parseFloat(v.warehouseStocks[activeWH]);
-        stockVal = isNaN(whVal) ? vGeneralStock : Math.max(whVal, vGeneralStock);
-    } else {
-        stockVal = vGeneralStock;
-    }
+    const stockVal = getVariantEffectiveStock(v, activeWH);
 
     return { vPrice, priceTitle, stockVal };
 }
@@ -895,22 +911,14 @@ function selectVariantAndAddToCart(productId, variantIndex, context = 'sales') {
             ? getVariantModalActiveWH(context)
             : ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
 
-        let stockVal = 0;
-        if (variant.warehouseStocks && typeof variant.warehouseStocks === 'object' && variant.warehouseStocks[activeWH] !== undefined) {
-            stockVal = parseFloat(variant.warehouseStocks[activeWH]) || 0;
-        } else if (activeWH === 'المخزن الرئيسي' || !variant.warehouseStocks || Object.keys(variant.warehouseStocks).length === 0) {
-            stockVal = parseFloat(variant.stock) || 0;
-        } else {
-            stockVal = (variant.warehouseStocks && variant.warehouseStocks[activeWH] !== undefined)
-                ? (parseFloat(variant.warehouseStocks[activeWH]) || 0)
-                : (parseFloat(variant.stock) || 0);
-        }
+        const stockVal = getVariantEffectiveStock(variant, activeWH);
 
         if (stockVal <= 0) {
             const varLabel = (variant.size ? `[مقاس: ${variant.size}] ` : '') + (variant.color ? `(لون: ${variant.color})` : '');
             const whDesc = (context === 'transfer') ? `بالمخزن المحول منه (${activeWH})` : `بمخزن (${activeWH})`;
+            const actionDesc = (context === 'transfer') ? 'للتحويل' : 'للبيع';
             if (typeof showToast === 'function') {
-                showToast(`🚫 هذا المقاس/اللون ${varLabel}غير متوفر ${whDesc} - الرصيد: 0! يرجى اختيار مقاس أو لون متاح للتحويل.`, 'warning');
+                showToast(`🚫 هذا المقاس/اللون ${varLabel}غير متوفر ${whDesc} - الرصيد: 0! يرجى اختيار مقاس أو لون متاح ${actionDesc}.`, 'warning');
             }
             if (typeof BayanBarcode !== 'undefined' && typeof BayanBarcode.playBeep === 'function') {
                 BayanBarcode.playBeep(false);
@@ -1005,14 +1013,7 @@ function selectVariantAndAddToCart(productId, variantIndex, context = 'sales') {
             ? getVariantModalActiveWH('adj') 
             : ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
 
-        let liveStockVal = 0;
-        if (variant && variant.warehouseStocks && typeof variant.warehouseStocks === 'object' && variant.warehouseStocks[activeWH] !== undefined) {
-            liveStockVal = parseFloat(variant.warehouseStocks[activeWH]) || 0;
-        } else if (activeWH === 'المخزن الرئيسي' || !variant || !variant.warehouseStocks) {
-            liveStockVal = variant ? (parseFloat(variant.stock) || 0) : (parseFloat(product.stock) || 0);
-        } else {
-            liveStockVal = 0;
-        }
+        const liveStockVal = getVariantEffectiveStock(variant, activeWH);
 
         window.selectedAdjItem = {
             ...product,
