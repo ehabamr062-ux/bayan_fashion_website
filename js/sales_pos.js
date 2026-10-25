@@ -993,7 +993,25 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
 
     // في وضع التعديل: استرداد الكمية الأصلية المحجوزة في الفاتورة لهذا الصنف وتشكيلته لإتاحتها
     let originalQtyInInvoice = 0;
-    if (typeof isEditMode !== 'undefined' && isEditMode && typeof editingOriginalItems !== 'undefined' && Array.isArray(editingOriginalItems)) {
+    if (typeof isEditMode !== 'undefined' && isEditMode) {
+        let origList = (typeof editingOriginalItems !== 'undefined' && Array.isArray(editingOriginalItems) && editingOriginalItems.length > 0)
+            ? editingOriginalItems
+            : (typeof window.editingOriginalItems !== 'undefined' && Array.isArray(window.editingOriginalItems) && window.editingOriginalItems.length > 0)
+                ? window.editingOriginalItems
+                : [];
+
+        const editInvId = (typeof editingInvoiceId !== 'undefined' && editingInvoiceId) || (typeof window.editingInvoiceId !== 'undefined' && window.editingInvoiceId) || null;
+        if (origList.length === 0 && editInvId && typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+            origList = transactions.filter(t => {
+                if (!t) return false;
+                const invMatch = (t.invoiceId != null && t.invoiceId !== '' && t.invoiceId !== '---')
+                    ? (String(t.invoiceId).trim() === String(editInvId).trim())
+                    : (String(t.id).trim() === String(editInvId).trim());
+                const tType = String(t.type || '');
+                return invMatch && (tType.includes('بيع') || tType.includes('مبيعات')) && !tType.includes('مرتجع');
+            });
+        }
+
         const cleanAttrPre = (val) => {
             const s = String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
             if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
@@ -1002,11 +1020,13 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
         const cPreSize = cleanAttrPre(vSize);
         const cPreColor = cleanAttrPre(vColor);
 
-        const matchedOriginals = editingOriginalItems.filter(orig => {
-            const origName = orig.product || orig.name || '';
+        const matchedOriginals = origList.filter(orig => {
+            if (!orig) return false;
+            const origName = orig.product || orig.productName || orig.name || '';
             const origId = (orig.productId != null && orig.productId !== '') ? orig.productId : orig.id;
             const isProdMatch = (origName && (origName === product.name || origName === product.id)) || 
-                                (origId != null && (String(origId) === String(product.id) || String(origId) === String(product.name)));
+                                (origId != null && (String(origId) === String(product.id) || String(origId) === String(product.name))) ||
+                                (orig.code && product.code && orig.code === product.code);
             if (!isProdMatch) return false;
 
             const oSize = cleanAttrPre(orig.selectedSize || orig.size);
@@ -1606,7 +1626,25 @@ function updateQty(index, newQty) {
 
         // في وضع تعديل فاتورة قديمة: إضافة الكمية الأصلية المحجوزة بالفاتورة إلى الرصيد المتاح
         let originalQtyInInvoice = 0;
-        if (typeof isEditMode !== 'undefined' && isEditMode && typeof editingOriginalItems !== 'undefined' && Array.isArray(editingOriginalItems)) {
+        if (typeof isEditMode !== 'undefined' && isEditMode) {
+            let origList = (typeof editingOriginalItems !== 'undefined' && Array.isArray(editingOriginalItems) && editingOriginalItems.length > 0)
+                ? editingOriginalItems
+                : (typeof window.editingOriginalItems !== 'undefined' && Array.isArray(window.editingOriginalItems) && window.editingOriginalItems.length > 0)
+                    ? window.editingOriginalItems
+                    : [];
+
+            const editInvId = (typeof editingInvoiceId !== 'undefined' && editingInvoiceId) || (typeof window.editingInvoiceId !== 'undefined' && window.editingInvoiceId) || null;
+            if (origList.length === 0 && editInvId && typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+                origList = transactions.filter(t => {
+                    if (!t) return false;
+                    const invMatch = (t.invoiceId != null && t.invoiceId !== '' && t.invoiceId !== '---')
+                        ? (String(t.invoiceId).trim() === String(editInvId).trim())
+                        : (String(t.id).trim() === String(editInvId).trim());
+                    const tType = String(t.type || '');
+                    return invMatch && (tType.includes('بيع') || tType.includes('مبيعات')) && !tType.includes('مرتجع');
+                });
+            }
+
             const cleanAttr = (val) => {
                 const s = String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
                 if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
@@ -1614,21 +1652,23 @@ function updateQty(index, newQty) {
             };
             const sSize = cleanAttr(item.selectedSize || item.size);
             const sColor = cleanAttr(item.selectedColor || item.color);
-            const matchedOriginal = editingOriginalItems.find(orig => {
-                const origName = orig.product || orig.name || '';
+            const matchedOriginals = origList.filter(orig => {
+                if (!orig) return false;
+                const origName = orig.product || orig.productName || orig.name || '';
                 const origId = (orig.productId != null && orig.productId !== '') ? orig.productId : orig.id;
                 const isProdMatch = (origName && (origName === item.name || (product && origName === product.name))) ||
-                                    (origId != null && (String(origId) === String(item.id) || (product && String(origId) === String(product.id))));
+                                    (origId != null && (String(origId) === String(item.id) || (product && String(origId) === String(product.id)))) ||
+                                    (orig.code && item.code && orig.code === item.code);
                 if (!isProdMatch) return false;
 
                 const oSize = cleanAttr(orig.selectedSize || orig.size);
                 const oColor = cleanAttr(orig.selectedColor || orig.color);
                 return oSize === sSize && oColor === sColor;
             });
-            if (matchedOriginal) {
-                const origFactor = parseFloat(matchedOriginal.unitFactor) || 1;
-                originalQtyInInvoice = (parseFloat(matchedOriginal.qty) || 0) * origFactor;
-            }
+            matchedOriginals.forEach(orig => {
+                const origFactor = parseFloat(orig.unitFactor) || 1;
+                originalQtyInInvoice += (parseFloat(orig.qty) || 0) * origFactor;
+            });
         }
 
         const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
@@ -2795,7 +2835,25 @@ async function saveBill(force = false, accountChecked = false) {
 
             // في وضع التعديل: استرداد إجمالي الكمية الأصلية المحجوزة في الفاتورة لهذا الصنف وتشكيلته لإتاحتها
             let originalQtyInInvoice = 0;
-            if (typeof isEditMode !== 'undefined' && isEditMode && typeof editingOriginalItems !== 'undefined' && Array.isArray(editingOriginalItems)) {
+            if (typeof isEditMode !== 'undefined' && isEditMode) {
+                let origList = (typeof editingOriginalItems !== 'undefined' && Array.isArray(editingOriginalItems) && editingOriginalItems.length > 0)
+                    ? editingOriginalItems
+                    : (typeof window.editingOriginalItems !== 'undefined' && Array.isArray(window.editingOriginalItems) && window.editingOriginalItems.length > 0)
+                        ? window.editingOriginalItems
+                        : [];
+
+                const editInvId = (typeof editingInvoiceId !== 'undefined' && editingInvoiceId) || (typeof window.editingInvoiceId !== 'undefined' && window.editingInvoiceId) || null;
+                if (origList.length === 0 && editInvId && typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+                    origList = transactions.filter(t => {
+                        if (!t) return false;
+                        const invMatch = (t.invoiceId != null && t.invoiceId !== '' && t.invoiceId !== '---')
+                            ? (String(t.invoiceId).trim() === String(editInvId).trim())
+                            : (String(t.id).trim() === String(editInvId).trim());
+                        const tType = String(t.type || '');
+                        return invMatch && (tType.includes('بيع') || tType.includes('مبيعات')) && !tType.includes('مرتجع');
+                    });
+                }
+
                 const cleanAttr = (val) => {
                     const s = String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
                     if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
@@ -2804,11 +2862,13 @@ async function saveBill(force = false, accountChecked = false) {
                 const cSize = cleanAttr(sSize);
                 const cColor = cleanAttr(sColor);
 
-                const matchedOriginals = editingOriginalItems.filter(orig => {
-                    const origName = orig.product || orig.name || '';
+                const matchedOriginals = origList.filter(orig => {
+                    if (!orig) return false;
+                    const origName = orig.product || orig.productName || orig.name || '';
                     const origId = (orig.productId != null && orig.productId !== '') ? orig.productId : orig.id;
                     const isProdMatch = (origName && (origName === p.name || origName === p.id)) ||
-                                        (origId != null && (String(origId) === String(p.id) || String(origId) === String(p.name)));
+                                        (origId != null && (String(origId) === String(p.id) || String(origId) === String(p.name))) ||
+                                        (orig.code && p.code && orig.code === p.code);
                     if (!isProdMatch) return false;
 
                     const oSize = cleanAttr(orig.selectedSize || orig.size);
@@ -2840,11 +2900,12 @@ async function saveBill(force = false, accountChecked = false) {
                 }
             }
 
-            const availStock = currentBaseStock + originalQtyInInvoice;
+            // القاعدة المحاسبية: لا نطلب رصيداً إضافياً إلا إذا كانت الكمية المطلوبة تزيد عن الكمية المحجوزة أصلاً في الفاتورة
+            const netAdditionalQty = Math.max(0, totalBaseQty - originalQtyInInvoice);
 
-            if (totalBaseQty > availStock) {
+            if (netAdditionalQty > currentBaseStock) {
                 const variantInfo = (sSize || sColor) ? ` [${[sSize, sColor].filter(Boolean).join(' - ')}]` : '';
-                const availDisplay = availStock.toFixed(2).replace(/\.00$/, '');
+                const availDisplay = (currentBaseStock + originalQtyInInvoice).toFixed(2).replace(/\.00$/, '');
                 const requestedDisplay = totalBaseQty.toFixed(2).replace(/\.00$/, '');
                 stockErrors.push(`❌ ${p.name}${variantInfo}: إجمالي المطلوب (${requestedDisplay} ق) / متوفر في (${activeWH}): (${availDisplay} ق)`);
             }

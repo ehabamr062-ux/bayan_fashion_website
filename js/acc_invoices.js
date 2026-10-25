@@ -2073,6 +2073,7 @@
                             tabStates[targetTabObj.id].editingInvoiceId = invId;
                             tabStates[targetTabObj.id].editingOriginalDate = editingOriginalDate;
                             tabStates[targetTabObj.id].editingInvoiceType = targetType;
+                            tabStates[targetTabObj.id].editingOriginalItems = JSON.parse(JSON.stringify(invItems));
                             tabStates[targetTabObj.id].date = dateVal;
                             tabStates[targetTabObj.id].time = timeVal;
                         }
@@ -2098,13 +2099,19 @@
                         };
 
                         if (section === 'sales') {
+                            editingOriginalItems = JSON.parse(JSON.stringify(invItems));
+                            window.editingOriginalItems = editingOriginalItems;
+                            if (typeof tabStates !== 'undefined' && typeof activeTabId !== 'undefined' && tabStates[activeTabId]) {
+                                tabStates[activeTabId].editingOriginalItems = JSON.parse(JSON.stringify(invItems));
+                            }
 
                             cart = invItems.filter(x => x && (x.product || x.productName || x.name)).map(it => {
                                 const prodName = it.product || it.productName || it.name;
                                 const p = productsDB.find(x => x.name === prodName);
                                 const u = (p && p.units) ? p.units.find(un => un.unitName === it.unit) : null;
                                 return {
-                                    id: p ? p.id : (Date.now() + Math.random()),
+                                    id: p ? p.id : (it.productId || it.id || (Date.now() + Math.random())),
+                                    productId: p ? p.id : (it.productId || it.id || null),
                                     code: it.code || (p ? p.code : ''),
                                     name: prodName,
                                     qty: parseFloat(it.qty != null ? it.qty : (it.quantity || 1)),
@@ -2182,6 +2189,11 @@
                             if (typeof saveCurrentTabState === 'function') saveCurrentTabState();
 
                         } else if (section === 'purchase') {
+                            editingOriginalItems = JSON.parse(JSON.stringify(invItems));
+                            window.editingOriginalItems = editingOriginalItems;
+                            if (typeof tabStates !== 'undefined' && typeof activeTabId !== 'undefined' && tabStates[activeTabId]) {
+                                tabStates[activeTabId].editingOriginalItems = JSON.parse(JSON.stringify(invItems));
+                            }
 
                             purchaseCart = invItems.filter(x => x && (x.product || x.productName || x.name)).map(it => {
                                 const prodName = it.product || it.productName || it.name;
