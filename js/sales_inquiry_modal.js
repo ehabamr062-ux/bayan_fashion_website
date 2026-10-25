@@ -1746,8 +1746,12 @@
             // 1. فحص تطابق الاسم
             const isExactName = (pName === effectiveQuery || pName === qClean || pNormName === effectiveNorm || pNormName === qNorm);
             const isNameStartsWith = (pName.startsWith(effectiveQuery) || pNormName.startsWith(effectiveNorm));
-            const nameWords = pNormName.split(/\s+/);
-            const isNameWordMatch = nameWords.includes(effectiveNorm) || pName.split(/\s+/).includes(effectiveQuery);
+            const cleanEffective = effectiveNorm.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').trim();
+            const cleanQueryWord = effectiveQuery.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').trim();
+            const nameWords = pNormName.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').split(/\s+/).filter(Boolean);
+            const isNameWordMatch = nameWords.includes(effectiveNorm) || (cleanEffective && nameWords.includes(cleanEffective)) ||
+                                    pName.split(/\s+/).includes(effectiveQuery) || (cleanQueryWord && nameWords.includes(cleanQueryWord));
+            const isNameWordStartsWith = nameWords.some(w => w.startsWith(effectiveNorm) || (cleanEffective && w.startsWith(cleanEffective)));
             const isNameContains = (tokens.length > 0 && tokens.every(t => pName.includes(t) || pNormName.includes(normalizeDigits(t).toLowerCase())));
 
             // 2. فحص تطابق الكود / كود الموديل / كود النظام / رقم الصنف / الميزان
@@ -1939,7 +1943,7 @@
             }
 
             // التحقق من وجود أي نوع من التطابق
-            const hasAnyMatch = isExactName || isNameStartsWith || isNameWordMatch || isNameContains ||
+            const hasAnyMatch = isExactName || isNameStartsWith || isNameWordMatch || isNameWordStartsWith || isNameContains ||
                                isExactCode || isCodeStartsWith || isCodeContains ||
                                isExactBarcode || isBarcodeStartsWith || isBarcodeContains ||
                                isExactUnitBarcode || isUnitBarcodeContains ||
@@ -1984,7 +1988,13 @@
             } else if (isExactSize) {
                 matchType = 'size';
                 matchedDetail = matchedSizeDetail;
-            } else if (isNameStartsWith || isNameWordMatch) {
+            } else if (isNameWordMatch) {
+                matchType = 'name';
+                matchedDetail = 'تطابق اسم / موديل';
+            } else if (isNameWordStartsWith) {
+                matchType = 'name';
+                matchedDetail = 'بداية اسم / موديل';
+            } else if (isNameStartsWith) {
                 matchType = 'name';
                 matchedDetail = 'تطابق بالاسم';
             } else if (isCodeStartsWith) {
@@ -2027,6 +2037,7 @@
                 isExactColor,
                 isNameStartsWith,
                 isNameWordMatch,
+                isNameWordStartsWith,
                 isNameContains,
                 isCodeStartsWith,
                 isCodeContains,
@@ -2052,31 +2063,33 @@
                     if (item.isExactBarcode) return 6;
                     if (item.isExactCode) return 7;
                     if (item.isExactName) return 8;
+                    if (item.isNameWordMatch) return 9;
                 } else if (explicitMode === 'code') {
                     if (item.isExactCode) return 5;
                     if (item.isExactBarcode) return 6;
                     if (item.isExactName) return 7;
-                    if (item.isExactSize) return 8;
+                    if (item.isNameWordMatch) return 8;
+                    if (item.isExactSize) return 9;
                 } else if (explicitMode === 'barcode') {
                     if (item.isExactBarcode) return 5;
                     if (item.isExactCode) return 6;
                     if (item.isExactName) return 7;
+                    if (item.isNameWordMatch) return 8;
                 } else {
                     // البحث المباشر العام (مثل كتابة كود الصنف أو الباركود "50" أو الموديل)
                     if (item.isExactBarcode) return 5;
                     if (item.isExactCode) return 6;
                     if (item.isExactName) return 7;
+                    if (item.isNameWordMatch) return 8; // ⭐ تطابق كلمة الصنف أو رقم الموديل مثل #1001 أو #100 مباشرة بعد التطابق التام
                     if (item.isCompoundMatch) return 13;
                     if (item.isExactSize) return 14;
                 }
 
-                // 2. الفئة الفضية (Tier 2 - بداية النص Starts With)
+                // 2. الفئة الفضية (Tier 2 - بداية النص أو بداية الكلمة Starts With)
+                if (item.isNameWordStartsWith) return 18; // ⭐ بداية كلمة داخل الاسم مثل 1001 أو 1005 عند البحث عن 100
                 if (item.isCodeStartsWith) return 20;
                 if (item.isBarcodeStartsWith) return 22;
                 if (item.isNameStartsWith) return 25;
-
-                // 3. الفئة البرونزية (Tier 3 - تطابق كلمة مستقلة بالاسم)
-                if (item.isNameWordMatch) return 30;
 
                 // 4. تطابق صريح باللون
                 if (item.isExactColor) return 40;

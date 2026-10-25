@@ -3514,9 +3514,11 @@
             if (!this.db || !searchTerm) return [];
             const term = String(searchTerm).trim();
             if (!term) return [];
+            const cleanTerm = term.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').trim() || term;
             const lim = parseInt(limit, 10) || 30;
             const prefixTerm = `${term}%`;
             const likeTerm = `%${term}%`;
+            const cleanLike = `%${cleanTerm}%`;
             try {
                 const sql = `
                     SELECT * FROM products 
@@ -3527,6 +3529,7 @@
                        OR barcode LIKE ? 
                        OR code LIKE ? 
                        OR json_extract(raw_json, '$.model') LIKE ? 
+                       OR name LIKE ?
                        OR name LIKE ? 
                     ORDER BY 
                        CASE 
@@ -3534,18 +3537,27 @@
                            WHEN code = ? THEN 2
                            WHEN json_extract(raw_json, '$.model') = ? THEN 3
                            WHEN name = ? THEN 4
-                           WHEN barcode LIKE ? THEN 5
-                           WHEN code LIKE ? THEN 6
-                           WHEN json_extract(raw_json, '$.model') LIKE ? THEN 7
-                           WHEN name LIKE ? THEN 8
-                           ELSE 9
+                           WHEN name LIKE '% ' || ? || ' %' OR name LIKE '%#' || ? || ' %' OR name LIKE '% ' || ? OR name LIKE '%#' || ?
+                             OR name LIKE '% ' || ? || ' %' OR name LIKE '%#' || ? || ' %' OR name LIKE '% ' || ? OR name LIKE '%#' || ? THEN 5
+                           WHEN name LIKE '% ' || ? || '%' OR name LIKE '%#' || ? || '%'
+                             OR name LIKE '% ' || ? || '%' OR name LIKE '%#' || ? || '%' THEN 6
+                           WHEN barcode LIKE ? THEN 7
+                           WHEN code LIKE ? THEN 8
+                           WHEN json_extract(raw_json, '$.model') LIKE ? THEN 9
+                           WHEN name LIKE ? THEN 10
+                           WHEN name LIKE ? OR name LIKE ? THEN 11
+                           ELSE 12
                        END ASC,
                        id ASC
                     LIMIT ?;
                 `;
                 const params = [
-                    term, term, term, term, prefixTerm, prefixTerm, likeTerm, likeTerm,
-                    term, term, term, term, prefixTerm, prefixTerm, prefixTerm, prefixTerm,
+                    term, term, term, term, prefixTerm, prefixTerm, likeTerm, likeTerm, cleanLike,
+                    term, term, term, term,
+                    term, term, term, term, cleanTerm, cleanTerm, cleanTerm, cleanTerm,
+                    term, term, cleanTerm, cleanTerm,
+                    prefixTerm, prefixTerm, prefixTerm, prefixTerm,
+                    likeTerm, cleanLike,
                     lim
                 ];
                 if (this.isNative && this.nativeDb) {
@@ -3574,6 +3586,7 @@
                            OR barcode LIKE ? 
                            OR json_extract(raw_json, '$.code') LIKE ? 
                            OR json_extract(raw_json, '$.model') LIKE ? 
+                           OR name LIKE ?
                            OR name LIKE ? 
                         ORDER BY 
                            CASE 
@@ -3581,18 +3594,27 @@
                                WHEN json_extract(raw_json, '$.code') = ? THEN 2
                                WHEN json_extract(raw_json, '$.model') = ? THEN 3
                                WHEN name = ? THEN 4
-                               WHEN barcode LIKE ? THEN 5
-                               WHEN json_extract(raw_json, '$.code') LIKE ? THEN 6
-                               WHEN json_extract(raw_json, '$.model') LIKE ? THEN 7
-                               WHEN name LIKE ? THEN 8
-                               ELSE 9
+                               WHEN name LIKE '% ' || ? || ' %' OR name LIKE '%#' || ? || ' %' OR name LIKE '% ' || ? OR name LIKE '%#' || ?
+                                 OR name LIKE '% ' || ? || ' %' OR name LIKE '%#' || ? || ' %' OR name LIKE '% ' || ? OR name LIKE '%#' || ? THEN 5
+                               WHEN name LIKE '% ' || ? || '%' OR name LIKE '%#' || ? || '%'
+                                 OR name LIKE '% ' || ? || '%' OR name LIKE '%#' || ? || '%' THEN 6
+                               WHEN barcode LIKE ? THEN 7
+                               WHEN json_extract(raw_json, '$.code') LIKE ? THEN 8
+                               WHEN json_extract(raw_json, '$.model') LIKE ? THEN 9
+                               WHEN name LIKE ? THEN 10
+                               WHEN name LIKE ? OR name LIKE ? THEN 11
+                               ELSE 12
                            END ASC,
                            id ASC
                         LIMIT ?;
                     `;
                     const fallbackParams = [
-                        term, term, term, term, prefixTerm, prefixTerm, likeTerm, likeTerm,
-                        term, term, term, term, prefixTerm, prefixTerm, prefixTerm, prefixTerm,
+                        term, term, term, term, prefixTerm, prefixTerm, likeTerm, likeTerm, cleanLike,
+                        term, term, term, term,
+                        term, term, term, term, cleanTerm, cleanTerm, cleanTerm, cleanTerm,
+                        term, term, cleanTerm, cleanTerm,
+                        prefixTerm, prefixTerm, prefixTerm, prefixTerm,
+                        likeTerm, cleanLike,
                         lim
                     ];
                     if (this.isNative && this.nativeDb) {

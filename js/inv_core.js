@@ -256,6 +256,12 @@ async function renderInventoryTable(isLoadMore = false) {
             let score = 0;
             let matched = false;
 
+            const pNameWords = pNameClean.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').split(/\s+/).filter(Boolean);
+            const cleanSearchWord = search.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').trim();
+            const cleanRawWord = rawSearch.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').trim();
+            const isNameWordExact = pNameWords.includes(search) || pNameWords.includes(rawSearch) || (cleanSearchWord && pNameWords.includes(cleanSearchWord)) || (cleanRawWord && pNameWords.includes(cleanRawWord));
+            const isNameWordStart = pNameWords.some(w => w.startsWith(search) || w.startsWith(rawSearch) || (cleanSearchWord && w.startsWith(cleanSearchWord)) || (cleanRawWord && w.startsWith(cleanRawWord)));
+
             // 1. تطابق تام مع اسم الصنف (أعلى أولوية مطلقة - يظهر أول صنف رقم 1 دائماً)
             if (pNameClean === search || pNameLower === rawSearch) {
                 score = Math.max(score, 30000);
@@ -271,9 +277,17 @@ async function renderInventoryTable(isLoadMore = false) {
             } else if (pSysCode === rawSearch || pIdStr === rawSearch) {
                 score = Math.max(score, 25000);
                 matched = true;
+            } else if (isNameWordExact) {
+                // ⭐ تطابق كلمة الصنف أو رقم الموديل مثل #1001 أو #100
+                score = Math.max(score, 24500);
+                matched = true;
             } else if (pNameClean.startsWith(search)) {
                 // 4. بداية اسم الصنف
                 score = Math.max(score, 18000);
+                matched = true;
+            } else if (isNameWordStart) {
+                // ⭐ بداية كلمة داخل الاسم مثل 1001 أو 1005 عند البحث عن 100
+                score = Math.max(score, 17500);
                 matched = true;
             } else if (pCodeClean.startsWith(search) || pCodeLower.startsWith(rawSearch)) {
                 score = Math.max(score, 16000);

@@ -449,7 +449,11 @@
             const rawCode = String(p.code || p.sysCode || '').trim();
             const normCode = normalizeSearchQuery(rawCode);
             const lowerCode = rawCode.toLowerCase();
-            const rawModelCode = String(p.modelCode || p.model_code || p.model || '').trim();
+            let rawModelCode = String(p.modelCode || p.model_code || p.model || '').trim();
+            if (!rawModelCode && rawName) {
+                const mm = rawName.match(/(?:#|موديل\s*|model\s*|رقم\s*)([a-zA-Z0-9_-]+)/i);
+                if (mm && mm[1]) rawModelCode = mm[1];
+            }
             const normModelCode = normalizeSearchQuery(rawModelCode);
             const lowerModelCode = rawModelCode.toLowerCase();
             const rawDirectSize = String(p.size || p.itemSize || '').trim();
@@ -493,7 +497,7 @@
                 }
             }
 
-            const normWords = normName ? normName.split(/\s+/) : [];
+            const normWords = normName ? normName.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').split(/\s+/).filter(Boolean) : [];
             return {
                 rawName, normName, normWords,
                 rawBarcode, normBarcode, lowerBarcode,
@@ -515,19 +519,27 @@
                 return 100000;
             }
 
-            // 2. التطابق التام بكود الصنف أو المعرف ID (90,000 - الأولوية القصوى لكود الصنف مثل صنف 50)
-            if (tok.normCode === normQuery || tok.lowerCode === lowerQuery || tok.rawCode === rawQuery || String(p.id) === rawQuery) {
+            // 2. التطابق التام بكود الصنف (90,000 - الأولوية القصوى لكود الصنف مثل صنف 50)
+            if (tok.normCode === normQuery || tok.lowerCode === lowerQuery || tok.rawCode === rawQuery) {
                 return 90000;
             }
-
-            // 3. التطابق التام برقم الموديل (80,000)
-            if (tok.normModelCode === normQuery || tok.lowerModelCode === lowerQuery || tok.rawModelCode === rawQuery) {
-                return 80000;
+            if (String(p.id) === rawQuery) {
+                // إذا لم يكن للصنف كود مسجل أو إذا كان كود الصنف هو نفسه رقمه التعريفي
+                if (!p.code || String(p.code) === String(p.id)) {
+                    return 90000;
+                } else {
+                    score = Math.max(score, 11000);
+                }
             }
 
-            // 4. التطابق التام بالاسم (70,000)
+            // 3. التطابق التام برقم الموديل (85,000)
+            if (tok.normModelCode && (tok.normModelCode === normQuery || tok.lowerModelCode === lowerQuery || tok.rawModelCode === rawQuery)) {
+                return 85000;
+            }
+
+            // 4. التطابق التام بالاسم (80,000)
             if (tok.normName === normQuery || tok.rawName === rawQuery) {
-                score = Math.max(score, 70000);
+                score = Math.max(score, 80000);
             }
 
             // 5. فحص التشكيلات (المقاسات والألوان وباركود المقاسات)
@@ -568,23 +580,31 @@
                 }
             }
 
-            // 7. البدايات الصريحة (Starts With - 45,000 إلى 35,000)
+            // 7.5 تطابق كلمة كاملة داخل الاسم (Exact Word / Model match مثل #1001 أو #100 - أولوية عليا 75,000)
+            const qClean = normQuery ? normQuery.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').trim() : '';
+            if (tok.normWords && tok.normWords.length > 0) {
+                if (tok.normWords.includes(normQuery) || (qClean && tok.normWords.includes(qClean))) {
+                    score = Math.max(score, 75000);
+                } else if (tok.normWords.some(w => w.startsWith(normQuery) || (qClean && w.startsWith(qClean)))) {
+                    // بداية كلمة داخل الاسم (مثل 1001 أو 1005 عند البحث عن 100)
+                    score = Math.max(score, 48000);
+                }
+            }
+
+            // بداية رقم الموديل (مثل 1001 أو 1005 عند البحث عن 100)
+            if (tok.normModelCode && (tok.normModelCode.startsWith(normQuery) || (qClean && tok.normModelCode.startsWith(qClean)))) {
+                score = Math.max(score, 49000);
+            }
+
+            // 7. البدايات الصريحة (Starts With - 45,000 إلى 30,000)
             if (tok.rawCode && (tok.rawCode.startsWith(rawQuery) || (tok.normCode && tok.normCode.startsWith(normQuery)))) {
                 score = Math.max(score, 45000);
             }
             if (tok.rawBarcode && (tok.rawBarcode.startsWith(rawQuery) || (tok.normBarcode && tok.normBarcode.startsWith(normQuery)))) {
                 score = Math.max(score, 42000);
             }
-            if (tok.normModelCode && tok.normModelCode.startsWith(normQuery)) {
-                score = Math.max(score, 40000);
-            }
             if (tok.normName && tok.normName.startsWith(normQuery)) {
-                score = Math.max(score, 35000);
-            }
-
-            // 8. تطابق كلمة كاملة داخل الاسم (Word match - 25,000)
-            if (tok.normWords && tok.normWords.includes(normQuery)) {
-                score = Math.max(score, 25000);
+                score = Math.max(score, 30000);
             }
 
             // فحص تطابق كافة كلمات البحث إذا كان الاستعلام مركباً من أكثر من كلمة (Multi-word search)
