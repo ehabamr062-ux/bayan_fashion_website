@@ -1480,13 +1480,20 @@ var transferItemsBatch = window.transferItemsBatch;
                     if (window.isSavingTransaction) return;
                     window.isSavingTransaction = true;
 
-                    // قفل أزرار نافذة التحويل لمنع التكرار
+                    // قفل أزرار نافذة التحويل لمنع التكرار مع مؤقت أمان تلقائي
                     const transferBtns = document.querySelectorAll('#transferModal button');
                     transferBtns.forEach(b => {
                         b.disabled = true;
                         b.style.pointerEvents = 'none';
                         b.style.opacity = '0.6';
                     });
+
+                    if (window._bayanTransferSaveLockTimer) clearTimeout(window._bayanTransferSaveLockTimer);
+                    window._bayanTransferSaveLockTimer = setTimeout(() => {
+                        window.isSavingTransaction = false;
+                        const tBtns = document.querySelectorAll('#transferModal button');
+                        tBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
+                    }, 1500);
 
                     try {
                         let processedCount = 0;
@@ -1546,23 +1553,21 @@ var transferItemsBatch = window.transferItemsBatch;
 
                             if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
                                 if (effVariant) {
+                                    const vGenStock = parseFloat(effVariant.stock) || 0;
                                     if (effVariant.warehouseStocks && typeof effVariant.warehouseStocks === 'object' && effVariant.warehouseStocks[wFrom] !== undefined) {
-                                        availStock = parseFloat(effVariant.warehouseStocks[wFrom]) || 0;
-                                    } else if (wFrom === 'المخزن الرئيسي') {
-                                        availStock = parseFloat(effVariant.stock) || 0;
+                                        availStock = Math.max(parseFloat(effVariant.warehouseStocks[wFrom]) || 0, vGenStock);
                                     } else {
-                                        availStock = 0;
+                                        availStock = vGenStock;
                                     }
                                 } else {
                                     availStock = 0;
                                 }
                             } else {
+                                const pGenStock = parseFloat(p.stock) || 0;
                                 if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[wFrom] !== undefined) {
-                                    availStock = parseFloat(p.warehouseStocks[wFrom]) || 0;
-                                } else if (wFrom === 'المخزن الرئيسي') {
-                                    availStock = parseFloat(p.stock) || 0;
+                                    availStock = Math.max(parseFloat(p.warehouseStocks[wFrom]) || 0, pGenStock);
                                 } else {
-                                    availStock = 0;
+                                    availStock = pGenStock;
                                 }
                             }
 
@@ -1788,6 +1793,10 @@ var transferItemsBatch = window.transferItemsBatch;
                         }
                         showToast("❌ حدث خطأ أثناء تنفيذ التحويل وتم استعادة إذن التحويل الأصلي بأمان", "error");
                     } finally {
+                        if (window._bayanTransferSaveLockTimer) {
+                            clearTimeout(window._bayanTransferSaveLockTimer);
+                            window._bayanTransferSaveLockTimer = null;
+                        }
                         window.isSavingTransaction = false;
                         transferBtns.forEach(b => {
                             b.disabled = false;
@@ -2116,11 +2125,9 @@ var transferItemsBatch = window.transferItemsBatch;
                             return (wh === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0);
                         };
 
-                        // مزامنة إجمالي رصيد كارت الصنف مع مجموع تشكيلاته
-                        p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
+                        // مزامنة إجمالي رصيد الصنف ليكون مجموع بضاعة كافة المخازن بعد التحويل
                         if (p.warehouseStocks) {
-                            p.warehouseStocks[wFrom] = p.variants.reduce((sum, v) => sum + getVarStockInWH(v, wFrom), 0);
-                            p.warehouseStocks[wTo] = p.variants.reduce((sum, v) => sum + getVarStockInWH(v, wTo), 0);
+                            p.stock = Object.values(p.warehouseStocks).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
                         }
                     } else {
                         // الصنف بدون تشكيلات: مزامنة إجمالي رصيد الصنف ليكون مجموع بضاعة كافة المخازن

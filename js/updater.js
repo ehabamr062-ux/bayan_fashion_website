@@ -236,7 +236,7 @@
     // حالة نظام التحديث
     // =========================================================================
     const state = {
-        currentVersion: window.appVersion || '4.9.2',
+        currentVersion: window.appVersion || '4.9.5',
         latestVersion: null,
         releaseNotes: '',
         downloadUrl: '',
@@ -265,7 +265,7 @@
     }
 
     function getCurrentAppVersion() {
-        return window.appVersion || '4.9.2';
+        return window.appVersion || '4.9.5';
     }
 
     function fmtNotes(notes) {
@@ -1040,12 +1040,23 @@
             animation: fadeIn 0.2s ease-out;
         `;
 
-        const title = item.title || '📢 إشعار هام من إدارة نظام بيان POS';
-        const message = item.message || '';
-        const link = item.link || '';
-        const linkText = item.linkText || 'معرفة المزيد 🔗';
-        const modalIcon = item.icon || '📢';
+        const esc = (typeof escapeHtml === 'function')
+            ? escapeHtml
+            : (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+
+        const title = esc(item.title || '📢 إشعار هام من إدارة نظام بيان POS');
+        const message = esc(item.message || '');
+        const modalIcon = esc(item.icon || '📢');
+        const linkText = esc(item.linkText || 'معرفة المزيد 🔗');
         const escSeenKey = String(seenKey || '').replace(/[^\w-]/g, '');
+
+        let validLink = '';
+        if (item.link && typeof item.link === 'string') {
+            const trimmedLink = item.link.trim();
+            if (/^https?:\/\//i.test(trimmedLink)) {
+                validLink = trimmedLink;
+            }
+        }
 
         overlay.innerHTML = `
             <div style="background: linear-gradient(135deg, #0f172a, #1e293b); border: 2px solid rgba(212, 175, 55, 0.6); border-radius: 24px; padding: 28px; width: 92%; max-width: 500px; box-shadow: 0 25px 60px -10px rgba(0,0,0,0.6); text-align: center; color: white;">
@@ -1064,11 +1075,41 @@
                 </div>
 
                 <div style="display: flex; gap: 12px;">
-                    ${link ? `<button onclick="window.open('${link}', '_blank'); document.getElementById('bayan-broadcast-overlay').remove(); if(typeof setStore==='function') setStore('${escSeenKey}', '1'); else localStorage.setItem('${escSeenKey}', '1'); if(typeof updateNotifications==='function') updateNotifications();" style="flex:1; padding: 12px; background: linear-gradient(135deg, #10b981, #059669); color:white; border:none; border-radius:12px; font-weight:900; cursor:pointer; font-size:0.95rem; box-shadow:0 3px 10px rgba(16,185,129,0.3);">${linkText}</button>` : ''}
-                    <button onclick="document.getElementById('bayan-broadcast-overlay').remove(); if(typeof setStore==='function') setStore('${escSeenKey}', '1'); else localStorage.setItem('${escSeenKey}', '1'); if(typeof updateNotifications==='function') updateNotifications();" style="flex:1; padding: 12px; background: rgba(255,255,255,0.12); color:white; border:1px solid rgba(255,255,255,0.25); border-radius:12px; font-weight:900; cursor:pointer; font-size:0.95rem; transition:0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">إغلاق ✅</button>
+                    ${validLink ? `<button type="button" class="bayan-broadcast-action-btn" style="flex:1; padding: 12px; background: linear-gradient(135deg, #10b981, #059669); color:white; border:none; border-radius:12px; font-weight:900; cursor:pointer; font-size:0.95rem; box-shadow:0 3px 10px rgba(16,185,129,0.3);">${linkText}</button>` : ''}
+                    <button type="button" class="bayan-broadcast-close-btn" style="flex:1; padding: 12px; background: rgba(255,255,255,0.12); color:white; border:1px solid rgba(255,255,255,0.25); border-radius:12px; font-weight:900; cursor:pointer; font-size:0.95rem; transition:0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.2)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">إغلاق ✅</button>
                 </div>
             </div>
         `;
+
+        const dismiss = () => {
+            overlay.remove();
+            if (escSeenKey) {
+                if (typeof setStore === 'function') setStore(escSeenKey, '1');
+                else try { localStorage.setItem(escSeenKey, '1'); } catch (_) {}
+            }
+            if (typeof updateNotifications === 'function') updateNotifications();
+        };
+
+        const closeBtn = overlay.querySelector('.bayan-broadcast-close-btn');
+        if (closeBtn) closeBtn.addEventListener('click', dismiss);
+
+        const actionBtn = overlay.querySelector('.bayan-broadcast-action-btn');
+        if (actionBtn && validLink) {
+            actionBtn.addEventListener('click', () => {
+                if (typeof window.require !== 'undefined') {
+                    try {
+                        const { shell } = window.require('electron');
+                        if (shell && typeof shell.openExternal === 'function') {
+                            shell.openExternal(validLink);
+                            dismiss();
+                            return;
+                        }
+                    } catch (e) {}
+                }
+                window.open(validLink, '_blank', 'noopener,noreferrer');
+                dismiss();
+            });
+        }
 
         document.body.appendChild(overlay);
     }
@@ -1077,7 +1118,7 @@
     // 🔒 إدارة وتجميد سياسة التحديثات التلقائية عبر SQLite و Electron Disk
     // =========================================================================
     function updateAutoUpdatesPolicyDOM(isEnabled) {
-        const curVer = window.appVersion || '4.9.2';
+        const curVer = window.appVersion || '4.9.5';
         const badge = document.getElementById('updatePolicyBadge');
         const text = document.getElementById('toggleAutoUpdatesText');
         const toggle = document.getElementById('toggleAutoUpdatesSwitch');
@@ -1147,7 +1188,7 @@
 
     window.toggleAutoUpdatesPolicy = async function(isEnabled) {
         const disabled = !isEnabled;
-        const curVer = window.appVersion || '4.9.2';
+        const curVer = window.appVersion || '4.9.5';
         window.__isAutoUpdatesFrozen = disabled;
 
         // 💾 1. التخزين اللحظي في AppStore و SQLite

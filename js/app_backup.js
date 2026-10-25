@@ -38,6 +38,13 @@ function restoreData(input, isEmergencyBypass = false) {
             const confirmMsg = "⚠️ هل أنت متأكد من استعادة ملف قاعدة البيانات SQLite هذا؟ سيتم استبدال البيانات الحالية بالكامل وإعادة تشغيل البرنامج.";
             const proceed = (typeof showCustomAlert === 'function') ? true : confirm(confirmMsg);
             if (proceed) {
+                // 🔒 إغلاق اتصال SQLite الحالي وتحرير أقفال الملفات قبل الاستبدال المباشر
+                try {
+                    if (window.BayanSQLite && typeof window.BayanSQLite.close === 'function') {
+                        window.BayanSQLite.close();
+                    }
+                } catch (_) {}
+
                 ipc.invoke('restore-sqlite-direct-backup', filePath).then(res => {
                     if (res && res.success) {
                         alert("✅ تم استرجاع قاعدة البيانات بنجاح! سيتم إعادة تحميل البرنامج الآن.");
@@ -1217,7 +1224,7 @@ window.compileBayanBackupPayload = async function() {
     const subTrialConsumed = isPlanPaid ? 'true' : (getStore('bayan_trial_consumed') || localStorage.getItem('bayan_trial_consumed') || '');
 
     const data = {
-        version: window.appVersion || "4.9.2",
+        version: window.appVersion || "4.9.5",
         backupDate: new Date().toISOString(),
         hwid: activeHwid,
         deviceMachineId: activeHwid,

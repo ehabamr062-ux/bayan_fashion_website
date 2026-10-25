@@ -785,12 +785,10 @@
                                             if (!vMatch.warehouseStocks) vMatch.warehouseStocks = {};
                                             vMatch.warehouseStocks[activeWH] = Math.max(0, (parseFloat(vMatch.warehouseStocks[activeWH]) || 0) + (factor * qty));
                                         }
-                                        prod.stock = prod.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
-                                    } else {
-                                        prod.stock = Math.max(0, (parseFloat(prod.stock || 0) + (factor * qty)));
-                                        if (!prod.warehouseStocks) prod.warehouseStocks = {};
-                                        prod.warehouseStocks[activeWH] = Math.max(0, (parseFloat(prod.warehouseStocks[activeWH] || 0) + (factor * qty)));
                                     }
+                                    prod.stock = Math.max(0, (parseFloat(prod.stock || 0) + (factor * qty)));
+                                    if (!prod.warehouseStocks) prod.warehouseStocks = {};
+                                    prod.warehouseStocks[activeWH] = Math.max(0, (parseFloat(prod.warehouseStocks[activeWH] || 0) + (factor * qty)));
 
                                     if (!modifiedProductsList.some(mp => mp.id === prod.id)) {
                                         modifiedProductsList.push(prod);
@@ -882,12 +880,12 @@
                 const scopedDeskId = `${shopId}_DESK_${invStr}`;
                 const scopedMobId = `${shopId}_${invStr}`;
 
-                await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/transactions?id=in.(${encodeURIComponent(scopedDeskId)},${encodeURIComponent(scopedMobId)},${encodeURIComponent(invStr)})`, {
+                await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/transactions?id=in.(${encodeURIComponent(scopedDeskId)},${encodeURIComponent(scopedMobId)})`, {
                     method: 'DELETE',
                     headers: this._getHeaders()
                 });
 
-                await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/transactions?invoice_id=eq.${encodeURIComponent(invStr)}`, {
+                await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/transactions?invoice_id=eq.${encodeURIComponent(invStr)}&id=like.${encodeURIComponent(shopId)}_*`, {
                     method: 'DELETE',
                     headers: this._getHeaders()
                 });

@@ -414,6 +414,16 @@ const trashManager = {
                                 }
                                 if (p.variants.length > 0) {
                                     p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
+                                    if (!p.warehouseStocks) p.warehouseStocks = {};
+                                    let totalWhVariants = 0;
+                                    p.variants.forEach(v => {
+                                        if (v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined && !isNaN(parseFloat(v.warehouseStocks[activeWH]))) {
+                                            totalWhVariants += parseFloat(v.warehouseStocks[activeWH]) || 0;
+                                        } else if (activeWH === 'المخزن الرئيسي') {
+                                            totalWhVariants += parseFloat(v.stock) || 0;
+                                        }
+                                    });
+                                    p.warehouseStocks[activeWH] = totalWhVariants;
                                 }
                             }
                         }
@@ -430,6 +440,9 @@ const trashManager = {
                 if (typeof invalidateStockCache === 'function') invalidateStockCache();
                 if (typeof window.invalidateAccountBalancesCache === 'function') window.invalidateAccountBalancesCache();
                 window.accountBalancesCache = {};
+                if (window.BayanSQLite && typeof window.BayanSQLite.schedulePersist === 'function') {
+                    window.BayanSQLite.schedulePersist(200);
+                }
                 if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
                 if (typeof renderInventoryTable === 'function') renderInventoryTable();
                 if (typeof renderAccountsTable === 'function') renderAccountsTable();
@@ -527,13 +540,6 @@ const trashManager = {
         const itemLabel = item ? (item.label || item.type || 'عنصر') : 'عنصر';
 
         if (typeof window.verifyAdminPinAuthorization === 'function') {
-            setTimeout(() => {
-                const pinInp = document.getElementById('customPromptInput');
-                if (pinInp) {
-                    pinInp.focus();
-                    try { pinInp.select(); } catch(e) {}
-                }
-            }, 50);
             const isAuthorized = await window.verifyAdminPinAuthorization(
                 '🗑️ تأكيد الحذف النهائي من السلة',
                 `سيتم حذف "${itemLabel}" بشكل نهائي ولا يمكن استعادته لاحقاً.`
@@ -566,13 +572,6 @@ const trashManager = {
 
         const count = list.length;
         if (typeof window.verifyAdminPinAuthorization === 'function') {
-            setTimeout(() => {
-                const pinInp = document.getElementById('customPromptInput');
-                if (pinInp) {
-                    pinInp.focus();
-                    try { pinInp.select(); } catch(e) {}
-                }
-            }, 50);
             const isAuthorized = await window.verifyAdminPinAuthorization(
                 '🚨 إفراغ سلة المحذوفات بالكامل',
                 `تحذير أمني: سيتم حذف كافة العناصر (${count} عنصر) بشكل نهائي لا رجعة فيه!`

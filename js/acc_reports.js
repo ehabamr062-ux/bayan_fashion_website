@@ -6516,7 +6516,8 @@
 
             // 1. إذا كان الربح مسجلاً ومخزناً بالعملية
             if (t.profit !== undefined && t.profit !== null && !isNaN(parseFloat(t.profit)) && parseFloat(t.profit) !== 0) {
-                return Math.abs(parseFloat(t.profit));
+                const parsedProfit = parseFloat(t.profit);
+                return isReturn ? Math.abs(parsedProfit) : parsedProfit;
             }
 
             // 2. حساب بديل من قاعدة البيانات إذا لم يتوفر الربح
@@ -6528,8 +6529,9 @@
                 if (isSubUnit) factor = parseFloat(isSubUnit.factor) || 1;
             }
             const unitCost = baseCost * factor;
-            const unitProfit = Math.max(0, price - unitCost);
-            return unitProfit * qty;
+            const unitProfit = price - unitCost;
+            const totalProfit = unitProfit * qty;
+            return isReturn ? Math.abs(totalProfit) : totalProfit;
         }
 
         function updateAnalysisCharts(data, sqlSummary = null) {

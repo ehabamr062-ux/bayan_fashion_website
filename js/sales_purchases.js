@@ -1374,11 +1374,11 @@ function calculatePurchaseTotals(sub) {
     if (purchaseTotalVal < 0) purchaseTotalVal = 0;
 
     if (document.getElementById('purchaseItemsCount')) document.getElementById('purchaseItemsCount').innerText = itemsCount;
-    if (document.getElementById('purchaseTotalQty')) document.getElementById('purchaseTotalQty').innerText = totalQty;
-    if (document.getElementById('purchaseSubTotal')) document.getElementById('purchaseSubTotal').innerText = subTotalVal.toFixed(2);
-    if (document.getElementById('purchaseDiscountAmountDisplay')) document.getElementById('purchaseDiscountAmountDisplay').innerText = discAmount.toFixed(2);
-    if (document.getElementById('purchaseTaxAmountDisplay')) document.getElementById('purchaseTaxAmountDisplay').innerText = taxAmount.toFixed(2);
-    if (document.getElementById('purchaseTotal')) document.getElementById('purchaseTotal').innerText = purchaseTotalVal.toFixed(2);
+    if (document.getElementById('purchaseTotalQty')) document.getElementById('purchaseTotalQty').innerText = (typeof bayanRound === 'function') ? bayanRound(totalQty, 3) : totalQty;
+    if (document.getElementById('purchaseSubTotal')) document.getElementById('purchaseSubTotal').innerText = (typeof bayanFormatMoney === 'function') ? bayanFormatMoney(subTotalVal) : subTotalVal.toFixed(2);
+    if (document.getElementById('purchaseDiscountAmountDisplay')) document.getElementById('purchaseDiscountAmountDisplay').innerText = (typeof bayanFormatMoney === 'function') ? bayanFormatMoney(discAmount) : discAmount.toFixed(2);
+    if (document.getElementById('purchaseTaxAmountDisplay')) document.getElementById('purchaseTaxAmountDisplay').innerText = (typeof bayanFormatMoney === 'function') ? bayanFormatMoney(taxAmount) : taxAmount.toFixed(2);
+    if (document.getElementById('purchaseTotal')) document.getElementById('purchaseTotal').innerText = (typeof bayanFormatMoney === 'function') ? bayanFormatMoney(purchaseTotalVal) : purchaseTotalVal.toFixed(2);
 
     // تحديث الرصيد السابق والمطلوب النهائي للمورد / الشريك
     const partnerName = document.getElementById('supplierName') ? document.getElementById('supplierName').value.trim() : '';
@@ -1398,11 +1398,11 @@ function calculatePurchaseTotals(sub) {
         
         const purchasePaidInput = document.getElementById('purchasePaid');
         if (!isExplicitCred && purchasePaidInput) {
-            purchasePaidInput.value = purchaseTotalVal.toFixed(2);
+            purchasePaidInput.value = (typeof bayanFormatMoney === 'function') ? bayanFormatMoney(purchaseTotalVal) : purchaseTotalVal.toFixed(2);
         }
         
         const paid = isExplicitCred ? (parseFloat(purchasePaidInput?.value || 0)) : purchaseTotalVal;
-        const newDebt = purchaseTotalVal - paid; // الجزء الآجل غير المدفوع من الفاتورة الحالية
+        const newDebt = (typeof bayanRound === 'function') ? bayanRound(purchaseTotalVal - paid, 2) : (purchaseTotalVal - paid); // الجزء الآجل غير المدفوع من الفاتورة الحالية
 
         let finalGrandTotal = 0;
 
@@ -1417,7 +1417,8 @@ function calculatePurchaseTotals(sub) {
             finalGrandTotal = newDebt;
         }
 
-        document.getElementById('purchaseGrandTotalDisplay').innerText = Math.abs(finalGrandTotal).toFixed(2);
+        finalGrandTotal = (typeof bayanRound === 'function') ? bayanRound(finalGrandTotal, 2) : finalGrandTotal;
+        document.getElementById('purchaseGrandTotalDisplay').innerText = (typeof bayanFormatMoney === 'function') ? bayanFormatMoney(Math.abs(finalGrandTotal)) : Math.abs(finalGrandTotal).toFixed(2);
     }
 
     calculatePurchaseChange();
@@ -1466,9 +1467,16 @@ async function savePurchase(force = false, accountChecked = false) {
 
     window.isSavingTransaction = true;
 
-    // تعطيل أزرار الحفظ فوراً لمنع الضغط المزدوج
+    // تعطيل أزرار الحفظ فوراً لمنع الضغط المزدوج مع مؤقت أمان تلقائي لفك القفل
     const saveBtns = document.querySelectorAll('#purchase-section .btn-save, #purchase-section .action-btn');
     saveBtns.forEach(b => { b.disabled = true; b.style.pointerEvents = 'none'; b.style.opacity = '0.6'; });
+
+    if (window._bayanPurSaveLockTimer) clearTimeout(window._bayanPurSaveLockTimer);
+    window._bayanPurSaveLockTimer = setTimeout(() => {
+        window.isSavingTransaction = false;
+        const sBtns = document.querySelectorAll('#purchase-section .btn-save, #purchase-section .action-btn');
+        sBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
+    }, 1500);
 
     try {
 
@@ -1673,12 +1681,18 @@ async function savePurchase(force = false, accountChecked = false) {
                 p.avgBuyPrice = p.cost;
 
                 // 3. تحديث الرصيد المخزني النهائي ورصيد المخزن المحدد
+                if (!p.warehouseStocks || typeof p.warehouseStocks !== 'object') p.warehouseStocks = {};
+                let curProdWhStock = 0;
+                if (p.warehouseStocks[activeWH] !== undefined) {
+                    curProdWhStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
+                } else {
+                    curProdWhStock = parseFloat(p.stock) || 0;
+                }
+                p.warehouseStocks[activeWH] = curProdWhStock + baseQty;
                 p.stock = finalStockCount;
-                if (!p.warehouseStocks) p.warehouseStocks = {};
-                p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
 
                 // 3.5 تحديث رصيد وسعر التشكيلة المحددة (المقاس واللون) في مصفوفة الصنف بدقة
-                if (p.variants && Array.isArray(p.variants)) {
+                if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
                     const sSize = String(item.selectedSize || item.size || '').trim();
                     const sColor = String(item.selectedColor || item.color || '').trim();
                     if (sSize || sColor) {
@@ -1692,8 +1706,14 @@ async function savePurchase(force = false, accountChecked = false) {
                         if (matchedVar) {
                             const oldVarStock = (parseFloat(matchedVar.stock) || 0);
                             matchedVar.stock = oldVarStock + baseQty;
-                            if (!matchedVar.warehouseStocks) matchedVar.warehouseStocks = {};
-                            matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) + baseQty;
+                            if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
+                            let curVarWhStock = 0;
+                            if (matchedVar.warehouseStocks[activeWH] !== undefined) {
+                                curVarWhStock = parseFloat(matchedVar.warehouseStocks[activeWH]) || 0;
+                            } else {
+                                curVarWhStock = oldVarStock;
+                            }
+                            matchedVar.warehouseStocks[activeWH] = curVarWhStock + baseQty;
                             if (parseFloat(item.salePrice) > 0) {
                                 matchedVar.price = parseFloat(item.salePrice);
                             }
@@ -1716,16 +1736,20 @@ async function savePurchase(force = false, accountChecked = false) {
                         });
                     }
 
-                    // 🌟 ضمان تطابق رصيد الصنف العام مع مجموع مقاساته بدقة تامة
-                    if (p.variants.length > 0) {
-                        p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
-                        if (!p.warehouseStocks) p.warehouseStocks = {};
-                        p.warehouseStocks[activeWH] = p.variants.reduce((sum, v) => {
-                            const vWh = (v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined)
-                                ? parseFloat(v.warehouseStocks[activeWH])
-                                : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0);
-                            return sum + vWh;
-                        }, 0);
+                    // مزامنة إجمالي رصيد الصنف ورصيد المخزن مع مجموع المقاسات
+                    p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
+                    let totalVarWhStock = 0;
+                    let hasExplicitVarWh = false;
+                    p.variants.forEach(v => {
+                        if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
+                            totalVarWhStock += parseFloat(v.warehouseStocks[activeWH]) || 0;
+                            hasExplicitVarWh = true;
+                        } else if (activeWH === 'المخزن الرئيسي') {
+                            totalVarWhStock += parseFloat(v.stock) || 0;
+                        }
+                    });
+                    if (hasExplicitVarWh || activeWH === 'المخزن الرئيسي') {
+                        p.warehouseStocks[activeWH] = totalVarWhStock;
                     }
                 }
 
@@ -1803,7 +1827,13 @@ async function savePurchase(force = false, accountChecked = false) {
 
             // تسجيل الحركة في سجل المعاملات
 
+            const rowId = (idx === 0)
+                ? String(purchaseId)
+                : `${purchaseId}_item_${idx + 1}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+
             const newRow = {
+
+                id: rowId,
 
                 date: safeDate,
 
@@ -1818,6 +1848,10 @@ async function savePurchase(force = false, accountChecked = false) {
                 invoiceId: purchaseId,
 
                 product: p ? p.name : item.name,
+
+                barcode: item.code || item.barcode || (p ? p.code : ''),
+
+                productId: p ? p.id : (item.id || null),
 
                 size: item.selectedSize || item.size || '',
 
@@ -1849,6 +1883,7 @@ async function savePurchase(force = false, accountChecked = false) {
                 remaining: (idx === 0) ? (isCreditPurchase ? Math.max(0, finalTotalVal - purchasePaidAmount) : 0) : 0,
                 deferred: (idx === 0) ? (isCreditPurchase ? Math.max(0, finalTotalVal - purchasePaidAmount) : 0) : 0,
                 isInvoiceHead: (idx === 0),
+                items: (idx === 0) ? JSON.parse(JSON.stringify(purchaseCart)) : undefined,
 
                 invoiceDiscount: (idx === 0) ? (parseFloat(document.getElementById('purchaseDiscount')?.value) || 0) : 0,
                 invoiceDiscountType: (idx === 0) ? (document.getElementById('purchaseDiscountType')?.value || 'val') : 'val',
@@ -1985,6 +2020,10 @@ async function savePurchase(force = false, accountChecked = false) {
         return false;
     } finally {
 
+        if (window._bayanPurSaveLockTimer) {
+            clearTimeout(window._bayanPurSaveLockTimer);
+            window._bayanPurSaveLockTimer = null;
+        }
         const saveBtns = document.querySelectorAll('#purchase-section .btn-save, #purchase-section .action-btn');
         saveBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
         window.isSavingTransaction = false;

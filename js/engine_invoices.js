@@ -12,6 +12,19 @@
 
     const BayanInvoiceEngine = {
         /**
+         * دالة التقريب المالي الموحدة فائقة الدقة (Financial Precision Rounding)
+         */
+        round(val, decimals = 2) {
+            if (val === null || val === undefined || isNaN(val)) return 0;
+            const factor = Math.pow(10, decimals);
+            return Math.round((Number(val) + Number.EPSILON) * factor) / factor;
+        },
+
+        format(val, decimals = 2) {
+            return this.round(val, decimals).toFixed(decimals);
+        },
+
+        /**
          * 1. حساب قيمة الخصم وضمان الأمان وحدود الصلاحيات
          */
         calculateDiscount(subTotal, discountVal, discountType = 'val', maxDiscountPerc = 100, canDiscount = true) {
@@ -30,15 +43,15 @@
                     val = maxDiscountPerc;
                     capped = true;
                 } else if (discountType === 'val') {
-                    const maxVal = sub * (maxDiscountPerc / 100);
+                    const maxVal = this.round(sub * (maxDiscountPerc / 100), 2);
                     if (val > maxVal) {
-                        val = Number(maxVal.toFixed(2));
+                        val = maxVal;
                         capped = true;
                     }
                 }
             }
 
-            let amount = (discountType === 'perc') ? (sub * val / 100) : val;
+            let amount = (discountType === 'perc') ? this.round(sub * val / 100, 2) : val;
 
             // الخصم لا يتجاوز إجمالي الفاتورة
             if (amount > sub) {
@@ -47,7 +60,7 @@
             }
 
             return {
-                amount: Number(amount.toFixed(2)),
+                amount: this.round(amount, 2),
                 value: val,
                 capped
             };
@@ -59,9 +72,9 @@
         calculateTax(subTotal, taxVal, taxType = 'val') {
             const sub = Math.max(0, parseFloat(subTotal) || 0);
             const val = Math.max(0, parseFloat(taxVal) || 0);
-            const amount = (taxType === 'perc') ? (sub * val / 100) : val;
+            const amount = (taxType === 'perc') ? this.round(sub * val / 100, 2) : val;
             return {
-                amount: Number(amount.toFixed(2)),
+                amount: this.round(amount, 2),
                 value: val
             };
         },
@@ -77,7 +90,7 @@
                     : {};
                 if (settings.taxEnabled) {
                     const pct = parseFloat(settings.taxPercent) || 0;
-                    return Number((sub * pct / 100).toFixed(2));
+                    return this.round(sub * pct / 100, 2);
                 }
             } catch (e) {}
             return 0;
@@ -98,7 +111,7 @@
             canDiscount = true,
             isPurchase = false
         } = {}) {
-            // أ. حساب المجموع الفرعي والكميات
+            // أ. حساب المجموع الفرعي والكميات بدقة القروش المحاسبية
             let subTotal = 0;
             let totalQty = 0;
             const itemsCount = cart.length;
@@ -106,11 +119,12 @@
             cart.forEach(item => {
                 const q = parseFloat(item.qty) || 0;
                 const p = parseFloat(item.price) || 0;
-                totalQty += q;
-                subTotal += (q * p);
+                const lineTotal = this.round(q * p, 2);
+                totalQty = this.round(totalQty + q, 3);
+                subTotal = this.round(subTotal + lineTotal, 2);
             });
 
-            subTotal = Number(subTotal.toFixed(2));
+            subTotal = this.round(subTotal, 2);
 
             // ب. حساب الخصم
             const discResult = this.calculateDiscount(subTotal, discountVal, discountType, maxDiscountPerc, canDiscount);
@@ -124,9 +138,8 @@
             const globalTaxAmount = this.getGlobalTaxAmount(subTotal);
 
             // هـ. الصافي النهائي
-            let finalTotal = subTotal - discountAmount + taxAmount + globalTaxAmount;
+            let finalTotal = this.round(subTotal - discountAmount + taxAmount + globalTaxAmount, 2);
             if (finalTotal < 0) finalTotal = 0;
-            finalTotal = Number(finalTotal.toFixed(2));
 
             // و. المطلوب مع الرصيد السابق والمدفوع
             const prev = parseFloat(prevBalance) || 0;
@@ -134,12 +147,12 @@
             
             // في المبيعات: الصافي + السابق - المدفوع
             // في المشتريات: الصافي + السابق - المدفوع
-            const grandTotalWithPrev = Number((finalTotal + prev).toFixed(2));
-            const remainingOrChange = Number((paid - grandTotalWithPrev).toFixed(2));
+            const grandTotalWithPrev = this.round(finalTotal + prev, 2);
+            const remainingOrChange = this.round(paid - grandTotalWithPrev, 2);
 
             return {
                 itemsCount,
-                totalQty: Number(totalQty.toFixed(2)),
+                totalQty: this.round(totalQty, 3),
                 subTotal,
                 discountAmount,
                 discountValCapped: discResult.value,
@@ -180,4 +193,10 @@
     };
 
     window.BayanInvoiceEngine = BayanInvoiceEngine;
+    if (typeof window.bayanRound !== 'function') {
+        window.bayanRound = BayanInvoiceEngine.round.bind(BayanInvoiceEngine);
+    }
+    if (typeof window.bayanFormatMoney !== 'function') {
+        window.bayanFormatMoney = BayanInvoiceEngine.format.bind(BayanInvoiceEngine);
+    }
 })(typeof window !== 'undefined' ? window : globalThis);

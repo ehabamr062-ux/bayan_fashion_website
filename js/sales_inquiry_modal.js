@@ -1188,12 +1188,24 @@
      */
     function renderHistoryTabContent(p) {
         let pTx = [];
+        let allTx = [];
+        let totalCount = 0;
+
         if (window.BayanSQLite && typeof window.BayanSQLite.getProductHistory === 'function') {
-            pTx = window.BayanSQLite.getProductHistory(p.name, p.barcode, 50);
+            try {
+                pTx = window.BayanSQLite.getProductHistory(p.name, p.barcode, 50) || [];
+                allTx = pTx;
+                totalCount = pTx.length;
+            } catch (err) {
+                console.warn('[renderHistoryTabContent] SQLite history fetch failed:', err);
+                pTx = [];
+                allTx = [];
+                totalCount = 0;
+            }
         }
 
         if (!pTx || pTx.length === 0) {
-            const allTx = (typeof transactions !== 'undefined' && Array.isArray(transactions))
+            allTx = (typeof transactions !== 'undefined' && Array.isArray(transactions))
                 ? transactions.filter(t => (t.product === p.name || t.productName === p.name || t.id == p.id || t.productId == p.id) && !(t.type && t.type.includes('تحويل') && t.transferStatus === 'rejected'))
                 : [];
 
@@ -1213,6 +1225,7 @@
                 return timeB - timeA;
             });
 
+            totalCount = allTx.length;
             pTx = allTx.slice(0, 50);
         }
 
@@ -1297,7 +1310,7 @@
             <div style="background: #ffffff; border: 2px solid #cbd5e1; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.03);">
                 <div style="background: linear-gradient(135deg, #f1f5f9, #e2e8f0); padding: 10px 16px; border-bottom: 2px solid #cbd5e1; display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-weight: 900; color: #000000; font-size: 1rem; display: flex; align-items: center; gap: 6px;">
-                        <span>📜</span> سجل حركة الصنف التفصيلية (أحدث ${pTx.length} حركة ${allTx.length > 50 ? `من إجمالي ${allTx.length}` : ''})
+                        <span>📜</span> سجل حركة الصنف التفصيلية (أحدث ${pTx.length} حركة ${totalCount > 50 ? `من إجمالي ${totalCount}` : ''})
                     </span>
                 </div>
 
@@ -2024,50 +2037,48 @@
                 isCompoundMatch
             });
 
-            // ⚡ فرامل ذكية فائقة: الاكتفاء بأول 30 نتيجة مطابقة والتوقف فوراً لتوفير المعالج
-            if (results.length >= 30) {
+            // ⚡ تجميع حتى 100 نتيجة مرشحة لضمان عدم إفلات أي تطابق تام ثم فرزها وقصها لأفضل 30
+            if (results.length >= 100) {
                 break;
             }
         }
 
-        // 🥇 الترتيب الذكي الصارم: التطابق التام بالاسم أو الكود يأتي أولاً بلا منازع (Rank #1)
+        // 🥇 الترتيب الذكي الصارم: التطابق التام بالباركود أو الكود يأتي أولاً بلا منازع (Rank #1)
         results.sort((a, b) => {
             const getScore = item => {
                 // 1. الفئة الذهبية الأولى (Tier 1 - التطابق التام الكامل - أولوية مطلقة)
                 if (explicitMode === 'size') {
-                    if (item.isExactSize) return 10;
-                    if (item.isExactName) return 11;
-                    if (item.isExactCode) return 12;
-                    if (item.isExactBarcode) return 13;
+                    if (item.isExactSize) return 5;
+                    if (item.isExactBarcode) return 6;
+                    if (item.isExactCode) return 7;
+                    if (item.isExactName) return 8;
                 } else if (explicitMode === 'code') {
-                    if (item.isExactCode) return 10;
-                    if (item.isExactName) return 11;
-                    if (item.isExactBarcode) return 12;
-                    if (item.isExactSize) return 13;
+                    if (item.isExactCode) return 5;
+                    if (item.isExactBarcode) return 6;
+                    if (item.isExactName) return 7;
+                    if (item.isExactSize) return 8;
                 } else if (explicitMode === 'barcode') {
-                    if (item.isExactBarcode) return 10;
-                    if (item.isExactCode) return 11;
-                    if (item.isExactName) return 12;
+                    if (item.isExactBarcode) return 5;
+                    if (item.isExactCode) return 6;
+                    if (item.isExactName) return 7;
                 } else {
-                    // البحث المباشر العام (مثل كتابة رقم الصنف أو الموديل "161")
-                    if (item.isExactName) return 10;
-                    if (item.isExactCode) return 11;
-                    if (item.isExactBarcode) return 12;
+                    // البحث المباشر العام (مثل كتابة كود الصنف أو الباركود "50" أو الموديل)
+                    if (item.isExactBarcode) return 5;
+                    if (item.isExactCode) return 6;
+                    if (item.isExactName) return 7;
                     if (item.isCompoundMatch) return 13;
                     if (item.isExactSize) return 14;
                 }
 
                 // 2. الفئة الفضية (Tier 2 - بداية النص Starts With)
-                if (item.isNameStartsWith) return 20;
-                if (item.isCodeStartsWith) return 25;
+                if (item.isCodeStartsWith) return 20;
+                if (item.isBarcodeStartsWith) return 22;
+                if (item.isNameStartsWith) return 25;
 
                 // 3. الفئة البرونزية (Tier 3 - تطابق كلمة مستقلة بالاسم)
                 if (item.isNameWordMatch) return 30;
 
-                // 4. الباركود يبدأ برقم البحث
-                if (item.isBarcodeStartsWith) return 35;
-
-                // 5. تطابق صريح باللون
+                // 4. تطابق صريح باللون
                 if (item.isExactColor) return 40;
 
                 // 6. تطابق جميع كلمات البحث في الاسم
@@ -2144,17 +2155,10 @@
 
                     let totalStock = 0;
                     if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
-                        totalStock = p.variants.reduce((sum, v) => {
-                            let vSt = 0;
-                            if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && Object.keys(v.warehouseStocks).length > 0) {
-                                vSt = Object.values(v.warehouseStocks).reduce((s, val) => s + (parseFloat(val) || 0), 0);
-                            } else {
-                                vSt = parseFloat(v.stock) || 0;
-                            }
-                            return sum + vSt;
-                        }, 0);
+                        totalStock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
                     } else if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && Object.keys(p.warehouseStocks).length > 0) {
-                        totalStock = Object.values(p.warehouseStocks).reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
+                        const whSum = Object.values(p.warehouseStocks).reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
+                        totalStock = whSum > 0 ? whSum : (parseFloat(p.stock) || 0);
                     } else {
                         totalStock = parseFloat(p.stock) || 0;
                     }

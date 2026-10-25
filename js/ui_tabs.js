@@ -725,7 +725,7 @@
                     const invTbody = document.getElementById('invoicesTableBody');
                     if (!invTbody || invTbody.children.length === 0 || window._invoicesNeedsRefresh) {
                         if (typeof initInvoicesColumns === 'function') initInvoicesColumns();
-                        renderInvoicesTable();
+                        if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
                         window._invoicesNeedsRefresh = false;
                     }
                 }
@@ -1932,6 +1932,16 @@
                         if (typeof switchSection === 'function') {
                             switchSection('dashboard');
                         }
+                    }
+                }
+                if (openTabs.length <= 1) {
+                    if (typeof window.bayanTriggerMemoryPurge === 'function') {
+                        window.bayanTriggerMemoryPurge();
+                    }
+                } else {
+                    const runGC = window.gc || (typeof global !== 'undefined' && global && global.gc);
+                    if (typeof runGC === 'function') {
+                        try { runGC(); } catch (_) {}
                     }
                 }
             }

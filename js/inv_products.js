@@ -822,12 +822,11 @@ function fillProductModal(p) {
     if (document.getElementById('newItemCost')) document.getElementById('newItemCost').value = p.cost || 0;
     const activeWH = (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : (typeof getStore === 'function' ? getStore('activeWarehouse') : 'المخزن الرئيسي') || 'المخزن الرئيسي';
     let currentWhStock = 0;
+    const pGenStock = parseFloat(p.stock) || 0;
     if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
-        currentWhStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
-    } else if (activeWH === 'المخزن الرئيسي' || !p.warehouseStocks) {
-        currentWhStock = parseFloat(p.stock) || 0;
+        currentWhStock = Math.max(parseFloat(p.warehouseStocks[activeWH]) || 0, pGenStock);
     } else {
-        currentWhStock = 0;
+        currentWhStock = pGenStock;
     }
 
     if (document.getElementById('newItemMinPrice')) document.getElementById('newItemMinPrice').value = p.minPrice || 0;
@@ -914,12 +913,11 @@ function fillProductModal(p) {
                     hasApparelSizes = true;
                 }
                 let vStockForActiveWH = 0;
+                const vGenStock = parseFloat(v.stock) || 0;
                 if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
-                    vStockForActiveWH = parseFloat(v.warehouseStocks[activeWH]) || 0;
-                } else if (activeWH === 'المخزن الرئيسي' || !v.warehouseStocks) {
-                    vStockForActiveWH = parseFloat(v.stock) || 0;
+                    vStockForActiveWH = Math.max(parseFloat(v.warehouseStocks[activeWH]) || 0, vGenStock);
                 } else {
-                    vStockForActiveWH = 0;
+                    vStockForActiveWH = vGenStock;
                 }
 
                 // الحفاظ على السعر والتكلفة والجملة المحددة لكل مقاس بدقة دون إجبار على التوحيد

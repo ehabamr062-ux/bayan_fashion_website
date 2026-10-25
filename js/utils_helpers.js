@@ -25,6 +25,21 @@
         window.sanitizeInput = sanitizeInput;
 
         // ============================================================
+        // 💰 محرك الدقة المالية والحسابية المركزي (Financial Precision Engine)
+        // ============================================================
+        function bayanRound(val, decimals = 2) {
+            if (val === null || val === undefined || isNaN(val)) return 0;
+            const factor = Math.pow(10, decimals);
+            return Math.round((Number(val) + Number.EPSILON) * factor) / factor;
+        }
+        window.bayanRound = bayanRound;
+
+        function bayanFormatMoney(val, decimals = 2) {
+            return bayanRound(val, decimals).toFixed(decimals);
+        }
+        window.bayanFormatMoney = bayanFormatMoney;
+
+        // ============================================================
         // ⏳ محرك مؤشر التحميل المركزي الموحد (Unified Section Loader Engine)
         // ============================================================
         window.showSectionLoader = function(targetIdOrEl, title = 'جاري معالجة وتجهيز البيانات...', subtitle = 'يرجى الانتظار لحين اكتمال التحميل') {
@@ -490,6 +505,116 @@
             };
         }
 
+        function scoreProductForQuery(p, rawQuery, normQuery, lowerQuery, isSingleChar) {
+            if (!p) return 0;
+            const tok = getProductSearchTokens(p);
+            let score = 0;
+
+            // 1. التطابق التام بالباركود الأساسي (القمة المطلقة 100,000 لسكانر الباركود والإدخال الصريح)
+            if (tok.normBarcode === normQuery || tok.lowerBarcode === lowerQuery || tok.rawBarcode === rawQuery) {
+                return 100000;
+            }
+
+            // 2. التطابق التام بكود الصنف أو المعرف ID (90,000 - الأولوية القصوى لكود الصنف مثل صنف 50)
+            if (tok.normCode === normQuery || tok.lowerCode === lowerQuery || tok.rawCode === rawQuery || String(p.id) === rawQuery) {
+                return 90000;
+            }
+
+            // 3. التطابق التام برقم الموديل (80,000)
+            if (tok.normModelCode === normQuery || tok.lowerModelCode === lowerQuery || tok.rawModelCode === rawQuery) {
+                return 80000;
+            }
+
+            // 4. التطابق التام بالاسم (70,000)
+            if (tok.normName === normQuery || tok.rawName === rawQuery) {
+                score = Math.max(score, 70000);
+            }
+
+            // 5. فحص التشكيلات (المقاسات والألوان وباركود المقاسات)
+            if (tok.variantTokens && tok.variantTokens.length > 0) {
+                for (let j = 0; j < tok.variantTokens.length; j++) {
+                    const vt = tok.variantTokens[j];
+                    if (vt.vBarcode) {
+                        if (vt.normVBarcode === normQuery || vt.lowerVBarcode === lowerQuery || vt.vBarcode === rawQuery) {
+                            return 65000; // باركود المقاس مطابق تماماً
+                        } else if (vt.vBarcode.startsWith(rawQuery) || (vt.normVBarcode && vt.normVBarcode.startsWith(normQuery))) {
+                            score = Math.max(score, 32000);
+                        } else if (vt.vBarcode.includes(rawQuery) || (vt.normVBarcode && vt.normVBarcode.includes(normQuery))) {
+                            score = Math.max(score, 8000);
+                        }
+                    }
+                    if (vt.vCode) {
+                        if (vt.normVCode === normQuery || vt.lowerVCode === lowerQuery || vt.vCode === rawQuery) {
+                            return 60000; // كود المقاس مطابق تماماً
+                        } else if (vt.vCode.startsWith(rawQuery) || (vt.normVCode && vt.normVCode.startsWith(normQuery))) {
+                            score = Math.max(score, 30000);
+                        }
+                    }
+                    if (vt.normVSize && vt.normVSize === normQuery) {
+                        score = Math.max(score, 20000); // مقاس مطابق تماماً
+                    } else if (vt.normVColor && vt.normVColor === normQuery) {
+                        score = Math.max(score, 18000); // لون مطابق تماماً
+                    }
+                }
+            }
+
+            // 6. فحص الوحدات
+            if (tok.unitTokens && tok.unitTokens.length > 0) {
+                for (let k = 0; k < tok.unitTokens.length; k++) {
+                    const ut = tok.unitTokens[k];
+                    if (ut.normUBarcode === normQuery || ut.lowerUBarcode === lowerQuery || ut.uBarcode === rawQuery) {
+                        return 62000;
+                    }
+                }
+            }
+
+            // 7. البدايات الصريحة (Starts With - 45,000 إلى 35,000)
+            if (tok.rawCode && (tok.rawCode.startsWith(rawQuery) || (tok.normCode && tok.normCode.startsWith(normQuery)))) {
+                score = Math.max(score, 45000);
+            }
+            if (tok.rawBarcode && (tok.rawBarcode.startsWith(rawQuery) || (tok.normBarcode && tok.normBarcode.startsWith(normQuery)))) {
+                score = Math.max(score, 42000);
+            }
+            if (tok.normModelCode && tok.normModelCode.startsWith(normQuery)) {
+                score = Math.max(score, 40000);
+            }
+            if (tok.normName && tok.normName.startsWith(normQuery)) {
+                score = Math.max(score, 35000);
+            }
+
+            // 8. تطابق كلمة كاملة داخل الاسم (Word match - 25,000)
+            if (tok.normWords && tok.normWords.includes(normQuery)) {
+                score = Math.max(score, 25000);
+            }
+
+            // فحص تطابق كافة كلمات البحث إذا كان الاستعلام مركباً من أكثر من كلمة (Multi-word search)
+            const qWords = normQuery.split(/\s+/).filter(Boolean);
+            if (qWords.length > 1) {
+                const allWordsMatch = qWords.every(w => tok.normName && tok.normName.includes(w));
+                if (allWordsMatch) {
+                    score = Math.max(score, 28000);
+                }
+            }
+
+            // 9. الاحتواء الجزئي (Contains / Substring - 15,000 إلى 5,000)
+            if (!isSingleChar) {
+                if (tok.normName && tok.normName.includes(normQuery)) {
+                    score = Math.max(score, 15000);
+                }
+                if (tok.normCode && tok.normCode.includes(normQuery)) {
+                    score = Math.max(score, 12000);
+                }
+                if (tok.normModelCode && tok.normModelCode.includes(normQuery)) {
+                    score = Math.max(score, 10000);
+                }
+                if (tok.normBarcode && tok.normBarcode.includes(normQuery)) {
+                    score = Math.max(score, 5000);
+                }
+            }
+
+            return score;
+        }
+
         function searchProductsRanked(query, options = {}) {
             if (!query || typeof query !== 'string' || !query.trim()) return [];
             
@@ -498,8 +623,11 @@
             const lowerQuery = rawQuery.toLowerCase();
             if (!normQuery) return [];
 
+            const limit = (options.limit && typeof options.limit === 'number' && options.limit > 0) ? options.limit : 30;
+            const isSingleChar = normQuery.length === 1;
+
             // ⚡ 1. التحقق الفوري المباشر عبر خريطة الفهرس (O(1) Map - 0ms) للأكواد والباركود
-            if (options.exactOnly !== false) {
+            if (options.exactOnly === true || options.limit === 1) {
                 if (_barcodeToProductMap.size === 0) {
                     rebuildProductFastIndex();
                 }
@@ -509,10 +637,10 @@
                     return [exactProduct];
                 }
 
-                // ⚡ فحص فوري في SQLite مباشرة بالباركود الأصلي كصمام أمان (0.1ms)
+                // فحص فوري في SQLite مباشرة بالباركود أو الكود الأصلي كصمام أمان فائق
                 if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
                     try {
-                        const dbRow = window.BayanSQLite.nativeDb.prepare("SELECT * FROM products WHERE barcode = ? OR barcode = ? OR id = ? LIMIT 1;").get(rawQuery, lowerQuery, rawQuery);
+                        const dbRow = window.BayanSQLite.nativeDb.prepare("SELECT * FROM products WHERE barcode = ? OR code = ? OR json_extract(raw_json, '$.code') = ? OR id = ? LIMIT 1;").get(rawQuery, rawQuery, rawQuery, rawQuery);
                         if (dbRow) {
                             const directP = window.BayanSQLite._reconstructRow(dbRow);
                             if (directP && (options.filterDeleted === false || !directP.isDeleted)) {
@@ -523,14 +651,14 @@
                 }
             }
 
-            const limit = (options.limit && typeof options.limit === 'number' && options.limit > 0) ? options.limit : 30;
-
-            // ⚡ 2. توجيه البحث النصي والجزئي فوراً لمحرك SQLite المفهرس بدلاً من مسح الرام الخطي O(N)
+            // ⚡ 2. توجيه البحث لمحرك SQLite المفهرس بدلاً من مسح الرام الخطي O(N)
+            let candidates = [];
             if (!options.products && window.BayanSQLite && typeof window.BayanSQLite.searchProductsFast === 'function' && window.BayanSQLite.db) {
                 try {
-                    const sqlFastResults = window.BayanSQLite.searchProductsFast(rawQuery, limit);
+                    const fetchLimit = (limit === Infinity) ? 1000 : Math.max(limit * 2, 60);
+                    const sqlFastResults = window.BayanSQLite.searchProductsFast(rawQuery, fetchLimit);
                     if (sqlFastResults && sqlFastResults.length > 0) {
-                        return (options.filterDeleted === false) ? sqlFastResults : sqlFastResults.filter(p => !p.isDeleted);
+                        candidates = (options.filterDeleted === false) ? sqlFastResults : sqlFastResults.filter(p => p && !p.isDeleted);
                     }
                 } catch(sqlErr) {
                     console.warn("[searchProductsRanked] searchProductsFast notice:", sqlErr.message || sqlErr);
@@ -538,77 +666,39 @@
             }
 
             // ⚡ 3. مسار احتياطي آمن (Fallback) في حال تعذر الاستعلام المباشر من SQLite
-            const list = options.products || 
-                ((typeof productsDB !== 'undefined' && Array.isArray(productsDB) && productsDB.length > 0)
-                    ? productsDB 
-                    : (window.productsDB || []));
+            if (candidates.length === 0) {
+                const list = options.products || 
+                    ((typeof productsDB !== 'undefined' && Array.isArray(productsDB) && productsDB.length > 0)
+                        ? productsDB 
+                        : (window.productsDB || []));
+                candidates = (options.filterDeleted === false) ? list : list.filter(p => p && !p.isDeleted);
+            }
 
-            const maxCollect = (limit === Infinity || limit >= (list.length || 1000)) ? Infinity : Math.max(limit * 2, 50);
-            const isSingleChar = normQuery.length === 1;
+            // ⚡ 4. الترتيب والتقييم الصارم لجميع النتائج (Smart Ranking & Exact Match First)
             const scored = [];
-
-            for (let i = 0; i < list.length; i++) {
-                const p = list[i];
+            const seenIds = new Set();
+            for (let i = 0; i < candidates.length; i++) {
+                const p = candidates[i];
                 if (!p) continue;
+                const pKey = (p.id != null) ? p.id : (p.code || p.barcode || i);
+                if (seenIds.has(pKey)) continue;
                 if (options.filterDeleted !== false && p.isDeleted) continue;
 
-                const tok = getProductSearchTokens(p);
-                let score = 0;
-
-                if (tok.normName === normQuery) {
-                    score = Math.max(score, 25000);
-                }
-                if (tok.normBarcode === normQuery || tok.lowerBarcode === lowerQuery) {
-                    score = Math.max(score, 22000);
-                }
-                if (tok.normCode === normQuery || tok.lowerCode === lowerQuery || 
-                    tok.normModelCode === normQuery || tok.lowerModelCode === lowerQuery) {
-                    score = Math.max(score, 20000);
-                }
-
-                if (tok.variantTokens.length > 0) {
-                    for (let j = 0; j < tok.variantTokens.length; j++) {
-                        const vt = tok.variantTokens[j];
-                        if (vt.vBarcode) {
-                            if (vt.normVBarcode === normQuery || vt.lowerVBarcode === lowerQuery) {
-                                score = Math.max(score, 18000);
-                                break;
-                            } else if (vt.normVBarcode.startsWith(normQuery)) {
-                                score = Math.max(score, 3500);
-                            } else if (vt.normVBarcode.includes(normQuery)) {
-                                score = Math.max(score, 1200);
-                            }
-                        }
-                        if (vt.vCode) {
-                            if (vt.normVCode === normQuery || vt.lowerVCode === lowerQuery) {
-                                score = Math.max(score, 17500);
-                                break;
-                            }
-                        }
-                        if (vt.normVSize && vt.normVSize === normQuery) {
-                            score = Math.max(score, 14000);
-                        } else if (vt.normVColor && (vt.normVColor === normQuery || vt.normVColor.includes(normQuery))) {
-                            score = Math.max(score, 5500);
-                        }
-                    }
-                }
-
-                if (tok.normName.startsWith(normQuery)) {
-                    score = Math.max(score, 10000);
-                } else if (!isSingleChar && tok.normName.includes(normQuery)) {
-                    score = Math.max(score, 5000);
-                }
-
+                const score = scoreProductForQuery(p, rawQuery, normQuery, lowerQuery, isSingleChar);
                 if (score > 0) {
+                    seenIds.add(pKey);
                     scored.push({ item: p, score: score });
-                    if (scored.length >= maxCollect) break;
                 }
             }
 
+            // ترتيب تنازلي قطعي حسب درجات التطابق (الأعلى نقاطاً والأدق يظهر أولاً دائماً)
             scored.sort((a, b) => b.score - a.score);
-            return (limit === Infinity) ? scored.map(entry => entry.item) : scored.slice(0, limit).map(entry => entry.item);
+
+            const finalResults = (limit === Infinity) ? scored.map(entry => entry.item) : scored.slice(0, limit).map(entry => entry.item);
+            return finalResults;
         }
         window.searchProductsRanked = searchProductsRanked;
+        window.scoreProductForQuery = scoreProductForQuery;
         window.warmupProductSearchTokens = function() { /* No-op: disabled to prevent memory heap bloat */ };
 
         /**
@@ -1486,12 +1576,11 @@
 
                     // إجمالي رصيد الصنف العام في المخزن النشط
                     let totalProdStockInWH = 0;
+                    const pGenStock = parseFloat(p.stock) || 0;
                     if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
-                        totalProdStockInWH = parseFloat(p.warehouseStocks[activeWH]) || 0;
-                    } else if (activeWH === 'المخزن الرئيسي' || !p.warehouseStocks) {
-                        totalProdStockInWH = parseFloat(p.stock) || 0;
+                        totalProdStockInWH = Math.max(parseFloat(p.warehouseStocks[activeWH]) || 0, pGenStock);
                     } else {
-                        totalProdStockInWH = 0;
+                        totalProdStockInWH = pGenStock;
                     }
                     const globalProdStock = (p.stock !== undefined && p.stock !== null) ? (parseFloat(p.stock) || 0) : totalProdStockInWH;
 
@@ -1505,12 +1594,11 @@
                             const vBarcode = String(v.barcode || '').trim();
 
                             let vStock = 0;
+                            const vGenStock = parseFloat(v.stock) || 0;
                             if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
-                                vStock = parseFloat(v.warehouseStocks[activeWH]) || 0;
-                            } else if (activeWH === 'المخزن الرئيسي' || !v.warehouseStocks) {
-                                vStock = parseFloat(v.stock) || 0;
+                                vStock = Math.max(parseFloat(v.warehouseStocks[activeWH]) || 0, vGenStock);
                             } else {
-                                vStock = 0;
+                                vStock = vGenStock;
                             }
 
                             const vMinStock = (v.minStock !== undefined && v.minStock !== null && v.minStock !== '')
@@ -3215,48 +3303,33 @@
                     return;
                 }
 
-                // 🛡️ 1. فك تعلق التركيز بالزر السابق لمنع أي تداخل
-                if (document.activeElement && typeof document.activeElement.blur === 'function') {
-                    try { document.activeElement.blur(); } catch(e) {}
-                }
-                
                 title.innerText = message;
                 input.value = defaultValue;
                 input.type = inputType || 'text';
                 input.disabled = false;
                 input.readOnly = false;
+                input.style.pointerEvents = 'auto';
                 modal.style.zIndex = '2147483647';
                 modal.classList.remove('hidden');
+                modal.style.display = 'flex';
 
-                // 🛡️ 2. تركيز فوري ومكرر عبر requestAnimationFrame و setTimeout لضمان استقرار التركيز 100%
-                const setFocus = () => {
+                // تركيز فوري ونظيف متوافق تماماً مع نواة إلكترون وويندوز
+                setTimeout(() => {
                     if (input && !modal.classList.contains('hidden')) {
                         input.focus();
-                        if (typeof input.select === 'function') input.select();
+                        try { input.select(); } catch(e) {}
                     }
-                };
-                setFocus();
-                requestAnimationFrame(setFocus);
-                setTimeout(setFocus, 25);
-                setTimeout(setFocus, 50); // تركيز فوري صريح عند 50ms
-                setTimeout(setFocus, 100);
-
-                // 🛡️ 3. Focus Trap ذكي: النقر داخل صندوق المودال يعيد التركيز للحقل تلقائياً مع منع ضياع الفوكس
-                const card = modal.querySelector('.alert-card') || modal;
-                const cardTrapHandler = (e) => {
-                    if (e.target !== confirmBtn && e.target !== cancelBtn && e.target !== input) {
-                        input.focus();
-                    }
-                };
-                card.addEventListener('mousedown', cardTrapHandler);
+                }, 35);
                 
                 function cleanup() {
-                    card.removeEventListener('mousedown', cardTrapHandler);
-                    input.type = 'text'; // إعادة الحقل إلى نص عادي دائماً
                     modal.classList.add('hidden');
+                    modal.style.display = 'none';
+                    modal.onclick = null;
                     confirmBtn.onclick = null;
                     cancelBtn.onclick = null;
                     input.onkeydown = null;
+                    input.type = 'text';
+                    input.value = '';
                 }
                 
                 confirmBtn.onclick = () => {
@@ -3269,12 +3342,21 @@
                     cleanup();
                     resolve(null);
                 };
+
+                // إمكانية الإلغاء بالنقر على الخلفية المعتمة خارج بطاقة المودال
+                modal.onclick = (e) => {
+                    if (e.target === modal) {
+                        cancelBtn.click();
+                    }
+                };
                 
                 input.onkeydown = (e) => {
-                    e.stopPropagation(); // منع المستمعات العامة والسكانر من مصادرة المدخلات
+                    e.stopPropagation();
                     if (e.key === 'Enter') {
+                        e.preventDefault();
                         confirmBtn.click();
                     } else if (e.key === 'Escape') {
+                        e.preventDefault();
                         cancelBtn.click();
                     }
                 };
@@ -3283,13 +3365,32 @@
 
         // 🛡️ صمام الأمان المركزي: التحقق الإجباري من رمز PIN المدير قبل العمليات الحساسة
         window.verifyAdminPinAuthorization = async function(actionTitle, actionDesc) {
-            const userList = (window.users && Array.isArray(window.users) && window.users.length > 0)
+            let userList = (window.users && Array.isArray(window.users) && window.users.length > 0)
                 ? window.users
                 : ((typeof users !== 'undefined' && Array.isArray(users)) ? users : []);
 
-            const admins = userList.filter(u => u && u.role === 'admin' && !u.isFrozen);
-            // إذا لم يكن هناك أي مدير مسجل بعد، نسمح بالإجراء
-            if (admins.length === 0) return true;
+            let admins = userList.filter(u => u && u.role === 'admin' && !u.isFrozen);
+
+            // 🛡️ صمام أمان فوري (0ms): استرجاع المديرين من الكاش السريع إذا كانت مصفوفة الذاكرة فارغة
+            if (admins.length === 0 && typeof localStorage !== 'undefined') {
+                try {
+                    const cached = JSON.parse(localStorage.getItem('bayan_cached_users') || '[]');
+                    if (Array.isArray(cached) && cached.length > 0) {
+                        admins = cached.filter(u => u && u.role === 'admin' && !u.isFrozen);
+                    }
+                } catch (_) {}
+            }
+
+            // فحص هل النظام مُثبّت ومُعدّ مسبقاً (غير معروض كشاشة إعداد لأول مرة)
+            const isInstalled = !!(
+                (typeof getStore === 'function' && (getStore('pos_settings') || getStore('bayan_install_date') || getStore('bayan_master_license'))) ||
+                (typeof localStorage !== 'undefined' && (localStorage.getItem('pos_settings') || localStorage.getItem('bayan_install_date') || localStorage.getItem('bayan_active') || localStorage.getItem('bayan_cached_users')))
+            );
+
+            // السماح بالتجاوز فقط إذا كان النظام في أول إعداد في تاريخه ولم يتم تسجيل أي مدير بعد
+            if (admins.length === 0 && !isInstalled) {
+                return true;
+            }
 
             const promptMsg = `${actionTitle || '🔒 تأكيد إذن المدير'}\n${actionDesc ? (actionDesc + '\n') : ''}يرجى إدخال رمز PIN الخاص بالمدير لتأكيد العملية:`;
             const enteredPin = await window.showCustomPrompt(promptMsg, '', 'password');

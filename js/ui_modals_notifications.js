@@ -3007,30 +3007,29 @@
                     return true;
                 });
 
-                // إذا لم توجد بنود في أسطر الذاكرة، نستخرجها من رأس الفاتورة أو SQLite
-                if (uniquePurMatches.length === 0) {
-                    let extracted = [];
-                    if (Array.isArray(head.items) && head.items.length > 0) extracted = head.items;
-                    else if (Array.isArray(head.products) && head.products.length > 0) extracted = head.products;
-                    else if (Array.isArray(head.cart) && head.cart.length > 0) extracted = head.cart;
-                    else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
-                        extracted = window.BayanSQLite.getInvoiceItems(sId) || [];
-                    }
-                    if (extracted.length > 0) {
-                        uniquePurMatches = extracted.map(it => ({
-                            product: it.product || it.productName || it.name || 'صنف مشتريات',
-                            qty: it.qty != null ? it.qty : (it.quantity || 0),
-                            price: it.price != null ? it.price : (it.costPrice || it.purchasePrice || 0),
-                            costPrice: it.costPrice || it.purchasePrice || it.price || 0,
-                            discount: it.discount || it.itemDiscount || 0,
-                            discountType: it.discountType || 'val',
-                            addition: it.addition || it.extra || 0,
-                            unit: it.unit || '-',
-                            size: it.size || it.selectedSize || '',
-                            color: it.color || it.selectedColor || '',
-                            total: it.total != null ? it.total : ((it.qty || 0) * (it.price || 0))
-                        }));
-                    }
+                // إذا كانت البنود المستخرجة بنداً واحداً أو أقل بينما رأس الفاتورة أو SQLite يحتوي على قائمة أصناف أكبر وأشمل:
+                let extracted = [];
+                if (Array.isArray(head.items) && head.items.length > uniquePurMatches.length) extracted = head.items;
+                else if (Array.isArray(head.products) && head.products.length > uniquePurMatches.length) extracted = head.products;
+                else if (Array.isArray(head.cart) && head.cart.length > uniquePurMatches.length) extracted = head.cart;
+                else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
+                    const sqItems = window.BayanSQLite.getInvoiceItems(sId) || [];
+                    if (sqItems.length > uniquePurMatches.length) extracted = sqItems;
+                }
+                if (extracted.length > 0) {
+                    uniquePurMatches = extracted.map(it => ({
+                        product: it.product || it.productName || it.name || 'صنف مشتريات',
+                        qty: it.qty != null ? it.qty : (it.quantity || 0),
+                        price: it.price != null ? it.price : (it.costPrice || it.purchasePrice || 0),
+                        costPrice: it.costPrice || it.purchasePrice || it.price || 0,
+                        discount: it.discount || it.itemDiscount || 0,
+                        discountType: it.discountType || 'val',
+                        addition: it.addition || it.extra || 0,
+                        unit: it.unit || '-',
+                        size: it.size || it.selectedSize || '',
+                        color: it.color || it.selectedColor || '',
+                        total: it.total != null ? it.total : ((it.qty || 0) * (it.price || 0))
+                    }));
                 }
 
                 tx.items = uniquePurMatches.map(i => {
@@ -3141,30 +3140,29 @@
                 return true;
             });
 
-            // إذا لم توجد بنود في أسطر الذاكرة، نستخرجها من رأس الفاتورة أو SQLite
-            if (uniqueSaleMatches.length === 0) {
-                let extracted = [];
-                if (Array.isArray(head.items) && head.items.length > 0) extracted = head.items;
-                else if (Array.isArray(head.products) && head.products.length > 0) extracted = head.products;
-                else if (Array.isArray(head.cart) && head.cart.length > 0) extracted = head.cart;
-                else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
-                    extracted = window.BayanSQLite.getInvoiceItems(sId) || [];
-                }
-                if (extracted.length > 0) {
-                    uniqueSaleMatches = extracted.map(it => ({
-                        product: it.product || it.productName || it.name || 'صنف',
-                        qty: it.qty != null ? it.qty : (it.quantity || 0),
-                        price: it.price != null ? it.price : 0,
-                        costPrice: it.costPrice || it.price || 0,
-                        discount: it.discount || it.itemDiscount || 0,
-                        discountType: it.discountType || 'val',
-                        addition: it.addition || it.extra || 0,
-                        unit: it.unit || '-',
-                        size: it.size || it.selectedSize || '',
-                        color: it.color || it.selectedColor || '',
-                        total: it.total != null ? it.total : ((it.qty || 0) * (it.price || 0))
-                    }));
-                }
+            // إذا كانت البنود المستخرجة بنداً واحداً أو أقل بينما رأس الفاتورة أو SQLite يحتوي على قائمة أصناف أكبر وأشمل:
+            let extracted = [];
+            if (Array.isArray(head.items) && head.items.length > uniqueSaleMatches.length) extracted = head.items;
+            else if (Array.isArray(head.products) && head.products.length > uniqueSaleMatches.length) extracted = head.products;
+            else if (Array.isArray(head.cart) && head.cart.length > uniqueSaleMatches.length) extracted = head.cart;
+            else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
+                const sqItems = window.BayanSQLite.getInvoiceItems(sId) || [];
+                if (sqItems.length > uniqueSaleMatches.length) extracted = sqItems;
+            }
+            if (extracted.length > 0) {
+                uniqueSaleMatches = extracted.map(it => ({
+                    product: it.product || it.productName || it.name || 'صنف',
+                    qty: it.qty != null ? it.qty : (it.quantity || 0),
+                    price: it.price != null ? it.price : 0,
+                    costPrice: it.costPrice || it.price || 0,
+                    discount: it.discount || it.itemDiscount || 0,
+                    discountType: it.discountType || 'val',
+                    addition: it.addition || it.extra || 0,
+                    unit: it.unit || '-',
+                    size: it.size || it.selectedSize || '',
+                    color: it.color || it.selectedColor || '',
+                    total: it.total != null ? it.total : ((it.qty || 0) * (it.price || 0))
+                }));
             }
 
             tx.items = uniqueSaleMatches.map(i => {

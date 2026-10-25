@@ -73,11 +73,11 @@ window.BayanNetworkHub = {
 // 🔢 المزامنة التلقائية لرقم الإصدار الموحد (Single Source of Truth Unification)
 // المصدر الرسمي الوحيد هو package.json عبر app.getVersion()
 // =========================================================================
-window.appVersion = '4.9.2';
-window.APP_VERSION = '4.9.2';
+window.appVersion = '4.9.5';
+window.APP_VERSION = '4.9.5';
 
 async function fetchAppVersion() {
-    let version = '4.9.2';
+    let version = '4.9.5';
     try {
         if (typeof window !== 'undefined' && window.require) {
             const electron = window.require('electron');
@@ -97,7 +97,7 @@ async function fetchAppVersion() {
 }
 
 function syncAppVersionUI(version) {
-    if (!version) version = window.appVersion || '4.9.2';
+    if (!version) version = window.appVersion || '4.9.5';
     window.appVersion = version;
     window.APP_VERSION = version;
 
@@ -822,8 +822,8 @@ async function loadData() {
                     } catch(e) {}
                 }
             }
-            // 🔒 نحافظ على حماية وتشفير رمز PIN في الذاكرة لمنع كشفه بنص صريح وترقيته للتجزئة الأقوى
-            if (rawPin != null && rawPin !== '' && !String(rawPin).startsWith('HASH:v1:')) {
+            // 🔒 نحافظ على حماية وتشفير رمز PIN في الذاكرة لمنع كشفه بنص صريح وترقيته للتشفير المتقدم
+            if (rawPin != null && rawPin !== '' && !String(rawPin).startsWith('ENC:v4:') && !String(rawPin).startsWith('HASH:v1:')) {
                 pinMigrationNeeded = true;
             }
             return { ...u, pin: rawPin };
@@ -850,6 +850,13 @@ async function loadData() {
                         : u.pin
                 }));
                 await db.users.bulkPut(encryptedUsers);
+                if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+                    try {
+                        for (const u of encryptedUsers) {
+                            window.BayanSQLite.nativeDb.prepare("UPDATE users SET pin = ? WHERE id = ?;").run(u.pin, u.id);
+                        }
+                    } catch(ne) {}
+                }
                 console.log("🔒 [Security] تم تشفير وتأمين كافة رموز PIN في قاعدة بيانات SQLite بنجاح.");
             } catch (migErr) {
                 console.warn("⚠️ [Security] تعذر التحديث التلقائي لتشفير رموز PIN في SQLite:", migErr);
@@ -902,9 +909,32 @@ async function loadData() {
                     if (v.stock !== undefined && (parseFloat(v.stock) < 0 || isNaN(parseFloat(v.stock)))) {
                         v.stock = 0;
                     }
+                    if (v.warehouseStocks && typeof v.warehouseStocks === 'object') {
+                        Object.keys(v.warehouseStocks).forEach(wh => {
+                            if (parseFloat(v.warehouseStocks[wh]) < 0 && (parseFloat(v.stock) || 0) > 0) {
+                                if (wh === 'المخزن الرئيسي') v.warehouseStocks[wh] = parseFloat(v.stock) || 0;
+                                else delete v.warehouseStocks[wh];
+                            }
+                        });
+                    }
                     vSum += (parseFloat(v.stock) || 0);
                 }
                 p.stock = vSum;
+                if (p.warehouseStocks && typeof p.warehouseStocks === 'object') {
+                    Object.keys(p.warehouseStocks).forEach(wh => {
+                        if (parseFloat(p.warehouseStocks[wh]) < 0 && p.stock > 0) {
+                            if (wh === 'المخزن الرئيسي') p.warehouseStocks[wh] = p.stock;
+                            else delete p.warehouseStocks[wh];
+                        }
+                    });
+                }
+            } else if (p && p.warehouseStocks && typeof p.warehouseStocks === 'object') {
+                Object.keys(p.warehouseStocks).forEach(wh => {
+                    if (parseFloat(p.warehouseStocks[wh]) < 0 && (parseFloat(p.stock) || 0) > 0) {
+                        if (wh === 'المخزن الرئيسي') p.warehouseStocks[wh] = parseFloat(p.stock) || 0;
+                        else delete p.warehouseStocks[wh];
+                    }
+                });
             }
         };
 
@@ -1888,48 +1918,75 @@ window.syncAllVariantPricesWithProductBase = async function() {
 // =========================================================================
 window._bayanActiveIntervals = window._bayanActiveIntervals || [];
 
+// =========================================================================
+// 🧹 حارس الذاكرة المركزي الفوري والدوري (Bayan Master Memory Guard)
+// =========================================================================
+window.bayanTriggerMemoryPurge = function() {
+    try {
+        // 1. تفريغ كاش حركات وتلخيص المخزون واستعلامات الأثر الرجعي
+        if (typeof window.invalidateInvSummaryCache === 'function') {
+            window.invalidateInvSummaryCache();
+        }
+        if (typeof _stockHistoryCache !== 'undefined') {
+            _stockHistoryCache = null;
+        }
+
+        // 2. ترشيد ذاكرة المعاملات والتخلص من السجلات القديمة المعلقة
+        if (window.transactions && Array.isArray(window.transactions) && window.transactions.length > 3000) {
+            try {
+                const todayStr = new Date().toISOString().split('T')[0];
+                const activeDocIds = new Set();
+                if (window.openTabs && Array.isArray(window.openTabs)) {
+                    window.openTabs.forEach(t => {
+                        if (t && t.id) activeDocIds.add(String(t.id));
+                    });
+                }
+                if (window.cart && Array.isArray(window.cart)) {
+                    window.cart.forEach(c => {
+                        if (c && c.invoiceId) activeDocIds.add(String(c.invoiceId));
+                    });
+                }
+                const kept = window.transactions.filter(t => {
+                    if (!t) return false;
+                    const d = t.dateISO ? t.dateISO.split('T')[0] : '';
+                    const invId = String(t.invoiceId || t.id || '');
+                    return d === todayStr || activeDocIds.has(invId);
+                });
+                if (kept.length > 0 && kept.length < window.transactions.length) {
+                    window.transactions = kept;
+                    if (typeof transactions !== 'undefined') transactions = kept;
+                }
+            } catch(e) {}
+        }
+
+        // 3. تحرير ذاكرة التخزين المؤقت لمحرك SQLite واستعادة صفحات الذاكرة لنظام التشغيل
+        if (window.BayanSQLite && typeof window.BayanSQLite.purgeMemory === 'function') {
+            window.BayanSQLite.purgeMemory();
+        }
+
+        // 4. استدعاء جامع القمامة V8 Garbage Collector سواء كان على window أو global
+        const runGC = window.gc || (typeof global !== 'undefined' && global && global.gc);
+        if (typeof runGC === 'function') {
+            try { runGC(); } catch (_) {}
+        }
+
+        // 5. إشعار نواة إلكترون بتفريغ كاش كروميوم والصور المؤقتة
+        if (typeof require === 'function') {
+            try {
+                const { ipcRenderer } = require('electron');
+                if (ipcRenderer && typeof ipcRenderer.invoke === 'function') {
+                    ipcRenderer.invoke('bayan-trim-memory').catch(() => {});
+                }
+            } catch (_) {}
+        }
+    } catch (errPurge) {
+        console.warn("⚠️ [Memory Guard Notice]:", errPurge.message);
+    }
+};
+
 window._bayanMemoryCleanupInterval = setInterval(() => {
-    // 1. تفريغ كاش حركات وتلخيص المخزون القديمة
-    if (typeof window.invalidateInvSummaryCache === 'function') {
-        window.invalidateInvSummaryCache();
-    }
-
-    // 2. ترشيد ذاكرة المعاملات والتخلص من السجلات التاريخية القديمة التي لم تعد مستخدمة في الشاشة الحالية
-    if (window.transactions && Array.isArray(window.transactions) && window.transactions.length > 3000) {
-        try {
-            const todayStr = new Date().toISOString().split('T')[0];
-            const activeDocIds = new Set();
-            if (window.openTabs && Array.isArray(window.openTabs)) {
-                window.openTabs.forEach(t => {
-                    if (t && t.id) activeDocIds.add(String(t.id));
-                });
-            }
-            if (window.cart && Array.isArray(window.cart)) {
-                window.cart.forEach(c => {
-                    if (c && c.invoiceId) activeDocIds.add(String(c.invoiceId));
-                });
-            }
-            const kept = window.transactions.filter(t => {
-                if (!t) return false;
-                const d = t.dateISO ? t.dateISO.split('T')[0] : '';
-                const invId = String(t.invoiceId || t.id || '');
-                return d === todayStr || activeDocIds.has(invId);
-            });
-            if (kept.length > 0 && kept.length < window.transactions.length) {
-                window.transactions = kept;
-                if (typeof transactions !== 'undefined') transactions = kept;
-            }
-        } catch(e) {}
-    }
-
-    // 3. تحرير ذاكرة التخزين المؤقت لمحرك SQLite واستعادة صفحات الذاكرة لنظام التشغيل
-    if (window.BayanSQLite && typeof window.BayanSQLite.purgeMemory === 'function') {
-        window.BayanSQLite.purgeMemory();
-    }
-
-    // 4. استدعاء جامع القمامة V8 Garbage Collector
-    if (typeof window.gc === 'function') {
-        try { window.gc(); } catch (_) {}
+    if (typeof window.bayanTriggerMemoryPurge === 'function') {
+        window.bayanTriggerMemoryPurge();
     }
 }, 180000);
 

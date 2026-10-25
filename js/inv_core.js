@@ -2035,24 +2035,33 @@ window.invalidateStockCache = invalidateStockCache;
 
 function getLiveProductWhStock(p, targetWH) {
     if (!p) return 0;
+    const pGenStock = parseFloat(p.stock) || 0;
     if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
         let varSum = 0;
         p.variants.forEach(v => {
+            const vGen = parseFloat(v.stock) || 0;
             if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[targetWH] !== undefined) {
-                varSum += parseFloat(v.warehouseStocks[targetWH]) || 0;
-            } else if (targetWH === 'المخزن الرئيسي') {
-                varSum += parseFloat(v.stock) || 0;
+                let val = parseFloat(v.warehouseStocks[targetWH]);
+                if (targetWH === 'المخزن الرئيسي' && val < 0 && vGen > 0) {
+                    val = vGen;
+                    v.warehouseStocks[targetWH] = val;
+                }
+                varSum += isNaN(val) ? vGen : Math.max(val, vGen);
+            } else {
+                varSum += vGen;
             }
         });
-        return varSum;
+        return Math.max(varSum, pGenStock);
     }
     if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[targetWH] !== undefined) {
-        return parseFloat(p.warehouseStocks[targetWH]) || 0;
+        let val = parseFloat(p.warehouseStocks[targetWH]);
+        if (targetWH === 'المخزن الرئيسي' && val < 0 && pGenStock > 0) {
+            val = pGenStock;
+            p.warehouseStocks[targetWH] = val;
+        }
+        return isNaN(val) ? pGenStock : Math.max(val, pGenStock);
     }
-    if (targetWH === 'المخزن الرئيسي') {
-        return parseFloat(p.stock) || 0;
-    }
-    return 0;
+    return pGenStock;
 }
 
 let _prodByNameMap = null;

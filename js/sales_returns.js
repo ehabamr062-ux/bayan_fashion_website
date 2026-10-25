@@ -49,61 +49,55 @@ function updateReturnTotal(type) {
 
     }
 
-    const subTotal = data.reduce((a, b) => a + (b.price * b.qty), 0);
+    const subTotal = data.reduce((a, b) => {
+        const q = parseFloat(b.qty) || 0;
+        const p = parseFloat(b.price) || 0;
+        const line = (typeof bayanRound === 'function') ? bayanRound(q * p, 2) : (q * p);
+        return (typeof bayanRound === 'function') ? bayanRound(a + line, 2) : (a + line);
+    }, 0);
 
     // تحديث الإحصائيات في الملخص
-
     const totalQty = data.reduce((sum, item) => sum + (parseFloat(item.qty) || 0), 0);
 
     if (document.getElementById(itemsCountId)) document.getElementById(itemsCountId).innerText = data.length;
-
-    if (document.getElementById(totalQtyId)) document.getElementById(totalQtyId).innerText = totalQty;
-
-    if (document.getElementById(subTotalDisplayId)) document.getElementById(subTotalDisplayId).innerText = subTotal.toFixed(2);
+    if (document.getElementById(totalQtyId)) document.getElementById(totalQtyId).innerText = (typeof bayanRound === 'function') ? bayanRound(totalQty, 3) : totalQty;
+    if (document.getElementById(subTotalDisplayId)) document.getElementById(subTotalDisplayId).innerText = (typeof bayanFormatMoney === 'function') ? bayanFormatMoney(subTotal) : subTotal.toFixed(2);
 
     // حساب الخصم
-
     let discVal = 0;
-
     const discEl = document.getElementById(discountId);
-
     if (discEl) discVal = parseFloat(discEl.value) || 0;
-
     const discTypeEl = document.getElementById(discountId + 'Type');
-
     const discType = discTypeEl ? discTypeEl.value : 'fixed';
 
-    let discAmount = (discType === 'perc') ? (subTotal * discVal / 100) : discVal;
+    let discAmount = (discType === 'perc') 
+        ? ((typeof bayanRound === 'function') ? bayanRound(subTotal * discVal / 100, 2) : (subTotal * discVal / 100))
+        : discVal;
 
-    if (document.getElementById(discDispId)) document.getElementById(discDispId).innerText = discAmount.toFixed(2);
+    if (document.getElementById(discDispId)) document.getElementById(discDispId).innerText = (typeof bayanFormatMoney === 'function') ? bayanFormatMoney(discAmount) : discAmount.toFixed(2);
 
     // حساب الإضافة/الضريبة
-
     let taxVal = 0;
-
     const taxEl = document.getElementById(taxId);
-
     if (taxEl) taxVal = parseFloat(taxEl.value) || 0;
-
     const taxTypeEl = document.getElementById(taxId + 'Type');
-
     const taxType = taxTypeEl ? taxTypeEl.value : 'fixed';
 
-    let taxAmount = (taxType === 'perc') ? (subTotal * taxVal / 100) : taxVal;
+    let taxAmount = (taxType === 'perc') 
+        ? ((typeof bayanRound === 'function') ? bayanRound(subTotal * taxVal / 100, 2) : (subTotal * taxVal / 100))
+        : taxVal;
 
-    if (document.getElementById(taxDispId)) document.getElementById(taxDispId).innerText = taxAmount.toFixed(2);
+    if (document.getElementById(taxDispId)) document.getElementById(taxDispId).innerText = (typeof bayanFormatMoney === 'function') ? bayanFormatMoney(taxAmount) : taxAmount.toFixed(2);
 
-    let finalTotal = subTotal - discAmount + taxAmount;
+    let finalTotal = (typeof bayanRound === 'function') 
+        ? bayanRound(Math.max(0, subTotal - discAmount + taxAmount), 2)
+        : Math.max(0, subTotal - discAmount + taxAmount);
 
-    if (finalTotal < 0) finalTotal = 0;
-
-    document.getElementById(totalAmountId).innerText = finalTotal.toFixed(2);
+    document.getElementById(totalAmountId).innerText = (typeof bayanFormatMoney === 'function') ? bayanFormatMoney(finalTotal) : finalTotal.toFixed(2);
 
     const bigTotalId = (type === 'purchase') ? 'purReturnFinalTotalBig' : 'salesReturnFinalTotalBig';
-
     const bigTotalEl = document.getElementById(bigTotalId);
-
-    if (bigTotalEl) bigTotalEl.innerText = finalTotal.toFixed(2);
+    if (bigTotalEl) bigTotalEl.innerText = (typeof bayanFormatMoney === 'function') ? bayanFormatMoney(finalTotal) : finalTotal.toFixed(2);
 
     // تحديث السطور ليعكس توزيع الخصم والضريبة
 
@@ -590,9 +584,16 @@ async function saveSalesReturn(force = false, accountChecked = false) {
 
     window.isSavingTransaction = true;
 
-    // تعطيل أزرار الحفظ فوراً لمنع الضغط المزدوج
+    // تعطيل أزرار الحفظ فوراً لمنع الضغط المزدوج مع مؤقت أمان تلقائي لفك القفل
     const saveBtns = document.querySelectorAll('#sales-return-section .btn-save, #sales-return-section .action-btn');
     saveBtns.forEach(b => { b.disabled = true; b.style.pointerEvents = 'none'; b.style.opacity = '0.6'; });
+
+    if (window._bayanRetSaveLockTimer) clearTimeout(window._bayanRetSaveLockTimer);
+    window._bayanRetSaveLockTimer = setTimeout(() => {
+        window.isSavingTransaction = false;
+        const sBtns = document.querySelectorAll('#sales-return-section .btn-save, #sales-return-section .action-btn');
+        sBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
+    }, 1500);
 
     try {
 
@@ -962,12 +963,18 @@ async function saveSalesReturn(force = false, accountChecked = false) {
                 : (((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : (origMatch ? origMatch.warehouse : 'المخزن الرئيسي')) || 'المخزن الرئيسي').trim();
 
             if (p) {
+                if (!p.warehouseStocks || typeof p.warehouseStocks !== 'object') p.warehouseStocks = {};
+                let curProdWhStock = 0;
+                if (p.warehouseStocks[activeWH] !== undefined) {
+                    curProdWhStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
+                } else {
+                    curProdWhStock = parseFloat(p.stock) || 0;
+                }
+                p.warehouseStocks[activeWH] = curProdWhStock + baseQty;
                 p.stock = (parseFloat(p.stock) || 0) + baseQty;
-                if (!p.warehouseStocks) p.warehouseStocks = {};
-                p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
 
                 // تحديث رصيد التشكيلة (المقاس واللون) في مصفوفة الصنف بدقة وتطابق تام
-                if (p.variants && Array.isArray(p.variants)) {
+                if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
                     if (sSize || sColor) {
                         const cleanV = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
                         const cSize = cleanV(sSize);
@@ -977,20 +984,32 @@ async function saveSalesReturn(force = false, accountChecked = false) {
                             (!cColor || cleanV(v.color) === cColor)
                         );
                         if (matchedVar) {
+                            if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
+                            let curVarWhStock = 0;
+                            if (matchedVar.warehouseStocks[activeWH] !== undefined) {
+                                curVarWhStock = parseFloat(matchedVar.warehouseStocks[activeWH]) || 0;
+                            } else {
+                                curVarWhStock = parseFloat(matchedVar.stock) || 0;
+                            }
+                            matchedVar.warehouseStocks[activeWH] = curVarWhStock + baseQty;
                             matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
-                            if (!matchedVar.warehouseStocks) matchedVar.warehouseStocks = {};
-                            matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) + baseQty;
                         }
                     }
-                    if (p.variants.length > 0) {
-                        p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
-                        if (!p.warehouseStocks) p.warehouseStocks = {};
-                        p.warehouseStocks[activeWH] = p.variants.reduce((sum, v) => {
-                            const vWh = (v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined)
-                                ? parseFloat(v.warehouseStocks[activeWH])
-                                : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0);
-                            return sum + vWh;
-                        }, 0);
+
+                    // مزامنة إجمالي رصيد الصنف ورصيد المخزن مع مجموع المقاسات
+                    p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
+                    let totalVarWhStock = 0;
+                    let hasExplicitVarWh = false;
+                    p.variants.forEach(v => {
+                        if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
+                            totalVarWhStock += parseFloat(v.warehouseStocks[activeWH]) || 0;
+                            hasExplicitVarWh = true;
+                        } else if (activeWH === 'المخزن الرئيسي') {
+                            totalVarWhStock += parseFloat(v.stock) || 0;
+                        }
+                    });
+                    if (hasExplicitVarWh || activeWH === 'المخزن الرئيسي') {
+                        p.warehouseStocks[activeWH] = totalVarWhStock;
                     }
                 }
 
@@ -1038,7 +1057,13 @@ async function saveSalesReturn(force = false, accountChecked = false) {
 
             // الحساب المختار حالياً (مأخوذ من النطاق الخارجي finalPartner)
 
+            const rowId = (idx === 0)
+                ? String(returnInvoiceId)
+                : `${returnInvoiceId}_item_${idx + 1}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+
             const newReturnRow = {
+
+                id: rowId,
 
                 date: dt.full,
 
@@ -1096,6 +1121,7 @@ async function saveSalesReturn(force = false, accountChecked = false) {
                 paidAmount: (idx === 0) ? (isCredit ? 0 : finalTotal) : 0,
 
                 isInvoiceHead: (idx === 0),
+                items: (idx === 0) ? JSON.parse(JSON.stringify(returnCart)) : undefined,
 
                 unitFactor: factor,
 
@@ -1205,6 +1231,10 @@ async function saveSalesReturn(force = false, accountChecked = false) {
 
     } finally {
 
+        if (window._bayanRetSaveLockTimer) {
+            clearTimeout(window._bayanRetSaveLockTimer);
+            window._bayanRetSaveLockTimer = null;
+        }
         const saveBtns = document.querySelectorAll('#sales-return-section .btn-save, #sales-return-section .action-btn');
         saveBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
         window.isSavingTransaction = false;
@@ -1477,9 +1507,16 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
 
     window.isSavingTransaction = true;
 
-    // تعطيل أزرار الحفظ فوراً لمنع الضغط المزدوج
+    // تعطيل أزرار الحفظ فوراً لمنع الضغط المزدوج مع مؤقت أمان تلقائي لفك القفل
     const saveBtns = document.querySelectorAll('#purchase-return-section .btn-save, #purchase-return-section .action-btn');
     saveBtns.forEach(b => { b.disabled = true; b.style.pointerEvents = 'none'; b.style.opacity = '0.6'; });
+
+    if (window._bayanPurRetSaveLockTimer) clearTimeout(window._bayanPurRetSaveLockTimer);
+    window._bayanPurRetSaveLockTimer = setTimeout(() => {
+        window.isSavingTransaction = false;
+        const sBtns = document.querySelectorAll('#purchase-return-section .btn-save, #purchase-return-section .action-btn');
+        sBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
+    }, 1500);
 
     try {
 
@@ -1805,12 +1842,18 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
             const activeWH = (item.warehouse || (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) || (origMatch && origMatch.warehouse) || 'المخزن الرئيسي').trim();
 
             if (p) {
-                p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
                 if (!p.warehouseStocks || typeof p.warehouseStocks !== 'object') p.warehouseStocks = {};
-                p.warehouseStocks[activeWH] = Math.max(0, (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty);
+                let curProdWhStock = 0;
+                if (p.warehouseStocks[activeWH] !== undefined) {
+                    curProdWhStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
+                } else {
+                    curProdWhStock = parseFloat(p.stock) || 0;
+                }
+                p.warehouseStocks[activeWH] = Math.max(0, curProdWhStock - baseQty);
+                p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
 
                 // تحديث رصيد التشكيلة (المقاس واللون) في مصفوفة الصنف عند مرتجع الشراء بدقة وتطابق تام
-                if (p.variants && Array.isArray(p.variants)) {
+                if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
                     const sSize = String(item.selectedSize || item.size || '').trim();
                     const sColor = String(item.selectedColor || item.color || '').trim();
                     if (sSize || sColor) {
@@ -1822,20 +1865,32 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
                             (!cColor || cleanV(v.color) === cColor)
                         );
                         if (matchedVar) {
-                            matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
                             if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
-                            matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
+                            let curVarWhStock = 0;
+                            if (matchedVar.warehouseStocks[activeWH] !== undefined) {
+                                curVarWhStock = parseFloat(matchedVar.warehouseStocks[activeWH]) || 0;
+                            } else {
+                                curVarWhStock = parseFloat(matchedVar.stock) || 0;
+                            }
+                            matchedVar.warehouseStocks[activeWH] = Math.max(0, curVarWhStock - baseQty);
+                            matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
                         }
                     }
-                    if (p.variants.length > 0) {
-                        p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
-                        if (!p.warehouseStocks) p.warehouseStocks = {};
-                        p.warehouseStocks[activeWH] = p.variants.reduce((sum, v) => {
-                            const vWh = (v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined)
-                                ? parseFloat(v.warehouseStocks[activeWH])
-                                : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0);
-                            return sum + vWh;
-                        }, 0);
+
+                    // مزامنة إجمالي رصيد الصنف ورصيد المخزن مع مجموع المقاسات
+                    p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
+                    let totalVarWhStock = 0;
+                    let hasExplicitVarWh = false;
+                    p.variants.forEach(v => {
+                        if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
+                            totalVarWhStock += parseFloat(v.warehouseStocks[activeWH]) || 0;
+                            hasExplicitVarWh = true;
+                        } else if (activeWH === 'المخزن الرئيسي') {
+                            totalVarWhStock += parseFloat(v.stock) || 0;
+                        }
+                    });
+                    if (hasExplicitVarWh || activeWH === 'المخزن الرئيسي') {
+                        p.warehouseStocks[activeWH] = totalVarWhStock;
                     }
                 }
 
@@ -1858,7 +1913,13 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
 
             // الحساب المختار حالياً (مأخوذ من النطاق الخارجي finalPartner)
 
+            const rowId = (idx === 0)
+                ? String(returnInvoiceId)
+                : `${returnInvoiceId}_item_${idx + 1}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+
             const newPurReturnRow = {
+
+                id: rowId,
 
                 date: dt.full,
 
@@ -1916,6 +1977,7 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
                 paidAmount: (idx === 0) ? (isCredit ? 0 : finalTotal) : 0,
 
                 isInvoiceHead: (idx === 0),
+                items: (idx === 0) ? JSON.parse(JSON.stringify(purReturnCart)) : undefined,
 
                 unitFactor: factor,
 
@@ -2019,6 +2081,10 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
 
     } finally {
 
+        if (window._bayanPurRetSaveLockTimer) {
+            clearTimeout(window._bayanPurRetSaveLockTimer);
+            window._bayanPurRetSaveLockTimer = null;
+        }
         const saveBtns = document.querySelectorAll('#purchase-return-section .btn-save, #purchase-return-section .action-btn');
         saveBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
         window.isSavingTransaction = false;
@@ -2479,13 +2545,13 @@ document.addEventListener('keydown', (e) => {
 
     // 🛡️ صمام أمان حاسم: منع خطف التركيز نهائياً إذا كانت هناك أي نافذة منبثقة أو مربع حوار مفتوح
     const hasActiveModal = !!document.querySelector(
-        '.confirm-modal-overlay:not(.hidden), .modal-overlay:not(.hidden), .calc-modal.visible, #customPromptModal:not(.hidden), #alertModal:not(.hidden), #confirmModal:not(.hidden), #bayanFastInquiryModal[style*="display: flex"], #userFormCard:not(.hidden)'
+        '.confirm-modal-overlay:not(.hidden):not([style*="display: none"]), .modal-overlay:not(.hidden):not([style*="display: none"]), .calc-modal.visible, #customPromptModal:not(.hidden):not([style*="display: none"]), #alertModal:not(.hidden):not([style*="display: none"]), #confirmModal:not(.hidden):not([style*="display: none"]), #bayanFastInquiryModal[style*="display: flex"], #userFormCard:not(.hidden):not([style*="display: none"])'
     );
     if (hasActiveModal) return;
 
     // التأكد من أن المستخدم ليس في صفحة الإعدادات أو التقارير
     const activeSection = document.querySelector('.section-view:not(.hidden)');
-    if (activeSection && activeSection.id === 'settings-section') return;
+    if (activeSection && (activeSection.id === 'settings-section' || activeSection.id === 'reports-section' || activeSection.id === 'accounts-section' || activeSection.id === 'inventory-section')) return;
 
     const currentTab = openTabs.find(t => t.id === activeTabId);
     if (!currentTab) return;

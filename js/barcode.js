@@ -672,14 +672,11 @@ const BayanBarcode = (function () {
             const fromWh = (document.getElementById('transferFrom')?.value || 'المخزن الرئيسي').trim();
             let currentWhStock = (typeof getWarehouseStock === 'function') ? getWarehouseStock(product.name, fromWh) : (parseFloat(product.stock) || 0);
             if (variant) {
+                const vGenStock = parseFloat(variant.stock) || 0;
                 if (variant.warehouseStocks && typeof variant.warehouseStocks === 'object' && variant.warehouseStocks[fromWh] !== undefined) {
-                    currentWhStock = parseFloat(variant.warehouseStocks[fromWh]) || 0;
-                } else if (fromWh === 'المخزن الرئيسي' || !variant.warehouseStocks || Object.keys(variant.warehouseStocks).length === 0) {
-                    currentWhStock = parseFloat(variant.stock) || 0;
+                    currentWhStock = Math.max(parseFloat(variant.warehouseStocks[fromWh]) || 0, vGenStock);
                 } else {
-                    currentWhStock = (variant.warehouseStocks && variant.warehouseStocks[fromWh] !== undefined)
-                        ? (parseFloat(variant.warehouseStocks[fromWh]) || 0)
-                        : (parseFloat(variant.stock) || parseFloat(product.stock) || 0);
+                    currentWhStock = vGenStock;
                 }
             }
 
@@ -853,10 +850,11 @@ const BayanBarcode = (function () {
         // 🛡️ صمام أمان حاسم: إذا كان المستخدم يكتب في حقل كلمة سر أو داخل نافذة منبثقة/حوار، نتجاهل مستمع الباركود تماماً
         const activeElem = document.activeElement;
         const isPasswordInput = activeElem && activeElem.tagName === 'INPUT' && activeElem.type === 'password';
-        const isInsideModal = activeElem && !!activeElem.closest('.confirm-modal-overlay, .modal-overlay, #customPromptModal, #alertModal, #confirmModal, #loginModal');
-        const hasOpenPromptModal = !!document.querySelector('#customPromptModal:not(.hidden), #alertModal:not(.hidden), #confirmModal:not(.hidden)');
+        const isInsideModal = activeElem && !!activeElem.closest('.confirm-modal-overlay, .modal-overlay, #customPromptModal, #alertModal, #confirmModal, #loginModal, #userFormCard');
+        const hasOpenPromptModal = !!document.querySelector('#customPromptModal:not(.hidden):not([style*="display: none"]), #alertModal:not(.hidden):not([style*="display: none"]), #confirmModal:not(.hidden):not([style*="display: none"]), #loginModal:not(.hidden):not([style*="display: none"])');
+        const isPromptOrSettingsInput = activeElem && (activeElem.id === 'customPromptInput' || activeElem.id === 'userPinInput' || activeElem.id === 'trashSearchInput' || !!activeElem.closest('#settings-section'));
 
-        if (isPasswordInput || isInsideModal || hasOpenPromptModal) {
+        if (isPasswordInput || isInsideModal || hasOpenPromptModal || isPromptOrSettingsInput) {
             buffer = '';
             keyIntervals = [];
             return;
@@ -1065,9 +1063,10 @@ const BayanBarcode = (function () {
         if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT' || active.isContentEditable)) {
             return;
         }
-        // لا تسرق التركيز إذا كانت هناك أي نافذة منبثقة مفتوحة
-        const hasOpenModal = document.querySelector('.confirm-modal-overlay:not(.hidden), .modal-overlay:not(.hidden), #customPromptModal:not(.hidden), #alertModal:not(.hidden), #confirmModal:not(.hidden), #loginModal:not(.hidden), #searchInvoiceModal:not(.hidden), #newItemModal:not(.hidden)');
-        if (hasOpenModal) {
+        // لا تسرق التركيز إذا كانت هناك أي نافذة منبثقة مفتوحة أو إذا كان المستخدم في قسم الإعدادات
+        const hasOpenModal = document.querySelector('.confirm-modal-overlay:not(.hidden):not([style*="display: none"]), .modal-overlay:not(.hidden):not([style*="display: none"]), #customPromptModal:not(.hidden):not([style*="display: none"]), #alertModal:not(.hidden):not([style*="display: none"]), #confirmModal:not(.hidden):not([style*="display: none"]), #loginModal:not(.hidden):not([style*="display: none"]), #searchInvoiceModal:not(.hidden):not([style*="display: none"]), #newItemModal:not(.hidden):not([style*="display: none"])');
+        const isSettings = !!document.querySelector('#settings-section:not(.hidden)');
+        if (hasOpenModal || isSettings) {
             return;
         }
 
@@ -1256,16 +1255,18 @@ window.dispatchSearchBarcode = function(code, context) {
             const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
             let liveStock = 0;
             if (variant) {
+                const vGenStock = parseFloat(variant.stock) || 0;
                 if (variant.warehouseStocks && typeof variant.warehouseStocks === 'object' && variant.warehouseStocks[activeWH] !== undefined) {
-                    liveStock = parseFloat(variant.warehouseStocks[activeWH]) || 0;
-                } else if (activeWH === 'المخزن الرئيسي' || !variant.warehouseStocks) {
-                    liveStock = parseFloat(variant.stock) || 0;
+                    liveStock = Math.max(parseFloat(variant.warehouseStocks[activeWH]) || 0, vGenStock);
+                } else {
+                    liveStock = vGenStock;
                 }
             } else {
+                const pGenStock = parseFloat(product.stock) || 0;
                 if (product.warehouseStocks && typeof product.warehouseStocks === 'object' && product.warehouseStocks[activeWH] !== undefined) {
-                    liveStock = parseFloat(product.warehouseStocks[activeWH]) || 0;
-                } else if (activeWH === 'المخزن الرئيسي' || !product.warehouseStocks) {
-                    liveStock = parseFloat(product.stock) || 0;
+                    liveStock = Math.max(parseFloat(product.warehouseStocks[activeWH]) || 0, pGenStock);
+                } else {
+                    liveStock = pGenStock;
                 }
             }
 

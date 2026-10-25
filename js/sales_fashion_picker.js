@@ -94,12 +94,12 @@ function getVariantPricingAndStock(product, v, context, activeWH, priceLevel) {
     }
 
     let stockVal = 0;
+    const vGeneralStock = parseFloat(v.stock) || 0;
     if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
-        stockVal = parseFloat(v.warehouseStocks[activeWH]) || 0;
-    } else if (activeWH === 'المخزن الرئيسي') {
-        stockVal = parseFloat(v.stock) || 0;
+        const whVal = parseFloat(v.warehouseStocks[activeWH]);
+        stockVal = isNaN(whVal) ? vGeneralStock : Math.max(whVal, vGeneralStock);
     } else {
-        stockVal = 0;
+        stockVal = vGeneralStock;
     }
 
     return { vPrice, priceTitle, stockVal };

@@ -302,7 +302,7 @@ app.whenReady().then(() => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();
     });
 
-    // فحص التحديثات تلقائياً بهدوء بعد 75 ثانية من تشغيل التطبيق لضمان استقرار شاشة البيع وعدم تعليق مدخلات الكاشير
+    // فحص التحديثات تلقائياً بهدوء بعد 3 دقائق من تشغيل التطبيق لضمان استقرار شاشة البيع وعدم تعليق مدخلات الكاشير
     setTimeout(() => {
         if (typeof isAutoUpdatesFrozenOnDisk === 'function' && isAutoUpdatesFrozenOnDisk()) {
             console.log('[Updater] 🔒 تخطي الفحص التلقائي عند بدء التشغيل: التحديثات مجمدة تماماً بناءً على اختيار العميل.');
@@ -313,7 +313,7 @@ app.whenReady().then(() => {
                 console.warn('Auto check for updates failed (safe to ignore if offline):', err.message);
             });
         }
-    }, 75000);
+    }, 180000);
 });
 
 app.on('window-all-closed', function () {
@@ -1050,6 +1050,13 @@ ipcMain.handle('restore-sqlite-direct-backup', async (_e, srcFilePath) => {
                 await fs.promises.copyFile(sqliteOriginalPath, sqliteOriginalPath + '.before_restore.bak');
             } catch(bakErr) {}
         }
+
+        // 🛡️ صمام أمان حاسم: تنظيف ملفات الـ WAL و SHM القديمة لمنع تضارب أو تلف قاعدة البيانات المسترجعة
+        const walPath = sqliteOriginalPath + '-wal';
+        const shmPath = sqliteOriginalPath + '-shm';
+        try { if (fs.existsSync(walPath)) fs.unlinkSync(walPath); } catch (_) {}
+        try { if (fs.existsSync(shmPath)) fs.unlinkSync(shmPath); } catch (_) {}
+
         await fs.promises.copyFile(srcFilePath, sqliteOriginalPath);
         console.log("⚡ [Direct SQLite Restore] تم استعادة ملف قاعدة البيانات بنجاح من:", srcFilePath);
         return { success: true };
@@ -1298,8 +1305,38 @@ ipcMain.handle('quit-and-install-update', () => {
 
 try { ipcMain.removeHandler('get-app-version'); } catch(e) {}
 ipcMain.handle('get-app-version', () => {
-    return app.getVersion() || '4.9.3';
+    return app.getVersion() || '4.9.6';
 });
+
+// =========================================================================
+// 🧹 حارس الذاكرة لنواة إلكترون وتفريغ الكاش (Memory Guard & Cache Trimmer)
+// =========================================================================
+try { ipcMain.removeHandler('bayan-trim-memory'); } catch(e) {}
+ipcMain.handle('bayan-trim-memory', async () => {
+    try {
+        if (typeof global.gc === 'function') {
+            global.gc();
+        }
+        if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents && mainWindow.webContents.session) {
+            await mainWindow.webContents.session.clearCache();
+        }
+        return { success: true };
+    } catch (err) {
+        return { success: false, error: err.message };
+    }
+});
+
+// تنظيف صامت دوري كل 30 دقيقة لنواة إلكترون لتحرير الذاكرة غير المستخدمة لنظام التشغيل
+setInterval(() => {
+    try {
+        if (typeof global.gc === 'function') {
+            global.gc();
+        }
+        if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents && mainWindow.webContents.session) {
+            mainWindow.webContents.session.clearCache().catch(() => {});
+        }
+    } catch (_) {}
+}, 30 * 60 * 1000);
 
 // =========================================================================
 // ☁️ Terminal Mode: Standalone High-Speed SQLite (Prepared for Supabase)

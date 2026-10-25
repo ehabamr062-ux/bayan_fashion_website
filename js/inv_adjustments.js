@@ -199,10 +199,11 @@ function fillAdjustmentHeaderWithUnit(product, unit) {
     const factor = (unit && unit.factor) ? parseFloat(unit.factor) : 1;
     const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
     let whStock = 0;
+    const pGenStock = parseFloat(product.stock) || 0;
     if (product.warehouseStocks && typeof product.warehouseStocks === 'object' && product.warehouseStocks[activeWH] !== undefined) {
-        whStock = parseFloat(product.warehouseStocks[activeWH]) || 0;
-    } else if (activeWH === 'المخزن الرئيسي' || !product.warehouseStocks) {
-        whStock = parseFloat(product.stock) || 0;
+        whStock = Math.max(parseFloat(product.warehouseStocks[activeWH]) || 0, pGenStock);
+    } else {
+        whStock = pGenStock;
     }
     const displayStock = whStock / factor;
     document.querySelectorAll('.adj-current-stock-val').forEach(el => {
@@ -264,10 +265,11 @@ function handleAdjSearchEnter(query, event) {
             existing.qty = (parseFloat(existing.qty) || 0) + 1;
         } else {
             let liveStock = 0;
+            const vGenStock = parseFloat(matchingVariant.stock) || 0;
             if (matchingVariant.warehouseStocks && typeof matchingVariant.warehouseStocks === 'object' && matchingVariant.warehouseStocks[activeWH] !== undefined) {
-                liveStock = parseFloat(matchingVariant.warehouseStocks[activeWH]) || 0;
-            } else if (activeWH === 'المخزن الرئيسي' || !matchingVariant.warehouseStocks) {
-                liveStock = parseFloat(matchingVariant.stock) || 0;
+                liveStock = Math.max(parseFloat(matchingVariant.warehouseStocks[activeWH]) || 0, vGenStock);
+            } else {
+                liveStock = vGenStock;
             }
             window.adjCart.push({
                 ...pMatch,
@@ -351,10 +353,11 @@ function handleAdjSearchEnter(query, event) {
                 existing.qty = (parseFloat(existing.qty) || 0) + 1;
             } else {
                 let liveStock = 0;
+                const pGenStock = parseFloat(pMatch.stock) || 0;
                 if (pMatch.warehouseStocks && typeof pMatch.warehouseStocks === 'object' && pMatch.warehouseStocks[activeWH] !== undefined) {
-                    liveStock = parseFloat(pMatch.warehouseStocks[activeWH]) || 0;
-                } else if (activeWH === 'المخزن الرئيسي' || !pMatch.warehouseStocks) {
-                    liveStock = parseFloat(pMatch.stock) || 0;
+                    liveStock = Math.max(parseFloat(pMatch.warehouseStocks[activeWH]) || 0, pGenStock);
+                } else {
+                    liveStock = pGenStock;
                 }
                 const defUnit = (pMatch.units && pMatch.units.length > 0) ? pMatch.units[0] : null;
                 window.adjCart.push({
@@ -508,18 +511,20 @@ function addAdjItem() {
         if (p.variants && Array.isArray(p.variants)) {
             const v = p.variants.find(va => (va.size || '') === sSize && (va.color || '') === sColor);
             if (v) {
+                const vGenStock = parseFloat(v.stock) || 0;
                 if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
-                    liveStock = parseFloat(v.warehouseStocks[activeWH]) || 0;
-                } else if (activeWH === 'المخزن الرئيسي' || !v.warehouseStocks) {
-                    liveStock = parseFloat(v.stock) || 0;
+                    liveStock = Math.max(parseFloat(v.warehouseStocks[activeWH]) || 0, vGenStock);
+                } else {
+                    liveStock = vGenStock;
                 }
             }
         }
         if (liveStock === 0 && (!p.variants || p.variants.length === 0)) {
+            const pGenStock = parseFloat(p.stock) || 0;
             if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
-                liveStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
-            } else if (activeWH === 'المخزن الرئيسي' || !p.warehouseStocks) {
-                liveStock = parseFloat(p.stock) || 0;
+                liveStock = Math.max(parseFloat(p.warehouseStocks[activeWH]) || 0, pGenStock);
+            } else {
+                liveStock = pGenStock;
             }
         }
     }
@@ -816,6 +821,13 @@ async function saveAdjustment() {
     const saveBtns = document.querySelectorAll('#adjustment-section .btn-save, #adjustment-section .action-btn');
     saveBtns.forEach(b => { b.disabled = true; b.style.pointerEvents = 'none'; b.style.opacity = '0.6'; });
 
+    if (window._bayanAdjSaveLockTimer) clearTimeout(window._bayanAdjSaveLockTimer);
+    window._bayanAdjSaveLockTimer = setTimeout(() => {
+        window.isSavingTransaction = false;
+        const sBtns = document.querySelectorAll('#adjustment-section .btn-save, #adjustment-section .action-btn');
+        sBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
+    }, 1500);
+
     try {
         if (!window.adjCart || window.adjCart.length === 0) {
             alert("⚠️ قائمة التسوية فارغة! لا يمكن الحفظ.");
@@ -868,16 +880,8 @@ async function saveAdjustment() {
                 const diffStock = countedBase - stockBefore;
                 const newBaseStock = diffStock;
 
-                const prevPStock = parseFloat(p.stock) || 0;
-                p.stock = Math.max(0, prevPStock + newBaseStock);
-                if (!p.warehouseStocks) p.warehouseStocks = {};
-                const currentPWhStock = (p.warehouseStocks[activeWH] !== undefined && !isNaN(parseFloat(p.warehouseStocks[activeWH])))
-                    ? parseFloat(p.warehouseStocks[activeWH])
-                    : (activeWH === 'المخزن الرئيسي' ? prevPStock : 0);
-                p.warehouseStocks[activeWH] = Math.max(0, currentPWhStock + newBaseStock);
-
                 let matchedVar = null;
-                if (p.variants && Array.isArray(p.variants)) {
+                if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
                     const sVal = item.selectedSize || item.size || '';
                     const cVal = item.selectedColor || item.color || '';
                     matchedVar = p.variants.find(v => 
@@ -894,14 +898,25 @@ async function saveAdjustment() {
                             : (activeWH === 'المخزن الرئيسي' ? prevVarStock : 0);
                         matchedVar.warehouseStocks[activeWH] = Math.max(0, currentVarWhStock + newBaseStock);
                     }
-                    // مزامنة رصيد الصنف الأساسي ورصيد المخزن مع مجموع التشكيلات بدقة تامة
+                    if (!p.warehouseStocks) p.warehouseStocks = {};
                     p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
-                    p.warehouseStocks[activeWH] = p.variants.reduce((sum, v) => {
-                        const vWhStock = (v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined)
-                            ? parseFloat(v.warehouseStocks[activeWH])
-                            : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0);
-                        return sum + (isNaN(vWhStock) ? 0 : vWhStock);
-                    }, 0);
+                    let totalWhVariants = 0;
+                    p.variants.forEach(v => {
+                        if (v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined && !isNaN(parseFloat(v.warehouseStocks[activeWH]))) {
+                            totalWhVariants += parseFloat(v.warehouseStocks[activeWH]) || 0;
+                        } else if (activeWH === 'المخزن الرئيسي') {
+                            totalWhVariants += parseFloat(v.stock) || 0;
+                        }
+                    });
+                    p.warehouseStocks[activeWH] = totalWhVariants;
+                } else {
+                    const prevPStock = parseFloat(p.stock) || 0;
+                    p.stock = Math.max(0, prevPStock + newBaseStock);
+                    if (!p.warehouseStocks) p.warehouseStocks = {};
+                    const currentPWhStock = (p.warehouseStocks[activeWH] !== undefined && !isNaN(parseFloat(p.warehouseStocks[activeWH])))
+                        ? parseFloat(p.warehouseStocks[activeWH])
+                        : (activeWH === 'المخزن الرئيسي' ? prevPStock : 0);
+                    p.warehouseStocks[activeWH] = Math.max(0, currentPWhStock + newBaseStock);
                 }
 
                 const lineTotal = diffStock * (parseFloat(item.price) || 0);
@@ -1009,6 +1024,10 @@ async function saveAdjustment() {
         }
         return false;
     } finally {
+        if (window._bayanAdjSaveLockTimer) {
+            clearTimeout(window._bayanAdjSaveLockTimer);
+            window._bayanAdjSaveLockTimer = null;
+        }
         saveBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
         window.isSavingTransaction = false;
     }
@@ -1309,12 +1328,11 @@ function buildPriceAdjItem(p, lastBuyMap, activeWH) {
             
             // حساب رصيد التشكيلة الفعلي في المخزن النشط
             let vStock = 0;
+            const vGenStock = parseFloat(v.stock) || 0;
             if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
-                vStock = parseFloat(v.warehouseStocks[activeWH]) || 0;
-            } else if (activeWH === 'المخزن الرئيسي' || !v.warehouseStocks || Object.keys(v.warehouseStocks).length === 0) {
-                vStock = parseFloat(v.stock) || 0;
+                vStock = Math.max(parseFloat(v.warehouseStocks[activeWH]) || 0, vGenStock);
             } else {
-                vStock = 0;
+                vStock = vGenStock;
             }
             vStockSum += vStock;
 

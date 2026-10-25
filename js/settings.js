@@ -1301,6 +1301,20 @@ async function saveUsersDirectlyToDb() {
             });
             await db.users.clear();
             await db.users.bulkPut(secureUsers);
+            if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+                try {
+                    for (const u of secureUsers) {
+                        const rawJson = (window.BayanSQLite && typeof window.BayanSQLite._extractExtraFields === 'function')
+                            ? window.BayanSQLite._extractExtraFields(u, ['id', 'name', 'pin', 'role'])
+                            : JSON.stringify(u);
+                        const sRaw = typeof rawJson === 'object' ? JSON.stringify(rawJson) : String(rawJson || '{}');
+                        window.BayanSQLite.nativeDb.prepare("INSERT OR REPLACE INTO users (id, name, pin, role, raw_json) VALUES (?, ?, ?, ?, ?);").run(u.id, u.name || '', u.pin || '', u.role || '', sRaw);
+                    }
+                } catch(ne) {}
+            }
+            if (window.BayanSQLite && typeof window.BayanSQLite.schedulePersist === 'function') {
+                window.BayanSQLite.schedulePersist(100);
+            }
             console.log("🔒 [SQLite Users] تم حفظ وتثبيت بيانات وصلاحيات كافة المستخدمين في SQLite بنجاح.");
         }
     } catch (e) {
@@ -1376,7 +1390,9 @@ async function addUser() {
     const existingTarget = window.editingUserId ? users.find(u => u.id === window.editingUserId) : null;
     let finalPin = pin;
     if (!finalPin && existingTarget) {
-        finalPin = existingTarget.pin;
+        finalPin = (window.BayanSecurity && typeof window.BayanSecurity.decryptPin === 'function')
+            ? window.BayanSecurity.decryptPin(existingTarget.pin)
+            : existingTarget.pin;
     }
 
     if (!name || !finalPin) return showToast("⚠️ يرجى إدخال اسم المستخدم ورمز الدخول", "error");
@@ -1614,8 +1630,20 @@ function editUser(idx) {
     document.getElementById('newUserName').value = u.name;
     const pinInput = document.getElementById('newUserPin');
     if (pinInput) {
-        pinInput.value = '';
-        pinInput.placeholder = 'اتركه فارغاً للإبقاء على الرمز الحالي 🔒';
+        let plainPin = '';
+        if (u.pin) {
+            plainPin = (window.BayanSecurity && typeof window.BayanSecurity.decryptPin === 'function')
+                ? window.BayanSecurity.decryptPin(u.pin)
+                : u.pin;
+        }
+        pinInput.type = 'password';
+        pinInput.value = plainPin || '';
+        pinInput.placeholder = '••••';
+    }
+    const pinEyeBtn = document.getElementById('toggleUserPinBtn');
+    if (pinEyeBtn) {
+        pinEyeBtn.innerHTML = '👁️';
+        pinEyeBtn.title = 'إظهار الرمز السري';
     }
     document.getElementById('newUserRole').value = u.role;
     if (document.getElementById('newUserNfcUid')) {
@@ -1814,8 +1842,14 @@ function resetUserForm() {
     document.getElementById('newUserName').value = '';
     const pinInput = document.getElementById('newUserPin');
     if (pinInput) {
+        pinInput.type = 'password';
         pinInput.value = '';
-        pinInput.placeholder = 'رمز الدخول PIN (4 أرقام على الأقل)';
+        pinInput.placeholder = '••••';
+    }
+    const pinEyeBtn = document.getElementById('toggleUserPinBtn');
+    if (pinEyeBtn) {
+        pinEyeBtn.innerHTML = '👁️';
+        pinEyeBtn.title = 'إظهار الرمز السري';
     }
     document.getElementById('newUserRole').value = 'user';
     if (document.getElementById('newUserNfcUid')) {
@@ -2067,11 +2101,20 @@ window.quickSelectUserPreset = quickSelectUserPreset;
 
 function toggleUserPinVisibility() {
     const pinEl = document.getElementById('newUserPin');
+    const btn = document.getElementById('toggleUserPinBtn');
     if (!pinEl) return;
     if (pinEl.type === 'password') {
         pinEl.type = 'text';
+        if (btn) {
+            btn.innerHTML = '🙈';
+            btn.title = 'إخفاء الرمز السري';
+        }
     } else {
         pinEl.type = 'password';
+        if (btn) {
+            btn.innerHTML = '👁️';
+            btn.title = 'إظهار الرمز السري';
+        }
     }
 }
 window.toggleUserPinVisibility = toggleUserPinVisibility;
