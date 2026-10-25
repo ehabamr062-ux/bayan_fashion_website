@@ -65,6 +65,7 @@ const STATIC_FILES = [
     './js/init.js',
     './js/print.js',
     './js/updater.js',
+    './js/cloud_drive_backup.js',
     './js/supabase_sync.js',
     './js/login_update_card.js',
     './lib/html2canvas.min.js',
