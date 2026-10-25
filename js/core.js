@@ -73,11 +73,11 @@ window.BayanNetworkHub = {
 // 🔢 المزامنة التلقائية لرقم الإصدار الموحد (Single Source of Truth Unification)
 // المصدر الرسمي الوحيد هو package.json عبر app.getVersion()
 // =========================================================================
-window.appVersion = '4.9.5';
-window.APP_VERSION = '4.9.5';
+window.appVersion = '4.9.9';
+window.APP_VERSION = '4.9.9';
 
 async function fetchAppVersion() {
-    let version = '4.9.5';
+    let version = '4.9.9';
     try {
         if (typeof window !== 'undefined' && window.require) {
             const electron = window.require('electron');
@@ -136,6 +136,133 @@ window.fetchAppVersion = fetchAppVersion;
         syncAppVersionUI(ver);
     }
 })();
+
+// =========================================================================
+// 👗 المحرك المركزي الموحد لإدارة وتطابق مقاسات وألوان الفاشون ورصيد المخزن
+// (Fashion Variant Central Engine & Unified Stock Synchronizer)
+// =========================================================================
+
+window.cleanVariantAttr = function(val) {
+    if (val === null || val === undefined) return '';
+    let s = String(val).trim().toLowerCase()
+        .replace(/[أإآ]/g, 'ا')
+        .replace(/ة/g, 'ه')
+        .replace(/[ىي]/g, 'ي')
+        .replace(/[\u064B-\u065F\u0670]/g, '')
+        .replace(/\s+/g, ' ');
+    if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-' || s === 'بدون' || s === 'افتراضي' || s === '---') {
+        return '';
+    }
+    return s;
+};
+
+window.findProductVariant = function(product, criteria) {
+    if (!product || !product.variants || !Array.isArray(product.variants) || product.variants.length === 0) {
+        return null;
+    }
+    if (!criteria) {
+        return product.variants.length === 1 ? product.variants[0] : null;
+    }
+
+    // 1. التطابق المباشر بكائن التشكيلة إذا كان موجوداً بالفعل
+    if (criteria.selectedVariant && product.variants.includes(criteria.selectedVariant)) {
+        return criteria.selectedVariant;
+    }
+
+    // 2. التطابق الصارم بباركود التشكيلة الفريد
+    const targetBarcode = String(criteria.barcode || criteria.code || (criteria.selectedVariant && criteria.selectedVariant.barcode) || '').trim();
+    if (targetBarcode) {
+        const foundByBarcode = product.variants.find(v => v.barcode && String(v.barcode).trim() === targetBarcode);
+        if (foundByBarcode) return foundByBarcode;
+    }
+
+    // 3. التطابق الصارم بـ (المقاس واللون) مع المعايرة الشاملة
+    const targetSize = window.cleanVariantAttr(criteria.selectedSize || criteria.size || (criteria.selectedVariant ? criteria.selectedVariant.size : ''));
+    const targetColor = window.cleanVariantAttr(criteria.selectedColor || criteria.color || (criteria.selectedVariant ? criteria.selectedVariant.color : ''));
+
+    // أ) إذا تم تحديد المقاس واللون معاً
+    if (targetSize && targetColor) {
+        const exactMatch = product.variants.find(v => 
+            window.cleanVariantAttr(v.size) === targetSize && 
+            window.cleanVariantAttr(v.color) === targetColor
+        );
+        if (exactMatch) return exactMatch;
+    }
+
+    // ب) إذا تم تحديد المقاس فقط (أو المقاس مع لون عام)
+    if (targetSize) {
+        const sizeExactColorEmpty = product.variants.find(v => 
+            window.cleanVariantAttr(v.size) === targetSize && 
+            !window.cleanVariantAttr(v.color)
+        );
+        if (sizeExactColorEmpty) return sizeExactColorEmpty;
+
+        const anySizeMatch = product.variants.find(v => 
+            window.cleanVariantAttr(v.size) === targetSize
+        );
+        if (anySizeMatch) return anySizeMatch;
+    }
+
+    // ج) إذا تم تحديد اللون فقط (أو اللون مع مقاس عام)
+    if (targetColor) {
+        const colorExactSizeEmpty = product.variants.find(v => 
+            window.cleanVariantAttr(v.color) === targetColor && 
+            !window.cleanVariantAttr(v.size)
+        );
+        if (colorExactSizeEmpty) return colorExactSizeEmpty;
+
+        const anyColorMatch = product.variants.find(v => 
+            window.cleanVariantAttr(v.color) === targetColor
+        );
+        if (anyColorMatch) return anyColorMatch;
+    }
+
+    // د) إذا لم يتم تحديد مقاس ولا لون والصنف له تشكيلة واحدة فقط
+    if (!targetSize && !targetColor && product.variants.length === 1) {
+        return product.variants[0];
+    }
+
+    return null;
+};
+
+window.syncParentProductStock = function(product, activeWH) {
+    if (!product) return;
+    if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
+        // حساب إجمالي رصيد الصنف العام من مجموع أرصدة التشكيلات الفعلي
+        product.stock = product.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
+
+        if (!product.warehouseStocks || typeof product.warehouseStocks !== 'object') {
+            product.warehouseStocks = {};
+        }
+
+        const targetWH = (activeWH || (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) || 'المخزن الرئيسي').trim();
+
+        const whNames = new Set(Object.keys(product.warehouseStocks || {}));
+        whNames.add(targetWH);
+        whNames.add('المخزن الرئيسي');
+        product.variants.forEach(v => {
+            if (v && v.warehouseStocks && typeof v.warehouseStocks === 'object') {
+                Object.keys(v.warehouseStocks).forEach(k => whNames.add(k));
+            }
+        });
+
+        whNames.forEach(wh => {
+            let totalWh = 0;
+            let hasExplicit = false;
+            product.variants.forEach(v => {
+                if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[wh] !== undefined) {
+                    totalWh += parseFloat(v.warehouseStocks[wh]) || 0;
+                    hasExplicit = true;
+                } else if (wh === 'المخزن الرئيسي') {
+                    totalWh += parseFloat(v.stock) || 0;
+                }
+            });
+            if (hasExplicit || wh === 'المخزن الرئيسي') {
+                product.warehouseStocks[wh] = totalWh;
+            }
+        });
+    }
+};
 
 if ('serviceWorker' in navigator && window.location.protocol !== 'file:' && !navigator.userAgent.includes('Electron')) {
     window.addEventListener('load', () => {

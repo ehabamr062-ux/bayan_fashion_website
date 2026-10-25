@@ -1017,8 +1017,9 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
             if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
             return s;
         };
-        const cPreSize = cleanAttrPre(vSize);
-        const cPreColor = cleanAttrPre(vColor);
+        const cleanFn = window.cleanVariantAttr || cleanAttrPre;
+        const cPreSize = cleanFn(vSize);
+        const cPreColor = cleanFn(vColor);
 
         const matchedOriginals = origList.filter(orig => {
             if (!orig) return false;
@@ -1029,8 +1030,13 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
                                 (orig.code && product.code && orig.code === product.code);
             if (!isProdMatch) return false;
 
-            const oSize = cleanAttrPre(orig.selectedSize || orig.size);
-            const oColor = cleanAttrPre(orig.selectedColor || orig.color);
+            if (effVariant && window.findProductVariant) {
+                const m = window.findProductVariant(product, orig);
+                return m === effVariant;
+            }
+
+            const oSize = cleanFn(orig.selectedSize || orig.size);
+            const oColor = cleanFn(orig.selectedColor || orig.color);
             return oSize === cPreSize && oColor === cPreColor;
         });
         matchedOriginals.forEach(orig => {
@@ -1042,11 +1048,11 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
     const maxAvailInUnit = (availBaseStock + originalQtyInInvoice) / factor;
 
     // دالة مساعدة لمعايرة المقاسات والألوان وتوحيد القيم الافتراضية
-    const cleanAttr = (val) => {
+    const cleanAttr = window.cleanVariantAttr || ((val) => {
         const s = String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
         if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
         return s;
-    };
+    });
     const cSize = cleanAttr(vSize);
     const cColor = cleanAttr(vColor);
     const vBarcode = effVariant && effVariant.barcode ? String(effVariant.barcode).trim() : '';
@@ -1069,6 +1075,11 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
         const selUnitName = selectedUnit ? (selectedUnit.unitName || selectedUnit) : (product.unit || 'قطعة');
         if (itUnitName !== selUnitName) return false;
 
+        if (effVariant && window.findProductVariant) {
+            const m = window.findProductVariant(product, item);
+            return m === effVariant;
+        }
+
         const itSize = cleanAttr(item.selectedSize || item.size || (item.selectedVariant ? item.selectedVariant.size : ''));
         const itColor = cleanAttr(item.selectedColor || item.color || (item.selectedVariant ? item.selectedVariant.color : ''));
 
@@ -1087,10 +1098,15 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
         if (!isMatch) {
             const isSameProd = (item.id === productId || String(item.id) === String(productId) || item.name === product.name);
             if (isSameProd) {
-                const itSize = cleanAttr(item.selectedSize || item.size || (item.selectedVariant ? item.selectedVariant.size : ''));
-                const itColor = cleanAttr(item.selectedColor || item.color || (item.selectedVariant ? item.selectedVariant.color : ''));
-                if (itSize === cSize && itColor === cColor) {
-                    isMatch = true;
+                if (effVariant && window.findProductVariant) {
+                    const m = window.findProductVariant(product, item);
+                    if (m === effVariant) isMatch = true;
+                } else {
+                    const itSize = cleanAttr(item.selectedSize || item.size || (item.selectedVariant ? item.selectedVariant.size : ''));
+                    const itColor = cleanAttr(item.selectedColor || item.color || (item.selectedVariant ? item.selectedVariant.color : ''));
+                    if (itSize === cSize && itColor === cColor) {
+                        isMatch = true;
+                    }
                 }
             }
         }
@@ -1612,16 +1628,9 @@ function updateQty(index, newQty) {
     const product = productsDB.find(p => p.id === item.id || p.name === item.name);
     if (product) {
         const factor = parseFloat(item.unitFactor) || 1;
-        let effVariant = null;
-        if (product.variants && Array.isArray(product.variants)) {
-            const sSize = item.selectedSize || item.size || '';
-            const sColor = item.selectedColor || item.color || '';
-            if (sSize || sColor) {
-                effVariant = product.variants.find(v => 
-                    (!sSize || v.size === sSize) && 
-                    (!sColor || v.color === sColor)
-                );
-            }
+        let effVariant = item.selectedVariant || null;
+        if (!effVariant && product.variants && Array.isArray(product.variants)) {
+            effVariant = window.findProductVariant ? window.findProductVariant(product, item) : null;
         }
 
         // في وضع تعديل فاتورة قديمة: إضافة الكمية الأصلية المحجوزة بالفاتورة إلى الرصيد المتاح
@@ -1645,11 +1654,11 @@ function updateQty(index, newQty) {
                 });
             }
 
-            const cleanAttr = (val) => {
+            const cleanAttr = window.cleanVariantAttr || ((val) => {
                 const s = String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
                 if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
                 return s;
-            };
+            });
             const sSize = cleanAttr(item.selectedSize || item.size);
             const sColor = cleanAttr(item.selectedColor || item.color);
             const matchedOriginals = origList.filter(orig => {
@@ -1660,6 +1669,11 @@ function updateQty(index, newQty) {
                                     (origId != null && (String(origId) === String(item.id) || (product && String(origId) === String(product.id)))) ||
                                     (orig.code && item.code && orig.code === item.code);
                 if (!isProdMatch) return false;
+
+                if (effVariant && window.findProductVariant) {
+                    const m = window.findProductVariant(product, orig);
+                    return m === effVariant;
+                }
 
                 const oSize = cleanAttr(orig.selectedSize || orig.size);
                 const oColor = cleanAttr(orig.selectedColor || orig.color);
@@ -2823,14 +2837,13 @@ async function saveBill(force = false, accountChecked = false) {
             const totalBaseQty = entry.totalBaseQty;
 
             let effVariant = entry.sampleItem?.selectedVariant || null;
-            if (!effVariant && p.variants && Array.isArray(p.variants) && (sSize || sColor)) {
-                const cleanV = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
-                const cSize = cleanV(sSize);
-                const cColor = cleanV(sColor);
-                effVariant = p.variants.find(v => 
-                    (!cSize || cleanV(v.size) === cSize) && 
-                    (!cColor || cleanV(v.color) === cColor)
-                ) || null;
+            if (!effVariant && p.variants && Array.isArray(p.variants)) {
+                effVariant = window.findProductVariant ? window.findProductVariant(p, {
+                    selectedVariant: entry.sampleItem?.selectedVariant,
+                    barcode: entry.sampleItem?.code,
+                    size: sSize,
+                    color: sColor
+                }) : null;
             }
 
             // في وضع التعديل: استرداد إجمالي الكمية الأصلية المحجوزة في الفاتورة لهذا الصنف وتشكيلته لإتاحتها
@@ -2854,11 +2867,11 @@ async function saveBill(force = false, accountChecked = false) {
                     });
                 }
 
-                const cleanAttr = (val) => {
+                const cleanAttr = window.cleanVariantAttr || ((val) => {
                     const s = String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
                     if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
                     return s;
-                };
+                });
                 const cSize = cleanAttr(sSize);
                 const cColor = cleanAttr(sColor);
 
@@ -2870,6 +2883,11 @@ async function saveBill(force = false, accountChecked = false) {
                                         (origId != null && (String(origId) === String(p.id) || String(origId) === String(p.name))) ||
                                         (orig.code && p.code && orig.code === p.code);
                     if (!isProdMatch) return false;
+
+                    if (effVariant && window.findProductVariant) {
+                        const m = window.findProductVariant(p, orig);
+                        return m === effVariant;
+                    }
 
                     const oSize = cleanAttr(orig.selectedSize || orig.size);
                     const oColor = cleanAttr(orig.selectedColor || orig.color);
@@ -3249,49 +3267,26 @@ async function saveBill(force = false, accountChecked = false) {
 
                 // تحديث رصيد التشكيلة (المقاس واللون) في مصفوفة الصنف بدقة وتطابق تام
                 if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
-                    const sSize = String(cartItem.selectedSize || cartItem.size || '').trim();
-                    const sColor = String(cartItem.selectedColor || cartItem.color || '').trim();
-                    if (sSize || sColor) {
-                        const cleanV = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
-                        const cSize = cleanV(sSize);
-                        const cColor = cleanV(sColor);
-                        const matchedVar = product.variants.find(v => 
-                            (!cSize || cleanV(v.size) === cSize) && 
-                            (!cColor || cleanV(v.color) === cColor)
-                        );
-                        if (matchedVar) {
-                            if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
-                            const vGen = parseFloat(matchedVar.stock) || 0;
-                            let curVarWhStock = 0;
-                            if (matchedVar.warehouseStocks[activeWH] !== undefined) {
-                                const whVal = parseFloat(matchedVar.warehouseStocks[activeWH]);
-                                curVarWhStock = isNaN(whVal) ? vGen : Math.max(whVal, vGen);
-                            } else {
-                                curVarWhStock = vGen;
-                            }
-                            matchedVar.warehouseStocks[activeWH] = curVarWhStock - baseQty;
-                            matchedVar.stock = vGen - baseQty;
+                    const matchedVar = window.findProductVariant ? window.findProductVariant(product, cartItem) : null;
+                    if (matchedVar) {
+                        if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
+                        const vGen = parseFloat(matchedVar.stock) || 0;
+                        let curVarWhStock = 0;
+                        if (matchedVar.warehouseStocks[activeWH] !== undefined) {
+                            const whVal = parseFloat(matchedVar.warehouseStocks[activeWH]);
+                            curVarWhStock = isNaN(whVal) ? vGen : Math.max(whVal, vGen);
+                        } else {
+                            curVarWhStock = vGen;
                         }
+                        matchedVar.warehouseStocks[activeWH] = curVarWhStock - baseQty;
+                        matchedVar.stock = vGen - baseQty;
                     }
 
                     // 🌟 مزامنة وتطابق فوري: إعادة حساب إجمالي رصيد الصنف ورصيد المخزن من مجموع المقاسات الفعلي
-                    const totalVariantsStock = product.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
-                    product.stock = totalVariantsStock;
-
-                    let totalVarWhStock = 0;
-                    let hasExplicitVarWh = false;
-                    product.variants.forEach(v => {
-                        const vStock = parseFloat(v.stock) || 0;
-                        if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
-                            const whVal = parseFloat(v.warehouseStocks[activeWH]);
-                            totalVarWhStock += isNaN(whVal) ? vStock : Math.max(whVal, vStock);
-                            hasExplicitVarWh = true;
-                        } else if (activeWH === 'المخزن الرئيسي') {
-                            totalVarWhStock += vStock;
-                        }
-                    });
-                    if (hasExplicitVarWh || activeWH === 'المخزن الرئيسي') {
-                        product.warehouseStocks[activeWH] = totalVarWhStock;
+                    if (window.syncParentProductStock) {
+                        window.syncParentProductStock(product, activeWH);
+                    } else {
+                        product.stock = product.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
                     }
                 }
                 if (!affectedProducts.some(ap => ap.id === product.id)) {
@@ -4569,24 +4564,34 @@ async function loadInvoiceToSalesPOS(targetInvoiceId) {
     cart = validItems.map(it => {
         const prodTitle = it.product || it.productName || it.name || 'صنف';
         const p = (typeof productsDB !== 'undefined' && Array.isArray(productsDB))
-            ? productsDB.find(x => x.name === prodTitle || (it.barcode && x.barcode === it.barcode)) : null;
+            ? productsDB.find(x => x.name === prodTitle || (it.barcode && x.barcode === it.barcode) || (it.productId && String(x.id) === String(it.productId))) : null;
         const u = (p && p.units)
             ? p.units.find(un => un.unitName === it.unit) : null;
+
+        let matchedVariant = null;
+        if (p) {
+            matchedVariant = window.findProductVariant ? window.findProductVariant(p, it) : null;
+        }
+
+        const itSize = (matchedVariant && matchedVariant.size) ? matchedVariant.size : (it.selectedSize || it.size || '');
+        const itColor = (matchedVariant && matchedVariant.color) ? matchedVariant.color : (it.selectedColor || it.color || '');
+
         return {
             id: p ? p.id : (it.productId || it.id || (Date.now() + Math.random())),
             productId: p ? p.id : (it.productId || null),
             product: prodTitle,
             name: prodTitle,
-            code: it.code || (p ? p.code : (it.barcode || '')),
+            code: (matchedVariant && matchedVariant.barcode) ? matchedVariant.barcode : (it.code || (p ? p.code : (it.barcode || ''))),
             qty: parseFloat(it.qty || 1),
             price: parseFloat(it.price || 0),
             unit: it.unit || 'قطعة',
             unitFactor: parseFloat(it.unitFactor) || (u ? (parseFloat(u.factor) || 1) : 1),
             selectedUnit: u || it.unit || 'قطعة',
-            selectedSize: it.selectedSize || it.size || '',
-            selectedColor: it.selectedColor || it.color || '',
-            size: it.selectedSize || it.size || '',
-            color: it.selectedColor || it.color || '',
+            selectedSize: itSize,
+            selectedColor: itColor,
+            size: itSize,
+            color: itColor,
+            selectedVariant: matchedVariant,
             warehouse: it.warehouse || head.warehouse || activeWH,
             type: it.type || head.type || 'بيع 📤',
             units: p ? (p.units || []) : []

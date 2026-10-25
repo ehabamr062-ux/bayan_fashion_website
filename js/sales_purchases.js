@@ -1697,39 +1697,31 @@ async function savePurchase(force = false, accountChecked = false) {
                 if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
                     const sSize = String(item.selectedSize || item.size || '').trim();
                     const sColor = String(item.selectedColor || item.color || '').trim();
-                    if (sSize || sColor) {
-                        const cleanV = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
-                        const cSize = cleanV(sSize);
-                        const cColor = cleanV(sColor);
-                        const matchedVar = p.variants.find(v => 
-                            (!cSize || cleanV(v.size) === cSize) && 
-                            (!cColor || cleanV(v.color) === cColor)
-                        );
-                        if (matchedVar) {
-                            const oldVarStock = (parseFloat(matchedVar.stock) || 0);
-                            matchedVar.stock = oldVarStock + baseQty;
-                            if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
-                            let curVarWhStock = 0;
-                            if (matchedVar.warehouseStocks[activeWH] !== undefined) {
-                                const whVal = parseFloat(matchedVar.warehouseStocks[activeWH]);
-                                curVarWhStock = isNaN(whVal) ? oldVarStock : Math.max(whVal, oldVarStock);
+                    const matchedVar = window.findProductVariant ? window.findProductVariant(p, item) : null;
+                    if (matchedVar) {
+                        const oldVarStock = (parseFloat(matchedVar.stock) || 0);
+                        matchedVar.stock = oldVarStock + baseQty;
+                        if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
+                        let curVarWhStock = 0;
+                        if (matchedVar.warehouseStocks[activeWH] !== undefined) {
+                            const whVal = parseFloat(matchedVar.warehouseStocks[activeWH]);
+                            curVarWhStock = isNaN(whVal) ? oldVarStock : Math.max(whVal, oldVarStock);
+                        } else {
+                            curVarWhStock = oldVarStock;
+                        }
+                        matchedVar.warehouseStocks[activeWH] = curVarWhStock + baseQty;
+                        if (parseFloat(item.salePrice) > 0) {
+                            matchedVar.price = parseFloat(item.salePrice);
+                        }
+                        // 🌟 تحديث تكلفة المقاس المحدد (Variant Cost) بدقة بالصافي بعد الخصم
+                        if (effectiveUnitPriceBase > 0) {
+                            const oldVarCost = (matchedVar.cost !== undefined && !isNaN(parseFloat(matchedVar.cost)) && parseFloat(matchedVar.cost) > 0)
+                                ? parseFloat(matchedVar.cost)
+                                : (parseFloat(p.cost) || effectiveUnitPriceBase);
+                            if (oldVarStock > 0) {
+                                matchedVar.cost = parseFloat((((oldVarStock * oldVarCost) + (baseQty * effectiveUnitPriceBase)) / (oldVarStock + baseQty)).toFixed(2));
                             } else {
-                                curVarWhStock = oldVarStock;
-                            }
-                            matchedVar.warehouseStocks[activeWH] = curVarWhStock + baseQty;
-                            if (parseFloat(item.salePrice) > 0) {
-                                matchedVar.price = parseFloat(item.salePrice);
-                            }
-                            // 🌟 تحديث تكلفة المقاس المحدد (Variant Cost) بدقة بالصافي بعد الخصم
-                            if (effectiveUnitPriceBase > 0) {
-                                const oldVarCost = (matchedVar.cost !== undefined && !isNaN(parseFloat(matchedVar.cost)) && parseFloat(matchedVar.cost) > 0)
-                                    ? parseFloat(matchedVar.cost)
-                                    : (parseFloat(p.cost) || effectiveUnitPriceBase);
-                                if (oldVarStock > 0) {
-                                    matchedVar.cost = parseFloat((((oldVarStock * oldVarCost) + (baseQty * effectiveUnitPriceBase)) / (oldVarStock + baseQty)).toFixed(2));
-                                } else {
-                                    matchedVar.cost = parseFloat(effectiveUnitPriceBase.toFixed(2));
-                                }
+                                matchedVar.cost = parseFloat(effectiveUnitPriceBase.toFixed(2));
                             }
                         }
                     } else if (parseFloat(item.salePrice) > 0) {
@@ -1740,21 +1732,10 @@ async function savePurchase(force = false, accountChecked = false) {
                     }
 
                     // مزامنة إجمالي رصيد الصنف ورصيد المخزن مع مجموع المقاسات
-                    p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
-                    let totalVarWhStock = 0;
-                    let hasExplicitVarWh = false;
-                    p.variants.forEach(v => {
-                        const vStock = parseFloat(v.stock) || 0;
-                        if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
-                            const whVal = parseFloat(v.warehouseStocks[activeWH]);
-                            totalVarWhStock += isNaN(whVal) ? vStock : Math.max(whVal, vStock);
-                            hasExplicitVarWh = true;
-                        } else if (activeWH === 'المخزن الرئيسي') {
-                            totalVarWhStock += vStock;
-                        }
-                    });
-                    if (hasExplicitVarWh || activeWH === 'المخزن الرئيسي') {
-                        p.warehouseStocks[activeWH] = totalVarWhStock;
+                    if (window.syncParentProductStock) {
+                        window.syncParentProductStock(p, activeWH);
+                    } else {
+                        p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
                     }
                 }
 
