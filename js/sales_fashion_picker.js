@@ -44,22 +44,27 @@ function getVariantEffectiveStock(v, activeWH) {
     if (!v) return 0;
     const vGeneralStock = parseFloat(v.stock) || 0;
     const wh = String(activeWH || 'المخزن الرئيسي').trim();
+    const isMain = (wh === 'المخزن الرئيسي');
     if (!v.warehouseStocks || typeof v.warehouseStocks !== 'object') {
-        v.warehouseStocks = { [wh]: vGeneralStock };
-        return vGeneralStock;
+        if (isMain) {
+            v.warehouseStocks = { [wh]: vGeneralStock };
+            return vGeneralStock;
+        }
+        return 0;
     }
     if (v.warehouseStocks[wh] !== undefined) {
         const whVal = parseFloat(v.warehouseStocks[wh]);
-        const effStock = isNaN(whVal) ? vGeneralStock : Math.max(whVal, vGeneralStock);
-        if (wh === 'المخزن الرئيسي' && (isNaN(whVal) || whVal < vGeneralStock)) {
+        const effStock = isNaN(whVal) ? (isMain ? vGeneralStock : 0) : (isMain ? Math.max(whVal, vGeneralStock) : whVal);
+        if (isMain && (isNaN(whVal) || whVal < vGeneralStock)) {
             v.warehouseStocks[wh] = effStock;
         }
         return effStock;
     }
-    if (wh === 'المخزن الرئيسي') {
+    if (isMain) {
         v.warehouseStocks[wh] = vGeneralStock;
+        return vGeneralStock;
     }
-    return vGeneralStock;
+    return 0;
 }
 
 // دالة مساعدة لحساب السعر والرصيد لأي تشكيلة

@@ -2050,32 +2050,33 @@ window.invalidateStockCache = invalidateStockCache;
 function getLiveProductWhStock(p, targetWH) {
     if (!p) return 0;
     const pGenStock = parseFloat(p.stock) || 0;
+    const isMainWH = (targetWH === 'المخزن الرئيسي');
     if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
         let varSum = 0;
         p.variants.forEach(v => {
             const vGen = parseFloat(v.stock) || 0;
             if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[targetWH] !== undefined) {
                 let val = parseFloat(v.warehouseStocks[targetWH]);
-                if (targetWH === 'المخزن الرئيسي' && val < 0 && vGen > 0) {
+                if (isMainWH && val < 0 && vGen > 0) {
                     val = vGen;
                     v.warehouseStocks[targetWH] = val;
                 }
-                varSum += isNaN(val) ? vGen : Math.max(val, vGen);
-            } else {
+                varSum += isNaN(val) ? (isMainWH ? vGen : 0) : (isMainWH ? Math.max(val, vGen) : val);
+            } else if (isMainWH || !v.warehouseStocks || Object.keys(v.warehouseStocks).length === 0) {
                 varSum += vGen;
             }
         });
-        return Math.max(varSum, pGenStock);
+        return isMainWH ? Math.max(varSum, pGenStock) : varSum;
     }
     if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[targetWH] !== undefined) {
         let val = parseFloat(p.warehouseStocks[targetWH]);
-        if (targetWH === 'المخزن الرئيسي' && val < 0 && pGenStock > 0) {
+        if (isMainWH && val < 0 && pGenStock > 0) {
             val = pGenStock;
             p.warehouseStocks[targetWH] = val;
         }
-        return isNaN(val) ? pGenStock : Math.max(val, pGenStock);
+        return isNaN(val) ? (isMainWH ? pGenStock : 0) : (isMainWH ? Math.max(val, pGenStock) : val);
     }
-    return pGenStock;
+    return (isMainWH || !p.warehouseStocks || Object.keys(p.warehouseStocks).length === 0) ? pGenStock : 0;
 }
 
 let _prodByNameMap = null;

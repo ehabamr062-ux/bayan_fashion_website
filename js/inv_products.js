@@ -215,7 +215,9 @@ async function saveNewItem(mode = 'save') {
         const checkSz = szInp ? szInp.value.trim() : '';
         const checkCl = clInp ? clInp.value.trim() : '';
         if (checkSz || checkCl) {
-            const normKey = `${checkSz.toLowerCase()}___${checkCl.toLowerCase()}`;
+            const normKey = (typeof window.cleanVariantAttr === 'function')
+                ? `${window.cleanVariantAttr(checkSz)}___${window.cleanVariantAttr(checkCl)}`
+                : `${checkSz.toLowerCase()}___${checkCl.toLowerCase()}`;
             if (seenVariantKeys.has(normKey)) {
                 if (typeof showCustomAlert === 'function') {
                     showCustomAlert({
@@ -784,6 +786,10 @@ function updateProductNavCounter() {
 }
 
 function fillProductModal(p) {
+    if (!p) return;
+    if (typeof window.syncProductVariantsStock === 'function') {
+        window.syncProductVariantsStock(p);
+    }
     window.currentEditingProductId = p.id;
     const preview = document.getElementById('productImagePreview');
     const removeBtn = document.getElementById('removeProductImageBtn');

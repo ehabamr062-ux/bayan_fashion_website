@@ -2702,8 +2702,10 @@
                     let curProdWhStock = 0;
                     if (p.warehouseStocks[activeWH] !== undefined) {
                         curProdWhStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
-                    } else {
+                    } else if (activeWH === 'المخزن الرئيسي' || Object.keys(p.warehouseStocks).length === 0) {
                         curProdWhStock = parseFloat(p.stock) || 0;
+                    } else {
+                        curProdWhStock = 0;
                     }
 
                     const itType = String(item.type || cleanType || '');
@@ -2751,8 +2753,10 @@
                             let curVarWhStock = 0;
                             if (matchedVar.warehouseStocks[activeWH] !== undefined) {
                                 curVarWhStock = parseFloat(matchedVar.warehouseStocks[activeWH]) || 0;
-                            } else {
+                            } else if (activeWH === 'المخزن الرئيسي' || Object.keys(matchedVar.warehouseStocks).length === 0) {
                                 curVarWhStock = parseFloat(matchedVar.stock) || 0;
+                            } else {
+                                curVarWhStock = 0;
                             }
 
                             if (itType.includes('مرتجع بيع')) {
@@ -2972,8 +2976,10 @@
                                 let curProdWhStock = 0;
                                 if (p.warehouseStocks[activeWH] !== undefined) {
                                     curProdWhStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
-                                } else {
+                                } else if (activeWH === 'المخزن الرئيسي' || Object.keys(p.warehouseStocks).length === 0) {
                                     curProdWhStock = parseFloat(p.stock) || 0;
+                                } else {
+                                    curProdWhStock = 0;
                                 }
 
                                 const itType = String(item.type || (t && t.type) || '');
@@ -3020,8 +3026,10 @@
                                         let curVarWhStock = 0;
                                         if (matchedVar.warehouseStocks[activeWH] !== undefined) {
                                             curVarWhStock = parseFloat(matchedVar.warehouseStocks[activeWH]) || 0;
-                                        } else {
+                                        } else if (activeWH === 'المخزن الرئيسي' || Object.keys(matchedVar.warehouseStocks).length === 0) {
                                             curVarWhStock = parseFloat(matchedVar.stock) || 0;
+                                        } else {
+                                            curVarWhStock = 0;
                                         }
 
                                         if (itType.includes('مرتجع بيع')) {

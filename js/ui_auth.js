@@ -1504,7 +1504,7 @@
                 ctx.fillStyle = '#64748b';
                 ctx.font = 'bold 13px "Cairo", "Segoe UI", Tahoma, sans-serif';
                 const todayStr = new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
-                ctx.fillText(`⚡ نظام بَيَان POS (Fashion Edition v${window.appVersion || '5.0.0'}) | تاريخ التفعيل: ${todayStr}`, 340, 460);
+                ctx.fillText(`⚡ نظام بَيَان POS (Fashion Edition v${window.appVersion || '5.0.3'}) | تاريخ التفعيل: ${todayStr}`, 340, 460);
 
                 ctx.fillStyle = '#f59e0b';
                 ctx.font = 'bold 12px "Cairo", "Segoe UI", Tahoma, sans-serif';

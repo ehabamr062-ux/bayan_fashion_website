@@ -1565,9 +1565,12 @@ var transferItemsBatch = window.transferItemsBatch;
                                 if (effVariant) {
                                     const vGenStock = parseFloat(effVariant.stock) || 0;
                                     if (effVariant.warehouseStocks && typeof effVariant.warehouseStocks === 'object' && effVariant.warehouseStocks[wFrom] !== undefined) {
-                                        availStock = Math.max(parseFloat(effVariant.warehouseStocks[wFrom]) || 0, vGenStock);
-                                    } else {
+                                        const whVal = parseFloat(effVariant.warehouseStocks[wFrom]);
+                                        availStock = isNaN(whVal) ? (wFrom === 'المخزن الرئيسي' ? vGenStock : 0) : (wFrom === 'المخزن الرئيسي' ? Math.max(whVal, vGenStock) : whVal);
+                                    } else if (wFrom === 'المخزن الرئيسي' || !effVariant.warehouseStocks || Object.keys(effVariant.warehouseStocks).length === 0) {
                                         availStock = vGenStock;
+                                    } else {
+                                        availStock = 0;
                                     }
                                 } else {
                                     availStock = 0;
@@ -1575,9 +1578,12 @@ var transferItemsBatch = window.transferItemsBatch;
                             } else {
                                 const pGenStock = parseFloat(p.stock) || 0;
                                 if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[wFrom] !== undefined) {
-                                    availStock = Math.max(parseFloat(p.warehouseStocks[wFrom]) || 0, pGenStock);
-                                } else {
+                                    const whVal = parseFloat(p.warehouseStocks[wFrom]);
+                                    availStock = isNaN(whVal) ? (wFrom === 'المخزن الرئيسي' ? pGenStock : 0) : (wFrom === 'المخزن الرئيسي' ? Math.max(whVal, pGenStock) : whVal);
+                                } else if (wFrom === 'المخزن الرئيسي' || !p.warehouseStocks || Object.keys(p.warehouseStocks).length === 0) {
                                     availStock = pGenStock;
+                                } else {
+                                    availStock = 0;
                                 }
                             }
 

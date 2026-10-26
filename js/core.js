@@ -73,11 +73,11 @@ window.BayanNetworkHub = {
 // 🔢 المزامنة التلقائية لرقم الإصدار الموحد (Single Source of Truth Unification)
 // المصدر الرسمي الوحيد هو package.json عبر app.getVersion()
 // =========================================================================
-window.appVersion = '5.0.0';
-window.APP_VERSION = '5.0.0';
+window.appVersion = '5.0.3';
+window.APP_VERSION = '5.0.3';
 
 async function fetchAppVersion() {
-    let version = '5.0.0';
+    let version = '5.0.3';
     try {
         if (typeof window !== 'undefined' && window.require) {
             const electron = window.require('electron');
@@ -97,7 +97,7 @@ async function fetchAppVersion() {
 }
 
 function syncAppVersionUI(version) {
-    if (!version) version = window.appVersion || '5.0.0';
+    if (!version) version = window.appVersion || '5.0.3';
     window.appVersion = version;
     window.APP_VERSION = version;
 
@@ -182,11 +182,25 @@ window.findProductVariant = function(product, criteria) {
 
     // أ) إذا تم تحديد المقاس واللون معاً
     if (targetSize && targetColor) {
-        const exactMatch = product.variants.find(v => 
+        const exactMatches = product.variants.filter(v => 
             window.cleanVariantAttr(v.size) === targetSize && 
             window.cleanVariantAttr(v.color) === targetColor
         );
-        if (exactMatch) return exactMatch;
+        if (exactMatches.length === 1) return exactMatches[0];
+        if (exactMatches.length > 1) {
+            // تفضيل السطر الذي به رصيد فعلي متوفر في المخزن النشط لتفادي الخصم بالسالب عند وجود تكرار
+            const activeWH = (criteria.warehouse || (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) || 'المخزن الرئيسي').trim();
+            const withStock = exactMatches.find(v => {
+                let st = 0;
+                if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
+                    st = parseFloat(v.warehouseStocks[activeWH]) || 0;
+                } else {
+                    st = parseFloat(v.stock) || 0;
+                }
+                return st > 0;
+            });
+            return withStock || exactMatches[0];
+        }
     }
 
     // ب) إذا تم تحديد المقاس فقط (أو المقاس مع لون عام)
@@ -1030,6 +1044,59 @@ async function loadData() {
 
         const syncProductVariantsStock = (p) => {
             if (p && p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
+                // 👗 1. دمج وتطهير التشكيلات المكررة لنفس المقاس واللون تلقائياً (Auto-Merge & Self-Heal)
+                const mergedVariants = [];
+                const seenVariantMap = new Map();
+                let hasMergedDuplicates = false;
+
+                for (let k = 0; k < p.variants.length; k++) {
+                    const v = p.variants[k];
+                    if (!v) continue;
+                    const cleanSz = (typeof window.cleanVariantAttr === 'function') ? window.cleanVariantAttr(v.size) : String(v.size || '').trim().toLowerCase();
+                    const cleanCol = (typeof window.cleanVariantAttr === 'function') ? window.cleanVariantAttr(v.color) : String(v.color || '').trim().toLowerCase();
+                    const vKey = `${cleanSz}___${cleanCol}`;
+
+                    if (!seenVariantMap.has(vKey)) {
+                        seenVariantMap.set(vKey, v);
+                        mergedVariants.push(v);
+                    } else {
+                        // تكرار مكتشف لنفس المقاس واللون: نقوم بدمج الأرصدة والبيانات في السطر الأصلي فوراً
+                        hasMergedDuplicates = true;
+                        const target = seenVariantMap.get(vKey);
+
+                        const targetStock = parseFloat(target.stock) || 0;
+                        const dupStock = parseFloat(v.stock) || 0;
+                        target.stock = Math.max(0, targetStock + dupStock);
+
+                        if (!target.warehouseStocks || typeof target.warehouseStocks !== 'object') {
+                            target.warehouseStocks = { 'المخزن الرئيسي': targetStock };
+                        }
+
+                        if (v.warehouseStocks && typeof v.warehouseStocks === 'object') {
+                            Object.keys(v.warehouseStocks).forEach(wh => {
+                                const tWhVal = parseFloat(target.warehouseStocks[wh]) || 0;
+                                const dWhVal = parseFloat(v.warehouseStocks[wh]) || 0;
+                                target.warehouseStocks[wh] = Math.max(0, tWhVal + dWhVal);
+                            });
+                        } else if (dupStock > 0) {
+                            const curMain = parseFloat(target.warehouseStocks['المخزن الرئيسي']) || 0;
+                            target.warehouseStocks['المخزن الرئيسي'] = Math.max(0, curMain + dupStock);
+                        }
+
+                        if (!target.barcode && v.barcode) target.barcode = v.barcode;
+                        if ((!target.price || target.price === 0) && v.price) target.price = v.price;
+                        if ((!target.wholesale || target.wholesale === 0) && v.wholesale) target.wholesale = v.wholesale;
+                        if ((!target.cost || target.cost === 0) && v.cost) target.cost = v.cost;
+                    }
+                }
+
+                if (hasMergedDuplicates) {
+                    p.variants = mergedVariants;
+                    if (window.BayanSQLite && typeof window.BayanSQLite.saveProductDirect === 'function' && p.id) {
+                        try { window.BayanSQLite.saveProductDirect(p); } catch(e) {}
+                    }
+                }
+
                 let vSum = 0;
                 for (let j = 0; j < p.variants.length; j++) {
                     const v = p.variants[j];

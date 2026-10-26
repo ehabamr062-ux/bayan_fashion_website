@@ -82,9 +82,9 @@
             window._secondaryLibsLoadingStarted = true;
             const secondaryList = [
                 'lib/html2canvas.min.js', 'lib/xlsx.full.min.js', 'lib/chart.min.js',
-                'lib/Sortable.min.js', 'js/barcode_print.js?v=5.0.0',
-                'js/cloud_telemetry.js?v=5.0.0', 'js/updater.js?v=5.0.0',
-                'js/treasury_audit.js?v=5.0.0'
+                'lib/Sortable.min.js', 'js/barcode_print.js?v=5.0.3',
+                'js/cloud_telemetry.js?v=5.0.3', 'js/updater.js?v=5.0.3',
+                'js/treasury_audit.js?v=5.0.3'
             ];
             secondaryList.forEach(src => {
                 const s = document.createElement('script');
@@ -133,61 +133,61 @@
     <!-- استيراد خط القاهرة محلياً 100% أوفلاين فائق السرعة -->
     <link rel="stylesheet" href="fonts/cairo.css">
 
-    <link rel="stylesheet" href="css/theme_base.css?v=5.0.0">
-    <link rel="stylesheet" href="css/sales_pos.css?v=5.0.0">
-    <link rel="stylesheet" href="css/inventory_products.css?v=5.0.0">
-    <link rel="stylesheet" href="css/accounts_reports.css?v=5.0.0">
-    <link rel="stylesheet" href="css/ui_modals.css?v=5.0.0">
-    <link rel="stylesheet" href="css/scrollbars.css?v=5.0.0">
-    <link rel="stylesheet" href="css/treasury_audit.css?v=5.0.0">
-    <link rel="stylesheet" href="css/barcode_print.css?v=5.0.0">
-    <link rel="stylesheet" href="css/premium.css?v=5.0.0">
+    <link rel="stylesheet" href="css/theme_base.css?v=5.0.3">
+    <link rel="stylesheet" href="css/sales_pos.css?v=5.0.3">
+    <link rel="stylesheet" href="css/inventory_products.css?v=5.0.3">
+    <link rel="stylesheet" href="css/accounts_reports.css?v=5.0.3">
+    <link rel="stylesheet" href="css/ui_modals.css?v=5.0.3">
+    <link rel="stylesheet" href="css/scrollbars.css?v=5.0.3">
+    <link rel="stylesheet" href="css/treasury_audit.css?v=5.0.3">
+    <link rel="stylesheet" href="css/barcode_print.css?v=5.0.3">
+    <link rel="stylesheet" href="css/premium.css?v=5.0.3">
 
-    <script src="lib/sql-wasm-binary.js?v=5.0.0"></script>
-    <script src="lib/sql-wasm.js?v=5.0.0"></script>
-    <script src="js/sqlite_manager.js?v=5.0.0" defer></script>
-    <script src="js/db_adapter.js?v=5.0.0" defer></script>
-    <script src="js/store.js?v=5.0.0" defer></script>
-    <script src="js/security.js?v=5.0.0" defer></script>
-    <script src="js/core.js?v=5.0.0" defer></script>
+    <script src="lib/sql-wasm-binary.js?v=5.0.3"></script>
+    <script src="lib/sql-wasm.js?v=5.0.3"></script>
+    <script src="js/sqlite_manager.js?v=5.0.3" defer></script>
+    <script src="js/db_adapter.js?v=5.0.3" defer></script>
+    <script src="js/store.js?v=5.0.3" defer></script>
+    <script src="js/security.js?v=5.0.3" defer></script>
+    <script src="js/core.js?v=5.0.3" defer></script>
     <script src="lib/JsBarcode.all.min.js"></script>
     <script src="lib/qrcode.min.js"></script>
-    <script src="js/utils_helpers.js?v=5.0.0" defer></script>
-    <script src="js/app_units_payments.js?v=5.0.0" defer></script>
-    <script src="js/app_license.js?v=5.0.0" defer></script>
-    <script src="js/settings.js?v=5.0.0" defer></script>
-    <script src="js/ui_theme_custom.js?v=5.0.0" defer></script>
-    <script src="js/ui_tabs.js?v=5.0.0" defer></script>
-    <script src="js/ui_modals_notifications.js?v=5.0.0" defer></script>
-    <script src="js/ui_auth.js?v=5.0.0" defer></script>
-    <script src="js/ui_calculator.js?v=5.0.0" defer></script>
-    <script src="js/inv_core.js?v=5.0.0" defer></script>
-    <script src="js/inv_products.js?v=5.0.0" defer></script>
-    <script src="js/inv_variants.js?v=5.0.0" defer></script>
-    <script src="js/inv_adjustments.js?v=5.0.0" defer></script>
-    <script src="js/trash.js?v=5.0.0" defer></script>
-    <script src="js/engine_invoices.js?v=5.0.0" defer></script>
-    <script src="js/sales_purchases.js?v=5.0.0" defer></script>
-    <script src="js/sales_pos.js?v=5.0.1" defer></script>
-    <script src="js/sales_fashion_picker.js?v=5.0.0" defer></script>
-    <script src="js/sales_inquiry_modal.js?v=5.0.0" defer></script>
-    <script src="js/sales_returns.js?v=5.0.0" defer></script>
-    <script src="js/sales_history_view.js?v=5.0.0" defer></script>
-    <script src="js/inv_transfers.js?v=5.0.0" defer></script>
-    <script src="js/acc_invoices.js?v=5.0.0" defer></script>
-    <script src="js/acc_vouchers.js?v=5.0.0" defer></script>
-    <script src="js/acc_reports.js?v=5.0.0" defer></script>
-    <script src="js/acc_partners.js?v=5.0.0" defer></script>
-    <script src="js/app_backup.js?v=5.0.0" defer></script>
-    <script src="js/app_export_share.js?v=5.0.0" defer></script>
-    <script src="js/init.js?v=5.0.0" defer></script>
-    <script src="js/print.js?v=5.0.0" defer></script>
-    <script src="js/receipt_disburse_fixes.js?v=5.0.0" defer></script>
-    <script src="js/history_enhancements.js?v=5.0.0" defer></script>
-    <script src="js/barcode.js?v=5.0.0" defer></script>
-    <script src="js/cloud_drive_backup.js?v=5.0.0" defer></script>
-    <script src="js/supabase_sync.js?v=5.0.0" defer></script>
-    <script src="js/login_update_card.js?v=5.0.0" defer></script>
+    <script src="js/utils_helpers.js?v=5.0.3" defer></script>
+    <script src="js/app_units_payments.js?v=5.0.3" defer></script>
+    <script src="js/app_license.js?v=5.0.3" defer></script>
+    <script src="js/settings.js?v=5.0.3" defer></script>
+    <script src="js/ui_theme_custom.js?v=5.0.3" defer></script>
+    <script src="js/ui_tabs.js?v=5.0.3" defer></script>
+    <script src="js/ui_modals_notifications.js?v=5.0.3" defer></script>
+    <script src="js/ui_auth.js?v=5.0.3" defer></script>
+    <script src="js/ui_calculator.js?v=5.0.3" defer></script>
+    <script src="js/inv_core.js?v=5.0.3" defer></script>
+    <script src="js/inv_products.js?v=5.0.3" defer></script>
+    <script src="js/inv_variants.js?v=5.0.3" defer></script>
+    <script src="js/inv_adjustments.js?v=5.0.3" defer></script>
+    <script src="js/trash.js?v=5.0.3" defer></script>
+    <script src="js/engine_invoices.js?v=5.0.3" defer></script>
+    <script src="js/sales_purchases.js?v=5.0.3" defer></script>
+    <script src="js/sales_pos.js?v=5.0.3" defer></script>
+    <script src="js/sales_fashion_picker.js?v=5.0.3" defer></script>
+    <script src="js/sales_inquiry_modal.js?v=5.0.3" defer></script>
+    <script src="js/sales_returns.js?v=5.0.3" defer></script>
+    <script src="js/sales_history_view.js?v=5.0.3" defer></script>
+    <script src="js/inv_transfers.js?v=5.0.3" defer></script>
+    <script src="js/acc_invoices.js?v=5.0.3" defer></script>
+    <script src="js/acc_vouchers.js?v=5.0.3" defer></script>
+    <script src="js/acc_reports.js?v=5.0.3" defer></script>
+    <script src="js/acc_partners.js?v=5.0.3" defer></script>
+    <script src="js/app_backup.js?v=5.0.3" defer></script>
+    <script src="js/app_export_share.js?v=5.0.3" defer></script>
+    <script src="js/init.js?v=5.0.3" defer></script>
+    <script src="js/print.js?v=5.0.3" defer></script>
+    <script src="js/receipt_disburse_fixes.js?v=5.0.3" defer></script>
+    <script src="js/history_enhancements.js?v=5.0.3" defer></script>
+    <script src="js/barcode.js?v=5.0.3" defer></script>
+    <script src="js/cloud_drive_backup.js?v=5.0.3" defer></script>
+    <script src="js/supabase_sync.js?v=5.0.3" defer></script>
+    <script src="js/login_update_card.js?v=5.0.3" defer></script>
 
 
 </head>
@@ -9522,7 +9522,7 @@
                                     <div>
                                         <span id="aboutAppVersionBadge" class="dynamic-app-version-badge"
                                             style="display: inline-block; background: #059669; color: #ffffff; padding: 6px 16px; border-radius: 10px; font-weight: 900; font-size: 0.95rem; border: 2px solid #047857;">
-                                            الإصدار الرسمي V5.0.0 ⚡
+                                            الإصدار الرسمي V5.0.3 ⚡
                                         </span>
                                     </div>
                                 </div>
@@ -9620,7 +9620,7 @@
                                             المثبت:</div>
                                         <div id="updateCurrentVerLabel"
                                             style="margin: 2px 0; color: #0f172a; font-size: 1.15rem; font-weight: 900; font-family: monospace;">
-                                            V5.0.0
+                                            V5.0.3
                                         </div>
                                         <div style="font-size: 0.7rem; color: #059669; font-weight: 800;">✅ نسخة مستقرة
                                             ومحدثة</div>
@@ -9653,7 +9653,7 @@
                                         🔄 المزامنة والفحص المباشر:
                                     </div>
                                     <button class="settings-save-btn"
-                                        onclick="if(typeof checkUpdates==='function'){checkUpdates(true);}else if(typeof checkGitHubReleases==='function'){checkGitHubReleases(true);}else{if(typeof showToast==='function')showToast('✅ نظام بيان POS يعمل بأحدث إصدار مستقر (V5.0.0)','success');else alert('✅ نظام بيان POS يعمل بأحدث إصدار مستقر (V5.0.0)');}"
+                                        onclick="if(typeof checkUpdates==='function'){checkUpdates(true);}else if(typeof checkGitHubReleases==='function'){checkGitHubReleases(true);}else{if(typeof showToast==='function')showToast('✅ نظام بيان POS يعمل بأحدث إصدار مستقر (V5.0.3)','success');else alert('✅ نظام بيان POS يعمل بأحدث إصدار مستقر (V5.0.3)');}"
                                         style="height: 36px; font-size: 0.82rem; width: 100%; justify-content: center;">
                                         <span>🔍</span> فحص التحديثات الآن
                                     </button>
@@ -9674,12 +9674,12 @@
                                             <span>إدارة وتجميد التحديثات التلقائية</span>
                                             <span id="updatePolicyBadge"
                                                 style="font-size: 0.74rem; padding: 3px 10px; border-radius: 8px; font-weight: 900; background: #ecfdf5; color: #059669; border: 1.5px solid #a7f3d0; transition: all 0.3s ease;">تلقائي
-                                                نشط ⚡ (V5.0.0)</span>
+                                                نشط ⚡ (V5.0.3)</span>
                                         </div>
                                         <div
                                             style="font-size: 0.82rem; color: #64748b; font-weight: 700; margin-top: 4px;">
                                             يمكنك إيقاف البحث التلقائي عن التحديثات وتثبيت نسختك الحالية (<span
-                                                style="color: #2563eb; font-weight: 900; font-family: monospace;">V5.0.0</span>)
+                                                style="color: #2563eb; font-weight: 900; font-family: monospace;">V5.0.3</span>)
                                             لمنع أي إشعارات أو ترقيات مستقبلاً.
                                         </div>
                                     </div>
@@ -9700,7 +9700,7 @@
                                     <span id="toggleAutoUpdatesText"
                                         onclick="document.getElementById('toggleAutoUpdatesSwitch').click()"
                                         style="font-weight: 900; font-size: 0.9rem; color: #059669; min-width: 145px; cursor: pointer; user-select: none; transition: color 0.3s ease;">التحديثات
-                                        مفعلة (V5.0.0)</span>
+                                        مفعلة (V5.0.3)</span>
                                 </div>
                             </div>
 
@@ -9712,19 +9712,19 @@
                                     </h3>
                                     <span
                                         style="font-size: 0.75rem; background: #ecfdf5; color: #047857; padding: 3px 10px; border-radius: 8px; font-weight: 800; border: 1px solid #a7f3d0;">
-                                        V5.0.0 👗 أحدث إصدار
+                                        V5.0.3 👗 أحدث إصدار
                                     </span>
                                 </div>
 
                                 <div id="updateReleaseNotesBox"
                                     style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 12px; font-size: 0.85rem; color: #334155; line-height: 1.6; display: flex; flex-direction: column; gap: 10px;">
 
-                                    <!-- التحديث الأحدث V5.0.0 -->
+                                    <!-- التحديث الأحدث V5.0.3 -->
                                     <details open
                                         style="background: white; border: 1.5px solid #10b981; border-radius: 12px; padding: 12px 16px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.1);">
                                         <summary
                                             style="font-weight: 900; color: #065f46; font-size: 0.94rem; cursor: pointer; display: flex; align-items: center; justify-content: space-between; user-select: none;">
-                                            <span>✨ الإصدار الجديد المعتمد V5.0.0 (26/10/2026) - محرك الفاشون الموحد وتأمين تعديل الفواتير واستقرار الأوفلاين</span>
+                                            <span>✨ الإصدار الجديد المعتمد V5.0.3 (26/10/2026) - محرك الفاشون الموحد وتأمين تعديل الفواتير واستقرار الأوفلاين</span>
                                             <span
                                                 style="font-size: 0.72rem; background: #ecfdf5; color: #047857; padding: 3px 9px; border-radius: 6px; border: 1px solid #a7f3d0; font-weight: 900;">الإصدار
                                                 الحالي المثبت ⭐</span>
@@ -12965,7 +12965,7 @@
                         <span style="color: #ffffff; font-size: 1.15rem; font-weight: 900;">مركز طباعة الباركود وملصقات
                             الملابس</span>
                         <span class="dynamic-app-version-badge"
-                            style="font-size: 0.72rem; background: #0284c7; color: #ffffff; padding: 2px 8px; border-radius: 6px; font-weight: 800; letter-spacing: 0.5px;">V5.0.0
+                            style="font-size: 0.72rem; background: #0284c7; color: #ffffff; padding: 2px 8px; border-radius: 6px; font-weight: 800; letter-spacing: 0.5px;">V5.0.3
                             ⚡</span>
                     </h2>
                     <p style="margin: 2px 0 0 0; color: #94a3b8; font-size: 0.74rem; font-weight: 600;">طباعة ليزرية

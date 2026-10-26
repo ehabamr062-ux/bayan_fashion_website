@@ -1686,9 +1686,11 @@ async function savePurchase(force = false, accountChecked = false) {
                 const pGenOld = parseFloat(p.stock) || 0;
                 if (p.warehouseStocks[activeWH] !== undefined) {
                     const pWhVal = parseFloat(p.warehouseStocks[activeWH]);
-                    curProdWhStock = isNaN(pWhVal) ? pGenOld : Math.max(pWhVal, pGenOld);
-                } else {
+                    curProdWhStock = isNaN(pWhVal) ? (activeWH === 'المخزن الرئيسي' ? pGenOld : 0) : (activeWH === 'المخزن الرئيسي' ? Math.max(pWhVal, pGenOld) : pWhVal);
+                } else if (activeWH === 'المخزن الرئيسي' || Object.keys(p.warehouseStocks).length === 0) {
                     curProdWhStock = pGenOld;
+                } else {
+                    curProdWhStock = 0;
                 }
                 p.warehouseStocks[activeWH] = curProdWhStock + baseQty;
                 p.stock = finalStockCount;
@@ -1705,9 +1707,11 @@ async function savePurchase(force = false, accountChecked = false) {
                         let curVarWhStock = 0;
                         if (matchedVar.warehouseStocks[activeWH] !== undefined) {
                             const whVal = parseFloat(matchedVar.warehouseStocks[activeWH]);
-                            curVarWhStock = isNaN(whVal) ? oldVarStock : Math.max(whVal, oldVarStock);
-                        } else {
+                            curVarWhStock = isNaN(whVal) ? (activeWH === 'المخزن الرئيسي' ? oldVarStock : 0) : (activeWH === 'المخزن الرئيسي' ? Math.max(whVal, oldVarStock) : whVal);
+                        } else if (activeWH === 'المخزن الرئيسي' || Object.keys(matchedVar.warehouseStocks).length === 0) {
                             curVarWhStock = oldVarStock;
+                        } else {
+                            curVarWhStock = 0;
                         }
                         matchedVar.warehouseStocks[activeWH] = curVarWhStock + baseQty;
                         if (parseFloat(item.salePrice) > 0) {

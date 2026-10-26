@@ -1598,9 +1598,12 @@
                     let totalProdStockInWH = 0;
                     const pGenStock = parseFloat(p.stock) || 0;
                     if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
-                        totalProdStockInWH = Math.max(parseFloat(p.warehouseStocks[activeWH]) || 0, pGenStock);
-                    } else {
+                        const whVal = parseFloat(p.warehouseStocks[activeWH]);
+                        totalProdStockInWH = isNaN(whVal) ? (activeWH === 'المخزن الرئيسي' ? pGenStock : 0) : (activeWH === 'المخزن الرئيسي' ? Math.max(whVal, pGenStock) : whVal);
+                    } else if (activeWH === 'المخزن الرئيسي' || !p.warehouseStocks || Object.keys(p.warehouseStocks).length === 0) {
                         totalProdStockInWH = pGenStock;
+                    } else {
+                        totalProdStockInWH = 0;
                     }
                     const globalProdStock = (p.stock !== undefined && p.stock !== null) ? (parseFloat(p.stock) || 0) : totalProdStockInWH;
 
@@ -1616,9 +1619,12 @@
                             let vStock = 0;
                             const vGenStock = parseFloat(v.stock) || 0;
                             if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
-                                vStock = Math.max(parseFloat(v.warehouseStocks[activeWH]) || 0, vGenStock);
-                            } else {
+                                const whVal = parseFloat(v.warehouseStocks[activeWH]);
+                                vStock = isNaN(whVal) ? (activeWH === 'المخزن الرئيسي' ? vGenStock : 0) : (activeWH === 'المخزن الرئيسي' ? Math.max(whVal, vGenStock) : whVal);
+                            } else if (activeWH === 'المخزن الرئيسي' || !v.warehouseStocks || Object.keys(v.warehouseStocks).length === 0) {
                                 vStock = vGenStock;
+                            } else {
+                                vStock = 0;
                             }
 
                             const vMinStock = (v.minStock !== undefined && v.minStock !== null && v.minStock !== '')
@@ -4284,6 +4290,11 @@
             const product = allProducts.find(p => p.id === productId || p.id == productId);
             if (!product) return;
 
+            // 🔄 مزامنة وتطهير فوري لأي تشكيلات مكررة لضمان دقة الرصيد
+            if (typeof window.syncProductVariantsStock === 'function') {
+                window.syncProductVariantsStock(product);
+            }
+
             currentSectionInquiryProduct = product;
             window.currentSectionInquiryProduct = product;
             selectedSectionInquiryWarehouse = 'all';
@@ -4462,8 +4473,9 @@
                         } else if (whName === 'المخزن الرئيسي') {
                             st = parseFloat(v.stock) || 0;
                         }
-                        availQty += st;
+                        availQty += Math.max(0, st);
                     });
+                    availQty = Math.max(0, availQty);
                 } else {
                     if (typeof getWarehouseStock === 'function') {
                         availQty = getWarehouseStock(p.name, whName);

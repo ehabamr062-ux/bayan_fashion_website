@@ -974,20 +974,24 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
         const vGen = parseFloat(effVariant.stock) || 0;
         if (effVariant.warehouseStocks && typeof effVariant.warehouseStocks === 'object' && effVariant.warehouseStocks[activeWH] !== undefined) {
             const whVal = parseFloat(effVariant.warehouseStocks[activeWH]);
-            availBaseStock = isNaN(whVal) ? vGen : Math.max(whVal, vGen);
-        } else {
+            availBaseStock = isNaN(whVal) ? (activeWH === 'المخزن الرئيسي' ? vGen : 0) : (activeWH === 'المخزن الرئيسي' ? Math.max(whVal, vGen) : whVal);
+        } else if (activeWH === 'المخزن الرئيسي' || !effVariant.warehouseStocks || Object.keys(effVariant.warehouseStocks).length === 0) {
             availBaseStock = vGen;
+        } else {
+            availBaseStock = 0;
         }
     } else {
         const pGen = parseFloat(product.stock) || 0;
         if (typeof getWarehouseStock === 'function') {
             const gwh = getWarehouseStock(product.name, activeWH);
-            availBaseStock = Math.max(gwh, pGen);
+            availBaseStock = (activeWH === 'المخزن الرئيسي') ? Math.max(gwh, pGen) : gwh;
         } else if (product.warehouseStocks && typeof product.warehouseStocks === 'object' && product.warehouseStocks[activeWH] !== undefined) {
             const whVal = parseFloat(product.warehouseStocks[activeWH]);
-            availBaseStock = isNaN(whVal) ? pGen : Math.max(whVal, pGen);
-        } else {
+            availBaseStock = isNaN(whVal) ? (activeWH === 'المخزن الرئيسي' ? pGen : 0) : (activeWH === 'المخزن الرئيسي' ? Math.max(whVal, pGen) : whVal);
+        } else if (activeWH === 'المخزن الرئيسي' || !product.warehouseStocks || Object.keys(product.warehouseStocks).length === 0) {
             availBaseStock = pGen;
+        } else {
+            availBaseStock = 0;
         }
     }
 
@@ -1692,20 +1696,24 @@ function updateQty(index, newQty) {
             const vGen = parseFloat(effVariant.stock) || 0;
             if (effVariant.warehouseStocks && typeof effVariant.warehouseStocks === 'object' && effVariant.warehouseStocks[activeWH] !== undefined) {
                 const whVal = parseFloat(effVariant.warehouseStocks[activeWH]);
-                currentBaseStock = isNaN(whVal) ? vGen : Math.max(whVal, vGen);
-            } else {
+                currentBaseStock = isNaN(whVal) ? (activeWH === 'المخزن الرئيسي' ? vGen : 0) : (activeWH === 'المخزن الرئيسي' ? Math.max(whVal, vGen) : whVal);
+            } else if (activeWH === 'المخزن الرئيسي' || !effVariant.warehouseStocks || Object.keys(effVariant.warehouseStocks).length === 0) {
                 currentBaseStock = vGen;
+            } else {
+                currentBaseStock = 0;
             }
         } else {
             const pGen = parseFloat(product.stock) || 0;
             if (typeof getWarehouseStock === 'function') {
                 const gwh = getWarehouseStock(product.name, activeWH);
-                currentBaseStock = Math.max(gwh, pGen);
+                currentBaseStock = (activeWH === 'المخزن الرئيسي') ? Math.max(gwh, pGen) : gwh;
             } else if (product.warehouseStocks && typeof product.warehouseStocks === 'object' && product.warehouseStocks[activeWH] !== undefined) {
                 const whVal = parseFloat(product.warehouseStocks[activeWH]);
-                currentBaseStock = isNaN(whVal) ? pGen : Math.max(whVal, pGen);
-            } else {
+                currentBaseStock = isNaN(whVal) ? (activeWH === 'المخزن الرئيسي' ? pGen : 0) : (activeWH === 'المخزن الرئيسي' ? Math.max(whVal, pGen) : whVal);
+            } else if (activeWH === 'المخزن الرئيسي' || !product.warehouseStocks || Object.keys(product.warehouseStocks).length === 0) {
                 currentBaseStock = pGen;
+            } else {
+                currentBaseStock = 0;
             }
         }
 
@@ -2694,6 +2702,10 @@ async function saveBill(force = false, accountChecked = false) {
     const saveBtns = document.querySelectorAll('#sales-section .btn-save, #sales-section .action-btn');
     saveBtns.forEach(b => { b.disabled = true; b.style.pointerEvents = 'none'; b.style.opacity = '0.6'; });
 
+    // 🛡️ سجلات التراجع الذري لضمان عدم خصم أي رصيد عند حدوث أي خطأ في الحفظ (Atomicity & Stock Rollback)
+    const stockDeductionRollbackLog = [];
+    const newTransactionRows = [];
+
     // 🛡️ صمام أمان تلقائي: فك قفل الحفظ وأزرار الماوس والكيبورد تلقائياً بعد 1.5 ثانية لمنع أي تعليق أو تجميد للشاشة
     clearTimeout(window._bayanSaveLockTimer);
     window._bayanSaveLockTimer = setTimeout(() => {
@@ -2904,17 +2916,21 @@ async function saveBill(force = false, accountChecked = false) {
                 const vGen = parseFloat(effVariant.stock) || 0;
                 if (effVariant.warehouseStocks && typeof effVariant.warehouseStocks === 'object' && effVariant.warehouseStocks[activeWH] !== undefined) {
                     const whVal = parseFloat(effVariant.warehouseStocks[activeWH]);
-                    currentBaseStock = isNaN(whVal) ? vGen : Math.max(whVal, vGen);
-                } else {
+                    currentBaseStock = isNaN(whVal) ? (activeWH === 'المخزن الرئيسي' ? vGen : 0) : (activeWH === 'المخزن الرئيسي' ? Math.max(whVal, vGen) : whVal);
+                } else if (activeWH === 'المخزن الرئيسي' || !effVariant.warehouseStocks || Object.keys(effVariant.warehouseStocks).length === 0) {
                     currentBaseStock = vGen;
+                } else {
+                    currentBaseStock = 0;
                 }
             } else {
                 const pGen = parseFloat(p.stock) || 0;
                 if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
                     const whVal = parseFloat(p.warehouseStocks[activeWH]);
-                    currentBaseStock = isNaN(whVal) ? pGen : Math.max(whVal, pGen);
-                } else {
+                    currentBaseStock = isNaN(whVal) ? (activeWH === 'المخزن الرئيسي' ? pGen : 0) : (activeWH === 'المخزن الرئيسي' ? Math.max(whVal, pGen) : whVal);
+                } else if (activeWH === 'المخزن الرئيسي' || !p.warehouseStocks || Object.keys(p.warehouseStocks).length === 0) {
                     currentBaseStock = pGen;
+                } else {
+                    currentBaseStock = 0;
                 }
             }
 
@@ -3258,7 +3274,7 @@ async function saveBill(force = false, accountChecked = false) {
             };
         const terminalName = tInfo.terminal;
 
-        const newTransactionRows = [];
+        newTransactionRows.length = 0;
         const affectedProducts = [];
 
         cart.forEach((cartItem, idx) => {
@@ -3281,18 +3297,21 @@ async function saveBill(force = false, accountChecked = false) {
                 product.warehouseStocks[activeWH] = curProdWhStock - baseQty;
                 product.stock = (parseFloat(product.stock) || 0) - baseQty;
 
+                let matchedVar = null;
                 // تحديث رصيد التشكيلة (المقاس واللون) في مصفوفة الصنف بدقة وتطابق تام
                 if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
-                    const matchedVar = window.findProductVariant ? window.findProductVariant(product, cartItem) : null;
+                    matchedVar = window.findProductVariant ? window.findProductVariant(product, cartItem) : null;
                     if (matchedVar) {
                         if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
                         const vGen = parseFloat(matchedVar.stock) || 0;
                         let curVarWhStock = 0;
                         if (matchedVar.warehouseStocks[activeWH] !== undefined) {
                             const whVal = parseFloat(matchedVar.warehouseStocks[activeWH]);
-                            curVarWhStock = isNaN(whVal) ? vGen : Math.max(whVal, vGen);
-                        } else {
+                            curVarWhStock = isNaN(whVal) ? (activeWH === 'المخزن الرئيسي' ? vGen : 0) : (activeWH === 'المخزن الرئيسي' ? Math.max(whVal, vGen) : whVal);
+                        } else if (activeWH === 'المخزن الرئيسي' || Object.keys(matchedVar.warehouseStocks).length === 0) {
                             curVarWhStock = vGen;
+                        } else {
+                            curVarWhStock = 0;
                         }
                         matchedVar.warehouseStocks[activeWH] = curVarWhStock - baseQty;
                         matchedVar.stock = vGen - baseQty;
@@ -3305,6 +3324,15 @@ async function saveBill(force = false, accountChecked = false) {
                         product.stock = product.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
                     }
                 }
+
+                // 🛡️ تسجيل العملية في سجل الاسترجاع الذري (Stock Deduction Rollback Snapshot)
+                stockDeductionRollbackLog.push({
+                    product: product,
+                    variant: matchedVar,
+                    baseQty: baseQty,
+                    warehouse: activeWH
+                });
+
                 if (!affectedProducts.some(ap => ap.id === product.id)) {
                     affectedProducts.push(product);
                 }
@@ -3552,6 +3580,50 @@ async function saveBill(force = false, accountChecked = false) {
     } catch (saveErr) {
 
         console.error("❌ خطأ أثناء حفظ فاتورة المبيعات بعد تفريغ القديمة:", saveErr);
+
+        // 🛡️ مبدأ الذرية الكاملة (Atomicity & Stock Rollback):
+        // استرجاع كافة الكميات المخصومة فوراً إلى الذاكرة في حال فشل الحفظ بقاعدة البيانات
+        if (Array.isArray(stockDeductionRollbackLog) && stockDeductionRollbackLog.length > 0) {
+            console.warn("🔄 [Atomicity] حدث خطأ أثناء حفظ الفاتورة، جاري التراجع الذري واسترجاع أرصدة المخزون إلى الذاكرة...");
+            const rolledBackProducts = new Set();
+            stockDeductionRollbackLog.forEach(entry => {
+                const p = entry.product;
+                const v = entry.variant;
+                const qty = entry.baseQty;
+                const wh = entry.warehouse;
+
+                if (p) {
+                    p.stock = (parseFloat(p.stock) || 0) + qty;
+                    if (p.warehouseStocks && typeof p.warehouseStocks === 'object') {
+                        p.warehouseStocks[wh] = (parseFloat(p.warehouseStocks[wh]) || 0) + qty;
+                    }
+                    rolledBackProducts.add(p);
+                }
+
+                if (v) {
+                    v.stock = (parseFloat(v.stock) || 0) + qty;
+                    if (v.warehouseStocks && typeof v.warehouseStocks === 'object') {
+                        v.warehouseStocks[wh] = (parseFloat(v.warehouseStocks[wh]) || 0) + qty;
+                    }
+                }
+            });
+
+            // إعادة مزامنة وتطابق أرصدة الأصناف الرئيسية بعد استرجاع المقاسات
+            rolledBackProducts.forEach(p => {
+                if (window.syncParentProductStock) {
+                    try { window.syncParentProductStock(p, (p.warehouseStocks && p.warehouseStocks[activeWH] !== undefined) ? activeWH : 'المخزن الرئيسي'); } catch(e) {}
+                }
+            });
+        }
+
+        // 🛡️ إزالة أي حركات معاملات أضيفت للذاكرة ولم يكتمل حفظها في قاعدة البيانات
+        if (Array.isArray(newTransactionRows) && newTransactionRows.length > 0 && Array.isArray(transactions)) {
+            for (const row of newTransactionRows) {
+                const txIdx = transactions.lastIndexOf(row);
+                if (txIdx !== -1) transactions.splice(txIdx, 1);
+            }
+        }
+
         if (isEditMode && typeof window.rollbackLastRevertedInvoice === 'function') {
             await window.rollbackLastRevertedInvoice();
         }
@@ -3560,7 +3632,7 @@ async function saveBill(force = false, accountChecked = false) {
             titleText: '⚠️ تعذر حفظ الفاتورة',
             msg: isEditMode
                 ? ('حدث خطأ أثناء حفظ التعديل، وتم الحفاظ على الفاتورة الأصلية واستعادتها بالكامل دون أي فقدان للبيانات.\n\nتفاصيل الخطأ: ' + (saveErr?.message || saveErr))
-                : ('حدث خطأ غير متوقع أثناء حفظ الفاتورة:\n' + (saveErr?.message || saveErr))
+                : ('حدث خطأ غير متوقع أثناء حفظ الفاتورة، وتم استرجاع أرصدة المخزون بالكامل دون أي خصم:\n' + (saveErr?.message || saveErr))
         });
         return false;
 

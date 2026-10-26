@@ -967,8 +967,10 @@ async function saveSalesReturn(force = false, accountChecked = false) {
                 let curProdWhStock = 0;
                 if (p.warehouseStocks[activeWH] !== undefined) {
                     curProdWhStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
-                } else {
+                } else if (activeWH === 'المخزن الرئيسي' || Object.keys(p.warehouseStocks).length === 0) {
                     curProdWhStock = parseFloat(p.stock) || 0;
+                } else {
+                    curProdWhStock = 0;
                 }
                 p.warehouseStocks[activeWH] = curProdWhStock + baseQty;
                 p.stock = (parseFloat(p.stock) || 0) + baseQty;
@@ -981,8 +983,10 @@ async function saveSalesReturn(force = false, accountChecked = false) {
                         let curVarWhStock = 0;
                         if (matchedVar.warehouseStocks[activeWH] !== undefined) {
                             curVarWhStock = parseFloat(matchedVar.warehouseStocks[activeWH]) || 0;
-                        } else {
+                        } else if (activeWH === 'المخزن الرئيسي' || Object.keys(matchedVar.warehouseStocks).length === 0) {
                             curVarWhStock = parseFloat(matchedVar.stock) || 0;
+                        } else {
+                            curVarWhStock = 0;
                         }
                         matchedVar.warehouseStocks[activeWH] = curVarWhStock + baseQty;
                         matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
@@ -1790,8 +1794,8 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
                 }
                 const activeWH = (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي';
                 const availStock = effVariant 
-                    ? ((effVariant.warehouseStocks && effVariant.warehouseStocks[activeWH] !== undefined) ? (parseFloat(effVariant.warehouseStocks[activeWH]) || 0) : (parseFloat(effVariant.stock) || 0)) 
-                    : ((p.warehouseStocks && p.warehouseStocks[activeWH] !== undefined) ? (parseFloat(p.warehouseStocks[activeWH]) || 0) : (parseFloat(p.stock) || 0));
+                    ? ((effVariant.warehouseStocks && effVariant.warehouseStocks[activeWH] !== undefined) ? (parseFloat(effVariant.warehouseStocks[activeWH]) || 0) : ((activeWH === 'المخزن الرئيسي' || !effVariant.warehouseStocks || Object.keys(effVariant.warehouseStocks).length === 0) ? (parseFloat(effVariant.stock) || 0) : 0)) 
+                    : ((p.warehouseStocks && p.warehouseStocks[activeWH] !== undefined) ? (parseFloat(p.warehouseStocks[activeWH]) || 0) : ((activeWH === 'المخزن الرئيسي' || !p.warehouseStocks || Object.keys(p.warehouseStocks).length === 0) ? (parseFloat(p.stock) || 0) : 0));
                 if (baseQty > availStock) {
                     const variantInfo = effVariant ? ` [${effVariant.size || ''} ${effVariant.color || ''}]` : '';
                     const availInUnit = (availStock / factor).toFixed(2).replace(/\.00$/, '');
@@ -1830,8 +1834,10 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
                 let curProdWhStock = 0;
                 if (p.warehouseStocks[activeWH] !== undefined) {
                     curProdWhStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
-                } else {
+                } else if (activeWH === 'المخزن الرئيسي' || Object.keys(p.warehouseStocks).length === 0) {
                     curProdWhStock = parseFloat(p.stock) || 0;
+                } else {
+                    curProdWhStock = 0;
                 }
                 p.warehouseStocks[activeWH] = Math.max(0, curProdWhStock - baseQty);
                 p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
@@ -1844,8 +1850,10 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
                         let curVarWhStock = 0;
                         if (matchedVar.warehouseStocks[activeWH] !== undefined) {
                             curVarWhStock = parseFloat(matchedVar.warehouseStocks[activeWH]) || 0;
-                        } else {
+                        } else if (activeWH === 'المخزن الرئيسي' || Object.keys(matchedVar.warehouseStocks).length === 0) {
                             curVarWhStock = parseFloat(matchedVar.stock) || 0;
+                        } else {
+                            curVarWhStock = 0;
                         }
                         matchedVar.warehouseStocks[activeWH] = Math.max(0, curVarWhStock - baseQty);
                         matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
