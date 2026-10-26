@@ -1826,6 +1826,7 @@ async function savePurchase(force = false, accountChecked = false) {
                 dateISO: safeDateISO,
 
                 timeISO: safeTimeISO,
+                time: safeTimeISO,
 
                 type: 'شراء 📥',
 

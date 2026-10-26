@@ -1365,14 +1365,22 @@
 
             if (invoiceItems.length === 0) return alert('خطأ: لم يتم العثور على تفاصيل الفاتورة.');
             
-            let head = invoiceItems.find(t => t.isInvoiceHead) || invoiceItems[0];
+            let headFromPool = (typeof transactions !== 'undefined' ? transactions : []).find(t => t && ((t.invoiceId != null && String(t.invoiceId) === String(invoiceId)) || (t.id != null && String(t.id) === String(invoiceId))) && t.isInvoiceHead) ||
+                               (typeof transactions !== 'undefined' ? transactions : []).find(t => t && ((t.invoiceId != null && String(t.invoiceId) === String(invoiceId)) || (t.id != null && String(t.id) === String(invoiceId))));
+            let head = headFromPool || invoiceItems.find(t => t.isInvoiceHead) || invoiceItems[0];
             let tx = { ...head };
-            tx.invoiceId = invoiceId;
+            let cleanInv = invoiceId || head.invoiceId || '';
+            if (String(cleanInv).includes('_item_')) cleanInv = String(cleanInv).split('_item_')[0];
+            tx.invoiceId = cleanInv;
             tx.warehouse = head.warehouse || 'المخزن الرئيسي';
             tx.terminal = head.terminal || 'الجهاز الرئيسي 💻';
             tx.partner = head.partner || head.customer || 'عميل نقدي';
             tx.method = head.method || head.paymentMethod || 'كاش (نقدي)';
-            tx.notes = invoiceItems.find(t => t.notes)?.notes || tx.notes || '';
+            tx.notes = head.notes || invoiceItems.find(t => t.notes)?.notes || tx.notes || '';
+            tx.time = head.time || head.timeISO || tx.time || '';
+            tx.timeISO = head.timeISO || head.time || tx.timeISO || '';
+            tx.date = head.date || tx.date || '';
+            tx.dateISO = head.dateISO || tx.dateISO || '';
 
             // استخراج بيانات الخصم والإضافات الإجمالية للفاتورة الصريحة فقط (منع تسريب بيانات البند الفردي)
             const invDisc = parseFloat(head.invoiceDiscount != null ? head.invoiceDiscount : (head.discountAmount || 0)) || 0;

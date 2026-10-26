@@ -3340,6 +3340,7 @@ async function saveBill(force = false, accountChecked = false) {
                 date: dt.full,
                 dateISO: dt.iso,
                 timeISO: dt.time,
+                time: dt.time,
                 type: 'بيع 📤',
                 method: selectedMethod,
                 invoiceId: newInvoiceId,

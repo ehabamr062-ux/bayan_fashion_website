@@ -1375,7 +1375,7 @@
                 }
 
                 const dateISO = this.normalizeDateISO(item.dateISO || item.date);
-                const time = String(item.time || (item.dateISO && String(item.dateISO).includes('T') ? String(item.dateISO).split('T')[1].slice(0, 8) : ''));
+                const time = String(item.time || item.timeISO || (item.dateISO && String(item.dateISO).includes('T') ? String(item.dateISO).split('T')[1].slice(0, 8) : ''));
                 const type = String(item.type || 'sale');
                 const partner = String(item.partner || item.customer || item.client || '');
                 const warehouse = String(item.warehouse || '');
@@ -1892,7 +1892,7 @@
                                 const cleanInvoiceId = String(item.invoiceId != null && item.invoiceId !== '' ? item.invoiceId : cleanId);
                                 const cleanOrigInvId = (item.originalInvoiceId != null && item.originalInvoiceId !== '') ? String(item.originalInvoiceId) : null;
                                 const cleanDateISO = this.normalizeDateISO(item.dateISO || item.date);
-                                const cleanTime = String(item.time || (item.dateISO && String(item.dateISO).includes('T') ? String(item.dateISO).split('T')[1].slice(0, 8) : ''));
+                                const cleanTime = String(item.time || item.timeISO || (item.dateISO && String(item.dateISO).includes('T') ? String(item.dateISO).split('T')[1].slice(0, 8) : ''));
                                 const cleanType = String(item.type || 'sale');
                                 const cleanPartner = String(item.partner || item.customer || item.client || '');
                                 const cleanTotal = Number(item.total != null && !isNaN(item.total) ? item.total : (item.finalTotal || item.grandTotal || 0)) || 0;

@@ -1053,6 +1053,7 @@ async function saveSalesReturn(force = false, accountChecked = false) {
                 dateISO: dt.iso,
 
                 timeISO: dt.time,
+                time: dt.time,
 
                 type: 'مرتجع بيع 🔄',
 
@@ -1890,6 +1891,7 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
                 dateISO: dt.iso,
 
                 timeISO: dt.time,
+                time: dt.time,
 
                 type: 'مرتجع شراء 📤',
 

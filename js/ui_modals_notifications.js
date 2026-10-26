@@ -1559,40 +1559,51 @@
             let displayDate = '';
             let displayTime = '';
             
+            // 1. استخراج التاريخ بدقة
             if (tx.dateISO) {
                 displayDate = tx.dateISO;
-                if (tx.timeISO) {
-                    displayTime = tx.timeISO;
-                } else if (tx.time) {
-                    displayTime = tx.time;
-                }
             } else if (tx.date) {
                 const rawDateStr = String(tx.date).trim();
-                if (rawDateStr.includes('T')) {
-                    const parts = rawDateStr.split('T');
-                    displayDate = parts[0];
-                    displayTime = (parts[1] || '').split('.')[0].slice(0, 8);
-                } else if (rawDateStr.includes(' ')) {
-                    const parts = rawDateStr.split(' ');
-                    displayDate = parts[0];
-                    displayTime = parts.slice(1).join(' ');
-                } else {
-                    displayDate = rawDateStr;
-                }
+                displayDate = rawDateStr.includes('T') ? rawDateStr.split('T')[0] : (rawDateStr.includes(' ') ? rawDateStr.split(' ')[0] : rawDateStr);
+            } else if (tx.timestamp) {
+                const d = new Date(tx.timestamp);
+                displayDate = !isNaN(d.getTime()) ? (d.toLocaleDateString('ar-EG') || d.toISOString().slice(0, 10)) : String(tx.timestamp);
+            }
+            if (!displayDate) displayDate = '-';
+
+            // 2. استخراج الوقت بدقة من كافة المصادر الممكنة
+            if (tx.timeISO) {
+                displayTime = tx.timeISO;
+            } else if (tx.time) {
+                displayTime = tx.time;
+            } else if (tx.date && String(tx.date).includes(' ')) {
+                displayTime = String(tx.date).trim().split(' ').slice(1).join(' ');
+            } else if (tx.date && String(tx.date).includes('T')) {
+                displayTime = (String(tx.date).split('T')[1] || '').split('.')[0].slice(0, 8);
+            } else if (tx.dateISO && String(tx.dateISO).includes('T')) {
+                displayTime = (String(tx.dateISO).split('T')[1] || '').split('.')[0].slice(0, 8);
             } else if (tx.timestamp) {
                 const d = new Date(tx.timestamp);
                 if (!isNaN(d.getTime())) {
-                    displayDate = d.toLocaleDateString('ar-EG') || d.toISOString().slice(0, 10);
                     displayTime = d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
-                } else {
-                    displayDate = String(tx.timestamp);
                 }
             }
-            
-            if (!displayTime && tx.time) {
-                displayTime = tx.time;
+
+            // 3. تنظيف وتوحيد رقم الفاتورة المعروض وتجنب أرقام المعرفات الطويلة
+            let displayInvoiceId = String(tx.invoiceId != null && tx.invoiceId !== '' ? tx.invoiceId : (tx.invoiceNumber || tx.id || '-')).trim();
+            if (displayInvoiceId.includes('_item_')) {
+                displayInvoiceId = displayInvoiceId.split('_item_')[0];
             }
-            if (!displayDate) displayDate = '-';
+            if (displayInvoiceId.startsWith('TX_') || (displayInvoiceId.length >= 11 && /^\d+$/.test(displayInvoiceId))) {
+                if (tx.invoiceId && String(tx.invoiceId) !== displayInvoiceId && !String(tx.invoiceId).startsWith('TX_') && String(tx.invoiceId).length < 11) {
+                    displayInvoiceId = String(tx.invoiceId);
+                } else if (tx.taxInvoiceSeq || tx.dailySeq) {
+                    displayInvoiceId = String(tx.taxInvoiceSeq || tx.dailySeq);
+                } else if (typeof window.extractNumericInvoiceId === 'function') {
+                    const num = window.extractNumericInvoiceId(displayInvoiceId);
+                    if (num > 0 && num < 100000000) displayInvoiceId = String(num);
+                }
+            }
 
             let modalContent = `
                 <div style="background: #ffffff; width: ${modalWidth}; max-width: 96vw; max-height: 92vh; border-radius: 24px; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.28), 0 4px 12px rgba(0,0,0,0.06); display: flex; flex-direction: column; overflow: hidden; border: 1.5px solid #cbd5e1; direction: rtl; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;">
@@ -1607,7 +1618,7 @@
                                 <div style="display: flex; align-items: center; gap: 9px; flex-wrap: wrap;">
                                     <span style="background: ${typeColor}; color: #ffffff; font-size: 0.76rem; font-weight: 900; padding: 3px 12px; border-radius: 20px; letter-spacing: 0.3px; box-shadow: 0 2px 8px rgba(0,0,0,0.25);">${typeName}</span>
                                     <h3 style="margin: 0; font-size: 1.25rem; font-weight: 900; color: #ffffff; letter-spacing: -0.3px; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">
-                                        رقم #${tx.invoiceId || tx.invoiceNumber || tx.id}
+                                        رقم #${displayInvoiceId}
                                     </h3>
                                 </div>
                                 <div style="font-size: 0.8rem; color: #f1f5f9; font-weight: 700; margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
@@ -2983,15 +2994,23 @@
                     });
                 }
 
-                const head = purchaseMatches.find(t => t.isInvoiceHead) || purchaseMatches[0];
+                const headFromPool = pool.find(t => t && ((t.invoiceId != null && String(t.invoiceId) === sId) || (t.id != null && String(t.id) === sId)) && t.isInvoiceHead) ||
+                                     pool.find(t => t && ((t.invoiceId != null && String(t.invoiceId) === sId) || (t.id != null && String(t.id) === sId)));
+                const head = headFromPool || purchaseMatches.find(t => t.isInvoiceHead) || purchaseMatches[0];
                 let tx = { ...head };
-                tx.invoiceId = head.invoiceId || head.id || sId;
+                let resolvedInvId = head.invoiceId || sId;
+                if (String(resolvedInvId).includes('_item_')) resolvedInvId = String(resolvedInvId).split('_item_')[0];
+                tx.invoiceId = resolvedInvId;
                 tx.id = head.id || tx.invoiceId;
                 tx.type = isReturn ? 'مرتجع مشتريات' : 'فاتورة مشتريات';
                 tx.warehouse = head.warehouse || 'المخزن الرئيسي';
                 tx.partner = head.partner || head.customer || head.supplier || 'مورد نقدي';
                 tx.method = head.method || head.paymentMethod || 'نقدي';
-                tx.notes = purchaseMatches.find(t => t.notes)?.notes || head.notes || '';
+                tx.notes = head.notes || purchaseMatches.find(t => t.notes)?.notes || tx.notes || '';
+                tx.time = head.time || head.timeISO || tx.time || '';
+                tx.timeISO = head.timeISO || head.time || tx.timeISO || '';
+                tx.date = head.date || tx.date || '';
+                tx.dateISO = head.dateISO || tx.dateISO || '';
 
                 const seenPur = new Set();
                 let uniquePurMatches = purchaseMatches.filter(i => {
@@ -3116,15 +3135,24 @@
                 });
             }
 
-            const head = saleMatches.find(t => t.isInvoiceHead) || saleMatches[0];
+            // 🔍 جلب رأس الفاتورة من سجل المعاملات لاستعادة الملاحظات والوقت الحقيقيين
+            const headFromPool = pool.find(t => t && ((t.invoiceId != null && String(t.invoiceId) === sId) || (t.id != null && String(t.id) === sId)) && t.isInvoiceHead) ||
+                                 pool.find(t => t && ((t.invoiceId != null && String(t.invoiceId) === sId) || (t.id != null && String(t.id) === sId)));
+            const head = headFromPool || saleMatches.find(t => t.isInvoiceHead) || saleMatches[0];
             let tx = { ...head };
-            tx.invoiceId = head.invoiceId || head.id || sId;
+            let resolvedInvId = head.invoiceId || sId;
+            if (String(resolvedInvId).includes('_item_')) resolvedInvId = String(resolvedInvId).split('_item_')[0];
+            tx.invoiceId = resolvedInvId;
             tx.id = head.id || tx.invoiceId;
             tx.type = isReturn ? 'مرتجع مبيعات' : 'فاتورة مبيعات';
             tx.warehouse = head.warehouse || 'المخزن الرئيسي';
             tx.partner = head.partner || head.customer || 'عميل نقدي';
             tx.method = head.method || head.paymentMethod || 'نقدي';
-            tx.notes = saleMatches.find(t => t.notes)?.notes || head.notes || '';
+            tx.notes = head.notes || saleMatches.find(t => t.notes)?.notes || tx.notes || '';
+            tx.time = head.time || head.timeISO || tx.time || '';
+            tx.timeISO = head.timeISO || head.time || tx.timeISO || '';
+            tx.date = head.date || tx.date || '';
+            tx.dateISO = head.dateISO || tx.dateISO || '';
 
             const seenSale = new Set();
             let uniqueSaleMatches = saleMatches.filter(i => {
