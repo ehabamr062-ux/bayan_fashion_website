@@ -2930,13 +2930,29 @@ async function saveBill(force = false, accountChecked = false) {
         });
 
         if (stockErrors.length > 0) {
-            showCustomAlert({
-                type: 'error',
-                titleText: '🚫 منع البيع بالسالب (عجز مخزني)',
-                msg: 'لا يمكن حفظ الفاتورة لأن الكميات المطلوبة غير متوفرة في المخزن:\n\n' + stockErrors.join('\n') + '\n\nيرجى تعديل الكميات للمتابعة.',
-                confirmText: 'حسناً، تراجع'
-            });
-            return false;
+            const isBypassActive = window._bayanAllowNegativeStockOnce === true || 
+                                   (typeof getStore === 'function' && getStore('bayan_allow_negative_stock') === 'true') ||
+                                   (window.bayanAllowNegativeStock === true);
+            if (isBypassActive) {
+                window._bayanAllowNegativeStockOnce = false;
+                console.warn("⚠️ [Negative Stock] تم تجاوز عجز المخزن وحفظ الفاتورة بالبيع بالسالب بناءً على موافقة المستخدم.");
+            } else {
+                saveBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
+                window.isSavingTransaction = false;
+                showCustomAlert({
+                    type: 'warning',
+                    titleText: '⚠️ تنبيه عجز مخزني (البيع بالسالب)',
+                    msg: 'الكميات التالية غير متوفرة برصيد كافٍ في المخزن:\n\n' + stockErrors.join('\n') + '\n\nهل تريد المتابعة والسماح بالبيع بالسالب وحفظ الفاتورة الآن؟',
+                    showCancel: true,
+                    confirmText: 'نعم، تابع البيع بالسالب ⚡',
+                    cancelText: 'تراجع وتعديل ✖️',
+                    onConfirm: () => {
+                        window._bayanAllowNegativeStockOnce = true;
+                        saveBill(force, accountChecked);
+                    }
+                });
+                return false;
+            }
         }
 
         // --- 🛑 شرط محاسبي: الآجل لازم عميل مسجل ---
