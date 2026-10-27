@@ -93,14 +93,9 @@ function getVariantPricingAndStock(product, v, context, activeWH, priceLevel) {
         priceTitle = (priceLevel === 'wholesale') ? 'سعر الجملة' : 'سعر البيع';
     }
 
-    let stockVal = 0;
-    if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
-        stockVal = parseFloat(v.warehouseStocks[activeWH]) || 0;
-    } else if (activeWH === 'المخزن الرئيسي') {
-        stockVal = parseFloat(v.stock) || 0;
-    } else {
-        stockVal = 0;
-    }
+    const stockVal = window.FashionStockEngine
+        ? window.FashionStockEngine.getVariantStock(v, activeWH)
+        : ((v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined) ? (parseFloat(v.warehouseStocks[activeWH]) || 0) : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0));
 
     return { vPrice, priceTitle, stockVal };
 }
@@ -895,16 +890,9 @@ function selectVariantAndAddToCart(productId, variantIndex, context = 'sales') {
             ? getVariantModalActiveWH(context)
             : ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
 
-        let stockVal = 0;
-        if (variant.warehouseStocks && typeof variant.warehouseStocks === 'object' && variant.warehouseStocks[activeWH] !== undefined) {
-            stockVal = parseFloat(variant.warehouseStocks[activeWH]) || 0;
-        } else if (activeWH === 'المخزن الرئيسي' || !variant.warehouseStocks || Object.keys(variant.warehouseStocks).length === 0) {
-            stockVal = parseFloat(variant.stock) || 0;
-        } else {
-            stockVal = (variant.warehouseStocks && variant.warehouseStocks[activeWH] !== undefined)
-                ? (parseFloat(variant.warehouseStocks[activeWH]) || 0)
-                : (parseFloat(variant.stock) || 0);
-        }
+        const stockVal = window.FashionStockEngine
+            ? window.FashionStockEngine.getVariantStock(variant, activeWH)
+            : ((variant.warehouseStocks && variant.warehouseStocks[activeWH] !== undefined) ? (parseFloat(variant.warehouseStocks[activeWH]) || 0) : (parseFloat(variant.stock) || 0));
 
         if (stockVal <= 0) {
             const varLabel = (variant.size ? `[مقاس: ${variant.size}] ` : '') + (variant.color ? `(لون: ${variant.color})` : '');
@@ -1005,14 +993,9 @@ function selectVariantAndAddToCart(productId, variantIndex, context = 'sales') {
             ? getVariantModalActiveWH('adj') 
             : ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
 
-        let liveStockVal = 0;
-        if (variant && variant.warehouseStocks && typeof variant.warehouseStocks === 'object' && variant.warehouseStocks[activeWH] !== undefined) {
-            liveStockVal = parseFloat(variant.warehouseStocks[activeWH]) || 0;
-        } else if (activeWH === 'المخزن الرئيسي' || !variant || !variant.warehouseStocks) {
-            liveStockVal = variant ? (parseFloat(variant.stock) || 0) : (parseFloat(product.stock) || 0);
-        } else {
-            liveStockVal = 0;
-        }
+        const liveStockVal = window.FashionStockEngine
+            ? window.FashionStockEngine.getVariantStock(variant, activeWH)
+            : ((variant && variant.warehouseStocks && variant.warehouseStocks[activeWH] !== undefined) ? (parseFloat(variant.warehouseStocks[activeWH]) || 0) : (variant ? (parseFloat(variant.stock) || 0) : 0));
 
         window.selectedAdjItem = {
             ...product,
@@ -1132,19 +1115,17 @@ function renderVariantSelectElements(item, index, cartType = 'sales') {
     const currentSize = String(item.selectedSize || item.size || '').trim();
     const currentColor = String(item.selectedColor || item.color || '').trim();
 
-    // دالة مساعدة لحساب رصيد تشكيلة معينة في المخزن الفعلي المحدد
     const getVarStockInWH = (s, c) => {
-        const v = variants.find(varObj => 
-            (!s || String(varObj.size || '').trim() === String(s).trim()) &&
-            (!c || String(varObj.color || '').trim() === String(c).trim())
-        );
+        const v = window.FashionStockEngine
+            ? window.FashionStockEngine.findVariant(product, { size: s, color: c })
+            : variants.find(varObj => 
+                (!s || String(varObj.size || '').trim() === String(s).trim()) &&
+                (!c || String(varObj.color || '').trim() === String(c).trim())
+            );
         if (!v) return 0;
-        if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
-            return parseFloat(v.warehouseStocks[activeWH]) || 0;
-        } else if (activeWH === 'المخزن الرئيسي') {
-            return parseFloat(v.stock) || 0;
-        }
-        return 0;
+        return window.FashionStockEngine
+            ? window.FashionStockEngine.getVariantStock(v, activeWH)
+            : ((v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined) ? (parseFloat(v.warehouseStocks[activeWH]) || 0) : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0));
     };
 
     const showStock = (cartType === 'sales' || cartType === 'transfer');
@@ -1293,16 +1274,9 @@ function updateItemVariantAttr(index, attr, value, cartType = 'sales') {
             (!candidateColor || String(v.color || '').trim() === candidateColor)
         );
 
-        let candidateStock = 0;
-        if (matchedVar) {
-            if (matchedVar.warehouseStocks && typeof matchedVar.warehouseStocks === 'object' && matchedVar.warehouseStocks[targetWH] !== undefined) {
-                candidateStock = parseFloat(matchedVar.warehouseStocks[targetWH]) || 0;
-            } else if (targetWH === 'المخزن الرئيسي') {
-                candidateStock = parseFloat(matchedVar.stock) || 0;
-            } else {
-                candidateStock = 0;
-            }
-        }
+        const candidateStock = matchedVar
+            ? (window.FashionStockEngine ? window.FashionStockEngine.getVariantStock(matchedVar, targetWH) : (parseFloat(matchedVar.stock) || 0))
+            : 0;
 
         const factor = parseFloat(item.unitFactor) || 1;
         const requestedBaseQty = (parseFloat(item.qty) || 1) * factor;
@@ -1352,14 +1326,9 @@ function updateItemVariantAttr(index, attr, value, cartType = 'sales') {
                 item.code = matchedVariant.barcode;
             }
 
-            let variantLiveStock = 0;
-            if (matchedVariant.warehouseStocks && typeof matchedVariant.warehouseStocks === 'object' && matchedVariant.warehouseStocks[targetWH] !== undefined) {
-                variantLiveStock = parseFloat(matchedVariant.warehouseStocks[targetWH]) || 0;
-            } else if (targetWH === 'المخزن الرئيسي') {
-                variantLiveStock = parseFloat(matchedVariant.stock) || 0;
-            } else {
-                variantLiveStock = 0;
-            }
+            const variantLiveStock = window.FashionStockEngine
+                ? window.FashionStockEngine.getVariantStock(matchedVariant, targetWH)
+                : ((matchedVariant.warehouseStocks && matchedVariant.warehouseStocks[targetWH] !== undefined) ? (parseFloat(matchedVariant.warehouseStocks[targetWH]) || 0) : (parseFloat(matchedVariant.stock) || 0));
 
             const factor = parseFloat(item.unitFactor) || 1;
 
@@ -1368,14 +1337,9 @@ function updateItemVariantAttr(index, attr, value, cartType = 'sales') {
                 item.stock = variantLiveStock / factor;
             } else if (cartType === 'transfer') {
                 const wFrom = (document.getElementById('transferFrom')?.value || document.getElementById('transferFromWarehouse')?.value || 'المخزن الرئيسي').trim();
-                let srcStock = 0;
-                if (matchedVariant.warehouseStocks && typeof matchedVariant.warehouseStocks === 'object' && matchedVariant.warehouseStocks[wFrom] !== undefined) {
-                    srcStock = parseFloat(matchedVariant.warehouseStocks[wFrom]) || 0;
-                } else if (wFrom === 'المخزن الرئيسي') {
-                    srcStock = parseFloat(matchedVariant.stock) || 0;
-                } else {
-                    srcStock = 0;
-                }
+                const srcStock = window.FashionStockEngine
+                    ? window.FashionStockEngine.getVariantStock(matchedVariant, wFrom)
+                    : ((matchedVariant.warehouseStocks && matchedVariant.warehouseStocks[wFrom] !== undefined) ? (parseFloat(matchedVariant.warehouseStocks[wFrom]) || 0) : (parseFloat(matchedVariant.stock) || 0));
                 item.stock = srcStock / factor;
                 item.sourceStock = item.stock;
             }

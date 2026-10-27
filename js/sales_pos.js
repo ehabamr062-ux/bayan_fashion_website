@@ -892,8 +892,8 @@ function addToCart(productId, preSelectedUnit = null, preSelectedVariant = null)
     const effVariant = preSelectedVariant || window._pendingSalesVariant || null;
 
     const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
-    const prodAvail = typeof getWarehouseStock === 'function' ? getWarehouseStock(product.name, activeWH) : (parseFloat(product.stock) || 0);
-    const varAvail = effVariant ? ((effVariant.warehouseStocks && effVariant.warehouseStocks[activeWH] !== undefined) ? (parseFloat(effVariant.warehouseStocks[activeWH]) || 0) : (parseFloat(effVariant.stock) || 0)) : 0;
+    const prodAvail = window.FashionStockEngine ? window.FashionStockEngine.getProductStock(product, activeWH) : (parseFloat(product.stock) || 0);
+    const varAvail = effVariant ? (window.FashionStockEngine ? window.FashionStockEngine.getVariantStock(effVariant, activeWH) : (parseFloat(effVariant.stock) || 0)) : 0;
 
     if (prodAvail <= 0 && (!effVariant || varAvail <= 0)) {
         showToast("⚠️ تنبيه: المنتج (" + product.name + ") غير متوفر في المخزن الحالي (" + activeWH + ")!", "warning");
@@ -948,30 +948,9 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
         selectedUnit = product.units.find(u => u.isBaseUnit) || product.units[0];
     }
     const factor = selectedUnit ? (parseFloat(selectedUnit.factor) || 1) : 1;
-    let availBaseStock = 0;
-    if (effVariant) {
-        if (effVariant.warehouseStocks && typeof effVariant.warehouseStocks === 'object' && effVariant.warehouseStocks[activeWH] !== undefined) {
-            availBaseStock = parseFloat(effVariant.warehouseStocks[activeWH]) || 0;
-        } else if (activeWH === 'المخزن الرئيسي' || !effVariant.warehouseStocks || Object.keys(effVariant.warehouseStocks).length === 0) {
-            availBaseStock = parseFloat(effVariant.stock) || 0;
-        } else {
-            availBaseStock = (effVariant.warehouseStocks && effVariant.warehouseStocks[activeWH] !== undefined)
-                ? (parseFloat(effVariant.warehouseStocks[activeWH]) || 0)
-                : (parseFloat(effVariant.stock) || 0);
-        }
-    } else {
-        if (typeof getWarehouseStock === 'function') {
-            availBaseStock = getWarehouseStock(product.name, activeWH);
-        } else if (product.warehouseStocks && product.warehouseStocks[activeWH] !== undefined) {
-            availBaseStock = parseFloat(product.warehouseStocks[activeWH]) || 0;
-        } else if (activeWH === 'المخزن الرئيسي' || !product.warehouseStocks || Object.keys(product.warehouseStocks).length === 0) {
-            availBaseStock = parseFloat(product.stock) || 0;
-        } else {
-            availBaseStock = (product.warehouseStocks && product.warehouseStocks[activeWH] !== undefined)
-                ? (parseFloat(product.warehouseStocks[activeWH]) || 0)
-                : (parseFloat(product.stock) || 0);
-        }
-    }
+    const availBaseStock = effVariant
+        ? (window.FashionStockEngine ? window.FashionStockEngine.getVariantStock(effVariant, activeWH) : (parseFloat(effVariant.stock) || 0))
+        : (window.FashionStockEngine ? window.FashionStockEngine.getProductStock(product, activeWH) : (parseFloat(product.stock) || 0));
 
     // في وضع التعديل: استرداد الكمية الأصلية المحجوزة في الفاتورة لهذا الصنف وتشكيلته لإتاحتها
     let originalQtyInInvoice = 0;
@@ -1615,26 +1594,9 @@ function updateQty(index, newQty) {
 
         const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
 
-        let currentBaseStock = 0;
-        if (effVariant) {
-            if (effVariant.warehouseStocks && typeof effVariant.warehouseStocks === 'object' && effVariant.warehouseStocks[activeWH] !== undefined) {
-                currentBaseStock = parseFloat(effVariant.warehouseStocks[activeWH]) || 0;
-            } else if (activeWH === 'المخزن الرئيسي') {
-                currentBaseStock = parseFloat(effVariant.stock) || 0;
-            } else {
-                currentBaseStock = 0;
-            }
-        } else {
-            if (typeof getWarehouseStock === 'function') {
-                currentBaseStock = getWarehouseStock(product.name, activeWH);
-            } else if (product.warehouseStocks && product.warehouseStocks[activeWH] !== undefined) {
-                currentBaseStock = parseFloat(product.warehouseStocks[activeWH]) || 0;
-            } else if (activeWH === 'المخزن الرئيسي') {
-                currentBaseStock = parseFloat(product.stock) || 0;
-            } else {
-                currentBaseStock = 0;
-            }
-        }
+        const currentBaseStock = effVariant
+            ? (window.FashionStockEngine ? window.FashionStockEngine.getVariantStock(effVariant, activeWH) : (parseFloat(effVariant.stock) || 0))
+            : (window.FashionStockEngine ? window.FashionStockEngine.getProductStock(product, activeWH) : (parseFloat(product.stock) || 0));
 
         const availBaseStock = currentBaseStock + originalQtyInInvoice;
         const maxAvailInUnit = availBaseStock / factor;
@@ -2738,24 +2700,9 @@ async function saveBill(force = false, accountChecked = false) {
                 });
             }
 
-            let currentBaseStock = 0;
-            if (effVariant) {
-                if (effVariant.warehouseStocks && typeof effVariant.warehouseStocks === 'object' && effVariant.warehouseStocks[activeWH] !== undefined) {
-                    currentBaseStock = parseFloat(effVariant.warehouseStocks[activeWH]) || 0;
-                } else if (activeWH === 'المخزن الرئيسي' || !effVariant.warehouseStocks) {
-                    currentBaseStock = parseFloat(effVariant.stock) || 0;
-                } else {
-                    currentBaseStock = 0;
-                }
-            } else {
-                if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
-                    currentBaseStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
-                } else if (activeWH === 'المخزن الرئيسي' || !p.warehouseStocks) {
-                    currentBaseStock = parseFloat(p.stock) || 0;
-                } else {
-                    currentBaseStock = 0;
-                }
-            }
+            const currentBaseStock = effVariant
+                ? (window.FashionStockEngine ? window.FashionStockEngine.getVariantStock(effVariant, activeWH) : (parseFloat(effVariant.stock) || 0))
+                : (window.FashionStockEngine ? window.FashionStockEngine.getProductStock(p, activeWH) : (parseFloat(p.stock) || 0));
 
             const availStock = currentBaseStock + originalQtyInInvoice;
 
@@ -3091,38 +3038,23 @@ async function saveBill(force = false, accountChecked = false) {
             const baseQty = cartItem.qty * factor;
 
             if (product) {
-                product.stock = (parseFloat(product.stock) || 0) - baseQty;
-                if (!product.warehouseStocks) product.warehouseStocks = {};
-                product.warehouseStocks[activeWH] = (parseFloat(product.warehouseStocks[activeWH]) || 0) - baseQty;
-
-                // تحديث رصيد التشكيلة (المقاس واللون) في مصفوفة الصنف بدقة وتطابق تام
-                if (product.variants && Array.isArray(product.variants)) {
+                if (typeof window.FashionStockEngine !== 'undefined') {
                     const sSize = String(cartItem.selectedSize || cartItem.size || '').trim();
                     const sColor = String(cartItem.selectedColor || cartItem.color || '').trim();
-                    if (sSize || sColor) {
-                        const cleanV = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
-                        const cSize = cleanV(sSize);
-                        const cColor = cleanV(sColor);
-                        const matchedVar = product.variants.find(v => 
-                            (!cSize || cleanV(v.size) === cSize) && 
-                            (!cColor || cleanV(v.color) === cColor)
-                        );
-                        if (matchedVar) {
-                            matchedVar.stock = (parseFloat(matchedVar.stock) || 0) - baseQty;
-                            if (!matchedVar.warehouseStocks) matchedVar.warehouseStocks = {};
-                            matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty;
-                        }
-                    }
-                    if (product.variants.length > 0) {
-                        product.stock = product.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
-                        if (!product.warehouseStocks) product.warehouseStocks = {};
-                        product.warehouseStocks[activeWH] = product.variants.reduce((sum, v) => {
-                            const vWh = (v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined)
-                                ? parseFloat(v.warehouseStocks[activeWH])
-                                : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0);
-                            return sum + vWh;
-                        }, 0);
-                    }
+                    const vBarcode = (cartItem.selectedVariant && cartItem.selectedVariant.barcode)
+                        ? String(cartItem.selectedVariant.barcode).trim()
+                        : (cartItem.barcode ? String(cartItem.barcode).trim() : '');
+
+                    window.FashionStockEngine.applyMovement({
+                        product,
+                        variantRef: cartItem.selectedVariant || { size: sSize, color: sColor, barcode: vBarcode },
+                        qtyDelta: -baseQty,
+                        warehouseName: activeWH
+                    });
+                } else {
+                    product.stock = (parseFloat(product.stock) || 0) - baseQty;
+                    if (!product.warehouseStocks) product.warehouseStocks = {};
+                    product.warehouseStocks[activeWH] = (parseFloat(product.warehouseStocks[activeWH]) || 0) - baseQty;
                 }
                 if (!affectedProducts.some(ap => ap.id === product.id)) {
                     affectedProducts.push(product);

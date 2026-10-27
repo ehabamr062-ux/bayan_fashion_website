@@ -947,19 +947,9 @@ window.renderProductWarehouseStocksTable = function(p) {
 
     whList.forEach(w => {
         const whName = typeof w === 'string' ? w : (w.name || 'المخزن الرئيسي');
-        let stockInWh = 0;
-        if (p && p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
-            stockInWh = p.variants.reduce((sum, v) => {
-                const q = (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[whName] !== undefined)
-                    ? parseFloat(v.warehouseStocks[whName])
-                    : (whName === 'المخزن الرئيسي' ? parseFloat(v.stock) || 0 : 0);
-                return sum + (isNaN(q) ? 0 : q);
-            }, 0);
-        } else if (p && p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[whName] !== undefined) {
-            stockInWh = parseFloat(p.warehouseStocks[whName]) || 0;
-        } else if (p && whName === 'المخزن الرئيسي') {
-            stockInWh = parseFloat(p.stock) || 0;
-        }
+        let stockInWh = window.FashionStockEngine
+            ? window.FashionStockEngine.getProductStock(p, whName)
+            : (parseFloat(p?.stock) || 0);
 
         const isActive = whName === activeWH;
         const tr = document.createElement('tr');

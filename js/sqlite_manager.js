@@ -5016,9 +5016,26 @@
                             let whStocks = {};
                             try { whStocks = typeof pRow.warehouseStocks === 'string' ? JSON.parse(pRow.warehouseStocks) : (pRow.warehouseStocks || {}); } catch(e){}
                             
-                            if (sSize || sColor) {
-                                let vars = [];
-                                try { vars = typeof pRow.variants === 'string' ? JSON.parse(pRow.variants) : (pRow.variants || []); } catch(e){}
+                            let vars = [];
+                            try { vars = typeof pRow.variants === 'string' ? JSON.parse(pRow.variants) : (pRow.variants || []); } catch(e){}
+
+                            if (typeof FashionStockEngine !== 'undefined' && FashionStockEngine.getVariantStock) {
+                                const pObj = {
+                                    stock: pStock,
+                                    warehouseStocks: whStocks,
+                                    variants: vars
+                                };
+                                if (sSize || sColor) {
+                                    const matchedVar = FashionStockEngine.findVariant(pObj, { size: sSize, color: sColor });
+                                    if (matchedVar) {
+                                        curStock = FashionStockEngine.getVariantStock(matchedVar, targetWh);
+                                    } else {
+                                        curStock = FashionStockEngine.getProductStock(pObj, targetWh);
+                                    }
+                                } else {
+                                    curStock = FashionStockEngine.getProductStock(pObj, targetWh);
+                                }
+                            } else if (sSize || sColor) {
                                 const matchedVar = vars.find(v => (!sSize || String(v.size || '').trim() === sSize) && (!sColor || String(v.color || '').trim() === sColor));
                                 if (matchedVar) {
                                     if (targetWh && matchedVar.warehouseStocks && matchedVar.warehouseStocks[targetWh] !== undefined) {

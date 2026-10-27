@@ -1816,61 +1816,27 @@ async function savePurchase(force = false, accountChecked = false) {
                 }
                 p.avgBuyPrice = p.cost;
 
-                // 3. تحديث الرصيد المخزني النهائي ورصيد المخزن المحدد
-                p.stock = finalStockCount;
-                if (!p.warehouseStocks) p.warehouseStocks = {};
-                p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
-
-                // 3.5 تحديث رصيد وسعر التشكيلة المحددة (المقاس واللون) في مصفوفة الصنف بدقة
-                if (p.variants && Array.isArray(p.variants)) {
+                // 3. تحديث الرصيد المخزني ومصفوفة المقاسات عبر المحرك المركزي الموحد (Fashion Stock Engine)
+                if (typeof window.FashionStockEngine !== 'undefined') {
                     const sSize = String(item.selectedSize || item.size || '').trim();
                     const sColor = String(item.selectedColor || item.color || '').trim();
-                    if (sSize || sColor) {
-                        const cleanV = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
-                        const cSize = cleanV(sSize);
-                        const cColor = cleanV(sColor);
-                        const matchedVar = p.variants.find(v => 
-                            (!cSize || cleanV(v.size) === cSize) && 
-                            (!cColor || cleanV(v.color) === cColor)
-                        );
-                        if (matchedVar) {
-                            const oldVarStock = (parseFloat(matchedVar.stock) || 0);
-                            matchedVar.stock = oldVarStock + baseQty;
-                            if (!matchedVar.warehouseStocks) matchedVar.warehouseStocks = {};
-                            matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) + baseQty;
-                            if (parseFloat(item.salePrice) > 0) {
-                                matchedVar.price = parseFloat(item.salePrice);
-                            }
-                            // 🌟 تحديث تكلفة المقاس المحدد (Variant Cost) بدقة بالصافي بعد الخصم
-                            if (effectiveUnitPriceBase > 0) {
-                                const oldVarCost = (matchedVar.cost !== undefined && !isNaN(parseFloat(matchedVar.cost)) && parseFloat(matchedVar.cost) > 0)
-                                    ? parseFloat(matchedVar.cost)
-                                    : (parseFloat(p.cost) || effectiveUnitPriceBase);
-                                if (oldVarStock > 0) {
-                                    matchedVar.cost = parseFloat((((oldVarStock * oldVarCost) + (baseQty * effectiveUnitPriceBase)) / (oldVarStock + baseQty)).toFixed(2));
-                                } else {
-                                    matchedVar.cost = parseFloat(effectiveUnitPriceBase.toFixed(2));
-                                }
-                            }
-                        }
-                    } else if (parseFloat(item.salePrice) > 0) {
-                        // إذا تم تعديل السعر للصنف العام بدون تحديد مقاس، نحدث السعر لكل التشكيلات التي كانت تحمل السعر الافتراضي
-                        p.variants.forEach(v => {
-                            v.price = parseFloat(item.salePrice);
-                        });
-                    }
+                    const vBarcode = (item.selectedVariant && item.selectedVariant.barcode)
+                        ? String(item.selectedVariant.barcode).trim()
+                        : (item.code ? String(item.code).trim() : '');
 
-                    // 🌟 ضمان تطابق رصيد الصنف العام مع مجموع مقاساته بدقة تامة
-                    if (p.variants.length > 0) {
-                        p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
-                        if (!p.warehouseStocks) p.warehouseStocks = {};
-                        p.warehouseStocks[activeWH] = p.variants.reduce((sum, v) => {
-                            const vWh = (v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined)
-                                ? parseFloat(v.warehouseStocks[activeWH])
-                                : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0);
-                            return sum + vWh;
-                        }, 0);
-                    }
+                    window.FashionStockEngine.applyMovement({
+                        product: p,
+                        variantRef: item.selectedVariant || { size: sSize, color: sColor, barcode: vBarcode },
+                        qtyDelta: baseQty,
+                        warehouseName: activeWH,
+                        salePrice: (parseFloat(item.salePrice) > 0 ? parseFloat(item.salePrice) : null),
+                        costPrice: effectiveUnitPriceBase,
+                        allowCreateVariant: (p.variants && Array.isArray(p.variants) && p.variants.length > 0 && (sSize !== '' || sColor !== ''))
+                    });
+                } else {
+                    p.stock = finalStockCount;
+                    if (!p.warehouseStocks) p.warehouseStocks = {};
+                    p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
                 }
 
                 // 4. تحديث أسعار البيع النهائية (القطاعي والجملة) بدقة لكل وحدة

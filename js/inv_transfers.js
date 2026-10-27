@@ -1179,27 +1179,9 @@ var transferItemsBatch = window.transferItemsBatch;
                 }
             }
 
-            if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
-                if (effVariant) {
-                    if (effVariant.warehouseStocks && typeof effVariant.warehouseStocks === 'object' && effVariant.warehouseStocks[wFrom] !== undefined) {
-                        availStock = parseFloat(effVariant.warehouseStocks[wFrom]) || 0;
-                    } else if (wFrom === 'المخزن الرئيسي') {
-                        availStock = parseFloat(effVariant.stock) || 0;
-                    } else {
-                        availStock = 0;
-                    }
-                } else {
-                    availStock = 0;
-                }
-            } else {
-                if (product.warehouseStocks && typeof product.warehouseStocks === 'object' && product.warehouseStocks[wFrom] !== undefined) {
-                    availStock = parseFloat(product.warehouseStocks[wFrom]) || 0;
-                } else if (wFrom === 'المخزن الرئيسي') {
-                    availStock = parseFloat(product.stock) || 0;
-                } else {
-                    availStock = 0;
-                }
-            }
+            availStock = effVariant
+                ? (window.FashionStockEngine ? window.FashionStockEngine.getVariantStock(effVariant, wFrom) : (parseFloat(effVariant.stock) || 0))
+                : (window.FashionStockEngine ? window.FashionStockEngine.getProductStock(product, wFrom) : (parseFloat(product.stock) || 0));
 
             const availInUnit = (availStock / factor);
 
@@ -1544,27 +1526,9 @@ var transferItemsBatch = window.transferItemsBatch;
                                 }
                             }
 
-                            if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
-                                if (effVariant) {
-                                    if (effVariant.warehouseStocks && typeof effVariant.warehouseStocks === 'object' && effVariant.warehouseStocks[wFrom] !== undefined) {
-                                        availStock = parseFloat(effVariant.warehouseStocks[wFrom]) || 0;
-                                    } else if (wFrom === 'المخزن الرئيسي') {
-                                        availStock = parseFloat(effVariant.stock) || 0;
-                                    } else {
-                                        availStock = 0;
-                                    }
-                                } else {
-                                    availStock = 0;
-                                }
-                            } else {
-                                if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[wFrom] !== undefined) {
-                                    availStock = parseFloat(p.warehouseStocks[wFrom]) || 0;
-                                } else if (wFrom === 'المخزن الرئيسي') {
-                                    availStock = parseFloat(p.stock) || 0;
-                                } else {
-                                    availStock = 0;
-                                }
-                            }
+                            availStock = effVariant
+                                ? (window.FashionStockEngine ? window.FashionStockEngine.getVariantStock(effVariant, wFrom) : (parseFloat(effVariant.stock) || 0))
+                                : (window.FashionStockEngine ? window.FashionStockEngine.getProductStock(p, wFrom) : (parseFloat(p.stock) || 0));
 
                             if (availStock <= 0 || totalBaseQty > availStock) {
                                 const varInfo = (entry.rawSize || entry.rawColor) ? ` [${[entry.rawSize, entry.rawColor].filter(Boolean).join(' - ')}]` : '';
@@ -2062,71 +2026,31 @@ var transferItemsBatch = window.transferItemsBatch;
                 const p = productsDB.find(prod => prod && (prod.name === item.product || prod.id === item.id));
                 if (p) {
                     if (!affectedProducts.includes(p)) affectedProducts.push(p);
-                    if (!p.warehouseStocks) p.warehouseStocks = {};
-
-                    // 1. خصم الكمية من المخزن المصدر
-                    const currentSrcPStock = (p.warehouseStocks[wFrom] !== undefined && !isNaN(parseFloat(p.warehouseStocks[wFrom])))
-                        ? parseFloat(p.warehouseStocks[wFrom])
-                        : (wFrom === 'المخزن الرئيسي' ? (parseFloat(p.stock) || 0) : 0);
-                    p.warehouseStocks[wFrom] = Math.max(0, currentSrcPStock - baseQty);
-
-                    // 2. إضافة الكمية للمخزن المستلم
-                    const currentDstPStock = (p.warehouseStocks[wTo] !== undefined && !isNaN(parseFloat(p.warehouseStocks[wTo])))
-                        ? parseFloat(p.warehouseStocks[wTo])
-                        : (wTo === 'المخزن الرئيسي' ? (parseFloat(p.stock) || 0) : 0);
-                    p.warehouseStocks[wTo] = currentDstPStock + baseQty;
-
-                    // معالجة التشكيلات (المقاس واللون) بدقة تامة
-                    if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
-                        const norm = (str) => String(str || '').trim().toLowerCase();
-                        const nSize = norm(item.size || item.selectedSize || '');
-                        const nColor = norm(item.color || item.selectedColor || '');
-                        if (nSize || nColor) {
-                            const matchedVar = p.variants.find(v => 
-                                (norm(v.size) === nSize) && 
-                                (norm(v.color) === nColor)
-                            ) || p.variants.find(v => 
-                                (!nSize || norm(v.size) === nSize) && 
-                                (!nColor || norm(v.color) === nColor)
-                            );
-                            if (matchedVar) {
-                                if (!matchedVar.warehouseStocks) matchedVar.warehouseStocks = {};
-
-                                // خصم من تشكيلة المخزن المصدر
-                                const currentSrcVarStock = (matchedVar.warehouseStocks[wFrom] !== undefined && !isNaN(parseFloat(matchedVar.warehouseStocks[wFrom])))
-                                    ? parseFloat(matchedVar.warehouseStocks[wFrom])
-                                    : (wFrom === 'المخزن الرئيسي' ? (parseFloat(matchedVar.stock) || 0) : 0);
-                                matchedVar.warehouseStocks[wFrom] = Math.max(0, currentSrcVarStock - baseQty);
-
-                                // إضافة لتشكيلة المخزن المستلم
-                                const currentDstVarStock = (matchedVar.warehouseStocks[wTo] !== undefined && !isNaN(parseFloat(matchedVar.warehouseStocks[wTo])))
-                                    ? parseFloat(matchedVar.warehouseStocks[wTo])
-                                    : (wTo === 'المخزن الرئيسي' ? (parseFloat(matchedVar.stock) || 0) : 0);
-                                matchedVar.warehouseStocks[wTo] = currentDstVarStock + baseQty;
-
-                                // مزامنة حقل stock المباشر للتشكيلة ليكون مجموع كافة المخازن (حتى لا تتبخر البضاعة المحولة)
-                                matchedVar.stock = Object.values(matchedVar.warehouseStocks).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
-                            }
-                        }
-
-                        const getVarStockInWH = (v, wh) => {
-                            if (v.warehouseStocks && v.warehouseStocks[wh] !== undefined && !isNaN(parseFloat(v.warehouseStocks[wh]))) {
-                                return parseFloat(v.warehouseStocks[wh]);
-                            }
-                            return (wh === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0);
-                        };
-
-                        // مزامنة إجمالي رصيد كارت الصنف مع مجموع تشكيلاته
-                        p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
-                        if (p.warehouseStocks) {
-                            p.warehouseStocks[wFrom] = p.variants.reduce((sum, v) => sum + getVarStockInWH(v, wFrom), 0);
-                            p.warehouseStocks[wTo] = p.variants.reduce((sum, v) => sum + getVarStockInWH(v, wTo), 0);
-                        }
+                    if (typeof window.FashionStockEngine !== 'undefined') {
+                        const sVal = item.size || item.selectedSize || '';
+                        const cVal = item.color || item.selectedColor || '';
+                        const varRef = { size: sVal, color: cVal, barcode: item.code };
+                        // 1. خصم من المخزن المصدر
+                        window.FashionStockEngine.applyMovement({
+                            product: p,
+                            variantRef: varRef,
+                            qtyDelta: -baseQty,
+                            warehouseName: wFrom
+                        });
+                        // 2. إضافة للمخزن المستلم
+                        window.FashionStockEngine.applyMovement({
+                            product: p,
+                            variantRef: varRef,
+                            qtyDelta: baseQty,
+                            warehouseName: wTo,
+                            allowCreateVariant: true
+                        });
                     } else {
-                        // الصنف بدون تشكيلات: مزامنة إجمالي رصيد الصنف ليكون مجموع بضاعة كافة المخازن
-                        if (p.warehouseStocks) {
-                            p.stock = Object.values(p.warehouseStocks).reduce((sum, val) => sum + (parseFloat(val) || 0), 0);
-                        }
+                        if (!p.warehouseStocks) p.warehouseStocks = {};
+                        const currentSrcPStock = parseFloat(p.warehouseStocks[wFrom]) || 0;
+                        p.warehouseStocks[wFrom] = Math.max(0, currentSrcPStock - baseQty);
+                        const currentDstPStock = parseFloat(p.warehouseStocks[wTo]) || 0;
+                        p.warehouseStocks[wTo] = currentDstPStock + baseQty;
                     }
                 }
             });

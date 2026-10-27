@@ -451,22 +451,14 @@
             let availQty = 0;
             if (hasVariants) {
                 matchedVars.forEach(v => {
-                    let st = 0;
-                    if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[whName] !== undefined) {
-                        st = parseFloat(v.warehouseStocks[whName]) || 0;
-                    } else if (whName === 'المخزن الرئيسي') {
-                        st = parseFloat(v.stock) || 0;
-                    }
-                    availQty += st;
+                    availQty += window.FashionStockEngine
+                        ? window.FashionStockEngine.getVariantStock(v, whName)
+                        : ((v.warehouseStocks && v.warehouseStocks[whName] !== undefined) ? (parseFloat(v.warehouseStocks[whName]) || 0) : (whName === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0));
                 });
             } else {
-                if (typeof getWarehouseStock === 'function') {
-                    availQty = getWarehouseStock(p.name, whName);
-                } else if (p.warehouseStocks && p.warehouseStocks[whName] !== undefined) {
-                    availQty = parseFloat(p.warehouseStocks[whName]) || 0;
-                } else if (whName === 'المخزن الرئيسي') {
-                    availQty = parseFloat(p.stock) || 0;
-                }
+                availQty = window.FashionStockEngine
+                    ? window.FashionStockEngine.getProductStock(p, whName)
+                    : (typeof getWarehouseStock === 'function' ? getWarehouseStock(p.name, whName) : (parseFloat(p.stock) || 0));
             }
 
             grandTotalStock += availQty;
@@ -686,35 +678,24 @@
                     let branchesCells = '';
                     let selectedWhStock = 0;
                     
-                    if (v.warehouseStocks && typeof v.warehouseStocks === 'object') {
-                        mainStock = parseFloat(v.warehouseStocks[mainStoreName]) || 0;
-                        branches.forEach(b => {
-                            const bStock = parseFloat(v.warehouseStocks[b]) || 0;
-                            branchesStockTotal += bStock;
-                            const isCurrent = b === currentUserWh;
-                            const cellBg = isCurrent ? '#fef08a' : (bStock > 0 ? '#f8fafc' : '#ffffff');
-                            branchesCells += `<td style="padding: 8px 6px; text-align: center; font-weight: 900; font-size: 0.95rem; background: ${cellBg}; color: #000000;">${bStock > 0 ? bStock : '-'}</td>`;
-                        });
-                        totalStock = mainStock + branchesStockTotal;
+                    mainStock = window.FashionStockEngine
+                        ? window.FashionStockEngine.getVariantStock(v, mainStoreName)
+                        : (parseFloat(v.warehouseStocks?.[mainStoreName]) || (mainStoreName === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0));
+                    branches.forEach(b => {
+                        const bStock = window.FashionStockEngine
+                            ? window.FashionStockEngine.getVariantStock(v, b)
+                            : (parseFloat(v.warehouseStocks?.[b]) || 0);
+                        branchesStockTotal += bStock;
+                        const isCurrent = b === currentUserWh;
+                        const cellBg = isCurrent ? '#fef08a' : (bStock > 0 ? '#f8fafc' : '#ffffff');
+                        branchesCells += `<td style="padding: 8px 6px; text-align: center; font-weight: 900; font-size: 0.95rem; background: ${cellBg}; color: #000000;">${bStock > 0 ? bStock : '-'}</td>`;
+                    });
+                    totalStock = mainStock + branchesStockTotal;
 
-                        if (isSingleWh) {
-                            if (v.warehouseStocks[selectedInquiryWarehouse] !== undefined) {
-                                selectedWhStock = parseFloat(v.warehouseStocks[selectedInquiryWarehouse]) || 0;
-                            } else if (selectedInquiryWarehouse === mainStoreName) {
-                                selectedWhStock = parseFloat(v.stock !== undefined ? v.stock : 0) || 0;
-                            }
-                        }
-                    } else {
-                        totalStock = parseFloat(v.stock !== undefined ? v.stock : 0);
-                        mainStock = totalStock; 
-                        branches.forEach(b => {
-                            const isCurrent = b === currentUserWh;
-                            branchesCells += `<td style="padding: 8px 6px; text-align: center; font-weight: 900; font-size: 0.95rem; color: #000000; background: ${isCurrent ? '#fef08a' : '#ffffff'};">-</td>`;
-                        });
-
-                        if (isSingleWh) {
-                            selectedWhStock = (selectedInquiryWarehouse === mainStoreName) ? totalStock : 0;
-                        }
+                    if (isSingleWh) {
+                        selectedWhStock = window.FashionStockEngine
+                            ? window.FashionStockEngine.getVariantStock(v, selectedInquiryWarehouse)
+                            : (parseFloat(v.warehouseStocks?.[selectedInquiryWarehouse]) || 0);
                     }
 
                     const formatStockBadge = (qty) => {
@@ -856,13 +837,9 @@
                         });
 
                         if (vMatch) {
-                            const vIdx = variants.indexOf(vMatch);
-                            let sQty = 0;
-                            if (vMatch.warehouseStocks && typeof vMatch.warehouseStocks === 'object' && vMatch.warehouseStocks[targetWh] !== undefined) {
-                                sQty = parseFloat(vMatch.warehouseStocks[targetWh]) || 0;
-                            } else if (targetWh === mainStoreName || !vMatch.warehouseStocks) {
-                                sQty = parseFloat(vMatch.stock !== undefined ? vMatch.stock : 0) || 0;
-                            }
+                            const sQty = window.FashionStockEngine
+                                ? window.FashionStockEngine.getVariantStock(vMatch, targetWh)
+                                : ((vMatch.warehouseStocks && vMatch.warehouseStocks[targetWh] !== undefined) ? (parseFloat(vMatch.warehouseStocks[targetWh]) || 0) : (parseFloat(vMatch.stock) || 0));
 
                             if (sQty > 0) {
                                 return `

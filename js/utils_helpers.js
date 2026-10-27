@@ -1596,14 +1596,18 @@
 
                     // إجمالي رصيد الصنف العام في المخزن النشط
                     let totalProdStockInWH = 0;
-                    const pGenStock = parseFloat(p.stock) || 0;
-                    if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
-                        const whVal = parseFloat(p.warehouseStocks[activeWH]);
-                        totalProdStockInWH = isNaN(whVal) ? (activeWH === 'المخزن الرئيسي' ? pGenStock : 0) : (activeWH === 'المخزن الرئيسي' ? Math.max(whVal, pGenStock) : whVal);
-                    } else if (activeWH === 'المخزن الرئيسي' || !p.warehouseStocks || Object.keys(p.warehouseStocks).length === 0) {
-                        totalProdStockInWH = pGenStock;
+                    if (typeof FashionStockEngine !== 'undefined' && FashionStockEngine.getProductStock) {
+                        totalProdStockInWH = FashionStockEngine.getProductStock(p, activeWH);
                     } else {
-                        totalProdStockInWH = 0;
+                        const pGenStock = parseFloat(p.stock) || 0;
+                        if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
+                            const whVal = parseFloat(p.warehouseStocks[activeWH]);
+                            totalProdStockInWH = isNaN(whVal) ? (activeWH === 'المخزن الرئيسي' ? pGenStock : 0) : (activeWH === 'المخزن الرئيسي' ? Math.max(whVal, pGenStock) : whVal);
+                        } else if (activeWH === 'المخزن الرئيسي' || !p.warehouseStocks || Object.keys(p.warehouseStocks).length === 0) {
+                            totalProdStockInWH = pGenStock;
+                        } else {
+                            totalProdStockInWH = 0;
+                        }
                     }
                     const globalProdStock = (p.stock !== undefined && p.stock !== null) ? (parseFloat(p.stock) || 0) : totalProdStockInWH;
 
@@ -1617,14 +1621,18 @@
                             const vBarcode = String(v.barcode || '').trim();
 
                             let vStock = 0;
-                            const vGenStock = parseFloat(v.stock) || 0;
-                            if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
-                                const whVal = parseFloat(v.warehouseStocks[activeWH]);
-                                vStock = isNaN(whVal) ? (activeWH === 'المخزن الرئيسي' ? vGenStock : 0) : (activeWH === 'المخزن الرئيسي' ? Math.max(whVal, vGenStock) : whVal);
-                            } else if (activeWH === 'المخزن الرئيسي' || !v.warehouseStocks || Object.keys(v.warehouseStocks).length === 0) {
-                                vStock = vGenStock;
+                            if (typeof FashionStockEngine !== 'undefined' && FashionStockEngine.getVariantStock) {
+                                vStock = FashionStockEngine.getVariantStock(v, activeWH);
                             } else {
-                                vStock = 0;
+                                const vGenStock = parseFloat(v.stock) || 0;
+                                if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
+                                    const whVal = parseFloat(v.warehouseStocks[activeWH]);
+                                    vStock = isNaN(whVal) ? (activeWH === 'المخزن الرئيسي' ? vGenStock : 0) : (activeWH === 'المخزن الرئيسي' ? Math.max(whVal, vGenStock) : whVal);
+                                } else if (activeWH === 'المخزن الرئيسي' || !v.warehouseStocks || Object.keys(v.warehouseStocks).length === 0) {
+                                    vStock = vGenStock;
+                                } else {
+                                    vStock = 0;
+                                }
                             }
 
                             const vMinStock = (v.minStock !== undefined && v.minStock !== null && v.minStock !== '')
@@ -4468,7 +4476,9 @@
                 if (hasVariants) {
                     matchedVars.forEach(v => {
                         let st = 0;
-                        if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[whName] !== undefined) {
+                        if (typeof FashionStockEngine !== 'undefined' && FashionStockEngine.getVariantStock) {
+                            st = FashionStockEngine.getVariantStock(v, whName);
+                        } else if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[whName] !== undefined) {
                             st = parseFloat(v.warehouseStocks[whName]) || 0;
                         } else if (whName === 'المخزن الرئيسي') {
                             st = parseFloat(v.stock) || 0;
@@ -4477,7 +4487,9 @@
                     });
                     availQty = Math.max(0, availQty);
                 } else {
-                    if (typeof getWarehouseStock === 'function') {
+                    if (typeof FashionStockEngine !== 'undefined' && FashionStockEngine.getProductStock) {
+                        availQty = FashionStockEngine.getProductStock(p, whName);
+                    } else if (typeof getWarehouseStock === 'function') {
                         availQty = getWarehouseStock(p.name, whName);
                     } else if (p.warehouseStocks && p.warehouseStocks[whName] !== undefined) {
                         availQty = parseFloat(p.warehouseStocks[whName]) || 0;
@@ -4748,7 +4760,18 @@
                     let selectedWhStock = 0;
                     let branchesCells = '';
 
-                    if (v.warehouseStocks && typeof v.warehouseStocks === 'object') {
+                    if (typeof FashionStockEngine !== 'undefined' && FashionStockEngine.getVariantStock) {
+                        mainStock = FashionStockEngine.getVariantStock(v, mainStoreName);
+                        branches.forEach(b => {
+                            const bStock = FashionStockEngine.getVariantStock(v, b);
+                            branchesStockTotal += bStock;
+                            branchesCells += `<td style="padding: 8px; text-align: center; font-weight: 800; color: ${bStock > 0 ? '#0f766e' : '#94a3b8'}; background: #f8fafc;">${bStock > 0 ? bStock : '-'}</td>`;
+                        });
+                        totalStock = FashionStockEngine.getVariantStock(v, 'all');
+                        if (isSingleWh) {
+                            selectedWhStock = FashionStockEngine.getVariantStock(v, selectedSectionInquiryWarehouse);
+                        }
+                    } else if (v.warehouseStocks && typeof v.warehouseStocks === 'object') {
                         mainStock = parseFloat(v.warehouseStocks[mainStoreName]) || 0;
                         branches.forEach(b => {
                             const bStock = parseFloat(v.warehouseStocks[b]) || 0;

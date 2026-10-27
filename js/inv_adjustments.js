@@ -198,12 +198,7 @@ function fillAdjustmentHeaderWithUnit(product, unit) {
 
     const factor = (unit && unit.factor) ? parseFloat(unit.factor) : 1;
     const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
-    let whStock = 0;
-    if (product.warehouseStocks && typeof product.warehouseStocks === 'object' && product.warehouseStocks[activeWH] !== undefined) {
-        whStock = parseFloat(product.warehouseStocks[activeWH]) || 0;
-    } else if (activeWH === 'المخزن الرئيسي' || !product.warehouseStocks) {
-        whStock = parseFloat(product.stock) || 0;
-    }
+    const whStock = window.FashionStockEngine ? window.FashionStockEngine.getProductStock(product, activeWH) : (parseFloat(product.stock) || 0);
     const displayStock = whStock / factor;
     document.querySelectorAll('.adj-current-stock-val').forEach(el => {
         el.innerText = `${displayStock.toFixed(2)} ${unit ? unit.unitName : (product.unit || 'قطعة')}`;
@@ -263,12 +258,9 @@ function handleAdjSearchEnter(query, event) {
         if (existing) {
             existing.qty = (parseFloat(existing.qty) || 0) + 1;
         } else {
-            let liveStock = 0;
-            if (matchingVariant.warehouseStocks && typeof matchingVariant.warehouseStocks === 'object' && matchingVariant.warehouseStocks[activeWH] !== undefined) {
-                liveStock = parseFloat(matchingVariant.warehouseStocks[activeWH]) || 0;
-            } else if (activeWH === 'المخزن الرئيسي' || !matchingVariant.warehouseStocks) {
-                liveStock = parseFloat(matchingVariant.stock) || 0;
-            }
+            const liveStock = window.FashionStockEngine
+                ? window.FashionStockEngine.getVariantStock(matchingVariant, activeWH)
+                : ((matchingVariant.warehouseStocks && matchingVariant.warehouseStocks[activeWH] !== undefined) ? (parseFloat(matchingVariant.warehouseStocks[activeWH]) || 0) : (parseFloat(matchingVariant.stock) || 0));
             window.adjCart.push({
                 ...pMatch,
                 id: pMatch.id,
@@ -505,22 +497,15 @@ function addAdjItem() {
         ? productsDB.find(x => x.id === window.selectedAdjItem.id)
         : null;
     if (p) {
-        if (p.variants && Array.isArray(p.variants)) {
-            const v = p.variants.find(va => (va.size || '') === sSize && (va.color || '') === sColor);
+        if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
+            const v = window.FashionStockEngine
+                ? window.FashionStockEngine.findVariant(p, { size: sSize, color: sColor })
+                : p.variants.find(va => (va.size || '') === sSize && (va.color || '') === sColor);
             if (v) {
-                if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
-                    liveStock = parseFloat(v.warehouseStocks[activeWH]) || 0;
-                } else if (activeWH === 'المخزن الرئيسي' || !v.warehouseStocks) {
-                    liveStock = parseFloat(v.stock) || 0;
-                }
+                liveStock = window.FashionStockEngine ? window.FashionStockEngine.getVariantStock(v, activeWH) : (parseFloat(v.stock) || 0);
             }
-        }
-        if (liveStock === 0 && (!p.variants || p.variants.length === 0)) {
-            if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
-                liveStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
-            } else if (activeWH === 'المخزن الرئيسي' || !p.warehouseStocks) {
-                liveStock = parseFloat(p.stock) || 0;
-            }
+        } else {
+            liveStock = window.FashionStockEngine ? window.FashionStockEngine.getProductStock(p, activeWH) : (parseFloat(p.stock) || 0);
         }
     }
     if (liveStock === 0 && window.selectedAdjItem && window.selectedAdjItem.stock !== undefined) {
@@ -868,40 +853,20 @@ async function saveAdjustment() {
                 const diffStock = countedBase - stockBefore;
                 const newBaseStock = diffStock;
 
-                const prevPStock = parseFloat(p.stock) || 0;
-                p.stock = Math.max(0, prevPStock + newBaseStock);
-                if (!p.warehouseStocks) p.warehouseStocks = {};
-                const currentPWhStock = (p.warehouseStocks[activeWH] !== undefined && !isNaN(parseFloat(p.warehouseStocks[activeWH])))
-                    ? parseFloat(p.warehouseStocks[activeWH])
-                    : (activeWH === 'المخزن الرئيسي' ? prevPStock : 0);
-                p.warehouseStocks[activeWH] = Math.max(0, currentPWhStock + newBaseStock);
-
-                let matchedVar = null;
-                if (p.variants && Array.isArray(p.variants)) {
+                if (typeof window.FashionStockEngine !== 'undefined') {
                     const sVal = item.selectedSize || item.size || '';
                     const cVal = item.selectedColor || item.color || '';
-                    matchedVar = p.variants.find(v => 
-                        (v.size || '') === sVal && (v.color || '') === cVal
-                    ) || p.variants.find(v => 
-                        (!sVal || v.size === sVal) && (!cVal || v.color === cVal)
-                    );
-                    if (matchedVar) {
-                        const prevVarStock = parseFloat(matchedVar.stock) || 0;
-                        matchedVar.stock = Math.max(0, prevVarStock + newBaseStock);
-                        if (!matchedVar.warehouseStocks) matchedVar.warehouseStocks = {};
-                        const currentVarWhStock = (matchedVar.warehouseStocks[activeWH] !== undefined && !isNaN(parseFloat(matchedVar.warehouseStocks[activeWH])))
-                            ? parseFloat(matchedVar.warehouseStocks[activeWH])
-                            : (activeWH === 'المخزن الرئيسي' ? prevVarStock : 0);
-                        matchedVar.warehouseStocks[activeWH] = Math.max(0, currentVarWhStock + newBaseStock);
-                    }
-                    // مزامنة رصيد الصنف الأساسي ورصيد المخزن مع مجموع التشكيلات بدقة تامة
-                    p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
-                    p.warehouseStocks[activeWH] = p.variants.reduce((sum, v) => {
-                        const vWhStock = (v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined)
-                            ? parseFloat(v.warehouseStocks[activeWH])
-                            : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0);
-                        return sum + (isNaN(vWhStock) ? 0 : vWhStock);
-                    }, 0);
+                    window.FashionStockEngine.applyMovement({
+                        product: p,
+                        variantRef: item.selectedVariant || { size: sVal, color: cVal, barcode: item.code },
+                        qtyDelta: newBaseStock,
+                        warehouseName: activeWH
+                    });
+                } else {
+                    const prevPStock = parseFloat(p.stock) || 0;
+                    p.stock = Math.max(0, prevPStock + newBaseStock);
+                    if (!p.warehouseStocks) p.warehouseStocks = {};
+                    p.warehouseStocks[activeWH] = Math.max(0, (parseFloat(p.warehouseStocks[activeWH]) || 0) + newBaseStock);
                 }
 
                 const lineTotal = diffStock * (parseFloat(item.price) || 0);
@@ -1285,15 +1250,9 @@ function buildPriceAdjItem(p, lastBuyMap, activeWH) {
     const itemBarcode = p.barcode || '';
     
     // حساب الرصيد الحي الفعلي للصنف في المخزن النشط
-    let liveStock = 0;
-    if (typeof getWarehouseStock === 'function') {
-        const st = getWarehouseStock(p, activeWH);
-        if (st !== undefined && !isNaN(st)) liveStock = Number(st);
-    } else if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
-        liveStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
-    } else if (activeWH === 'المخزن الرئيسي' || !p.warehouseStocks || Object.keys(p.warehouseStocks).length === 0) {
-        liveStock = parseFloat(p.stock) || 0;
-    }
+    const liveStock = window.FashionStockEngine
+        ? window.FashionStockEngine.getProductStock(p, activeWH)
+        : (parseFloat(p.stock) || 0);
 
     const liveAvgCost = parseFloat(p.cost) || 0; 
     const lastPPrice = (lastBuyMap && lastBuyMap[itemName] !== undefined) ? lastBuyMap[itemName] : liveAvgCost;
@@ -1307,15 +1266,9 @@ function buildPriceAdjItem(p, lastBuyMap, activeWH) {
             const vWholesale = parseFloat(v.wholesale) || parseFloat(v.wholesalePrice) || parseFloat(p.wholesale) || 0;
             const vMinPrice = parseFloat(v.minPrice) || parseFloat(p.minPrice) || 0;
             
-            // حساب رصيد التشكيلة الفعلي في المخزن النشط
-            let vStock = 0;
-            if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
-                vStock = parseFloat(v.warehouseStocks[activeWH]) || 0;
-            } else if (activeWH === 'المخزن الرئيسي' || !v.warehouseStocks || Object.keys(v.warehouseStocks).length === 0) {
-                vStock = parseFloat(v.stock) || 0;
-            } else {
-                vStock = 0;
-            }
+            const vStock = window.FashionStockEngine
+                ? window.FashionStockEngine.getVariantStock(v, activeWH)
+                : ((v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined) ? (parseFloat(v.warehouseStocks[activeWH]) || 0) : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0));
             vStockSum += vStock;
 
             return {
