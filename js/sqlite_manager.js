@@ -99,7 +99,7 @@
 
         exec(sql) {
             const trimmed = (sql || '').trim();
-            if (/^\s*SELECT\b/i.test(trimmed)) {
+            if (/^\s*(?:SELECT|PRAGMA)\b/i.test(trimmed)) {
                 try {
                     const stmt = this._db.prepare(trimmed);
                     const rows = stmt.raw(true).all();
@@ -899,62 +899,73 @@
                 console.warn("[SQLite] transactions table schema notice:", txErr.message);
             }
 
+            // 🛡️ ترقية الأعمدة المضافة مسبقاً لجدول الحركات لمنع أي خطأ أثناء الفحص أو الهجرة
+            try { this.db.run("ALTER TABLE transactions ADD COLUMN originalInvoiceId TEXT;"); } catch(e) {}
+            try { this.db.run("ALTER TABLE transactions ADD COLUMN status TEXT;"); } catch(e) {}
+            try { this.db.run("ALTER TABLE transactions ADD COLUMN terminal TEXT;"); } catch(e) {}
+
             // 🛡️ فحص وترقية جدول transactions ليكون id TEXT PRIMARY KEY في قواعد البيانات القائمة
             try {
-                const infoTx = this.db.exec("PRAGMA table_info(transactions);");
-                if (infoTx && infoTx[0] && infoTx[0].values) {
-                    const idCol = infoTx[0].values.find(v => v[1] === 'id');
-                    if (idCol && String(idCol[2]).toUpperCase().includes('INT')) {
-                        console.log("[SQLite Migration] Migrating transactions table id from INTEGER to TEXT PRIMARY KEY...");
-                        this.db.run(`
-                            CREATE TABLE IF NOT EXISTS transactions_mig (
-                                id TEXT PRIMARY KEY,
-                                invoiceId TEXT,
-                                originalInvoiceId TEXT,
-                                dateISO TEXT,
-                                time TEXT,
-                                type TEXT,
-                                partner TEXT,
-                                total REAL DEFAULT 0,
-                                paidAmount REAL DEFAULT 0,
-                                remaining REAL DEFAULT 0,
-                                method TEXT,
-                                cashier TEXT,
-                                warehouse TEXT,
-                                status TEXT,
-                                raw_json TEXT
-                            );
-                            INSERT OR REPLACE INTO transactions_mig SELECT CAST(id AS TEXT), invoiceId, originalInvoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, COALESCE(status, ''), raw_json FROM transactions;
-                            DROP TABLE transactions;
-                            ALTER TABLE transactions_mig RENAME TO transactions;
-                            CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(dateISO);
-                            CREATE INDEX IF NOT EXISTS idx_tx_partner ON transactions(partner);
-                            CREATE INDEX IF NOT EXISTS idx_tx_invoiceId ON transactions(invoiceId);
-                            CREATE INDEX IF NOT EXISTS idx_tx_type ON transactions(type);
-                            CREATE INDEX IF NOT EXISTS idx_tx_status ON transactions(status);
-                            CREATE INDEX IF NOT EXISTS idx_tx_type_status ON transactions(type, status);
-                            CREATE INDEX IF NOT EXISTS idx_tx_date_type ON transactions(dateISO, type, status);
-                            CREATE INDEX IF NOT EXISTS idx_tx_date_method ON transactions(dateISO, method);
-                            CREATE INDEX IF NOT EXISTS idx_tx_date_wh ON transactions(dateISO, warehouse);
-                            CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);
-                            CREATE INDEX IF NOT EXISTS idx_tx_date_type_wh ON transactions(dateISO, type, warehouse);
-                        `);
+                let isIntId = false;
+                if (this.isNative && this.nativeDb) {
+                    try {
+                        const cols = this.nativeDb.prepare("PRAGMA table_info(transactions);").all();
+                        const idCol = Array.isArray(cols) && cols.find(c => c.name === 'id');
+                        if (idCol && String(idCol.type || '').toUpperCase().includes('INT')) {
+                            isIntId = true;
+                        }
+                    } catch(e) {}
+                }
+                if (!isIntId) {
+                    const infoTx = this.db.exec("PRAGMA table_info(transactions);");
+                    if (infoTx && infoTx[0] && infoTx[0].values) {
+                        const idCol = infoTx[0].values.find(v => v[1] === 'id');
+                        if (idCol && String(idCol[2] || '').toUpperCase().includes('INT')) {
+                            isIntId = true;
+                        }
                     }
+                }
+
+                if (isIntId) {
+                    console.log("[SQLite Migration] Migrating transactions table id from INTEGER to TEXT PRIMARY KEY...");
+                    this.db.run(`
+                        CREATE TABLE IF NOT EXISTS transactions_mig (
+                            id TEXT PRIMARY KEY,
+                            invoiceId TEXT,
+                            originalInvoiceId TEXT,
+                            dateISO TEXT,
+                            time TEXT,
+                            type TEXT,
+                            partner TEXT,
+                            total REAL DEFAULT 0,
+                            paidAmount REAL DEFAULT 0,
+                            remaining REAL DEFAULT 0,
+                            method TEXT,
+                            cashier TEXT,
+                            warehouse TEXT,
+                            status TEXT,
+                            terminal TEXT,
+                            raw_json TEXT
+                        );
+                        INSERT OR REPLACE INTO transactions_mig SELECT CAST(id AS TEXT), invoiceId, COALESCE(originalInvoiceId, ''), dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, COALESCE(status, ''), COALESCE(terminal, ''), raw_json FROM transactions;
+                        DROP TABLE transactions;
+                        ALTER TABLE transactions_mig RENAME TO transactions;
+                        CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(dateISO);
+                        CREATE INDEX IF NOT EXISTS idx_tx_partner ON transactions(partner);
+                        CREATE INDEX IF NOT EXISTS idx_tx_invoiceId ON transactions(invoiceId);
+                        CREATE INDEX IF NOT EXISTS idx_tx_type ON transactions(type);
+                        CREATE INDEX IF NOT EXISTS idx_tx_status ON transactions(status);
+                        CREATE INDEX IF NOT EXISTS idx_tx_type_status ON transactions(type, status);
+                        CREATE INDEX IF NOT EXISTS idx_tx_date_type ON transactions(dateISO, type, status);
+                        CREATE INDEX IF NOT EXISTS idx_tx_date_method ON transactions(dateISO, method);
+                        CREATE INDEX IF NOT EXISTS idx_tx_date_wh ON transactions(dateISO, warehouse);
+                        CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);
+                        CREATE INDEX IF NOT EXISTS idx_tx_date_type_wh ON transactions(dateISO, type, warehouse);
+                    `);
                 }
             } catch(migErr) {
                 console.warn("[SQLite] transactions id migration notice:", migErr.message);
             }
-
-            // 🛡️ ترقية الأعمدة والفهارس المضافة لقواعد البيانات المفتوحة مسبقاً لمنع أي خطأ
-            try {
-                this.db.run("ALTER TABLE transactions ADD COLUMN originalInvoiceId TEXT;");
-            } catch(e) {}
-            try {
-                this.db.run("ALTER TABLE transactions ADD COLUMN status TEXT;");
-            } catch(e) {}
-            try {
-                this.db.run("ALTER TABLE transactions ADD COLUMN terminal TEXT;");
-            } catch(e) {}
             try {
                 // ترقية الفهرس المركب للتاريخ والنوع والحالة للبحث التاريخي فائق السرعة
                 this.db.run("DROP INDEX IF EXISTS idx_tx_date_type;");
