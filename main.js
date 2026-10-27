@@ -127,20 +127,10 @@ function createWindow() {
             return;
         }
 
-        // فتح وإغلاق أدوات المطورين F12 أو Ctrl+Shift+I في بيئة التطوير (npm start)
-        if (isDev && (input.key === 'F12' || (input.control && input.shift && key === 'i'))) {
+        // 🛠️ فتح وإغلاق أدوات المطورين والكونسول (DevTools & Console) عبر F12 أو Ctrl+Shift+I لتشخيص أي أخطاء
+        if (input.key === 'F12' || (input.control && input.shift && (key === 'i' || key === 'j'))) {
             event.preventDefault();
             win.webContents.toggleDevTools();
-            return;
-        }
-
-        // منع F12 و Ctrl+Shift+I و Ctrl+Shift+J و Ctrl+Shift+C و Ctrl+U في الإنتاج فقط
-        if (!isDev && (
-            input.key === 'F12' || 
-            (input.control && input.shift && (key === 'i' || key === 'j' || key === 'c')) ||
-            (input.control && key === 'u')
-        )) {
-            event.preventDefault();
             return;
         }
 
@@ -169,13 +159,6 @@ function createWindow() {
     win.webContents.on('context-menu', (e) => {
         e.preventDefault();
     });
-
-    // 🔒 إغلاق أدوات المطور في النسخة النهائية المجمعة فقط
-    if (!isDev) {
-        win.webContents.on('devtools-opened', () => {
-            win.webContents.closeDevTools();
-        });
-    }
 
     // إغلاق نظيف وسريع مع حماية البيانات غير المحفوظة والنسخ الاحتياطي التلقائي
     win.on('close', (event) => {
