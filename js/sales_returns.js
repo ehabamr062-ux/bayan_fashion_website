@@ -846,6 +846,7 @@ async function saveSalesReturn(force = false, accountChecked = false) {
                 ? item.warehouse.trim()
                 : (((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : (origMatch ? origMatch.warehouse : 'المخزن الرئيسي')) || 'المخزن الرئيسي').trim();
 
+            if (p) {
                 if (typeof window.FashionStockEngine !== 'undefined') {
                     window.FashionStockEngine.applyMovement({
                         product: p,
@@ -1598,6 +1599,7 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
             const origMatch = originalInvoiceId ? transactions.find(t => String(t.invoiceId) === String(originalInvoiceId) && (t.product === item.name || t.productName === item.name)) : null;
             const activeWH = (item.warehouse || (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) || (origMatch && origMatch.warehouse) || 'المخزن الرئيسي').trim();
 
+            if (p) {
                 if (typeof window.FashionStockEngine !== 'undefined') {
                     window.FashionStockEngine.applyMovement({
                         product: p,

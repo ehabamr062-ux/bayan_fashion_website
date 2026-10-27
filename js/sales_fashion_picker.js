@@ -1117,7 +1117,7 @@ function renderVariantSelectElements(item, index, cartType = 'sales') {
 
     const getVarStockInWH = (s, c) => {
         const v = window.FashionStockEngine
-            ? window.FashionStockEngine.findVariant(product, { size: s, color: c })
+            ? window.FashionStockEngine.findVariant(pInfo, { size: s, color: c })
             : variants.find(varObj => 
                 (!s || String(varObj.size || '').trim() === String(s).trim()) &&
                 (!c || String(varObj.color || '').trim() === String(c).trim())

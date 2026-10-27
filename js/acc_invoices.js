@@ -2526,95 +2526,142 @@
                     const activeWH = (item.warehouse || item.sourceWarehouse || (oldItems[0]?.warehouse) || defaultWH || 'المخزن الرئيسي').trim();
                     if (!p.warehouseStocks || typeof p.warehouseStocks !== 'object') p.warehouseStocks = {};
 
-                    const itType = String(item.type || cleanType || '');
-                    if (itType.includes('مرتجع بيع')) {
-                        p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
-                        p.warehouseStocks[activeWH] = Math.max(0, (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty);
-                    } else if (itType.includes('مرتجع شراء')) {
-                        p.stock = (parseFloat(p.stock) || 0) + baseQty;
-                        p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
-                    } else if (itType.includes('بيع')) {
-                        p.stock = (parseFloat(p.stock) || 0) + baseQty;
-                        p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
-                    } else if (itType.includes('شراء')) {
-                        p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
-                        p.warehouseStocks[activeWH] = Math.max(0, (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty);
-                        if (item.previousCost !== undefined && item.previousCost !== null && !isNaN(parseFloat(item.previousCost))) {
-                            p.cost = parseFloat(item.previousCost);
-                        }
-                    } else if (itType.includes('تسوية') || itType.includes('جرد') || itType.includes('adj')) {
-                        p.stock = (parseFloat(p.stock) || 0) - baseQty;
-                        p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty;
-                    } else if (itType.includes('تحويل')) {
-                        // لا يتم تعديل أو عكس الأرصدة إلا إذا كان التحويل قد تم استلامه بالفعل (received)
-                        // أما إذا كان معلقاً (pending) فلم يخصم أصلاً من المخزن المصدر
-                        if (item.transferStatus === 'received') {
-                            const srcWH = (item.sourceWarehouse || defaultWH || 'المخزن الرئيسي').trim();
-                            const dstWH = (item.warehouse || '').trim();
-                            if (!p.warehouseStocks) p.warehouseStocks = {};
-                            p.warehouseStocks[srcWH] = (parseFloat(p.warehouseStocks[srcWH]) || 0) + baseQty;
-                            if (dstWH) {
-                                p.warehouseStocks[dstWH] = Math.max(0, (parseFloat(p.warehouseStocks[dstWH]) || 0) - baseQty);
-                            }
-                            if (srcWH === 'المخزن الرئيسي') p.stock = p.warehouseStocks[srcWH];
-                            if (dstWH === 'المخزن الرئيسي') p.stock = p.warehouseStocks[dstWH];
-                        }
-                    }
+                    const varRef = {
+                        barcode: item.barcode,
+                        size: item.selectedSize || item.size,
+                        color: item.selectedColor || item.color
+                    };
 
-                    // عكس رصيد التشكيلة (المقاس واللون) في مصفوفة الصنف بدقة
-                    if (p.variants && Array.isArray(p.variants)) {
-                        const sSize = String(item.selectedSize || item.size || '').trim();
-                        const sColor = String(item.selectedColor || item.color || '').trim();
-                        if (sSize || sColor) {
-                            const cleanV = (s) => {
-                                const str = String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
-                                if (!str || str === 'قياسي' || str === 'موحد' || str === 'عام' || str === '-') return '';
-                                return str;
-                            };
-                            const cSize = cleanV(sSize);
-                            const cColor = cleanV(sColor);
-                            const matchedVar = p.variants.find(v => 
-                                (!cSize || cleanV(v.size) === cSize) && 
-                                (!cColor || cleanV(v.color) === cColor)
-                            );
-                            if (matchedVar) {
-                                if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
-                                if (itType.includes('مرتجع بيع')) {
-                                    matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
-                                    matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
-                                } else if (itType.includes('مرتجع شراء')) {
-                                    matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
-                                    matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) + baseQty;
-                                } else if (itType.includes('بيع')) {
-                                    matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
-                                    matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) + baseQty;
-                                } else if (itType.includes('شراء')) {
-                                    matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
-                                    matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
-                                } else if (itType.includes('تسوية') || itType.includes('جرد') || itType.includes('adj')) {
-                                    matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
-                                    matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
-                                } else if (itType.includes('تحويل')) {
-                                    if (item.transferStatus === 'received') {
-                                        const srcWH = (item.sourceWarehouse || defaultWH || 'المخزن الرئيسي').trim();
-                                        const dstWH = (item.warehouse || '').trim();
-                                        if (!matchedVar.warehouseStocks) matchedVar.warehouseStocks = {};
-                                        matchedVar.warehouseStocks[srcWH] = (parseFloat(matchedVar.warehouseStocks[srcWH]) || 0) + baseQty;
-                                        if (dstWH) matchedVar.warehouseStocks[dstWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[dstWH]) || 0) - baseQty);
-                                        if (srcWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[srcWH];
-                                        if (dstWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[dstWH];
+                    if (typeof FashionStockEngine !== 'undefined' && typeof FashionStockEngine.applyMovement === 'function') {
+                        if (itType.includes('تحويل')) {
+                            if (item.transferStatus === 'received') {
+                                const srcWH = (item.sourceWarehouse || defaultWH || 'المخزن الرئيسي').trim();
+                                const dstWH = (item.warehouse || '').trim();
+                                FashionStockEngine.applyMovement({
+                                    product: p,
+                                    variantRef: varRef,
+                                    qtyDelta: baseQty,
+                                    warehouseName: srcWH,
+                                    allowCreateVariant: false
+                                });
+                                if (dstWH) {
+                                    FashionStockEngine.applyMovement({
+                                        product: p,
+                                        variantRef: varRef,
+                                        qtyDelta: -baseQty,
+                                        warehouseName: dstWH,
+                                        allowCreateVariant: false
+                                    });
+                                }
+                            }
+                        } else {
+                            let delta = 0;
+                            if (itType.includes('مرتجع بيع') || itType.includes('شراء') || itType.includes('تسوية') || itType.includes('جرد') || itType.includes('adj')) {
+                                delta = -baseQty;
+                            } else if (itType.includes('مرتجع شراء') || itType.includes('بيع')) {
+                                delta = baseQty;
+                            }
+                            if (itType.includes('شراء') && item.previousCost !== undefined && item.previousCost !== null && !isNaN(parseFloat(item.previousCost))) {
+                                p.cost = parseFloat(item.previousCost);
+                            }
+                            if (delta !== 0) {
+                                FashionStockEngine.applyMovement({
+                                    product: p,
+                                    variantRef: varRef,
+                                    qtyDelta: delta,
+                                    warehouseName: activeWH,
+                                    allowCreateVariant: false
+                                });
+                            }
+                        }
+                    } else {
+                        if (!p.warehouseStocks || typeof p.warehouseStocks !== 'object') p.warehouseStocks = {};
+                        if (itType.includes('مرتجع بيع')) {
+                            p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
+                            p.warehouseStocks[activeWH] = Math.max(0, (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty);
+                        } else if (itType.includes('مرتجع شراء')) {
+                            p.stock = (parseFloat(p.stock) || 0) + baseQty;
+                            p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
+                        } else if (itType.includes('بيع')) {
+                            p.stock = (parseFloat(p.stock) || 0) + baseQty;
+                            p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
+                        } else if (itType.includes('شراء')) {
+                            p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
+                            p.warehouseStocks[activeWH] = Math.max(0, (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty);
+                            if (item.previousCost !== undefined && item.previousCost !== null && !isNaN(parseFloat(item.previousCost))) {
+                                p.cost = parseFloat(item.previousCost);
+                            }
+                        } else if (itType.includes('تسوية') || itType.includes('جرد') || itType.includes('adj')) {
+                            p.stock = (parseFloat(p.stock) || 0) - baseQty;
+                            p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty;
+                        } else if (itType.includes('تحويل')) {
+                            if (item.transferStatus === 'received') {
+                                const srcWH = (item.sourceWarehouse || defaultWH || 'المخزن الرئيسي').trim();
+                                const dstWH = (item.warehouse || '').trim();
+                                if (!p.warehouseStocks) p.warehouseStocks = {};
+                                p.warehouseStocks[srcWH] = (parseFloat(p.warehouseStocks[srcWH]) || 0) + baseQty;
+                                if (dstWH) {
+                                    p.warehouseStocks[dstWH] = Math.max(0, (parseFloat(p.warehouseStocks[dstWH]) || 0) - baseQty);
+                                }
+                                if (srcWH === 'المخزن الرئيسي') p.stock = p.warehouseStocks[srcWH];
+                                if (dstWH === 'المخزن الرئيسي') p.stock = p.warehouseStocks[dstWH];
+                            }
+                        }
+
+                        if (p.variants && Array.isArray(p.variants)) {
+                            const sSize = String(item.selectedSize || item.size || '').trim();
+                            const sColor = String(item.selectedColor || item.color || '').trim();
+                            if (sSize || sColor) {
+                                const cleanV = (s) => {
+                                    const str = String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+                                    if (!str || str === 'قياسي' || str === 'موحد' || str === 'عام' || str === '-') return '';
+                                    return str;
+                                };
+                                const cSize = cleanV(sSize);
+                                const cColor = cleanV(sColor);
+                                const matchedVar = p.variants.find(v => 
+                                    (!cSize || cleanV(v.size) === cSize) && 
+                                    (!cColor || cleanV(v.color) === cColor)
+                                );
+                                if (matchedVar) {
+                                    if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
+                                    if (itType.includes('مرتجع بيع')) {
+                                        matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
+                                        matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
+                                    } else if (itType.includes('مرتجع شراء')) {
+                                        matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
+                                        matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) + baseQty;
+                                    } else if (itType.includes('بيع')) {
+                                        matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
+                                        matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) + baseQty;
+                                    } else if (itType.includes('شراء')) {
+                                        matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
+                                        matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
+                                    } else if (itType.includes('تسوية') || itType.includes('جرد') || itType.includes('adj')) {
+                                        matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
+                                        matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
+                                    } else if (itType.includes('تحويل')) {
+                                        if (item.transferStatus === 'received') {
+                                            const srcWH = (item.sourceWarehouse || defaultWH || 'المخزن الرئيسي').trim();
+                                            const dstWH = (item.warehouse || '').trim();
+                                            if (!matchedVar.warehouseStocks) matchedVar.warehouseStocks = {};
+                                            matchedVar.warehouseStocks[srcWH] = (parseFloat(matchedVar.warehouseStocks[srcWH]) || 0) + baseQty;
+                                            if (dstWH) matchedVar.warehouseStocks[dstWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[dstWH]) || 0) - baseQty);
+                                            if (srcWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[srcWH];
+                                            if (dstWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[dstWH];
+                                        }
                                     }
                                 }
                             }
-                        }
-                        if (p.variants.length > 0) {
-                            p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
-                            p.warehouseStocks[activeWH] = p.variants.reduce((sum, v) => {
-                                const vWh = (v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined)
-                                    ? parseFloat(v.warehouseStocks[activeWH])
-                                    : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0);
-                                return sum + (isNaN(vWh) ? 0 : vWh);
-                            }, 0);
+                            if (p.variants.length > 0) {
+                                p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
+                                p.warehouseStocks[activeWH] = p.variants.reduce((sum, v) => {
+                                    const vWh = (v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined)
+                                        ? parseFloat(v.warehouseStocks[activeWH])
+                                        : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0);
+                                    return sum + (isNaN(vWh) ? 0 : vWh);
+                                }, 0);
+                            }
                         }
                     }
 
@@ -2797,88 +2844,138 @@
 
                                 const itType = String(item.type || (t && t.type) || '');
 
-                                if (itType.includes('مرتجع بيع')) {
-                                    p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
-                                    p.warehouseStocks[activeWH] = Math.max(0, (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty);
-                                } else if (itType.includes('مرتجع شراء')) {
-                                    p.stock = (parseFloat(p.stock) || 0) + baseQty;
-                                    p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
-                                } else if (itType.includes('بيع')) {
-                                    p.stock = (parseFloat(p.stock) || 0) + baseQty;
-                                    p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
-                                } else if (itType.includes('شراء')) {
-                                    p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
-                                    p.warehouseStocks[activeWH] = Math.max(0, (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty);
-                                    if (item.previousCost !== undefined && item.previousCost !== null && !isNaN(parseFloat(item.previousCost))) {
-                                        p.cost = parseFloat(item.previousCost);
-                                    }
-                                } else if (itType.includes('تسوية') || itType.includes('جرد') || itType.includes('adj')) {
-                                    p.stock = (parseFloat(p.stock) || 0) - baseQty;
-                                    p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty;
-                                } else if (itType.includes('تحويل')) {
-                                    if (item.transferStatus === 'received') {
-                                        const srcWH = (item.sourceWarehouse || 'المخزن الرئيسي').trim();
-                                        const dstWH = (item.warehouse || '').trim();
-                                        if (!p.warehouseStocks) p.warehouseStocks = {};
-                                        p.warehouseStocks[srcWH] = (parseFloat(p.warehouseStocks[srcWH]) || 0) + baseQty;
-                                        if (dstWH) {
-                                            p.warehouseStocks[dstWH] = Math.max(0, (parseFloat(p.warehouseStocks[dstWH]) || 0) - baseQty);
-                                        }
-                                        if (srcWH === 'المخزن الرئيسي') p.stock = p.warehouseStocks[srcWH];
-                                        if (dstWH === 'المخزن الرئيسي') p.stock = p.warehouseStocks[dstWH];
-                                    }
-                                }
+                                const varRef = {
+                                    barcode: item.barcode,
+                                    size: item.selectedSize || item.size,
+                                    color: item.selectedColor || item.color
+                                };
 
-                                // عكس رصيد التشكيلة (المقاس واللون) في مصفوفة الصنف عند الحذف
-                                if (p.variants && Array.isArray(p.variants)) {
-                                    const sSize = String(item.selectedSize || item.size || '').trim();
-                                    const sColor = String(item.selectedColor || item.color || '').trim();
-                                    if (sSize || sColor) {
-                                        const cleanV = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
-                                        const cSize = cleanV(sSize);
-                                        const cColor = cleanV(sColor);
-                                        const matchedVar = p.variants.find(v => 
-                                            (!cSize || cleanV(v.size) === cSize) && 
-                                            (!cColor || cleanV(v.color) === cColor)
-                                        );
-                                        if (matchedVar) {
-                                            if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
-                                            if (itType.includes('مرتجع بيع')) {
-                                                matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
-                                                matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
-                                            } else if (itType.includes('مرتجع شراء')) {
-                                                matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
-                                                matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) + baseQty;
-                                            } else if (itType.includes('بيع')) {
-                                                matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
-                                                matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) + baseQty;
-                                            } else if (itType.includes('شراء')) {
-                                                matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
-                                                matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
-                                            } else if (itType.includes('تسوية') || itType.includes('جرد') || itType.includes('adj')) {
-                                                matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
-                                                matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
-                                            } else if (itType.includes('تحويل')) {
-                                                if (item.transferStatus === 'received') {
-                                                    const srcWH = (item.sourceWarehouse || 'المخزن الرئيسي').trim();
-                                                    const dstWH = (item.warehouse || '').trim();
-                                                    if (!matchedVar.warehouseStocks) matchedVar.warehouseStocks = {};
-                                                    matchedVar.warehouseStocks[srcWH] = (parseFloat(matchedVar.warehouseStocks[srcWH]) || 0) + baseQty;
-                                                    if (dstWH) matchedVar.warehouseStocks[dstWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[dstWH]) || 0) - baseQty);
-                                                    if (srcWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[srcWH];
-                                                    if (dstWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[dstWH];
+                                if (typeof FashionStockEngine !== 'undefined' && typeof FashionStockEngine.applyMovement === 'function') {
+                                    if (itType.includes('تحويل')) {
+                                        if (item.transferStatus === 'received') {
+                                            const srcWH = (item.sourceWarehouse || 'المخزن الرئيسي').trim();
+                                            const dstWH = (item.warehouse || '').trim();
+                                            FashionStockEngine.applyMovement({
+                                                product: p,
+                                                variantRef: varRef,
+                                                qtyDelta: baseQty,
+                                                warehouseName: srcWH,
+                                                allowCreateVariant: false
+                                            });
+                                            if (dstWH) {
+                                                FashionStockEngine.applyMovement({
+                                                    product: p,
+                                                    variantRef: varRef,
+                                                    qtyDelta: -baseQty,
+                                                    warehouseName: dstWH,
+                                                    allowCreateVariant: false
+                                                });
+                                            }
+                                        }
+                                    } else {
+                                        let delta = 0;
+                                        if (itType.includes('مرتجع بيع') || itType.includes('شراء') || itType.includes('تسوية') || itType.includes('جرد') || itType.includes('adj')) {
+                                            delta = -baseQty;
+                                        } else if (itType.includes('مرتجع شراء') || itType.includes('بيع')) {
+                                            delta = baseQty;
+                                        }
+                                        if (itType.includes('شراء') && item.previousCost !== undefined && item.previousCost !== null && !isNaN(parseFloat(item.previousCost))) {
+                                            p.cost = parseFloat(item.previousCost);
+                                        }
+                                        if (delta !== 0) {
+                                            FashionStockEngine.applyMovement({
+                                                product: p,
+                                                variantRef: varRef,
+                                                qtyDelta: delta,
+                                                warehouseName: activeWH,
+                                                allowCreateVariant: false
+                                            });
+                                        }
+                                    }
+                                } else {
+                                    if (itType.includes('مرتجع بيع')) {
+                                        p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
+                                        p.warehouseStocks[activeWH] = Math.max(0, (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty);
+                                    } else if (itType.includes('مرتجع شراء')) {
+                                        p.stock = (parseFloat(p.stock) || 0) + baseQty;
+                                        p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
+                                    } else if (itType.includes('بيع')) {
+                                        p.stock = (parseFloat(p.stock) || 0) + baseQty;
+                                        p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
+                                    } else if (itType.includes('شراء')) {
+                                        p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
+                                        p.warehouseStocks[activeWH] = Math.max(0, (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty);
+                                        if (item.previousCost !== undefined && item.previousCost !== null && !isNaN(parseFloat(item.previousCost))) {
+                                            p.cost = parseFloat(item.previousCost);
+                                        }
+                                    } else if (itType.includes('تسوية') || itType.includes('جرد') || itType.includes('adj')) {
+                                        p.stock = (parseFloat(p.stock) || 0) - baseQty;
+                                        p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty;
+                                    } else if (itType.includes('تحويل')) {
+                                        if (item.transferStatus === 'received') {
+                                            const srcWH = (item.sourceWarehouse || 'المخزن الرئيسي').trim();
+                                            const dstWH = (item.warehouse || '').trim();
+                                            if (!p.warehouseStocks) p.warehouseStocks = {};
+                                            p.warehouseStocks[srcWH] = (parseFloat(p.warehouseStocks[srcWH]) || 0) + baseQty;
+                                            if (dstWH) {
+                                                p.warehouseStocks[dstWH] = Math.max(0, (parseFloat(p.warehouseStocks[dstWH]) || 0) - baseQty);
+                                            }
+                                            if (srcWH === 'المخزن الرئيسي') p.stock = p.warehouseStocks[srcWH];
+                                            if (dstWH === 'المخزن الرئيسي') p.stock = p.warehouseStocks[dstWH];
+                                        }
+                                    }
+
+                                    // عكس رصيد التشكيلة (المقاس واللون) في مصفوفة الصنف عند الحذف
+                                    if (p.variants && Array.isArray(p.variants)) {
+                                        const sSize = String(item.selectedSize || item.size || '').trim();
+                                        const sColor = String(item.selectedColor || item.color || '').trim();
+                                        if (sSize || sColor) {
+                                            const cleanV = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+                                            const cSize = cleanV(sSize);
+                                            const cColor = cleanV(sColor);
+                                            const matchedVar = p.variants.find(v => 
+                                                (!cSize || cleanV(v.size) === cSize) && 
+                                                (!cColor || cleanV(v.color) === cColor)
+                                            );
+                                            if (matchedVar) {
+                                                if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
+                                                if (itType.includes('مرتجع بيع')) {
+                                                    matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
+                                                    matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
+                                                } else if (itType.includes('مرتجع شراء')) {
+                                                    matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
+                                                    matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) + baseQty;
+                                                } else if (itType.includes('بيع')) {
+                                                    matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
+                                                    matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) + baseQty;
+                                                } else if (itType.includes('شراء')) {
+                                                    matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
+                                                    matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
+                                                } else if (itType.includes('تسوية') || itType.includes('جرد') || itType.includes('adj')) {
+                                                    matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
+                                                    matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
+                                                } else if (itType.includes('تحويل')) {
+                                                    if (item.transferStatus === 'received') {
+                                                        const srcWH = (item.sourceWarehouse || 'المخزن الرئيسي').trim();
+                                                        const dstWH = (item.warehouse || '').trim();
+                                                        if (!matchedVar.warehouseStocks) matchedVar.warehouseStocks = {};
+                                                        matchedVar.warehouseStocks[srcWH] = (parseFloat(matchedVar.warehouseStocks[srcWH]) || 0) + baseQty;
+                                                        if (dstWH) matchedVar.warehouseStocks[dstWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[dstWH]) || 0) - baseQty);
+                                                        if (srcWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[srcWH];
+                                                        if (dstWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[dstWH];
+                                                    }
                                                 }
                                             }
                                         }
-                                    }
-                                    if (p.variants.length > 0) {
-                                        p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
-                                        p.warehouseStocks[activeWH] = p.variants.reduce((sum, v) => {
-                                            const vWh = (v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined)
-                                                ? parseFloat(v.warehouseStocks[activeWH])
-                                                : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0);
-                                            return sum + (isNaN(vWh) ? 0 : vWh);
-                                        }, 0);
+                                        if (p.variants.length > 0) {
+                                            p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
+                                            p.warehouseStocks[activeWH] = p.variants.reduce((sum, v) => {
+                                                const vWh = (v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined)
+                                                    ? parseFloat(v.warehouseStocks[activeWH])
+                                                    : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0);
+                                                return sum + (isNaN(vWh) ? 0 : vWh);
+                                            }, 0);
+                                        }
                                     }
                                 }
 
