@@ -375,12 +375,15 @@ async function handleSearch(query) {
                     <button type="button" onclick="document.getElementById('searchResults').style.display='none';" class="pos-search-close-btn" title="إغلاق النافذة" style="background:none; border:none; cursor:pointer; font-size:1rem;">❌</button>
                 </div>
                 <div style="max-height: 380px; overflow-y: auto; padding: 6px; scrollbar-gutter: stable;">
-                    ${displayFiltered.map(p => {
+                    ${displayFiltered.map(rawP => {
+                        const p = (typeof productsDB !== 'undefined' && Array.isArray(productsDB))
+                            ? (productsDB.find(prod => prod && (prod.id === rawP.id || prod.id == rawP.id)) || rawP)
+                            : rawP;
                         const priceVal = parseFloat(p.price) || 0;
                         const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
-                        const stockVal = (typeof getLiveProductWhStock === 'function')
-                            ? getLiveProductWhStock(p, activeWH)
-                            : (typeof getWarehouseStock === 'function' ? getWarehouseStock(p, activeWH) : 0);
+                        const stockVal = typeof getWarehouseStock === 'function'
+                            ? getWarehouseStock(p.name, activeWH)
+                            : ((typeof getLiveProductWhStock === 'function') ? getLiveProductWhStock(p, activeWH) : (parseFloat(p.stock) || 0));
                         const safeName = (window.escapeHtml ? window.escapeHtml(p.name) : p.name);
                         const safeCode = (window.escapeHtml ? window.escapeHtml(p.code || p.id) : (p.code || p.id));
                         const safeBarcode = (window.escapeHtml ? window.escapeHtml(p.barcode || '---') : (p.barcode || '---'));

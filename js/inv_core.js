@@ -1961,6 +1961,7 @@ function getLiveProductWhStock(p, targetWH) {
     }
     return 0;
 }
+window.getLiveProductWhStock = getLiveProductWhStock;
 
 let _prodByNameMap = null;
 let _prodByNameMapLen = 0;
@@ -2096,6 +2097,7 @@ function getWarehouseStock(productName, warehouseName, startDate = null, endDate
     const postEndDateChange = (_stockHistoryCache[(p.name || '').trim()] && _stockHistoryCache[(p.name || '').trim()][targetWH]) || 0;
     return currentLive - postEndDateChange;
 }
+window.getWarehouseStock = getWarehouseStock;
 
 function showInvDetails(id) {
     const p = productsDB.find(x => x.id === id);
