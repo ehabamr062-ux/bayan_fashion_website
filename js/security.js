@@ -381,66 +381,71 @@
             return null;
         },
 
-        // 🔓 فك تشفير رمز PIN للتحقق في الذاكرة وإظهاره للمدير (يدعم كافة إصدارات ENC والهاش HASH:v1:)
+        // 🔓 فك تشفير رمز PIN للتحقق في الذاكرة وإظهاره للمدير (يدعم كافة إصدارات ENC والهاش HASH:v1: والتشفير المتداخل)
         decryptPin: function (encPin) {
             if (!encPin) return '';
-            const sEnc = String(encPin).trim();
-            if (!sEnc.startsWith('ENC:') && !sEnc.startsWith('HASH:v1:')) return sEnc; // غير مشفر، قيمة بنص صريح
+            let sEnc = String(encPin).trim();
+            if (!sEnc.startsWith('ENC:') && !sEnc.startsWith('HASH:v1:') && !sEnc.startsWith('v4:') && !sEnc.startsWith('v3:') && !sEnc.startsWith('v2:')) return sEnc; // غير مشفر، قيمة بنص صريح
 
-            // 1. فك تشفير الإصدارات المشفرة ثنائياً بمفتاح AES-256
-            if (sEnc.startsWith('ENC:')) {
-                // أولاً: المحاولة بملح النسخ الاحتياطية PORTABLE_BACKUP_SALT
+            // حلقة أمان لفك أي طبقات تشفير متداخلة أو مزدوجة (Nested / Double Encryption Guard)
+            let loopGuard = 0;
+            while (loopGuard++ < 5) {
+                if (sEnc.startsWith('v4:') || sEnc.startsWith('v3:') || sEnc.startsWith('v2:')) {
+                    sEnc = 'ENC:' + sEnc;
+                }
+
+                // 1. فك التجزئة HASH:v1: واستعادة الرقم السري الصريح فوراً
+                if (sEnc.startsWith('HASH:v1:')) {
+                    const parts = sEnc.split(':');
+                    if (parts.length === 4) {
+                        const salt = parts[2];
+                        const expectedHash = parts[3];
+
+                        // فحص فائق السرعة للأرقام الأكثر شيوعاً
+                        const quickPins = ['1234', '1001', '0000', '1111', '2222', '3333', '4444', '5555', '6666', '7777', '8888', '9999', '123456', '12345', '101', '2026', '2025', '2024', '1122', '1212', '4321', '0123'];
+                        for (let i = 0; i < quickPins.length; i++) {
+                            const qp = quickPins[i];
+                            const hp = this._sha256Hex(qp + ':' + salt + ':' + PORTABLE_BACKUP_SALT);
+                            if (this._timingSafeEqual(hp, expectedHash)) return qp;
+                            const hm = this._sha256Hex(qp + salt + this._getMachineSalt());
+                            if (this._timingSafeEqual(hm, expectedHash)) return qp;
+                        }
+
+                        // فحص كافة أرقام PIN المكونة من 4 خانات (0000 إلى 9999)
+                        for (let i = 0; i <= 9999; i++) {
+                            const c4 = (i < 10 ? '000' : (i < 100 ? '00' : (i < 1000 ? '0' : ''))) + i;
+                            const hp = this._sha256Hex(c4 + ':' + salt + ':' + PORTABLE_BACKUP_SALT);
+                            if (this._timingSafeEqual(hp, expectedHash)) return c4;
+                            const hm = this._sha256Hex(c4 + salt + this._getMachineSalt());
+                            if (this._timingSafeEqual(hm, expectedHash)) return c4;
+                        }
+
+                        // فحص الأرقام من 1 إلى 999
+                        for (let i = 0; i <= 999; i++) {
+                            const c = String(i);
+                            const hp = this._sha256Hex(c + ':' + salt + ':' + PORTABLE_BACKUP_SALT);
+                            if (this._timingSafeEqual(hp, expectedHash)) return c;
+                            const hm = this._sha256Hex(c + salt + this._getMachineSalt());
+                            if (this._timingSafeEqual(hm, expectedHash)) return c;
+                        }
+                    }
+                    return '';
+                }
+
+                if (!sEnc.startsWith('ENC:')) break;
+
+                // 2. فك تشفير الإصدارات المشفرة ثنائياً بمفتاح AES-256
                 let decrypted = this._decryptPinWithSalt(sEnc, PORTABLE_BACKUP_SALT);
-                if (decrypted !== null && typeof decrypted === 'string') {
-                    return decrypted;
+                if (decrypted === null || typeof decrypted !== 'string') {
+                    const machineSalt = this._getMachineSalt();
+                    decrypted = this._decryptPinWithSalt(sEnc, machineSalt);
                 }
 
-                // ثانياً: المحاولة بملح الجهاز الحالي
-                const machineSalt = this._getMachineSalt();
-                decrypted = this._decryptPinWithSalt(sEnc, machineSalt);
-                if (decrypted !== null && typeof decrypted === 'string') {
-                    return decrypted;
+                if (decrypted !== null && typeof decrypted === 'string' && decrypted !== sEnc) {
+                    sEnc = decrypted;
+                } else {
+                    break;
                 }
-
-                return sEnc;
-            }
-
-            // 2. فك التجزئة HASH:v1: واستعادة الرقم السري الصريح فوراً
-            if (sEnc.startsWith('HASH:v1:')) {
-                const parts = sEnc.split(':');
-                if (parts.length === 4) {
-                    const salt = parts[2];
-                    const expectedHash = parts[3];
-
-                    // فحص فائق السرعة للأرقام الأكثر شيوعاً
-                    const quickPins = ['1234', '1001', '0000', '1111', '2222', '3333', '4444', '5555', '6666', '7777', '8888', '9999', '123456', '12345', '101', '2026', '2025', '2024', '1122', '1212', '4321', '0123'];
-                    for (let i = 0; i < quickPins.length; i++) {
-                        const qp = quickPins[i];
-                        const hp = this._sha256Hex(qp + ':' + salt + ':' + PORTABLE_BACKUP_SALT);
-                        if (this._timingSafeEqual(hp, expectedHash)) return qp;
-                        const hm = this._sha256Hex(qp + salt + this._getMachineSalt());
-                        if (this._timingSafeEqual(hm, expectedHash)) return qp;
-                    }
-
-                    // فحص كافة أرقام PIN المكونة من 4 خانات (0000 إلى 9999)
-                    for (let i = 0; i <= 9999; i++) {
-                        const c4 = (i < 10 ? '000' : (i < 100 ? '00' : (i < 1000 ? '0' : ''))) + i;
-                        const hp = this._sha256Hex(c4 + ':' + salt + ':' + PORTABLE_BACKUP_SALT);
-                        if (this._timingSafeEqual(hp, expectedHash)) return c4;
-                        const hm = this._sha256Hex(c4 + salt + this._getMachineSalt());
-                        if (this._timingSafeEqual(hm, expectedHash)) return c4;
-                    }
-
-                    // فحص الأرقام من 1 إلى 999
-                    for (let i = 0; i <= 999; i++) {
-                        const c = String(i);
-                        const hp = this._sha256Hex(c + ':' + salt + ':' + PORTABLE_BACKUP_SALT);
-                        if (this._timingSafeEqual(hp, expectedHash)) return c;
-                        const hm = this._sha256Hex(c + salt + this._getMachineSalt());
-                        if (this._timingSafeEqual(hm, expectedHash)) return c;
-                    }
-                }
-                return '';
             }
 
             return sEnc;
