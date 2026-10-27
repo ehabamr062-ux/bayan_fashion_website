@@ -2526,6 +2526,8 @@
                     const activeWH = (item.warehouse || item.sourceWarehouse || (oldItems[0]?.warehouse) || defaultWH || 'المخزن الرئيسي').trim();
                     if (!p.warehouseStocks || typeof p.warehouseStocks !== 'object') p.warehouseStocks = {};
 
+                    const itType = String(item.type || cleanType || '');
+
                     const varRef = {
                         barcode: item.barcode,
                         size: item.selectedSize || item.size,
