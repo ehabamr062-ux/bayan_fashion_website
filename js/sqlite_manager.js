@@ -1214,7 +1214,7 @@
                 if (!res.code) res.code = resolvedCode;
                 if (!res.barcode) res.barcode = resolvedCode;
             }
-            if (res.image && typeof res.image === 'string' && res.image.startsWith('local_img:')) {
+            if (res.image && typeof res.image === 'string') {
                 res.image = this._resolveProductImage(res.image);
             }
             return res;
@@ -1277,14 +1277,29 @@
          */
         _resolveProductImage(imageRef) {
             if (!imageRef || typeof imageRef !== 'string') return '';
-            if (!imageRef.startsWith('local_img:')) return imageRef;
+            if (imageRef.startsWith('data:image') || imageRef.startsWith('http://') || imageRef.startsWith('https://') || imageRef.startsWith('blob:')) {
+                return imageRef;
+            }
 
-            const fileName = imageRef.slice('local_img:'.length);
             const imgDir = this._getProductImageDir();
             if (!imgDir || !this.fs) return '';
 
+            let fileName = '';
+            if (imageRef.startsWith('local_img:')) {
+                fileName = imageRef.slice('local_img:'.length);
+            } else if (imageRef.startsWith('file://') || imageRef.includes('.bayan_pos/product_images') || imageRef.includes('.bayan_pos\\product_images')) {
+                const clean = imageRef.split('?')[0];
+                fileName = clean.split(/[/\\]/).pop();
+            } else {
+                return imageRef;
+            }
+
+            if (!fileName) return '';
+
             const filePath = this.path.join(imgDir, fileName);
-            if (!this.fs.existsSync(filePath)) return '';
+            if (!this.fs.existsSync(filePath)) {
+                return '';
+            }
 
             const normalizedPath = filePath.replace(/\\/g, '/');
             const fileUri = 'file:///' + (normalizedPath.startsWith('/') ? normalizedPath.slice(1) : normalizedPath);
@@ -1320,10 +1335,10 @@
         _migrateLegacyBase64Images() {
             if (!this.db || !this.fs) return;
             try {
-                if (typeof localStorage !== 'undefined' && localStorage.getItem('bayan_legacy_img_migrated') === 'done') {
+                if (typeof localStorage !== 'undefined' && localStorage.getItem('bayan_legacy_img_migrated_v2') === 'done') {
                     return;
                 }
-                const stmt = this.db.prepare("SELECT id, raw_json FROM products WHERE raw_json LIKE '%data:image%';");
+                const stmt = this.db.prepare("SELECT id, raw_json FROM products WHERE raw_json LIKE '%data:image%' OR raw_json LIKE '%file://%';");
                 const prodsToMigrate = [];
                 while (stmt.step()) {
                     prodsToMigrate.push(stmt.getAsObject());
@@ -1331,7 +1346,7 @@
                 stmt.free();
 
                 if (prodsToMigrate.length === 0) {
-                    if (typeof localStorage !== 'undefined') localStorage.setItem('bayan_legacy_img_migrated', 'done');
+                    if (typeof localStorage !== 'undefined') localStorage.setItem('bayan_legacy_img_migrated_v2', 'done');
                     return;
                 }
                 console.log(`📸 [SQLite Image Offloader] جاري ترحيل وتفريغ ${prodsToMigrate.length} صورة من الداتابيز إلى القرص...`);
@@ -1341,10 +1356,17 @@
                     for (const row of prodsToMigrate) {
                         try {
                             const extra = typeof row.raw_json === 'string' ? JSON.parse(row.raw_json) : row.raw_json;
-                            if (extra && extra.image && typeof extra.image === 'string' && extra.image.startsWith('data:image')) {
-                                extra.image = this._saveProductImage(row.id, extra.image);
-                                upStmt.run(this._safeBind([JSON.stringify(extra), row.id]));
-                                count++;
+                            if (extra && extra.image && typeof extra.image === 'string') {
+                                if (extra.image.startsWith('data:image')) {
+                                    extra.image = this._saveProductImage(row.id, extra.image);
+                                    upStmt.run(this._safeBind([JSON.stringify(extra), row.id]));
+                                    count++;
+                                } else if (extra.image.startsWith('file://')) {
+                                    const fName = extra.image.split('?')[0].split(/[/\\]/).pop();
+                                    extra.image = 'local_img:' + fName;
+                                    upStmt.run(this._safeBind([JSON.stringify(extra), row.id]));
+                                    count++;
+                                }
                             }
                         } catch(e) {}
                     }
@@ -1853,9 +1875,14 @@
                             for (const item of items) {
                                 if (!item) continue;
                                 let itemToStore = item;
-                                if (item.image && typeof item.image === 'string' && item.image.startsWith('data:image')) {
-                                    const diskPath = this._saveProductImage(item.id, item.image);
-                                    itemToStore = { ...item, image: diskPath };
+                                if (item.image && typeof item.image === 'string') {
+                                    if (item.image.startsWith('data:image')) {
+                                        const diskPath = this._saveProductImage(item.id, item.image);
+                                        itemToStore = { ...item, image: diskPath };
+                                    } else if (item.image.startsWith('file://')) {
+                                        const fName = item.image.split('?')[0].split(/[/\\]/).pop();
+                                        itemToStore = { ...item, image: 'local_img:' + fName };
+                                    }
                                 }
                                 const rawJson = this._extractExtraFields(itemToStore, ['id', 'name', 'barcode', 'code', 'category', 'unit', 'cost', 'price', 'wholesale', 'stock']);
                                 mainStmt.run(this._safeBind([
