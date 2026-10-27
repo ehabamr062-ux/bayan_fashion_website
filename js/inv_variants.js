@@ -1275,19 +1275,13 @@ function generateVariantsMatrix() {
     const listSizes = sizes.length > 0 ? sizes : [''];
     const listColors = colors.length > 0 ? colors : ['موحد'];
 
-    // 🛡️ تجميع المقاسات والألوان الموجودة مسبقاً في الجدول مع معايرة الحروف العربية لمنع أي تكرار
+    // 🛡️ تجميع المقاسات والألوان الموجودة مسبقاً في الجدول لمنع تكرارها والحفاظ عليها كاملة دون مسح
     const existingRows = Array.from(tbody.rows);
     const existingKeys = new Set();
-    const normalizeKey = (s, c) => {
-        const cleanS = (typeof window.cleanVariantAttr === 'function') ? window.cleanVariantAttr(s) : String(s || '').trim().toLowerCase();
-        const cleanC = (typeof window.cleanVariantAttr === 'function') ? window.cleanVariantAttr(c) : String(c || '').trim().toLowerCase();
-        return `${cleanS}___${cleanC}`;
-    };
-
     existingRows.forEach(r => {
-        const s = (r.querySelector('.var-size-input')?.value || '').trim();
-        const c = (r.querySelector('.var-color-input')?.value || '').trim();
-        existingKeys.add(normalizeKey(s, c));
+        const s = (r.querySelector('.var-size-input')?.value || '').trim().toLowerCase();
+        const c = (r.querySelector('.var-color-input')?.value || '').trim().toLowerCase();
+        existingKeys.add(`${s}___${c}`);
     });
 
     let addedCount = 0;
@@ -1298,7 +1292,7 @@ function generateVariantsMatrix() {
         listColors.forEach(col => {
             const cleanSz = sz.trim();
             const cleanCol = col.trim();
-            const key = normalizeKey(cleanSz, cleanCol);
+            const key = `${cleanSz.toLowerCase()}___${cleanCol.toLowerCase()}`;
 
             if (existingKeys.has(key)) {
                 skippedCount++;

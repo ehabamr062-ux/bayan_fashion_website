@@ -59,61 +59,26 @@ async function saveNewItem(mode = 'save') {
 
     const activeProductId = (typeof currentEditingProductId !== 'undefined' && currentEditingProductId) ? currentEditingProductId : null;
 
-    // 🛑 فحص الباركود فائق السرعة O(1) المباشر لمنع التكرار دون استهلاك المعالج أو تدوير مصفوفة الأصناف
-    const existingBarcodesMap = {
-        get(rawBarcode) {
-            if (!rawBarcode) return null;
-            const cleanBc = String(rawBarcode).trim();
-            if (!cleanBc) return null;
-            const lowerBc = cleanBc.toLowerCase();
-
-            // 1. الفحص الفوري المباشر من الفهرس الميموري O(1)
-            if (typeof window.getBarcodeToProductMap === 'function') {
-                const bMap = window.getBarcodeToProductMap();
-                if (bMap) {
-                    const match = bMap.get(lowerBc) || bMap.get(cleanBc);
-                    if (match && (!activeProductId || (match.id !== activeProductId && String(match.id) !== String(activeProductId)))) {
-                        return match;
-                    }
+    // 🛑 فهرس الباركودات فائق السرعة O(1) لفحص التكرار لحظياً دون استهلاك المعالج
+    const existingBarcodesMap = new Map();
+    if (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
+        for (let idx = 0; idx < productsDB.length; idx++) {
+            const p = productsDB[idx];
+            if (!p || (activeProductId && (p.id === activeProductId || String(p.id) === String(activeProductId)))) continue;
+            if (p.barcode) existingBarcodesMap.set(String(p.barcode).trim(), p);
+            if (p.code) existingBarcodesMap.set(String(p.code).trim(), p);
+            if (p.units && Array.isArray(p.units)) {
+                for (let u = 0; u < p.units.length; u++) {
+                    if (p.units[u].unitBarcode) existingBarcodesMap.set(String(p.units[u].unitBarcode).trim(), p);
                 }
             }
-
-            if (typeof window.getCodeToProductMap === 'function') {
-                const cMap = window.getCodeToProductMap();
-                if (cMap) {
-                    const match = cMap.get(lowerBc) || cMap.get(cleanBc);
-                    if (match && (!activeProductId || (match.id !== activeProductId && String(match.id) !== String(activeProductId)))) {
-                        return match;
-                    }
+            if (p.variants && Array.isArray(p.variants)) {
+                for (let v = 0; v < p.variants.length; v++) {
+                    if (p.variants[v].barcode) existingBarcodesMap.set(String(p.variants[v].barcode).trim(), p);
                 }
             }
-
-            // 2. الفحص من قاعدة بيانات SQLite عبر الفهرس السريع idx_prod_barcode (0ms)
-            if (window.BayanSQLite && typeof window.BayanSQLite.getProductByBarcode === 'function' && window.BayanSQLite.db) {
-                try {
-                    const match = window.BayanSQLite.getProductByBarcode(cleanBc);
-                    if (match && (!activeProductId || (match.id !== activeProductId && String(match.id) !== String(activeProductId)))) {
-                        return match;
-                    }
-                } catch (e) {}
-            }
-
-            // 3. مسار احتياطي آمن وسريع (في حالة عدم تهيئة الفهارس)
-            if (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
-                const found = productsDB.find(p => {
-                    if (!p || (activeProductId && (p.id === activeProductId || String(p.id) === String(activeProductId)))) return false;
-                    if (p.barcode && String(p.barcode).trim() === cleanBc) return true;
-                    if (p.code && String(p.code).trim() === cleanBc) return true;
-                    if (p.units && Array.isArray(p.units) && p.units.some(u => u && String(u.unitBarcode || '').trim() === cleanBc)) return true;
-                    if (p.variants && Array.isArray(p.variants) && p.variants.some(v => v && String(v.barcode || '').trim() === cleanBc)) return true;
-                    return false;
-                });
-                if (found) return found;
-            }
-
-            return null;
         }
-    };
+    }
 
     // فحص أمان صارم: منع تكرار الباركود الأساسي
     if (barcode) {
@@ -215,9 +180,7 @@ async function saveNewItem(mode = 'save') {
         const checkSz = szInp ? szInp.value.trim() : '';
         const checkCl = clInp ? clInp.value.trim() : '';
         if (checkSz || checkCl) {
-            const normKey = (typeof window.cleanVariantAttr === 'function')
-                ? `${window.cleanVariantAttr(checkSz)}___${window.cleanVariantAttr(checkCl)}`
-                : `${checkSz.toLowerCase()}___${checkCl.toLowerCase()}`;
+            const normKey = `${checkSz.toLowerCase()}___${checkCl.toLowerCase()}`;
             if (seenVariantKeys.has(normKey)) {
                 if (typeof showCustomAlert === 'function') {
                     showCustomAlert({
@@ -786,10 +749,6 @@ function updateProductNavCounter() {
 }
 
 function fillProductModal(p) {
-    if (!p) return;
-    if (typeof window.syncProductVariantsStock === 'function') {
-        window.syncProductVariantsStock(p);
-    }
     window.currentEditingProductId = p.id;
     const preview = document.getElementById('productImagePreview');
     const removeBtn = document.getElementById('removeProductImageBtn');
@@ -828,11 +787,12 @@ function fillProductModal(p) {
     if (document.getElementById('newItemCost')) document.getElementById('newItemCost').value = p.cost || 0;
     const activeWH = (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : (typeof getStore === 'function' ? getStore('activeWarehouse') : 'المخزن الرئيسي') || 'المخزن الرئيسي';
     let currentWhStock = 0;
-    const pGenStock = parseFloat(p.stock) || 0;
     if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
-        currentWhStock = Math.max(parseFloat(p.warehouseStocks[activeWH]) || 0, pGenStock);
+        currentWhStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
+    } else if (activeWH === 'المخزن الرئيسي' || !p.warehouseStocks) {
+        currentWhStock = parseFloat(p.stock) || 0;
     } else {
-        currentWhStock = pGenStock;
+        currentWhStock = 0;
     }
 
     if (document.getElementById('newItemMinPrice')) document.getElementById('newItemMinPrice').value = p.minPrice || 0;
@@ -919,11 +879,12 @@ function fillProductModal(p) {
                     hasApparelSizes = true;
                 }
                 let vStockForActiveWH = 0;
-                const vGenStock = parseFloat(v.stock) || 0;
                 if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
-                    vStockForActiveWH = Math.max(parseFloat(v.warehouseStocks[activeWH]) || 0, vGenStock);
+                    vStockForActiveWH = parseFloat(v.warehouseStocks[activeWH]) || 0;
+                } else if (activeWH === 'المخزن الرئيسي' || !v.warehouseStocks) {
+                    vStockForActiveWH = parseFloat(v.stock) || 0;
                 } else {
-                    vStockForActiveWH = vGenStock;
+                    vStockForActiveWH = 0;
                 }
 
                 // الحفاظ على السعر والتكلفة والجملة المحددة لكل مقاس بدقة دون إجبار على التوحيد

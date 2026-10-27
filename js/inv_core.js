@@ -256,12 +256,6 @@ async function renderInventoryTable(isLoadMore = false) {
             let score = 0;
             let matched = false;
 
-            const pNameWords = pNameClean.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').split(/\s+/).filter(Boolean);
-            const cleanSearchWord = search.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').trim();
-            const cleanRawWord = rawSearch.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').trim();
-            const isNameWordExact = pNameWords.includes(search) || pNameWords.includes(rawSearch) || (cleanSearchWord && pNameWords.includes(cleanSearchWord)) || (cleanRawWord && pNameWords.includes(cleanRawWord));
-            const isNameWordStart = pNameWords.some(w => w.startsWith(search) || w.startsWith(rawSearch) || (cleanSearchWord && w.startsWith(cleanSearchWord)) || (cleanRawWord && w.startsWith(cleanRawWord)));
-
             // 1. تطابق تام مع اسم الصنف (أعلى أولوية مطلقة - يظهر أول صنف رقم 1 دائماً)
             if (pNameClean === search || pNameLower === rawSearch) {
                 score = Math.max(score, 30000);
@@ -277,17 +271,9 @@ async function renderInventoryTable(isLoadMore = false) {
             } else if (pSysCode === rawSearch || pIdStr === rawSearch) {
                 score = Math.max(score, 25000);
                 matched = true;
-            } else if (isNameWordExact) {
-                // ⭐ تطابق كلمة الصنف أو رقم الموديل مثل #1001 أو #100
-                score = Math.max(score, 24500);
-                matched = true;
             } else if (pNameClean.startsWith(search)) {
                 // 4. بداية اسم الصنف
                 score = Math.max(score, 18000);
-                matched = true;
-            } else if (isNameWordStart) {
-                // ⭐ بداية كلمة داخل الاسم مثل 1001 أو 1005 عند البحث عن 100
-                score = Math.max(score, 17500);
                 matched = true;
             } else if (pCodeClean.startsWith(search) || pCodeLower.startsWith(rawSearch)) {
                 score = Math.max(score, 16000);
@@ -637,27 +623,12 @@ function shareWarehouseReport(platform) {
     window.open(url, '_blank');
 }
 
-let _cachedInvCategories = null;
-let _cachedInvCatProdLen = -1;
-
 function updateCategoryFilterOptions() {
     const filter = document.getElementById('invCategoryFilter');
     if (!filter) return;
 
     const currentVal = filter.value || 'all';
-    let categories = [];
-    if (_cachedInvCategories && _cachedInvCatProdLen === productsDB.length) {
-        categories = _cachedInvCategories;
-    } else {
-        if (window.BayanSQLite && typeof window.BayanSQLite.getProductCategoriesFast === 'function') {
-            categories = window.BayanSQLite.getProductCategoriesFast();
-        }
-        if (!categories || categories.length === 0) {
-            categories = [...new Set(productsDB.map(p => (p.category || '').trim()).filter(c => c))].sort();
-        }
-        _cachedInvCategories = categories;
-        _cachedInvCatProdLen = productsDB.length;
-    }
+    const categories = [...new Set(productsDB.map(p => (p.category || '').trim()).filter(c => c))].sort();
 
     // التحقق مما إذا كانت الخيارات الحالية هي نفس التصنيفات لتفادي إعادة الإنشاء والتصفير
     const existingValues = [...filter.options].map(o => o.value).filter(v => v !== 'all');
@@ -973,47 +944,21 @@ async function renderWarehouseReportTable(isSearchTrigger = false) {
     const searchRaw = searchInput ? searchInput.value.trim() : '';
     const searchClean = cleanAr(searchRaw);
 
-    let filteredProducts = [];
-    if (!searchClean) {
-        filteredProducts = productsDB || [];
-    } else if (typeof window.searchProductsRanked === 'function') {
-        filteredProducts = window.searchProductsRanked(searchRaw, {
-            limit: (productsDB || []).length,
-            filterDeleted: false,
-            exactOnly: false
-        });
-        if (!filteredProducts || filteredProducts.length === 0) {
-            filteredProducts = (productsDB || []).filter(p => {
-                if (!p) return false;
-                if (cleanAr(p.name).includes(searchClean)) return true;
-                if (p.barcode && String(p.barcode).includes(searchRaw)) return true;
-                if (p.code && String(p.code).toLowerCase().includes(searchClean)) return true;
-                if (p.variants && Array.isArray(p.variants)) {
-                    return p.variants.some(v => 
-                        (v.barcode && String(v.barcode).includes(searchRaw)) ||
-                        (v.size && cleanAr(v.size).includes(searchClean)) ||
-                        (v.color && cleanAr(v.color).includes(searchClean))
-                    );
-                }
-                return false;
-            });
+    const filteredProducts = productsDB.filter(p => {
+        if (!p) return false;
+        if (!searchClean) return true;
+        if (cleanAr(p.name).includes(searchClean)) return true;
+        if (p.barcode && String(p.barcode).includes(searchRaw)) return true;
+        if (p.code && String(p.code).toLowerCase().includes(searchClean)) return true;
+        if (p.variants && Array.isArray(p.variants)) {
+            return p.variants.some(v => 
+                (v.barcode && String(v.barcode).includes(searchRaw)) ||
+                (v.size && cleanAr(v.size).includes(searchClean)) ||
+                (v.color && cleanAr(v.color).includes(searchClean))
+            );
         }
-    } else {
-        filteredProducts = (productsDB || []).filter(p => {
-            if (!p) return false;
-            if (cleanAr(p.name).includes(searchClean)) return true;
-            if (p.barcode && String(p.barcode).includes(searchRaw)) return true;
-            if (p.code && String(p.code).toLowerCase().includes(searchClean)) return true;
-            if (p.variants && Array.isArray(p.variants)) {
-                return p.variants.some(v => 
-                    (v.barcode && String(v.barcode).includes(searchRaw)) ||
-                    (v.size && cleanAr(v.size).includes(searchClean)) ||
-                    (v.color && cleanAr(v.color).includes(searchClean))
-                );
-            }
-            return false;
-        });
-    }
+        return false;
+    });
 
     const sDate = (window.wrFilterState && window.wrFilterState.startDate) ? window.wrFilterState.startDate : null;
     const eDate = (window.wrFilterState && window.wrFilterState.endDate) ? window.wrFilterState.endDate : null;
@@ -1258,47 +1203,21 @@ function printWarehouseReport() {
     const searchRaw = document.getElementById('wrSearchInput')?.value.trim() || '';
     const searchClean = cleanAr(searchRaw);
 
-    let filtered = [];
-    if (!searchClean) {
-        filtered = productsDB || [];
-    } else if (typeof window.searchProductsRanked === 'function') {
-        filtered = window.searchProductsRanked(searchRaw, {
-            limit: (productsDB || []).length,
-            filterDeleted: false,
-            exactOnly: false
-        });
-        if (!filtered || filtered.length === 0) {
-            filtered = (productsDB || []).filter(p => {
-                if (!p) return false;
-                if (cleanAr(p.name).includes(searchClean)) return true;
-                if (p.barcode && String(p.barcode).includes(searchRaw)) return true;
-                if (p.code && String(p.code).toLowerCase().includes(searchClean)) return true;
-                if (p.variants && Array.isArray(p.variants)) {
-                    return p.variants.some(v => 
-                        (v.barcode && String(v.barcode).includes(searchRaw)) ||
-                        (v.size && cleanAr(v.size).includes(searchClean)) ||
-                        (v.color && cleanAr(v.color).includes(searchClean))
-                    );
-                }
-                return false;
-            });
+    const filtered = productsDB.filter(p => {
+        if (!p) return false;
+        if (!searchClean) return true;
+        if (cleanAr(p.name).includes(searchClean)) return true;
+        if (p.barcode && String(p.barcode).includes(searchRaw)) return true;
+        if (p.code && String(p.code).toLowerCase().includes(searchClean)) return true;
+        if (p.variants && Array.isArray(p.variants)) {
+            return p.variants.some(v => 
+                (v.barcode && String(v.barcode).includes(searchRaw)) ||
+                (v.size && cleanAr(v.size).includes(searchClean)) ||
+                (v.color && cleanAr(v.color).includes(searchClean))
+            );
         }
-    } else {
-        filtered = (productsDB || []).filter(p => {
-            if (!p) return false;
-            if (cleanAr(p.name).includes(searchClean)) return true;
-            if (p.barcode && String(p.barcode).includes(searchRaw)) return true;
-            if (p.code && String(p.code).toLowerCase().includes(searchClean)) return true;
-            if (p.variants && Array.isArray(p.variants)) {
-                return p.variants.some(v => 
-                    (v.barcode && String(v.barcode).includes(searchRaw)) ||
-                    (v.size && cleanAr(v.size).includes(searchClean)) ||
-                    (v.color && cleanAr(v.color).includes(searchClean))
-                );
-            }
-            return false;
-        });
-    }
+        return false;
+    });
 
     if (filtered.length === 0) return alert("لا توجد بيانات للطباعة وفقاً للبحث الحالي");
 
@@ -1498,47 +1417,21 @@ function exportWarehouseReportToExcel() {
     const searchRaw = document.getElementById('wrSearchInput')?.value.trim() || '';
     const searchClean = cleanAr(searchRaw);
 
-    let filtered = [];
-    if (!searchClean) {
-        filtered = productsDB || [];
-    } else if (typeof window.searchProductsRanked === 'function') {
-        filtered = window.searchProductsRanked(searchRaw, {
-            limit: (productsDB || []).length,
-            filterDeleted: false,
-            exactOnly: false
-        });
-        if (!filtered || filtered.length === 0) {
-            filtered = (productsDB || []).filter(p => {
-                if (!p) return false;
-                if (cleanAr(p.name).includes(searchClean)) return true;
-                if (p.barcode && String(p.barcode).includes(searchRaw)) return true;
-                if (p.code && String(p.code).toLowerCase().includes(searchClean)) return true;
-                if (p.variants && Array.isArray(p.variants)) {
-                    return p.variants.some(v => 
-                        (v.barcode && String(v.barcode).includes(searchRaw)) ||
-                        (v.size && cleanAr(v.size).includes(searchClean)) ||
-                        (v.color && cleanAr(v.color).includes(searchClean))
-                    );
-                }
-                return false;
-            });
+    const filtered = productsDB.filter(p => {
+        if (!p) return false;
+        if (!searchClean) return true;
+        if (cleanAr(p.name).includes(searchClean)) return true;
+        if (p.barcode && String(p.barcode).includes(searchRaw)) return true;
+        if (p.code && String(p.code).toLowerCase().includes(searchClean)) return true;
+        if (p.variants && Array.isArray(p.variants)) {
+            return p.variants.some(v => 
+                (v.barcode && String(v.barcode).includes(searchRaw)) ||
+                (v.size && cleanAr(v.size).includes(searchClean)) ||
+                (v.color && cleanAr(v.color).includes(searchClean))
+            );
         }
-    } else {
-        filtered = (productsDB || []).filter(p => {
-            if (!p) return false;
-            if (cleanAr(p.name).includes(searchClean)) return true;
-            if (p.barcode && String(p.barcode).includes(searchRaw)) return true;
-            if (p.code && String(p.code).toLowerCase().includes(searchClean)) return true;
-            if (p.variants && Array.isArray(p.variants)) {
-                return p.variants.some(v => 
-                    (v.barcode && String(v.barcode).includes(searchRaw)) ||
-                    (v.size && cleanAr(v.size).includes(searchClean)) ||
-                    (v.color && cleanAr(v.color).includes(searchClean))
-                );
-            }
-            return false;
-        });
-    }
+        return false;
+    });
 
     let totalGlobalQty = 0;
     let totalGlobalVal = 0;
@@ -2049,34 +1942,24 @@ window.invalidateStockCache = invalidateStockCache;
 
 function getLiveProductWhStock(p, targetWH) {
     if (!p) return 0;
-    const pGenStock = parseFloat(p.stock) || 0;
-    const isMainWH = (targetWH === 'المخزن الرئيسي');
     if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
         let varSum = 0;
         p.variants.forEach(v => {
-            const vGen = parseFloat(v.stock) || 0;
             if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[targetWH] !== undefined) {
-                let val = parseFloat(v.warehouseStocks[targetWH]);
-                if (isMainWH && val < 0 && vGen > 0) {
-                    val = vGen;
-                    v.warehouseStocks[targetWH] = val;
-                }
-                varSum += isNaN(val) ? (isMainWH ? vGen : 0) : (isMainWH ? Math.max(val, vGen) : val);
-            } else if (isMainWH || !v.warehouseStocks || Object.keys(v.warehouseStocks).length === 0) {
-                varSum += vGen;
+                varSum += parseFloat(v.warehouseStocks[targetWH]) || 0;
+            } else if (targetWH === 'المخزن الرئيسي') {
+                varSum += parseFloat(v.stock) || 0;
             }
         });
-        return isMainWH ? Math.max(varSum, pGenStock) : varSum;
+        return varSum;
     }
     if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[targetWH] !== undefined) {
-        let val = parseFloat(p.warehouseStocks[targetWH]);
-        if (isMainWH && val < 0 && pGenStock > 0) {
-            val = pGenStock;
-            p.warehouseStocks[targetWH] = val;
-        }
-        return isNaN(val) ? (isMainWH ? pGenStock : 0) : (isMainWH ? Math.max(val, pGenStock) : val);
+        return parseFloat(p.warehouseStocks[targetWH]) || 0;
     }
-    return (isMainWH || !p.warehouseStocks || Object.keys(p.warehouseStocks).length === 0) ? pGenStock : 0;
+    if (targetWH === 'المخزن الرئيسي') {
+        return parseFloat(p.stock) || 0;
+    }
+    return 0;
 }
 
 let _prodByNameMap = null;
@@ -2144,21 +2027,17 @@ function getWarehouseStock(productName, warehouseName, startDate = null, endDate
         _stockHistoryCache = {};
         _stockHistoryCacheKey = cacheKey;
 
-        // ⚡ تسريع فائق عبر استعلام SQLite التجميعي إذا كان متوفراً
-        if (window.BayanSQLite && typeof window.BayanSQLite.getRetroactiveStockAdjustments === 'function' && window.BayanSQLite.db) {
-            _stockHistoryCache = window.BayanSQLite.getRetroactiveStockAdjustments(endDate) || {};
-        } else {
-            const prodIndex = {};
-            productsDB.forEach(prod => {
-                if (prod && prod.name) {
-                    const n = prod.name.trim();
-                    prodIndex[n] = prod;
-                    prodIndex[n.toLowerCase()] = prod;
-                    _stockHistoryCache[n] = {};
-                }
-            });
+        const prodIndex = {};
+        productsDB.forEach(prod => {
+            if (prod && prod.name) {
+                const n = prod.name.trim();
+                prodIndex[n] = prod;
+                prodIndex[n.toLowerCase()] = prod;
+                _stockHistoryCache[n] = {};
+            }
+        });
 
-            for (let i = 0; i < transactions.length; i++) {
+        for (let i = 0; i < transactions.length; i++) {
             const t = transactions[i];
             const rawName = (t.product || t.productName || t.name || '').trim();
             if (!rawName) continue;
@@ -2210,7 +2089,6 @@ function getWarehouseStock(productName, warehouseName, startDate = null, endDate
                     _stockHistoryCache[pName][wFrom] -= qty;
                 }
             }
-        }
         }
     }
 

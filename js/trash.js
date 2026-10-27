@@ -99,14 +99,12 @@ const trashManager = {
      */
     async moveToTrash(data, type, label, warehouse = null) {
         const activeWH = warehouse || (data && data.warehouse) || (data && data.sourceWarehouse) || ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي');
-        const now = new Date().toISOString();
         const trashItem = {
             type: type,
             label: label,
             warehouse: (type === 'account') ? 'كافة المخازن / عام' : activeWH,
             originalData: data,
-            deletedAt: now,
-            deleted_at: now,
+            deletedAt: new Date().toISOString(),
             deletedBy: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.name : 'نظام آلي'
         };
 
@@ -136,7 +134,6 @@ const trashManager = {
             warehouse: (type === 'account') ? 'كافة المخازن / عام' : (item.warehouse || activeWH),
             originalData: item,
             deletedAt: now,
-            deleted_at: now,
             deletedBy: deletedBy
         }));
 
@@ -414,16 +411,6 @@ const trashManager = {
                                 }
                                 if (p.variants.length > 0) {
                                     p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
-                                    if (!p.warehouseStocks) p.warehouseStocks = {};
-                                    let totalWhVariants = 0;
-                                    p.variants.forEach(v => {
-                                        if (v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined && !isNaN(parseFloat(v.warehouseStocks[activeWH]))) {
-                                            totalWhVariants += parseFloat(v.warehouseStocks[activeWH]) || 0;
-                                        } else if (activeWH === 'المخزن الرئيسي') {
-                                            totalWhVariants += parseFloat(v.stock) || 0;
-                                        }
-                                    });
-                                    p.warehouseStocks[activeWH] = totalWhVariants;
                                 }
                             }
                         }
@@ -440,9 +427,6 @@ const trashManager = {
                 if (typeof invalidateStockCache === 'function') invalidateStockCache();
                 if (typeof window.invalidateAccountBalancesCache === 'function') window.invalidateAccountBalancesCache();
                 window.accountBalancesCache = {};
-                if (window.BayanSQLite && typeof window.BayanSQLite.schedulePersist === 'function') {
-                    window.BayanSQLite.schedulePersist(200);
-                }
                 if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
                 if (typeof renderInventoryTable === 'function') renderInventoryTable();
                 if (typeof renderAccountsTable === 'function') renderAccountsTable();

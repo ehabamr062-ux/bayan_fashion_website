@@ -308,15 +308,12 @@
                 return window.accountBalancesCache[cacheKey];
             }
 
-            // ⚡ 1. حساب الرصيد الصافي الدقيق مباشرة من محرك SQLite بنسبة 100% عبر استعلام SQL تجميعي (< 1ms)
-            if (window.BayanSQLite && window.BayanSQLite.db) {
-                const sqliteBalanceFn = window.BayanSQLite.getAccountBalanceDirect || window.BayanSQLite.getAccountAccurateBalance;
-                if (typeof sqliteBalanceFn === 'function') {
-                    const directBal = sqliteBalanceFn.call(window.BayanSQLite, name, activeExcludeId);
-                    if (!window.accountBalancesCache) window.accountBalancesCache = {};
-                    window.accountBalancesCache[cacheKey] = directBal;
-                    return directBal;
-                }
+            // ⚡ 1. حساب الرصيد الصافي الدقيق مباشرة من محرك SQLite C++ بكامل الأرشيف التاريخي
+            if (window.BayanSQLite && typeof window.BayanSQLite.getAccountAccurateBalance === 'function' && window.BayanSQLite.db) {
+                const accurateBal = window.BayanSQLite.getAccountAccurateBalance(name, activeExcludeId);
+                if (!window.accountBalancesCache) window.accountBalancesCache = {};
+                window.accountBalancesCache[cacheKey] = accurateBal;
+                return accurateBal;
             }
 
             const acc = getAccountByNameCached(targetNameClean);
@@ -547,13 +544,11 @@
             const groups = {};
 
             txList.forEach((t, i) => {
-                const baseDocId = t.invoiceId || t.id || t.transferId || t.adjId || ('single_' + (t.originalIndex !== undefined ? t.originalIndex : i));
-                const key = baseDocId + '_' + t.type;
+                const key = (t.invoiceId || 'single_' + (t.originalIndex !== undefined ? t.originalIndex : i)) + '_' + t.type;
                 if (!groups[key]) {
                     const taxSeq = t.taxInvoiceSeq || t.dailySeq || (typeof getInvoiceTaxReceiptSeq === 'function' ? getInvoiceTaxReceiptSeq(t) : null);
                     groups[key] = {
-                        id: t.id || t.invoiceId || null,
-                        invoiceId: t.invoiceId || t.id || t.transferId || t.adjId || null,
+                        invoiceId: t.invoiceId,
                         taxInvoiceSeq: taxSeq,
                         dailySeq: taxSeq,
                         date: t.date,
@@ -575,7 +570,6 @@
                         notes: t.notes,
                         originalIndex: t.originalIndex !== undefined ? t.originalIndex : i,
                         is_returned: t.is_returned || false,
-                        seenItemSigs: new Set(),
                         products: []
                     };
                 }
@@ -596,22 +590,6 @@
                     groups[key].method = t.method;
                 }
                 if (t.is_returned) groups[key].is_returned = true;
-
-                // 🛡️ صمام أمان صارم: منع تكرار وازدواجية البنود داخل نفس الفاتورة
-                const pName = (t.product || t.productName || t.name || '').trim();
-                const pSize = (t.size || t.selectedSize || '').trim();
-                const pColor = (t.color || t.selectedColor || '').trim();
-                const pQty = parseFloat(t.qty != null ? t.qty : (t.quantity || 0)) || 0;
-                const pPrice = parseFloat(t.price != null ? t.price : 0) || 0;
-                const isHead = t.isInvoiceHead ? 'head' : 'item';
-                const itemSig = `${t.id || ''}|${isHead}|${pName}|${pSize}|${pColor}|${pQty}|${pPrice}`;
-
-                if (groups[key].seenItemSigs.has(itemSig)) {
-                    // هذا السطر مكرر ومدبلر داخل نفس الفاتورة - نتجاهله فوراً لمنع تكرار الإجماليات وعدد الأصناف
-                    return;
-                }
-                groups[key].seenItemSigs.add(itemSig);
-
                 if (t.product) {
                     groups[key].itemsCount++;
                     groups[key].products.push(`${t.product} (x${t.qty || 0})`);
@@ -768,22 +746,16 @@
                     limit: 5000
                 });
                 if (sqlFiltered && sqlFiltered.length > 0) {
+                    const existingMap = new Map((window.transactions || []).map(t => [t.id, t]));
+                    sqlFiltered.forEach(t => { if (t && t.id) existingMap.set(t.id, t); });
+                    window.transactions = Array.from(existingMap.values());
+                    if (typeof transactions !== 'undefined') transactions = window.transactions;
                     rawData = sqlFiltered;
-                } else {
-                    rawData = [];
                 }
             } else if ((fromDate || toDate) && typeof window.loadTransactionsForDateRange === 'function') {
                 const todayISO = new Date().toLocaleDateString('en-CA');
                 if (fromDate < todayISO || toDate < todayISO) {
                     await window.loadTransactionsForDateRange(fromDate, toDate);
-                }
-                if (typeof window.deduplicateTransactionsMemory === 'function') {
-                    window.deduplicateTransactionsMemory();
-                }
-                rawData = transactions;
-            } else {
-                if (typeof window.deduplicateTransactionsMemory === 'function') {
-                    window.deduplicateTransactionsMemory();
                 }
                 rawData = transactions;
             }
@@ -961,23 +933,8 @@
             if (currentInvoicesView === 'operation') {
                 finalData = getGroupedTransactions(rawData);
             } else {
-                // عرض الأصناف تفصيلياً - نستبعد سجلات الرأس الفارغة (مثل رأس التسوية) ونمنع تكرار أو دبلرة أي صنف
-                const seenDetail = new Set();
-                finalData = [];
-                for (const t of rawData) {
-                    if (!t || (!t.product && !t.type.includes('قبض') && !t.type.includes('صرف'))) continue;
-                    const docId = String(t.invoiceId || t.id || t.transferId || t.adjId || '');
-                    const pName = (t.product || t.productName || t.name || '').trim();
-                    const pSize = (t.size || t.selectedSize || '').trim();
-                    const pColor = (t.color || t.selectedColor || '').trim();
-                    const pQty = parseFloat(t.qty != null ? t.qty : (t.quantity || 0)) || 0;
-                    const pPrice = parseFloat(t.price != null ? t.price : 0) || 0;
-                    const dSig = `${t.id || ''}|${docId}|${t.type}|${pName}|${pSize}|${pColor}|${pQty}|${pPrice}`;
-                    if (!seenDetail.has(dSig)) {
-                        seenDetail.add(dSig);
-                        finalData.push(t);
-                    }
-                }
+                // عرض الأصناف تفصيلياً - نستبعد سجلات الرأس الفارغة (مثل رأس التسوية) لمنع التكرار
+                finalData = rawData.filter(t => t.product || t.type.includes('قبض') || t.type.includes('صرف'));
             }
 
             // تطبيق فلترة طريقة السداد بدقة بعد التجميع (نقدي / آجل / الكل)
@@ -1004,55 +961,33 @@
             finalData.reverse(); // عرض الأحدث أولاً
 
             // 🆕 حساب الإجماليات للشريط الملخص
+
             let sumTotal = 0, sumPaid = 0, sumDebt = 0, sumProfit = 0;
-            let totalMatchingInvoices = finalData.length;
-            let hasSqlSummary = false;
 
-            if (window.BayanSQLite && typeof window.BayanSQLite.getInvoicesSummary === 'function' && !searchProduct && searchMethod === 'all' && (fromDate || toDate || searchId || searchPartner || (typeFilter && typeFilter !== 'all') || whFilterVal)) {
-                try {
-                    const sqlInvSummary = window.BayanSQLite.getInvoicesSummary({
-                        fromDate,
-                        toDate,
-                        type: typeFilter,
-                        warehouse: whFilterVal,
-                        partner: searchPartner,
-                        searchId: searchId
-                    });
-                    if (sqlInvSummary && sqlInvSummary.invCount > 0) {
-                        sumTotal = sqlInvSummary.sumTotal;
-                        sumPaid = sqlInvSummary.sumPaid;
-                        sumDebt = sqlInvSummary.sumRemaining;
-                        sumProfit = sqlInvSummary.sumProfit;
-                        totalMatchingInvoices = sqlInvSummary.invCount;
-                        hasSqlSummary = true;
-                    }
-                } catch (e) {
-                    console.warn("[Invoices] SQLite summary fallback:", e);
+            finalData.forEach(t => {
+                const isRejectedTransfer = t.type && t.type.includes('تحويل') && t.transferStatus === 'rejected';
+                if (isRejectedTransfer) {
+                    // التحويلات المرفوضة ملغاة ولا تدخل في إجماليات الفواتير المحاسبية
+                    return;
                 }
-            }
 
-            if (!hasSqlSummary) {
-                finalData.forEach(t => {
-                    const isRejectedTransfer = t.type && t.type.includes('تحويل') && t.transferStatus === 'rejected';
-                    if (isRejectedTransfer) {
-                        // التحويلات المرفوضة ملغاة ولا تدخل في إجماليات الفواتير المحاسبية
-                        return;
-                    }
+                sumTotal += (parseFloat(t.total) || 0);
 
-                    sumTotal += (parseFloat(t.total) || 0);
-                    sumPaid += (parseFloat(t.paid) || 0);
-                    sumDebt += (parseFloat(t.remaining) || 0);
+                sumPaid += (parseFloat(t.paid) || 0);
 
-                    // حساب وتخصيص الربح الصافي بما يشمل خصم مرتجع البيع بالسالب
-                    const rawP = parseFloat(t.profit) || 0;
-                    if (t.type && t.type.includes('مرتجع بيع')) {
-                        sumProfit += (rawP > 0 ? -rawP : rawP);
-                    } else if (t.type && !t.type.includes('مرتجع')) {
-                        sumProfit += rawP;
-                    }
-                });
-            }
+                sumDebt += (parseFloat(t.remaining) || 0);
 
+                // حساب وتخصيص الربح الصافي بما يشمل خصم مرتجع البيع بالسالب
+                const rawP = parseFloat(t.profit) || 0;
+                if (t.type && t.type.includes('مرتجع بيع')) {
+                    sumProfit += (rawP > 0 ? -rawP : rawP);
+                } else if (t.type && !t.type.includes('مرتجع')) {
+                    sumProfit += rawP;
+                }
+
+            });
+
+            const totalMatchingInvoices = finalData.length;
             const limit = window.invoicesRenderLimit || 500;
             const displayedInvoices = finalData.slice(0, limit);
             const hasMore = totalMatchingInvoices > displayedInvoices.length;
@@ -1088,9 +1023,7 @@
 
             let rowsHtml = '';
             displayedInvoices.forEach((t) => {
-                const isSelected = (window.selectedInvoiceId && t.invoiceId)
-                    ? (String(window.selectedInvoiceId) === String(t.invoiceId) && (!window.selectedInvoiceType || t.type === window.selectedInvoiceType))
-                    : (selectedInvoiceIndex === t.originalIndex);
+                const isSelected = (selectedInvoiceIndex === t.originalIndex);
 
                 // حساب وتنسيق عرض الربح للمرتجعات في الجدول بالسالب وباللون المناسب
                 const rawProfit = parseFloat(t.profit) || 0;
@@ -1113,17 +1046,15 @@
 
                 const esc = (typeof escapeHtml === 'function') ? escapeHtml : (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 
-                const targetDocId = t.invoiceId || t.id || t.transferId || t.adjId || '';
-
                 if (currentInvoicesView === 'operation') {
 
                     if (isFinancial) {
 
-                        displayProduct = `<div title="حركة نقدية لـ: ${esc(t.partner || '-')}"><b>${esc(t.partner || '-')}</b> (حركة نقدية) • <small style="color:#888;">${esc(t.product !== 'أخرى' ? t.product : 'صرف/قبض نقدية')}</small> <button class="tool-btn" style="padding: 2px 6px; font-size: 0.7rem; background: #059669; color:white; border-radius:10px; margin: 0 4px; line-height: 1;" onclick="if(window.viewAnyDocumentUnified) window.viewAnyDocumentUnified('${esc(targetDocId)}', '${esc(t.type)}'); else viewInvoiceItems('${esc(targetDocId)}', '${esc(t.type)}')">📄 تفاصيل السند</button></div>`;
+                        displayProduct = `<div title="حركة نقدية لـ: ${esc(t.partner || '-')}"><b>${esc(t.partner || '-')}</b> (حركة نقدية) • <small style="color:#888;">${esc(t.product !== 'أخرى' ? t.product : 'صرف/قبض نقدية')}</small></div>`;
 
                     } else {
 
-                        displayProduct = `<div title="مستند رقم #${esc(targetDocId)} - اضغط على زر التفاصيل لرؤية البيانات" style="display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;"><b>${esc(t.partner || '-')}</b> (عدد ${t.itemsCount} أصناف) <button class="tool-btn" style="padding: 2px 6px; font-size: 0.7rem; background: #9b59b6; color:white; border-radius:10px; margin: 0; line-height: 1;" onclick="if(window.viewAnyDocumentUnified) window.viewAnyDocumentUnified('${esc(targetDocId)}', '${esc(t.type)}'); else viewInvoiceItems('${esc(targetDocId)}', '${esc(t.type)}')">📄 التفاصيل</button></div>`;
+                        displayProduct = `<div title="فاتورة رقم #${esc(t.invoiceId)} - اضغط على زر التفاصيل لرؤية الأصناف" style="display: flex; align-items: center; justify-content: center; gap: 6px; flex-wrap: wrap;"><b>${esc(t.partner || '-')}</b> (عدد ${t.itemsCount} أصناف) <button class="tool-btn" style="padding: 2px 6px; font-size: 0.7rem; background: #9b59b6; color:white; border-radius:10px; margin: 0; line-height: 1;" onclick="viewInvoiceItems('${esc(t.invoiceId || -1)}', '${esc(t.type)}')">📄 التفاصيل</button></div>`;
 
                     }
 
@@ -1131,7 +1062,7 @@
 
                     const hoverTitle = `الصنف: ${esc(t.product || '-')}\nالكمية: ${t.qty || 0}\nالسعر: ${t.price || 0}\nالإجمالي: ${t.total || 0}\nالمخزن: ${esc(t.warehouse || '-')}`;
 
-                    displayProduct = `<div style="display:flex; align-items:center; justify-content:center; gap:6px;"><span title="${hoverTitle}" style="cursor:help; border-bottom:1px dotted #aaa;">${esc(t.product || '-')} ${(!isFinancial && t.qty) ? '(x' + t.qty + ')' : ''}</span> <button class="tool-btn" style="padding: 1px 5px; font-size: 0.68rem; background: #64748b; color:white; border-radius:8px; margin: 0; line-height: 1;" onclick="if(window.viewAnyDocumentUnified) window.viewAnyDocumentUnified('${esc(targetDocId)}', '${esc(t.type)}'); else viewInvoiceItems('${esc(targetDocId)}', '${esc(t.type)}')">👁️</button></div>`;
+                    displayProduct = `<span title="${hoverTitle}" style="cursor:help; border-bottom:1px dotted #aaa;">${esc(t.product || '-')} ${(!isFinancial && t.qty) ? '(x' + t.qty + ')' : ''}</span>`;
 
                 }
 
@@ -1163,7 +1094,7 @@
                     : parseFloat(totalTextFinal || 0).toFixed(2);
 
                 rowsHtml += `
-                    <tr class="${isSelected ? 'selected-row' : ''}" style="${isRejectedTransfer ? 'background:#fff5f5; opacity:0.85;' : ''}" data-orig-index="${t.originalIndex}" data-invoice-id="${esc(targetDocId)}" data-invoice-type="${esc(t.type || '')}" onclick="selectInvoiceRow(${t.originalIndex}, this, '${esc(targetDocId)}', '${esc(t.type || '')}')" ondblclick="if(window.viewAnyDocumentUnified) window.viewAnyDocumentUnified('${esc(targetDocId)}', '${esc(t.type || '')}'); else if(window.viewSelectedInvoice) window.viewSelectedInvoice();">
+                    <tr class="${isSelected ? 'selected-row' : ''}" style="${isRejectedTransfer ? 'background:#fff5f5; opacity:0.85;' : ''}" data-orig-index="${t.originalIndex}" onclick="selectInvoiceRow(${t.originalIndex}, this)" ondblclick="if(window.viewSelectedInvoice) window.viewSelectedInvoice();">
                         <td class="col-inv-0" style="${isV(0) ? '' : 'display:none;'}"><input type="radio" name="invRad" ${isSelected ? 'checked' : ''}></td>
                         <td class="col-inv-1" style="${isV(1) ? '' : 'display:none;'}">
                             <div style="display:flex; flex-direction:row; gap:4px; align-items:center; justify-content:center; flex-wrap:wrap;">
@@ -1285,10 +1216,7 @@
         // دالة لعرض تفاصيل الفاتورة في تنبيه أو نافذة
 
         async function viewInvoiceItems(invoiceId, type = '', autoPrint = false) {
-            if (typeof checkPermission === 'function' && !checkPermission('docs_view')) return;
-            if (typeof window.viewAnyDocumentUnified === 'function') {
-                return window.viewAnyDocumentUnified(invoiceId, type);
-            }
+            if (!checkPermission('docs_view')) return;
             
             // تحديد فئة المعاملة المطلوبة لتجنب خلط السندات والفواتير التي تحمل نفس المعرّف
             let category = '';
@@ -1347,40 +1275,16 @@
                 invoiceItems = invoiceItems.filter(t => t.type && !t.type.includes('قبض') && !t.type.includes('صرف'));
             }
 
-            // 🛡️ صمام أمان صارم: منع تكرار ودبلرة الأصناف في مودال الفاتورة
-            const seenInvItems = new Set();
-            invoiceItems = invoiceItems.filter(item => {
-                if (!item) return false;
-                const pName = (item.product || item.productName || item.name || '').trim();
-                const pSize = (item.size || item.selectedSize || '').trim();
-                const pColor = (item.color || item.selectedColor || '').trim();
-                const pQty = parseFloat(item.qty != null ? item.qty : (item.quantity || 0)) || 0;
-                const pPrice = parseFloat(item.price != null ? item.price : 0) || 0;
-                const isHead = item.isInvoiceHead ? 'head' : 'item';
-                const sig = `${item.id || ''}|${isHead}|${pName}|${pSize}|${pColor}|${pQty}|${pPrice}`;
-                if (seenInvItems.has(sig)) return false;
-                seenInvItems.add(sig);
-                return true;
-            });
-
             if (invoiceItems.length === 0) return alert('خطأ: لم يتم العثور على تفاصيل الفاتورة.');
             
-            let headFromPool = (typeof transactions !== 'undefined' ? transactions : []).find(t => t && ((t.invoiceId != null && String(t.invoiceId) === String(invoiceId)) || (t.id != null && String(t.id) === String(invoiceId))) && t.isInvoiceHead) ||
-                               (typeof transactions !== 'undefined' ? transactions : []).find(t => t && ((t.invoiceId != null && String(t.invoiceId) === String(invoiceId)) || (t.id != null && String(t.id) === String(invoiceId))));
-            let head = headFromPool || invoiceItems.find(t => t.isInvoiceHead) || invoiceItems[0];
+            let head = invoiceItems.find(t => t.isInvoiceHead) || invoiceItems[0];
             let tx = { ...head };
-            let cleanInv = invoiceId || head.invoiceId || '';
-            if (String(cleanInv).includes('_item_')) cleanInv = String(cleanInv).split('_item_')[0];
-            tx.invoiceId = cleanInv;
+            tx.invoiceId = invoiceId;
             tx.warehouse = head.warehouse || 'المخزن الرئيسي';
             tx.terminal = head.terminal || 'الجهاز الرئيسي 💻';
             tx.partner = head.partner || head.customer || 'عميل نقدي';
             tx.method = head.method || head.paymentMethod || 'كاش (نقدي)';
-            tx.notes = head.notes || invoiceItems.find(t => t.notes)?.notes || tx.notes || '';
-            tx.time = head.time || head.timeISO || tx.time || '';
-            tx.timeISO = head.timeISO || head.time || tx.timeISO || '';
-            tx.date = head.date || tx.date || '';
-            tx.dateISO = head.dateISO || tx.dateISO || '';
+            tx.notes = invoiceItems.find(t => t.notes)?.notes || tx.notes || '';
 
             // استخراج بيانات الخصم والإضافات الإجمالية للفاتورة الصريحة فقط (منع تسريب بيانات البند الفردي)
             const invDisc = parseFloat(head.invoiceDiscount != null ? head.invoiceDiscount : (head.discountAmount || 0)) || 0;
@@ -1405,24 +1309,6 @@
                 }
                 return true;
             });
-
-            // إذا كانت البنود المستخرجة بنداً واحداً أو أقل بينما رأس الفاتورة يحتوي على مصفوفة items كاملة:
-            if (rawItems.length <= 1 && Array.isArray(head.items) && head.items.length > rawItems.length) {
-                rawItems = head.items.map(it => ({
-                    product: it.product || it.name || it.productName || 'صنف',
-                    productName: it.product || it.name || it.productName || 'صنف',
-                    name: it.product || it.name || it.productName || 'صنف',
-                    qty: it.qty != null ? it.qty : (it.quantity || 1),
-                    price: it.price != null ? it.price : (it.costPrice || 0),
-                    unit: it.unit || '-',
-                    size: it.size || it.selectedSize || '',
-                    color: it.color || it.selectedColor || '',
-                    discount: it.discount || it.itemDiscount || 0,
-                    discountType: it.discountType || 'val',
-                    addition: it.addition || it.extra || 0,
-                    total: it.total != null ? it.total : ((it.qty || 1) * (it.price || 0))
-                }));
-            }
 
             // قراءة بنود الفاتورة بالبيانات الصريحة فقط دون أي تخمين إجباري للخصم أو الإضافة
             tx.items = rawItems.map(i => {
@@ -1527,19 +1413,17 @@
             if (!checkPermission('docs_edit')) return;
 
             if (!invId) {
-                if (window.selectedInvoiceId) {
-                    invId = window.selectedInvoiceId;
-                } else if (typeof selectedInvoiceIndex === 'undefined' || selectedInvoiceIndex === null) {
-                    return showCustomAlert({ type: 'warning', titleText: '⚠️ تنبيه', msg: 'يرجى تحديد فاتورة أولاً.' });
-                } else if (transactions[selectedInvoiceIndex]) {
-                    invId = transactions[selectedInvoiceIndex].invoiceId;
-                }
+
+                 if (typeof selectedInvoiceIndex === 'undefined' || selectedInvoiceIndex === null) return showCustomAlert({ type: 'warning', titleText: '⚠️ تنبيه', msg: 'يرجى تحديد فاتورة أولاً.' });
+
+                 invId = transactions[selectedInvoiceIndex].invoiceId;
+
             }
 
             if (!invId) return showToast("❌ لا يمكن تعديل هذه الحركة مباشرة", "error");
 
             const baseTx = (typeof selectedInvoiceIndex !== 'undefined' && selectedInvoiceIndex !== null && transactions[selectedInvoiceIndex]) ? transactions[selectedInvoiceIndex] : null;
-            const expectedType = window.selectedInvoiceType || (baseTx ? baseTx.type : (transactions.find(t => String(t.invoiceId) === String(invId))?.type || ''));
+            const expectedType = baseTx ? baseTx.type : (transactions.find(t => String(t.invoiceId) === String(invId))?.type || '');
 
             const items = transactions.filter(t => {
                 const hasInvId = t.invoiceId != null && t.invoiceId !== '';
@@ -1943,13 +1827,6 @@
                 return;
             }
 
-            // ⚡ تحميل الفاتورة وبنودها بالكامل من محرك SQLite في الذاكرة مسبقاً قبل أي فحص
-            if (typeof window.ensureInvoiceLoaded === 'function') {
-                try {
-                    await window.ensureInvoiceLoaded(invId);
-                } catch(e) {}
-            }
-
             // البحث عن الفاتورة باستخدام الرقم والنوع لضمان الدقة المطلقة وعدم تداخل البيع مع المرتجع
             const typeClean = String(type || '').trim();
             let t = transactions.find(tx => (String(tx.invoiceId) === String(invId) || String(tx.id) === String(invId)) && (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(tx.type, typeClean) : true));
@@ -1978,34 +1855,12 @@
                 onConfirm: async () => {
 
                     // جلب كافة بنود الفاتورة بالكامل بدقة برقم الفاتورة ونوعها لمنع ظهور أو سحب أي مرتجع داخل فاتورة البيع أو العكس
-                    let invItems = transactions.filter(x => {
+                    const invItems = transactions.filter(x => {
                         const hasInvId = x.invoiceId != null && x.invoiceId !== '';
                         const idMatch = hasInvId ? (String(x.invoiceId) === String(invId)) : (String(x.id) === String(invId));
                         if (!idMatch) return false;
                         return (typeof window.isMatchingInvoiceType === 'function') ? window.isMatchingInvoiceType(x.type, targetType) : true;
                     });
-
-                    // ⚡ استرداد بنود الفاتورة مباشرة من SQLite في حال كانت العملية مسجلة كسطر رأس فقط في الذاكرة
-                    if (invItems.length === 0 || !invItems.some(x => x && (x.product || x.productName || x.name))) {
-                        if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceFullDetails === 'function') {
-                            const fullDoc = window.BayanSQLite.getInvoiceFullDetails(invId);
-                            if (fullDoc) {
-                                if (Array.isArray(fullDoc.transactionsRows) && fullDoc.transactionsRows.length > 0) {
-                                    invItems = fullDoc.transactionsRows;
-                                } else if (Array.isArray(fullDoc.items) && fullDoc.items.length > 0) {
-                                    invItems = fullDoc.items.map(it => ({
-                                        ...it,
-                                        invoiceId: invId,
-                                        type: targetType,
-                                        product: it.product || it.productName || it.name,
-                                        qty: it.qty != null ? it.qty : (it.quantity || 1),
-                                        price: it.price || 0
-                                    }));
-                                }
-                            }
-                        }
-                    }
-
                     const head = invItems.find(x => x.isInvoiceHead) || invItems[0] || t;
 
                     // استخراج أدق البيانات الأصلية للفاتورة
@@ -2081,7 +1936,6 @@
                             tabStates[targetTabObj.id].editingInvoiceId = invId;
                             tabStates[targetTabObj.id].editingOriginalDate = editingOriginalDate;
                             tabStates[targetTabObj.id].editingInvoiceType = targetType;
-                            tabStates[targetTabObj.id].editingOriginalItems = JSON.parse(JSON.stringify(invItems));
                             tabStates[targetTabObj.id].date = dateVal;
                             tabStates[targetTabObj.id].time = timeVal;
                         }
@@ -2107,41 +1961,21 @@
                         };
 
                         if (section === 'sales') {
-                            editingOriginalItems = JSON.parse(JSON.stringify(invItems));
-                            window.editingOriginalItems = editingOriginalItems;
-                            if (typeof tabStates !== 'undefined' && typeof activeTabId !== 'undefined' && tabStates[activeTabId]) {
-                                tabStates[activeTabId].editingOriginalItems = JSON.parse(JSON.stringify(invItems));
-                            }
 
-                            cart = invItems.filter(x => x && (x.product || x.productName || x.name)).map(it => {
-                                const prodName = it.product || it.productName || it.name;
-                                const p = productsDB.find(x => x.name === prodName || (it.productId && String(x.id) === String(it.productId)));
+                            cart = invItems.filter(x => x.product).map(it => {
+                                const p = productsDB.find(x => x.name === it.product);
                                 const u = (p && p.units) ? p.units.find(un => un.unitName === it.unit) : null;
-
-                                let matchedVariant = null;
-                                if (p) {
-                                    matchedVariant = window.findProductVariant ? window.findProductVariant(p, it) : null;
-                                }
-
-                                const itSize = (matchedVariant && matchedVariant.size) ? matchedVariant.size : (it.selectedSize || it.size || '');
-                                const itColor = (matchedVariant && matchedVariant.color) ? matchedVariant.color : (it.selectedColor || it.color || '');
-
                                 return {
-                                    id: p ? p.id : (it.productId || it.id || (Date.now() + Math.random())),
-                                    productId: p ? p.id : (it.productId || it.id || null),
-                                    code: (matchedVariant && matchedVariant.barcode) ? matchedVariant.barcode : (it.code || (p ? p.code : '')),
-                                    name: prodName,
-                                    qty: parseFloat(it.qty != null ? it.qty : (it.quantity || 1)),
+                                    id: p ? p.id : (Date.now() + Math.random()),
+                                    code: it.code || (p ? p.code : ''),
+                                    name: it.product,
+                                    qty: parseFloat(it.qty || 1),
                                     price: parseFloat(it.price || 0),
                                     unit: it.unit || 'قطعة',
                                     unitFactor: parseFloat(it.unitFactor) || (u ? (parseFloat(u.factor) || 1) : 1),
                                     selectedUnit: u,
-                                    selectedSize: itSize,
-                                    selectedColor: itColor,
-                                    size: itSize,
-                                    color: itColor,
-                                    selectedVariant: matchedVariant,
-                                    warehouse: it.warehouse || head.warehouse || ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي'),
+                                    selectedSize: it.selectedSize || it.size || '',
+                                    selectedColor: it.selectedColor || it.color || '',
                                     units: p ? (p.units || []) : []
                                 };
                             });
@@ -2210,27 +2044,21 @@
                             if (typeof saveCurrentTabState === 'function') saveCurrentTabState();
 
                         } else if (section === 'purchase') {
-                            editingOriginalItems = JSON.parse(JSON.stringify(invItems));
-                            window.editingOriginalItems = editingOriginalItems;
-                            if (typeof tabStates !== 'undefined' && typeof activeTabId !== 'undefined' && tabStates[activeTabId]) {
-                                tabStates[activeTabId].editingOriginalItems = JSON.parse(JSON.stringify(invItems));
-                            }
 
-                            purchaseCart = invItems.filter(x => x && (x.product || x.productName || x.name)).map(it => {
-                                const prodName = it.product || it.productName || it.name;
-                                const p = productsDB.find(x => x.name === prodName);
+                            purchaseCart = invItems.filter(x => x.product).map(it => {
+                                const p = productsDB.find(x => x.name === it.product);
                                 const u = (p && p.units) ? p.units.find(un => un.unitName === it.unit) : null;
                                 const defaultSale = u ? (parseFloat(u.price) || 0) : (p ? (parseFloat(p.price) || 0) : 0);
                                 const defaultWholesale = u ? (parseFloat(u.wholesale) || 0) : (p ? (parseFloat(p.wholesale) || 0) : 0);
                                 return {
                                     id: p ? p.id : (Date.now() + Math.random()),
                                     code: it.code || (p ? p.code : ''),
-                                    name: prodName,
+                                    name: it.product,
                                     selectedSize: it.selectedSize || it.size || '',
                                     selectedColor: it.selectedColor || it.color || '',
                                     size: it.selectedSize || it.size || '',
                                     color: it.selectedColor || it.color || '',
-                                    qty: parseFloat(it.qty != null ? it.qty : (it.quantity || 1)),
+                                    qty: parseFloat(it.qty || 1),
                                     price: parseFloat(it.price || 0),
                                     salePrice: parseFloat(it.salePrice) > 0 ? parseFloat(it.salePrice) : defaultSale,
                                     wholesalePrice: parseFloat(it.wholesalePrice) > 0 ? parseFloat(it.wholesalePrice) : defaultWholesale,
@@ -2413,19 +2241,18 @@
 
                         } else if (section === 'transfer') {
 
-                            window.transferItemsBatch = invItems.filter(x => x && (x.product || x.productName || x.name)).map(it => {
-                                const prodName = it.product || it.productName || it.name;
-                                const p = productsDB.find(x => x.name === prodName || x.id === it.productId);
+                            window.transferItemsBatch = invItems.filter(x => x.product).map(it => {
+                                const p = productsDB.find(x => x.name === it.product || x.id === it.productId);
                                 return {
-                                    id: p ? p.id : (it.productId || it.id || (Date.now() + Math.random())),
-                                    name: prodName,
+                                    id: p ? p.id : (Date.now() + Math.random()),
+                                    name: it.product,
                                     selectedSize: it.selectedSize || it.size || '',
                                     selectedColor: it.selectedColor || it.color || '',
                                     size: it.selectedSize || it.size || '',
                                     color: it.selectedColor || it.color || '',
                                     stock: p ? p.stock : 0,
-                                    qty: parseFloat(it.qty != null ? it.qty : (it.quantity || 1)),
-                                    price: parseFloat(it.price != null ? it.price : 0),
+                                    qty: parseFloat(it.qty),
+                                    price: parseFloat(it.price),
                                     unit: it.unit || 'قطعة',
                                     unitFactor: parseFloat(it.unitFactor) || 1
                                 };
@@ -2513,12 +2340,11 @@
                         } else if (section === 'adjustment') {
 
                             const activeWH = (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي';
-                            adjCart = invItems.filter(x => x && (x.product || x.productName || x.name)).map(it => {
-                                const prodName = it.product || it.productName || it.name;
-                                const p = productsDB.find(x => x.name === prodName || x.id === it.productId);
+                            adjCart = invItems.filter(x => x.product).map(it => {
+                                const p = productsDB.find(x => x.name === it.product || x.id === it.productId);
                                 const u = (p && p.units) ? p.units.find(un => un.unitName === it.unit) : null;
                                 const factor = parseFloat(it.unitFactor) || 1;
-                                const baseAdjDiff = (parseFloat(it.qty != null ? it.qty : (it.quantity || 0))) * factor;
+                                const baseAdjDiff = (parseFloat(it.qty) || 0) * factor;
 
                                 let liveStock = 0;
                                 if (p) {
@@ -2540,7 +2366,7 @@
 
                                 // في التسوية: الفرق = الفعلي - الدفتري، وبالتالي: الدفتري = الحالي - الفرق، والفعلي المجرود = الدفتري + الفرق = الحالي
                                 let origStockBefore = (liveStock - baseAdjDiff) / factor;
-                                let origCountedQty = origStockBefore + (parseFloat(it.qty != null ? it.qty : (it.quantity || 0)));
+                                let origCountedQty = origStockBefore + (parseFloat(it.qty) || 0);
 
                                 if (it.notes && typeof it.notes === 'string') {
                                     const actualMatch = it.notes.match(/فعلي\s+([\d.-]+)/);
@@ -2554,15 +2380,15 @@
                                 }
 
                                 return {
-                                    id: p ? p.id : (it.productId || it.id || (Date.now() + Math.random())),
-                                    name: prodName,
+                                    id: p ? p.id : (Date.now() + Math.random()),
+                                    name: it.product,
                                     code: (p && p.variants && (it.selectedSize || it.size)) ? (p.variants.find(v => (v.size === (it.selectedSize || it.size) && (!it.color || v.color === (it.selectedColor || it.color))))?.barcode || p.code) : (p ? p.code : ''),
                                     selectedSize: it.selectedSize || it.size || '',
                                     selectedColor: it.selectedColor || it.color || '',
                                     size: it.selectedSize || it.size || '',
                                     color: it.selectedColor || it.color || '',
                                     qty: Math.max(0, origCountedQty),
-                                    price: parseFloat(it.price != null ? it.price : 0),
+                                    price: parseFloat(it.price) || 0,
                                     unit: it.unit || 'قطعة',
                                     unitFactor: factor,
                                     selectedUnit: u,
@@ -2699,34 +2525,26 @@
                     const baseQty = (parseFloat(item.qty) || 0) * factor;
                     const activeWH = (item.warehouse || item.sourceWarehouse || (oldItems[0]?.warehouse) || defaultWH || 'المخزن الرئيسي').trim();
                     if (!p.warehouseStocks || typeof p.warehouseStocks !== 'object') p.warehouseStocks = {};
-                    let curProdWhStock = 0;
-                    if (p.warehouseStocks[activeWH] !== undefined) {
-                        curProdWhStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
-                    } else if (activeWH === 'المخزن الرئيسي' || Object.keys(p.warehouseStocks).length === 0) {
-                        curProdWhStock = parseFloat(p.stock) || 0;
-                    } else {
-                        curProdWhStock = 0;
-                    }
 
                     const itType = String(item.type || cleanType || '');
                     if (itType.includes('مرتجع بيع')) {
                         p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
-                        p.warehouseStocks[activeWH] = Math.max(0, curProdWhStock - baseQty);
+                        p.warehouseStocks[activeWH] = Math.max(0, (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty);
                     } else if (itType.includes('مرتجع شراء')) {
                         p.stock = (parseFloat(p.stock) || 0) + baseQty;
-                        p.warehouseStocks[activeWH] = curProdWhStock + baseQty;
+                        p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
                     } else if (itType.includes('بيع')) {
                         p.stock = (parseFloat(p.stock) || 0) + baseQty;
-                        p.warehouseStocks[activeWH] = curProdWhStock + baseQty;
+                        p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
                     } else if (itType.includes('شراء')) {
                         p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
-                        p.warehouseStocks[activeWH] = Math.max(0, curProdWhStock - baseQty);
+                        p.warehouseStocks[activeWH] = Math.max(0, (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty);
                         if (item.previousCost !== undefined && item.previousCost !== null && !isNaN(parseFloat(item.previousCost))) {
                             p.cost = parseFloat(item.previousCost);
                         }
                     } else if (itType.includes('تسوية') || itType.includes('جرد') || itType.includes('adj')) {
                         p.stock = (parseFloat(p.stock) || 0) - baseQty;
-                        p.warehouseStocks[activeWH] = curProdWhStock - baseQty;
+                        p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty;
                     } else if (itType.includes('تحويل')) {
                         // لا يتم تعديل أو عكس الأرصدة إلا إذا كان التحويل قد تم استلامه بالفعل (received)
                         // أما إذا كان معلقاً (pending) فلم يخصم أصلاً من المخزن المصدر
@@ -2734,11 +2552,9 @@
                             const srcWH = (item.sourceWarehouse || defaultWH || 'المخزن الرئيسي').trim();
                             const dstWH = (item.warehouse || '').trim();
                             if (!p.warehouseStocks) p.warehouseStocks = {};
-                            const curSrcStock = (p.warehouseStocks[srcWH] !== undefined) ? parseFloat(p.warehouseStocks[srcWH]) || 0 : (srcWH === 'المخزن الرئيسي' ? (parseFloat(p.stock) || 0) : 0);
-                            const curDstStock = (p.warehouseStocks[dstWH] !== undefined) ? parseFloat(p.warehouseStocks[dstWH]) || 0 : (dstWH === 'المخزن الرئيسي' ? (parseFloat(p.stock) || 0) : 0);
-                            p.warehouseStocks[srcWH] = curSrcStock + baseQty;
+                            p.warehouseStocks[srcWH] = (parseFloat(p.warehouseStocks[srcWH]) || 0) + baseQty;
                             if (dstWH) {
-                                p.warehouseStocks[dstWH] = Math.max(0, curDstStock - baseQty);
+                                p.warehouseStocks[dstWH] = Math.max(0, (parseFloat(p.warehouseStocks[dstWH]) || 0) - baseQty);
                             }
                             if (srcWH === 'المخزن الرئيسي') p.stock = p.warehouseStocks[srcWH];
                             if (dstWH === 'المخزن الرئيسي') p.stock = p.warehouseStocks[dstWH];
@@ -2746,54 +2562,59 @@
                     }
 
                     // عكس رصيد التشكيلة (المقاس واللون) في مصفوفة الصنف بدقة
-                    if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
-                        const matchedVar = window.findProductVariant ? window.findProductVariant(p, item) : null;
-                        if (matchedVar) {
-                            if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
-                            let curVarWhStock = 0;
-                            if (matchedVar.warehouseStocks[activeWH] !== undefined) {
-                                curVarWhStock = parseFloat(matchedVar.warehouseStocks[activeWH]) || 0;
-                            } else if (activeWH === 'المخزن الرئيسي' || Object.keys(matchedVar.warehouseStocks).length === 0) {
-                                curVarWhStock = parseFloat(matchedVar.stock) || 0;
-                            } else {
-                                curVarWhStock = 0;
-                            }
-
-                            if (itType.includes('مرتجع بيع')) {
-                                matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
-                                matchedVar.warehouseStocks[activeWH] = Math.max(0, curVarWhStock - baseQty);
-                            } else if (itType.includes('مرتجع شراء')) {
-                                matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
-                                matchedVar.warehouseStocks[activeWH] = curVarWhStock + baseQty;
-                            } else if (itType.includes('بيع')) {
-                                matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
-                                matchedVar.warehouseStocks[activeWH] = curVarWhStock + baseQty;
-                            } else if (itType.includes('شراء')) {
-                                matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
-                                matchedVar.warehouseStocks[activeWH] = Math.max(0, curVarWhStock - baseQty);
-                            } else if (itType.includes('تسوية') || itType.includes('جرد') || itType.includes('adj')) {
-                                matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
-                                matchedVar.warehouseStocks[activeWH] = Math.max(0, curVarWhStock - baseQty);
-                            } else if (itType.includes('تحويل')) {
-                                if (item.transferStatus === 'received') {
-                                    const srcWH = (item.sourceWarehouse || defaultWH || 'المخزن الرئيسي').trim();
-                                    const dstWH = (item.warehouse || '').trim();
-                                    if (!matchedVar.warehouseStocks) matchedVar.warehouseStocks = {};
-                                    const curSrcVarStock = (matchedVar.warehouseStocks[srcWH] !== undefined) ? parseFloat(matchedVar.warehouseStocks[srcWH]) || 0 : (srcWH === 'المخزن الرئيسي' ? (parseFloat(matchedVar.stock) || 0) : 0);
-                                    const curDstVarStock = (matchedVar.warehouseStocks[dstWH] !== undefined) ? parseFloat(matchedVar.warehouseStocks[dstWH]) || 0 : (dstWH === 'المخزن الرئيسي' ? (parseFloat(matchedVar.stock) || 0) : 0);
-                                    matchedVar.warehouseStocks[srcWH] = curSrcVarStock + baseQty;
-                                    if (dstWH) matchedVar.warehouseStocks[dstWH] = Math.max(0, curDstVarStock - baseQty);
-                                    if (srcWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[srcWH];
-                                    if (dstWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[dstWH];
+                    if (p.variants && Array.isArray(p.variants)) {
+                        const sSize = String(item.selectedSize || item.size || '').trim();
+                        const sColor = String(item.selectedColor || item.color || '').trim();
+                        if (sSize || sColor) {
+                            const cleanV = (s) => {
+                                const str = String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+                                if (!str || str === 'قياسي' || str === 'موحد' || str === 'عام' || str === '-') return '';
+                                return str;
+                            };
+                            const cSize = cleanV(sSize);
+                            const cColor = cleanV(sColor);
+                            const matchedVar = p.variants.find(v => 
+                                (!cSize || cleanV(v.size) === cSize) && 
+                                (!cColor || cleanV(v.color) === cColor)
+                            );
+                            if (matchedVar) {
+                                if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
+                                if (itType.includes('مرتجع بيع')) {
+                                    matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
+                                    matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
+                                } else if (itType.includes('مرتجع شراء')) {
+                                    matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
+                                    matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) + baseQty;
+                                } else if (itType.includes('بيع')) {
+                                    matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
+                                    matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) + baseQty;
+                                } else if (itType.includes('شراء')) {
+                                    matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
+                                    matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
+                                } else if (itType.includes('تسوية') || itType.includes('جرد') || itType.includes('adj')) {
+                                    matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
+                                    matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
+                                } else if (itType.includes('تحويل')) {
+                                    if (item.transferStatus === 'received') {
+                                        const srcWH = (item.sourceWarehouse || defaultWH || 'المخزن الرئيسي').trim();
+                                        const dstWH = (item.warehouse || '').trim();
+                                        if (!matchedVar.warehouseStocks) matchedVar.warehouseStocks = {};
+                                        matchedVar.warehouseStocks[srcWH] = (parseFloat(matchedVar.warehouseStocks[srcWH]) || 0) + baseQty;
+                                        if (dstWH) matchedVar.warehouseStocks[dstWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[dstWH]) || 0) - baseQty);
+                                        if (srcWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[srcWH];
+                                        if (dstWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[dstWH];
+                                    }
                                 }
                             }
                         }
-
-                        // مزامنة إجمالي رصيد الصنف ورصيد المخزن مع مجموع المقاسات
-                        if (window.syncParentProductStock) {
-                            window.syncParentProductStock(p, activeWH);
-                        } else {
+                        if (p.variants.length > 0) {
                             p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
+                            p.warehouseStocks[activeWH] = p.variants.reduce((sum, v) => {
+                                const vWh = (v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined)
+                                    ? parseFloat(v.warehouseStocks[activeWH])
+                                    : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0);
+                                return sum + (isNaN(vWh) ? 0 : vWh);
+                            }, 0);
                         }
                     }
 
@@ -2972,46 +2793,36 @@
                                 const baseQty = parseFloat(item.qty) * factor;
 
                                 const activeWH = (item.warehouse || item.sourceWarehouse || (t && t.warehouse ? t.warehouse : '') || 'المخزن الرئيسي').trim();
-                                if (!p.warehouseStocks || typeof p.warehouseStocks !== 'object') p.warehouseStocks = {};
-                                let curProdWhStock = 0;
-                                if (p.warehouseStocks[activeWH] !== undefined) {
-                                    curProdWhStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
-                                } else if (activeWH === 'المخزن الرئيسي' || Object.keys(p.warehouseStocks).length === 0) {
-                                    curProdWhStock = parseFloat(p.stock) || 0;
-                                } else {
-                                    curProdWhStock = 0;
-                                }
+                                if (!p.warehouseStocks) p.warehouseStocks = {};
 
                                 const itType = String(item.type || (t && t.type) || '');
 
                                 if (itType.includes('مرتجع بيع')) {
                                     p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
-                                    p.warehouseStocks[activeWH] = Math.max(0, curProdWhStock - baseQty);
+                                    p.warehouseStocks[activeWH] = Math.max(0, (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty);
                                 } else if (itType.includes('مرتجع شراء')) {
                                     p.stock = (parseFloat(p.stock) || 0) + baseQty;
-                                    p.warehouseStocks[activeWH] = curProdWhStock + baseQty;
+                                    p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
                                 } else if (itType.includes('بيع')) {
                                     p.stock = (parseFloat(p.stock) || 0) + baseQty;
-                                    p.warehouseStocks[activeWH] = curProdWhStock + baseQty;
+                                    p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
                                 } else if (itType.includes('شراء')) {
                                     p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
-                                    p.warehouseStocks[activeWH] = Math.max(0, curProdWhStock - baseQty);
+                                    p.warehouseStocks[activeWH] = Math.max(0, (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty);
                                     if (item.previousCost !== undefined && item.previousCost !== null && !isNaN(parseFloat(item.previousCost))) {
                                         p.cost = parseFloat(item.previousCost);
                                     }
                                 } else if (itType.includes('تسوية') || itType.includes('جرد') || itType.includes('adj')) {
                                     p.stock = (parseFloat(p.stock) || 0) - baseQty;
-                                    p.warehouseStocks[activeWH] = curProdWhStock - baseQty;
+                                    p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty;
                                 } else if (itType.includes('تحويل')) {
                                     if (item.transferStatus === 'received') {
                                         const srcWH = (item.sourceWarehouse || 'المخزن الرئيسي').trim();
                                         const dstWH = (item.warehouse || '').trim();
                                         if (!p.warehouseStocks) p.warehouseStocks = {};
-                                        const curSrcStock = (p.warehouseStocks[srcWH] !== undefined) ? parseFloat(p.warehouseStocks[srcWH]) || 0 : (srcWH === 'المخزن الرئيسي' ? (parseFloat(p.stock) || 0) : 0);
-                                        const curDstStock = (p.warehouseStocks[dstWH] !== undefined) ? parseFloat(p.warehouseStocks[dstWH]) || 0 : (dstWH === 'المخزن الرئيسي' ? (parseFloat(p.stock) || 0) : 0);
-                                        p.warehouseStocks[srcWH] = curSrcStock + baseQty;
+                                        p.warehouseStocks[srcWH] = (parseFloat(p.warehouseStocks[srcWH]) || 0) + baseQty;
                                         if (dstWH) {
-                                            p.warehouseStocks[dstWH] = Math.max(0, curDstStock - baseQty);
+                                            p.warehouseStocks[dstWH] = Math.max(0, (parseFloat(p.warehouseStocks[dstWH]) || 0) - baseQty);
                                         }
                                         if (srcWH === 'المخزن الرئيسي') p.stock = p.warehouseStocks[srcWH];
                                         if (dstWH === 'المخزن الرئيسي') p.stock = p.warehouseStocks[dstWH];
@@ -3019,54 +2830,55 @@
                                 }
 
                                 // عكس رصيد التشكيلة (المقاس واللون) في مصفوفة الصنف عند الحذف
-                                if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
-                                    const matchedVar = window.findProductVariant ? window.findProductVariant(p, item) : null;
-                                    if (matchedVar) {
-                                        if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
-                                        let curVarWhStock = 0;
-                                        if (matchedVar.warehouseStocks[activeWH] !== undefined) {
-                                            curVarWhStock = parseFloat(matchedVar.warehouseStocks[activeWH]) || 0;
-                                        } else if (activeWH === 'المخزن الرئيسي' || Object.keys(matchedVar.warehouseStocks).length === 0) {
-                                            curVarWhStock = parseFloat(matchedVar.stock) || 0;
-                                        } else {
-                                            curVarWhStock = 0;
-                                        }
-
-                                        if (itType.includes('مرتجع بيع')) {
-                                            matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
-                                            matchedVar.warehouseStocks[activeWH] = Math.max(0, curVarWhStock - baseQty);
-                                        } else if (itType.includes('مرتجع شراء')) {
-                                            matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
-                                            matchedVar.warehouseStocks[activeWH] = curVarWhStock + baseQty;
-                                        } else if (itType.includes('بيع')) {
-                                            matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
-                                            matchedVar.warehouseStocks[activeWH] = curVarWhStock + baseQty;
-                                        } else if (itType.includes('شراء')) {
-                                            matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
-                                            matchedVar.warehouseStocks[activeWH] = Math.max(0, curVarWhStock - baseQty);
-                                        } else if (itType.includes('تسوية') || itType.includes('جرد') || itType.includes('adj')) {
-                                            matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
-                                            matchedVar.warehouseStocks[activeWH] = Math.max(0, curVarWhStock - baseQty);
-                                        } else if (itType.includes('تحويل')) {
-                                            if (item.transferStatus === 'received') {
-                                                const srcWH = (item.sourceWarehouse || 'المخزن الرئيسي').trim();
-                                                const dstWH = (item.warehouse || '').trim();
-                                                if (!matchedVar.warehouseStocks) matchedVar.warehouseStocks = {};
-                                                const curSrcVarStock = (matchedVar.warehouseStocks[srcWH] !== undefined) ? parseFloat(matchedVar.warehouseStocks[srcWH]) || 0 : (srcWH === 'المخزن الرئيسي' ? (parseFloat(matchedVar.stock) || 0) : 0);
-                                                const curDstVarStock = (matchedVar.warehouseStocks[dstWH] !== undefined) ? parseFloat(matchedVar.warehouseStocks[dstWH]) || 0 : (dstWH === 'المخزن الرئيسي' ? (parseFloat(matchedVar.stock) || 0) : 0);
-                                                matchedVar.warehouseStocks[srcWH] = curSrcVarStock + baseQty;
-                                                if (dstWH) matchedVar.warehouseStocks[dstWH] = Math.max(0, curDstVarStock - baseQty);
-                                                if (srcWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[srcWH];
-                                                if (dstWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[dstWH];
+                                if (p.variants && Array.isArray(p.variants)) {
+                                    const sSize = String(item.selectedSize || item.size || '').trim();
+                                    const sColor = String(item.selectedColor || item.color || '').trim();
+                                    if (sSize || sColor) {
+                                        const cleanV = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+                                        const cSize = cleanV(sSize);
+                                        const cColor = cleanV(sColor);
+                                        const matchedVar = p.variants.find(v => 
+                                            (!cSize || cleanV(v.size) === cSize) && 
+                                            (!cColor || cleanV(v.color) === cColor)
+                                        );
+                                        if (matchedVar) {
+                                            if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
+                                            if (itType.includes('مرتجع بيع')) {
+                                                matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
+                                                matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
+                                            } else if (itType.includes('مرتجع شراء')) {
+                                                matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
+                                                matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) + baseQty;
+                                            } else if (itType.includes('بيع')) {
+                                                matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
+                                                matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) + baseQty;
+                                            } else if (itType.includes('شراء')) {
+                                                matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
+                                                matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
+                                            } else if (itType.includes('تسوية') || itType.includes('جرد') || itType.includes('adj')) {
+                                                matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
+                                                matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
+                                            } else if (itType.includes('تحويل')) {
+                                                if (item.transferStatus === 'received') {
+                                                    const srcWH = (item.sourceWarehouse || 'المخزن الرئيسي').trim();
+                                                    const dstWH = (item.warehouse || '').trim();
+                                                    if (!matchedVar.warehouseStocks) matchedVar.warehouseStocks = {};
+                                                    matchedVar.warehouseStocks[srcWH] = (parseFloat(matchedVar.warehouseStocks[srcWH]) || 0) + baseQty;
+                                                    if (dstWH) matchedVar.warehouseStocks[dstWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[dstWH]) || 0) - baseQty);
+                                                    if (srcWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[srcWH];
+                                                    if (dstWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[dstWH];
+                                                }
                                             }
                                         }
                                     }
-
-                                    // مزامنة إجمالي رصيد الصنف ورصيد المخزن مع مجموع المقاسات
-                                    if (window.syncParentProductStock) {
-                                        window.syncParentProductStock(p, activeWH);
-                                    } else {
+                                    if (p.variants.length > 0) {
                                         p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
+                                        p.warehouseStocks[activeWH] = p.variants.reduce((sum, v) => {
+                                            const vWh = (v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined)
+                                                ? parseFloat(v.warehouseStocks[activeWH])
+                                                : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0);
+                                            return sum + (isNaN(vWh) ? 0 : vWh);
+                                        }, 0);
                                     }
                                 }
 
@@ -3126,27 +2938,25 @@
                         }
 
                         // 3. تنظيف علامة الإرجاع (is_returned) في الفاتورة الأصلية إذا لم يتبقَ لها مرتجعات أخرى
+
                         if (originalInvIdToClean) {
-                            let hasRem = false;
-                            if (window.BayanSQLite && typeof window.BayanSQLite.hasRemainingReturns === 'function') {
-                                hasRem = window.BayanSQLite.hasRemainingReturns(originalInvIdToClean);
-                            } else if (typeof transactions !== 'undefined' && Array.isArray(transactions)) {
-                                hasRem = transactions.some(x => x && x.originalInvoiceId == originalInvIdToClean && x.type && x.type.includes('مرتجع'));
+
+                            const remainingReturns = transactions.filter(x => x.originalInvoiceId == originalInvIdToClean && x.type.includes('مرتجع'));
+
+                            if (remainingReturns.length === 0) {
+
+                                transactions.forEach(x => {
+
+                                    if (x.invoiceId == originalInvIdToClean && x.type.includes(originalTypeToClean) && !x.type.includes('مرتجع')) {
+
+                                        x.is_returned = false;
+
+                                    }
+
+                                });
+
                             }
 
-                            if (!hasRem) {
-                                if (window.BayanSQLite && typeof window.BayanSQLite.setInvoiceReturnedStatus === 'function') {
-                                    window.BayanSQLite.setInvoiceReturnedStatus(originalInvIdToClean, false, originalTypeToClean);
-                                }
-                                if (typeof transactions !== 'undefined' && Array.isArray(transactions)) {
-                                    for (let i = transactions.length - 1; i >= 0; i--) {
-                                        const x = transactions[i];
-                                        if (x && x.invoiceId == originalInvIdToClean && x.type && x.type.includes(originalTypeToClean) && !x.type.includes('مرتجع')) {
-                                            x.is_returned = false;
-                                        }
-                                    }
-                                }
-                            }
                         }
 
                         if (typeof db !== 'undefined' && db && db.products && affectedRevertProducts.length > 0) {
@@ -3262,10 +3072,7 @@
         // ================= منطق كشف الحساب (Account Statement) =================
         window.deleteInvoiceGlobal = async function(invId, type) {
             if (!invId) return;
-            if (typeof window.ensureInvoiceLoaded === 'function') {
-                await window.ensureInvoiceLoaded(invId);
-            }
-            const idx = transactions.findIndex(t => (String(t.invoiceId) === String(invId) || String(t.id) === String(invId)) && (!type || (t.type && (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(t.type, type) : t.type.includes(type)))));
+            const idx = transactions.findIndex(t => (t.invoiceId == invId || t.id == invId) && (!type || (t.type && t.type.includes(type))));
             if (idx !== -1 && typeof deleteTransaction === 'function') {
                 await deleteTransaction(idx);
             } else {

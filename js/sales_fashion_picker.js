@@ -39,34 +39,6 @@ function getVariantModalActiveWH(context) {
     return String(activeWH).trim();
 }
 
-// دالة موحدة ودقيقة لحساب الرصيد الفعلي للمقاس/اللون لمنع أي تعارض بين العرض والإضافة مع المزامنة التلقائية اللحظية
-function getVariantEffectiveStock(v, activeWH) {
-    if (!v) return 0;
-    const vGeneralStock = parseFloat(v.stock) || 0;
-    const wh = String(activeWH || 'المخزن الرئيسي').trim();
-    const isMain = (wh === 'المخزن الرئيسي');
-    if (!v.warehouseStocks || typeof v.warehouseStocks !== 'object') {
-        if (isMain) {
-            v.warehouseStocks = { [wh]: vGeneralStock };
-            return vGeneralStock;
-        }
-        return 0;
-    }
-    if (v.warehouseStocks[wh] !== undefined) {
-        const whVal = parseFloat(v.warehouseStocks[wh]);
-        const effStock = isNaN(whVal) ? (isMain ? vGeneralStock : 0) : (isMain ? Math.max(whVal, vGeneralStock) : whVal);
-        if (isMain && (isNaN(whVal) || whVal < vGeneralStock)) {
-            v.warehouseStocks[wh] = effStock;
-        }
-        return effStock;
-    }
-    if (isMain) {
-        v.warehouseStocks[wh] = vGeneralStock;
-        return vGeneralStock;
-    }
-    return 0;
-}
-
 // دالة مساعدة لحساب السعر والرصيد لأي تشكيلة
 function getVariantPricingAndStock(product, v, context, activeWH, priceLevel) {
     let vPrice = 0;
@@ -121,61 +93,23 @@ function getVariantPricingAndStock(product, v, context, activeWH, priceLevel) {
         priceTitle = (priceLevel === 'wholesale') ? 'سعر الجملة' : 'سعر البيع';
     }
 
-    const stockVal = getVariantEffectiveStock(v, activeWH);
+    let stockVal = 0;
+    if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
+        stockVal = parseFloat(v.warehouseStocks[activeWH]) || 0;
+    } else if (activeWH === 'المخزن الرئيسي') {
+        stockVal = parseFloat(v.stock) || 0;
+    } else {
+        stockVal = 0;
+    }
 
     return { vPrice, priceTitle, stockVal };
-}
-
-// دالة مساعدة لحساب الكمية المحجوزة مسبقاً لهذا المقاس في الفاتورة قيد التعديل
-function getOriginalVariantQtyInEditMode(product, variant) {
-    if (typeof isEditMode === 'undefined' || !isEditMode) return 0;
-    let origList = (typeof editingOriginalItems !== 'undefined' && Array.isArray(editingOriginalItems) && editingOriginalItems.length > 0)
-        ? editingOriginalItems
-        : (typeof window.editingOriginalItems !== 'undefined' && Array.isArray(window.editingOriginalItems) && window.editingOriginalItems.length > 0)
-            ? window.editingOriginalItems
-            : [];
-    if (origList.length === 0) return 0;
-
-    let totalOrig = 0;
-    origList.forEach(orig => {
-        if (!orig) return;
-        const origName = orig.product || orig.productName || orig.name || '';
-        const origId = (orig.productId != null && orig.productId !== '') ? orig.productId : orig.id;
-        const isProdMatch = (origName && (origName === product.name || origName === product.id)) || 
-                            (origId != null && (String(origId) === String(product.id) || String(origId) === String(product.name))) ||
-                            (orig.code && product.code && orig.code === product.code);
-        if (!isProdMatch) return;
-
-        let isVarMatch = false;
-        if (variant && variant.barcode && (orig.code === variant.barcode || orig.barcode === variant.barcode)) {
-            isVarMatch = true;
-        } else if (window.findProductVariant) {
-            const m = window.findProductVariant(product, orig);
-            if (m === variant) isVarMatch = true;
-        } else {
-            const cleanFn = window.cleanVariantAttr || ((val) => String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' '));
-            const oSize = cleanFn(orig.selectedSize || orig.size);
-            const oColor = cleanFn(orig.selectedColor || orig.color);
-            const vSize = cleanFn(variant ? (variant.size || variant.selectedSize) : '');
-            const vColor = cleanFn(variant ? (variant.color || variant.selectedColor) : '');
-            if (oSize === vSize && oColor === vColor) isVarMatch = true;
-        }
-
-        if (isVarMatch) {
-            const factor = parseFloat(orig.unitFactor) || 1;
-            totalOrig += (parseFloat(orig.qty) || 0) * factor;
-        }
-    });
-    return totalOrig;
 }
 
 // دالة بناء كارت التشكيلة
 function renderVariantPickerCardHtml(product, v, context, activeWH, priceLevel, isVerticalMode = false) {
     const { vPrice, priceTitle, stockVal } = getVariantPricingAndStock(product, v, context, activeWH, priceLevel);
-    const origReserved = (context === 'sales') ? getOriginalVariantQtyInEditMode(product, v) : 0;
-    const effectiveStock = stockVal + origReserved;
-    const stockColor = effectiveStock > 0 ? '#047857' : '#dc2626';
-    const stockBg = effectiveStock > 0 ? '#ecfdf5' : '#fef2f2';
+    const stockColor = stockVal > 0 ? '#047857' : '#dc2626';
+    const stockBg = stockVal > 0 ? '#ecfdf5' : '#fef2f2';
     const hasSize = v.size && v.size !== 'موحد' && v.size !== 'قياسي' && v.size.trim() !== '';
 
     const prodDisc = (context === 'sales' && product.discount) ? parseFloat(product.discount) : 0;
@@ -201,16 +135,10 @@ function renderVariantPickerCardHtml(product, v, context, activeWH, priceLevel, 
         `;
     }
 
-    const isOutOfStockBlocked = ((context === 'sales' || context === 'transfer') && effectiveStock <= 0);
+    const isOutOfStockBlocked = ((context === 'sales' || context === 'transfer') && stockVal <= 0);
     const cardBorderColor = isOutOfStockBlocked ? '#fca5a5' : '#e2e8f0';
     const cardBgColor = isOutOfStockBlocked ? '#fff8f8' : 'white';
     const cardOpacity = isOutOfStockBlocked ? '0.78' : '1';
-
-    const stockDisplayText = isOutOfStockBlocked
-        ? '🛑 المتاح: <b>0</b>'
-        : (origReserved > 0
-            ? `📦 المتاح: <b>${effectiveStock}</b> (${origReserved} بالفاتورة)`
-            : `📦 المتاح: <b>${effectiveStock}</b>`);
 
     if (isVerticalMode) {
         // الوضع الرأسي (طلب العميل: تتابع المقاسات تحت اللون بشكل طولي متناسق بدون أي تداخل أو خروج للكلام)
@@ -237,7 +165,7 @@ function renderVariantPickerCardHtml(product, v, context, activeWH, priceLevel, 
                 <!-- السطر الثاني: الرصيد المتاح ونوع السعر -->
                 <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; border-top: 1px dashed #e2e8f0; padding-top: 6px; box-sizing: border-box; gap: 6px;">
                     <span style="color: ${stockColor}; background: ${stockBg}; padding: 2px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65%; border: ${isOutOfStockBlocked ? '1px solid #fca5a5' : 'none'};" title="المخزن: ${activeWH}">
-                        ${stockDisplayText}
+                        ${isOutOfStockBlocked ? '🛑 المتاح: <b>0</b>' : `📦 المتاح: <b>${stockVal}</b>`}
                     </span>
                     <span style="font-size: 0.72rem; color: #64748b; font-weight: bold; white-space: nowrap; flex-shrink: 0;">
                         ${priceTitle}
@@ -265,7 +193,7 @@ function renderVariantPickerCardHtml(product, v, context, activeWH, priceLevel, 
             </div>
             <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; border-top: 1px dashed #e2e8f0; padding-top: 6px; box-sizing: border-box; gap: 6px;">
                 <span style="color: ${stockColor}; background: ${stockBg}; padding: 2px 8px; border-radius: 6px; font-size: 0.78rem; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 65%; border: ${isOutOfStockBlocked ? '1px solid #fca5a5' : 'none'};" title="المخزن: ${activeWH}">
-                    ${stockDisplayText}
+                    ${isOutOfStockBlocked ? '🛑 المتاح: <b>0</b>' : `📦 المتاح: <b>${stockVal}</b>`}
                 </span>
                 <span style="font-size: 0.72rem; color: #64748b; font-weight: bold; white-space: nowrap; flex-shrink: 0;">
                     ${priceTitle}
@@ -967,16 +895,22 @@ function selectVariantAndAddToCart(productId, variantIndex, context = 'sales') {
             ? getVariantModalActiveWH(context)
             : ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
 
-        const stockVal = getVariantEffectiveStock(variant, activeWH);
-        const origReserved = (context === 'sales') ? getOriginalVariantQtyInEditMode(product, variant) : 0;
-        const effectiveStock = stockVal + origReserved;
+        let stockVal = 0;
+        if (variant.warehouseStocks && typeof variant.warehouseStocks === 'object' && variant.warehouseStocks[activeWH] !== undefined) {
+            stockVal = parseFloat(variant.warehouseStocks[activeWH]) || 0;
+        } else if (activeWH === 'المخزن الرئيسي' || !variant.warehouseStocks || Object.keys(variant.warehouseStocks).length === 0) {
+            stockVal = parseFloat(variant.stock) || 0;
+        } else {
+            stockVal = (variant.warehouseStocks && variant.warehouseStocks[activeWH] !== undefined)
+                ? (parseFloat(variant.warehouseStocks[activeWH]) || 0)
+                : (parseFloat(variant.stock) || 0);
+        }
 
-        if (effectiveStock <= 0) {
+        if (stockVal <= 0) {
             const varLabel = (variant.size ? `[مقاس: ${variant.size}] ` : '') + (variant.color ? `(لون: ${variant.color})` : '');
             const whDesc = (context === 'transfer') ? `بالمخزن المحول منه (${activeWH})` : `بمخزن (${activeWH})`;
-            const actionDesc = (context === 'transfer') ? 'للتحويل' : 'للبيع';
             if (typeof showToast === 'function') {
-                showToast(`🚫 هذا المقاس/اللون ${varLabel}غير متوفر ${whDesc} - الرصيد: 0! يرجى اختيار مقاس أو لون متاح ${actionDesc}.`, 'warning');
+                showToast(`🚫 هذا المقاس/اللون ${varLabel}غير متوفر ${whDesc} - الرصيد: 0! يرجى اختيار مقاس أو لون متاح للتحويل.`, 'warning');
             }
             if (typeof BayanBarcode !== 'undefined' && typeof BayanBarcode.playBeep === 'function') {
                 BayanBarcode.playBeep(false);
@@ -1071,7 +1005,14 @@ function selectVariantAndAddToCart(productId, variantIndex, context = 'sales') {
             ? getVariantModalActiveWH('adj') 
             : ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
 
-        const liveStockVal = getVariantEffectiveStock(variant, activeWH);
+        let liveStockVal = 0;
+        if (variant && variant.warehouseStocks && typeof variant.warehouseStocks === 'object' && variant.warehouseStocks[activeWH] !== undefined) {
+            liveStockVal = parseFloat(variant.warehouseStocks[activeWH]) || 0;
+        } else if (activeWH === 'المخزن الرئيسي' || !variant || !variant.warehouseStocks) {
+            liveStockVal = variant ? (parseFloat(variant.stock) || 0) : (parseFloat(product.stock) || 0);
+        } else {
+            liveStockVal = 0;
+        }
 
         window.selectedAdjItem = {
             ...product,
