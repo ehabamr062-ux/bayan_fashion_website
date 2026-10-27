@@ -1272,21 +1272,98 @@ async function renderWarehouseReportTable(isSearchTrigger = false) {
     const searchRaw = searchInput ? searchInput.value.trim() : '';
     const searchClean = cleanAr(searchRaw);
 
-    const filteredProducts = productsDB.filter(p => {
-        if (!p) return false;
-        if (!searchClean) return true;
-        if (cleanAr(p.name).includes(searchClean)) return true;
-        if (p.barcode && String(p.barcode).includes(searchRaw)) return true;
-        if (p.code && String(p.code).toLowerCase().includes(searchClean)) return true;
-        if (p.variants && Array.isArray(p.variants)) {
-            return p.variants.some(v => 
-                (v.barcode && String(v.barcode).includes(searchRaw)) ||
-                (v.size && cleanAr(v.size).includes(searchClean)) ||
-                (v.color && cleanAr(v.color).includes(searchClean))
-            );
+    let filteredProducts = [];
+    if (!searchClean) {
+        filteredProducts = productsDB.filter(p => !!p);
+    } else {
+        const scored = [];
+        const rawLower = searchRaw.toLowerCase();
+        for (let i = 0; i < productsDB.length; i++) {
+            const p = productsDB[i];
+            if (!p) continue;
+
+            const pNameClean = p.name ? cleanAr(p.name) : '';
+            const pNameLower = p.name ? p.name.trim().toLowerCase() : '';
+            const pBarcodeLower = p.barcode ? String(p.barcode).trim().toLowerCase() : '';
+            const pCodeLower = p.code ? String(p.code).trim().toLowerCase() : '';
+            const pSysCode = p.sysCode ? String(p.sysCode).trim().toLowerCase() : '';
+            const pIdStr = String(p.id);
+
+            let score = 0;
+            let matched = false;
+
+            // 1. تطابق تام مع اسم الصنف (أعلى أولوية مطلقة - يظهر أول صنف رقم 1 دائماً)
+            if (pNameClean === searchClean || pNameLower === rawLower) {
+                score = Math.max(score, 30000);
+                matched = true;
+            } else if (pBarcodeLower === rawLower) {
+                // 2. تطابق تام مع الباركود الأساسي
+                score = Math.max(score, 28000);
+                matched = true;
+            } else if (pCodeLower === rawLower) {
+                // 3. تطابق تام مع كود الصنف
+                score = Math.max(score, 26000);
+                matched = true;
+            } else if (pSysCode === rawLower || pIdStr === rawLower) {
+                score = Math.max(score, 25000);
+                matched = true;
+            } else if (pNameClean.startsWith(searchClean) || pNameLower.startsWith(rawLower)) {
+                // 4. بداية اسم الصنف
+                score = Math.max(score, 18000);
+                matched = true;
+            } else if (pCodeLower.startsWith(rawLower)) {
+                score = Math.max(score, 16000);
+                matched = true;
+            } else if (pBarcodeLower.startsWith(rawLower)) {
+                score = Math.max(score, 15000);
+                matched = true;
+            } else if (pNameClean.includes(' ' + searchClean + ' ') || pNameClean.startsWith(searchClean + ' ') || pNameClean.endsWith(' ' + searchClean)) {
+                score = Math.max(score, 12000);
+                matched = true;
+            } else if (pNameClean.includes(searchClean)) {
+                score = Math.max(score, 6000);
+                matched = true;
+            } else if (pBarcodeLower.includes(rawLower)) {
+                score = Math.max(score, 4000);
+                matched = true;
+            } else if (pCodeLower.includes(rawLower)) {
+                score = Math.max(score, 3000);
+                matched = true;
+            }
+
+            // فحص التشكيلات (المقاسات والألوان)
+            if (p.variants && Array.isArray(p.variants)) {
+                for (let j = 0; j < p.variants.length; j++) {
+                    const v = p.variants[j];
+                    if (!v) continue;
+                    const vbLower = String(v.barcode || '').trim().toLowerCase();
+                    const vSizeClean = v.size ? cleanAr(v.size) : '';
+                    const vColorClean = v.color ? cleanAr(v.color) : '';
+                    if (vbLower === rawLower) {
+                        score = Math.max(score, 24000);
+                        matched = true;
+                        break;
+                    } else if (vbLower.startsWith(rawLower)) {
+                        score = Math.max(score, 14000);
+                        matched = true;
+                    } else if (vSizeClean === searchClean || vColorClean === searchClean) {
+                        score = Math.max(score, 8000);
+                        matched = true;
+                    } else if (vbLower.includes(rawLower) || vSizeClean.includes(searchClean) || vColorClean.includes(searchClean)) {
+                        score = Math.max(score, 2000);
+                        matched = true;
+                    }
+                }
+            }
+
+            if (matched) {
+                scored.push({ product: p, score });
+            }
         }
-        return false;
-    });
+
+        scored.sort((a, b) => b.score - a.score);
+        filteredProducts = scored.map(s => s.product);
+    }
 
     const sDate = (window.wrFilterState && window.wrFilterState.startDate) ? window.wrFilterState.startDate : null;
     const eDate = (window.wrFilterState && window.wrFilterState.endDate) ? window.wrFilterState.endDate : null;
