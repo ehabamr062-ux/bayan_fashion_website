@@ -1745,6 +1745,14 @@
                         }
                         item.id = cleanId;
                         const cleanInvoiceId = String(item.invoiceId != null && item.invoiceId !== '' ? item.invoiceId : cleanId);
+
+                        // عند حفظ رأس فاتورة جديد، نحذف مسبقاً أي سطور فرعية قديمة (_item_) سابقة لنفس الفاتورة
+                        if (item.isInvoiceHead && item.invoiceId) {
+                            try {
+                                this.db.run("DELETE FROM transactions WHERE invoiceId = ? AND id != ? AND type = ?;", [cleanInvoiceId, cleanId, cleanType]);
+                                this.db.run("DELETE FROM transaction_items WHERE invoiceId = ? AND tx_id != ?;", [cleanInvoiceId, cleanId]);
+                            } catch(cleanOldErr) {}
+                        }
                         const cleanOrigInvId = (item.originalInvoiceId != null && item.originalInvoiceId !== '') ? String(item.originalInvoiceId) : null;
                         const cleanDateISO = this.normalizeDateISO(item.dateISO || item.date);
                         const cleanTime = String(item.time || (item.dateISO && String(item.dateISO).includes('T') ? String(item.dateISO).split('T')[1].slice(0, 8) : ''));
@@ -1913,6 +1921,27 @@
                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                             `);
                             const cachedStmts = { delTiStmt, insTiStmt };
+
+                            // تنظيف مسبق للسطور الفرعية القديمة (_item_) لأي فاتورة يعاد حفظها أو تحديثها بالكامل
+                            const cleanedHeadInvoices = new Set();
+                            for (const it of items) {
+                                if (it && it.isInvoiceHead && it.invoiceId) {
+                                    const invKey = `${String(it.invoiceId)}_${String(it.type || '')}`;
+                                    if (!cleanedHeadInvoices.has(invKey)) {
+                                        cleanedHeadInvoices.add(invKey);
+                                        const sInv = String(it.invoiceId);
+                                        const sType = String(it.type || '');
+                                        try {
+                                            if (sType) {
+                                                this.db.run("DELETE FROM transactions WHERE invoiceId = ? AND type = ?;", [sInv, sType]);
+                                            } else {
+                                                this.db.run("DELETE FROM transactions WHERE invoiceId = ?;", [sInv]);
+                                            }
+                                            this.db.run("DELETE FROM transaction_items WHERE invoiceId = ?;", [sInv]);
+                                        } catch(cleanPreErr) {}
+                                    }
+                                }
+                            }
                             const seenIdsInBatch = new Set();
                             for (let itemIdx = 0; itemIdx < items.length; itemIdx++) {
                                 const item = items[itemIdx];
@@ -4272,6 +4301,77 @@
                     } else if (effectiveType.includes('شراء')) {
                         itemsFromTx = itemsFromTx.filter(r => r.type && (r.type.includes('شراء') || r.type.includes('مشتريات') || r.type === 'purchase') && !r.type.includes('مرتجع'));
                     }
+                }
+
+                // تحديد سطر الرأس الفعلي للعملية headRow لفلترة أي سطور يتيمة متبقية من عمليات قديمة
+                let headRow = null;
+                if (sTxId) {
+                    headRow = decodedTxRows.find(r => r && String(r.id) === sTxId);
+                }
+                if (!headRow) {
+                    const heads = decodedTxRows.filter(r => r && r.isInvoiceHead);
+                    headRow = heads.length > 0 ? heads[heads.length - 1] : decodedTxRows[decodedTxRows.length - 1];
+                }
+
+                if (headRow) {
+                    const headDate = headRow.dateISO || (headRow.date ? String(headRow.date).split(' ')[0] : '');
+                    const headPartner = String(headRow.partner || headRow.customer || '').trim();
+                    const headGrandTotal = parseFloat(headRow.invoiceGrandTotal || 0) || 0;
+                    const headTime = String(headRow.time || headRow.timeISO || '').trim();
+
+                    // 1. فلترة السطور لتقتصر على السطور التي تنتمي لنفس عملية headRow (نفس التاريخ والطرف)
+                    let matchedTx = itemsFromTx.filter(r => {
+                        if (!r) return false;
+                        if (String(r.id) === String(headRow.id)) return true;
+                        if (headDate) {
+                            const rDate = r.dateISO || (r.date ? String(r.date).split(' ')[0] : '');
+                            if (rDate && rDate !== headDate) return false;
+                        }
+                        if (headPartner && typeof window.isGenericCashPartner === 'function' && !window.isGenericCashPartner(headPartner)) {
+                            const rPartner = String(r.partner || r.customer || '').trim();
+                            if (rPartner && rPartner !== headPartner) return false;
+                        }
+                        return true;
+                    });
+
+                    // 2. إذا كان للرأس إجمالي رسمي invoiceGrandTotal وكان مجموع كل السطور أكبر منه:
+                    if (headGrandTotal > 0 && matchedTx.length > 1) {
+                        const sumMatched = matchedTx.reduce((sum, r) => sum + (parseFloat(r.total) || (parseFloat(r.qty || 0) * parseFloat(r.price || 0)) || 0), 0);
+                        if (sumMatched > headGrandTotal + 0.05) {
+                            // الاحتفاظ فقط بالسطور المطابقة لتوقيت الرأس (headTime)
+                            if (headTime) {
+                                const timeItems = matchedTx.filter(r => {
+                                    if (String(r.id) === String(headRow.id)) return true;
+                                    const rt = String(r.time || r.timeISO || '').trim();
+                                    return rt && rt === headTime;
+                                });
+                                if (timeItems.length > 0) {
+                                    matchedTx = timeItems;
+                                }
+                            }
+                            // إذا ظل المجموع أكبر، وكان سطر الرأس بمفرده يطابق الإجمالي بدقة:
+                            const headOnlyTotal = parseFloat(headRow.total) || (parseFloat(headRow.qty || 0) * parseFloat(headRow.price || 0)) || 0;
+                            if (Math.abs(headOnlyTotal - headGrandTotal) < 0.05) {
+                                matchedTx = [headRow];
+                            }
+                        }
+                    }
+
+                    // 3. حذف السطور اليتيمة الزائدة فورياً من SQLite (transactions و transaction_items)
+                    const validIds = new Set([headRow.id, ...matchedTx.map(r => r.id)].filter(Boolean));
+                    const ghostRows = decodedTxRows.filter(r => r && r.id && !validIds.has(r.id));
+                    if (ghostRows.length > 0) {
+                        try {
+                            for (const gr of ghostRows) {
+                                this.db.run("DELETE FROM transactions WHERE id = ?;", [gr.id]);
+                                this.db.run("DELETE FROM transaction_items WHERE tx_id = ?;", [gr.id]);
+                            }
+                            this._isDirty = true;
+                            this.schedulePersist(250);
+                        } catch(cleanGhostErr) {}
+                    }
+
+                    itemsFromTx = matchedTx;
                 }
 
                 // 2. الاستعلام من جدول transaction_items المفهرس لجلب كافة بنود الفاتورة (مع استبعاد أي بنود يتيمة)

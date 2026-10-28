@@ -1248,10 +1248,44 @@ async function viewInvoiceItems(invoiceId, type = '', autoPrint = false, optTxId
         }
     }
 
+    // استخراج سطور الفاتورة من مصفوفة الذاكرة الحية (التي يعرض منها الجدول الخارجي) أولاً
+    const poolMem = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+    const memItems = poolMem.filter(t => {
+        if (!t) return false;
+        const hasInvId = t.invoiceId != null && t.invoiceId !== '';
+        const matchInv = hasInvId ? (String(t.invoiceId) === String(invoiceId)) : (String(t.id) === String(invoiceId));
+        if (!matchInv) return false;
+        if (category) {
+            const tType = String(t.type || '');
+            if (category === 'return_sales') return tType.includes('مرتجع بيع') || tType.includes('مرتجع مبيعات');
+            if (category === 'return_purchase') return tType.includes('مرتجع شراء') || tType.includes('مرتجع مشتريات');
+            if (category === 'sales') return (tType.includes('بيع') || tType.includes('مبيعات')) && !tType.includes('مرتجع');
+            if (category === 'purchase') return (tType.includes('شراء') || tType.includes('مشتريات')) && !tType.includes('مرتجع');
+            if (category === 'adjustment') return tType.includes('تسوية') || tType.includes('جرد');
+            if (category === 'transfer') return tType.includes('تحويل');
+        }
+        return true;
+    });
+
     // ⚡ استدعاء بنود الفاتورة مباشرة من SQLite مع حصانة كاملة ضد تداخل المعرفات
     let rawInvoiceItems = [];
     if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
         rawInvoiceItems = window.BayanSQLite.getInvoiceItems(invoiceId, type, optTxId);
+    }
+
+    // مقارنة حصيفة لمنع أي أصناف شبحية من SQLite قد تتجاوز إجمالي الفاتورة الرسمي:
+    const memHead = memItems.find(t => t.isInvoiceHead) || memItems[0];
+    const memGrandTotal = memHead && parseFloat(memHead.invoiceGrandTotal || 0) > 0 ? parseFloat(memHead.invoiceGrandTotal) : 0;
+    if (memItems.length > 0 && memGrandTotal > 0) {
+        const memSum = memItems.reduce((sum, it) => sum + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
+        const sqlSum = (rawInvoiceItems || []).reduce((sum, it) => sum + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
+        if (sqlSum > memGrandTotal + 0.05 && Math.abs(memSum - memGrandTotal) < 0.05) {
+            rawInvoiceItems = memItems;
+        } else if (Math.abs(memSum - memGrandTotal) < 0.05 && memItems.length <= (rawInvoiceItems ? rawInvoiceItems.length : 0)) {
+            rawInvoiceItems = memItems;
+        }
+    } else if (memItems.length > 0 && (!rawInvoiceItems || rawInvoiceItems.length === 0)) {
+        rawInvoiceItems = memItems;
     }
     if (!rawInvoiceItems || rawInvoiceItems.length <= 1) {
         const memItems = (typeof transactions !== 'undefined' ? transactions : []).filter(t => {
@@ -1912,10 +1946,33 @@ window.editTransaction = async function (invId, type, optTxId = '') {
 
         onConfirm: async () => {
 
+            // استخراج سطور الفاتورة من مصفوفة الذاكرة الحية أولاً
+            const memItems = (typeof transactions !== 'undefined' ? transactions : []).filter(x => {
+                const hasInvId = x.invoiceId != null && x.invoiceId !== '';
+                const idMatch = hasInvId ? (String(x.invoiceId) === String(invId)) : (String(x.id) === String(invId));
+                if (!idMatch) return false;
+                return (typeof window.isMatchingInvoiceType === 'function') ? window.isMatchingInvoiceType(x.type, targetType) : true;
+            });
+
             // جلب كافة بنود الفاتورة بالكامل بدقة برقم الفاتورة ونوعها لمنع ظهور أو سحب أي مرتجع داخل فاتورة البيع أو العكس
             let invItems = [];
             if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
-                invItems = window.BayanSQLite.getInvoiceItems(invId, targetType) || [];
+                invItems = window.BayanSQLite.getInvoiceItems(invId, targetType, optTxId) || [];
+            }
+
+            // مقارنة لمنع جلب أصناف شبحية من SQLite قد تتجاوز إجمالي الفاتورة الرسمي
+            const memHead = memItems.find(x => x.isInvoiceHead) || memItems[0];
+            const memGrandTotal = memHead && parseFloat(memHead.invoiceGrandTotal || 0) > 0 ? parseFloat(memHead.invoiceGrandTotal) : 0;
+            if (memItems.length > 0 && memGrandTotal > 0) {
+                const memSum = memItems.reduce((sum, it) => sum + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
+                const sqlSum = (invItems || []).reduce((sum, it) => sum + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
+                if (sqlSum > memGrandTotal + 0.05 && Math.abs(memSum - memGrandTotal) < 0.05) {
+                    invItems = memItems;
+                } else if (Math.abs(memSum - memGrandTotal) < 0.05 && memItems.length <= invItems.length) {
+                    invItems = memItems;
+                }
+            } else if (memItems.length > 0 && invItems.length === 0) {
+                invItems = memItems;
             }
             if (!invItems || invItems.length <= 1) {
                 const memItems = transactions.filter(x => {
@@ -2780,7 +2837,7 @@ window.revertAndClearOldInvoice = async function (invId, type) {
             try {
                 window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE invoiceId = ? OR tx_id = ?;", [String(invId), String(invId)]);
                 window.BayanSQLite._isDirty = true;
-            } catch(tiErr) {}
+            } catch (tiErr) { }
         }
 
     } catch (e) {
@@ -3116,7 +3173,7 @@ async function deleteTransaction(idx) {
                         try {
                             window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE invoiceId = ? OR tx_id = ?;", [String(invId), String(invId)]);
                             window.BayanSQLite._isDirty = true;
-                        } catch(tiErr) {}
+                        } catch (tiErr) { }
                     }
 
                 } else {

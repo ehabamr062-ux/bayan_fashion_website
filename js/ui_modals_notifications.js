@@ -3080,6 +3080,44 @@
                     return true;
                 });
 
+                const purHeadGrandTotal = parseFloat(head.invoiceGrandTotal || 0) || 0;
+                const purHeadDateVal = head.dateISO || (head.date ? String(head.date).split(' ')[0] : '');
+                const purHeadPartnerVal = String(head.partner || head.customer || head.supplier || '').trim();
+                const purHeadTimeVal = String(head.time || head.timeISO || '').trim();
+
+                // تصفية السطور لتطابق تاريخ ومورد رأس الفاتورة
+                uniquePurMatches = uniquePurMatches.filter(i => {
+                    if (!i) return false;
+                    if (String(i.id) === String(head.id)) return true;
+                    if (purHeadDateVal) {
+                        const iDate = i.dateISO || (i.date ? String(i.date).split(' ')[0] : '');
+                        if (iDate && iDate !== purHeadDateVal) return false;
+                    }
+                    if (purHeadPartnerVal && typeof window.isGenericCashPartner === 'function' && !window.isGenericCashPartner(purHeadPartnerVal)) {
+                        const iPartner = String(i.partner || i.customer || i.supplier || '').trim();
+                        if (iPartner && iPartner !== purHeadPartnerVal) return false;
+                    }
+                    return true;
+                });
+
+                if (purHeadGrandTotal > 0 && uniquePurMatches.length > 1) {
+                    const curSum = uniquePurMatches.reduce((s, it) => s + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
+                    if (curSum > purHeadGrandTotal + 0.05) {
+                        if (purHeadTimeVal) {
+                            const byTime = uniquePurMatches.filter(it => {
+                                if (String(it.id) === String(head.id)) return true;
+                                const itTime = String(it.time || it.timeISO || '').trim();
+                                return itTime && itTime === purHeadTimeVal;
+                            });
+                            if (byTime.length > 0) uniquePurMatches = byTime;
+                        }
+                        const headLineTotal = parseFloat(head.total) || (parseFloat(head.qty || 0) * parseFloat(head.price || 0)) || 0;
+                        if (Math.abs(headLineTotal - purHeadGrandTotal) < 0.05) {
+                            uniquePurMatches = [head];
+                        }
+                    }
+                }
+
                 // إذا كانت البنود المستخرجة بنداً واحداً أو أقل بينما رأس الفاتورة أو SQLite يحتوي على قائمة أصناف أكبر وأشمل:
                 let extracted = [];
                 const isHeadActualPurch = head && head.type && (isReturn ? String(head.type).includes('مرتجع') : ((String(head.type).includes('شراء') || String(head.type).includes('مشتريات')) && !String(head.type).includes('مرتجع')));
@@ -3088,8 +3126,14 @@
                 else if (isHeadActualPurch && Array.isArray(head.cart) && head.cart.length > uniquePurMatches.length) extracted = head.cart;
                 else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
                     const lookupInvId = resolvedInvId || head.invoiceId || sId;
-                    const sqItems = window.BayanSQLite.getInvoiceItems(lookupInvId, isReturn ? 'مرتجع مشتريات' : 'فاتورة مشتريات') || [];
-                    if (sqItems.length > uniquePurMatches.length) extracted = sqItems;
+                    const sqItems = window.BayanSQLite.getInvoiceItems(lookupInvId, isReturn ? 'مرتجع مشتريات' : 'فاتورة مشتريات', sTxId) || [];
+                    const curSum = uniquePurMatches.reduce((s, it) => s + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
+                    const sqSum = sqItems.reduce((s, it) => s + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
+                    if (purHeadGrandTotal > 0 && Math.abs(curSum - purHeadGrandTotal) < 0.05 && sqSum > purHeadGrandTotal + 0.05) {
+                        // البنود الحالية تطابق إجمالي الفاتورة بدقة، لا نستبدلها ببنود شبحية
+                    } else if (sqItems.length > uniquePurMatches.length) {
+                        extracted = sqItems;
+                    }
                 }
                 if (extracted.length > 0) {
                     uniquePurMatches = extracted.map(it => ({
@@ -3242,6 +3286,46 @@
                 return true;
             });
 
+            // التحقق الصارم: إذا كان لرأس الفاتورة إجمالي رسمي، نستبعد أي سطور قديمة متبقية تجعل المجموع يتجاوز إجمالي الفاتورة
+            const saleHeadGrandTotal = parseFloat(head.invoiceGrandTotal || 0) || 0;
+            const headDateVal = head.dateISO || (head.date ? String(head.date).split(' ')[0] : '');
+            const headPartnerVal = String(head.partner || head.customer || '').trim();
+            const headTimeVal = String(head.time || head.timeISO || '').trim();
+
+            // تصفية السطور لتطابق تاريخ وطرف رأس الفاتورة
+            uniqueSaleMatches = uniqueSaleMatches.filter(i => {
+                if (!i) return false;
+                if (String(i.id) === String(head.id)) return true;
+                if (headDateVal) {
+                    const iDate = i.dateISO || (i.date ? String(i.date).split(' ')[0] : '');
+                    if (iDate && iDate !== headDateVal) return false;
+                }
+                if (headPartnerVal && typeof window.isGenericCashPartner === 'function' && !window.isGenericCashPartner(headPartnerVal)) {
+                    const iPartner = String(i.partner || i.customer || '').trim();
+                    if (iPartner && iPartner !== headPartnerVal) return false;
+                }
+                return true;
+            });
+
+            // إذا كان المجموع يتجاوز الإجمالي الرسمي:
+            if (saleHeadGrandTotal > 0 && uniqueSaleMatches.length > 1) {
+                const curSum = uniqueSaleMatches.reduce((s, it) => s + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
+                if (curSum > saleHeadGrandTotal + 0.05) {
+                    if (headTimeVal) {
+                        const byTime = uniqueSaleMatches.filter(it => {
+                            if (String(it.id) === String(head.id)) return true;
+                            const itTime = String(it.time || it.timeISO || '').trim();
+                            return itTime && itTime === headTimeVal;
+                        });
+                        if (byTime.length > 0) uniqueSaleMatches = byTime;
+                    }
+                    const headLineTotal = parseFloat(head.total) || (parseFloat(head.qty || 0) * parseFloat(head.price || 0)) || 0;
+                    if (Math.abs(headLineTotal - saleHeadGrandTotal) < 0.05) {
+                        uniqueSaleMatches = [head];
+                    }
+                }
+            }
+
             // إذا كانت البنود المستخرجة بنداً واحداً أو أقل بينما رأس الفاتورة أو SQLite يحتوي على قائمة أصناف أكبر وأشمل:
             const headTypeStr = String(head.type || '').toLowerCase();
             const isHeadActualSale = (headTypeStr.includes('بيع') || headTypeStr.includes('مبيعات') || headTypeStr.includes('sale'));
@@ -3253,7 +3337,13 @@
             else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
                 const lookupInvId = resolvedInvId || head.invoiceId || sId;
                 const sqItems = window.BayanSQLite.getInvoiceItems(lookupInvId, isReturn ? 'مرتجع مبيعات' : 'فاتورة مبيعات', optTxId || sTxId) || [];
-                if (sqItems.length > uniqueSaleMatches.length) extracted = sqItems;
+                const curSum = uniqueSaleMatches.reduce((s, it) => s + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
+                const sqSum = sqItems.reduce((s, it) => s + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
+                if (saleHeadGrandTotal > 0 && Math.abs(curSum - saleHeadGrandTotal) < 0.05 && sqSum > saleHeadGrandTotal + 0.05) {
+                    // البنود الحالية تطابق إجمالي الفاتورة بدقة، لا نستبدلها ببنود شبحية من SQLite
+                } else if (sqItems.length > uniqueSaleMatches.length) {
+                    extracted = sqItems;
+                }
             }
             if (extracted.length > 0) {
                 uniqueSaleMatches = extracted.map(it => ({
