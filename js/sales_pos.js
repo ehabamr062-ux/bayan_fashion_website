@@ -244,15 +244,18 @@ let currentHeaderProductId = null; let currentHeaderUnit = null; // لتتبع �
 async function selectProductToHeader(productId) {
     const product = (typeof productsDB !== 'undefined' && Array.isArray(productsDB))
         ? productsDB.find(p => p.id === productId || p.id == productId)
-        : await db.products.get(productId);
+        : (typeof db !== 'undefined' && db.products ? await db.products.get(productId) : null);
 
     if (!product) return;
+
+    // 🛑 إغلاق قائمة البحث فوراً وتأمين عدم إعادة فتحها بالبحث الحي المؤجل
+    const resultsDiv = document.getElementById('searchResults');
+    if (resultsDiv) resultsDiv.style.display = 'none';
+    window._lastAddedByEnterTime = Date.now();
 
     // إذا كان الصنف تشكيلة فاشون بها مقاسات أو ألوان، نفتح نافذة المقاسات واللون فوراً لاختيارها أولاً
     const isVariantsActive = !document.body.classList.contains('bayan-variants-disabled') && (document.body.classList.contains('bayan-variants-enabled') || (product.variants && product.variants.length > 0));
     if (isVariantsActive && product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
-        const resultsDiv = document.getElementById('searchResults');
-        if (resultsDiv) resultsDiv.style.display = 'none';
         if (typeof showVariantSelectionModal === 'function') {
             showVariantSelectionModal(product, 'sales');
             return;
@@ -262,7 +265,6 @@ async function selectProductToHeader(productId) {
     currentHeaderProductId = productId; // تخزين الـ ID الحالي
     window._pendingSalesVariant = null;
 
-    const resultsDiv = document.getElementById('searchResults');
     const pSearch = document.getElementById('productSearch');
     const hQty = document.getElementById('headerQty');
     const hPrice = document.getElementById('headerPrice');
@@ -354,6 +356,12 @@ async function handleSearch(query) {
         return;
     }
 
+    // 🛑 إذا تمت معالجة صنف للتو عبر Enter / Barcode، نكتم نتائج البحث الحي المتأخرة لمنع تداخل القوائم
+    if (Date.now() - (window._lastAddedByEnterTime || 0) < 350) {
+        resultsDiv.style.display = 'none';
+        return;
+    }
+
     if (!query || !query.trim()) {
         resultsDiv.innerHTML = '';
         resultsDiv.style.display = 'none';
@@ -394,7 +402,7 @@ async function handleSearch(query) {
                             ? `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; border: 1px solid #bae6fd;">📏 مقاسات: ${sizesList.slice(0, 5).join(', ')}${sizesList.length > 5 ? '...' : ''}</span>`
                             : '';
                         return `
-                            <div class="pos-search-row" onclick="selectProductToHeader(${p.id});" style="display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: 0.15s; border-radius: 10px; gap: 10px;">
+                            <div class="pos-search-row" onclick="if(event){event.preventDefault(); event.stopPropagation();} selectProductToHeader(${p.id});" style="display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: 0.15s; border-radius: 10px; gap: 10px;">
                                 <div style="flex: 1; min-width: 0; text-align: right;">
                                     <div style="font-weight: 900; font-size: 0.98rem; color: #1e293b; white-space: normal; word-break: break-word;">${safeName}</div>
                                     <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
@@ -430,7 +438,7 @@ async function handleSearch(query) {
                     <span style="font-weight: 800; font-size: 0.85rem; color: #64748b;">⚠️ لا توجد نتائج مطابقة لـ "${safeQuery}"</span>
                     <button type="button" onclick="document.getElementById('searchResults').style.display='none';" class="pos-search-close-btn" title="إغلاق" style="background:none; border:none; cursor:pointer; font-size:1rem;">❌</button>
                 </div>
-                <button type="button" onclick="document.getElementById('searchResults').style.display='none'; quickAddProduct('${jsEscapedQuery}', 'sales');" 
+                <button type="button" onclick="if(event){event.preventDefault(); event.stopPropagation();} document.getElementById('searchResults').style.display='none'; quickAddProduct('${jsEscapedQuery}', 'sales');" 
                     style="width: 100%; padding: 12px; background: #f5f3ff; border: 2px dashed #8e44ad; border-radius: 10px; color: #8e44ad; font-weight: 900; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s;">
                     <span>📝 إضافة صنف جديد باسم: "${safeQuery}"</span>
                 </button>
@@ -447,29 +455,43 @@ const setupProductSearchKeydown = () => {
     if (psElem && !psElem._hasKeydown) {
         psElem._hasKeydown = true;
         psElem.addEventListener('keydown', function (e) {
-        const resultsDiv = document.getElementById('searchResults');
-        if (!resultsDiv || resultsDiv.style.display === 'none') return;
-        const items = resultsDiv.querySelectorAll('.pos-search-row, .search-item, .result-item');
-        if (items.length === 0) return;
+            const resultsDiv = document.getElementById('searchResults');
+            const isResultsOpen = resultsDiv && resultsDiv.style.display !== 'none';
+            const items = isResultsOpen ? resultsDiv.querySelectorAll('.pos-search-row, .search-item, .result-item') : [];
 
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            searchSelectedIndex = (searchSelectedIndex + 1) % items.length;
-            updateSearchSelection(items);
-        } else if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            searchSelectedIndex = (searchSelectedIndex - 1 + items.length) % items.length;
-            updateSearchSelection(items);
-        } else if (e.key === 'Enter') {
-            if (searchSelectedIndex > -1 && items[searchSelectedIndex]) {
+            if (e.key === 'ArrowDown') {
+                if (items.length > 0) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    searchSelectedIndex = (searchSelectedIndex + 1) % items.length;
+                    updateSearchSelection(items);
+                }
+            } else if (e.key === 'ArrowUp') {
+                if (items.length > 0) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    searchSelectedIndex = (searchSelectedIndex - 1 + items.length) % items.length;
+                    updateSearchSelection(items);
+                }
+            } else if (e.key === 'Enter') {
+                // منع التداخل البرمجي الفوري وإيقاف أي انتشار للحدث لمنع الازدواجية
                 e.preventDefault();
                 e.stopPropagation();
-                items[searchSelectedIndex].click();
+                if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+
+                if (isResultsOpen && searchSelectedIndex > -1 && items[searchSelectedIndex]) {
+                    items[searchSelectedIndex].click();
+                } else {
+                    handleSearchEnter(this.value, e);
+                }
+            } else if (e.key === 'Escape') {
+                if (resultsDiv && resultsDiv.style.display !== 'none') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    resultsDiv.style.display = 'none';
+                }
             }
-        } else if (e.key === 'Escape') {
-            resultsDiv.style.display = 'none';
-        }
-    });
+        });
     }
 };
 
@@ -548,6 +570,12 @@ function fillSalesHeaderWithUnit(product, unit) {
 }
 
 async function handleSearchEnter(query, event, forceAdd = false) {
+    if (event) {
+        if (typeof event.preventDefault === 'function') event.preventDefault();
+        if (typeof event.stopPropagation === 'function') event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+    }
+
     // إذا كان مسح باركود تم بواسطة السكانر المركزي للتو، نتجاهل ضغطة Enter الزائدة
     if (typeof window.isBayanRecentScan === 'function' && window.isBayanRecentScan()) {
         const sInp = document.getElementById('productSearch');
@@ -558,212 +586,218 @@ async function handleSearchEnter(query, event, forceAdd = false) {
     }
 
     const cleanQuery = String(query || '').trim();
+    if (!cleanQuery) return;
 
-    if (!forceAdd && typeof currentHeaderProductId !== 'undefined' && currentHeaderProductId) {
-        const selectedProd = productsDB.find(p => p.id === currentHeaderProductId);
-        if (selectedProd && String(selectedProd.name).trim() === cleanQuery) {
-            forceAdd = true;
-        }
-    }
-
-    if (forceAdd && typeof currentHeaderProductId !== 'undefined' && currentHeaderProductId) {
-        const pendingVariant = window._pendingSalesVariant || null;
-        addToCart(currentHeaderProductId, typeof currentHeaderUnit !== 'undefined' ? currentHeaderUnit : null, pendingVariant);
-        window._pendingSalesVariant = null;
+    // 🛡️ حماية فورية من الازدواجية: منع تكرار نفس الباركود في نافذة زمنية تقل عن 250ms
+    const now = Date.now();
+    if (!forceAdd && window._lastSearchEnterBarcode === cleanQuery && (now - (window._lastSearchEnterTime || 0) < 250)) {
         return;
     }
+    window._lastSearchEnterBarcode = cleanQuery;
+    window._lastSearchEnterTime = now;
 
-    if (!query || query.trim() === "") return;
-
-    // فحص الباركود الدقيق التلقائي فوراً
-    if (typeof window.dispatchSearchBarcode === 'function') {
-        if (window.dispatchSearchBarcode(cleanQuery, 'sales')) return;
+    if (window._isHandlingSearchEnter && !forceAdd) {
+        return;
     }
+    window._isHandlingSearchEnter = true;
 
+    // 🛑 إيقاف أي بحث حي (Live Search) معلق فوراً لتفادي تداخل القوائم
+    window._lastAddedByEnterTime = now;
     const resultsDiv = document.getElementById('searchResults');
+    if (resultsDiv) resultsDiv.style.display = 'none';
 
-    // ⚡ فحص فوري فائق السرعة O(1) عبر الفهرس المباشر للباركود والكود وتشكيلات المقاسات (0ms)
-    let matchingVariant = null;
-    let pInDB = null;
-
-    const barcodeMap = (typeof window.getBarcodeToProductMap === 'function') ? window.getBarcodeToProductMap() : null;
-    const codeMap = (typeof window.getCodeToProductMap === 'function') ? window.getCodeToProductMap() : null;
-    const cleanLower = cleanQuery.toLowerCase();
-    const normClean = (typeof window.normalizeSearchQuery === 'function') ? window.normalizeSearchQuery(cleanQuery) : cleanLower;
-
-    if (barcodeMap) {
-        const directProd = barcodeMap.get(cleanLower) || (normClean ? barcodeMap.get(normClean) : null);
-        if (directProd && !directProd.isDeleted) {
-            pInDB = directProd;
-            if (pInDB.variants && Array.isArray(pInDB.variants)) {
-                matchingVariant = pInDB.variants.find(v => v.barcode && (String(v.barcode).trim().toLowerCase() === cleanLower || (normClean && String(v.barcode).trim() === normClean))) || null;
+    try {
+        if (!forceAdd && typeof currentHeaderProductId !== 'undefined' && currentHeaderProductId) {
+            const selectedProd = (typeof productsDB !== 'undefined' && Array.isArray(productsDB))
+                ? productsDB.find(p => p.id === currentHeaderProductId)
+                : null;
+            if (selectedProd && String(selectedProd.name).trim() === cleanQuery) {
+                forceAdd = true;
             }
         }
-    }
-    if (!pInDB && codeMap) {
-        const directProd = codeMap.get(cleanLower) || (normClean ? codeMap.get(normClean) : null);
-        if (directProd && !directProd.isDeleted) {
-            pInDB = directProd;
-            if (pInDB.variants && Array.isArray(pInDB.variants)) {
-                matchingVariant = pInDB.variants.find(v => v.code && (String(v.code).trim().toLowerCase() === cleanLower || (normClean && String(v.code).trim() === normClean))) || null;
+
+        if (forceAdd && typeof currentHeaderProductId !== 'undefined' && currentHeaderProductId) {
+            const pendingVariant = window._pendingSalesVariant || null;
+            addToCart(currentHeaderProductId, typeof currentHeaderUnit !== 'undefined' ? currentHeaderUnit : null, pendingVariant);
+            window._pendingSalesVariant = null;
+            return;
+        }
+
+        // فحص الباركود الدقيق التلقائي فوراً
+        if (typeof window.dispatchSearchBarcode === 'function') {
+            if (window.dispatchSearchBarcode(cleanQuery, 'sales')) return;
+        }
+
+        // ⚡ فحص فوري فائق السرعة O(1) عبر الفهرس المباشر للباركود والكود وتشكيلات المقاسات (0ms)
+        let matchingVariant = null;
+        let pInDB = null;
+
+        const barcodeMap = (typeof window.getBarcodeToProductMap === 'function') ? window.getBarcodeToProductMap() : null;
+        const codeMap = (typeof window.getCodeToProductMap === 'function') ? window.getCodeToProductMap() : null;
+        const cleanLower = cleanQuery.toLowerCase();
+        const normClean = (typeof window.normalizeSearchQuery === 'function') ? window.normalizeSearchQuery(cleanQuery) : cleanLower;
+
+        if (barcodeMap) {
+            const directProd = barcodeMap.get(cleanLower) || (normClean ? barcodeMap.get(normClean) : null);
+            if (directProd && !directProd.isDeleted) {
+                pInDB = directProd;
+                if (pInDB.variants && Array.isArray(pInDB.variants)) {
+                    matchingVariant = pInDB.variants.find(v => v.barcode && (String(v.barcode).trim().toLowerCase() === cleanLower || (normClean && String(v.barcode).trim() === normClean))) || null;
+                }
             }
         }
-    }
-
-    // 1. بحث احتياطي في باركود تشكيلات المقاسات والألوان (في حال لم يكن في الفهرس)
-    if (!pInDB && typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
-        pInDB = productsDB.find(p => {
-            if (p.variants && Array.isArray(p.variants)) {
-                const vFound = p.variants.find(v => v.barcode && String(v.barcode).trim() === cleanQuery);
-                if (vFound) {
-                    matchingVariant = vFound;
-                    return true;
+        if (!pInDB && codeMap) {
+            const directProd = codeMap.get(cleanLower) || (normClean ? codeMap.get(normClean) : null);
+            if (directProd && !directProd.isDeleted) {
+                pInDB = directProd;
+                if (pInDB.variants && Array.isArray(pInDB.variants)) {
+                    matchingVariant = pInDB.variants.find(v => v.code && (String(v.code).trim().toLowerCase() === cleanLower || (normClean && String(v.code).trim() === normClean))) || null;
                 }
             }
-            return false;
-        });
-    }
+        }
 
-    // إذا لم نجد في الذاكرة، نبحث فوراً في SQLite عبر الفهرس السريع حتى لو كانت الذاكرة تحمل الأصناف تدريجياً
-    if (!pInDB && typeof db !== 'undefined' && db.products) {
-        try {
-            let foundP = await db.products.where('barcode').equals(cleanQuery).first();
-            if (!foundP) {
-                foundP = await db.products.where('code').equals(cleanQuery).first();
-            }
-            if (foundP) {
-                pInDB = foundP;
-                if (foundP.variants && Array.isArray(foundP.variants)) {
-                    matchingVariant = foundP.variants.find(v => v.barcode && String(v.barcode).trim() === cleanQuery) || null;
-                }
-            } else if (window.BayanSQLite && window.BayanSQLite.db) {
-                // البحث في الفهرس السريع المباشر (B-Tree) بالباركود و ID وكود الصنف
-                const stmt = window.BayanSQLite.db.prepare("SELECT * FROM products WHERE barcode = ? OR CAST(id AS TEXT) = ? OR json_extract(raw_json, '$.code') = ? LIMIT 1");
-                stmt.bind([cleanQuery, cleanQuery, cleanQuery]);
-                if (stmt.step()) {
-                    const rawObj = stmt.getAsObject();
-                    const parsed = (window.BayanSQLite && typeof window.BayanSQLite._reconstructRow === 'function')
-                        ? window.BayanSQLite._reconstructRow(rawObj)
-                        : rawObj;
-                    if (parsed) {
-                        pInDB = parsed;
-                        if (parsed.variants && Array.isArray(parsed.variants)) {
-                            matchingVariant = parsed.variants.find(v => v.barcode && String(v.barcode).trim() === cleanQuery) || null;
-                        }
+        // 1. بحث احتياطي في باركود تشكيلات المقاسات والألوان (في حال لم يكن في الفهرس)
+        if (!pInDB && typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
+            pInDB = productsDB.find(p => {
+                if (p.variants && Array.isArray(p.variants)) {
+                    const vFound = p.variants.find(v => v.barcode && String(v.barcode).trim() === cleanQuery);
+                    if (vFound) {
+                        matchingVariant = vFound;
+                        return true;
                     }
                 }
-                stmt.free();
-            }
-            if (pInDB && typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
-                const exIdx = productsDB.findIndex(x => x.id === pInDB.id);
-                if (exIdx !== -1) productsDB[exIdx] = pInDB;
-                else productsDB.push(pInDB);
-            }
-        } catch (err) {
-            console.warn("DB variant search error:", err);
+                return false;
+            });
         }
-    }
 
-    if (pInDB && matchingVariant) {
-        // إذا كان مسح باركود مقاس محدد، نضيفه للسلة فوراً بتفاصيله
-        const addRes = addToCart(pInDB.id, null, matchingVariant);
-        if (resultsDiv) resultsDiv.style.display = 'none';
-        const searchInput = document.getElementById('productSearch');
-        if (searchInput && addRes !== false) searchInput.value = '';
-        return;
-    }
-
-    // 2. البحث المطابق الدقيق بالاسم التام أو الباركود الأساسي أو الكود
-    if (!pInDB) {
-        const normClean = (typeof window.normalizeSearchQuery === 'function')
-            ? window.normalizeSearchQuery(cleanQuery)
-            : cleanQuery.trim().toLowerCase();
-
-        // فحص تطابق الاسم التام أولاً (مثل صنف اسمه "14")
-        pInDB = productsDB.find(p => {
-            const pNorm = (typeof window.normalizeSearchQuery === 'function')
-                ? window.normalizeSearchQuery(p.name)
-                : String(p.name || '').trim().toLowerCase();
-            return pNorm === normClean;
-        });
-    }
-
-    if (!pInDB) {
-        pInDB = productsDB.find(p => String(p.barcode || '').trim() === cleanQuery || String(p.code || '').trim() === cleanQuery);
-    }
-
-    // 3. بحث عميق في باركود الوحدات
-    if (!pInDB) {
-        pInDB = productsDB.find(p => p.units && p.units.some(u => String(u.unitBarcode || '').trim() === cleanQuery));
-    }
-
-    // 4. إذا لم نجد تطابقاً كاملاً، نبحث بمحرك البحث المرتب
-    if (!pInDB) {
-        const matches = (typeof window.searchProductsRanked === 'function')
-            ? window.searchProductsRanked(cleanQuery, { limit: 10 })
-            : productsDB.filter(p => (p.name && p.name.toLowerCase().includes(cleanQuery.toLowerCase())));
-        
-        if (matches.length === 1) {
-            pInDB = matches[0];
-        } else if (matches.length > 1) {
-            // يوجد أكثر من منتج يحمل نفس الكلمة (مثلاً "جزمه")، نترك المستخدم يختار من القائمة المنسدلة
-            return;
+        // إذا لم نجد في الذاكرة، نبحث فوراً في SQLite عبر الفهرس السريع حتى لو كانت الذاكرة تحمل الأصناف تدريجياً
+        if (!pInDB && typeof db !== 'undefined' && db.products) {
+            try {
+                let foundP = await db.products.where('barcode').equals(cleanQuery).first();
+                if (!foundP) {
+                    foundP = await db.products.where('code').equals(cleanQuery).first();
+                }
+                if (foundP) {
+                    pInDB = foundP;
+                    if (foundP.variants && Array.isArray(foundP.variants)) {
+                        matchingVariant = foundP.variants.find(v => v.barcode && String(v.barcode).trim() === cleanQuery) || null;
+                    }
+                } else if (window.BayanSQLite && window.BayanSQLite.db) {
+                    // البحث في الفهرس السريع المباشر (B-Tree) بالباركود و ID وكود الصنف
+                    const stmt = window.BayanSQLite.db.prepare("SELECT * FROM products WHERE barcode = ? OR CAST(id AS TEXT) = ? OR json_extract(raw_json, '$.code') = ? LIMIT 1");
+                    stmt.bind([cleanQuery, cleanQuery, cleanQuery]);
+                    if (stmt.step()) {
+                        const rawObj = stmt.getAsObject();
+                        const parsed = (window.BayanSQLite && typeof window.BayanSQLite._reconstructRow === 'function')
+                            ? window.BayanSQLite._reconstructRow(rawObj)
+                            : rawObj;
+                        if (parsed) {
+                            pInDB = parsed;
+                            if (parsed.variants && Array.isArray(parsed.variants)) {
+                                matchingVariant = parsed.variants.find(v => v.barcode && String(v.barcode).trim() === cleanQuery) || null;
+                            }
+                        }
+                    }
+                    stmt.free();
+                }
+                if (pInDB && typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
+                    const exIdx = productsDB.findIndex(x => x.id === pInDB.id);
+                    if (exIdx !== -1) productsDB[exIdx] = pInDB;
+                    else productsDB.push(pInDB);
+                }
+            } catch (err) {
+                console.warn("DB variant search error:", err);
+            }
         }
-    }
 
-    if (pInDB) {
-        // إذا كان للموديل مقاسات وألوان ونظام المقاسات مفعل، نفتح نافذة الاختيار السريع
-        const isVariantsActive = !document.body.classList.contains('bayan-variants-disabled') && (document.body.classList.contains('bayan-variants-enabled') || (pInDB.variants && pInDB.variants.length > 0));
-        if (isVariantsActive && pInDB.variants && Array.isArray(pInDB.variants) && pInDB.variants.length > 0) {
-            showVariantSelectionModal(pInDB, 'sales');
+        if (pInDB && matchingVariant) {
+            // إذا كان مسح باركود مقاس محدد، نضيفه للسلة فوراً بتفاصيله
+            const addRes = addToCart(pInDB.id, null, matchingVariant);
             if (resultsDiv) resultsDiv.style.display = 'none';
             const searchInput = document.getElementById('productSearch');
-            if (searchInput) searchInput.value = '';
+            if (searchInput && addRes !== false) searchInput.value = '';
             return;
         }
 
-        // إذا كان مسح باركود مباشر لمنتج قياسي، ينزل في السلة فوراً ويفضي الخانة لضرب الصنف التالي
-        const isExactBarcode = (pInDB.barcode && String(pInDB.barcode).trim() === cleanQuery);
-        if (isExactBarcode && (!pInDB.units || pInDB.units.length <= 1)) {
-            addToCart(pInDB.id);
-            if (resultsDiv) resultsDiv.style.display = 'none';
-            const searchInput = document.getElementById('productSearch');
-            if (searchInput) searchInput.value = '';
-            return;
+        // 2. البحث المطابق الدقيق بالاسم التام أو الباركود الأساسي أو الكود
+        if (!pInDB && typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
+            const normCleanName = (typeof window.normalizeSearchQuery === 'function')
+                ? window.normalizeSearchQuery(cleanQuery)
+                : cleanQuery.trim().toLowerCase();
+
+            // فحص تطابق الاسم التام أولاً (مثل صنف اسمه "14")
+            pInDB = productsDB.find(p => {
+                const pNorm = (typeof window.normalizeSearchQuery === 'function')
+                    ? window.normalizeSearchQuery(p.name)
+                    : String(p.name || '').trim().toLowerCase();
+                return pNorm === normCleanName;
+            });
         }
 
-        // إذا تم البحث اليدوي بالاسم أو الكود، نعبي الخانات أولاً ونركز على الكمية
-        selectProductToHeader(pInDB.id);
-    } else {
+        if (!pInDB && typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
+            pInDB = productsDB.find(p => String(p.barcode || '').trim() === cleanQuery || String(p.code || '').trim() === cleanQuery);
+        }
 
-        // الصنف غريب (غير موجود)
+        // 3. بحث عميق في باركود الوحدات
+        if (!pInDB && typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
+            pInDB = productsDB.find(p => p.units && p.units.some(u => String(u.unitBarcode || '').trim() === cleanQuery));
+        }
 
-        showCustomAlert({
+        // 4. إذا لم نجد تطابقاً كاملاً، نبحث بمحرك البحث المرتب
+        if (!pInDB && typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
+            const matches = (typeof window.searchProductsRanked === 'function')
+                ? window.searchProductsRanked(cleanQuery, { limit: 10 })
+                : productsDB.filter(p => (p.name && p.name.toLowerCase().includes(cleanQuery.toLowerCase())));
+            
+            if (matches.length === 1) {
+                pInDB = matches[0];
+            } else if (matches.length > 1) {
+                // يوجد أكثر من منتج يحمل نفس الكلمة (مثلاً "جزمه")، نترك المستخدم يختار من القائمة المنسدلة
+                return;
+            }
+        }
 
-            titleText: '⚠️ صنف غير مسمى',
-
-            msg: `الباركود أو الاسم (${query}) غير مسجل في قاعدة البيانات، هل تريد إضافته الآن؟`,
-
-            type: 'question',
-
-            showCancel: true,
-
-            confirmText: 'نعم، إضافة صنف',
-
-            cancelText: 'إلغاء',
-
-            onConfirm: () => {
-
-                document.getElementById('productSearch').value = '';
-
-                quickAddProduct(query, 'sales');
-
+        if (pInDB) {
+            // إذا كان للموديل مقاسات وألوان ونظام المقاسات مفعل، نفتح نافذة الاختيار السريع
+            const isVariantsActive = !document.body.classList.contains('bayan-variants-disabled') && (document.body.classList.contains('bayan-variants-enabled') || (pInDB.variants && pInDB.variants.length > 0));
+            if (isVariantsActive && pInDB.variants && Array.isArray(pInDB.variants) && pInDB.variants.length > 0) {
+                showVariantSelectionModal(pInDB, 'sales');
+                if (resultsDiv) resultsDiv.style.display = 'none';
+                const searchInput = document.getElementById('productSearch');
+                if (searchInput) searchInput.value = '';
+                return;
             }
 
-        });
+            // إذا كان مسح باركود مباشر لمنتج قياسي، ينزل في السلة فوراً ويفضي الخانة لضرب الصنف التالي
+            const isExactBarcode = (pInDB.barcode && String(pInDB.barcode).trim() === cleanQuery);
+            if (isExactBarcode && (!pInDB.units || pInDB.units.length <= 1)) {
+                addToCart(pInDB.id);
+                if (resultsDiv) resultsDiv.style.display = 'none';
+                const searchInput = document.getElementById('productSearch');
+                if (searchInput) searchInput.value = '';
+                return;
+            }
 
+            // إذا تم البحث اليدوي بالاسم أو الكود، نعبي الخانات أولاً ونركز على الكمية
+            selectProductToHeader(pInDB.id);
+        } else {
+            // الصنف غريب (غير موجود)
+            showCustomAlert({
+                titleText: '⚠️ صنف غير مسمى',
+                msg: `الباركود أو الاسم (${query}) غير مسجل في قاعدة البيانات، هل تريد إضافته الآن؟`,
+                type: 'question',
+                showCancel: true,
+                confirmText: 'نعم، إضافة صنف',
+                cancelText: 'إلغاء',
+                onConfirm: () => {
+                    document.getElementById('productSearch').value = '';
+                    quickAddProduct(query, 'sales');
+                }
+            });
+        }
+    } finally {
+        window._isHandlingSearchEnter = false;
     }
-
 }
 
 let pendingAddToCartProduct = null;
@@ -2527,7 +2561,16 @@ function calculateTotals(subTotalParam) {
 
 }
 
-async function saveBill(force = false, accountChecked = false) {
+async function saveBill(force = false, accountChecked = false, event = null) {
+    if (force && typeof force === 'object' && force.preventDefault) {
+        event = force;
+        force = false;
+    }
+    if (event) {
+        if (typeof event.preventDefault === 'function') event.preventDefault();
+        if (typeof event.stopPropagation === 'function') event.stopPropagation();
+        if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+    }
 
     if (!checkPermission('docs_add')) return false;
 
