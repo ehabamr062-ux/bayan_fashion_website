@@ -1105,6 +1105,8 @@
                 CREATE TABLE IF NOT EXISTS wallpapers (id INTEGER PRIMARY KEY, name TEXT, raw_json TEXT);
                 CREATE TABLE IF NOT EXISTS backups (id INTEGER PRIMARY KEY, timestamp TEXT, raw_json TEXT);
                 CREATE TABLE IF NOT EXISTS syncQueue (id INTEGER PRIMARY KEY, timestamp TEXT, action TEXT, type TEXT, status TEXT, raw_json TEXT);
+                CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON syncQueue(status);
+                CREATE INDEX IF NOT EXISTS idx_sync_queue_time ON syncQueue(timestamp);
                 CREATE INDEX IF NOT EXISTS idx_trash_type ON trash(type);
             `);
 
@@ -1845,6 +1847,18 @@
                     const stmt = this.db.prepare(`INSERT OR REPLACE INTO auditLogs (id, timestamp, action, raw_json) VALUES (?, ?, ?, ?);`);
                     stmt.run(this._safeBind([item.id, item.timestamp || item.time || '', item.action || '', rawJson]));
                     stmt.free();
+                } else if (tableName === 'syncQueue') {
+                    const rawJson = this._extractExtraFields(item, ['id', 'timestamp', 'action', 'type', 'status']);
+                    const stmt = this.db.prepare(`INSERT OR REPLACE INTO syncQueue (id, timestamp, action, type, status, raw_json) VALUES (?, ?, ?, ?, ?, ?);`);
+                    stmt.run(this._safeBind([
+                        item.id || null,
+                        item.timestamp || item.time || new Date().toISOString(),
+                        item.action || 'upsert',
+                        item.type || 'transaction',
+                        item.status || 'pending',
+                        rawJson
+                    ]));
+                    stmt.free();
                 } else {
                     const rawJson = JSON.stringify(item);
                     const stmt = this.db.prepare(`INSERT OR REPLACE INTO "${safeTable}" (id, raw_json) VALUES (?, ?);`);
@@ -2092,6 +2106,20 @@
                                 if (!item) continue;
                                 const rawJson = JSON.stringify(item);
                                 mainStmt.run(this._safeBind([item.id, item.timestamp || item.time || '', item.action || '', rawJson]));
+                            }
+                        } else if (tableName === 'syncQueue') {
+                            mainStmt = this.db.prepare(`INSERT OR REPLACE INTO syncQueue (id, timestamp, action, type, status, raw_json) VALUES (?, ?, ?, ?, ?, ?);`);
+                            for (const item of items) {
+                                if (!item) continue;
+                                const rawJson = this._extractExtraFields(item, ['id', 'timestamp', 'action', 'type', 'status']);
+                                mainStmt.run(this._safeBind([
+                                    item.id || null,
+                                    item.timestamp || item.time || new Date().toISOString(),
+                                    item.action || 'upsert',
+                                    item.type || 'transaction',
+                                    item.status || 'pending',
+                                    rawJson
+                                ]));
                             }
                         } else if (tableName === 'settings') {
                             mainStmt = this.db.prepare(`INSERT OR REPLACE INTO settings (id, value) VALUES (?, ?);`);
