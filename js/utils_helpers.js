@@ -751,7 +751,7 @@
                                 const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
                                 const stockVal = (typeof getLiveProductWhStock === 'function')
                                     ? getLiveProductWhStock(p, activeWH)
-                                    : (typeof getWarehouseStock === 'function' ? getWarehouseStock(p.name || p, activeWH) : (parseFloat(p.stock) || 0));
+                                    : (typeof getWarehouseStock === 'function' ? getWarehouseStock(p, activeWH) : (parseFloat(p.stock) || 0));
                                 const safeName = (typeof escapeHtml === 'function') ? escapeHtml(p.name) : p.name;
                                 const safeCode = (typeof escapeHtml === 'function') ? escapeHtml(p.code || p.id) : (p.code || p.id);
                                 const safeBarcode = (typeof escapeHtml === 'function') ? escapeHtml(p.barcode || '---') : (p.barcode || '---');

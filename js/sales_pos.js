@@ -381,9 +381,9 @@ async function handleSearch(query) {
                             : rawP;
                         const priceVal = parseFloat(p.price) || 0;
                         const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
-                        const stockVal = typeof getWarehouseStock === 'function'
-                            ? getWarehouseStock(p.name, activeWH)
-                            : ((typeof getLiveProductWhStock === 'function') ? getLiveProductWhStock(p, activeWH) : (parseFloat(p.stock) || 0));
+                        const stockVal = (typeof getLiveProductWhStock === 'function')
+                            ? getLiveProductWhStock(p, activeWH)
+                            : (typeof getWarehouseStock === 'function' ? getWarehouseStock(p, activeWH) : (parseFloat(p.stock) || 0));
                         const safeName = (window.escapeHtml ? window.escapeHtml(p.name) : p.name);
                         const safeCode = (window.escapeHtml ? window.escapeHtml(p.code || p.id) : (p.code || p.id));
                         const safeBarcode = (window.escapeHtml ? window.escapeHtml(p.barcode || '---') : (p.barcode || '---'));

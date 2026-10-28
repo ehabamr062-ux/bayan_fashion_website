@@ -922,7 +922,7 @@ async function renderHistoryTable(filterName = null) {
         }
 
         rowsHtml += `
-            <tr data-orig-index="${t.originalIndex}" class="${isSelected ? 'selected-row' : ''}" onclick="selectHistoryRow(${t.originalIndex})">
+            <tr data-orig-index="${t.originalIndex}" data-invoice-id="${esc(t.invoiceId || '')}" data-invoice-type="${esc(t.type || '')}" class="${isSelected ? 'selected-row' : ''}" onclick="selectHistoryRow(${t.originalIndex})">
                 <td class="col-hist-0"><input type="radio" name="histRad" ${isSelected ? 'checked' : ''}></td>
                 <td class="col-hist-1"><span style="background:#eee; padding:2px 6px; border-radius:4px; font-weight:bold;">${esc(t.invoiceId || '-')}</span></td>
                 <td class="col-hist-2">${esc(t.date || '-')}</td>

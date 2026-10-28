@@ -1877,7 +1877,9 @@ async function handleReturnSearch(query, type) {
     results.slice(0, 40).forEach((p, index) => {
 
         const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
-        const stockVal = typeof getWarehouseStock === 'function' ? getWarehouseStock(p.name, activeWH) : 0;
+        const stockVal = (typeof getLiveProductWhStock === 'function')
+            ? getLiveProductWhStock(p, activeWH)
+            : (typeof getWarehouseStock === 'function' ? getWarehouseStock(p, activeWH) : (parseFloat(p.stock) || 0));
 
         let stockText = `<span style="font-size: 0.75rem; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">المخزون (${activeWH}): ${stockVal}</span>`;
 

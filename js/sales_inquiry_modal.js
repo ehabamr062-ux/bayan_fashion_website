@@ -837,6 +837,7 @@
                         });
 
                         if (vMatch) {
+                            const vIdx = (p.variants && Array.isArray(p.variants)) ? p.variants.indexOf(vMatch) : (variants ? variants.indexOf(vMatch) : -1);
                             const sQty = window.FashionStockEngine
                                 ? window.FashionStockEngine.getVariantStock(vMatch, targetWh)
                                 : ((vMatch.warehouseStocks && vMatch.warehouseStocks[targetWh] !== undefined) ? (parseFloat(vMatch.warehouseStocks[targetWh]) || 0) : (parseFloat(vMatch.stock) || 0));

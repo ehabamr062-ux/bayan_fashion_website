@@ -798,8 +798,10 @@ var transferItemsBatch = window.transferItemsBatch;
 
                     const fromWh = document.getElementById('transferFrom') ? document.getElementById('transferFrom').value : (typeof getStore === 'function' ? getStore('activeWarehouse') : 'المخزن الرئيسي') || 'المخزن الرئيسي';
                     let currentWhStock = 0;
-                    if (typeof getWarehouseStock === 'function') {
-                        currentWhStock = getWarehouseStock(p.name, fromWh);
+                    if (typeof getLiveProductWhStock === 'function') {
+                        currentWhStock = getLiveProductWhStock(p, fromWh);
+                    } else if (typeof getWarehouseStock === 'function') {
+                        currentWhStock = getWarehouseStock(p, fromWh);
                     } else if (p.warehouseStocks && p.warehouseStocks[fromWh] !== undefined) {
                         currentWhStock = parseFloat(p.warehouseStocks[fromWh]) || 0;
                     } else {

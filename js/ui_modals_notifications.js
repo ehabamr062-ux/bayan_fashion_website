@@ -1461,6 +1461,8 @@
             
             let existing = document.getElementById('customViewModalOverlay');
             if (existing) existing.remove();
+            let existingVoucher = document.getElementById('financialVoucherModalOverlay');
+            if (existingVoucher) existingVoucher.remove();
             
             let modal = document.createElement('div');
             modal.id = 'customViewModalOverlay';
@@ -2429,6 +2431,8 @@
 
             let existing = document.getElementById('financialVoucherModalOverlay');
             if (existing) existing.remove();
+            let existingCustom = document.getElementById('customViewModalOverlay');
+            if (existingCustom) existingCustom.remove();
 
             const tType = String(tx.type || '').toLowerCase();
             const isReceipt = tType.includes('قبض') || tType === 'receipt';
@@ -2614,15 +2618,16 @@
         // ====================================================================
         // 🚀 دالة توجيه المستندات المركزية الموحدة (Master Document Router)
         // ====================================================================
-        window.viewAnyDocumentUnified = async function(targetId, targetType = '') {
+        window.viewAnyDocumentUnified = async function(targetId, targetType = '', optTxId = '') {
             if (typeof checkPermission === 'function' && !checkPermission('docs_view')) return;
 
             if (!targetId && targetId !== 0) {
                 targetId = window.selectedInvoiceId || selectedInvoiceIndex;
                 targetType = targetType || window.selectedInvoiceType || '';
+                optTxId = optTxId || window.selectedTxId || '';
             }
 
-            if (!targetId && targetId !== 0) {
+            if (!targetId && targetId !== 0 && !optTxId) {
                 return showCustomAlert({
                     type: 'warning',
                     titleText: '⚠️ تنبيه',
@@ -2630,16 +2635,19 @@
                 });
             }
 
-            const sId = String(targetId).trim();
+            const sId = String(targetId || '').trim();
+            const sTxId = String(optTxId || '').trim();
             let pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
 
             // ⚡ التأكد أولاً من تحميل الفاتورة/المستند بكافة بنوده من محرك SQLite إذا لم تكن موجودة أو كانت مقتصرة على سطر الرأس
-            if (typeof window.ensureInvoiceLoaded === 'function') {
-                const sampleInPool = pool.find(t => t && ((t.invoiceId != null && String(t.invoiceId) === sId) ||
+            if (typeof window.ensureInvoiceLoaded === 'function' && sId) {
+                const sampleInPool = pool.find(t => t && ((sTxId && String(t.id) === sTxId) ||
+                                                        (t.invoiceId != null && String(t.invoiceId) === sId) ||
                                                         (t.id != null && String(t.id) === sId) ||
                                                         (t.transferId != null && String(t.transferId) === sId) ||
                                                         (t.adjId != null && String(t.adjId) === sId)));
-                const hasItemsInPool = pool.some(t => t && ((t.invoiceId != null && String(t.invoiceId) === sId) ||
+                const hasItemsInPool = pool.some(t => t && ((sTxId && String(t.id) === sTxId) ||
+                                                           (t.invoiceId != null && String(t.invoiceId) === sId) ||
                                                            (t.id != null && String(t.id) === sId)) &&
                                                            (t.product || t.productName || t.name));
                 if (!sampleInPool || !hasItemsInPool) {
@@ -2652,25 +2660,31 @@
 
             // 🎯 الخطوة 0: تحديد نوع العملية أولاً بدقة فائقة
             let cleanType = String(targetType || '').trim().toLowerCase();
+            if (!cleanType && sTxId) {
+                const txFound = pool.find(t => t && String(t.id) === sTxId);
+                if (txFound && txFound.type) cleanType = String(txFound.type).trim().toLowerCase();
+            }
             if (!cleanType) {
                 // محاولة استخراج النوع مباشرة من الصف المحدد في الجدول إن وجد
                 const selectedTr = (typeof document !== 'undefined') ? (
                     document.querySelector('#invoicesTableBody tr.selected-row') ||
-                    document.querySelector(`#invoicesTableBody tr[data-invoice-id="${sId}"]`)
+                    (sTxId ? document.querySelector(`#invoicesTableBody tr[data-tx-id="${sTxId}"]`) : null) ||
+                    (sId ? document.querySelector(`#invoicesTableBody tr[data-invoice-id="${sId}"]`) : null)
                 ) : null;
                 if (selectedTr && selectedTr.getAttribute('data-invoice-type')) {
                     cleanType = selectedTr.getAttribute('data-invoice-type').trim().toLowerCase();
                 }
             }
             if (!cleanType) {
-                const foundSample = pool.find(t => t && ((t.invoiceId != null && String(t.invoiceId) === sId) ||
-                                                        (t.id != null && String(t.id) === sId) ||
-                                                        (t.transferId != null && String(t.transferId) === sId) ||
-                                                        (t.adjId != null && String(t.adjId) === sId)));
-                if (foundSample && foundSample.type) {
-                    cleanType = String(foundSample.type).trim().toLowerCase();
-                } else if (!isNaN(Number(sId)) && pool[Number(sId)] && pool[Number(sId)].type) {
-                    cleanType = String(pool[Number(sId)].type).trim().toLowerCase();
+                if (window.selectedInvoiceType) {
+                    cleanType = String(window.selectedInvoiceType).trim().toLowerCase();
+                } else {
+                    const foundSample = pool.find(t => t && (sTxId ? String(t.id) === sTxId : (sId && String(t.invoiceId) === sId)));
+                    if (foundSample && foundSample.type) {
+                        cleanType = String(foundSample.type).trim().toLowerCase();
+                    } else if (sId && !isNaN(Number(sId)) && pool[Number(sId)] && pool[Number(sId)].type) {
+                        cleanType = String(pool[Number(sId)].type).trim().toLowerCase();
+                    }
                 }
             }
 
@@ -2696,11 +2710,16 @@
                     const tType = String(t.type || '').toLowerCase();
                     if (isReceiptOnly && !tType.includes('قبض') && tType !== 'receipt') return false;
                     if (isDisburseOnly && !tType.includes('صرف') && !tType.includes('دفع') && tType !== 'payment' && tType !== 'disburse') return false;
+                    if (sTxId && String(t.id) === sTxId) return true;
                     return (t.invoiceId != null && String(t.invoiceId) === sId) ||
                            (t.id != null && String(t.id) === sId);
                 });
 
-                if (!voucherTx && !isNaN(Number(sId)) && pool[Number(sId)]) {
+                if (!voucherTx && window.BayanSQLite && typeof window.BayanSQLite.getInvoiceFullDetails === 'function') {
+                    voucherTx = window.BayanSQLite.getInvoiceFullDetails(sId, isReceiptOnly ? 'سند قبض' : 'سند صرف', sTxId);
+                }
+
+                if (!voucherTx && sId && !isNaN(Number(sId)) && pool[Number(sId)]) {
                     const fallbackTx = pool[Number(sId)];
                     const fType = String(fallbackTx.type || '').toLowerCase();
                     if (isReceiptOnly && (fType.includes('قبض') || fType === 'receipt')) {
@@ -2716,7 +2735,7 @@
                     return showCustomAlert({
                         type: 'error',
                         titleText: '❌ غير موجود',
-                        msg: `لم يتم العثور على بيانات السند المالي رقم (#${sId}).`
+                        msg: `لم يتم العثور على بيانات السند المالي رقم (#${sId || sTxId}).`
                     });
                 }
             }
@@ -2799,7 +2818,7 @@
                     else if (Array.isArray(head.products) && head.products.length > 0) extractedItems = head.products;
                     else if (Array.isArray(head.cart) && head.cart.length > 0) extractedItems = head.cart;
                     else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
-                        extractedItems = window.BayanSQLite.getInvoiceItems(sId) || [];
+                        extractedItems = window.BayanSQLite.getInvoiceItems(sId, 'تسوية مخزنية', optTxId || head.id) || [];
                     }
                     if (extractedItems.length > 0) {
                         uniqueAdjMatches = extractedItems.map(it => ({
@@ -2914,7 +2933,7 @@
                     else if (Array.isArray(head.products) && head.products.length > 0) extractedItems = head.products;
                     else if (Array.isArray(head.cart) && head.cart.length > 0) extractedItems = head.cart;
                     else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
-                        extractedItems = window.BayanSQLite.getInvoiceItems(sId) || [];
+                        extractedItems = window.BayanSQLite.getInvoiceItems(sId, 'تحويل مخزني', optTxId || head.id) || [];
                     }
                     if (extractedItems.length > 0) {
                         uniqueTrMatches = extractedItems.map(it => ({
@@ -2958,22 +2977,35 @@
             // ⛔ تبحث فقط وحصرياً في سجلات المشتريات وتبرز المورد والتكلفة
             // ====================================================================
             if (isPurchase) {
-                let purchaseMatches = pool.filter(t => {
-                    if (!t) return false;
-                    const tType = String(t.type || '').toLowerCase();
-                    const isPurch = tType.includes('شراء') || tType.includes('مشتريات') || tType.includes('purchase');
-                    if (!isPurch) return false;
-                    if (isReturn && !tType.includes('مرتجع')) return false;
-                    if (!isReturn && tType.includes('مرتجع')) return false;
-                    return (t.invoiceId != null && String(t.invoiceId) === sId) ||
-                           (t.id != null && String(t.id) === sId);
-                });
+                let purchaseMatches = [];
+                if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
+                    try {
+                        const cleanPurchType = isReturn ? 'مرتجع مشتريات' : 'فاتورة مشتريات';
+                        purchaseMatches = window.BayanSQLite.getInvoiceItems(sId, cleanPurchType) || [];
+                    } catch(e) {}
+                }
 
-                if (purchaseMatches.length === 0 && typeof window.ensureInvoiceLoaded === 'function') {
+                if (purchaseMatches.length <= 1) {
+                    const memPurch = pool.filter(t => {
+                        if (!t) return false;
+                        const tType = String(t.type || '').toLowerCase();
+                        const isPurch = tType.includes('شراء') || tType.includes('مشتريات') || tType.includes('purchase');
+                        if (!isPurch) return false;
+                        if (isReturn && !tType.includes('مرتجع')) return false;
+                        if (!isReturn && tType.includes('مرتجع')) return false;
+                        return (t.invoiceId != null && String(t.invoiceId) === sId) ||
+                               (t.id != null && String(t.id) === sId);
+                    });
+                    if (memPurch.length > purchaseMatches.length) {
+                        purchaseMatches = memPurch;
+                    }
+                }
+
+                if (purchaseMatches.length <= 1 && typeof window.ensureInvoiceLoaded === 'function' && sId) {
                     try {
                         await window.ensureInvoiceLoaded(sId);
                         const updatedPool = window.transactions || [];
-                        purchaseMatches = updatedPool.filter(t => {
+                        const memPurch = updatedPool.filter(t => {
                             if (!t) return false;
                             const tType = String(t.type || '').toLowerCase();
                             const isPurch = tType.includes('شراء') || tType.includes('مشتريات') || tType.includes('purchase');
@@ -2983,6 +3015,9 @@
                             return (t.invoiceId != null && String(t.invoiceId) === sId) ||
                                    (t.id != null && String(t.id) === sId);
                         });
+                        if (memPurch.length > purchaseMatches.length) {
+                            purchaseMatches = memPurch;
+                        }
                     } catch(e) {}
                 }
 
@@ -2990,18 +3025,26 @@
                     return showCustomAlert({
                         type: 'error',
                         titleText: '❌ غير موجود',
-                        msg: `لم يتم العثور على فاتورة مشتريات بالرقم (#${sId}).`
+                        msg: `لم يتم العثور على فاتورة مشتريات بالرقم (#${sId || sTxId}).`
                     });
                 }
 
-                const headFromPool = pool.find(t => t && ((t.invoiceId != null && String(t.invoiceId) === sId) || (t.id != null && String(t.id) === sId)) && t.isInvoiceHead) ||
-                                     pool.find(t => t && ((t.invoiceId != null && String(t.invoiceId) === sId) || (t.id != null && String(t.id) === sId)));
+                const isMatchPurch = t => {
+                    if (!t) return false;
+                    const tType = String(t.type || '').toLowerCase();
+                    const isPurch = tType.includes('شراء') || tType.includes('مشتريات') || tType.includes('purchase');
+                    if (!isPurch) return false;
+                    if (isReturn && !tType.includes('مرتجع')) return false;
+                    if (!isReturn && tType.includes('مرتجع')) return false;
+                    return (t.invoiceId != null && String(t.invoiceId) === sId) || (t.id != null && String(t.id) === sId);
+                };
+                const headFromPool = pool.find(t => isMatchPurch(t) && t.isInvoiceHead) || pool.find(t => isMatchPurch(t));
                 const head = headFromPool || purchaseMatches.find(t => t.isInvoiceHead) || purchaseMatches[0];
                 let tx = { ...head };
                 let resolvedInvId = head.invoiceId || sId;
                 if (String(resolvedInvId).includes('_item_')) resolvedInvId = String(resolvedInvId).split('_item_')[0];
                 tx.invoiceId = resolvedInvId;
-                tx.id = head.id || tx.invoiceId;
+                tx.id = head.id || sTxId || tx.invoiceId;
                 tx.type = isReturn ? 'مرتجع مشتريات' : 'فاتورة مشتريات';
                 tx.warehouse = head.warehouse || 'المخزن الرئيسي';
                 tx.partner = head.partner || head.customer || head.supplier || 'مورد نقدي';
@@ -3028,11 +3071,13 @@
 
                 // إذا كانت البنود المستخرجة بنداً واحداً أو أقل بينما رأس الفاتورة أو SQLite يحتوي على قائمة أصناف أكبر وأشمل:
                 let extracted = [];
-                if (Array.isArray(head.items) && head.items.length > uniquePurMatches.length) extracted = head.items;
-                else if (Array.isArray(head.products) && head.products.length > uniquePurMatches.length) extracted = head.products;
-                else if (Array.isArray(head.cart) && head.cart.length > uniquePurMatches.length) extracted = head.cart;
+                const isHeadActualPurch = head && head.type && (isReturn ? String(head.type).includes('مرتجع') : ((String(head.type).includes('شراء') || String(head.type).includes('مشتريات')) && !String(head.type).includes('مرتجع')));
+                if (isHeadActualPurch && Array.isArray(head.items) && head.items.length > uniquePurMatches.length) extracted = head.items;
+                else if (isHeadActualPurch && Array.isArray(head.products) && head.products.length > uniquePurMatches.length) extracted = head.products;
+                else if (isHeadActualPurch && Array.isArray(head.cart) && head.cart.length > uniquePurMatches.length) extracted = head.cart;
                 else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
-                    const sqItems = window.BayanSQLite.getInvoiceItems(sId) || [];
+                    const lookupInvId = resolvedInvId || head.invoiceId || sId;
+                    const sqItems = window.BayanSQLite.getInvoiceItems(lookupInvId, isReturn ? 'مرتجع مشتريات' : 'فاتورة مشتريات') || [];
                     if (sqItems.length > uniquePurMatches.length) extracted = sqItems;
                 }
                 if (extracted.length > 0) {
@@ -3083,7 +3128,8 @@
             // البحث في SQLite فقط إذا كانت العملية مبيعات صريحة
             if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
                 try {
-                    const rawSql = window.BayanSQLite.getInvoiceItems(sId) || [];
+                    const cleanSalesType = isReturn ? 'مرتجع مبيعات' : 'فاتورة مبيعات';
+                    const rawSql = window.BayanSQLite.getInvoiceItems(sId, cleanSalesType) || [];
                     saleMatches = rawSql.filter(t => {
                         if (!t) return false;
                         const tType = String(t.type || '').toLowerCase();
@@ -3097,8 +3143,8 @@
             }
 
             // البحث في الذاكرة transactions مع التحقق من نوع المبيعات
-            if (saleMatches.length === 0) {
-                saleMatches = pool.filter(t => {
+            if (saleMatches.length <= 1) {
+                const memMatches = pool.filter(t => {
                     if (!t) return false;
                     const tType = String(t.type || '').toLowerCase();
                     const isSaleType = (tType.includes('بيع') || tType.includes('مبيعات') || tType.includes('sale'));
@@ -3108,13 +3154,16 @@
                     return (t.invoiceId != null && String(t.invoiceId) === sId) ||
                            (t.id != null && String(t.id) === sId);
                 });
+                if (memMatches.length > saleMatches.length) {
+                    saleMatches = memMatches;
+                }
             }
 
-            if (saleMatches.length === 0 && typeof window.ensureInvoiceLoaded === 'function') {
+            if (saleMatches.length <= 1 && typeof window.ensureInvoiceLoaded === 'function' && sId) {
                 try {
                     await window.ensureInvoiceLoaded(sId);
                     const updatedPool = window.transactions || [];
-                    saleMatches = updatedPool.filter(t => {
+                    const memMatches = updatedPool.filter(t => {
                         if (!t) return false;
                         const tType = String(t.type || '').toLowerCase();
                         const isSaleType = (tType.includes('بيع') || tType.includes('مبيعات') || tType.includes('sale'));
@@ -3124,6 +3173,9 @@
                         return (t.invoiceId != null && String(t.invoiceId) === sId) ||
                                (t.id != null && String(t.id) === sId);
                     });
+                    if (memMatches.length > saleMatches.length) {
+                        saleMatches = memMatches;
+                    }
                 } catch(e) {}
             }
 
@@ -3136,14 +3188,25 @@
             }
 
             // 🔍 جلب رأس الفاتورة من سجل المعاملات لاستعادة الملاحظات والوقت الحقيقيين
-            const headFromPool = pool.find(t => t && ((t.invoiceId != null && String(t.invoiceId) === sId) || (t.id != null && String(t.id) === sId)) && t.isInvoiceHead) ||
-                                 pool.find(t => t && ((t.invoiceId != null && String(t.invoiceId) === sId) || (t.id != null && String(t.id) === sId)));
+            const isMatchSale = (t) => {
+                if (!t) return false;
+                const tType = String(t.type || '').toLowerCase();
+                const isSaleType = (tType.includes('بيع') || tType.includes('مبيعات') || tType.includes('sale'));
+                if (!isSaleType) return false;
+                if (isReturn && !tType.includes('مرتجع')) return false;
+                if (!isReturn && tType.includes('مرتجع')) return false;
+                return (t.invoiceId != null && String(t.invoiceId) === sId) || (t.id != null && String(t.id) === sId);
+            };
+
+            const headFromPool = (optTxId ? pool.find(t => t && String(t.id) === optTxId) : null) ||
+                                 pool.find(t => isMatchSale(t) && t.isInvoiceHead) ||
+                                 pool.find(t => isMatchSale(t));
             const head = headFromPool || saleMatches.find(t => t.isInvoiceHead) || saleMatches[0];
             let tx = { ...head };
             let resolvedInvId = head.invoiceId || sId;
             if (String(resolvedInvId).includes('_item_')) resolvedInvId = String(resolvedInvId).split('_item_')[0];
             tx.invoiceId = resolvedInvId;
-            tx.id = head.id || tx.invoiceId;
+            tx.id = head.id || optTxId || tx.invoiceId;
             tx.type = isReturn ? 'مرتجع مبيعات' : 'فاتورة مبيعات';
             tx.warehouse = head.warehouse || 'المخزن الرئيسي';
             tx.partner = head.partner || head.customer || 'عميل نقدي';
@@ -3169,12 +3232,16 @@
             });
 
             // إذا كانت البنود المستخرجة بنداً واحداً أو أقل بينما رأس الفاتورة أو SQLite يحتوي على قائمة أصناف أكبر وأشمل:
+            const headTypeStr = String(head.type || '').toLowerCase();
+            const isHeadActualSale = (headTypeStr.includes('بيع') || headTypeStr.includes('مبيعات') || headTypeStr.includes('sale'));
+
             let extracted = [];
-            if (Array.isArray(head.items) && head.items.length > uniqueSaleMatches.length) extracted = head.items;
-            else if (Array.isArray(head.products) && head.products.length > uniqueSaleMatches.length) extracted = head.products;
-            else if (Array.isArray(head.cart) && head.cart.length > uniqueSaleMatches.length) extracted = head.cart;
+            if (isHeadActualSale && Array.isArray(head.items) && head.items.length > uniqueSaleMatches.length) extracted = head.items;
+            else if (isHeadActualSale && Array.isArray(head.products) && head.products.length > uniqueSaleMatches.length) extracted = head.products;
+            else if (isHeadActualSale && Array.isArray(head.cart) && head.cart.length > uniqueSaleMatches.length) extracted = head.cart;
             else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
-                const sqItems = window.BayanSQLite.getInvoiceItems(sId) || [];
+                const lookupInvId = resolvedInvId || head.invoiceId || sId;
+                const sqItems = window.BayanSQLite.getInvoiceItems(lookupInvId, isReturn ? 'مرتجع مبيعات' : 'فاتورة مبيعات') || [];
                 if (sqItems.length > uniqueSaleMatches.length) extracted = sqItems;
             }
             if (extracted.length > 0) {
@@ -3244,13 +3311,14 @@
             }
         }
 
-        function selectInvoiceRow(idx, rowEl, invId, invType) {
+        function selectInvoiceRow(idx, rowEl, invId, invType, txId) {
             selectedInvoiceIndex = idx;
             window.selectedInvoiceIndex = idx;
 
             if (rowEl) {
                 if (!invId) invId = rowEl.getAttribute('data-invoice-id');
                 if (!invType) invType = rowEl.getAttribute('data-invoice-type');
+                if (!txId) txId = rowEl.getAttribute('data-tx-id');
             }
             if (invId) {
                 window.selectedInvoiceId = invId;
@@ -3260,12 +3328,16 @@
                 window.selectedInvoiceType = invType;
                 selectedInvoiceType = invType;
             }
+            if (txId) {
+                window.selectedTxId = txId;
+                selectedTxId = txId;
+            }
 
             const tbody = document.getElementById('invoicesTableBody');
             if (tbody) {
                 tbody.querySelectorAll('tr.selected-row').forEach(r => r.classList.remove('selected-row'));
                 tbody.querySelectorAll('input[name="invRad"]').forEach(rad => rad.checked = false);
-                const tr = rowEl || (invId ? (invType ? (tbody.querySelector(`tr[data-invoice-id="${invId}"][data-invoice-type="${invType}"]`) || tbody.querySelector(`tr[data-invoice-id="${invId}"]`)) : tbody.querySelector(`tr[data-invoice-id="${invId}"]`)) : tbody.querySelector(`tr[data-orig-index="${idx}"]`));
+                const tr = rowEl || (txId ? tbody.querySelector(`tr[data-tx-id="${txId}"]`) : null) || (invId ? (invType ? (tbody.querySelector(`tr[data-invoice-id="${invId}"][data-invoice-type="${invType}"]`) || tbody.querySelector(`tr[data-invoice-id="${invId}"]`)) : tbody.querySelector(`tr[data-invoice-id="${invId}"]`)) : tbody.querySelector(`tr[data-orig-index="${idx}"]`));
                 if (tr) {
                     tr.classList.add('selected-row');
                     const rad = tr.querySelector('input[name="invRad"]');
@@ -3278,6 +3350,10 @@
                         window.selectedInvoiceType = tr.getAttribute('data-invoice-type');
                         selectedInvoiceType = window.selectedInvoiceType;
                     }
+                    if (!window.selectedTxId && tr.getAttribute('data-tx-id')) {
+                        window.selectedTxId = tr.getAttribute('data-tx-id');
+                        selectedTxId = window.selectedTxId;
+                    }
                 }
             }
         }
@@ -3287,9 +3363,13 @@
             const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
             let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : null;
             let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : null;
+            let txId = (isInv && window.selectedTxId) ? window.selectedTxId : null;
             let t = null;
 
-            if (isInv && invId) {
+            if (isInv && txId) {
+                t = transactions.find(x => String(x.id) === String(txId));
+            }
+            if (!t && isInv && invId) {
                 t = transactions.find(x => String(x.invoiceId) === String(invId) && (!invType || (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(x.type, invType) : x.type === invType)));
                 if (!t) t = transactions.find(x => String(x.invoiceId) === String(invId));
             }
@@ -3333,9 +3413,13 @@
             const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
             let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : null;
             let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : null;
+            let txId = (isInv && window.selectedTxId) ? window.selectedTxId : null;
             let t = null;
 
-            if (isInv && invId) {
+            if (isInv && txId) {
+                t = transactions.find(x => String(x.id) === String(txId));
+            }
+            if (!t && isInv && invId) {
                 t = transactions.find(x => String(x.invoiceId) === String(invId) && (!invType || (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(x.type, invType) : x.type === invType)));
                 if (!t) t = transactions.find(x => String(x.invoiceId) === String(invId));
             }
@@ -3346,6 +3430,7 @@
                     t = transactions[activeIdx];
                     if (!invId) invId = t.invoiceId;
                     if (!invType) invType = t.type;
+                    if (!txId) txId = t.id;
                 }
             }
 
@@ -3359,8 +3444,8 @@
             
             if (invId) {
                 if (typeof viewInvoiceItems === 'function') {
-                    // Pass autoPrint = true
-                    viewInvoiceItems(invId, invType || (t ? t.type : ''), true);
+                    // Pass autoPrint = true, and pass txId
+                    viewInvoiceItems(invId, invType || (t ? t.type : ''), true, txId || (t ? t.id : ''));
                 }
             } else if (t) {
                 // Single transaction (Receipt, Disbursement, etc.)
@@ -3386,6 +3471,7 @@
             const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
             let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : null;
             let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : null;
+            let txId = (isInv && window.selectedTxId) ? window.selectedTxId : null;
 
             if (isInv) {
                 const tr = document.querySelector('#invoicesTableBody tr.selected-row') ||
@@ -3393,6 +3479,7 @@
                 if (tr) {
                     if (!invId) invId = tr.getAttribute('data-invoice-id');
                     if (!invType) invType = tr.getAttribute('data-invoice-type');
+                    if (!txId) txId = tr.getAttribute('data-tx-id');
                 }
             }
 
@@ -3401,6 +3488,7 @@
                 if (activeIdx !== null && activeIdx !== undefined && transactions[activeIdx]) {
                     invId = transactions[activeIdx].invoiceId || transactions[activeIdx].id || transactions[activeIdx].transferId || transactions[activeIdx].adjId;
                     invType = transactions[activeIdx].type;
+                    txId = transactions[activeIdx].id;
                 }
             }
 
@@ -3413,9 +3501,9 @@
             }
 
             if (typeof window.viewAnyDocumentUnified === 'function') {
-                window.viewAnyDocumentUnified(invId, invType || '');
+                window.viewAnyDocumentUnified(invId, invType || '', txId || '');
             } else if (typeof viewInvoiceItems === 'function') {
-                viewInvoiceItems(invId, invType || '');
+                viewInvoiceItems(invId, invType || '', false, txId || '');
             }
         }
         window.viewSelectedInvoice = viewSelectedInvoice;
@@ -3472,9 +3560,13 @@
             const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
             let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : (window.selectedInvoiceId || window.selectedHistoryInvoiceId || null);
             let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : (window.selectedInvoiceType || window.selectedHistoryInvoiceType || null);
+            let txId = (isInv && window.selectedTxId) ? window.selectedTxId : null;
             let t = null;
 
-            if (invId) {
+            if (isInv && txId) {
+                t = transactions.find(x => String(x.id) === String(txId));
+            }
+            if (!t && invId) {
                 t = transactions.find(x => String(x.invoiceId) === String(invId) && (!invType || (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(x.type, invType) : x.type === invType)));
                 if (!t) t = transactions.find(x => String(x.invoiceId) === String(invId));
             }
@@ -3512,7 +3604,7 @@
             else if (typeStr.includes('تحويل')) cleanType = 'تحويل';
 
             if (window.editTransaction) {
-                window.editTransaction(invId || (t ? (t.invoiceId || t.id) : null), cleanType);
+                window.editTransaction(invId || (t ? (t.invoiceId || t.id) : null), cleanType, txId || (t ? t.id : ''));
             }
         }
 
@@ -3520,10 +3612,11 @@
             const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
             let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : null;
             let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : null;
+            let txId = (isInv && window.selectedTxId) ? window.selectedTxId : null;
 
             if (isInv && invId) {
                 if (typeof window.deleteInvoiceGlobal === 'function') {
-                    return window.deleteInvoiceGlobal(invId, invType);
+                    return window.deleteInvoiceGlobal(invId, invType, txId);
                 }
             }
 
@@ -3544,7 +3637,7 @@
             if (!t) return;
             if (t.type.includes('بيع') || t.type.includes('شراء') || t.type.includes('مرتجع')) {
                 if (t.invoiceId && typeof viewInvoiceItems === 'function') {
-                    viewInvoiceItems(t.invoiceId, t.type, true);
+                    viewInvoiceItems(t.invoiceId, t.type, true, t.id);
                 } else if (t.invoiceId && typeof printBillFromData === 'function') {
                     printBillFromData(t.invoiceId, t.type);
                 } else {

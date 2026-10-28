@@ -417,7 +417,9 @@ function handleAdjSearch(query) {
                     ${filtered.map(p => {
                         const priceVal = (typeof window.getEffectiveAdjustmentPrice === 'function') ? window.getEffectiveAdjustmentPrice(p) : (parseFloat(p.price) || 0);
                         const activeWhName = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
-                        const stockVal = typeof getWarehouseStock === 'function' ? getWarehouseStock(p, activeWhName) : (parseFloat(p.stock) || 0);
+                        const stockVal = (typeof getLiveProductWhStock === 'function')
+                            ? getLiveProductWhStock(p, activeWhName)
+                            : (typeof getWarehouseStock === 'function' ? getWarehouseStock(p, activeWhName) : (parseFloat(p.stock) || 0));
                         const sizesList = (p.variants && Array.isArray(p.variants)) 
                             ? [...new Set(p.variants.map(v => String(v.size || '').trim()).filter(s => s && s !== '-' && s !== 'موحد' && s !== 'قياسي'))] 
                             : [];

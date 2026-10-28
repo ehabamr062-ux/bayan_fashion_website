@@ -23,18 +23,26 @@ const FashionStockEngine = {
     },
 
     /**
-     * تحديد اسم المخزن النشط الموحد مع معالجة القيم الفارغة
+     * تحديد اسم المخزن النشط الموحد مع معالجة القيم الفارغة وتوحيد الأحرف العربية
      */
     resolveWarehouse(whName) {
         if (whName && typeof whName === 'string' && whName.trim() !== '' && whName.trim() !== 'all') {
-            return whName.trim();
+            const cleaned = whName.trim();
+            if (cleaned === 'المخزن الرئيسى') return 'المخزن الرئيسي';
+            return cleaned;
         }
         if (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName && currentUser.warehouseName.trim() !== '') {
-            return currentUser.warehouseName.trim();
+            const cleaned = currentUser.warehouseName.trim();
+            if (cleaned === 'المخزن الرئيسى') return 'المخزن الرئيسي';
+            return cleaned;
         }
         if (typeof getStore === 'function') {
             const stWh = getStore('activeWarehouse');
-            if (stWh && typeof stWh === 'string' && stWh.trim() !== '') return stWh.trim();
+            if (stWh && typeof stWh === 'string' && stWh.trim() !== '') {
+                const cleaned = stWh.trim();
+                if (cleaned === 'المخزن الرئيسى') return 'المخزن الرئيسي';
+                return cleaned;
+            }
         }
         return 'المخزن الرئيسي';
     },
@@ -114,18 +122,42 @@ const FashionStockEngine = {
 
         const targetWH = this.resolveWarehouse(whName);
 
-        // 1. إذا كان للمقاس رصيد مسجل صراحة في هذا المخزن
-        if (variant.warehouseStocks && typeof variant.warehouseStocks === 'object' && variant.warehouseStocks[targetWH] !== undefined) {
-            const val = parseFloat(variant.warehouseStocks[targetWH]);
-            return isNaN(val) ? 0 : val;
+        // 1. إذا كان للمقاس رصيد مسجل صراحة في هذا المخزن (مع دعم التسميات البديلة والتطبيع العربي)
+        if (variant.warehouseStocks && typeof variant.warehouseStocks === 'object') {
+            if (variant.warehouseStocks[targetWH] !== undefined) {
+                const val = parseFloat(variant.warehouseStocks[targetWH]);
+                return isNaN(val) ? 0 : val;
+            }
+            const altWH = (targetWH === 'المخزن الرئيسي') ? 'المخزن الرئيسى' : (targetWH === 'المخزن الرئيسى' ? 'المخزن الرئيسي' : null);
+            if (altWH && variant.warehouseStocks[altWH] !== undefined) {
+                const val = parseFloat(variant.warehouseStocks[altWH]);
+                return isNaN(val) ? 0 : val;
+            }
+            const cleanTarget = this.cleanText(targetWH);
+            for (const [k, q] of Object.entries(variant.warehouseStocks)) {
+                if (this.cleanText(k) === cleanTarget) {
+                    const val = parseFloat(q);
+                    return isNaN(val) ? 0 : val;
+                }
+            }
         }
 
-        // 2. معالجة البيانات السابقة (إذا لم تكن warehouseStocks مقسمة بعد، والمخزن المطلوب هو الرئيسي)
-        if (targetWH === 'المخزن الرئيسي') {
+        // 2. صمام أمان حماية رصيد المخزن الرئيسي:
+        // إذا كان المخزن المطلوب هو المخزن الرئيسي (أو الافتراضي)، والمقاس يحمل رصيداً إجمالياً فعلياً
+        if (targetWH === 'المخزن الرئيسي' || targetWH === 'المخزن الرئيسى') {
             const hasWhStocks = variant.warehouseStocks && typeof variant.warehouseStocks === 'object' && Object.keys(variant.warehouseStocks).length > 0;
             if (!hasWhStocks) {
                 const legacyStock = parseFloat(variant.stock);
                 return isNaN(legacyStock) ? 0 : legacyStock;
+            }
+            // إذا كانت هناك مخازن أخرى مسجلة، نحسب الفارق المتبقي للرئيسي بدلاً من تصفيره بالخطأ
+            const totalOtherWh = Object.entries(variant.warehouseStocks).reduce((sum, [k, q]) => {
+                if (k === targetWH || k === 'المخزن الرئيسي' || k === 'المخزن الرئيسى') return sum;
+                return sum + (parseFloat(q) || 0);
+            }, 0);
+            const legacyStock = parseFloat(variant.stock) || 0;
+            if (legacyStock > totalOtherWh) {
+                return legacyStock - totalOtherWh;
             }
         }
 
@@ -160,16 +192,38 @@ const FashionStockEngine = {
         }
 
         // صنف عادي بدون مقاسات
-        if (product.warehouseStocks && typeof product.warehouseStocks === 'object' && product.warehouseStocks[targetWH] !== undefined) {
-            const val = parseFloat(product.warehouseStocks[targetWH]);
-            return isNaN(val) ? 0 : val;
+        if (product.warehouseStocks && typeof product.warehouseStocks === 'object') {
+            if (product.warehouseStocks[targetWH] !== undefined) {
+                const val = parseFloat(product.warehouseStocks[targetWH]);
+                return isNaN(val) ? 0 : val;
+            }
+            const altWH = (targetWH === 'المخزن الرئيسي') ? 'المخزن الرئيسى' : (targetWH === 'المخزن الرئيسى' ? 'المخزن الرئيسي' : null);
+            if (altWH && product.warehouseStocks[altWH] !== undefined) {
+                const val = parseFloat(product.warehouseStocks[altWH]);
+                return isNaN(val) ? 0 : val;
+            }
+            const cleanTarget = this.cleanText(targetWH);
+            for (const [k, q] of Object.entries(product.warehouseStocks)) {
+                if (this.cleanText(k) === cleanTarget) {
+                    const val = parseFloat(q);
+                    return isNaN(val) ? 0 : val;
+                }
+            }
         }
 
-        if (targetWH === 'المخزن الرئيسي') {
+        if (targetWH === 'المخزن الرئيسي' || targetWH === 'المخزن الرئيسى') {
             const hasWhStocks = product.warehouseStocks && typeof product.warehouseStocks === 'object' && Object.keys(product.warehouseStocks).length > 0;
             if (!hasWhStocks) {
                 const legacyStock = parseFloat(product.stock);
                 return isNaN(legacyStock) ? 0 : legacyStock;
+            }
+            const totalOtherWh = Object.entries(product.warehouseStocks).reduce((sum, [k, q]) => {
+                if (k === targetWH || k === 'المخزن الرئيسي' || k === 'المخزن الرئيسى') return sum;
+                return sum + (parseFloat(q) || 0);
+            }, 0);
+            const legacyStock = parseFloat(product.stock) || 0;
+            if (legacyStock > totalOtherWh) {
+                return legacyStock - totalOtherWh;
             }
         }
 
@@ -2339,6 +2393,8 @@ function invalidateStockCache() {
     _stockCacheKey = null;
     _stockHistoryCache = null;
     _stockHistoryCacheKey = null;
+    _prodByNameMap = null;
+    _prodByNameMapLen = 0;
     if (typeof BayanBarcode !== 'undefined' && typeof BayanBarcode.invalidateBarcodeIndex === 'function') {
         BayanBarcode.invalidateBarcodeIndex();
     }
@@ -2379,7 +2435,17 @@ function getProductFromCache(productName) {
     if (typeof productName === 'object') return productName;
     const clean = String(productName).trim();
     if (_prodByNameMap && (_prodByNameMap.has(productName) || _prodByNameMap.has(clean))) {
-        return _prodByNameMap.get(productName) || _prodByNameMap.get(clean);
+        const cached = _prodByNameMap.get(productName) || _prodByNameMap.get(clean);
+        if (cached) return cached;
+    }
+    // فحص في كروت الأصناف الحية بالذاكرة productsDB أولاً لضمان أدق وأحدث رصيد
+    const pDB = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
+    const inMem = pDB.find(prod => prod && (prod.name === productName || prod.name === clean || String(prod.name).trim() === clean));
+    if (inMem) {
+        if (!_prodByNameMap) _prodByNameMap = new Map();
+        _prodByNameMap.set(clean, inMem);
+        _prodByNameMap.set(productName, inMem);
+        return inMem;
     }
     if (window.BayanSQLite && typeof window.BayanSQLite.getProductByName === 'function') {
         const prod = window.BayanSQLite.getProductByName(clean);
@@ -2390,20 +2456,7 @@ function getProductFromCache(productName) {
             return prod;
         }
     }
-    const pDB = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
-    if (!_prodByNameMap || _prodByNameMapLen !== pDB.length) {
-        _prodByNameMap = new Map();
-        for (let i = 0; i < pDB.length; i++) {
-            const prod = pDB[i];
-            if (prod && prod.name) {
-                _prodByNameMap.set(prod.name, prod);
-                const trimmed = prod.name.trim();
-                if (trimmed !== prod.name) _prodByNameMap.set(trimmed, prod);
-            }
-        }
-        _prodByNameMapLen = pDB.length;
-    }
-    return _prodByNameMap.get(productName) || _prodByNameMap.get(clean) || null;
+    return null;
 }
 
 function getWarehouseStock(productName, warehouseName, startDate = null, endDate = null) {
@@ -2417,7 +2470,8 @@ function getWarehouseStock(productName, warehouseName, startDate = null, endDate
         p = getProductFromCache(productName);
         if (!p) {
             const cleanName = String(productName).trim();
-            p = productsDB.find(prod => prod && (prod.name === productName || prod.name?.trim() === cleanName));
+            const pDB = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
+            p = pDB.find(prod => prod && (prod.name === productName || String(prod.name).trim() === cleanName || prod.code === cleanName || prod.barcode === cleanName));
         }
     }
     if (!p) return 0;

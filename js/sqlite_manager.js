@@ -2250,104 +2250,10 @@
 
         /**
          * ⚡ جلب كافة بنود الفاتورة مباشرة من جدول transaction_items أو transactions مع منع التكرار
+         * (محصن ضد تداخل المعرفات - يوجه للتنفيذ الموحد)
          */
-        getInvoiceItems(invoiceId) {
-            if (!this.db || !invoiceId) return [];
-            const sId = String(invoiceId).trim();
-            try {
-                let rawList = [];
-                if (this.isNative && this.nativeDb) {
-                    const tiRows = this.nativeDb.prepare("SELECT * FROM transaction_items WHERE invoiceId = ?;").all(sId);
-                    if (tiRows && tiRows.length > 0) {
-                        rawList = tiRows;
-                    } else {
-                        const txRows = this.nativeDb.prepare("SELECT * FROM transactions WHERE invoiceId = ?;").all(sId);
-                        if (txRows && txRows.length > 0) {
-                            rawList = txRows;
-                        } else {
-                            const numId = Number(sId);
-                            if (!isNaN(numId) && numId > 0) {
-                                const idRows = this.nativeDb.prepare("SELECT * FROM transactions WHERE id = ?;").all(numId);
-                                if (idRows && idRows.length > 0) rawList = idRows;
-                            }
-                        }
-                    }
-                } else {
-                    const stmt = this.db.prepare("SELECT * FROM transaction_items WHERE invoiceId = ?;");
-                    stmt.bind([sId]);
-                    while (stmt.step()) {
-                        rawList.push(stmt.getAsObject());
-                    }
-                    stmt.free();
-
-                    if (rawList.length === 0) {
-                        const txStmt = this.db.prepare("SELECT * FROM transactions WHERE invoiceId = ?;");
-                        txStmt.bind([sId]);
-                        while (txStmt.step()) {
-                            rawList.push(txStmt.getAsObject());
-                        }
-                        txStmt.free();
-                    }
-
-                    if (rawList.length === 0) {
-                        const numId = Number(sId);
-                        if (!isNaN(numId) && numId > 0) {
-                            const idStmt = this.db.prepare("SELECT * FROM transactions WHERE id = ?;");
-                            idStmt.bind([numId]);
-                            while (idStmt.step()) {
-                                rawList.push(idStmt.getAsObject());
-                            }
-                            idStmt.free();
-                        }
-                    }
-                }
-
-                // 🛡️ صمام أمان صارم: منع تكرار ودبلرة الأصناف لنفس الفاتورة
-                const seen = new Set();
-                const uniqueItems = [];
-                for (const r of rawList) {
-                    if (!r) continue;
-                    const reconstructed = this._reconstructRow(r);
-                    const pName = (reconstructed.product || reconstructed.productName || reconstructed.name || '').trim();
-                    const pSize = (reconstructed.size || reconstructed.selectedSize || '').trim();
-                    const pColor = (reconstructed.color || reconstructed.selectedColor || '').trim();
-                    const pQty = parseFloat(reconstructed.qty != null ? reconstructed.qty : (reconstructed.quantity || 0)) || 0;
-                    const pPrice = parseFloat(reconstructed.price != null ? reconstructed.price : 0) || 0;
-                    const sig = `${reconstructed.id || ''}|${pName}|${pSize}|${pColor}|${pQty}|${pPrice}`;
-                    if (!seen.has(sig)) {
-                        seen.add(sig);
-                        uniqueItems.push(reconstructed);
-                    }
-                }
-
-                // 🌟 فحص إذا كان هناك مصفوفة items كاملة برأس الفاتورة تفوق عدد السطور الفردية
-                const headWithItems = rawList.map(r => this._reconstructRow(r)).find(r => r && Array.isArray(r.items) && r.items.length > uniqueItems.length);
-                if (headWithItems && Array.isArray(headWithItems.items) && headWithItems.items.length > uniqueItems.length) {
-                    return headWithItems.items.map(it => ({
-                        product: it.product || it.name || it.productName || 'صنف',
-                        productName: it.product || it.name || it.productName || 'صنف',
-                        name: it.product || it.name || it.productName || 'صنف',
-                        code: it.code || it.barcode || '',
-                        barcode: it.code || it.barcode || '',
-                        qty: parseFloat(it.qty != null ? it.qty : (it.quantity || 1)),
-                        price: parseFloat(it.price || 0),
-                        cost: parseFloat(it.cost || it.costPrice || 0),
-                        costPrice: parseFloat(it.cost || it.costPrice || 0),
-                        discount: parseFloat(it.discount || it.itemDiscount || 0),
-                        addition: parseFloat(it.addition || it.extra || 0),
-                        unit: it.unit || '-',
-                        size: it.size || it.selectedSize || '',
-                        color: it.color || it.selectedColor || '',
-                        total: parseFloat(it.total != null ? it.total : (((it.qty || 1) * (it.price || 0)) - (it.discount || 0) + (it.addition || 0))),
-                        invoiceId: sId
-                    }));
-                }
-
-                return uniqueItems;
-            } catch (e) {
-                console.warn("[SQLite] getInvoiceItems notice:", e.message);
-            }
-            return [];
+        getInvoiceItemsLegacy(invoiceId, targetType = '', targetTxId = '') {
+            return this.getInvoiceItems(invoiceId, targetType, targetTxId);
         }
 
         /**
@@ -4204,55 +4110,159 @@
         /**
          * ⚡ جلب كافة بنود ومحتويات الفاتورة أو العملية بالكامل من SQLite (< 1ms)
          * يدعم كافة الأنواع: مبيعات، مشتريات، مرتجعات، تحويل مخزني، تسوية مخزنية، وسندات مالية
+         * 🛡️ محصن ضد تداخل وتصادم المعرفات (Data Bleeding / ID Collision) بالثنائية (invoiceId + targetType)
          */
-        getInvoiceItems(invoiceId) {
-            if (!this.db || !invoiceId) return [];
-            const sId = String(invoiceId).trim();
-            if (!sId) return [];
+        getInvoiceItems(invoiceId, targetType = '', targetTxId = '') {
+            if (!this.db || (!invoiceId && !targetTxId)) return [];
+            let sId = String(invoiceId || '').trim();
+            const sTxId = String(targetTxId || '').trim();
+            const cleanType = String(targetType || '').trim();
+
+            if (sId.includes('_item_')) sId = sId.split('_item_')[0];
+
+            // سندات القبض والصرف ليس لها أصناف بضاعة إطلاقاً
+            const isFinancial = cleanType.includes('قبض') || cleanType === 'receipt' ||
+                                cleanType.includes('صرف') || cleanType.includes('دفع') ||
+                                cleanType === 'payment' || cleanType === 'disburse';
+            if (isFinancial) return [];
 
             try {
-                // 1. جلب السجلات من جدول transactions أولاً (سواء كانت سطر مفرد أو أسطر متعددة)
-                const sqlTx = "SELECT * FROM transactions WHERE invoiceId = ? OR id = ? ORDER BY id ASC;";
+                // إذا لم يتوفر sId وكان لدينا sTxId، نستخرج sId من سجل الحركة
+                if (!sId && sTxId) {
+                    const rowTx = this.isNative && this.nativeDb
+                        ? this.nativeDb.prepare("SELECT invoiceId FROM transactions WHERE id = ?;").get(sTxId)
+                        : (() => {
+                            const st = this.db.prepare("SELECT invoiceId FROM transactions WHERE id = ?;");
+                            st.bind([sTxId]);
+                            let r = null;
+                            if (st.step()) r = st.getAsObject();
+                            st.free();
+                            return r;
+                        })();
+                    if (rowTx && rowTx.invoiceId) {
+                        sId = String(rowTx.invoiceId).trim();
+                        if (sId.includes('_item_')) sId = sId.split('_item_')[0];
+                    } else {
+                        sId = sTxId;
+                    }
+                }
+
+                if (!sId) return [];
+
+                // 1. الاستعلام من جدول transactions لجلب كافة بنود الفاتورة
+                let sqlTx = "SELECT * FROM transactions WHERE (invoiceId = ? OR id = ?)";
+                let params = [sId, sId];
+
+                if (cleanType) {
+                    if (cleanType.includes('مرتجع بيع') || cleanType.includes('مرتجع مبيعات') || cleanType === 'sale_return') {
+                        sqlTx += " AND (type LIKE '%مرتجع بيع%' OR type LIKE '%مرتجع مبيعات%' OR type = 'sale_return')";
+                    } else if (cleanType.includes('مرتجع شراء') || cleanType.includes('مرتجع مشتريات') || cleanType === 'purchase_return') {
+                        sqlTx += " AND (type LIKE '%مرتجع شراء%' OR type LIKE '%مرتجع مشتريات%' OR type = 'purchase_return')";
+                    } else if (cleanType.includes('بيع') || cleanType.includes('مبيعات') || cleanType === 'sale') {
+                        sqlTx += " AND ((type LIKE '%بيع%' OR type LIKE '%مبيعات%' OR type = 'sale') AND type NOT LIKE '%مرتجع%')";
+                    } else if (cleanType.includes('شراء') || cleanType.includes('مشتريات') || cleanType === 'purchase') {
+                        sqlTx += " AND ((type LIKE '%شراء%' OR type LIKE '%مشتريات%' OR type = 'purchase') AND type NOT LIKE '%مرتجع%')";
+                    } else if (cleanType.includes('تحويل') || cleanType.includes('transfer')) {
+                        sqlTx += " AND (type LIKE '%تحويل%' OR type LIKE '%transfer%')";
+                    } else if (cleanType.includes('تسوية') || cleanType.includes('adjustment') || cleanType.includes('جرد')) {
+                        sqlTx += " AND (type LIKE '%تسوية%' OR type LIKE '%adjustment%' OR type LIKE '%جرد%')";
+                    } else {
+                        sqlTx += " AND type = ?";
+                        params.push(cleanType);
+                    }
+                }
+                sqlTx += " ORDER BY id ASC;";
+
                 let txRows = [];
                 if (this.isNative && this.nativeDb) {
-                    txRows = this.nativeDb.prepare(sqlTx).all(sId, sId);
+                    txRows = this.nativeDb.prepare(sqlTx).all(...params);
                 } else {
                     const stmt = this.db.prepare(sqlTx);
-                    stmt.bind([sId, sId]);
+                    stmt.bind(params);
                     while (stmt.step()) txRows.push(stmt.getAsObject());
                     stmt.free();
                 }
 
                 const decodedTxRows = (txRows || []).map(r => this._reconstructRow(r)).filter(Boolean);
 
-                // إذا وجدنا أن الرأس يحتوي على مصفوفة items أو products أو cart جاهزة ومفكوكة
+                // فحص إذا كان هناك مصفوفة أصناف مدمجة داخل أحد الصفوف (items / products / cart)
+                let embeddedItems = [];
                 for (let i = 0; i < decodedTxRows.length; i++) {
                     const r = decodedTxRows[i];
-                    if (Array.isArray(r.items) && r.items.length > 0) return r.items;
-                    if (Array.isArray(r.products) && r.products.length > 0) return r.products;
-                    if (Array.isArray(r.cart) && r.cart.length > 0) return r.cart;
+                    if (Array.isArray(r.items) && r.items.length > embeddedItems.length) embeddedItems = r.items;
+                    if (Array.isArray(r.products) && r.products.length > embeddedItems.length) embeddedItems = r.products;
+                    if (Array.isArray(r.cart) && r.cart.length > embeddedItems.length) embeddedItems = r.cart;
                 }
 
-                // إذا كانت السطور في transactions تمثل أصنافاً متعددة (كما في التحويل المخزني والتسوية)
+                // استخراج السطور التي تمثل أصنافاً فعلية من جدول transactions
                 const itemsFromTx = decodedTxRows.filter(r => (r.product || r.productName || r.name));
-                if (itemsFromTx.length > 0) {
-                    return itemsFromTx;
-                }
 
-                // 2. إذا لم نجد أصنافاً في transactions، نستعلم مباشرة من جدول transaction_items المفهرس
-                const sqlTi = "SELECT * FROM transaction_items WHERE invoiceId = ? OR tx_id = ? ORDER BY id ASC;";
+                // 2. الاستعلام من جدول transaction_items المفهرس لجلب كافة بنود الفاتورة
+                let sqlTi = "SELECT * FROM transaction_items WHERE (invoiceId = ? OR tx_id = ?)";
+                let tiParams = [sId, sId];
+
+                if (cleanType) {
+                    if (cleanType.includes('مرتجع بيع') || cleanType.includes('مرتجع مبيعات') || cleanType === 'sale_return') {
+                        sqlTi += " AND (type LIKE '%مرتجع بيع%' OR type LIKE '%مرتجع مبيعات%' OR type = 'sale_return')";
+                    } else if (cleanType.includes('مرتجع شراء') || cleanType.includes('مرتجع مشتريات') || cleanType === 'purchase_return') {
+                        sqlTi += " AND (type LIKE '%مرتجع شراء%' OR type LIKE '%مرتجع مشتريات%' OR type = 'purchase_return')";
+                    } else if (cleanType.includes('بيع') || cleanType.includes('مبيعات') || cleanType === 'sale') {
+                        sqlTi += " AND ((type LIKE '%بيع%' OR type LIKE '%مبيعات%' OR type = 'sale') AND type NOT LIKE '%مرتجع%')";
+                    } else if (cleanType.includes('شراء') || cleanType.includes('مشتريات') || cleanType === 'purchase') {
+                        sqlTi += " AND ((type LIKE '%شراء%' OR type LIKE '%مشتريات%' OR type = 'purchase') AND type NOT LIKE '%مرتجع%')";
+                    } else if (cleanType.includes('تحويل') || cleanType.includes('transfer')) {
+                        sqlTi += " AND (type LIKE '%تحويل%' OR type LIKE '%transfer%')";
+                    } else if (cleanType.includes('تسوية') || cleanType.includes('adjustment') || cleanType.includes('جرد')) {
+                        sqlTi += " AND (type LIKE '%تسوية%' OR type LIKE '%adjustment%' OR type LIKE '%جرد%')";
+                    } else {
+                        sqlTi += " AND type = ?";
+                        tiParams.push(cleanType);
+                    }
+                }
+                sqlTi += " ORDER BY id ASC;";
+
                 let tiRows = [];
                 if (this.isNative && this.nativeDb) {
-                    tiRows = this.nativeDb.prepare(sqlTi).all(sId, sId);
+                    tiRows = this.nativeDb.prepare(sqlTi).all(...tiParams);
                 } else {
                     const stmt = this.db.prepare(sqlTi);
-                    stmt.bind([sId, sId]);
+                    stmt.bind(tiParams);
                     while (stmt.step()) tiRows.push(stmt.getAsObject());
                     stmt.free();
                 }
 
+                let uniqueTi = [];
                 if (tiRows && tiRows.length > 0) {
-                    return tiRows.map(r => this._reconstructRow(r)).filter(Boolean);
+                    const seenTi = new Set();
+                    for (const r of tiRows) {
+                        if (!r) continue;
+                        const rec = this._reconstructRow(r);
+                        if (!rec) continue;
+                        const pName = (rec.product || rec.productName || rec.name || '').trim();
+                        const pSize = (rec.size || rec.selectedSize || '').trim();
+                        const pColor = (rec.color || rec.selectedColor || '').trim();
+                        const pQty = parseFloat(rec.qty != null ? rec.qty : (rec.quantity || 0)) || 0;
+                        const pPrice = parseFloat(rec.price != null ? rec.price : 0) || 0;
+                        const sig = `${rec.id || ''}|${pName}|${pSize}|${pColor}|${pQty}|${pPrice}`;
+                        if (!seenTi.has(sig)) {
+                            seenTi.add(sig);
+                            uniqueTi.push(rec);
+                        }
+                    }
+                }
+
+                // 3. المفاضلة الذكية لاختيار المصدر الأكثر اكتمالاً وشمولية للبنود
+                if (embeddedItems.length > 0 && embeddedItems.length >= itemsFromTx.length && embeddedItems.length >= uniqueTi.length) {
+                    return embeddedItems;
+                }
+                if (uniqueTi.length > itemsFromTx.length && uniqueTi.length > 0) {
+                    return uniqueTi;
+                }
+                if (itemsFromTx.length > 0) {
+                    return itemsFromTx;
+                }
+                if (uniqueTi.length > 0) {
+                    return uniqueTi;
                 }
 
                 return decodedTxRows;
@@ -4265,51 +4275,70 @@
         /**
          * ⚡ استخراج ملف الفاتورة المكتمل بالرأس والأصناف من SQLite لشاشات العرض والطباعة والتعديل
          */
-        getInvoiceFullDetails(invoiceId, invoiceType = null) {
-            if (!this.db || !invoiceId) return null;
-            const sId = String(invoiceId).trim();
-            if (!sId) return null;
+        getInvoiceFullDetails(invoiceId, invoiceType = null, txId = null) {
+            if (!this.db || (!invoiceId && !txId)) return null;
+            let sId = String(invoiceId || '').trim();
+            const sTxId = String(txId || '').trim();
+            const cleanType = String(invoiceType || '').trim();
+            if (sId.includes('_item_')) sId = sId.split('_item_')[0];
 
             try {
-                let sql = "SELECT * FROM transactions WHERE invoiceId = ? OR id = ? ORDER BY id ASC;";
+                let sql = "SELECT * FROM transactions WHERE (invoiceId = ? OR id = ?)";
+                let params = [sId || sTxId, sId || sTxId];
+                if (cleanType) {
+                    if (cleanType.includes('مرتجع بيع') || cleanType.includes('مرتجع مبيعات')) {
+                        sql += " AND (type LIKE '%مرتجع بيع%' OR type LIKE '%مرتجع مبيعات%')";
+                    } else if (cleanType.includes('مرتجع شراء') || cleanType.includes('مرتجع مشتريات')) {
+                        sql += " AND (type LIKE '%مرتجع شراء%' OR type LIKE '%مرتجع مشتريات%')";
+                    } else if (cleanType.includes('بيع') || cleanType.includes('مبيعات')) {
+                        sql += " AND ((type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%')";
+                    } else if (cleanType.includes('شراء') || cleanType.includes('مشتريات')) {
+                        sql += " AND ((type LIKE '%شراء%' OR type LIKE '%مشتريات%') AND type NOT LIKE '%مرتجع%')";
+                    } else if (cleanType.includes('تحويل')) {
+                        sql += " AND type LIKE '%تحويل%'";
+                    } else if (cleanType.includes('تسوية')) {
+                        sql += " AND type LIKE '%تسوية%'";
+                    } else {
+                        sql += " AND type = ?";
+                        params.push(cleanType);
+                    }
+                }
+                sql += " ORDER BY id ASC;";
                 let rows = [];
                 if (this.isNative && this.nativeDb) {
-                    rows = this.nativeDb.prepare(sql).all(sId, sId);
+                    rows = this.nativeDb.prepare(sql).all(...params);
                 } else {
                     const stmt = this.db.prepare(sql);
-                    stmt.bind([sId, sId]);
+                    stmt.bind(params);
                     while (stmt.step()) rows.push(stmt.getAsObject());
                     stmt.free();
                 }
 
-                const decodedRows = (rows || []).map(r => this._reconstructRow(r)).filter(Boolean);
+                let decodedRows = (rows || []).map(r => this._reconstructRow(r)).filter(Boolean);
+                if (decodedRows.length === 0 && sTxId) {
+                    const single = this.isNative && this.nativeDb
+                        ? this.nativeDb.prepare("SELECT * FROM transactions WHERE id = ?;").all(sTxId)
+                        : (() => {
+                            const st = this.db.prepare("SELECT * FROM transactions WHERE id = ?;");
+                            st.bind([sTxId]);
+                            const res = [];
+                            while (st.step()) res.push(st.getAsObject());
+                            st.free();
+                            return res;
+                        })();
+                    if (single && single.length > 0) {
+                        decodedRows = single.map(r => this._reconstructRow(r)).filter(Boolean);
+                    }
+                }
                 if (decodedRows.length === 0) return null;
 
                 // رأس الفاتورة
                 const head = decodedRows.find(r => r.isInvoiceHead) || decodedRows[0];
                 const res = { ...head };
+                const realInvId = (head && head.invoiceId) ? String(head.invoiceId).trim() : sId;
 
-                // جلب الأصناف
-                let items = [];
-                if (Array.isArray(head.items) && head.items.length > 0) {
-                    items = head.items;
-                } else if (Array.isArray(head.products) && head.products.length > 0) {
-                    items = head.products;
-                } else if (Array.isArray(head.cart) && head.cart.length > 0) {
-                    items = head.cart;
-                } else {
-                    const txItems = decodedRows.filter(r => (r.product || r.productName || r.name));
-                    const tiItems = this.getInvoiceItems(sId);
-                    if (tiItems && tiItems.length > txItems.length) {
-                        items = tiItems;
-                    } else if (txItems.length > 0) {
-                        items = txItems;
-                    } else {
-                        items = tiItems || [];
-                    }
-                }
-
-                res.items = items;
+                // جلب كافة الأصناف باستخدام getInvoiceItems
+                res.items = this.getInvoiceItems(realInvId, cleanType);
                 res.transactionsRows = decodedRows;
                 return res;
             } catch (err) {
