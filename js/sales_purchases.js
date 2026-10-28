@@ -360,9 +360,7 @@ async function handlePurchaseSearch(query) {
                     ${displayFiltered.map(p => {
                         const costVal = parseFloat(p.cost) || 0;
                         const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
-                        const stockVal = (typeof getLiveProductWhStock === 'function')
-                            ? getLiveProductWhStock(p, activeWH)
-                            : (typeof getWarehouseStock === 'function' ? getWarehouseStock(p, activeWH) : (parseFloat(p.stock) || 0));
+                        const stockVal = typeof getWarehouseStock === 'function' ? getWarehouseStock(p.name, activeWH) : 0;
                         const safeName = (window.escapeHtml ? window.escapeHtml(p.name) : p.name);
                         const safeCode = (window.escapeHtml ? window.escapeHtml(p.code || p.id) : (p.code || p.id));
                         const safeBarcode = (window.escapeHtml ? window.escapeHtml(p.barcode || '---') : (p.barcode || '---'));
@@ -1795,7 +1793,7 @@ async function savePurchase(force = false, accountChecked = false) {
 
         itemsToProcess.forEach((item, idx) => {
             const p = (window.productsDB || []).find(x => x.id === item.id || x.name === item.name);
-            const factor = item.unitFactor || 1;
+            const factor = (parseFloat(item.unitFactor) > 0) ? parseFloat(item.unitFactor) : 1;
             const itemUnitPriceBase = item.price / factor;
             // 🌟 احتساب التكلفة الفعلية الصافية للوحدة بعد توزيع خصومات الفاتورة الإجمالية والمصاريف (ratio)
             const effectiveUnitPriceBase = itemUnitPriceBase * ratio;

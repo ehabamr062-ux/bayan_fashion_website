@@ -1209,7 +1209,18 @@
             if (typeof viewInvoiceItems === 'function') {
                 viewInvoiceItems(invoiceId, type, true);
             } else if (typeof printInvoice === 'function') {
-                const items = transactions.filter(t => t.invoiceId == invoiceId);
+                let items = transactions.filter(t => t.invoiceId == invoiceId);
+                if (type && items.length > 0) {
+                    const cleanT = String(type).trim();
+                    const filtered = items.filter(t => {
+                        const tt = String(t.type || '');
+                        if (cleanT.includes('مرتجع')) return tt.includes('مرتجع');
+                        if (cleanT.includes('بيع') || cleanT.includes('مبيعات')) return (tt.includes('بيع') || tt.includes('مبيعات')) && !tt.includes('مرتجع');
+                        if (cleanT.includes('شراء') || cleanT.includes('مشتريات')) return (tt.includes('شراء') || tt.includes('مشتريات')) && !tt.includes('مرتجع');
+                        return tt.includes(cleanT);
+                    });
+                    if (filtered.length > 0) items = filtered;
+                }
                 if (items.length === 0) return alert("لا تتوفر بيانات لهذه الفاتورة.");
                 const head = items[0];
                 let partnerName = head.partner || head.customer || '';
@@ -3530,8 +3541,14 @@
                 return;
             }
 
-            // البحث عن الفاتورة في قاعدة البيانات
-            const found = transactions.find(t => t.invoiceId == invId);
+            // البحث عن الفاتورة في قاعدة البيانات مع مراعاة الأولوية (فواتير المبيعات أولاً للكاشير ثم باقي العمليات)
+            let found = transactions.find(t => t.invoiceId == invId && t.type && (t.type.includes('بيع') || t.type.includes('مبيعات')) && !t.type.includes('مرتجع'));
+            if (!found) {
+                found = transactions.find(t => t.invoiceId == invId);
+            }
+            if (!found && window.BayanSQLite && typeof window.BayanSQLite.getInvoice === 'function') {
+                found = window.BayanSQLite.getInvoice(invId, 'بيع') || window.BayanSQLite.getInvoice(invId);
+            }
 
             if (found) {
                 let cleanType = '';

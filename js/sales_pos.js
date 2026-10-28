@@ -381,9 +381,9 @@ async function handleSearch(query) {
                             : rawP;
                         const priceVal = parseFloat(p.price) || 0;
                         const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
-                        const stockVal = (typeof getLiveProductWhStock === 'function')
-                            ? getLiveProductWhStock(p, activeWH)
-                            : (typeof getWarehouseStock === 'function' ? getWarehouseStock(p, activeWH) : (parseFloat(p.stock) || 0));
+                        const stockVal = typeof getWarehouseStock === 'function'
+                            ? getWarehouseStock(p.name, activeWH)
+                            : ((typeof getLiveProductWhStock === 'function') ? getLiveProductWhStock(p, activeWH) : (parseFloat(p.stock) || 0));
                         const safeName = (window.escapeHtml ? window.escapeHtml(p.name) : p.name);
                         const safeCode = (window.escapeHtml ? window.escapeHtml(p.code || p.id) : (p.code || p.id));
                         const safeBarcode = (window.escapeHtml ? window.escapeHtml(p.barcode || '---') : (p.barcode || '---'));
@@ -947,7 +947,7 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
     if (!selectedUnit && product.units && product.units.length > 0) {
         selectedUnit = product.units.find(u => u.isBaseUnit) || product.units[0];
     }
-    const factor = selectedUnit ? (parseFloat(selectedUnit.factor) || 1) : 1;
+    const factor = (selectedUnit && parseFloat(selectedUnit.factor) > 0) ? parseFloat(selectedUnit.factor) : 1;
     const availBaseStock = effVariant
         ? (window.FashionStockEngine ? window.FashionStockEngine.getVariantStock(effVariant, activeWH) : (parseFloat(effVariant.stock) || 0))
         : (window.FashionStockEngine ? window.FashionStockEngine.getProductStock(product, activeWH) : (parseFloat(product.stock) || 0));
@@ -1107,7 +1107,7 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
                 price = parseFloat(effVariant.price) || parseFloat(product.price) || 0;
             }
         } else if (selectedUnit) {
-            factor = parseFloat(selectedUnit.factor) || 1;
+            factor = (selectedUnit && parseFloat(selectedUnit.factor) > 0) ? parseFloat(selectedUnit.factor) : 1;
             if (priceLevel === 'wholesale') {
                 price = parseFloat(selectedUnit.wholesale) || parseFloat(selectedUnit.price) || 0;
             } else {
@@ -1552,7 +1552,7 @@ function updateQty(index, newQty) {
 
     const product = productsDB.find(p => p.id === item.id || p.name === item.name);
     if (product) {
-        const factor = parseFloat(item.unitFactor) || 1;
+        const factor = (parseFloat(item.unitFactor) > 0) ? parseFloat(item.unitFactor) : 1;
         let effVariant = null;
         if (product.variants && Array.isArray(product.variants)) {
             const sSize = item.selectedSize || item.size || '';
@@ -1642,7 +1642,7 @@ function updateCartPrice(index, newPrice) {
     // 2. البحث عن بيانات الصنف للتحقق من سعر التكلفة
     const product = productsDB.find(p => p.id === item.id || p.name === item.name);
     if (product) {
-        const factor = parseFloat(item.unitFactor) || 1;
+        const factor = (parseFloat(item.unitFactor) > 0) ? parseFloat(item.unitFactor) : 1;
         
         // حساب سعر التكلفة الفعلي للصنف أو التشكيلة
         let baseCost = 0;
@@ -2451,7 +2451,7 @@ function calculateTotals(subTotalParam) {
                 itemCost = unitCost * item.qty;
             } else {
                 // الوحدة بدون تكلفة مخصصة → استخدم التكلفة الأساسية × factor
-                const factor = parseFloat(item.unitFactor) || 1;
+                const factor = (parseFloat(item.unitFactor) > 0) ? parseFloat(item.unitFactor) : 1;
                 itemCost = effCost * item.qty * factor;
             }
         } else {
@@ -2574,7 +2574,7 @@ async function saveBill(force = false, accountChecked = false) {
         for (const item of cart) {
             const p = productsDB.find(x => x.id === item.id || x.name === item.name);
             if (p) {
-                const factor = parseFloat(item.unitFactor) || 1;
+                const factor = (parseFloat(item.unitFactor) > 0) ? parseFloat(item.unitFactor) : 1;
                 let baseCost = 0;
                 const sSize = String(item.selectedSize || item.size || '').trim();
                 const sColor = String(item.selectedColor || item.color || '').trim();
@@ -2639,7 +2639,7 @@ async function saveBill(force = false, accountChecked = false) {
             const p = productsDB.find(x => x.id === item.id || x.name === item.name);
             if (!p) return;
 
-            const factor = parseFloat(item.unitFactor) || 1;
+            const factor = (parseFloat(item.unitFactor) > 0) ? parseFloat(item.unitFactor) : 1;
             const baseQty = (parseFloat(item.qty) || 0) * factor;
             const sSize = String(item.selectedSize || item.size || '').trim();
             const sColor = String(item.selectedColor || item.color || '').trim();
@@ -3629,7 +3629,7 @@ async function showCurrentBillProfit() {
         }
 
         let itemCost = 0;
-        const factor = parseFloat(item.unitFactor) || 1;
+        const factor = (parseFloat(item.unitFactor) > 0) ? parseFloat(item.unitFactor) : 1;
 
         if (item.selectedUnit && typeof item.selectedUnit === 'object') {
             let unitCost = 0;

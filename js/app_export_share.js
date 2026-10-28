@@ -714,21 +714,25 @@ async function shareTransactionWithImage(type, targetPhone) {
 window.shareTransactionWithImage = shareTransactionWithImage;
 
 // نافذة التوضيح للكاشير لاختصار اللصق Ctrl + V
+let _waPasteModalKeyHandler = null;
+
 function showWhatsAppPasteHelperModal() {
     let modal = document.getElementById('waPasteModal');
     if (modal) {
         modal.style.display = 'flex';
-        const handleKey = (e) => {
+        if (_waPasteModalKeyHandler) {
+            window.removeEventListener('keydown', _waPasteModalKeyHandler);
+            _waPasteModalKeyHandler = null;
+        }
+        _waPasteModalKeyHandler = (e) => {
             if (e.key === 'Enter' || e.key === 'Escape') {
                 closeWhatsAppPasteHelperModal();
-                window.removeEventListener('keydown', handleKey);
             }
         };
-        window.addEventListener('keydown', handleKey);
+        window.addEventListener('keydown', _waPasteModalKeyHandler);
         modal.onclick = (e) => {
             if (e.target === modal) {
                 closeWhatsAppPasteHelperModal();
-                window.removeEventListener('keydown', handleKey);
             }
         };
     }
@@ -736,6 +740,10 @@ function showWhatsAppPasteHelperModal() {
 window.showWhatsAppPasteHelperModal = showWhatsAppPasteHelperModal;
 
 function closeWhatsAppPasteHelperModal() {
+    if (_waPasteModalKeyHandler) {
+        window.removeEventListener('keydown', _waPasteModalKeyHandler);
+        _waPasteModalKeyHandler = null;
+    }
     const modal = document.getElementById('waPasteModal');
     if (modal) {
         modal.style.display = 'none';

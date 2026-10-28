@@ -2223,19 +2223,41 @@
         }
 
         /**
-         * ⚡ جلب فاتورة واحدة برقمها الفوري من SQLite
+         * ⚡ جلب فاتورة واحدة برقمها الفوري من SQLite مع تمييز نوع العملية لمنع تداخل المعرفات
          */
-        getInvoice(invoiceId) {
+        getInvoice(invoiceId, targetType = null) {
             if (!this.db || !invoiceId) return null;
             const sId = String(invoiceId).trim();
             const numId = Number(sId) || 0;
+            const cleanType = targetType ? String(targetType).trim() : '';
             try {
+                let sql = "SELECT * FROM transactions WHERE (invoiceId = ? OR id = ?)";
+                let params = [sId, numId];
+                if (cleanType) {
+                    if (cleanType.includes('مرتجع بيع') || cleanType.includes('مرتجع مبيعات')) {
+                        sql += " AND (type LIKE '%مرتجع بيع%' OR type LIKE '%مرتجع مبيعات%')";
+                    } else if (cleanType.includes('مرتجع شراء') || cleanType.includes('مرتجع مشتريات')) {
+                        sql += " AND (type LIKE '%مرتجع شراء%' OR type LIKE '%مرتجع مشتريات%')";
+                    } else if (cleanType.includes('بيع') || cleanType.includes('مبيعات')) {
+                        sql += " AND ((type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%')";
+                    } else if (cleanType.includes('شراء') || cleanType.includes('مشتريات')) {
+                        sql += " AND ((type LIKE '%شراء%' OR type LIKE '%مشتريات%') AND type NOT LIKE '%مرتجع%')";
+                    } else if (cleanType.includes('تحويل')) {
+                        sql += " AND type LIKE '%تحويل%'";
+                    } else if (cleanType.includes('تسوية')) {
+                        sql += " AND type LIKE '%تسوية%'";
+                    } else {
+                        sql += " AND type = ?";
+                        params.push(cleanType);
+                    }
+                }
+                sql += " LIMIT 1;";
                 if (this.isNative && this.nativeDb) {
-                    const row = this.nativeDb.prepare("SELECT * FROM transactions WHERE invoiceId = ? OR id = ? LIMIT 1;").get(sId, numId);
+                    const row = this.nativeDb.prepare(sql).get(...params);
                     return row ? this._reconstructRow(row) : null;
                 }
-                const stmt = this.db.prepare("SELECT * FROM transactions WHERE invoiceId = ? OR id = ? LIMIT 1;");
-                stmt.bind([sId, numId]);
+                const stmt = this.db.prepare(sql);
+                stmt.bind(params);
                 if (stmt.step()) {
                     const row = stmt.getAsObject();
                     stmt.free();
@@ -2258,23 +2280,49 @@
 
         /**
          * ⚡ جلب حركات المرتجع السابقة المرتبطة بفاتورة أصلية محددة
+         * (محصن بنسبة 100% ضد خلط الفواتير المتشابهة مثل 5 مع 50 و 500)
          */
-        getInvoiceReturns(invoiceId) {
+        getInvoiceReturns(invoiceId, targetType = '') {
             if (!this.db || !invoiceId) return [];
             const sId = String(invoiceId).trim();
-            const rawJsonPattern = `%"originalInvoiceId":"${sId}"%`;
+            const cleanType = String(targetType || '').trim();
             try {
+                let sql = "SELECT * FROM transactions WHERE (originalInvoiceId = ? OR (raw_json IS NOT NULL AND (raw_json LIKE ? OR raw_json LIKE ?))) AND (type LIKE '%مرتجع%')";
+                const jsonPatternQuote = `%"originalInvoiceId":"${sId}"%`;
+                const jsonPatternNum = `%"originalInvoiceId":${sId},%`;
+                let params = [sId, jsonPatternQuote, jsonPatternNum];
+
+                if (cleanType) {
+                    if (cleanType.includes('بيع') || cleanType.includes('مبيعات')) {
+                        sql += " AND (type LIKE '%مرتجع بيع%' OR type LIKE '%مرتجع مبيعات%')";
+                    } else if (cleanType.includes('شراء') || cleanType.includes('مشتريات')) {
+                        sql += " AND (type LIKE '%مرتجع شراء%' OR type LIKE '%مرتجع مشتريات%')";
+                    }
+                }
+                sql += ";";
+
+                let rows = [];
                 if (this.isNative && this.nativeDb) {
-                    const rows = this.nativeDb.prepare("SELECT * FROM transactions WHERE (originalInvoiceId = ? OR (raw_json IS NOT NULL AND raw_json LIKE ?)) AND (type LIKE '%مرتجع%');").all(sId, rawJsonPattern);
-                    return rows ? rows.map(r => this._reconstructRow(r)) : [];
+                    rows = this.nativeDb.prepare(sql).all(...params);
+                } else {
+                    const stmt = this.db.prepare(sql);
+                    stmt.bind(params);
+                    while (stmt.step()) {
+                        rows.push(stmt.getAsObject());
+                    }
+                    stmt.free();
                 }
-                const stmt = this.db.prepare("SELECT * FROM transactions WHERE (originalInvoiceId = ? OR (raw_json IS NOT NULL AND raw_json LIKE ?)) AND (type LIKE '%مرتجع%');");
-                stmt.bind([sId, rawJsonPattern]);
+
+                // فلترة إضافية في الذاكرة للتحقق القاطع من أن originalInvoiceId يطابق sId تماماً وليس مجرد بادئة
                 const items = [];
-                while (stmt.step()) {
-                    items.push(this._reconstructRow(stmt.getAsObject()));
+                for (const r of rows) {
+                    const rec = this._reconstructRow(r);
+                    if (!rec) continue;
+                    const rOrigId = String(rec.originalInvoiceId != null ? rec.originalInvoiceId : '').trim();
+                    if (rOrigId === sId || (rec.raw_json && String(rec.originalInvoiceId) === sId)) {
+                        items.push(rec);
+                    }
                 }
-                stmt.free();
                 return items;
             } catch (e) {
                 console.warn("[SQLite] getInvoiceReturns notice:", e.message);
@@ -2284,24 +2332,18 @@
 
         /**
          * ⚡ حساب إجمالي القيمة المرتجعة لفاتورة معينة
+         * (يعتمد حصراً على النتائج المدققة لمنع أي فروقات حسابية)
          */
-        getTotalReturnedAmount(invoiceId) {
+        getTotalReturnedAmount(invoiceId, targetType = '') {
             if (!this.db || !invoiceId) return 0;
-            const sId = String(invoiceId).trim();
-            const rawJsonPattern = `%"originalInvoiceId":"${sId}"%`;
             try {
-                if (this.isNative && this.nativeDb) {
-                    const row = this.nativeDb.prepare("SELECT COALESCE(SUM(total), 0) AS retTotal FROM transactions WHERE (originalInvoiceId = ? OR (raw_json IS NOT NULL AND raw_json LIKE ?)) AND (type LIKE '%مرتجع%');").get(sId, rawJsonPattern);
-                    return row ? (parseFloat(row.retTotal) || 0) : 0;
+                const rets = this.getInvoiceReturns(invoiceId, targetType);
+                if (!rets || rets.length === 0) return 0;
+                let sum = 0;
+                for (let i = 0; i < rets.length; i++) {
+                    sum += (parseFloat(rets[i].total) || 0);
                 }
-                const stmt = this.db.prepare("SELECT COALESCE(SUM(total), 0) AS retTotal FROM transactions WHERE (originalInvoiceId = ? OR (raw_json IS NOT NULL AND raw_json LIKE ?)) AND (type LIKE '%مرتجع%');");
-                stmt.bind([sId, rawJsonPattern]);
-                if (stmt.step()) {
-                    const val = stmt.get()[0];
-                    stmt.free();
-                    return parseFloat(val) || 0;
-                }
-                stmt.free();
+                return Math.round((sum + Number.EPSILON) * 100) / 100;
             } catch (e) {
                 console.warn("[SQLite] getTotalReturnedAmount notice:", e.message);
             }
@@ -4185,6 +4227,21 @@
 
                 const decodedTxRows = (txRows || []).map(r => this._reconstructRow(r)).filter(Boolean);
 
+                // استنتاج نوع العملية تلقائياً إذا لم يُمرر لمنع تداخل أصناف الفواتير ذات الأرقام المتماثلة
+                let effectiveType = cleanType;
+                if (!effectiveType && decodedTxRows.length > 0) {
+                    const headRow = decodedTxRows.find(r => r.isInvoiceHead) || decodedTxRows[0];
+                    if (headRow && headRow.type) {
+                        const ht = String(headRow.type);
+                        if (ht.includes('مرتجع بيع') || ht.includes('مرتجع مبيعات') || ht === 'sale_return') effectiveType = 'مرتجع بيع';
+                        else if (ht.includes('مرتجع شراء') || ht.includes('مرتجع مشتريات') || ht === 'purchase_return') effectiveType = 'مرتجع شراء';
+                        else if (ht.includes('بيع') || ht.includes('مبيعات') || ht === 'sale') effectiveType = 'بيع';
+                        else if (ht.includes('شراء') || ht.includes('مشتريات') || ht === 'purchase') effectiveType = 'شراء';
+                        else if (ht.includes('تحويل') || ht === 'transfer') effectiveType = 'تحويل';
+                        else if (ht.includes('تسوية') || ht === 'adjustment') effectiveType = 'تسوية';
+                    }
+                }
+
                 // فحص إذا كان هناك مصفوفة أصناف مدمجة داخل أحد الصفوف (items / products / cart)
                 let embeddedItems = [];
                 for (let i = 0; i < decodedTxRows.length; i++) {
@@ -4194,29 +4251,40 @@
                     if (Array.isArray(r.cart) && r.cart.length > embeddedItems.length) embeddedItems = r.cart;
                 }
 
-                // استخراج السطور التي تمثل أصنافاً فعلية من جدول transactions
-                const itemsFromTx = decodedTxRows.filter(r => (r.product || r.productName || r.name));
+                // استخراج السطور التي تمثل أصنافاً فعلية من جدول transactions مع عزل الأنواع
+                let itemsFromTx = decodedTxRows.filter(r => (r.product || r.productName || r.name));
+                if (effectiveType) {
+                    if (effectiveType.includes('مرتجع بيع')) {
+                        itemsFromTx = itemsFromTx.filter(r => r.type && (r.type.includes('مرتجع بيع') || r.type.includes('مرتجع مبيعات') || r.type === 'sale_return'));
+                    } else if (effectiveType.includes('مرتجع شراء')) {
+                        itemsFromTx = itemsFromTx.filter(r => r.type && (r.type.includes('مرتجع شراء') || r.type.includes('مرتجع مشتريات') || r.type === 'purchase_return'));
+                    } else if (effectiveType.includes('بيع')) {
+                        itemsFromTx = itemsFromTx.filter(r => r.type && (r.type.includes('بيع') || r.type.includes('مبيعات') || r.type === 'sale') && !r.type.includes('مرتجع'));
+                    } else if (effectiveType.includes('شراء')) {
+                        itemsFromTx = itemsFromTx.filter(r => r.type && (r.type.includes('شراء') || r.type.includes('مشتريات') || r.type === 'purchase') && !r.type.includes('مرتجع'));
+                    }
+                }
 
                 // 2. الاستعلام من جدول transaction_items المفهرس لجلب كافة بنود الفاتورة
                 let sqlTi = "SELECT * FROM transaction_items WHERE (invoiceId = ? OR tx_id = ?)";
                 let tiParams = [sId, sId];
 
-                if (cleanType) {
-                    if (cleanType.includes('مرتجع بيع') || cleanType.includes('مرتجع مبيعات') || cleanType === 'sale_return') {
+                if (effectiveType) {
+                    if (effectiveType.includes('مرتجع بيع') || effectiveType.includes('مرتجع مبيعات') || effectiveType === 'sale_return') {
                         sqlTi += " AND (type LIKE '%مرتجع بيع%' OR type LIKE '%مرتجع مبيعات%' OR type = 'sale_return')";
-                    } else if (cleanType.includes('مرتجع شراء') || cleanType.includes('مرتجع مشتريات') || cleanType === 'purchase_return') {
+                    } else if (effectiveType.includes('مرتجع شراء') || effectiveType.includes('مرتجع مشتريات') || effectiveType === 'purchase_return') {
                         sqlTi += " AND (type LIKE '%مرتجع شراء%' OR type LIKE '%مرتجع مشتريات%' OR type = 'purchase_return')";
-                    } else if (cleanType.includes('بيع') || cleanType.includes('مبيعات') || cleanType === 'sale') {
+                    } else if (effectiveType.includes('بيع') || effectiveType.includes('مبيعات') || effectiveType === 'sale') {
                         sqlTi += " AND ((type LIKE '%بيع%' OR type LIKE '%مبيعات%' OR type = 'sale') AND type NOT LIKE '%مرتجع%')";
-                    } else if (cleanType.includes('شراء') || cleanType.includes('مشتريات') || cleanType === 'purchase') {
+                    } else if (effectiveType.includes('شراء') || effectiveType.includes('مشتريات') || effectiveType === 'purchase') {
                         sqlTi += " AND ((type LIKE '%شراء%' OR type LIKE '%مشتريات%' OR type = 'purchase') AND type NOT LIKE '%مرتجع%')";
-                    } else if (cleanType.includes('تحويل') || cleanType.includes('transfer')) {
+                    } else if (effectiveType.includes('تحويل') || effectiveType.includes('transfer')) {
                         sqlTi += " AND (type LIKE '%تحويل%' OR type LIKE '%transfer%')";
-                    } else if (cleanType.includes('تسوية') || cleanType.includes('adjustment') || cleanType.includes('جرد')) {
+                    } else if (effectiveType.includes('تسوية') || effectiveType.includes('adjustment') || effectiveType.includes('جرد')) {
                         sqlTi += " AND (type LIKE '%تسوية%' OR type LIKE '%adjustment%' OR type LIKE '%جرد%')";
                     } else {
                         sqlTi += " AND type = ?";
-                        tiParams.push(cleanType);
+                        tiParams.push(effectiveType);
                     }
                 }
                 sqlTi += " ORDER BY id ASC;";

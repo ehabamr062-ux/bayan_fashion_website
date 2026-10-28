@@ -28,7 +28,7 @@ var transferItemsBatch = window.transferItemsBatch;
         window.getEffectiveTransferPrice = function(product, variant = null, unit = null) {
             if (!product) return 0;
             const priceType = window.getTransferPriceType();
-            const factor = (unit && unit.factor) ? parseFloat(unit.factor) : 1;
+            const factor = (unit && parseFloat(unit.factor) > 0) ? parseFloat(unit.factor) : 1;
 
             let price = 0;
             if (variant) {
@@ -304,7 +304,7 @@ var transferItemsBatch = window.transferItemsBatch;
 
             const unitName = currentTransferHeaderUnit ? currentTransferHeaderUnit.unitName : (p.unit || 'قطعة');
 
-            const factor = currentTransferHeaderUnit ? parseFloat(currentTransferHeaderUnit.factor) : 1;
+            const factor = (currentTransferHeaderUnit && parseFloat(currentTransferHeaderUnit.factor) > 0) ? parseFloat(currentTransferHeaderUnit.factor) : 1;
 
             if (typeof getWarehouseStock === 'function') {
 
@@ -396,7 +396,7 @@ var transferItemsBatch = window.transferItemsBatch;
                 // تحديث الرصيد الفعلي للصنف والتشكيلة في المخزن المحول منه فوراً
                 const p = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB.find(prod => prod.id === item.id || prod.name === item.name) : null;
                 if (p) {
-                    const factor = parseFloat(item.unitFactor) || 1;
+                    const factor = (parseFloat(item.unitFactor) > 0) ? parseFloat(item.unitFactor) : 1;
                     if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
                         const sSize = String(item.size || item.selectedSize || '').trim();
                         const sColor = String(item.color || item.selectedColor || '').trim();
@@ -798,10 +798,8 @@ var transferItemsBatch = window.transferItemsBatch;
 
                     const fromWh = document.getElementById('transferFrom') ? document.getElementById('transferFrom').value : (typeof getStore === 'function' ? getStore('activeWarehouse') : 'المخزن الرئيسي') || 'المخزن الرئيسي';
                     let currentWhStock = 0;
-                    if (typeof getLiveProductWhStock === 'function') {
-                        currentWhStock = getLiveProductWhStock(p, fromWh);
-                    } else if (typeof getWarehouseStock === 'function') {
-                        currentWhStock = getWarehouseStock(p, fromWh);
+                    if (typeof getWarehouseStock === 'function') {
+                        currentWhStock = getWarehouseStock(p.name, fromWh);
                     } else if (p.warehouseStocks && p.warehouseStocks[fromWh] !== undefined) {
                         currentWhStock = parseFloat(p.warehouseStocks[fromWh]) || 0;
                     } else {
@@ -1163,7 +1161,7 @@ var transferItemsBatch = window.transferItemsBatch;
             if (!product) return;
 
             const wFrom = (document.getElementById('transferFrom')?.value || 'المخزن الرئيسي').trim();
-            const factor = currentTransferHeaderUnit ? parseFloat(currentTransferHeaderUnit.factor) : 1;
+            const factor = (currentTransferHeaderUnit && parseFloat(currentTransferHeaderUnit.factor) > 0) ? parseFloat(currentTransferHeaderUnit.factor) : 1;
             const requiredBaseQty = qty * factor;
 
             // 1. فحص الرصيد الفعلي للمقاس/اللون في المخزن المصدر قبل الإضافة
@@ -1487,7 +1485,7 @@ var transferItemsBatch = window.transferItemsBatch;
                             if (item.qty <= 0) continue;
                             const p = productsDB.find(prod => prod && (prod.name === item.name || prod.id === item.id));
                             if (!p) continue;
-                            const factor = parseFloat(item.unitFactor) || 1;
+                            const factor = (parseFloat(item.unitFactor) > 0) ? parseFloat(item.unitFactor) : 1;
                             const baseQty = item.qty * factor;
                             const sSize = cleanAttr(item.size || item.selectedSize || '');
                             const sColor = cleanAttr(item.color || item.selectedColor || '');
@@ -1592,7 +1590,7 @@ var transferItemsBatch = window.transferItemsBatch;
 
                         (window.transferItemsBatch || []).forEach((item, idx) => {
                             if (item.qty > 0) {
-                                const factor = parseFloat(item.unitFactor) || 1;
+                                const factor = (parseFloat(item.unitFactor) > 0) ? parseFloat(item.unitFactor) : 1;
                                 const baseQty = (parseFloat(item.qty) || 0) * factor;
 
                                 // ⏳ ملاحظة محاسبية دقيقة: لا يتم خصم رصيد الصنف أو تشكيلاته (المقاس واللون) من المخزن المصدر أثناء حالة الانتظار (pending)

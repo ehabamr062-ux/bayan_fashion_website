@@ -324,6 +324,7 @@
                 { key: 'finalCashBalance', icon: '💰', label: 'الإجمالي الدفتري التراكمي' }
             ];
 
+            document.getElementById('dailyReportCustomizerModal')?.remove();
             const modal = document.createElement('div');
             modal.id = 'dailyReportCustomizerModal';
             modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(5px); z-index: 100000; display: flex; justify-content: center; align-items: center; padding: 15px; box-sizing: border-box; direction: rtl; font-family: inherit; animation: fadeIn 0.2s;';
@@ -3902,6 +3903,7 @@
                 `;
             }).join('');
 
+            document.getElementById('drawerDenominationsModal')?.remove();
             const modal = document.createElement('div');
             modal.id = 'drawerDenominationsModal';
             modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 999999; display: flex; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; direction: rtl; font-family: inherit;';
@@ -4027,6 +4029,7 @@
 
             const currentNotes = window.currentDrawerClosingState.notes || '';
 
+            document.getElementById('drawerClosingNotesModal')?.remove();
             const modal = document.createElement('div');
             modal.id = 'drawerClosingNotesModal';
             modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 999999; display: flex; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; direction: rtl; font-family: inherit;';
