@@ -905,21 +905,21 @@ function build80mmStandard(d) {
         </div>
 
         <div style="font-size:13px; font-weight:900; margin-bottom:6px; border-bottom:2.5px solid #000000; padding-bottom:5px; line-height:1.4;">
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:0 2px; gap:6px;">
-                <span style="white-space:nowrap;">رقم الفاتورة: <b style="font-size:15px; font-weight:900;">#${d.invoiceNumber}</b></span>
-                <span style="white-space:nowrap; direction:ltr; text-align:left;"><span style="direction:rtl; display:inline-block;">التاريخ:</span> ${d.date}</span>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; padding:0 2px; gap:4px 6px;">
+                <span>رقم الفاتورة: <b style="font-size:15px; font-weight:900;">#${d.invoiceNumber}</b></span>
+                <span style="direction:ltr; text-align:left;"><span style="direction:rtl; display:inline-block;">التاريخ:</span> ${d.date}</span>
             </div>
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:0 2px; margin-top:3px; gap:6px;">
-                <span style="white-space:nowrap;">طريقة الدفع: ${d.invoiceType}</span>
-                <span style="white-space:nowrap;">الوقت: ${d.time}</span>
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; padding:0 2px; margin-top:3px; gap:4px 6px;">
+                <span>طريقة الدفع: ${d.invoiceType}</span>
+                <span>الوقت: ${d.time}</span>
             </div>
-            ${!isCashBuyer && d.customer ? `<div style="border-top:2px dashed #000000; margin-top:4px; padding-top:3px; padding-right:2px; font-weight:900; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">العميل: ${d.customer}</div>` : ''}
-            <div style="display:flex; justify-content:space-between; align-items:center; padding:0 2px; margin-top:3px; font-size:12.5px; gap:6px;">
-                ${d.cashier ? `<span style="white-space:nowrap;">الكاشير: ${d.cashier}</span>` : '<span></span>'}
-                <span style="white-space:nowrap;">الفرع: ${d.warehouse}</span>
+            ${!isCashBuyer && d.customer ? `<div style="border-top:2px dashed #000000; margin-top:4px; padding-top:3px; padding-right:2px; font-weight:900; font-size:13.5px; word-break:break-word; line-height:1.35;">العميل: ${d.customer}</div>` : ''}
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; padding:0 2px; margin-top:3px; font-size:12.5px; gap:4px 6px;">
+                ${d.cashier ? `<span style="word-break:break-word; max-width:100%;">الكاشير: ${d.cashier}</span>` : '<span></span>'}
+                ${d.warehouse ? `<span style="word-break:break-word; max-width:100%;">الفرع: ${d.warehouse}</span>` : ''}
             </div>
-            ${d.terminal ? `<div style="padding:0 2px; font-size:11.5px; display:flex; justify-content:space-between; margin-top:2px; white-space:nowrap;"><span>الجهاز: ${d.terminal}</span>${(!d.isTaxSeqActive && d.dailyTaxSeq && d.rawInvoiceNumber && String(d.dailyTaxSeq) !== String(d.rawInvoiceNumber)) ? `<span>Ref: ${d.rawInvoiceNumber}</span>` : ''}</div>` : ''}
-            ${d.dueDate  ? `<div style="padding-right:2px; margin-top:2px; white-space:nowrap;">تاريخ الاستحقاق: ${d.dueDate}</div>`  : ''}
+            ${d.terminal ? `<div style="padding:0 2px; font-size:11.5px; display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; margin-top:2px; gap:4px; word-break:break-word;"><span>الجهاز: ${d.terminal}</span>${(!d.isTaxSeqActive && d.dailyTaxSeq && d.rawInvoiceNumber && String(d.dailyTaxSeq) !== String(d.rawInvoiceNumber)) ? `<span>Ref: ${d.rawInvoiceNumber}</span>` : ''}</div>` : ''}
+            ${d.dueDate  ? `<div style="padding-right:2px; margin-top:2px; word-break:break-word;">تاريخ الاستحقاق: ${d.dueDate}</div>`  : ''}
         </div>
 
         <table style="width:100%; border-collapse:collapse; font-size:13px; margin-bottom:6px; border:2.5px solid #000000; font-weight:900; table-layout:fixed; box-sizing:border-box;">
@@ -1016,11 +1016,18 @@ function build80mmCompact(d) {
             <div style="font-size:16px; font-weight:900; border:2.5px solid #000000; padding:4px 20px; display:inline-block; margin-top:6px; border-radius:4px; letter-spacing:normal;">${d.docTitle}</div>
         </div>
 
-        <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:900; margin-bottom:5px; padding:0 3px; white-space:nowrap; gap:6px;">
-            <div>كاشير: ${d.cashier}<br><span style="direction:ltr; display:inline-block;">التاريخ: ${d.date}</span></div>
-            <div style="text-align:left;">رقم: <b style="font-size:14.5px;">#${d.invoiceNumber}</b><br>${d.time}</div>
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; font-size:13px; font-weight:900; margin-bottom:5px; padding:0 3px; gap:4px 6px; line-height:1.35;">
+            <div style="word-break:break-word; flex:1; min-width:110px;">
+                ${d.cashier ? `<div>كاشير: ${d.cashier}</div>` : ''}
+                ${d.warehouse ? `<div>الفرع: ${d.warehouse}</div>` : ''}
+                <div style="direction:ltr; text-align:right;"><span style="direction:rtl; display:inline-block;">التاريخ:</span> ${d.date}</div>
+            </div>
+            <div style="text-align:left; word-break:keep-all;">
+                <div>رقم: <b style="font-size:14.5px;">#${d.invoiceNumber}</b></div>
+                <div>الوقت: ${d.time}</div>
+            </div>
         </div>
-        ${!isCashBuyer && d.customer ? `<div style="font-size:13.5px; border-bottom:2.5px solid #000000; padding-bottom:4px; margin-bottom:5px; font-weight:900; padding-right:3px;">العميل: ${d.customer}</div>` : ''}
+        ${!isCashBuyer && d.customer ? `<div style="font-size:13.5px; border-bottom:2.5px solid #000000; padding-bottom:4px; margin-bottom:5px; font-weight:900; padding-right:3px; word-break:break-word; line-height:1.35;">العميل: ${d.customer}</div>` : ''}
 
         <table style="width:100%; border-collapse:collapse; margin-bottom:6px; border-top:2.5px solid #000000; border-bottom:2.5px solid #000000; font-weight:900; table-layout:fixed;">
             <colgroup>
