@@ -1055,6 +1055,11 @@
                 CREATE INDEX IF NOT EXISTS idx_ti_date_type ON transaction_items(dateISO, type);
             `);
 
+            // تنظيف تلقائي آمن عند بدء التشغيل لأي بنود يتيمة ليس لها سجل أصل في جدول transactions
+            try {
+                this.db.run(`DELETE FROM transaction_items WHERE tx_id IS NOT NULL AND tx_id != '' AND tx_id NOT IN (SELECT id FROM transactions);`);
+            } catch(tiCleanErr) {}
+
             // 3. جدول الحسابات (العملاء والموردين)
             this.db.run(`
                 CREATE TABLE IF NOT EXISTS accounts (
@@ -2113,8 +2118,9 @@
                 stmt.free();
                 if (safeTable === 'transactions') {
                     try {
-                        const delTi = this.db.prepare(`DELETE FROM transaction_items WHERE tx_id = ?;`);
-                        delTi.run([id != null ? id : null]);
+                        const delTi = this.db.prepare(`DELETE FROM transaction_items WHERE tx_id = ? OR invoiceId = ?;`);
+                        const val = id != null ? String(id) : null;
+                        delTi.run([val, val]);
                         delTi.free();
                     } catch (tiErr) {}
                 }
@@ -2150,9 +2156,12 @@
                     stmt.free();
                     if (safeTable === 'transactions') {
                         try {
-                            const delTi = this.db.prepare(`DELETE FROM transaction_items WHERE tx_id = ?;`);
+                            const delTi = this.db.prepare(`DELETE FROM transaction_items WHERE tx_id = ? OR invoiceId = ?;`);
                             for (const id of ids) {
-                                if (id !== undefined) delTi.run([id != null ? id : null]);
+                                if (id !== undefined) {
+                                    const val = id != null ? String(id) : null;
+                                    delTi.run([val, val]);
+                                }
                             }
                             delTi.free();
                         } catch (tiErr) {}
@@ -4265,8 +4274,8 @@
                     }
                 }
 
-                // 2. الاستعلام من جدول transaction_items المفهرس لجلب كافة بنود الفاتورة
-                let sqlTi = "SELECT * FROM transaction_items WHERE (invoiceId = ? OR tx_id = ?)";
+                // 2. الاستعلام من جدول transaction_items المفهرس لجلب كافة بنود الفاتورة (مع استبعاد أي بنود يتيمة)
+                let sqlTi = "SELECT * FROM transaction_items WHERE (invoiceId = ? OR tx_id = ?) AND (tx_id IN (SELECT id FROM transactions) OR invoiceId IN (SELECT invoiceId FROM transactions))";
                 let tiParams = [sId, sId];
 
                 if (effectiveType) {
@@ -4319,15 +4328,13 @@
                     }
                 }
 
-                // 3. المفاضلة الذكية لاختيار المصدر الأكثر اكتمالاً وشمولية للبنود
-                if (embeddedItems.length > 0 && embeddedItems.length >= itemsFromTx.length && embeddedItems.length >= uniqueTi.length) {
-                    return embeddedItems;
-                }
-                if (uniqueTi.length > itemsFromTx.length && uniqueTi.length > 0) {
-                    return uniqueTi;
-                }
+                // 3. المفاضلة الذكية لاختيار المصدر الحقيقي للبنود (Single Source of Truth)
+                // جدول transactions هو المصدر الأساسي الحاكم دائماً طالما يحتوي على أصناف
                 if (itemsFromTx.length > 0) {
                     return itemsFromTx;
+                }
+                if (embeddedItems.length > 0) {
+                    return embeddedItems;
                 }
                 if (uniqueTi.length > 0) {
                     return uniqueTi;

@@ -1251,7 +1251,7 @@ async function viewInvoiceItems(invoiceId, type = '', autoPrint = false, optTxId
     // ⚡ استدعاء بنود الفاتورة مباشرة من SQLite مع حصانة كاملة ضد تداخل المعرفات
     let rawInvoiceItems = [];
     if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
-        rawInvoiceItems = window.BayanSQLite.getInvoiceItems(invoiceId, type);
+        rawInvoiceItems = window.BayanSQLite.getInvoiceItems(invoiceId, type, optTxId);
     }
     if (!rawInvoiceItems || rawInvoiceItems.length <= 1) {
         const memItems = (typeof transactions !== 'undefined' ? transactions : []).filter(t => {
@@ -2775,6 +2775,14 @@ window.revertAndClearOldInvoice = async function (invId, type) {
             }
         }
 
+        // تنظيف فوري متزامن لبنود الفاتورة في جدول transaction_items
+        if (window.BayanSQLite && window.BayanSQLite.db) {
+            try {
+                window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE invoiceId = ? OR tx_id = ?;", [String(invId), String(invId)]);
+                window.BayanSQLite._isDirty = true;
+            } catch(tiErr) {}
+        }
+
     } catch (e) {
 
         console.warn("⚠️ فشل الحذف المباشر من القاعدة، سيتم الاعتماد على الحفظ الكلي لاحقاً:", e);
@@ -3101,6 +3109,14 @@ async function deleteTransaction(idx) {
 
                         await db.transactions.bulkDelete(idsToDelete);
 
+                    }
+
+                    // تنظيف فوري متزامن لبنود الفاتورة في جدول transaction_items
+                    if (window.BayanSQLite && window.BayanSQLite.db) {
+                        try {
+                            window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE invoiceId = ? OR tx_id = ?;", [String(invId), String(invId)]);
+                            window.BayanSQLite._isDirty = true;
+                        } catch(tiErr) {}
                     }
 
                 } else {

@@ -1780,7 +1780,7 @@
                                     </div>
                                 ` : ''}
                                 <div style="background: linear-gradient(135deg, #0f172a, #1e293b); color: white; padding: 7px 18px; border-radius: 12px; text-align: center; box-shadow: 0 4px 14px rgba(15,23,42,0.25);">
-                                    <span style="font-size: 0.72rem; color: #94a3b8; font-weight: 800; display: block;">${isFinancial ? 'إجمالي المبلغ:' : 'صافي الفاتورة:'}</span>
+                                    <span style="font-size: 0.72rem; color: #ffffff; opacity: 0.95; font-weight: 800; display: block;">${isFinancial ? 'إجمالي المبلغ:' : 'صافي الفاتورة:'}</span>
                                     <div style="font-size: 1.28rem; font-weight: 900; color: #38bdf8;">${invoiceFinalTotal.toFixed(2)} <span style="font-size: 0.75rem; color: #cbd5e1;">ج.م</span></div>
                                 </div>
                                 ${!isTransfer && !isAdjustment && !isFinancial ? `
@@ -3140,7 +3140,7 @@
             if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
                 try {
                     const cleanSalesType = isReturn ? 'مرتجع مبيعات' : 'فاتورة مبيعات';
-                    const rawSql = window.BayanSQLite.getInvoiceItems(sId, cleanSalesType) || [];
+                    const rawSql = window.BayanSQLite.getInvoiceItems(sId, cleanSalesType, sTxId) || [];
                     saleMatches = rawSql.filter(t => {
                         if (!t) return false;
                         const tType = String(t.type || '').toLowerCase();
@@ -3252,7 +3252,7 @@
             else if (isHeadActualSale && Array.isArray(head.cart) && head.cart.length > uniqueSaleMatches.length) extracted = head.cart;
             else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
                 const lookupInvId = resolvedInvId || head.invoiceId || sId;
-                const sqItems = window.BayanSQLite.getInvoiceItems(lookupInvId, isReturn ? 'مرتجع مبيعات' : 'فاتورة مبيعات') || [];
+                const sqItems = window.BayanSQLite.getInvoiceItems(lookupInvId, isReturn ? 'مرتجع مبيعات' : 'فاتورة مبيعات', optTxId || sTxId) || [];
                 if (sqItems.length > uniqueSaleMatches.length) extracted = sqItems;
             }
             if (extracted.length > 0) {
