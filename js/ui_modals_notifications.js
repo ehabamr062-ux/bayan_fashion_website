@@ -2052,96 +2052,133 @@
                             <title>${title} #${id} - ${shopName}</title>
                             <style>
                                 @page { margin: 0; size: 80mm auto; }
-                                *, *::before, *::after { box-sizing: border-box !important; }
+                                *, *::before, *::after { 
+                                    box-sizing: border-box !important; 
+                                    -webkit-print-color-adjust: exact !important;
+                                    print-color-adjust: exact !important;
+                                }
                                 html, body {
                                     margin: 0 !important;
                                     padding: 0 !important;
                                     width: 100% !important;
                                     max-width: 80mm !important;
-                                    background: #fff !important;
-                                    color: #000 !important;
-                                    font-family: 'Cairo', 'Segoe UI', Arial, sans-serif !important;
-                                    -webkit-print-color-adjust: exact !important;
-                                    print-color-adjust: exact !important;
+                                    height: auto !important;
+                                    overflow: visible !important;
+                                    background: #ffffff !important;
+                                    color: #000000 !important;
+                                    font-family: 'Arial', 'Tahoma', 'Segoe UI', 'Cairo', sans-serif !important;
+                                    direction: rtl;
+                                    text-align: right;
+                                    font-weight: 900 !important;
+                                    -webkit-text-stroke: 0.55px #000000 !important;
+                                    text-shadow: 0.25px 0 0 #000, -0.25px 0 0 #000, 0 0.25px 0 #000, 0 -0.25px 0 #000 !important;
+                                }
+                                /* 🖨️ تعزيز ثقل الحبر والسواد الفاحم الصريح للطابعات الحرارية بدون بهتان */
+                                body, div, span, b, strong, td, th, p, label {
+                                    color: #000000 !important;
+                                    font-weight: 900 !important;
+                                    -webkit-text-stroke: 0.55px #000000 !important;
+                                    text-shadow: 0.25px 0 0 #000, -0.25px 0 0 #000, 0 0.25px 0 #000, 0 -0.25px 0 #000 !important;
+                                }
+                                b, strong, th, .bold-text {
+                                    -webkit-text-stroke: 0.75px #000000 !important;
+                                    font-weight: 900 !important;
                                 }
                                 .receipt-card {
                                     width: 72mm;
                                     margin: 0 auto;
-                                    padding: 3mm 2mm;
+                                    padding: 2mm 1mm;
                                     text-align: center;
+                                    box-sizing: border-box;
                                 }
                                 .shop-header {
-                                    font-size: 19px;
+                                    font-size: 20px;
                                     font-weight: 900;
                                     margin-bottom: 5px;
-                                    color: #000;
+                                    color: #000000 !important;
+                                    line-height: 1.25;
                                 }
                                 .doc-badge {
-                                    font-size: 14px;
+                                    font-size: 14.5px;
                                     font-weight: 900;
-                                    border: 2px solid #000;
+                                    border: 2.5px solid #000000;
                                     display: inline-block;
-                                    padding: 2px 14px;
+                                    padding: 3px 16px;
                                     border-radius: 4px;
                                     margin-bottom: 8px;
+                                    color: #000000 !important;
                                 }
                                 .meta-row {
                                     display: flex;
                                     justify-content: space-between;
-                                    font-size: 12px;
-                                    font-weight: 800;
-                                    border-bottom: 1.5px solid #000;
+                                    align-items: flex-start;
+                                    flex-wrap: wrap;
+                                    font-size: 12.5px;
+                                    font-weight: 900;
+                                    border-bottom: 2px solid #000000;
                                     padding-bottom: 5px;
                                     margin-bottom: 8px;
+                                    gap: 4px;
+                                    color: #000000 !important;
                                 }
                                 .box-info {
-                                    border: 1.5px solid #000;
+                                    border: 2px solid #000000;
                                     border-radius: 6px;
                                     padding: 8px;
                                     margin-bottom: 10px;
                                     text-align: right;
-                                    font-size: 13px;
-                                    font-weight: 700;
+                                    font-size: 13.5px;
+                                    font-weight: 900;
+                                    color: #000000 !important;
+                                    line-height: 1.35;
+                                    word-break: break-word;
                                 }
                                 .amount-container {
                                     margin-top: 6px;
                                     text-align: center;
-                                    font-size: 13px;
+                                    font-size: 13.5px;
                                     font-weight: 900;
+                                    color: #000000 !important;
                                 }
                                 .amount-val {
                                     font-size: 22px;
                                     font-weight: 900;
-                                    border: 2px solid #000;
+                                    border: 2.5px solid #000000;
                                     display: inline-block;
-                                    padding: 2px 12px;
+                                    padding: 3px 14px;
                                     border-radius: 6px;
-                                    margin-top: 3px;
+                                    margin-top: 4px;
                                     font-family: 'Segoe UI', Arial, sans-serif;
                                     direction: ltr !important;
+                                    color: #000000 !important;
+                                    -webkit-text-stroke: 0.75px #000000 !important;
                                 }
                                 .summary-table {
                                     width: 100%;
-                                    border-collapse: collapse;
+                                    border-collapse: collapse !important;
                                     margin-bottom: 12px;
-                                    border: 1.5px solid #000;
+                                    border: 2px solid #000000;
+                                    box-sizing: border-box;
                                 }
                                 .summary-table th {
-                                    border: 1px solid #000;
-                                    padding: 4px 2px;
-                                    font-size: 10px;
+                                    border: 1.5px solid #000000;
+                                    padding: 5px 2px;
+                                    font-size: 11.5px;
                                     font-weight: 900;
-                                    background: #f1f5f9;
+                                    color: #000000 !important;
+                                    background: #ffffff !important;
+                                    -webkit-text-stroke: 0.65px #000000 !important;
                                 }
                                 .summary-table td {
-                                    border: 1px solid #000;
+                                    border: 1.5px solid #000000;
                                     padding: 6px 2px;
-                                    font-size: 12px;
+                                    font-size: 12.5px;
                                     font-weight: 900;
                                     text-align: center;
                                     font-family: 'Segoe UI', Arial, sans-serif;
                                     direction: ltr !important;
                                     white-space: nowrap;
+                                    color: #000000 !important;
                                 }
                                 .sign-grid {
                                     display: grid;
@@ -2149,20 +2186,31 @@
                                     gap: 15px;
                                     margin-top: 20px;
                                     font-size: 12px;
-                                    font-weight: 800;
+                                    font-weight: 900;
+                                    color: #000000 !important;
                                 }
                                 .sign-line {
-                                    border-top: 1.5px solid #000;
-                                    padding-top: 4px;
+                                    border-top: 2px solid #000000;
+                                    padding-top: 5px;
                                     text-align: center;
+                                    color: #000000 !important;
                                 }
                                 .footer-text {
                                     margin-top: 15px;
-                                    border-top: 1px dashed #000;
+                                    border-top: 2px dashed #000000;
                                     padding-top: 8px;
-                                    font-size: 11px;
-                                    font-weight: 700;
-                                    color: #333;
+                                    font-size: 11.5px;
+                                    font-weight: 900;
+                                    color: #000000 !important;
+                                    line-height: 1.4;
+                                }
+                                @media print {
+                                    .no-print { display: none !important; }
+                                    html, body {
+                                        padding: 0 !important;
+                                        margin: 0 !important;
+                                        width: 100% !important;
+                                    }
                                 }
                             </style>
                         </head>
@@ -2207,7 +2255,7 @@
 
                                 <div class="footer-text">
                                     <div>${footerMsg}</div>
-                                    <div style="font-size:9px; color:#666; margin-top:3px;">نظام بَيَان POS المتكامل</div>
+                                    <div style="font-size:10px; color:#000000 !important; font-weight:900; margin-top:3px;">نظام بَيَان POS المتكامل</div>
                                 </div>
                             </div>
                             <script>
