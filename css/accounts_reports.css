@@ -1967,8 +1967,8 @@ body.dark-mode .panel-header {
 /* ================= تخصيصات شاشة كشف الحساب لملء المساحة بالكامل ومنع القص ================= */
 #statement-section {
     align-items: stretch !important;
-    height: calc(100vh - 95px) !important;
-    max-height: calc(100vh - 95px) !important;
+    height: calc(100vh - 55px) !important;
+    max-height: calc(100vh - 55px) !important;
     overflow: hidden !important;
     padding-bottom: 0 !important;
     margin-bottom: 0 !important;
@@ -1993,7 +1993,9 @@ body.dark-mode .panel-header {
     gap: 14px;
     flex: 1;
     min-height: 0;
-    height: auto;
+    height: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
     overflow: hidden;
     flex-direction: row-reverse;
 }

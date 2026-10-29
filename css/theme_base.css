@@ -4928,3 +4928,38 @@ body.dark-mode .floating-controls-box .dock-theme-capsule .active-bar {
     font-size: 0.92rem !important;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06) !important;
 }
+
+/* ============================================================
+ *  Full Layout & Viewport Anti-Bleed (منع تسرب الخلفية وامتلاء الشاشة)
+ * ============================================================ */
+#statement-section,
+#barcode-print-section,
+#accounts-section,
+#daily-report-section,
+#analysis-section,
+#invoices-section,
+#warehouse-report-section,
+#history-section,
+#sales-section,
+#purchase-section {
+    background: #f8fafc !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    min-width: 100vw !important;
+    height: calc(100vh - 55px) !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+}
+
+body.dark-mode #statement-section,
+body.dark-mode #barcode-print-section,
+body.dark-mode #accounts-section,
+body.dark-mode #daily-report-section,
+body.dark-mode #analysis-section,
+body.dark-mode #invoices-section,
+body.dark-mode #warehouse-report-section,
+body.dark-mode #history-section,
+body.dark-mode #sales-section,
+body.dark-mode #purchase-section {
+    background: #0f172a !important;
+}

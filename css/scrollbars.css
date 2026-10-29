@@ -11,8 +11,11 @@
    SECTION 0 — Layout Stability & Anti-Jitter Rules (Modern)
 ------------------------------------------------------- */
 html, body, .section-view, .table-container, .table-responsive, .table-wrapper, .modal-body, .panel-body, .stmt-table-wrapper, .stmt-main-content, .stmt-split-layout, .stmt-sidebar {
-    scrollbar-gutter: stable;
     box-sizing: border-box;
+}
+
+.table-container, .table-responsive, .table-wrapper, .stmt-table-wrapper {
+    scrollbar-gutter: stable;
 }
 
 /* منع الـ Layout Shift الناتج عن hover أو تحرك العناصر داخل الجداول وحاويات التمرير لقسم كشف الحساب وكافة الجداول */

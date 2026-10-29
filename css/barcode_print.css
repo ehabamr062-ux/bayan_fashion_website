@@ -12,10 +12,10 @@
     text-align: right;
     width: 100% !important;
     max-width: 100% !important;
-    height: calc(100vh - 65px) !important;
-    min-height: calc(100vh - 65px) !important;
-    padding: 8px 18px 12px !important;
-    background: transparent;
+    height: calc(100vh - 55px) !important;
+    min-height: calc(100vh - 55px) !important;
+    padding: 10px 14px !important;
+    background: #f8fafc !important;
     color: #0f172a;
     box-sizing: border-box !important;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -24,10 +24,15 @@
     flex: 1;
 }
 
+body.dark-mode #barcode-print-section {
+    background: #0f172a !important;
+    color: #f8fafc !important;
+}
+
 @media (max-height: 620px) {
     #barcode-print-section {
         height: auto !important;
-        min-height: calc(100vh - 65px) !important;
+        min-height: calc(100vh - 55px) !important;
         overflow-y: auto !important;
     }
 }
