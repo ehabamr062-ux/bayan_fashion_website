@@ -47,7 +47,7 @@
                     storeName = String(parsed.name).trim();
                 }
             }
-        } catch (e) {}
+        } catch (e) { }
 
         // 2. من حقل إدخال اسم المحل في شاشة الإعدادات إذا تم إدخاله أو تعديله
         if (!storeName) {
@@ -64,7 +64,7 @@
                 if (direct && String(direct).trim()) {
                     storeName = String(direct).trim();
                 }
-            } catch (e) {}
+            } catch (e) { }
         }
 
         // 4. من اسم التطبيق في الشريط العلوي إذا كان يحتوي على اسم التاجر
@@ -397,7 +397,7 @@
 
                     let vMatch = false;
                     if (p.variants && Array.isArray(p.variants)) {
-                        vMatch = p.variants.some(v => 
+                        vMatch = p.variants.some(v =>
                             String(v.barcode || '').toLowerCase().includes(qLower) ||
                             String(v.code || '').toLowerCase().includes(qLower) ||
                             String(v.size || '').toLowerCase().includes(qLower) ||
@@ -1001,7 +1001,7 @@
                     ? window.formatBarcodeVariantLabel(item.size, item.color)
                     : [item.color, item.size].filter(Boolean).join(' ');
 
-                const variantLabel = cleanVariant 
+                const variantLabel = cleanVariant
                     ? `<span class="bp-variant-pill"><span class="bp-variant-color-dot" style="background:${getVariantHexColor(item.color)};"></span>${cleanVariant}</span>`
                     : `<span style="color:#64748b; font-size:0.8rem; font-weight:800; background:#f1f5f9; padding:3px 8px; border-radius:6px;">عام (رئيسي)</span>`;
 
@@ -1414,7 +1414,7 @@
         try {
             const raw = (typeof getStore === 'function' ? getStore('bayan_bp_preview_visible') : null);
             savedPreview = raw === 'true' || raw === true;
-        } catch (e) {}
+        } catch (e) { }
         toggleBpPreviewColumn(savedPreview);
 
         // إغلاق القائمة المنسدلة للبحث عند النقر خارجها

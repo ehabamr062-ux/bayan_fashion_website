@@ -1727,6 +1727,7 @@ function updateCartPrice(index, newPrice) {
 }
 
 function resetBill() {
+    window._lastSaveBillTimestamp = 0;
     cart = [];
     isEditMode = false;
     window.isEditMode = false;
@@ -2574,13 +2575,31 @@ async function saveBill(force = false, accountChecked = false, event = null) {
 
     if (!checkPermission('docs_add')) return false;
 
-    if (window.isSavingTransaction) return false;
+    // 🛑 حماية النقر المزدوج (Debounce Lock): منع تكرار النقر على نفس الفاتورة لمدة 1.2 ثانية
+    if (!force) {
+        const now = Date.now();
+        if (window._lastSaveBillTimestamp && (now - window._lastSaveBillTimestamp) < 1200) {
+            console.warn("⚠️ تم تجاهل الضغط المزدوج السريع على زر الحفظ (Debounce Lock)");
+            return false;
+        }
+        window._lastSaveBillTimestamp = now;
+    }
 
+    if (window.isSavingTransaction) return false;
     window.isSavingTransaction = true;
 
-    // تعطيل أزرار الحفظ فوراً لمنع الضغط المزدوج
+    // ⚡ تعطيل أزرار الحفظ فوراً وتقديم استجابة بصرية لحظية (Instant Feedback)
     const saveBtns = document.querySelectorAll('#sales-section .btn-save, #sales-section .action-btn');
-    saveBtns.forEach(b => { b.disabled = true; b.style.pointerEvents = 'none'; b.style.opacity = '0.6'; });
+    saveBtns.forEach(b => {
+        b.disabled = true;
+        b.style.pointerEvents = 'none';
+        b.style.opacity = '0.65';
+    });
+
+    const mainSaveBtn = document.querySelector('#sales-section .btn-save');
+    if (mainSaveBtn) {
+        mainSaveBtn.innerHTML = '<span>⏳ جاري الحفظ...</span>';
+    }
 
     try {
 
@@ -2589,19 +2608,19 @@ async function saveBill(force = false, accountChecked = false, event = null) {
         const currentPlan = window.getBayanPlan();
 
         if (!isEditMode && !window.enforceSubscriptionCheck('invoice')) {
+            window._lastSaveBillTimestamp = 0;
             return false;
         }
 
         if (cart.length === 0) {
-
+            window._lastSaveBillTimestamp = 0;
             showCustomAlert({ titleText: '⚠️ الفاتورة فارغة', msg: 'لا يمكن حفظ فاتورة بدون أصناف.' });
-
             return false;
-
         }
 
         // --- 🛑 التحقق من سقف الفواتير اليومية (الحماية الضريبية) ---
         if (!isEditMode && typeof isDailyTaxLimitReached === 'function' && isDailyTaxLimitReached()) {
+            window._lastSaveBillTimestamp = 0;
             const settings = (typeof getStore === 'function') ? JSON.parse(getStore('pos_settings') || '{}') : {};
             const limit = parseInt(settings.dailyTaxSeqLimit || 0, 10);
             if (window.BayanBarcode && typeof BayanBarcode.playBeep === 'function') BayanBarcode.playBeep(false);
@@ -2636,8 +2655,7 @@ async function saveBill(force = false, accountChecked = false, event = null) {
                 const unitCost = baseCost * factor;
                 if (unitCost > 0 && parseFloat(item.price) < unitCost) {
                     if (window.BayanBarcode && typeof BayanBarcode.playBeep === 'function') BayanBarcode.playBeep(false);
-                    saveBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
-                    window.isSavingTransaction = false;
+                    window._lastSaveBillTimestamp = 0;
                     showCustomAlert({
                         type: 'error',
                         titleText: '⚠️ غير مسموح بالبيع بخسارة',
@@ -2758,6 +2776,7 @@ async function saveBill(force = false, accountChecked = false, event = null) {
         });
 
         if (stockErrors.length > 0) {
+            window._lastSaveBillTimestamp = 0;
             showCustomAlert({
                 type: 'error',
                 titleText: '🚫 منع البيع بالسالب (عجز مخزني)',
@@ -3020,22 +3039,8 @@ async function saveBill(force = false, accountChecked = false, event = null) {
             }
         }
 
-        // 🛑 فحص أمان: منع حفظ نفس الفاتورة مرتين بالخطأ في نفس اللحظة لنفس العميل والإجمالي
-        if (!isEditMode && !force) {
-            const cleanCust = (document.getElementById('customerName')?.value || 'عميل نقدي').trim().toLowerCase();
-            const rapidDuplicate = transactions.find(t => 
-                t.type && t.type.includes('بيع') && !t.type.includes('مرتجع') &&
-                t.isInvoiceHead &&
-                (t.partner || '').trim().toLowerCase() === cleanCust &&
-                t.dateISO === dt.iso &&
-                t.timeISO === dt.time &&
-                Math.abs((parseFloat(t.invoiceGrandTotal) || parseFloat(t.total) || 0) - currentTotal) < 0.01
-            );
-            if (rapidDuplicate) {
-                console.warn("⚠️ تم حظر تكرار حفظ فاتورة البيع في نفس اللحظة:", newInvoiceId);
-                return false;
-            }
-        }
+        // ⚡ تم إلغاء فحص الدقيقة الصامت (Rapid Duplicate Bug) نهائياً؛ لمنع حظر الفواتير المتتالية لنفس المبلغ
+        // وتم استبداله بقفل زمني 1.2 ثانية (Debounce Lock) عند بداية الدالة لمنع النقر المزدوج فقط.
 
         // حساب النسبة لتوزيع الخصم والضريبة على الأصناف في السجل
 
@@ -3345,6 +3350,7 @@ async function saveBill(force = false, accountChecked = false, event = null) {
 
     } catch (saveErr) {
 
+        window._lastSaveBillTimestamp = 0;
         console.error("❌ خطأ أثناء حفظ فاتورة المبيعات بعد تفريغ القديمة:", saveErr);
         if (isEditMode && typeof window.rollbackLastRevertedInvoice === 'function') {
             await window.rollbackLastRevertedInvoice();
@@ -3361,7 +3367,23 @@ async function saveBill(force = false, accountChecked = false, event = null) {
     } finally {
 
         const saveBtns = document.querySelectorAll('#sales-section .btn-save, #sales-section .action-btn');
-        saveBtns.forEach(b => { b.disabled = false; b.style.pointerEvents = 'auto'; b.style.opacity = '1'; });
+        saveBtns.forEach(b => {
+            b.disabled = false;
+            b.style.pointerEvents = 'auto';
+            b.style.opacity = '1';
+        });
+
+        const mainSaveBtn = document.querySelector('#sales-section .btn-save');
+        if (mainSaveBtn) {
+            if (isEditMode && editingInvoiceId) {
+                mainSaveBtn.style.background = '#e67e22';
+                mainSaveBtn.innerHTML = `<span>✏️ حفظ تعديل #${editingInvoiceId}</span><span class="shortcut">F9</span>`;
+            } else {
+                mainSaveBtn.style.background = '';
+                mainSaveBtn.innerHTML = '<span>✅ حفظ الفاتورة</span><span class="shortcut">F9</span>';
+            }
+        }
+
         window.isSavingTransaction = false;
 
     }
