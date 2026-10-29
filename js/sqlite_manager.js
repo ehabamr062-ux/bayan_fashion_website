@@ -1244,6 +1244,7 @@
          */
         _saveProductImage(productId, imageData) {
             if (!imageData || typeof imageData !== 'string') return null;
+            if (this._resolvedImageCache) this._resolvedImageCache.clear();
             if (imageData.startsWith('local_img:')) return imageData;
             if (imageData.startsWith('file://')) {
                 const fName = imageData.split('?')[0].split(/[/\\]/).pop();
@@ -1282,6 +1283,11 @@
                 return imageRef;
             }
 
+            if (!this._resolvedImageCache) this._resolvedImageCache = new Map();
+            if (this._resolvedImageCache.has(imageRef)) {
+                return this._resolvedImageCache.get(imageRef);
+            }
+
             const imgDir = this._getProductImageDir();
             if (!imgDir || !this.fs) return '';
 
@@ -1304,17 +1310,22 @@
 
             const filePath = this.path.join(imgDir, fileName);
             if (!this.fs.existsSync(filePath)) {
+                this._resolvedImageCache.set(imageRef, '');
                 return '';
             }
 
             const normalizedPath = filePath.replace(/\\/g, '/');
             const fileUri = 'file:///' + (normalizedPath.startsWith('/') ? normalizedPath.slice(1) : normalizedPath);
+            let finalUri = fileUri;
             try {
                 const mtime = Math.round(this.fs.statSync(filePath).mtimeMs);
-                return fileUri + '?t=' + mtime;
+                finalUri = fileUri + '?t=' + mtime;
             } catch (e) {
-                return fileUri;
+                finalUri = fileUri;
             }
+            if (this._resolvedImageCache.size > 2000) this._resolvedImageCache.clear();
+            this._resolvedImageCache.set(imageRef, finalUri);
+            return finalUri;
         }
 
         /**
@@ -1322,6 +1333,7 @@
          */
         _deleteProductImage(productId) {
             if (!productId) return;
+            if (this._resolvedImageCache) this._resolvedImageCache.clear();
             const imgDir = this._getProductImageDir();
             if (!imgDir || !this.fs) return;
             try {
@@ -2300,17 +2312,17 @@
                 let params = [sId, numId];
                 if (cleanType) {
                     if (cleanType.includes('مرتجع بيع') || cleanType.includes('مرتجع مبيعات')) {
-                        sql += " AND (type LIKE '%مرتجع بيع%' OR type LIKE '%مرتجع مبيعات%')";
+                        sql += " AND (type LIKE 'مرتجع بيع%' OR type LIKE 'مرتجع مبيعات%' OR type = 'sale_return')";
                     } else if (cleanType.includes('مرتجع شراء') || cleanType.includes('مرتجع مشتريات')) {
-                        sql += " AND (type LIKE '%مرتجع شراء%' OR type LIKE '%مرتجع مشتريات%')";
+                        sql += " AND (type LIKE 'مرتجع شراء%' OR type LIKE 'مرتجع مشتريات%' OR type = 'purchase_return')";
                     } else if (cleanType.includes('بيع') || cleanType.includes('مبيعات')) {
-                        sql += " AND ((type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%')";
+                        sql += " AND ((type LIKE 'بيع%' OR type LIKE 'فاتورة بيع%' OR type = 'sale' OR type IN ('بيع', 'بيع 📤', 'فاتورة بيع')) AND type NOT LIKE 'مرتجع%')";
                     } else if (cleanType.includes('شراء') || cleanType.includes('مشتريات')) {
-                        sql += " AND ((type LIKE '%شراء%' OR type LIKE '%مشتريات%') AND type NOT LIKE '%مرتجع%')";
+                        sql += " AND ((type LIKE 'شراء%' OR type LIKE 'فاتورة شراء%' OR type = 'purchase' OR type IN ('شراء', 'شراء 📥', 'فاتورة شراء')) AND type NOT LIKE 'مرتجع%')";
                     } else if (cleanType.includes('تحويل')) {
-                        sql += " AND type LIKE '%تحويل%'";
+                        sql += " AND (type LIKE 'تحويل%' OR type LIKE 'transfer%')";
                     } else if (cleanType.includes('تسوية')) {
-                        sql += " AND type LIKE '%تسوية%'";
+                        sql += " AND (type LIKE 'تسوية%' OR type LIKE 'adjustment%')";
                     } else {
                         sql += " AND type = ?";
                         params.push(cleanType);
@@ -2352,16 +2364,16 @@
             const sId = String(invoiceId).trim();
             const cleanType = String(targetType || '').trim();
             try {
-                let sql = "SELECT * FROM transactions WHERE (originalInvoiceId = ? OR (raw_json IS NOT NULL AND (raw_json LIKE ? OR raw_json LIKE ?))) AND (type LIKE '%مرتجع%')";
+                let sql = "SELECT * FROM transactions WHERE (originalInvoiceId = ? OR (raw_json IS NOT NULL AND (raw_json LIKE ? OR raw_json LIKE ?))) AND (type LIKE 'مرتجع%')";
                 const jsonPatternQuote = `%"originalInvoiceId":"${sId}"%`;
                 const jsonPatternNum = `%"originalInvoiceId":${sId},%`;
                 let params = [sId, jsonPatternQuote, jsonPatternNum];
 
                 if (cleanType) {
                     if (cleanType.includes('بيع') || cleanType.includes('مبيعات')) {
-                        sql += " AND (type LIKE '%مرتجع بيع%' OR type LIKE '%مرتجع مبيعات%')";
+                        sql += " AND (type LIKE 'مرتجع بيع%' OR type LIKE 'مرتجع مبيعات%')";
                     } else if (cleanType.includes('شراء') || cleanType.includes('مشتريات')) {
-                        sql += " AND (type LIKE '%مرتجع شراء%' OR type LIKE '%مرتجع مشتريات%')";
+                        sql += " AND (type LIKE 'مرتجع شراء%' OR type LIKE 'مرتجع مشتريات%')";
                     }
                 }
                 sql += ";";
@@ -2683,9 +2695,9 @@
                     return items;
                 };
 
-                const disbursements = fetchType("type LIKE '%صرف%'");
-                const receipts = fetchType("type LIKE '%قبض%'");
-                const purchases = fetchType("(type LIKE '%شراء%' OR type LIKE '%مشتريات%') AND type NOT LIKE '%مرتجع%'");
+                const disbursements = fetchType("(type LIKE 'صرف%' OR type LIKE 'سند صرف%')");
+                const receipts = fetchType("(type LIKE 'قبض%' OR type LIKE 'سند قبض%')");
+                const purchases = fetchType("(type LIKE 'شراء%' OR type LIKE 'فاتورة شراء%' OR type LIKE 'مشتريات%') AND type NOT LIKE 'مرتجع%'");
 
                 return { disbursements, receipts, purchases };
             } catch (err) {
@@ -2712,7 +2724,7 @@
                 } = options;
 
                 let whereClause = `
-                    WHERE (type LIKE '%بيع%' OR type LIKE '%مرتجع بيع%')
+                    WHERE (type LIKE 'بيع%' OR type LIKE 'فاتورة بيع%' OR type LIKE 'مرتجع بيع%')
                       AND (status IS NULL OR status != 'void')
                 `;
                 const params = [];
@@ -2950,7 +2962,7 @@
                 } = options;
 
                 let whereClause = `
-                    WHERE (type LIKE '%بيع%' OR type LIKE '%مرتجع بيع%')
+                    WHERE (type LIKE 'بيع%' OR type LIKE 'فاتورة بيع%' OR type LIKE 'مرتجع بيع%')
                       AND (status IS NULL OR status != 'void')
                 `;
                 const params = [];
@@ -4633,17 +4645,17 @@
 
                 if (effectiveType) {
                     if (effectiveType.includes('مرتجع بيع') || effectiveType.includes('مرتجع مبيعات') || effectiveType === 'sale_return') {
-                        sqlTi += " AND (type LIKE '%مرتجع بيع%' OR type LIKE '%مرتجع مبيعات%' OR type = 'sale_return')";
+                        sqlTi += " AND (type LIKE 'مرتجع بيع%' OR type LIKE 'مرتجع مبيعات%' OR type = 'sale_return')";
                     } else if (effectiveType.includes('مرتجع شراء') || effectiveType.includes('مرتجع مشتريات') || effectiveType === 'purchase_return') {
-                        sqlTi += " AND (type LIKE '%مرتجع شراء%' OR type LIKE '%مرتجع مشتريات%' OR type = 'purchase_return')";
+                        sqlTi += " AND (type LIKE 'مرتجع شراء%' OR type LIKE 'مرتجع مشتريات%' OR type = 'purchase_return')";
                     } else if (effectiveType.includes('بيع') || effectiveType.includes('مبيعات') || effectiveType === 'sale') {
-                        sqlTi += " AND ((type LIKE '%بيع%' OR type LIKE '%مبيعات%' OR type = 'sale') AND type NOT LIKE '%مرتجع%')";
+                        sqlTi += " AND ((type LIKE 'بيع%' OR type LIKE 'فاتورة بيع%' OR type = 'sale' OR type IN ('بيع', 'بيع 📤', 'فاتورة بيع')) AND type NOT LIKE 'مرتجع%')";
                     } else if (effectiveType.includes('شراء') || effectiveType.includes('مشتريات') || effectiveType === 'purchase') {
-                        sqlTi += " AND ((type LIKE '%شراء%' OR type LIKE '%مشتريات%' OR type = 'purchase') AND type NOT LIKE '%مرتجع%')";
+                        sqlTi += " AND ((type LIKE 'شراء%' OR type LIKE 'فاتورة شراء%' OR type = 'purchase' OR type IN ('شراء', 'شراء 📥', 'فاتورة شراء')) AND type NOT LIKE 'مرتجع%')";
                     } else if (effectiveType.includes('تحويل') || effectiveType.includes('transfer')) {
-                        sqlTi += " AND (type LIKE '%تحويل%' OR type LIKE '%transfer%')";
+                        sqlTi += " AND (type LIKE 'تحويل%' OR type LIKE 'transfer%')";
                     } else if (effectiveType.includes('تسوية') || effectiveType.includes('adjustment') || effectiveType.includes('جرد')) {
-                        sqlTi += " AND (type LIKE '%تسوية%' OR type LIKE '%adjustment%' OR type LIKE '%جرد%')";
+                        sqlTi += " AND (type LIKE 'تسوية%' OR type LIKE 'adjustment%' OR type LIKE 'جرد%')";
                     } else {
                         sqlTi += " AND type = ?";
                         tiParams.push(effectiveType);
@@ -4715,17 +4727,17 @@
                 let params = [sId || sTxId, sId || sTxId];
                 if (cleanType) {
                     if (cleanType.includes('مرتجع بيع') || cleanType.includes('مرتجع مبيعات')) {
-                        sql += " AND (type LIKE '%مرتجع بيع%' OR type LIKE '%مرتجع مبيعات%')";
+                        sql += " AND (type LIKE 'مرتجع بيع%' OR type LIKE 'مرتجع مبيعات%' OR type = 'sale_return')";
                     } else if (cleanType.includes('مرتجع شراء') || cleanType.includes('مرتجع مشتريات')) {
-                        sql += " AND (type LIKE '%مرتجع شراء%' OR type LIKE '%مرتجع مشتريات%')";
+                        sql += " AND (type LIKE 'مرتجع شراء%' OR type LIKE 'مرتجع مشتريات%' OR type = 'purchase_return')";
                     } else if (cleanType.includes('بيع') || cleanType.includes('مبيعات')) {
-                        sql += " AND ((type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%')";
+                        sql += " AND ((type LIKE 'بيع%' OR type LIKE 'فاتورة بيع%' OR type = 'sale' OR type IN ('بيع', 'بيع 📤', 'فاتورة بيع')) AND type NOT LIKE 'مرتجع%')";
                     } else if (cleanType.includes('شراء') || cleanType.includes('مشتريات')) {
-                        sql += " AND ((type LIKE '%شراء%' OR type LIKE '%مشتريات%') AND type NOT LIKE '%مرتجع%')";
+                        sql += " AND ((type LIKE 'شراء%' OR type LIKE 'فاتورة شراء%' OR type = 'purchase' OR type IN ('شراء', 'شراء 📥', 'فاتورة شراء')) AND type NOT LIKE 'مرتجع%')";
                     } else if (cleanType.includes('تحويل')) {
-                        sql += " AND type LIKE '%تحويل%'";
+                        sql += " AND (type LIKE 'تحويل%' OR type LIKE 'transfer%')";
                     } else if (cleanType.includes('تسوية')) {
-                        sql += " AND type LIKE '%تسوية%'";
+                        sql += " AND (type LIKE 'تسوية%' OR type LIKE 'adjustment%')";
                     } else {
                         sql += " AND type = ?";
                         params.push(cleanType);
@@ -4954,17 +4966,19 @@
          */
         hasRemainingReturns(originalInvoiceId) {
             if (!this.db || !originalInvoiceId) return false;
+            let stmt = null;
             try {
-                const stmt = this.db.prepare("SELECT COUNT(*) AS cnt FROM transactions WHERE originalInvoiceId = ? AND type LIKE '%مرتجع%';");
+                stmt = this.db.prepare("SELECT COUNT(*) AS cnt FROM transactions WHERE originalInvoiceId = ? AND type LIKE 'مرتجع%';");
                 stmt.bind([String(originalInvoiceId)]);
                 let cnt = 0;
                 if (stmt.step()) {
                     cnt = stmt.getAsObject().cnt || 0;
                 }
-                stmt.free();
                 return cnt > 0;
             } catch (e) {
                 return false;
+            } finally {
+                if (stmt) try { stmt.free(); } catch(e) {}
             }
         }
 
@@ -5075,9 +5089,11 @@
         searchReturnInvoices({ ref = '', product = '', account = '', dateFrom = '', dateTo = '', isSalesReturn = true, limit = 300 } = {}) {
             if (!this.db) return [];
             try {
-                const typePattern = isSalesReturn ? '%بيع%' : '%شراء%';
-                let sql = `SELECT * FROM transactions WHERE (type LIKE ? AND type NOT LIKE '%مرتجع%')`;
-                const params = [typePattern];
+                const typeClause = isSalesReturn 
+                    ? "(type LIKE 'بيع%' OR type LIKE 'فاتورة بيع%' OR type IN ('بيع', 'بيع 📤', 'فاتورة بيع')) AND type NOT LIKE 'مرتجع%'"
+                    : "(type LIKE 'شراء%' OR type LIKE 'فاتورة شراء%' OR type IN ('شراء', 'شراء 📥', 'فاتورة شراء')) AND type NOT LIKE 'مرتجع%'";
+                let sql = `SELECT * FROM transactions WHERE (${typeClause})`;
+                const params = [];
 
                 if (ref) {
                     const r = String(ref).trim();

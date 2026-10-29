@@ -141,6 +141,40 @@ const BayanBarcode = (function () {
         _lastIndexedListLength = 0;
     }
 
+    /**
+     * ⚡ تحديث فوري وموجه لصنف محدد وتشكيلاته داخل فهرس الباركود (Incremental Update - O(1))
+     * يمنع إعادة مسح كامل المنتجات (50 ألف صنف) ويضمن بقاء الاستجابة فائقة السرعة
+     */
+    function updateProductInBarcodeIndex(product) {
+        if (!_barcodeIndexMap || !product) return;
+        if (product.barcode) {
+            const b = String(product.barcode).trim();
+            if (b) _barcodeIndexMap.set(b, { product, variant: null, unit: null, matchType: 'parent' });
+        }
+        if (product.code) {
+            const c = String(product.code).trim();
+            if (c) _barcodeIndexMap.set(c, { product, variant: null, unit: null, matchType: 'parent' });
+        }
+        if (product.units && Array.isArray(product.units)) {
+            for (let k = 0; k < product.units.length; k++) {
+                const u = product.units[k];
+                if (u && u.unitBarcode) {
+                    const ub = String(u.unitBarcode).trim();
+                    if (ub) _barcodeIndexMap.set(ub, { product, variant: null, unit: u, matchType: 'unit' });
+                }
+            }
+        }
+        if (product.variants && Array.isArray(product.variants)) {
+            for (let j = 0; j < product.variants.length; j++) {
+                const v = product.variants[j];
+                if (v && v.barcode) {
+                    const vb = String(v.barcode).trim();
+                    if (vb) _barcodeIndexMap.set(vb, { product, variant: v, unit: null, matchType: 'variant' });
+                }
+            }
+        }
+    }
+
     function getBarcodeIndex(list) {
         if (_barcodeIndexMap && _lastIndexedListRef === list && _lastIndexedListLength === list.length) {
             return _barcodeIndexMap;
@@ -1107,6 +1141,7 @@ const BayanBarcode = (function () {
         isRecentScan,
         findProductAndVariantByBarcode,
         invalidateBarcodeIndex,
+        updateProductInBarcodeIndex,
         parseScaleBarcode,
         getActiveScanTarget,
         handleScan,

@@ -3,19 +3,23 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 
-// 🎮 تعطيل تسريع الهاردوير لمنع تجميد أو تعليق كروت الشاشة المدمجة القديمة (Intel HD) نهائياً
-app.disableHardwareAcceleration();
+// 🎮 تفعيل تسريع كارت الشاشة (GPU Hardware Acceleration) للأداء الفائق وسلاسة 60 FPS
+// مع صمام أمان ذكي للأجهزة القديمة في حال تعثر معالج الرسوميات
+app.on('gpu-process-crashed', (event, killed) => {
+    console.warn('⚠️ [GPU Guard] تعثر معالج الرسوميات، تحويل العرض تلقائياً للنمط الآمن...');
+    try {
+        app.disableHardwareAcceleration();
+    } catch (e) {}
+});
 
 // =========================================================================
-// 🚀 1. تسريع الأداء وضبط كروت الشاشة المدمجة (Intel HD Graphics & Low-End POS Profile)
+// 🚀 1. تسريع الأداء وضبط الرسوميات والمعالج (High-Performance POS Profile)
 // =========================================================================
 // 💾 تقليل العمليات الخلفية المجهدة للهارد الميكانيكي HDD
 app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling,CalculateNativeWinOcclusion,SpareRendererForSitePerProcess');
 // 🧠 ضبط استهلاك الذاكرة لمحرك V8 لتحفيز تنظيف الذاكرة التلقائي (GC) مبكراً
 app.commandLine.appendSwitch('js-flags', '--max-old-space-size=1024 --expose-gc');
-// 🎮 حماية كروت الشاشة المدمجة القديمة (Intel HD) من تسريب الذاكرة والتجميد
-app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
-app.commandLine.appendSwitch('disable-gpu-memory-buffer-video-frames');
+// 🎮 تفعيل تعدد مسارات المعالجة الرسومية
 app.commandLine.appendSwitch('enable-raster-multithread');
 app.commandLine.appendSwitch('disable-breakpad');
 

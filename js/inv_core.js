@@ -2390,9 +2390,7 @@ function invalidateStockCache() {
     _stockCacheKey = null;
     _stockHistoryCache = null;
     _stockHistoryCacheKey = null;
-    if (typeof BayanBarcode !== 'undefined' && typeof BayanBarcode.invalidateBarcodeIndex === 'function') {
-        BayanBarcode.invalidateBarcodeIndex();
-    }
+    // ⚡ تسريع الأداء: الحفاظ على خريطة الباركود حية وسريعة O(1) في الذاكرة دون تصفير لمنع نتشة أول صنف بعد كل فاتورة
 }
 window.invalidateStockCache = invalidateStockCache;
 

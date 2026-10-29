@@ -1941,6 +1941,9 @@ async function saveTransactionChanges({ newTransactions = [], modifiedTransactio
                     const idx = window.productsDB.findIndex(p => p && (p.id === mp.id || (p.code && mp.code && p.code === mp.code)));
                     if (idx !== -1) {
                         window.productsDB[idx] = Object.assign(window.productsDB[idx], mp);
+                        if (window.BayanBarcode && typeof window.BayanBarcode.updateProductInBarcodeIndex === 'function') {
+                            window.BayanBarcode.updateProductInBarcodeIndex(window.productsDB[idx]);
+                        }
                     }
                 });
             }
