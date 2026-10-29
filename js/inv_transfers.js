@@ -658,7 +658,7 @@ function printTransferNote() {
 
     const content = `
 
-                <div class="print-container" style="direction:rtl; font-family:Cairo, sans-serif; padding: 20px;">
+                <div class="print-container" style="direction:rtl; font-family:Cairo, sans-serif; padding: 20px; background: #ffffff !important; background-image: none !important;">
 
                     <div style="text-align:center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
 
@@ -740,7 +740,8 @@ function printTransferNote() {
     const printArea = document.getElementById('receipt-area');
 
     if (printArea) {
-
+        printArea.style.background = '#ffffff';
+        printArea.style.backgroundImage = 'none';
         printArea.innerHTML = content;
 
         window.print();

@@ -32,6 +32,7 @@ input, textarea, [contenteditable="true"] {
    ========================================================================== */
 
 :root {
+            --header-height: 48px;
             /* --- Premium Light Mode Palette (Modern Slate-Gold) --- */
             --bg-color: #f8fafc;
             --surface-color: #ffffff;
@@ -4963,3 +4964,40 @@ body.dark-mode #sales-section,
 body.dark-mode #purchase-section {
     background: #0f172a !important;
 }
+
+/* ============================================================
+ * 🖨️ منع طباعة خلفية البرنامج (Wallpaper) في إذن التحويل والطباعة
+ * ============================================================ */
+@media print {
+    html, body, body.has-wallpaper {
+        background: #ffffff !important;
+        background-image: none !important;
+    }
+    body > *:not(#receipt-area):not(.print-container) {
+        display: none !important;
+    }
+    #receipt-area,
+    .print-container {
+        display: block !important;
+        background: #ffffff !important;
+        background-image: none !important;
+    }
+}
+
+/* ============================================================
+ * 📦 شريط تمرير جدول أرصدة المخازن
+ * ============================================================ */
+#warehouse-report-section .table-container {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+}
+#warehouse-report-section .table-container::-webkit-scrollbar:horizontal {
+    display: none !important;
+    height: 0 !important;
+}
+#warehouse-report-section table,
+#warehouse-report-section .invoice-table {
+    width: 100% !important;
+    table-layout: auto !important;
+}
+
