@@ -212,7 +212,7 @@ const FashionStockEngine = {
     /**
      * 🔄 إعادة مزامنة وتطابق إجمالي رصيد الصنف مع كافة تشكيلاته ومخازنه
      */
-    syncProductTotals(product, targetWH = null) {
+    syncProductTotals(product, targetWH = null, sourceWH = null) {
         if (!product) return;
         this.normalizeWarehouseStocks(product);
         if (!product.warehouseStocks) product.warehouseStocks = {};
@@ -231,6 +231,10 @@ const FashionStockEngine = {
         const allWhs = new Set();
         allWhs.add('المخزن الرئيسي');
         if (targetWH) allWhs.add(this.resolveWarehouse(targetWH));
+        if (sourceWH) allWhs.add(this.resolveWarehouse(sourceWH));
+        if (product.warehouseStocks && typeof product.warehouseStocks === 'object') {
+            Object.keys(product.warehouseStocks).forEach(w => allWhs.add(this.resolveWarehouse(w)));
+        }
 
         product.variants.forEach(v => {
             if (!v) return;
