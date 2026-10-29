@@ -2672,7 +2672,8 @@ window.revertAndClearOldInvoice = async function (invId, type) {
 
             if (typeof FashionStockEngine !== 'undefined' && typeof FashionStockEngine.applyMovement === 'function') {
                 if (itType.includes('تحويل')) {
-                    if (item.transferStatus === 'received') {
+                    const isReceived = (item.transferStatus === 'received') || (item.status === 'received');
+                    if (isReceived) {
                         const srcWH = (item.sourceWarehouse || defaultWH || 'المخزن الرئيسي').trim();
                         const dstWH = (item.warehouse || '').trim();
                         FashionStockEngine.applyMovement({
@@ -2998,7 +2999,8 @@ async function deleteTransaction(idx) {
 
                         if (typeof FashionStockEngine !== 'undefined' && typeof FashionStockEngine.applyMovement === 'function') {
                             if (itType.includes('تحويل')) {
-                                if (item.transferStatus === 'received') {
+                                const isReceived = (item.transferStatus === 'received') || (t && t.transferStatus === 'received') || (item.status === 'received');
+                                if (isReceived) {
                                     const srcWH = (item.sourceWarehouse || 'المخزن الرئيسي').trim();
                                     const dstWH = (item.warehouse || '').trim();
                                     FashionStockEngine.applyMovement({
