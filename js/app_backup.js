@@ -852,7 +852,7 @@ window.showBackupProgressOverlay = function() {
                     <div style="font-size: 2.5rem; animation: spinPulse 2s infinite linear;">💾</div>
                 </div>
                 <h3 style="margin: 0 0 10px 0; font-size: 1.4rem; color: #f8fafc; font-weight: 900;">جاري إنشاء النسخة الاحتياطية...</h3>
-                <p style="margin: 0 0 20px 0; font-size: 0.9rem; color: #94a3b8; line-height: 1.6;">يتم الآن تأمين وحفظ كافة المنتجات، الفواتير، الحسابات، والخزينة بأمان فائق.</p>
+                <p style="margin: 0 0 20px 0; font-size: 0.92rem; color: #ffffff !important; font-weight: 700; opacity: 0.95; line-height: 1.6; text-align: center;">يتم الآن تأمين وحفظ كافة المنتجات، الفواتير، الحسابات، والخزينة بأمان فائق.</p>
                 <div style="width: 100%; height: 8px; background: #334155; border-radius: 99px; overflow: hidden; position: relative;">
                     <div style="position: absolute; top:0; left:0; bottom:0; background: linear-gradient(90deg, #3b82f6, #60a5fa); width: 100%; animation: backupProgress 1.5s infinite ease-in-out;"></div>
                 </div>

@@ -396,21 +396,26 @@ ipcMain.handle('open-sqlite-folder', () => {
 });
 
 // قنوات الاتصال (IPC)
-ipcMain.on('save-backup-and-quit', (event, backupData) => {
+ipcMain.on('save-backup-and-quit', async (event, backupData) => {
     try {
+        // ⚡ خروج بصري فوري 0ms: إخفاء كافة النوافذ فوراً لمنع أي شعور بتجمد الواجهة أثناء كتابة الملفات
+        BrowserWindow.getAllWindows().forEach(w => {
+            try { if (!w.isDestroyed()) w.hide(); } catch(e) {}
+        });
+
         const desktopDir = app.getPath('desktop');
         const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '_');
         
-        // ⚡ مع القواعد الضخمة: نسخ مباشر فائق السرعة لملف SQLite دون استهلاك الرام عبر قنوات IPC
+        // ⚡ مع القواعد الضخمة: نسخ غير متزامن فائق السرعة لملف SQLite دون استهلاك الرام ودون حظر الـ Main Thread
         const os = require('os');
         const dbPath = path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db');
         if (fs.existsSync(dbPath)) {
             const backupDbPath = path.join(desktopDir, `backup_pos_${timestamp}.db`);
-            fs.copyFileSync(dbPath, backupDbPath);
+            await fs.promises.copyFile(dbPath, backupDbPath);
             console.log('⚡ Direct SQLite backup saved to:', backupDbPath);
         } else if (backupData && typeof backupData === 'string' && backupData.trim().length > 0) {
             const backupPath = path.join(desktopDir, 'backup_pos_' + timestamp + '.json');
-            fs.writeFileSync(backupPath, backupData, 'utf-8');
+            await fs.promises.writeFile(backupPath, backupData, 'utf-8');
             console.log('Backup saved to', backupPath);
         }
     } catch (err) {
@@ -429,6 +434,8 @@ ipcMain.on('cancel-quit', () => {
     isQuitting = false;
     if (mainWindow && !mainWindow.isDestroyed()) {
         openWindows.add(mainWindow);
+        mainWindow.show();
+        mainWindow.focus();
     }
     console.log('Quit cancelled by Renderer (unsaved data found).');
 });
@@ -439,6 +446,9 @@ ipcMain.on('proceed-quit', () => {
         global.quitTimeout = null;
     }
     isQuitting = true;
+    BrowserWindow.getAllWindows().forEach(w => {
+        try { if (!w.isDestroyed()) w.hide(); } catch(e) {}
+    });
     app.exit(0);
 });
 
@@ -448,6 +458,9 @@ ipcMain.on('quit-directly', () => {
         global.quitTimeout = null;
     }
     isQuitting = true;
+    BrowserWindow.getAllWindows().forEach(w => {
+        try { if (!w.isDestroyed()) w.hide(); } catch(e) {}
+    });
     app.exit(0);
 });
 
