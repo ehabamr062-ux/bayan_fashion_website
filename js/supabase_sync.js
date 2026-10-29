@@ -41,8 +41,8 @@
                 return Boolean(window.isCloudSyncAllowed());
             }
             try {
-                const plan = (typeof window.getBayanPlan === 'function') 
-                    ? window.getBayanPlan() 
+                const plan = (typeof window.getBayanPlan === 'function')
+                    ? window.getBayanPlan()
                     : (localStorage.getItem('bayan_current_plan') || '');
                 if (!plan || plan.includes('مجانية') || plan.includes('تجريب') || plan.includes('أوفلاين') || plan.toLowerCase().includes('offline')) return false;
                 const isCloud = plan.includes('سحاب') || plan.includes('Cloud');
@@ -55,12 +55,12 @@
         // 🛡️ دالة اتصال آمنة وذكية مزودة بـ AbortController ومهلة زمنية لمنع تجميد أو رمي أخطاء حمراء بالكونسول
         _safeFetch: async function (url, options = {}, timeoutMs = 8000) {
             if (!navigator.onLine) {
-                return { 
-                    ok: false, 
-                    status: 0, 
-                    statusText: 'Offline', 
-                    json: async () => [], 
-                    text: async () => 'offline' 
+                return {
+                    ok: false,
+                    status: 0,
+                    statusText: 'Offline',
+                    json: async () => [],
+                    text: async () => 'offline'
                 };
             }
             const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
@@ -90,11 +90,11 @@
             let shopId = (typeof getStore === 'function' ? getStore('bayan_shop_id') : null) || localStorage.getItem('bayan_shop_id');
             if (!shopId) {
                 try {
-                    const settings = (typeof getStore === 'function') 
+                    const settings = (typeof getStore === 'function')
                         ? JSON.parse(getStore('pos_settings') || '{}')
                         : JSON.parse(localStorage.getItem('pos_settings') || '{}');
                     if (settings.shopId) shopId = settings.shopId;
-                } catch (e) {}
+                } catch (e) { }
             }
 
             // 🔒 حظر إعادة التوليد العشوائي: إذا لم يتوفر بعد ولم تكتمل تهيئة الـ Store، لا نولد فوراً بل ننتظر
@@ -125,7 +125,7 @@
                     const curSettings = JSON.parse((typeof getStore === 'function' ? getStore('pos_settings') : null) || localStorage.getItem('pos_settings') || '{}');
                     curSettings.shopId = shopId;
                     if (typeof setStore === 'function') setStore('pos_settings', JSON.stringify(curSettings));
-                } catch (e) {}
+                } catch (e) { }
                 console.log("🔒 [SupabaseSync] تم توليد وتثبيت كود المحل السحابي الدائم لأول مرة:", shopId);
             }
             return shopId;
@@ -148,12 +148,12 @@
                 const curSettings = JSON.parse((typeof getStore === 'function' ? getStore('pos_settings') : null) || localStorage.getItem('pos_settings') || '{}');
                 curSettings.shopId = finalId;
                 if (typeof setStore === 'function') setStore('pos_settings', JSON.stringify(curSettings));
-            } catch (e) {}
+            } catch (e) { }
             try {
                 const cfg = this.getConfig();
                 cfg.shopId = finalId;
                 this.saveConfig(cfg);
-            } catch (e) {}
+            } catch (e) { }
 
             // تصفير طوابع المزامنة السابقة لفرض سحب شامل وتحديث كامل للبيانات
             localStorage.removeItem('bayan_sb_last_tx_time');
@@ -164,7 +164,7 @@
             if (badge) badge.textContent = finalId;
 
             // رفع السجل الإقراني فوراً بالمعرف الجديد
-            this.syncPairingPin().catch(() => {});
+            this.syncPairingPin().catch(() => { });
 
             return finalId;
         },
@@ -235,7 +235,7 @@
             if (clean && clean.length >= 4) {
                 localStorage.setItem('bayan_shop_pin', clean);
                 if (typeof setStore === 'function') setStore('bayan_shop_pin', clean);
-                this.syncPairingPin(clean).catch(() => {});
+                this.syncPairingPin(clean).catch(() => { });
                 return true;
             }
             return false;
@@ -247,7 +247,7 @@
             try {
                 const rawCfg = (typeof getStore === 'function' ? getStore('bayan_supabase_config') : null) || localStorage.getItem('bayan_supabase_config');
                 saved = JSON.parse(rawCfg || '{}');
-            } catch (e) {}
+            } catch (e) { }
             return {
                 supabaseUrl: (saved.supabaseUrl || DEFAULT_CONFIG.supabaseUrl).replace(/\/+$/, ''),
                 supabaseKey: saved.supabaseKey || DEFAULT_CONFIG.supabaseKey,
@@ -357,7 +357,7 @@
                 try {
                     await window.db.syncQueue.put(item);
                     return true;
-                } catch (e) {}
+                } catch (e) { }
             }
 
             // 3. تخزين احتياطي محلي في localStorage
@@ -368,7 +368,7 @@
                 if (memQ.length > 500) memQ.splice(0, memQ.length - 500);
                 localStorage.setItem('bayan_sync_queue_fallback', JSON.stringify(memQ));
                 return true;
-            } catch (e) {}
+            } catch (e) { }
 
             return false;
         },
@@ -403,7 +403,7 @@
                 try {
                     const dexRows = await window.db.syncQueue.where('status').equals('pending').limit(limit).toArray();
                     if (dexRows && dexRows.length > 0) return dexRows;
-                } catch (e) {}
+                } catch (e) { }
             }
 
             // 3. القراءة من الاحتياطي المحلي
@@ -420,18 +420,18 @@
             if (window.sqliteManager && window.sqliteManager.db) {
                 try {
                     window.sqliteManager.db.run(`DELETE FROM syncQueue WHERE id = ?;`, [id]);
-                } catch (e) {}
+                } catch (e) { }
             }
             if (window.db && window.db.syncQueue && typeof window.db.syncQueue.delete === 'function') {
                 try {
                     await window.db.syncQueue.delete(id);
-                } catch (e) {}
+                } catch (e) { }
             }
             try {
                 let memQ = JSON.parse(localStorage.getItem('bayan_sync_queue_fallback') || '[]');
                 memQ = memQ.filter(i => String(i.id) !== String(id));
                 localStorage.setItem('bayan_sync_queue_fallback', JSON.stringify(memQ));
-            } catch (e) {}
+            } catch (e) { }
         },
 
         processSyncQueue: async function () {
@@ -605,7 +605,7 @@
             if (!this.isValidShopId(shopId)) return 0;
 
             // تفريغ طابور العمليات المعلقة أولاً بالترتيب الزمني FIFO
-            await this.processSyncQueue().catch(() => {});
+            await this.processSyncQueue().catch(() => { });
 
             const allTx = (typeof transactions !== 'undefined' && Array.isArray(transactions))
                 ? transactions
@@ -689,10 +689,10 @@
                     method: headRow.method || 'كاش',
                     cashier: headRow.cashier || headRow.user || 'المدير',
                     warehouse: headRow.warehouse || 'المخزن الرئيسي',
-                    raw_json: { 
+                    raw_json: {
                         ...headRow,
                         items: itemsList,
-                        shop_id: shopId, 
+                        shop_id: shopId,
                         invoiceId: localInvId,
                         total: grandTotal,
                         invoiceGrandTotal: grandTotal,
@@ -812,7 +812,7 @@
 
             try {
                 const remoteRes = await this._safeFetch(
-                    `${cfg.supabaseUrl}/rest/v1/products?id=like.${encodeURIComponent(shopId)}_PROD_*&select=*`, 
+                    `${cfg.supabaseUrl}/rest/v1/products?id=like.${encodeURIComponent(shopId)}_PROD_*&select=*`,
                     { headers: this._getHeaders() }
                 );
 
@@ -851,11 +851,11 @@
                                 pList.unshift(mappedProd);
                                 prodFps.set(String(mappedProd.id), getProdFp(mappedProd));
                                 if (window.sqliteManager && typeof window.sqliteManager.put === 'function') {
-                                    try { window.sqliteManager.put('products', mappedProd); } catch (e) {}
+                                    try { window.sqliteManager.put('products', mappedProd); } catch (e) { }
                                 }
                                 hasUpdatedLocalProducts = true;
                                 newImportedCount++;
-                            } 
+                            }
                             // ب) صنف موجود محلياً: فحص وتحديث بياناته الأساسية مع حماية رصيد المخزن من التضارب والدبلرة
                             else {
                                 const remPrice = parseFloat(remProd.price || 0);
@@ -876,8 +876,8 @@
                                 const remUpdatedAt = remProd.updated_at ? new Date(remProd.updated_at).getTime() : 0;
                                 const localUpdatedAt = localProd.updatedAt ? new Date(localProd.updatedAt).getTime() : 0;
                                 const isExplicitStockAdjustment = Boolean(
-                                    rj.isStockAdjustment || 
-                                    rj.isInventoryAudit || 
+                                    rj.isStockAdjustment ||
+                                    rj.isInventoryAudit ||
                                     (remUpdatedAt > (localUpdatedAt + 60000) && rj.isManualStockUpdate)
                                 );
 
@@ -909,7 +909,7 @@
                                 if (changed) {
                                     localProd.updatedAt = remProd.updated_at || new Date().toISOString();
                                     if (window.sqliteManager && typeof window.sqliteManager.put === 'function') {
-                                        try { window.sqliteManager.put('products', localProd); } catch (e) {}
+                                        try { window.sqliteManager.put('products', localProd); } catch (e) { }
                                     }
                                     prodFps.set(String(localProd.id), getProdFp(localProd));
                                     hasUpdatedLocalProducts = true;
@@ -979,7 +979,7 @@
             try {
                 // استعلام شامل لكافة حركات المتجر الصادرة من أي تابلت أو كمبيوتر كاشير آخر
                 const res = await this._safeFetch(
-                    `${cfg.supabaseUrl}/rest/v1/transactions?id=like.${encodeURIComponent(shopId)}_*&order=created_at.desc&limit=100`, 
+                    `${cfg.supabaseUrl}/rest/v1/transactions?id=like.${encodeURIComponent(shopId)}_*&order=created_at.desc&limit=100`,
                     { method: 'GET', headers: this._getHeaders() }
                 );
 
@@ -1068,7 +1068,7 @@
                                 if (stmt.step()) alreadyExistsInDB = true;
                                 stmt.free();
                             }
-                        } catch (dbChkErr) {}
+                        } catch (dbChkErr) { }
                     }
 
                     const alreadyExists = alreadyExistsInMemory || alreadyExistsInDB;
@@ -1101,14 +1101,14 @@
                         const isVoucher = actualType.includes('قبض') || actualType.includes('صرف');
                         const items = (Array.isArray(raw.items) && raw.items.length > 0)
                             ? raw.items
-                            : [{ 
-                                name: raw.product || (isVoucher ? (actualType.includes('قبض') ? 'سند قبض' : 'سند صرف') : 'حركة سحابية'), 
-                                quantity: 1, 
-                                price: total, 
-                                total: total, 
-                                size: '', 
-                                color: '' 
-                              }];
+                            : [{
+                                name: raw.product || (isVoucher ? (actualType.includes('قبض') ? 'سند قبض' : 'سند صرف') : 'حركة سحابية'),
+                                quantity: 1,
+                                price: total,
+                                total: total,
+                                size: '',
+                                color: ''
+                            }];
 
                         items.forEach((it, idx) => {
                             const isHead = (idx === 0);
@@ -1193,23 +1193,23 @@
                                         });
                                     } else {
 
-                                    if (Array.isArray(prod.variants) && prod.variants.length > 0) {
-                                        const cleanV = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
-                                        const cSize = cleanV(sSize);
-                                        const cColor = cleanV(sColor);
-                                        const vMatch = prod.variants.find(v => 
-                                            (!cSize || cleanV(v.size) === cSize) &&
-                                            (!cColor || cleanV(v.color) === cColor)
-                                        );
-                                        if (vMatch) {
-                                            vMatch.stock = Math.max(0, (parseFloat(vMatch.stock) || 0) + delta);
-                                            if (!vMatch.warehouseStocks) vMatch.warehouseStocks = {};
-                                            vMatch.warehouseStocks[activeWH] = Math.max(0, (parseFloat(vMatch.warehouseStocks[activeWH]) || 0) + delta);
+                                        if (Array.isArray(prod.variants) && prod.variants.length > 0) {
+                                            const cleanV = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+                                            const cSize = cleanV(sSize);
+                                            const cColor = cleanV(sColor);
+                                            const vMatch = prod.variants.find(v =>
+                                                (!cSize || cleanV(v.size) === cSize) &&
+                                                (!cColor || cleanV(v.color) === cColor)
+                                            );
+                                            if (vMatch) {
+                                                vMatch.stock = Math.max(0, (parseFloat(vMatch.stock) || 0) + delta);
+                                                if (!vMatch.warehouseStocks) vMatch.warehouseStocks = {};
+                                                vMatch.warehouseStocks[activeWH] = Math.max(0, (parseFloat(vMatch.warehouseStocks[activeWH]) || 0) + delta);
+                                            }
                                         }
-                                    }
-                                    prod.stock = Math.max(0, parseFloat(prod.stock || 0) + delta);
-                                    if (!prod.warehouseStocks) prod.warehouseStocks = {};
-                                    prod.warehouseStocks[activeWH] = Math.max(0, parseFloat(prod.warehouseStocks[activeWH] || 0) + delta);
+                                        prod.stock = Math.max(0, parseFloat(prod.stock || 0) + delta);
+                                        if (!prod.warehouseStocks) prod.warehouseStocks = {};
+                                        prod.warehouseStocks[activeWH] = Math.max(0, parseFloat(prod.warehouseStocks[activeWH] || 0) + delta);
                                     }
 
                                     if (!modifiedProductsList.some(mp => mp.id === prod.id)) {
@@ -1269,7 +1269,7 @@
                                     const txToVoid = localTx[localIdx];
                                     localTx.splice(localIdx, 1);
                                     if (window.sqliteManager && typeof window.sqliteManager.run === 'function') {
-                                        try { window.sqliteManager.run(`DELETE FROM transactions WHERE invoiceId = ? OR id = ?`, [voidInvId, txToVoid.id]); } catch(e){}
+                                        try { window.sqliteManager.run(`DELETE FROM transactions WHERE invoiceId = ? OR id = ?`, [voidInvId, txToVoid.id]); } catch (e) { }
                                     }
                                     hasVoidChanges = true;
                                 }
@@ -1281,7 +1281,7 @@
                             }
                         }
                     }
-                } catch (voidErr) {}
+                } catch (voidErr) { }
 
                 return newTransactionRows.length;
             } catch (err) {
@@ -1319,12 +1319,12 @@
                     amount: parseFloat(total || 0),
                     user_name: 'الكمبيوتر الرئيسي',
                     warehouse: warehouse || 'المخزن الرئيسي',
-                    raw_json: { 
-                        invoiceId: invStr, 
-                        shop_id: shopId, 
-                        warehouse: warehouse, 
-                        source: 'desktop', 
-                        voidedAt: new Date().toISOString() 
+                    raw_json: {
+                        invoiceId: invStr,
+                        shop_id: shopId,
+                        warehouse: warehouse,
+                        source: 'desktop',
+                        voidedAt: new Date().toISOString()
                     }
                 }];
 
@@ -1358,11 +1358,11 @@
                         amount: 0,
                         user_name: 'المدير',
                         warehouse: 'المخزن الرئيسي',
-                        raw_json: { 
-                            shopId: shopId, 
-                            shopName: shopName, 
-                            pairingPin: String(pairingPin).trim(), 
-                            updatedAt: new Date().toISOString() 
+                        raw_json: {
+                            shopId: shopId,
+                            shopName: shopName,
+                            pairingPin: String(pairingPin).trim(),
+                            updatedAt: new Date().toISOString()
                         }
                     }
                 ];
@@ -1371,7 +1371,7 @@
                     headers: this._getHeaders(),
                     body: JSON.stringify(payload)
                 });
-            } catch (e) {}
+            } catch (e) { }
         },
 
         // اسم مرادف لدعم استدعاء رفع كود الاقتران ومعرف المحل
@@ -1393,7 +1393,7 @@
             if ((!accList || accList.length === 0) && typeof db !== 'undefined' && db.accounts) {
                 try {
                     accList = await db.accounts.toArray();
-                } catch (e) {}
+                } catch (e) { }
             }
 
             if (!accList || accList.length === 0) return 0;
@@ -1401,17 +1401,17 @@
             // 📥 استيراد وتحديث العملاء وبنود الصرف/القبض المخصصة من السحابة
             try {
                 const remoteRes = await this._safeFetch(
-                    `${cfg.supabaseUrl}/rest/v1/treasury_audit?id=eq.CONFIG_CUSTOMERS_LIST_${encodeURIComponent(shopId)}`, 
+                    `${cfg.supabaseUrl}/rest/v1/treasury_audit?id=eq.CONFIG_CUSTOMERS_LIST_${encodeURIComponent(shopId)}`,
                     { headers: this._getHeaders() }
                 );
                 if (remoteRes.ok) {
                     const rows = await remoteRes.json();
                     const shopRow = (rows || [])[0];
                     if (shopRow && shopRow.raw_json) {
-                        const remoteAccs = Array.isArray(shopRow.raw_json.accounts) 
-                            ? shopRow.raw_json.accounts 
+                        const remoteAccs = Array.isArray(shopRow.raw_json.accounts)
+                            ? shopRow.raw_json.accounts
                             : (Array.isArray(shopRow.raw_json.customers) ? shopRow.raw_json.customers : []);
-                        
+
                         const cleanArFn = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
                         let accChanges = false;
 
@@ -1433,7 +1433,7 @@
                                 };
                                 accList.push(toAdd);
                                 if (window.db && window.db.accounts) {
-                                    try { await window.db.accounts.put(toAdd); } catch(e){}
+                                    try { await window.db.accounts.put(toAdd); } catch (e) { }
                                 }
                                 accChanges = true;
                             } else {
@@ -1444,7 +1444,7 @@
                                 if (rAcc.code && !existing.code) { existing.code = rAcc.code; updated = true; }
                                 if (updated) {
                                     if (window.db && window.db.accounts) {
-                                        try { await window.db.accounts.put(existing); } catch(e){}
+                                        try { await window.db.accounts.put(existing); } catch (e) { }
                                     }
                                     accChanges = true;
                                 }
@@ -1484,7 +1484,7 @@
                         }
                     }
                 }
-            } catch (impErr) {}
+            } catch (impErr) { }
 
             // تجهيز ورفع العملاء وبنود السندات المخصصة
             const allMappedAccounts = accList
@@ -1507,11 +1507,11 @@
                     };
                 });
 
-            const customRecCats = (typeof getCustomVoucherCategories === 'function') 
-                ? getCustomVoucherCategories('receipt') 
+            const customRecCats = (typeof getCustomVoucherCategories === 'function')
+                ? getCustomVoucherCategories('receipt')
                 : JSON.parse(localStorage.getItem('bayan_custom_voucher_categories_receipt') || '[]');
-            const customDisbCats = (typeof getCustomVoucherCategories === 'function') 
-                ? getCustomVoucherCategories('disburse') 
+            const customDisbCats = (typeof getCustomVoucherCategories === 'function')
+                ? getCustomVoucherCategories('disburse')
                 : JSON.parse(localStorage.getItem('bayan_custom_voucher_categories_disburse') || '[]');
 
             const payload = [
@@ -1522,13 +1522,13 @@
                     amount: allMappedAccounts.length,
                     user_name: 'المدير',
                     warehouse: 'المخزن الرئيسي',
-                    raw_json: { 
+                    raw_json: {
                         shop_id: shopId,
-                        customers: allMappedAccounts, 
-                        accounts: allMappedAccounts, 
+                        customers: allMappedAccounts,
+                        accounts: allMappedAccounts,
                         customReceiptCategories: customRecCats,
                         customDisburseCategories: customDisbCats,
-                        updatedAt: new Date().toISOString() 
+                        updatedAt: new Date().toISOString()
                     }
                 }
             ];
@@ -1556,7 +1556,7 @@
             if ((!whList || whList.length === 0) && typeof db !== 'undefined' && db.warehouses) {
                 try {
                     whList = await db.warehouses.toArray();
-                } catch (e) {}
+                } catch (e) { }
             }
 
             if (!whList || whList.length === 0) {
@@ -1577,10 +1577,10 @@
                     amount: mappedWhs.length,
                     user_name: 'المدير',
                     warehouse: 'المخزن الرئيسي',
-                    raw_json: { 
-                        shop_id: shopId, 
-                        warehouses: mappedWhs, 
-                        updatedAt: new Date().toISOString() 
+                    raw_json: {
+                        shop_id: shopId,
+                        warehouses: mappedWhs,
+                        updatedAt: new Date().toISOString()
                     }
                 }
             ];
@@ -1682,8 +1682,8 @@
                 const st = (typeof window.getCloudSyncStatus === 'function') ? window.getCloudSyncStatus() : {};
                 const isServerExpired = (st.reason === 'cloud_server_expired');
                 const badgeText = isServerExpired ? '⚠️ سيرفر سحابي منتهي' : '🔒 غير مفعلة (باقة أوفلاين)';
-                const descText = isServerExpired 
-                    ? 'انتهت صلاحية السيرفر السحابي (يرجى التجديد) ⚠️' 
+                const descText = isServerExpired
+                    ? 'انتهت صلاحية السيرفر السحابي (يرجى التجديد) ⚠️'
                     : 'غير مفعلة (مقتصرة على باقات المزامنة السحابية) 🔒';
 
                 if (badge) {
@@ -1782,7 +1782,7 @@
                 const intervalMs = Math.max(45, cfg.syncIntervalSeconds || 45) * 1000;
                 this.syncTimer = setInterval(() => {
                     if (navigator.onLine && this._isAllowed()) {
-                        this.runFullSync(false).catch(() => {});
+                        this.runFullSync(false).catch(() => { });
                     }
                 }, intervalMs);
                 if (window._bayanActiveIntervals) window._bayanActiveIntervals.push(this.syncTimer);
@@ -1835,7 +1835,7 @@
                     this.updateUIStatus('locked');
                     return;
                 }
-                this.runFullSync(false).catch(() => {});
+                this.runFullSync(false).catch(() => { });
             });
             window.addEventListener('offline', () => {
                 this.isOnline = false;
@@ -1853,7 +1853,7 @@
                     if (!this._isAllowed()) {
                         return;
                     }
-                    setTimeout(() => this.runFullSync(false).catch(() => {}), 1500);
+                    setTimeout(() => this.runFullSync(false).catch(() => { }), 1500);
                 };
 
                 const origOnDeltaSaved = window.BayanNetworkHub.onDeltaSaved;
@@ -1880,21 +1880,21 @@
                     }
                     // ⚡ رفع فوري ولحظي في الخلفية لأي فاتورة أو حركة أو صنف يتم حفظه
                     setTimeout(() => {
-                        this.processSyncQueue().catch(() => {});
-                        this.runFullSync(false).catch(() => {});
+                        this.processSyncQueue().catch(() => { });
+                        this.runFullSync(false).catch(() => { });
                     }, 500);
                 };
             }
 
             setTimeout(() => {
                 // رفع كود الاقتران ومعرف المحل للسحابة دائماً لتمكين اقتران التابلت والموبايل فوراً
-                this.syncPairingPin().catch(() => {});
+                this.syncPairingPin().catch(() => { });
                 if (!this._isAllowed()) {
                     console.log('🔒 [SupabaseSync] Cloud sync locked for offline/trial license tier.');
                     this.updateUIStatus('locked');
                     return;
                 }
-                this.runFullSync(false).catch(() => {});
+                this.runFullSync(false).catch(() => { });
                 this.restartSyncTimer();
             }, 3000);
 

@@ -133,9 +133,11 @@ async function saveNewItem(mode = 'save') {
         ? productsDB.find(p => p.id === currentEditingProductId)
         : null;
 
-    const activeWH = (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName)
-        ? currentUser.warehouseName
-        : 'المخزن الرئيسي';
+    const activeWH = (typeof FashionStockEngine !== 'undefined' && typeof FashionStockEngine.resolveWarehouse === 'function')
+        ? FashionStockEngine.resolveWarehouse()
+        : ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName)
+            ? currentUser.warehouseName
+            : (typeof getStore === 'function' ? getStore('activeWarehouse') : 'المخزن الرئيسي') || 'المخزن الرئيسي');
 
     // تجميع مصفوفة المقاسات والألوان إن وجدت مع ضمان وجود باركود فريد لكل تشكيلة والاحتفاظ بأرصدة المخازن
     const variants = [];
@@ -225,12 +227,31 @@ async function saveNewItem(mode = 'save') {
 
             // البحث عن التشكيلة المطابقة في بيانات الصنف السابقة للاحتفاظ بأرصدتها في كل مخزن
             let vWarehouseStocks = {};
+            const cleanAttr = (val) => {
+                if (!val && val !== 0) return '';
+                return String(val).trim().toLowerCase()
+                    .replace(/[أإآ]/g, 'ا')
+                    .replace(/ة/g, 'ه')
+                    .replace(/[ىي]/g, 'ي')
+                    .replace(/\s+/g, ' ');
+            };
+            const cSize = cleanAttr(vSize);
+            const cColor = cleanAttr(vColor);
+
             const existingVar = existingProduct && existingProduct.variants && Array.isArray(existingProduct.variants)
-                ? existingProduct.variants.find(ev => (ev.barcode && ev.barcode === vBarcode) || (ev.size === vSize && ev.color === vColor))
+                ? existingProduct.variants.find(ev =>
+                    (vBarcode && ev.barcode && String(ev.barcode).trim() === vBarcode) ||
+                    (cleanAttr(ev.size) === cSize && cleanAttr(ev.color) === cColor)
+                )
                 : null;
 
-            if (existingVar && existingVar.warehouseStocks && typeof existingVar.warehouseStocks === 'object') {
-                vWarehouseStocks = { ...existingVar.warehouseStocks };
+            if (existingVar) {
+                if (existingVar.warehouseStocks && typeof existingVar.warehouseStocks === 'object' && Object.keys(existingVar.warehouseStocks).length > 0) {
+                    vWarehouseStocks = { ...existingVar.warehouseStocks };
+                } else {
+                    const oldVarStock = parseFloat(existingVar.stock) || 0;
+                    vWarehouseStocks = { 'المخزن الرئيسي': oldVarStock };
+                }
                 vWarehouseStocks[activeWH] = vStock;
             } else {
                 vWarehouseStocks = { [activeWH]: vStock };
@@ -297,15 +318,6 @@ async function saveNewItem(mode = 'save') {
         }
     }
 
-    // جمع رصيد كافة المقاسات والألوان تلقائياً ليكون هو الرصيد الإجمالي للصنف
-    if (variants.length > 0) {
-        const totalVariantsStock = variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
-        stock = totalVariantsStock;
-        if (document.getElementById('newItemStock')) {
-            document.getElementById('newItemStock').value = stock;
-        }
-    }
-
     if (category && window.inventoryCategories && !window.inventoryCategories.includes(category)) {
         window.inventoryCategories.push(category);
         if (typeof updateDatalists === 'function') updateDatalists();
@@ -315,14 +327,20 @@ async function saveNewItem(mode = 'save') {
     let warehouseStocks = {};
     if (existingProduct && existingProduct.warehouseStocks && typeof existingProduct.warehouseStocks === 'object') {
         warehouseStocks = { ...existingProduct.warehouseStocks };
+    } else if (existingProduct && existingProduct.stock !== undefined) {
+        warehouseStocks = { 'المخزن الرئيسي': parseFloat(existingProduct.stock) || 0 };
     }
-    
+
     if (variants.length > 0) {
-        // إذا كان للصنف تشكيلات، نحسب رصيد كل مخزن من مجموع تشكيلاته في ذلك المخزن
+        // إذا كان للصنف تشكيلات، نحسب رصيد كل مخزن من مجموع تشكيلاته في ذلك المخزن بدقة تامة
         const allWhNames = new Set(Object.keys(warehouseStocks));
         allWhNames.add(activeWH);
+        allWhNames.add('المخزن الرئيسي');
         if (typeof warehouses !== 'undefined' && Array.isArray(warehouses)) {
-            warehouses.forEach(w => allWhNames.add(w.name));
+            warehouses.forEach(w => {
+                const wName = typeof w === 'string' ? w : (w && w.name ? w.name : '');
+                if (wName) allWhNames.add(wName);
+            });
         }
         allWhNames.forEach(wName => {
             let whSum = 0;
@@ -333,41 +351,60 @@ async function saveNewItem(mode = 'save') {
             });
             warehouseStocks[wName] = whSum;
         });
+
+        // الرصيد الإجمالي للصنف هو مجموع كافة المقاسات والألوان في كل الفروع
+        const totalVariantsStock = variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
+        stock = totalVariantsStock;
+        if (document.getElementById('newItemStock')) {
+            document.getElementById('newItemStock').value = (warehouseStocks[activeWH] !== undefined) ? warehouseStocks[activeWH] : stock;
+        }
     } else if (existingProduct) {
-        const stockDelta = stock - (parseFloat(existingProduct.stock) || 0);
-        if (Math.abs(stockDelta) > 0.0001) {
-            warehouseStocks[activeWH] = Math.max(0, (parseFloat(warehouseStocks[activeWH]) || 0) + stockDelta);
-            if (typeof transactions !== 'undefined') {
-                const now = new Date();
-                const dt = {
-                    full: now.toLocaleString('ar-EG'),
-                    iso: now.toLocaleDateString('en-CA'),
-                    time: now.toTimeString().slice(0, 5)
-                };
-                transactions.push({
-                    date: dt.full,
-                    dateISO: dt.iso,
-                    timeISO: dt.time,
-                    type: 'تسوية مخزن ⚖️',
-                    method: '-',
-                    invoiceId: 'ADJ-CARD-' + Date.now().toString().slice(-6),
-                    product: name,
-                    unit: units.length > 0 ? units[0].unitName : "قطعة",
-                    qty: stockDelta,
-                    price: cost || price || 0,
-                    total: (stockDelta * (cost || price || 0)).toFixed(2),
-                    partner: 'جرد مباشر من كارت الصنف',
-                    warehouse: activeWH,
-                    user: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.name : '-',
-                    notes: `تعديل يدوي للرصيد من (${existingProduct.stock || 0}) إلى (${stock})`,
-                    unitFactor: 1,
-                    editDate: new Date().toLocaleString('ar-EG')
-                });
-            }
+        // صنف عادي بدون تشكيلات: حساب الفرق لمخزن الفرع النشط بدقة تامة دون المساس بالمخازن الأخرى
+        const origWhStockVal = parseFloat(document.getElementById('newItemStock')?.dataset?.origStock);
+        const prevWhStock = !isNaN(origWhStockVal)
+            ? origWhStockVal
+            : ((warehouseStocks[activeWH] !== undefined)
+                ? (parseFloat(warehouseStocks[activeWH]) || 0)
+                : (activeWH === 'المخزن الرئيسي' ? (parseFloat(existingProduct.stock) || 0) : 0));
+
+        const stockDelta = stock - prevWhStock;
+        warehouseStocks[activeWH] = Math.max(0, stock);
+
+        // الرصيد الإجمالي للصنف هو مجموع كافة المخازن المسجلة بدقة
+        stock = Object.values(warehouseStocks).reduce((sum, q) => sum + (parseFloat(q) || 0), 0);
+
+        if (Math.abs(stockDelta) > 0.0001 && typeof transactions !== 'undefined') {
+            const now = new Date();
+            const dt = {
+                full: now.toLocaleString('ar-EG'),
+                iso: now.toLocaleDateString('en-CA'),
+                time: now.toTimeString().slice(0, 5)
+            };
+            transactions.push({
+                date: dt.full,
+                dateISO: dt.iso,
+                timeISO: dt.time,
+                type: 'تسوية مخزن ⚖️',
+                method: '-',
+                invoiceId: 'ADJ-CARD-' + Date.now().toString().slice(-6),
+                product: name,
+                productId: existingProduct.id,
+                unit: units.length > 0 ? units[0].unitName : "قطعة",
+                qty: stockDelta,
+                price: cost || price || 0,
+                total: (stockDelta * (cost || price || 0)).toFixed(2),
+                partner: 'جرد مباشر من كارت الصنف',
+                warehouse: activeWH,
+                user: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.name : '-',
+                notes: `تعديل يدوي لرصيد فرع (${activeWH}) من (${prevWhStock}) إلى (${warehouseStocks[activeWH]})`,
+                unitFactor: 1,
+                editDate: new Date().toLocaleString('ar-EG')
+            });
         }
     } else {
+        // صنف جديد تماماً
         warehouseStocks = { [activeWH]: stock };
-        if (!existingProduct && stock > 0 && typeof transactions !== 'undefined') {
+        if (stock > 0 && typeof transactions !== 'undefined') {
             const now = new Date();
             const dt = {
                 full: now.toLocaleString('ar-EG'),
@@ -389,7 +426,7 @@ async function saveNewItem(mode = 'save') {
                 partner: 'رصيد افتتاحي أولي',
                 warehouse: activeWH,
                 user: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.name : '-',
-                notes: `إضافة رصيد افتتاحي أولي للصنف الجديد (${stock})`,
+                notes: `إضافة رصيد افتتاحي أولي للصنف الجديد في فرع (${activeWH}) بقيمة (${stock})`,
                 unitFactor: 1,
                 editDate: '-'
             });
@@ -445,6 +482,10 @@ async function saveNewItem(mode = 'save') {
     };
     delete newItem._searchTokens;
     delete newItem._searchTokensVer;
+
+    if (typeof window.FashionStockEngine !== 'undefined' && typeof window.FashionStockEngine.syncProductTotals === 'function') {
+        window.FashionStockEngine.syncProductTotals(newItem, activeWH);
+    }
 
     if (typeof currentEditingProductId !== 'undefined' && currentEditingProductId) {
         const idx = productsDB.findIndex(p => p.id === currentEditingProductId);
@@ -785,9 +826,15 @@ function fillProductModal(p) {
     if (document.getElementById('newItemPrice')) document.getElementById('newItemPrice').value = p.price || 0;
     if (document.getElementById('newItemWholesale')) document.getElementById('newItemWholesale').value = p.wholesale || 0;
     if (document.getElementById('newItemCost')) document.getElementById('newItemCost').value = p.cost || 0;
-    const activeWH = (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : (typeof getStore === 'function' ? getStore('activeWarehouse') : 'المخزن الرئيسي') || 'المخزن الرئيسي';
+    const activeWH = (typeof FashionStockEngine !== 'undefined' && typeof FashionStockEngine.resolveWarehouse === 'function')
+        ? FashionStockEngine.resolveWarehouse()
+        : ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName)
+            ? currentUser.warehouseName
+            : (typeof getStore === 'function' ? getStore('activeWarehouse') : 'المخزن الرئيسي') || 'المخزن الرئيسي');
     let currentWhStock = 0;
-    if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
+    if (typeof FashionStockEngine !== 'undefined' && typeof FashionStockEngine.getProductStock === 'function') {
+        currentWhStock = FashionStockEngine.getProductStock(p, activeWH);
+    } else if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
         currentWhStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
     } else if (activeWH === 'المخزن الرئيسي' || !p.warehouseStocks) {
         currentWhStock = parseFloat(p.stock) || 0;
@@ -879,7 +926,9 @@ function fillProductModal(p) {
                     hasApparelSizes = true;
                 }
                 let vStockForActiveWH = 0;
-                if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
+                if (typeof FashionStockEngine !== 'undefined' && typeof FashionStockEngine.getVariantStock === 'function') {
+                    vStockForActiveWH = FashionStockEngine.getVariantStock(v, activeWH);
+                } else if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
                     vStockForActiveWH = parseFloat(v.warehouseStocks[activeWH]) || 0;
                 } else if (activeWH === 'المخزن الرئيسي' || !v.warehouseStocks) {
                     vStockForActiveWH = parseFloat(v.stock) || 0;
@@ -941,9 +990,11 @@ window.renderProductWarehouseStocksTable = function(p) {
         ? window.warehouses
         : [{ name: 'المخزن الرئيسي' }];
 
-    const activeWH = (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName)
-        ? currentUser.warehouseName
-        : 'المخزن الرئيسي';
+    const activeWH = (typeof FashionStockEngine !== 'undefined' && typeof FashionStockEngine.resolveWarehouse === 'function')
+        ? FashionStockEngine.resolveWarehouse()
+        : ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName)
+            ? currentUser.warehouseName
+            : (typeof getStore === 'function' ? getStore('activeWarehouse') : 'المخزن الرئيسي') || 'المخزن الرئيسي');
 
     whList.forEach(w => {
         const whName = typeof w === 'string' ? w : (w.name || 'المخزن الرئيسي');
