@@ -4257,3 +4257,30 @@ body:has(#transferModal:not(.hidden)) #tabBar {
 #transferModal .transfer-modal-header {
     background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
 }
+
+/* ============================================================
+   إلغاء وإخفاء شريط التمرير الأفقي في قسم أرصدة المخازن
+============================================================ */
+#warehouse-report-section .table-container {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+}
+#warehouse-report-section .table-container::-webkit-scrollbar:horizontal,
+#warehouse-report-section .table-container::-webkit-scrollbar-horizontal {
+    display: none !important;
+    height: 0 !important;
+    width: 0 !important;
+}
+#warehouse-report-section table,
+#warehouse-report-section .invoice-table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: auto !important;
+    box-sizing: border-box !important;
+}
+#warehouse-report-section th,
+#warehouse-report-section td {
+    padding: 8px 6px !important;
+    box-sizing: border-box !important;
+}
+
