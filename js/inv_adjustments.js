@@ -1082,6 +1082,11 @@ function openPriceAdjustmentModal() {
     try {
         if (typeof currentUser !== 'undefined' && currentUser && typeof checkPermission === 'function' && !checkPermission('stock_edit')) return;
 
+        // دمج الشاشة في نظام التبويبات المتعددة
+        if (typeof switchSection === 'function') {
+            switchSection('price-adjustment');
+        }
+
         const modal = document.getElementById('priceAdjustmentModal');
         if (modal) {
             modal.classList.remove('hidden');
@@ -1220,7 +1225,7 @@ async function initPriceAdjustmentFiltersAndData(selectedIds = []) {
 }
 window.initPriceAdjustmentFiltersAndData = initPriceAdjustmentFiltersAndData;
 
-function closePriceAdjustmentModal() {
+function closePriceAdjustmentModal(isFromTabClose = false) {
     const modal = document.getElementById('priceAdjustmentModal');
     if (modal) {
         modal.style.setProperty('display', 'none', 'important');
@@ -1236,6 +1241,14 @@ function closePriceAdjustmentModal() {
     window.priceAdjUndoStack = [];
     window.priceAdjDisplayLimit = 50;
     if (typeof updateUndoButtonState === 'function') updateUndoButtonState();
+
+    // إغلاق التبويب الرسمي والرجوع السلس للتبويب السابق
+    if (!isFromTabClose && typeof openTabs !== 'undefined' && Array.isArray(openTabs)) {
+        const pTab = openTabs.find(t => t.type === 'price-adjustment');
+        if (pTab && typeof actuallyCloseTab === 'function') {
+            actuallyCloseTab(pTab.id);
+        }
+    }
 }
 window.closePriceAdjustmentModal = closePriceAdjustmentModal;
 

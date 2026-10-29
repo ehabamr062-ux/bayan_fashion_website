@@ -361,7 +361,8 @@
                     'sales', 'purchase', 'receipt', 'disbursement',
                     'sales-return', 'purchase-return', 'inventory',
                     'accounts', 'daily-report', 'history', 'invoices',
-                    'analysis', 'item-history', 'adjustment', 'reports-hub', 'warehouse-report', 'product-inquiry', 'statement', 'treasury-audit', 'barcode-print'
+                    'analysis', 'item-history', 'adjustment', 'reports-hub', 'warehouse-report', 'product-inquiry', 'statement', 'treasury-audit', 'barcode-print',
+                    'price-adjustment', 'stock-transfer'
                 ];
 
                 // التحقق من صلاحية كل قسم بشكل مستقل ودقيق
@@ -385,6 +386,10 @@
                     if (!checkPermission('stock_inquiry')) return;
                 } else if (sectionType === 'inventory' || sectionType === 'barcode-print') {
                     if (!checkPermission('stock_view')) return;
+                } else if (sectionType === 'price-adjustment') {
+                    if (typeof checkPermission === 'function' && !checkPermission('stock_edit')) return;
+                } else if (sectionType === 'stock-transfer') {
+                    if (typeof checkPermission === 'function' && !checkPermission('stock_transfer')) return;
                 } else if (sectionType === 'statement') {
                     if (!checkPermission('accounts_statement')) return;
                 } else if (sectionType === 'accounts') {
@@ -421,7 +426,9 @@
                             'reports-hub': 'مركز التقارير', 'warehouse-report': 'أرصدة المخازن',
                             'product-inquiry': 'استعلام الأصناف',
                             'statement': 'كشف حساب', 'treasury-audit': '💰 مراجعة الخزينة',
-                            'barcode-print': '🏷️ طباعة الباركود'
+                            'barcode-print': '🏷️ طباعة الباركود',
+                            'price-adjustment': '🏷️ إدارة الأسعار',
+                            'stock-transfer': '🚚 تحويل مخزون'
                         };
 
                         targetTab = {
@@ -472,7 +479,7 @@
             try {
                 const openModalsToClose = [
                     'confirmModal', 'alertModal', 'quickNavModal', 'profitModal',
-                    'priceAdjustmentModal', 'newItemModal', 'newAccountModal', 'searchInvoiceModal',
+                    'newItemModal', 'newAccountModal', 'searchInvoiceModal',
                     'customAlertModal', 'bayanCustomModal', 'editInvoiceModal', 'unitManagerModal',
                     'drawerAuditClosingModal', 'transferOrderModal'
                 ];
@@ -482,6 +489,34 @@
                         mEl.classList.add('hidden');
                     }
                 });
+
+                // إظهار أو إخفاء الشاشات الخاصة بنظام التبويبات (إدارة الأسعار وتحويل المخزون)
+                const pModal = document.getElementById('priceAdjustmentModal');
+                if (pModal) {
+                    if (targetTab.type === 'price-adjustment') {
+                        pModal.classList.remove('hidden');
+                        pModal.style.setProperty('display', 'flex', 'important');
+                    } else {
+                        pModal.classList.add('hidden');
+                        pModal.style.setProperty('display', 'none', 'important');
+                    }
+                }
+                const tModal = document.getElementById('transferModal');
+                if (tModal) {
+                    if (targetTab.type === 'stock-transfer') {
+                        tModal.classList.remove('hidden');
+                        tModal.style.setProperty('display', 'flex', 'important');
+                    } else {
+                        tModal.classList.add('hidden');
+                        tModal.style.setProperty('display', 'none', 'important');
+                    }
+                }
+
+                if (['price-adjustment', 'stock-transfer'].includes(targetTab.type)) {
+                    document.body.classList.add('has-fullscreen-tab');
+                } else {
+                    document.body.classList.remove('has-fullscreen-tab');
+                }
 
                 // إزالة أي طبقات معتمة أو شفافة (Backdrops) عالقة قد تحجب تفاعل ونقرات الماوس
                 document.querySelectorAll('.modal-backdrop, .bayan-modal-overlay, .swal2-container').forEach(el => {
@@ -1613,7 +1648,9 @@
                 'settings': '⚙️ الإعدادات',
                 'adjustment': '⚖️ تسوية',
                 'reports-hub': '📈 مركز التقارير',
-                'product-inquiry': '🔍 استعلام'
+                'product-inquiry': '🔍 استعلام',
+                'price-adjustment': '🏷️ إدارة الأسعار',
+                'stock-transfer': '🚚 تحويل مخزون'
             };
 
             tabBar.innerHTML = '';
@@ -1876,6 +1913,22 @@
             if (closingTab && closingTab.type === 'barcode-print') {
                 if (typeof window.clearBpQueueSilently === 'function') {
                     window.clearBpQueueSilently();
+                }
+            }
+            if (closingTab && closingTab.type === 'price-adjustment') {
+                if (typeof window.closePriceAdjustmentModal === 'function') {
+                    window.closePriceAdjustmentModal(true);
+                } else {
+                    const m = document.getElementById('priceAdjustmentModal');
+                    if (m) { m.classList.add('hidden'); m.style.setProperty('display', 'none', 'important'); }
+                }
+            }
+            if (closingTab && closingTab.type === 'stock-transfer') {
+                if (typeof window.closeTransferModal === 'function') {
+                    window.closeTransferModal(true);
+                } else {
+                    const m = document.getElementById('transferModal');
+                    if (m) { m.classList.add('hidden'); m.style.setProperty('display', 'none', 'important'); }
                 }
             }
             if (closingTab && closingTab.type === 'sales') {

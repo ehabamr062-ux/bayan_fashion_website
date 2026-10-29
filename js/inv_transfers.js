@@ -60,6 +60,11 @@ window.getEffectiveTransferPrice = function (product, variant = null, unit = nul
 window.openTransferModal = function (isEdit = false) {
     if (typeof checkPermission === 'function' && !checkPermission('stock_transfer')) return;
 
+    // دمج الشاشة في نظام التبويبات المتعددة
+    if (typeof switchSection === 'function') {
+        switchSection('stock-transfer');
+    }
+
     if (!isEdit) {
         window.transferItemsBatch = [];
         transferItemsBatch = window.transferItemsBatch;
@@ -199,8 +204,12 @@ window.openTransferModal = function (isEdit = false) {
 
 }
 
-window.closeTransferModal = function () {
-    document.getElementById('transferModal').classList.add('hidden');
+window.closeTransferModal = function (isFromTabClose = false) {
+    const modal = document.getElementById('transferModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.setProperty('display', 'none', 'important');
+    }
 
     // إعادة ضبط وضع التعديل وتفريغ القائمة بالكامل
     isEditMode = false;
@@ -244,6 +253,14 @@ window.closeTransferModal = function () {
     window._pendingTransferVariant = null;
 
     renderTransferTable();
+
+    // إغلاق التبويب الرسمي والرجوع السلس للتبويب السابق
+    if (!isFromTabClose && typeof openTabs !== 'undefined' && Array.isArray(openTabs)) {
+        const trTab = openTabs.find(t => t.type === 'stock-transfer');
+        if (trTab && typeof actuallyCloseTab === 'function') {
+            actuallyCloseTab(trTab.id);
+        }
+    }
 }
 
 let currentTransferHeaderUnit = null;
