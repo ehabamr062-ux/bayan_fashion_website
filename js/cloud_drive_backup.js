@@ -569,7 +569,7 @@
                 } else if (typeof window.executeAutoBackupToFile === 'function') {
                     // Fallback
                     payload = {
-                        version: window.appVersion || "5.0.3",
+                        version: window.appVersion || "5.0.7",
                         backupDate: new Date().toISOString(),
                         products: window.productsDB || [],
                         transactions: window.transactions || [],

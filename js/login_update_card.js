@@ -3,7 +3,7 @@
  * 🚀 نظام بطاقة التحديث المتوهجة في شاشة تسجيل الدخول - Bayan POS System
  * =========================================================================
  * ملف مستقل وخاص بإدارة وعرض بطاقة التحديثات الجديدة بشاشة تسجيل الدخول
- * Version: 5.0.3
+ * Version: 5.0.7
  * Architecture: Standalone Modular Component
  * =========================================================================
  */
@@ -193,7 +193,7 @@
                 <div style="text-align: right; line-height: 1.25;">
                     <div style="color: #ffffff; font-size: 0.82rem; font-weight: 900; letter-spacing: 0.3px; display: flex; align-items: center; gap: 6px;">
                         <span>تحديث جديد متاح</span>
-                        <span id="loginUpdateVersionPill" class="login-upd-ver-pill">V5.0.3</span>
+                        <span id="loginUpdateVersionPill" class="login-upd-ver-pill">V5.0.7</span>
                     </div>
                     <div style="color: #fef08a; font-size: 0.67rem; font-weight: 800; margin-top: 1px;">
                         اضغط للترقية الفورية أو المعاينة ⚡
