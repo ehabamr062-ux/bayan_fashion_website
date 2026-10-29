@@ -37,7 +37,12 @@ function handleGeneralAccountSearch(query, inputId, resultsId) {
     const exactMatch = accounts.find(a => a.name.trim().toLowerCase() === query.trim().toLowerCase());
     if (exactMatch && (inputId === 'receiptCustomer' || inputId === 'disbursePayee')) {
         const bal = typeof getAccountBalance === 'function' ? getAccountBalance(exactMatch.name) : (exactMatch.balance || 0);
-        const formattedBal = (bal < 0 ? '-' : '') + Math.abs(bal).toLocaleString('en-US', { minimumFractionDigits: 2 });
+        let formattedBal = '0.00 ج.م (خالص)';
+        if (bal > 0.005) {
+            formattedBal = `${bal.toLocaleString('en-US', { minimumFractionDigits: 2 })} ج.م (عليه)`;
+        } else if (bal < -0.005) {
+            formattedBal = `${Math.abs(bal).toLocaleString('en-US', { minimumFractionDigits: 2 })} ج.م (له)`;
+        }
         const balId = (inputId === 'receiptCustomer') ? 'receiptAccountBalance' : 'disburseAccountBalance';
         const balEl = document.getElementById(balId);
         if (balEl) balEl.innerText = formattedBal;
@@ -70,7 +75,12 @@ function handleGeneralAccountSearch(query, inputId, resultsId) {
 
                 if (inputId === 'receiptCustomer' || inputId === 'disbursePayee') {
                     const bal = typeof getAccountBalance === 'function' ? getAccountBalance(a.name) : (a.balance || 0);
-                    const formattedBal = (bal < 0 ? '-' : '') + Math.abs(bal).toLocaleString('en-US', { minimumFractionDigits: 2 });
+                    let formattedBal = '0.00 ج.م (خالص)';
+                    if (bal > 0.005) {
+                        formattedBal = `${bal.toLocaleString('en-US', { minimumFractionDigits: 2 })} ج.م (عليه)`;
+                    } else if (bal < -0.005) {
+                        formattedBal = `${Math.abs(bal).toLocaleString('en-US', { minimumFractionDigits: 2 })} ج.م (له)`;
+                    }
                     const balId = (inputId === 'receiptCustomer') ? 'receiptAccountBalance' : 'disburseAccountBalance';
                     const balEl = document.getElementById(balId);
                     if (balEl) balEl.innerText = formattedBal;
