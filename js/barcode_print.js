@@ -102,6 +102,9 @@
     function getBpProductStock(p, whName = null) {
         if (!p) return 0;
         const targetWH = (whName || getBpActiveWarehouse()).trim();
+        if (window.FashionStockEngine) {
+            return window.FashionStockEngine.getProductStock(p, targetWH);
+        }
         if (typeof getWarehouseStock === 'function') {
             const st = getWarehouseStock(p.name, targetWH);
             if (st !== undefined && !isNaN(st)) return Number(st);
@@ -112,9 +115,6 @@
         if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[targetWH] !== undefined) {
             return parseFloat(p.warehouseStocks[targetWH]) || 0;
         }
-        if (targetWH === 'المخزن الرئيسي' || !p.warehouseStocks || Object.keys(p.warehouseStocks).length === 0) {
-            return parseFloat(p.stock) || 0;
-        }
         return 0;
     }
 
@@ -124,11 +124,11 @@
     function getBpVariantStock(v, whName = null) {
         if (!v) return 0;
         const targetWH = (whName || getBpActiveWarehouse()).trim();
+        if (window.FashionStockEngine) {
+            return window.FashionStockEngine.getVariantStock(v, targetWH);
+        }
         if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[targetWH] !== undefined) {
             return parseFloat(v.warehouseStocks[targetWH]) || 0;
-        }
-        if (targetWH === 'المخزن الرئيسي' || !v.warehouseStocks || Object.keys(v.warehouseStocks).length === 0) {
-            return parseFloat(v.stock) || 0;
         }
         return 0;
     }

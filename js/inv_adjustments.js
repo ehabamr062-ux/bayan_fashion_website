@@ -12,7 +12,7 @@ function goToAdjustmentWithSelected() {
                 if (adjSearchInput) {
                     adjSearchInput.value = p.name;
                 }
-                
+
                 if (p.units && p.units.length > 1) {
                     if (typeof showUnitSelectionModal === 'function') {
                         showUnitSelectionModal(p, 'adjustment');
@@ -55,7 +55,7 @@ function goToHistoryWithSelected() {
 window.adjCart = window.adjCart || [];
 window.selectedAdjItem = window.selectedAdjItem || null;
 
-window.getAdjustmentPriceType = function() {
+window.getAdjustmentPriceType = function () {
     let aType = null;
     if (typeof getStore === 'function') {
         aType = getStore('adjustmentPriceType');
@@ -64,19 +64,19 @@ window.getAdjustmentPriceType = function() {
         try {
             const settingsObj = JSON.parse((typeof getStore === 'function' ? getStore('pos_settings') : null) || '{}');
             aType = settingsObj.adjustmentPriceType;
-        } catch(e) {}
+        } catch (e) { }
     }
     return aType || 'retail';
 };
 
-window.getAdjustmentPriceLabel = function() {
+window.getAdjustmentPriceLabel = function () {
     const priceType = window.getAdjustmentPriceType();
     if (priceType === 'cost') return 'سعر التكلفة';
     if (priceType === 'wholesale') return 'سعر الجملة';
     return 'سعر القطاعي';
 };
 
-window.getEffectiveAdjustmentPrice = function(product, variant = null, unit = null) {
+window.getEffectiveAdjustmentPrice = function (product, variant = null, unit = null) {
     if (!product) return 0;
     const priceType = window.getAdjustmentPriceType();
     const factor = (unit && parseFloat(unit.factor) > 0) ? parseFloat(unit.factor) : 1;
@@ -318,7 +318,7 @@ function handleAdjSearchEnter(query, event) {
         const matches = (typeof window.searchProductsRanked === 'function')
             ? window.searchProductsRanked(cleanQuery, { limit: 10 })
             : productsDB.filter(p => p.name && p.name.toLowerCase().includes(cleanQuery.toLowerCase()));
-        
+
         if (matches.length === 1) {
             pMatch = matches[0];
         } else if (matches.length > 1) {
@@ -343,10 +343,12 @@ function handleAdjSearchEnter(query, event) {
                 existing.qty = (parseFloat(existing.qty) || 0) + 1;
             } else {
                 let liveStock = 0;
-                if (pMatch.warehouseStocks && typeof pMatch.warehouseStocks === 'object' && pMatch.warehouseStocks[activeWH] !== undefined) {
+                if (window.FashionStockEngine && typeof window.FashionStockEngine.getProductStock === 'function') {
+                    liveStock = window.FashionStockEngine.getProductStock(pMatch, activeWH);
+                } else if (pMatch.warehouseStocks && typeof pMatch.warehouseStocks === 'object' && pMatch.warehouseStocks[activeWH] !== undefined) {
                     liveStock = parseFloat(pMatch.warehouseStocks[activeWH]) || 0;
-                } else if (activeWH === 'المخزن الرئيسي' || !pMatch.warehouseStocks) {
-                    liveStock = parseFloat(pMatch.stock) || 0;
+                } else {
+                    liveStock = 0;
                 }
                 const defUnit = (pMatch.units && pMatch.units.length > 0) ? pMatch.units[0] : null;
                 window.adjCart.push({
@@ -391,7 +393,7 @@ function handleAdjSearch(query) {
     const resultsDiv = document.getElementById('adjSearchResults');
     if (!resultsDiv) return;
     resultsDiv.innerHTML = '';
-    
+
     // منع قص النوافذ المنبثقة الجديدة وإلغاء القيود القديمة للفئة search-results
     resultsDiv.style.setProperty('overflow', 'visible', 'important');
     resultsDiv.style.setProperty('max-height', 'none', 'important');
@@ -415,16 +417,16 @@ function handleAdjSearch(query) {
                 </div>
                 <div style="max-height: 380px; overflow-y: auto; padding: 6px; scrollbar-gutter: stable;">
                     ${filtered.map(p => {
-                        const priceVal = (typeof window.getEffectiveAdjustmentPrice === 'function') ? window.getEffectiveAdjustmentPrice(p) : (parseFloat(p.price) || 0);
-                        const activeWhName = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
-                        const stockVal = typeof getWarehouseStock === 'function' ? getWarehouseStock(p, activeWhName) : (parseFloat(p.stock) || 0);
-                        const sizesList = (p.variants && Array.isArray(p.variants)) 
-                            ? [...new Set(p.variants.map(v => String(v.size || '').trim()).filter(s => s && s !== '-' && s !== 'موحد' && s !== 'قياسي'))] 
-                            : [];
-                        const sizesHtml = sizesList.length > 0 
-                            ? `<span style="background: #ecfdf5; color: #047857; padding: 2px 6px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; border: 1px solid #a7f3d0;">📏 مقاسات: ${sizesList.slice(0, 5).join(', ')}${sizesList.length > 5 ? '...' : ''}</span>`
-                            : '';
-                        return `
+            const priceVal = (typeof window.getEffectiveAdjustmentPrice === 'function') ? window.getEffectiveAdjustmentPrice(p) : (parseFloat(p.price) || 0);
+            const activeWhName = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
+            const stockVal = typeof getWarehouseStock === 'function' ? getWarehouseStock(p, activeWhName) : (parseFloat(p.stock) || 0);
+            const sizesList = (p.variants && Array.isArray(p.variants))
+                ? [...new Set(p.variants.map(v => String(v.size || '').trim()).filter(s => s && s !== '-' && s !== 'موحد' && s !== 'قياسي'))]
+                : [];
+            const sizesHtml = sizesList.length > 0
+                ? `<span style="background: #ecfdf5; color: #047857; padding: 2px 6px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; border: 1px solid #a7f3d0;">📏 مقاسات: ${sizesList.slice(0, 5).join(', ')}${sizesList.length > 5 ? '...' : ''}</span>`
+                : '';
+            return `
                             <div class="pos-search-row adj-search-row" onclick="
                                 document.getElementById('adjSearchResults').style.display='none';
                                 const pSelected = productsDB.find(x => x.id === ${p.id});
@@ -456,7 +458,7 @@ function handleAdjSearch(query) {
                                 </div>
                             </div>
                         `;
-                    }).join('')}
+        }).join('')}
                 </div>
             </div>
         `;
@@ -512,9 +514,9 @@ function addAdjItem() {
         liveStock = parseFloat(window.selectedAdjItem.stock) || 0;
     }
 
-    const existing = window.adjCart.find(it => 
-        it.id === window.selectedAdjItem.id && 
-        ((it.size || it.selectedSize || '') === sSize) && 
+    const existing = window.adjCart.find(it =>
+        it.id === window.selectedAdjItem.id &&
+        ((it.size || it.selectedSize || '') === sSize) &&
         ((it.color || it.selectedColor || '') === sColor)
     );
 
@@ -526,8 +528,8 @@ function addAdjItem() {
             liveStock = existing.stock;
         }
     } else {
-        window.adjCart.push({ 
-            ...window.selectedAdjItem, 
+        window.adjCart.push({
+            ...window.selectedAdjItem,
             id: window.selectedAdjItem.id,
             name: window.selectedAdjItem.name,
             code: window.selectedAdjItem.barcode || window.selectedAdjItem.code || window.selectedAdjItem.id,
@@ -536,11 +538,11 @@ function addAdjItem() {
             size: sSize,
             color: sColor,
             stock: liveStock,
-            qty: qty, 
+            qty: qty,
             price: price,
             notes: notes,
             unitFactor: currentAdjHeaderUnit ? parseFloat(currentAdjHeaderUnit.factor) : 1,
-            selectedUnit: currentAdjHeaderUnit 
+            selectedUnit: currentAdjHeaderUnit
         });
     }
     renderAdjTable();
@@ -609,13 +611,13 @@ function renderAdjTable() {
         }
         netDiffGrandTotal += diffTotal;
 
-        const { sizeElement, colorElement } = (typeof renderVariantSelectElements === 'function') 
-            ? renderVariantSelectElements(item, idx, 'adj') 
+        const { sizeElement, colorElement } = (typeof renderVariantSelectElements === 'function')
+            ? renderVariantSelectElements(item, idx, 'adj')
             : { sizeElement: `<span style="color:#cbd5e1;">-</span>`, colorElement: `<span style="color:#cbd5e1;">-</span>` };
 
         let unitOptions = `<option value="base" ${!item.selectedUnit ? 'selected' : ''}>${item.unit || 'قطعة'}</option>`;
         if (item.units && item.units.length > 0) {
-            unitOptions = item.units.map(u => 
+            unitOptions = item.units.map(u =>
                 `<option value="${u.unitName}" ${item.selectedUnit && item.selectedUnit.unitName === u.unitName ? 'selected' : ''}>${u.unitName}</option>`
             ).join('');
         }
@@ -965,7 +967,7 @@ async function saveAdjustment() {
             showCustomAlert({
                 type: 'error',
                 titleText: isEditing ? '⚠️ تعذر حفظ التعديل' : 'خطأ في الحفظ',
-                msg: isEditing 
+                msg: isEditing
                     ? ('حدث خطأ أثناء حفظ التعديل، وتم الحفاظ على حركة التسوية الأصلية واستعادتها بالكامل دون أي فقدان للبيانات.\n\nتفاصيل الخطأ: ' + (err?.message || err))
                     : 'حدث خطأ غير متوقع أثناء حفظ التسوية المخزنية. تم الاحتفاظ بالأصناف في القائمة، يرجى المحاولة مرة أخرى.'
             });
@@ -989,7 +991,7 @@ function applyFractionalDiscount(type) {
         discTypeEl = document.getElementById('discountType');
         discReasonEl = document.getElementById('discountReason');
         reasonsArr = (typeof discountReasons !== 'undefined') ? discountReasons : [];
-        calcFn = typeof calculateTotals === 'function' ? calculateTotals : () => {};
+        calcFn = typeof calculateTotals === 'function' ? calculateTotals : () => { };
     } else if (type === 'salesReturn') {
         totalEl = document.getElementById('returnTotalAmount');
         discInput = document.getElementById('salesReturnDiscount');
@@ -1010,7 +1012,7 @@ function applyFractionalDiscount(type) {
         discTypeEl = document.getElementById('purchaseDiscountType');
         discReasonEl = document.getElementById('purchaseDiscountReason');
         reasonsArr = (typeof purchaseDiscountReasons !== 'undefined') ? purchaseDiscountReasons : [];
-        calcFn = typeof calculatePurchaseTotals === 'function' ? calculatePurchaseTotals : () => {};
+        calcFn = typeof calculatePurchaseTotals === 'function' ? calculatePurchaseTotals : () => { };
     }
 
     if (!totalEl || !discInput) return;
@@ -1248,13 +1250,13 @@ function buildPriceAdjItem(p, lastBuyMap, activeWH) {
     const itemName = p.name || 'صنف غير مسمى';
     const itemCode = p.code || '';
     const itemBarcode = p.barcode || '';
-    
+
     // حساب الرصيد الحي الفعلي للصنف في المخزن النشط
     const liveStock = window.FashionStockEngine
         ? window.FashionStockEngine.getProductStock(p, activeWH)
         : (parseFloat(p.stock) || 0);
 
-    const liveAvgCost = parseFloat(p.cost) || 0; 
+    const liveAvgCost = parseFloat(p.cost) || 0;
     const lastPPrice = (lastBuyMap && lastBuyMap[itemName] !== undefined) ? lastBuyMap[itemName] : liveAvgCost;
 
     // هل الصنف فاشون وله مصفوفة مقاسات وألوان؟
@@ -1265,10 +1267,10 @@ function buildPriceAdjItem(p, lastBuyMap, activeWH) {
             const vPrice = parseFloat(v.price) || parseFloat(p.price) || 0;
             const vWholesale = parseFloat(v.wholesale) || parseFloat(v.wholesalePrice) || parseFloat(p.wholesale) || 0;
             const vMinPrice = parseFloat(v.minPrice) || parseFloat(p.minPrice) || 0;
-            
+
             const vStock = window.FashionStockEngine
                 ? window.FashionStockEngine.getVariantStock(v, activeWH)
-                : ((v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined) ? (parseFloat(v.warehouseStocks[activeWH]) || 0) : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0));
+                : ((v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined) ? (parseFloat(v.warehouseStocks[activeWH]) || 0) : 0);
             vStockSum += vStock;
 
             return {
@@ -1385,7 +1387,7 @@ function loadPriceAdjustmentData(selectedIds = []) {
                 const barcodeMatch = String(p.barcode || '').toLowerCase().includes(searchQ);
                 let variantMatch = false;
                 if (p.variants && Array.isArray(p.variants)) {
-                    variantMatch = p.variants.some(v => 
+                    variantMatch = p.variants.some(v =>
                         String(v.size || '').toLowerCase().includes(searchQ) ||
                         String(v.color || '').toLowerCase().includes(searchQ) ||
                         String(v.barcode || '').toLowerCase().includes(searchQ) ||
@@ -1814,8 +1816,8 @@ function resetFvpModalFilters() {
 window.resetFvpModalFilters = resetFvpModalFilters;
 
 function openFashionVariantsPriceModal(itemIndex) {
-    const item = (window.priceAdjData && window.priceAdjData[itemIndex]) 
-        ? window.priceAdjData[itemIndex] 
+    const item = (window.priceAdjData && window.priceAdjData[itemIndex])
+        ? window.priceAdjData[itemIndex]
         : (window.priceAdjCurrentFiltered ? window.priceAdjCurrentFiltered[itemIndex] : null);
     if (!item || !item.hasVariants || !Array.isArray(item.variants) || item.variants.length === 0) {
         if (typeof showToast === 'function') showToast("⚠️ هذا الصنف ليس له تشكيلات مقاسات وألوان", "warning");
@@ -2325,7 +2327,7 @@ function handlePriceAdjSearch() {
     const colorFilter = document.getElementById('priceAdjColorFilter')?.value || 'all';
 
     const allProds = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
-    
+
     // خريطة الأصناف المحملة حالياً بالذاكرة لضمان الحفاظ على أي تعديل تم إجراؤه
     const existingMap = new Map();
     (window.priceAdjData || []).forEach(item => {
@@ -2374,7 +2376,7 @@ function handlePriceAdjSearch() {
                 const modelMatch = String(p.modelCode || p.model_code || p.model || '').toLowerCase().includes(queryLower);
                 let variantMatch = false;
                 if (p.variants && Array.isArray(p.variants)) {
-                    variantMatch = p.variants.some(v => 
+                    variantMatch = p.variants.some(v =>
                         String(v.size || '').toLowerCase().includes(queryLower) ||
                         String(v.color || '').toLowerCase().includes(queryLower) ||
                         String(v.barcode || '').toLowerCase().includes(queryLower) ||
@@ -2458,8 +2460,8 @@ async function applyBulkPriceAdjustment(direction = 1) {
     const targetSelect = document.getElementById('priceAdjBulkTarget');
     const targetType = targetSelect ? targetSelect.value : 'both';
 
-    const targetItems = (window.priceAdjCurrentFiltered && window.priceAdjCurrentFiltered.length > 0) 
-        ? window.priceAdjCurrentFiltered 
+    const targetItems = (window.priceAdjCurrentFiltered && window.priceAdjCurrentFiltered.length > 0)
+        ? window.priceAdjCurrentFiltered
         : (window.priceAdjData || []);
 
     if (!targetItems || targetItems.length === 0) {
@@ -2657,7 +2659,7 @@ async function savePriceAdjustments() {
 
         const touchedProducts = [];
         dataToSave.forEach(item => {
-            const p = productsDB.find(x => 
+            const p = productsDB.find(x =>
                 (item.id !== undefined && item.id !== null && String(x.id) === String(item.id)) ||
                 (item.code && String(x.code).trim() === String(item.code).trim()) ||
                 (item.barcode && String(x.barcode).trim() === String(item.barcode).trim()) ||
@@ -2752,7 +2754,7 @@ window.savePriceAdjustments = savePriceAdjustments;
 function exportPriceAdjToExcel() {
     try {
         const XLSXLib = (typeof getXLSXLibrary === 'function' ? getXLSXLibrary() : (typeof XLSX !== 'undefined' ? XLSX : (typeof window.XLSX !== 'undefined' ? window.XLSX : null)));
-        
+
         const filtered = window.priceAdjCurrentFiltered || window.priceAdjData || [];
 
         if (filtered.length === 0) {
@@ -2843,7 +2845,7 @@ function openPriceAdjColumnModal() {
     let hiddenCols = [];
     try {
         if (saved) hiddenCols = JSON.parse(saved);
-    } catch(e) {}
+    } catch (e) { }
 
     let gridHtml = `<div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; padding: 16px; max-height: 55vh; overflow-y: auto;">`;
     priceAdjColumnsList.forEach(col => {
@@ -2917,7 +2919,7 @@ function openPriceAdjColumnModal() {
 window.openPriceAdjColumnModal = openPriceAdjColumnModal;
 window.togglePriceAdjColumnManager = openPriceAdjColumnModal;
 
-window.toggleSinglePriceAdjColumn = function(colId, isVisible) {
+window.toggleSinglePriceAdjColumn = function (colId, isVisible) {
     const cells = document.querySelectorAll(`.col-adj-${colId}`);
     cells.forEach(c => {
         c.style.display = isVisible ? '' : 'none';
@@ -2927,7 +2929,7 @@ window.toggleSinglePriceAdjColumn = function(colId, isVisible) {
     let hiddenCols = [];
     try {
         if (saved) hiddenCols = JSON.parse(saved);
-    } catch(e) {}
+    } catch (e) { }
 
     const sColId = String(colId);
     if (!isVisible && !hiddenCols.includes(sColId)) {
@@ -2940,12 +2942,12 @@ window.toggleSinglePriceAdjColumn = function(colId, isVisible) {
     if (typeof setStore === 'function') setStore('priceAdjHiddenCols', jsonStr);
 };
 
-window.applyPriceAdjColumnVisibility = function() {
+window.applyPriceAdjColumnVisibility = function () {
     let saved = typeof getStore === 'function' ? getStore('priceAdjHiddenCols') : null;
     let hiddenCols = [];
     try {
         if (saved) hiddenCols = JSON.parse(saved);
-    } catch(e) {}
+    } catch (e) { }
 
     // ⚡ خروج سريع بـ 0ms إذا لم تكن هناك أي أعمدة مخفية
     if (!hiddenCols || hiddenCols.length === 0) return;
@@ -2984,7 +2986,7 @@ function getAdjHiddenColumns() {
     try {
         const stored = getStore('bayan_adj_hidden_columns');
         if (stored) return JSON.parse(stored);
-    } catch (e) {}
+    } catch (e) { }
     return [];
 }
 
@@ -2992,7 +2994,7 @@ function saveAdjHiddenColumns(hiddenList) {
     try {
         const json = JSON.stringify(hiddenList);
         setStore('bayan_adj_hidden_columns', json);
-    } catch (e) {}
+    } catch (e) { }
     applyAdjColumnsVisibility();
 }
 

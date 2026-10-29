@@ -1404,16 +1404,10 @@ function updateProductPricesInDB(item) {
 
         let averageCost = newPurchasePrice;
 
-        if (oldStock > 0) {
-
+        if (oldStock > 0 && (oldStock + newQty) > 0) {
             averageCost = ((oldStock * oldCost) + (newQty * newPurchasePrice)) / (oldStock + newQty);
-
-        } else if (oldCost > 0) {
-
-            // إذا كان الرصيد صفر ولكن هناك تكلفة مسجلة مسبقاً (تكلفة افتراضية)
-
-            averageCost = (oldCost + newPurchasePrice) / 2;
-
+        } else {
+            averageCost = newPurchasePrice;
         }
 
         // تحديث السعر في الوحدة المختارة أو السعر الأساسي
@@ -1806,11 +1800,8 @@ async function savePurchase(force = false, accountChecked = false) {
                 const totalAddedValue = baseQty * effectiveUnitPriceBase;
                 const finalStockCount = oldStock + baseQty;
 
-                if (oldStock > 0) {
+                if (oldStock > 0 && finalStockCount > 0) {
                     p.cost = (totalOldValue + totalAddedValue) / finalStockCount;
-                } else if (oldCost > 0) {
-                    // إذا كان الرصيد صفر ولكن هناك تكلفة مسجلة مسبقاً
-                    p.cost = (oldCost + effectiveUnitPriceBase) / 2;
                 } else {
                     p.cost = effectiveUnitPriceBase;
                 }

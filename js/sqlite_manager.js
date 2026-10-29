@@ -3506,22 +3506,30 @@
                             } else if (sSize || sColor) {
                                 const matchedVar = vars.find(v => (!sSize || String(v.size || '').trim() === sSize) && (!sColor || String(v.color || '').trim() === sColor));
                                 if (matchedVar) {
-                                    if (targetWh && matchedVar.warehouseStocks && matchedVar.warehouseStocks[targetWh] !== undefined) {
-                                        curStock = parseFloat(matchedVar.warehouseStocks[targetWh]) || 0;
-                                    } else if (targetWh) {
-                                        curStock = (targetWh === 'المخزن الرئيسي') ? (parseFloat(matchedVar.stock) || 0) : 0;
+                                    if (targetWh) {
+                                        curStock = (matchedVar.warehouseStocks && matchedVar.warehouseStocks[targetWh] !== undefined)
+                                            ? (parseFloat(matchedVar.warehouseStocks[targetWh]) || 0)
+                                            : 0;
                                     } else {
                                         curStock = parseFloat(matchedVar.stock) || 0;
                                     }
                                 } else {
-                                    if (targetWh && whStocks[targetWh] !== undefined) curStock = parseFloat(whStocks[targetWh]) || 0;
-                                    else if (targetWh) curStock = (targetWh === 'المخزن الرئيسي') ? pStock : 0;
-                                    else curStock = pStock;
+                                    if (targetWh) {
+                                        curStock = (whStocks && whStocks[targetWh] !== undefined)
+                                            ? (parseFloat(whStocks[targetWh]) || 0)
+                                            : 0;
+                                    } else {
+                                        curStock = pStock;
+                                    }
                                 }
                             } else {
-                                if (targetWh && whStocks[targetWh] !== undefined) curStock = parseFloat(whStocks[targetWh]) || 0;
-                                else if (targetWh) curStock = (targetWh === 'المخزن الرئيسي') ? pStock : 0;
-                                else curStock = pStock;
+                                if (targetWh) {
+                                    curStock = (whStocks && whStocks[targetWh] !== undefined)
+                                        ? (parseFloat(whStocks[targetWh]) || 0)
+                                        : 0;
+                                } else {
+                                    curStock = pStock;
+                                }
                             }
                         }
                     } catch(e) {}

@@ -453,12 +453,12 @@
                 matchedVars.forEach(v => {
                     availQty += window.FashionStockEngine
                         ? window.FashionStockEngine.getVariantStock(v, whName)
-                        : ((v.warehouseStocks && v.warehouseStocks[whName] !== undefined) ? (parseFloat(v.warehouseStocks[whName]) || 0) : (whName === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0));
+                        : (parseFloat(v.warehouseStocks?.[whName]) || 0);
                 });
             } else {
                 availQty = window.FashionStockEngine
                     ? window.FashionStockEngine.getProductStock(p, whName)
-                    : (typeof getWarehouseStock === 'function' ? getWarehouseStock(p.name, whName) : (parseFloat(p.stock) || 0));
+                    : (typeof getWarehouseStock === 'function' ? getWarehouseStock(p.name, whName) : (parseFloat(p.warehouseStocks?.[whName]) || 0));
             }
 
             grandTotalStock += availQty;
@@ -680,7 +680,7 @@
                     
                     mainStock = window.FashionStockEngine
                         ? window.FashionStockEngine.getVariantStock(v, mainStoreName)
-                        : (parseFloat(v.warehouseStocks?.[mainStoreName]) || (mainStoreName === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0));
+                        : (parseFloat(v.warehouseStocks?.[mainStoreName]) || 0);
                     branches.forEach(b => {
                         const bStock = window.FashionStockEngine
                             ? window.FashionStockEngine.getVariantStock(v, b)

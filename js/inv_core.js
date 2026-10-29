@@ -1511,7 +1511,7 @@ async function renderWarehouseReportTable(isSearchTrigger = false) {
                         const colClass = getSafeWhClass(w.name);
                         const vSt = (typeof FashionStockEngine !== 'undefined' && FashionStockEngine.getVariantStock)
                             ? FashionStockEngine.getVariantStock(v, w.name)
-                            : ((v.warehouseStocks && v.warehouseStocks[w.name] !== undefined) ? (parseFloat(v.warehouseStocks[w.name]) || 0) : (w.name === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0));
+                            : (parseFloat(v.warehouseStocks?.[w.name]) || 0);
                         vTotalQty += vSt;
                         vWhCols += `<td class="${colClass}" style="padding:6px 10px; text-align:center; font-weight:800; color:${vSt > 0 ? '#10b981' : (vSt < 0 ? '#ef4444' : '#94a3b8')}; border:1px solid #e2e8f0;">${vSt}</td>`;
                     });
@@ -2406,17 +2406,12 @@ function getLiveProductWhStock(p, targetWH) {
         p.variants.forEach(v => {
             if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[targetWH] !== undefined) {
                 varSum += parseFloat(v.warehouseStocks[targetWH]) || 0;
-            } else if (targetWH === 'المخزن الرئيسي') {
-                varSum += parseFloat(v.stock) || 0;
             }
         });
         return varSum;
     }
     if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[targetWH] !== undefined) {
         return parseFloat(p.warehouseStocks[targetWH]) || 0;
-    }
-    if (targetWH === 'المخزن الرئيسي') {
-        return parseFloat(p.stock) || 0;
     }
     return 0;
 }

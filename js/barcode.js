@@ -670,15 +670,20 @@ const BayanBarcode = (function () {
             const pId = product.id;
 
             const fromWh = (document.getElementById('transferFrom')?.value || 'المخزن الرئيسي').trim();
-            let currentWhStock = (typeof getWarehouseStock === 'function') ? getWarehouseStock(product.name, fromWh) : (parseFloat(product.stock) || 0);
+            let currentWhStock = 0;
             if (variant) {
-                const vGenStock = parseFloat(variant.stock) || 0;
-                if (variant.warehouseStocks && typeof variant.warehouseStocks === 'object' && variant.warehouseStocks[fromWh] !== undefined) {
-                    currentWhStock = Math.max(parseFloat(variant.warehouseStocks[fromWh]) || 0, vGenStock);
-                } else {
-                    currentWhStock = vGenStock;
-                }
+                currentWhStock = window.FashionStockEngine
+                    ? window.FashionStockEngine.getVariantStock(variant, fromWh)
+                    : (parseFloat(variant.warehouseStocks?.[fromWh]) || 0);
+            } else {
+                currentWhStock = window.FashionStockEngine
+                    ? window.FashionStockEngine.getProductStock(product, fromWh)
+                    : (parseFloat(product.warehouseStocks?.[fromWh]) || 0);
             }
+            const pendingBase = (typeof window.getPendingTransferBaseQty === 'function')
+                ? window.getPendingTransferBaseQty(product.id, product.name, vSize, vColor, fromWh)
+                : 0;
+            currentWhStock = Math.max(0, currentWhStock - pendingBase);
 
             const existing = window.transferItemsBatch.find(it =>
                 it.id === pId &&
@@ -1255,19 +1260,13 @@ window.dispatchSearchBarcode = function(code, context) {
             const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
             let liveStock = 0;
             if (variant) {
-                const vGenStock = parseFloat(variant.stock) || 0;
-                if (variant.warehouseStocks && typeof variant.warehouseStocks === 'object' && variant.warehouseStocks[activeWH] !== undefined) {
-                    liveStock = Math.max(parseFloat(variant.warehouseStocks[activeWH]) || 0, vGenStock);
-                } else {
-                    liveStock = vGenStock;
-                }
+                liveStock = window.FashionStockEngine
+                    ? window.FashionStockEngine.getVariantStock(variant, activeWH)
+                    : (parseFloat(variant.warehouseStocks?.[activeWH]) || 0);
             } else {
-                const pGenStock = parseFloat(product.stock) || 0;
-                if (product.warehouseStocks && typeof product.warehouseStocks === 'object' && product.warehouseStocks[activeWH] !== undefined) {
-                    liveStock = Math.max(parseFloat(product.warehouseStocks[activeWH]) || 0, pGenStock);
-                } else {
-                    liveStock = pGenStock;
-                }
+                liveStock = window.FashionStockEngine
+                    ? window.FashionStockEngine.getProductStock(product, activeWH)
+                    : (parseFloat(product.warehouseStocks?.[activeWH]) || 0);
             }
 
             const vPrice = (typeof window.getEffectiveAdjustmentPrice === 'function')
@@ -1300,18 +1299,20 @@ window.dispatchSearchBarcode = function(code, context) {
         cleanSearchUI('transferProductSearch', 'transferSearchResults');
         if (!window.transferItemsBatch) window.transferItemsBatch = [];
         const fromWh = (document.getElementById('transferFrom')?.value || 'المخزن الرئيسي').trim();
-        let currentWhStock = (typeof getWarehouseStock === 'function') ? getWarehouseStock(product.name, fromWh) : (parseFloat(product.stock) || 0);
+        let currentWhStock = 0;
         if (variant) {
-            if (variant.warehouseStocks && typeof variant.warehouseStocks === 'object' && variant.warehouseStocks[fromWh] !== undefined) {
-                currentWhStock = parseFloat(variant.warehouseStocks[fromWh]) || 0;
-            } else if (fromWh === 'المخزن الرئيسي' || !variant.warehouseStocks || Object.keys(variant.warehouseStocks).length === 0) {
-                currentWhStock = parseFloat(variant.stock) || 0;
-            } else {
-                currentWhStock = (variant.warehouseStocks && variant.warehouseStocks[fromWh] !== undefined)
-                    ? (parseFloat(variant.warehouseStocks[fromWh]) || 0)
-                    : (parseFloat(variant.stock) || parseFloat(product.stock) || 0);
-            }
+            currentWhStock = window.FashionStockEngine
+                ? window.FashionStockEngine.getVariantStock(variant, fromWh)
+                : (parseFloat(variant.warehouseStocks?.[fromWh]) || 0);
+        } else {
+            currentWhStock = window.FashionStockEngine
+                ? window.FashionStockEngine.getProductStock(product, fromWh)
+                : (parseFloat(product.warehouseStocks?.[fromWh]) || 0);
         }
+        const pendingBase = (typeof window.getPendingTransferBaseQty === 'function')
+            ? window.getPendingTransferBaseQty(product.id, product.name, vSize, vColor, fromWh)
+            : 0;
+        currentWhStock = Math.max(0, currentWhStock - pendingBase);
 
         const existing = window.transferItemsBatch.find(it => {
             if (vBarcode && String(it.code || '').trim() === vBarcode) return true;

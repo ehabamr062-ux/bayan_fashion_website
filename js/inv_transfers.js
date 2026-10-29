@@ -364,6 +364,77 @@ window.showCombinedStock = function () {
 
 }
 
+// =========================================================================
+// 🛡️ حساب إجمالي الكميات المعلقة قيد التحويل لصنف وتشكيلة من مخزن محدد
+// =========================================================================
+window.getPendingTransferBaseQty = function (productId, productName, size, color, sourceWarehouse, excludeInvoiceId) {
+    if (typeof transactions === 'undefined' || !Array.isArray(transactions)) return 0;
+    if (arguments.length === 4 || (arguments.length === 5 && !sourceWarehouse && color)) {
+        sourceWarehouse = color;
+        color = size;
+        size = productName;
+        productName = '';
+    }
+    const cleanAttr = (val) => {
+        const s = String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+        if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
+        return s;
+    };
+    const cSize = cleanAttr(size);
+    const cColor = cleanAttr(color);
+    const cleanWH = String(sourceWarehouse || '').trim();
+    if (!cleanWH) return 0;
+
+    let pendingTotal = 0;
+    transactions.forEach(t => {
+        if (!t || t.transferStatus !== 'pending') return;
+        if (!t.type || !t.type.includes('تحويل')) return;
+        if (excludeInvoiceId && (String(t.invoiceId) === String(excludeInvoiceId) || String(t.id) === String(excludeInvoiceId))) return;
+
+        const tSource = String(t.sourceWarehouse || '').trim();
+        if (tSource !== cleanWH) return;
+
+        const isMatchProd = (productId && (String(t.productId) === String(productId) || t.productId == productId)) ||
+            (t.product && productName && t.product === productName);
+        if (!isMatchProd) return;
+
+        const tSize = cleanAttr(t.selectedSize || t.size || '');
+        const tColor = cleanAttr(t.selectedColor || t.color || '');
+        if (tSize === cSize && tColor === cColor) {
+            const factor = (parseFloat(t.unitFactor) > 0) ? parseFloat(t.unitFactor) : 1;
+            pendingTotal += (parseFloat(t.qty) || 0) * factor;
+        }
+    });
+
+    if (Array.isArray(window.inTransitTransfersCache)) {
+        window.inTransitTransfersCache.forEach(tr => {
+            if (!tr || tr.transferStatus !== 'pending') return;
+            if (excludeInvoiceId && (String(tr.invoiceId) === String(excludeInvoiceId) || String(tr.id) === String(excludeInvoiceId))) return;
+            const trSource = String(tr.sourceWarehouse || '').trim();
+            if (trSource !== cleanWH) return;
+
+            const alreadyInTrans = transactions.some(t => String(t.invoiceId) === String(tr.id) || String(t.id) === String(tr.id));
+            if (alreadyInTrans) return;
+
+            if (Array.isArray(tr.items)) {
+                tr.items.forEach(it => {
+                    const isMatchProd = (productId && (String(it.productId || it.id) === String(productId))) ||
+                        (it.product && productName && it.product === productName);
+                    if (!isMatchProd) return;
+                    const itSize = cleanAttr(it.selectedSize || it.size || '');
+                    const itColor = cleanAttr(it.selectedColor || it.color || '');
+                    if (itSize === cSize && itColor === cColor) {
+                        const factor = (parseFloat(it.unitFactor) > 0) ? parseFloat(it.unitFactor) : 1;
+                        pendingTotal += (parseFloat(it.qty) || 0) * factor;
+                    }
+                });
+            }
+        });
+    }
+
+    return pendingTotal;
+};
+
 window.renderTransferTable = function () {
     const tbody = document.getElementById('transferTableBody');
     const emptyState = document.getElementById('transferEmptyState');
@@ -408,30 +479,28 @@ window.renderTransferTable = function () {
                     (!sColor || String(v.color || '').trim() === sColor)
                 );
                 if (matchedVar) {
-                    let srcStock = 0;
-                    if (matchedVar.warehouseStocks && typeof matchedVar.warehouseStocks === 'object' && matchedVar.warehouseStocks[wFrom] !== undefined) {
-                        srcStock = parseFloat(matchedVar.warehouseStocks[wFrom]) || 0;
-                    } else if (wFrom === 'المخزن الرئيسي') {
-                        srcStock = parseFloat(matchedVar.stock) || 0;
-                    } else {
-                        srcStock = 0;
-                    }
-                    item.stock = srcStock / factor;
+                    let rawStock = window.FashionStockEngine
+                        ? window.FashionStockEngine.getVariantStock(matchedVar, wFrom)
+                        : ((matchedVar.warehouseStocks && typeof matchedVar.warehouseStocks === 'object' && matchedVar.warehouseStocks[wFrom] !== undefined) ? (parseFloat(matchedVar.warehouseStocks[wFrom]) || 0) : 0);
+                    const pendingQty = (typeof window.getPendingTransferBaseQty === 'function')
+                        ? window.getPendingTransferBaseQty(p.id, p.name, sSize, sColor, wFrom, (typeof isEditMode !== 'undefined' && isEditMode && typeof editingInvoiceId !== 'undefined') ? editingInvoiceId : null)
+                        : 0;
+                    const availStock = Math.max(0, rawStock - pendingQty);
+                    item.stock = availStock / factor;
                     item.sourceStock = item.stock;
                 } else {
                     item.stock = 0;
                     item.sourceStock = 0;
                 }
             } else {
-                let srcStock = 0;
-                if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[wFrom] !== undefined) {
-                    srcStock = parseFloat(p.warehouseStocks[wFrom]) || 0;
-                } else if (wFrom === 'المخزن الرئيسي') {
-                    srcStock = parseFloat(p.stock) || 0;
-                } else {
-                    srcStock = 0;
-                }
-                item.stock = srcStock / factor;
+                let rawStock = window.FashionStockEngine
+                    ? window.FashionStockEngine.getProductStock(p, wFrom)
+                    : ((p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[wFrom] !== undefined) ? (parseFloat(p.warehouseStocks[wFrom]) || 0) : 0);
+                const pendingQty = (typeof window.getPendingTransferBaseQty === 'function')
+                    ? window.getPendingTransferBaseQty(p.id, p.name, '', '', wFrom, (typeof isEditMode !== 'undefined' && isEditMode && typeof editingInvoiceId !== 'undefined') ? editingInvoiceId : null)
+                    : 0;
+                const availStock = Math.max(0, rawStock - pendingQty);
+                item.stock = availStock / factor;
                 item.sourceStock = item.stock;
             }
         }
@@ -994,14 +1063,13 @@ document.getElementById('transferProductSearch').addEventListener('keydown', fun
                     const vColor = matchingVariant.color || '';
                     const fromWh = (document.getElementById('transferFrom')?.value || 'المخزن الرئيسي').trim();
 
-                    let currentWhStock = 0;
-                    if (matchingVariant.warehouseStocks && typeof matchingVariant.warehouseStocks === 'object' && matchingVariant.warehouseStocks[fromWh] !== undefined) {
-                        currentWhStock = parseFloat(matchingVariant.warehouseStocks[fromWh]) || 0;
-                    } else if (fromWh === 'المخزن الرئيسي') {
-                        currentWhStock = parseFloat(matchingVariant.stock) || 0;
-                    } else {
-                        currentWhStock = 0;
-                    }
+                    let rawWhStock = window.FashionStockEngine
+                        ? window.FashionStockEngine.getVariantStock(matchingVariant, fromWh)
+                        : ((matchingVariant.warehouseStocks && typeof matchingVariant.warehouseStocks === 'object' && matchingVariant.warehouseStocks[fromWh] !== undefined) ? (parseFloat(matchingVariant.warehouseStocks[fromWh]) || 0) : 0);
+                    const pendingQty = (typeof window.getPendingTransferBaseQty === 'function')
+                        ? window.getPendingTransferBaseQty(match.id, match.name, vSize, vColor, fromWh)
+                        : 0;
+                    let currentWhStock = Math.max(0, rawWhStock - pendingQty);
 
                     // دالة مساعدة لمعايرة المقاسات والألوان وتوحيد القيم الافتراضية
                     const cleanAttr = (val) => {
@@ -1013,8 +1081,12 @@ document.getElementById('transferProductSearch').addEventListener('keydown', fun
                     const cColor = cleanAttr(vColor);
                     const vBarcode = matchingVariant.barcode ? String(matchingVariant.barcode).trim() : '';
 
-                    // 1. البحث الذكي عن الصنف الموجود مسبقاً في جدول التحويل
+                    // 1. البحث الذكي عن الصنف الموجود مسبقاً في جدول التحويل (مع اشتراط تطابق الوحدة)
                     const existing = window.transferItemsBatch.find(it => {
+                        const itUnit = it.unitName || 'قطعة';
+                        const itFactor = (parseFloat(it.unitFactor) > 0) ? parseFloat(it.unitFactor) : 1;
+                        if (itUnit !== 'قطعة' || itFactor !== 1) return false;
+
                         if (vBarcode && String(it.code || '').trim() === vBarcode) return true;
                         const isSame = (it.id === match.id || String(it.id) === String(match.id) || it.name === match.name);
                         if (!isSame) return false;
@@ -1179,10 +1251,16 @@ window.addManualTransferItem = function () {
         }
     }
 
-    availStock = effVariant
-        ? (window.FashionStockEngine ? window.FashionStockEngine.getVariantStock(effVariant, wFrom) : (parseFloat(effVariant.stock) || 0))
-        : (window.FashionStockEngine ? window.FashionStockEngine.getProductStock(product, wFrom) : (parseFloat(product.stock) || 0));
+    let rawStock = effVariant
+        ? (window.FashionStockEngine ? window.FashionStockEngine.getVariantStock(effVariant, wFrom) : ((effVariant.warehouseStocks && effVariant.warehouseStocks[wFrom] !== undefined) ? parseFloat(effVariant.warehouseStocks[wFrom]) : 0))
+        : (window.FashionStockEngine ? window.FashionStockEngine.getProductStock(product, wFrom) : ((product.warehouseStocks && product.warehouseStocks[wFrom] !== undefined) ? parseFloat(product.warehouseStocks[wFrom]) : 0));
 
+    // خصم أذونات التحويل المعلقة قيد الانتظار لنفس الصنف والتشكيلة من المخزن المصدر
+    const pendingQty = (typeof window.getPendingTransferBaseQty === 'function')
+        ? window.getPendingTransferBaseQty(product.id, product.name, size, color, wFrom)
+        : 0;
+
+    availStock = Math.max(0, rawStock - pendingQty);
     const availInUnit = (availStock / factor);
 
     const cleanAttr = (val) => {
@@ -1222,10 +1300,15 @@ window.addManualTransferItem = function () {
         return showToast(`🚫 لا يمكن التحويل: متاح بمخزن [${wFrom}] للصنف (${product.name}${varInfo}) هو (${availInUnit.toFixed(2).replace(/\.00$/, '')}) فقط، وموجود بالقائمة (${currDisplay})!`, 'error', 5000);
     }
 
-    // منع التكرار والدمج الذكي لنفس الصنف والمقاس واللون
+    // منع التكرار والدمج الذكي لنفس الصنف والمقاس واللون (مع اشتراط تطابق الوحدة والمعامل لمنع خلط الوحدات)
     const unitName = currentTransferHeaderUnit ? currentTransferHeaderUnit.unitName : (product.unit || 'قطعة');
 
     const existing = window.transferItemsBatch.find(it => {
+        const itUnit = it.unitName || 'قطعة';
+        const itFactor = (parseFloat(it.unitFactor) > 0) ? parseFloat(it.unitFactor) : 1;
+        // منع خلط الوحدات: إذا كانت الوحدة مختلفة لا ندمج
+        if (itUnit !== unitName || itFactor !== factor) return false;
+
         if (vBarcode && String(it.code || '').trim() === vBarcode) return true;
         const isSame = (it.id == pId || String(it.id) === String(pId) || it.name === product.name);
         if (!isSame) return false;
@@ -1234,7 +1317,7 @@ window.addManualTransferItem = function () {
     if (existing) {
         existing.qty += qty;
         renderTransferTable();
-        showToast(`✅ تم تحديث كمية (${product.name}) إلى ${existing.qty}`, 'success');
+        showToast(`✅ تم تحديث كمية (${product.name}) إلى ${existing.qty} ${unitName}`, 'success');
 
         document.getElementById('transferProductSearch').value = '';
         if (document.getElementById('transferSize')) document.getElementById('transferSize').value = '';
@@ -1360,6 +1443,16 @@ window.saveQuickWarehouseFromTransfer = async function () {
         }
     } catch (e) {
         console.warn("⚠️ خطأ أثناء حفظ المخزن في db.warehouses:", e);
+    }
+
+    // توثيق المخزن المنشأ في SQLite
+    if (window.BayanSQLite && typeof window.BayanSQLite.put === 'function') {
+        try {
+            window.BayanSQLite.put('warehouses', newWh);
+            if (typeof window.BayanSQLite.schedulePersist === 'function') {
+                window.BayanSQLite.schedulePersist(50);
+            }
+        } catch (e) { }
     }
 
     // حفظ عام في النظام
@@ -1532,9 +1625,16 @@ window.processBatchTransfer = async function () {
                         }
                     }
 
-                    availStock = effVariant
-                        ? (window.FashionStockEngine ? window.FashionStockEngine.getVariantStock(effVariant, wFrom) : (parseFloat(effVariant.stock) || 0))
-                        : (window.FashionStockEngine ? window.FashionStockEngine.getProductStock(p, wFrom) : (parseFloat(p.stock) || 0));
+                    let rawStock = effVariant
+                        ? (window.FashionStockEngine ? window.FashionStockEngine.getVariantStock(effVariant, wFrom) : ((effVariant.warehouseStocks && effVariant.warehouseStocks[wFrom] !== undefined) ? parseFloat(effVariant.warehouseStocks[wFrom]) : 0))
+                        : (window.FashionStockEngine ? window.FashionStockEngine.getProductStock(p, wFrom) : ((p.warehouseStocks && p.warehouseStocks[wFrom] !== undefined) ? parseFloat(p.warehouseStocks[wFrom]) : 0));
+
+                    // خصم أذونات التحويل المعلقة قيد الانتظار لنفس الصنف والتشكيلة من المخزن المصدر
+                    const pendingQty = (typeof window.getPendingTransferBaseQty === 'function')
+                        ? window.getPendingTransferBaseQty(p.id, p.name, sSize, sColor, wFrom, (typeof isEditMode !== 'undefined' && isEditMode && typeof editingInvoiceId !== 'undefined') ? editingInvoiceId : null)
+                        : 0;
+
+                    availStock = Math.max(0, rawStock - pendingQty);
 
                     if (availStock <= 0 || totalBaseQty > availStock) {
                         const varInfo = (entry.rawSize || entry.rawColor) ? ` [${[entry.rawSize, entry.rawColor].filter(Boolean).join(' - ')}]` : '';
@@ -2018,9 +2118,60 @@ window.showIncomingTransferApprovalModal = function (invId) {
 // =========================================================================
 window.acceptTransferFromNotify = async function (invId) {
     if (!invId) return;
-    const transItems = (typeof transactions !== 'undefined' && Array.isArray(transactions))
+
+    const receiverUser = (typeof currentUser !== 'undefined' && currentUser && currentUser.name) ? currentUser.name : 'أمين المخزن';
+    const nowFull = new Date().toLocaleString('ar-EG');
+
+    let isFromCache = false;
+    let transItems = (typeof transactions !== 'undefined' && Array.isArray(transactions))
         ? transactions.filter(t => (String(t.invoiceId) === String(invId) || String(t.id) === String(invId)) && t.type && t.type.includes('تحويل'))
         : [];
+
+    // استرجاع الإذن من كاش أجهزة الشبكة في حال عدم وجوده بالمعاملات المحلية
+    if (transItems.length === 0 && Array.isArray(window.inTransitTransfersCache)) {
+        const cachedTr = window.inTransitTransfersCache.find(t => String(t.id) === String(invId) || String(t.invoiceId) === String(invId));
+        if (cachedTr && Array.isArray(cachedTr.items) && cachedTr.items.length > 0) {
+            isFromCache = true;
+            const nowIso = new Date().toLocaleDateString('en-CA');
+            const nowTime = new Date().toTimeString().slice(0, 5);
+
+            transItems = cachedTr.items.map((it, idx) => ({
+                invoiceId: invId,
+                isInvoiceHead: (idx === 0),
+                date: cachedTr.date || nowFull,
+                dateISO: cachedTr.dateISO || nowIso,
+                timeISO: cachedTr.timeISO || nowTime,
+                type: 'تحويل مخزني 🚚',
+                transferStatus: 'received',
+                receivedBy: receiverUser,
+                receivedAt: nowFull,
+                productId: it.productId || it.id || null,
+                product: it.product || it.name,
+                barcode: it.barcode || it.code || '',
+                code: it.code || it.barcode || '',
+                size: it.size || it.selectedSize || '',
+                color: it.color || it.selectedColor || '',
+                selectedSize: it.selectedSize || it.size || '',
+                selectedColor: it.selectedColor || it.color || '',
+                qty: parseFloat(it.qty) || 1,
+                unit: it.unit || it.unitName || 'قطعة',
+                unitFactor: parseFloat(it.unitFactor) || 1,
+                price: parseFloat(it.price) || 0,
+                total: (parseFloat(it.qty) || 1) * (parseFloat(it.price) || 0),
+                paidAmount: (idx === 0) ? (cachedTr.totalValue || 0) : 0,
+                method: 'تحويل داخلي',
+                sourceWarehouse: cachedTr.sourceWarehouse || 'المخزن الرئيسي',
+                warehouse: cachedTr.warehouse || cachedTr.toWarehouse,
+                partner: `${cachedTr.sourceWarehouse || 'المخزن الرئيسي'} -> ${cachedTr.warehouse || cachedTr.toWarehouse}`,
+                notes: cachedTr.notes || '',
+                user: cachedTr.user || '-'
+            }));
+
+            if (typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+                transactions.push(...transItems);
+            }
+        }
+    }
 
     if (transItems.length === 0) {
         if (typeof showToast === 'function') showToast('⚠️ إذن التحويل غير موجود', 'error');
@@ -2036,9 +2187,6 @@ window.acceptTransferFromNotify = async function (invId) {
         if (typeof showToast === 'function') showToast('⚠️ هذا الإذن تم رفضه مسبقاً ولا يمكن استلامه الآن.', 'warning');
         return;
     }
-
-    const receiverUser = (typeof currentUser !== 'undefined' && currentUser && currentUser.name) ? currentUser.name : 'أمين المخزن';
-    const nowFull = new Date().toLocaleString('ar-EG');
 
     const cleanAttr = (val) => {
         if (!val && val !== 0) return '';
@@ -2174,18 +2322,13 @@ window.acceptTransferFromNotify = async function (invId) {
                     }
 
                     // 1. استخراج رصيد مخزن المصدر ومخزن الوجهة عبر FashionStockEngine
-                    let fromStock = window.FashionStockEngine 
-                        ? window.FashionStockEngine.getVariantStock(targetVar, wFrom) 
-                        : ((targetVar.warehouseStocks[wFrom] !== undefined) ? parseFloat(targetVar.warehouseStocks[wFrom]) : 0);
+                    let fromStock = window.FashionStockEngine
+                        ? window.FashionStockEngine.getVariantStock(targetVar, wFrom)
+                        : ((targetVar.warehouseStocks && targetVar.warehouseStocks[wFrom] !== undefined) ? parseFloat(targetVar.warehouseStocks[wFrom]) : 0);
 
-                    // إذا كان الرصيد في المخزن المصدر 0 والمخزن المصدر هو الرئيسي بينما المقاس له رصيد إجمالي في stock
-                    if (fromStock === 0 && wFrom === 'المخزن الرئيسي' && (parseFloat(targetVar.stock) || 0) > 0) {
-                        fromStock = parseFloat(targetVar.stock) || 0;
-                    }
-
-                    let toStock = window.FashionStockEngine 
-                        ? window.FashionStockEngine.getVariantStock(targetVar, wTo) 
-                        : ((targetVar.warehouseStocks[wTo] !== undefined) ? parseFloat(targetVar.warehouseStocks[wTo]) : 0);
+                    let toStock = window.FashionStockEngine
+                        ? window.FashionStockEngine.getVariantStock(targetVar, wTo)
+                        : ((targetVar.warehouseStocks && targetVar.warehouseStocks[wTo] !== undefined) ? parseFloat(targetVar.warehouseStocks[wTo]) : 0);
 
                     // 2. فرض الخصم الفعلي للصنف أو التشكيلة من مخزن المصدر: targetVar.warehouseStocks[wFrom] = Math.max(0, fromStock - baseQty) وعدم تخطي هذه الخطوة أبداً
                     targetVar.warehouseStocks[wFrom] = Math.max(0, fromStock - baseQty);
@@ -2214,17 +2357,13 @@ window.acceptTransferFromNotify = async function (invId) {
                     p.warehouseStocks = {};
                 }
 
-                let fromStock = window.FashionStockEngine 
+                let fromStock = window.FashionStockEngine
                     ? window.FashionStockEngine.getProductStock(p, wFrom)
-                    : ((p.warehouseStocks[wFrom] !== undefined) ? (parseFloat(p.warehouseStocks[wFrom]) || 0) : 0);
-
-                if (fromStock === 0 && wFrom === 'المخزن الرئيسي' && (parseFloat(p.stock) || 0) > 0) {
-                    fromStock = parseFloat(p.stock) || 0;
-                }
+                    : ((p.warehouseStocks && p.warehouseStocks[wFrom] !== undefined) ? (parseFloat(p.warehouseStocks[wFrom]) || 0) : 0);
 
                 let toStock = window.FashionStockEngine
                     ? window.FashionStockEngine.getProductStock(p, wTo)
-                    : ((p.warehouseStocks[wTo] !== undefined) ? (parseFloat(p.warehouseStocks[wTo]) || 0) : 0);
+                    : ((p.warehouseStocks && p.warehouseStocks[wTo] !== undefined) ? (parseFloat(p.warehouseStocks[wTo]) || 0) : 0);
 
                 // 2. فرض الخصم الفعلي من مخزن المصدر
                 p.warehouseStocks[wFrom] = Math.max(0, fromStock - baseQty);
@@ -2246,8 +2385,8 @@ window.acceptTransferFromNotify = async function (invId) {
 
     if (typeof window.saveTransactionChanges === 'function') {
         await window.saveTransactionChanges({
-            modifiedTransactions: transItems,
-            newTransactions: [],
+            modifiedTransactions: isFromCache ? [] : transItems,
+            newTransactions: isFromCache ? transItems : [],
             modifiedProducts: affectedProducts,
             modifiedAccounts: []
         });
@@ -2319,9 +2458,60 @@ window.acceptTransferFromNotify = async function (invId) {
 
 window.rejectTransferFromNotify = async function (invId) {
     if (!invId) return;
-    const transItems = (typeof transactions !== 'undefined' && Array.isArray(transactions))
+
+    const rejectorUser = (typeof currentUser !== 'undefined' && currentUser && currentUser.name) ? currentUser.name : 'أمين المخزن';
+    const nowFull = new Date().toLocaleString('ar-EG');
+
+    let isFromCache = false;
+    let transItems = (typeof transactions !== 'undefined' && Array.isArray(transactions))
         ? transactions.filter(t => (String(t.invoiceId) === String(invId) || String(t.id) === String(invId)) && t.type && t.type.includes('تحويل'))
         : [];
+
+    // استرجاع الإذن من كاش أجهزة الشبكة في حال عدم وجوده محلياً
+    if (transItems.length === 0 && Array.isArray(window.inTransitTransfersCache)) {
+        const cachedTr = window.inTransitTransfersCache.find(t => String(t.id) === String(invId) || String(t.invoiceId) === String(invId));
+        if (cachedTr && Array.isArray(cachedTr.items) && cachedTr.items.length > 0) {
+            isFromCache = true;
+            const nowIso = new Date().toLocaleDateString('en-CA');
+            const nowTime = new Date().toTimeString().slice(0, 5);
+
+            transItems = cachedTr.items.map((it, idx) => ({
+                invoiceId: invId,
+                isInvoiceHead: (idx === 0),
+                date: cachedTr.date || nowFull,
+                dateISO: cachedTr.dateISO || nowIso,
+                timeISO: cachedTr.timeISO || nowTime,
+                type: 'تحويل مخزني 🚚',
+                transferStatus: 'rejected',
+                rejectedBy: rejectorUser,
+                rejectedAt: nowFull,
+                productId: it.productId || it.id || null,
+                product: it.product || it.name,
+                barcode: it.barcode || it.code || '',
+                code: it.code || it.barcode || '',
+                size: it.size || it.selectedSize || '',
+                color: it.color || it.selectedColor || '',
+                selectedSize: it.selectedSize || it.size || '',
+                selectedColor: it.selectedColor || it.color || '',
+                qty: parseFloat(it.qty) || 1,
+                unit: it.unit || it.unitName || 'قطعة',
+                unitFactor: parseFloat(it.unitFactor) || 1,
+                price: parseFloat(it.price) || 0,
+                total: (parseFloat(it.qty) || 1) * (parseFloat(it.price) || 0),
+                paidAmount: (idx === 0) ? (cachedTr.totalValue || 0) : 0,
+                method: 'تحويل داخلي',
+                sourceWarehouse: cachedTr.sourceWarehouse || 'المخزن الرئيسي',
+                warehouse: cachedTr.warehouse || cachedTr.toWarehouse,
+                partner: `${cachedTr.sourceWarehouse || 'المخزن الرئيسي'} -> ${cachedTr.warehouse || cachedTr.toWarehouse}`,
+                notes: cachedTr.notes || '',
+                user: cachedTr.user || '-'
+            }));
+
+            if (typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+                transactions.push(...transItems);
+            }
+        }
+    }
 
     if (transItems.length === 0) {
         if (typeof showToast === 'function') showToast('⚠️ إذن التحويل غير موجود', 'error');
@@ -2338,9 +2528,6 @@ window.rejectTransferFromNotify = async function (invId) {
         return;
     }
 
-    const rejectorUser = (typeof currentUser !== 'undefined' && currentUser && currentUser.name) ? currentUser.name : 'أمين المخزن';
-    const nowFull = new Date().toLocaleString('ar-EG');
-
     // تسجيل حالة الرفض - لا يتم تعديل أي أرصدة لأن البضاعة لم تخصم من المخزن المصدر في حالة الانتظار
     transItems.forEach(item => {
         item.transferStatus = 'rejected';
@@ -2350,14 +2537,25 @@ window.rejectTransferFromNotify = async function (invId) {
 
     if (typeof window.saveTransactionChanges === 'function') {
         await window.saveTransactionChanges({
-            modifiedTransactions: transItems,
-            newTransactions: [],
+            modifiedTransactions: isFromCache ? [] : transItems,
+            newTransactions: isFromCache ? transItems : [],
             modifiedProducts: [],
             modifiedAccounts: []
         });
     } else {
         await saveData();
     }
+
+    // توثيق الحركات المرفوضة في SQLite
+    if (window.BayanSQLite && typeof window.BayanSQLite.bulkPut === 'function') {
+        try {
+            window.BayanSQLite.bulkPut('transactions', transItems);
+            if (typeof window.BayanSQLite.schedulePersist === 'function') {
+                window.BayanSQLite.schedulePersist(50);
+            }
+        } catch (e) { }
+    }
+
     if (typeof invalidateStockCache === 'function') invalidateStockCache();
 
     const sUrl = (window.BayanNetworkHub && window.BayanNetworkHub.serverUrl) ? window.BayanNetworkHub.serverUrl : '';

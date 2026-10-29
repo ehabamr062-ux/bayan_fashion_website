@@ -95,7 +95,7 @@ function getVariantPricingAndStock(product, v, context, activeWH, priceLevel) {
 
     const stockVal = window.FashionStockEngine
         ? window.FashionStockEngine.getVariantStock(v, activeWH)
-        : ((v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined) ? (parseFloat(v.warehouseStocks[activeWH]) || 0) : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0));
+        : ((v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined) ? (parseFloat(v.warehouseStocks[activeWH]) || 0) : 0);
 
     return { vPrice, priceTitle, stockVal };
 }
@@ -1125,7 +1125,7 @@ function renderVariantSelectElements(item, index, cartType = 'sales') {
         if (!v) return 0;
         return window.FashionStockEngine
             ? window.FashionStockEngine.getVariantStock(v, activeWH)
-            : ((v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined) ? (parseFloat(v.warehouseStocks[activeWH]) || 0) : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0));
+            : ((v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined) ? (parseFloat(v.warehouseStocks[activeWH]) || 0) : 0);
     };
 
     const showStock = (cartType === 'sales' || cartType === 'transfer');

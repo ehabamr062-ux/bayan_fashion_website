@@ -335,27 +335,27 @@ function computeTransactionRunningBalances(targetWarehouse = 'all') {
                         (!grp.color || String(x.color || '').trim() === grp.color)
                     ) : null;
                 if (v) {
-                    if (isSpecificWh && v.warehouseStocks && v.warehouseStocks[targetWarehouse] !== undefined) {
-                        currentStock = parseFloat(v.warehouseStocks[targetWarehouse]) || 0;
-                    } else if (isSpecificWh) {
-                        currentStock = (targetWarehouse === 'المخزن الرئيسي') ? (parseFloat(v.stock) || 0) : 0;
+                    if (isSpecificWh) {
+                        currentStock = window.FashionStockEngine
+                            ? window.FashionStockEngine.getVariantStock(v, targetWarehouse)
+                            : (parseFloat(v.warehouseStocks?.[targetWarehouse]) || 0);
                     } else {
                         currentStock = parseFloat(v.stock) || 0;
                     }
                 } else {
-                    if (isSpecificWh && p.warehouseStocks && p.warehouseStocks[targetWarehouse] !== undefined) {
-                        currentStock = parseFloat(p.warehouseStocks[targetWarehouse]) || 0;
-                    } else if (isSpecificWh) {
-                        currentStock = (targetWarehouse === 'المخزن الرئيسي') ? (parseFloat(p.stock) || 0) : 0;
+                    if (isSpecificWh) {
+                        currentStock = window.FashionStockEngine
+                            ? window.FashionStockEngine.getProductStock(p, targetWarehouse)
+                            : (parseFloat(p.warehouseStocks?.[targetWarehouse]) || 0);
                     } else {
                         currentStock = parseFloat(p.stock) || 0;
                     }
                 }
             } else {
-                if (isSpecificWh && p.warehouseStocks && p.warehouseStocks[targetWarehouse] !== undefined) {
-                    currentStock = parseFloat(p.warehouseStocks[targetWarehouse]) || 0;
-                } else if (isSpecificWh) {
-                    currentStock = (targetWarehouse === 'المخزن الرئيسي') ? (parseFloat(p.stock) || 0) : 0;
+                if (isSpecificWh) {
+                    currentStock = window.FashionStockEngine
+                        ? window.FashionStockEngine.getProductStock(p, targetWarehouse)
+                        : (parseFloat(p.warehouseStocks?.[targetWarehouse]) || 0);
                 } else {
                     currentStock = parseFloat(p.stock) || 0;
                 }

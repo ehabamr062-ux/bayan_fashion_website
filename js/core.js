@@ -241,6 +241,10 @@ window.findProductVariant = function(product, criteria) {
 
 window.syncParentProductStock = function(product, activeWH) {
     if (!product) return;
+    if (window.FashionStockEngine && typeof window.FashionStockEngine.syncProductTotals === 'function') {
+        window.FashionStockEngine.syncProductTotals(product, activeWH);
+        return;
+    }
     if (product.variants && Array.isArray(product.variants) && product.variants.length > 0) {
         // حساب إجمالي رصيد الصنف العام من مجموع أرصدة التشكيلات الفعلي
         product.stock = product.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
@@ -262,18 +266,12 @@ window.syncParentProductStock = function(product, activeWH) {
 
         whNames.forEach(wh => {
             let totalWh = 0;
-            let hasExplicit = false;
             product.variants.forEach(v => {
                 if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[wh] !== undefined) {
                     totalWh += parseFloat(v.warehouseStocks[wh]) || 0;
-                    hasExplicit = true;
-                } else if (wh === 'المخزن الرئيسي') {
-                    totalWh += parseFloat(v.stock) || 0;
                 }
             });
-            if (hasExplicit || wh === 'المخزن الرئيسي') {
-                product.warehouseStocks[wh] = totalWh;
-            }
+            product.warehouseStocks[wh] = totalWh;
         });
     }
 };
@@ -1097,56 +1095,43 @@ async function loadData() {
                     }
                 }
 
-                let vSum = 0;
-                for (let j = 0; j < p.variants.length; j++) {
-                    const v = p.variants[j];
-                    if (v.stock !== undefined && (parseFloat(v.stock) < 0 || isNaN(parseFloat(v.stock)))) {
-                        v.stock = 0;
-                    }
-                    const vStock = parseFloat(v.stock) || 0;
-                    if (!v.warehouseStocks || typeof v.warehouseStocks !== 'object') {
-                        v.warehouseStocks = { 'المخزن الرئيسي': vStock };
-                    } else {
-                        const mainWhVal = parseFloat(v.warehouseStocks['المخزن الرئيسي']);
-                        if (vStock > 0 && (isNaN(mainWhVal) || mainWhVal < vStock)) {
-                            v.warehouseStocks['المخزن الرئيسي'] = Math.max(isNaN(mainWhVal) ? 0 : mainWhVal, vStock);
+                if (window.FashionStockEngine && typeof window.FashionStockEngine.syncProductTotals === 'function') {
+                    window.FashionStockEngine.syncProductTotals(p);
+                } else {
+                    let vSum = 0;
+                    for (let j = 0; j < p.variants.length; j++) {
+                        const v = p.variants[j];
+                        if (!v) continue;
+                        if (!v.warehouseStocks || typeof v.warehouseStocks !== 'object' || Object.keys(v.warehouseStocks).length === 0) {
+                            v.warehouseStocks = { 'المخزن الرئيسي': parseFloat(v.stock) || 0 };
                         }
-                        Object.keys(v.warehouseStocks).forEach(wh => {
-                            if (parseFloat(v.warehouseStocks[wh]) < 0 && vStock > 0) {
-                                if (wh === 'المخزن الرئيسي') v.warehouseStocks[wh] = vStock;
-                                else delete v.warehouseStocks[wh];
+                        const vTotal = Object.values(v.warehouseStocks).reduce((sum, q) => sum + (parseFloat(q) || 0), 0);
+                        v.stock = vTotal;
+                        vSum += vTotal;
+                    }
+                    p.stock = vSum;
+                    if (!p.warehouseStocks || typeof p.warehouseStocks !== 'object' || Object.keys(p.warehouseStocks).length === 0) {
+                        p.warehouseStocks = { 'المخزن الرئيسي': p.stock };
+                    } else {
+                        const newWhStocks = {};
+                        p.variants.forEach(v => {
+                            if (v && v.warehouseStocks && typeof v.warehouseStocks === 'object') {
+                                Object.entries(v.warehouseStocks).forEach(([wh, q]) => {
+                                    newWhStocks[wh] = (newWhStocks[wh] || 0) + (parseFloat(q) || 0);
+                                });
                             }
                         });
-                    }
-                    vSum += (parseFloat(v.stock) || 0);
-                }
-                p.stock = vSum;
-                if (!p.warehouseStocks || typeof p.warehouseStocks !== 'object') {
-                    p.warehouseStocks = { 'المخزن الرئيسي': p.stock };
-                } else {
-                    const pMainWh = parseFloat(p.warehouseStocks['المخزن الرئيسي']);
-                    if (p.stock > 0 && (isNaN(pMainWh) || pMainWh < p.stock)) {
-                        p.warehouseStocks['المخزن الرئيسي'] = Math.max(isNaN(pMainWh) ? 0 : pMainWh, p.stock);
-                    }
-                    Object.keys(p.warehouseStocks).forEach(wh => {
-                        if (parseFloat(p.warehouseStocks[wh]) < 0 && p.stock > 0) {
-                            if (wh === 'المخزن الرئيسي') p.warehouseStocks[wh] = p.stock;
-                            else delete p.warehouseStocks[wh];
+                        if (Object.keys(newWhStocks).length > 0) {
+                            p.warehouseStocks = newWhStocks;
                         }
-                    });
-                }
-            } else if (p && p.warehouseStocks && typeof p.warehouseStocks === 'object') {
-                const pGen = parseFloat(p.stock) || 0;
-                const pMainWh = parseFloat(p.warehouseStocks['المخزن الرئيسي']);
-                if (pGen > 0 && (isNaN(pMainWh) || pMainWh < pGen)) {
-                    p.warehouseStocks['المخزن الرئيسي'] = Math.max(isNaN(pMainWh) ? 0 : pMainWh, pGen);
-                }
-                Object.keys(p.warehouseStocks).forEach(wh => {
-                    if (parseFloat(p.warehouseStocks[wh]) < 0 && pGen > 0) {
-                        if (wh === 'المخزن الرئيسي') p.warehouseStocks[wh] = pGen;
-                        else delete p.warehouseStocks[wh];
                     }
-                });
+                }
+            } else if (p) {
+                if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && Object.keys(p.warehouseStocks).length > 0) {
+                    p.stock = Object.values(p.warehouseStocks).reduce((sum, q) => sum + (parseFloat(q) || 0), 0);
+                } else {
+                    p.warehouseStocks = { 'المخزن الرئيسي': parseFloat(p.stock) || 0 };
+                }
             }
         };
         window.syncProductVariantsStock = syncProductVariantsStock;

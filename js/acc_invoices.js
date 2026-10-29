@@ -2742,8 +2742,7 @@ window.revertAndClearOldInvoice = async function (invId, type) {
                         if (dstWH) {
                             p.warehouseStocks[dstWH] = Math.max(0, (parseFloat(p.warehouseStocks[dstWH]) || 0) - baseQty);
                         }
-                        if (srcWH === 'المخزن الرئيسي') p.stock = p.warehouseStocks[srcWH];
-                        if (dstWH === 'المخزن الرئيسي') p.stock = p.warehouseStocks[dstWH];
+                        p.stock = Object.values(p.warehouseStocks).reduce((sum, q) => sum + (parseFloat(q) || 0), 0);
                     }
                 }
 
@@ -2786,18 +2785,19 @@ window.revertAndClearOldInvoice = async function (invId, type) {
                                     if (!matchedVar.warehouseStocks) matchedVar.warehouseStocks = {};
                                     matchedVar.warehouseStocks[srcWH] = (parseFloat(matchedVar.warehouseStocks[srcWH]) || 0) + baseQty;
                                     if (dstWH) matchedVar.warehouseStocks[dstWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[dstWH]) || 0) - baseQty);
-                                    if (srcWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[srcWH];
-                                    if (dstWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[dstWH];
+                                    matchedVar.stock = Object.values(matchedVar.warehouseStocks).reduce((sum, q) => sum + (parseFloat(q) || 0), 0);
                                 }
                             }
                         }
                     }
-                    if (p.variants.length > 0) {
+                    if (window.FashionStockEngine && typeof window.FashionStockEngine.syncProductTotals === 'function') {
+                        window.FashionStockEngine.syncProductTotals(p);
+                    } else if (p.variants.length > 0) {
                         p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
                         p.warehouseStocks[activeWH] = p.variants.reduce((sum, v) => {
                             const vWh = (v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined)
                                 ? parseFloat(v.warehouseStocks[activeWH])
-                                : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0);
+                                : 0;
                             return sum + (isNaN(vWh) ? 0 : vWh);
                         }, 0);
                     }
@@ -3068,8 +3068,7 @@ async function deleteTransaction(idx) {
                                     if (dstWH) {
                                         p.warehouseStocks[dstWH] = Math.max(0, (parseFloat(p.warehouseStocks[dstWH]) || 0) - baseQty);
                                     }
-                                    if (srcWH === 'المخزن الرئيسي') p.stock = p.warehouseStocks[srcWH];
-                                    if (dstWH === 'المخزن الرئيسي') p.stock = p.warehouseStocks[dstWH];
+                                    p.stock = Object.values(p.warehouseStocks).reduce((sum, q) => sum + (parseFloat(q) || 0), 0);
                                 }
                             }
 
@@ -3109,18 +3108,19 @@ async function deleteTransaction(idx) {
                                                 if (!matchedVar.warehouseStocks) matchedVar.warehouseStocks = {};
                                                 matchedVar.warehouseStocks[srcWH] = (parseFloat(matchedVar.warehouseStocks[srcWH]) || 0) + baseQty;
                                                 if (dstWH) matchedVar.warehouseStocks[dstWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[dstWH]) || 0) - baseQty);
-                                                if (srcWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[srcWH];
-                                                if (dstWH === 'المخزن الرئيسي') matchedVar.stock = matchedVar.warehouseStocks[dstWH];
+                                                matchedVar.stock = Object.values(matchedVar.warehouseStocks).reduce((sum, q) => sum + (parseFloat(q) || 0), 0);
                                             }
                                         }
                                     }
                                 }
-                                if (p.variants.length > 0) {
+                                if (window.FashionStockEngine && typeof window.FashionStockEngine.syncProductTotals === 'function') {
+                                    window.FashionStockEngine.syncProductTotals(p);
+                                } else if (p.variants.length > 0) {
                                     p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
                                     p.warehouseStocks[activeWH] = p.variants.reduce((sum, v) => {
                                         const vWh = (v.warehouseStocks && v.warehouseStocks[activeWH] !== undefined)
                                             ? parseFloat(v.warehouseStocks[activeWH])
-                                            : (activeWH === 'المخزن الرئيسي' ? (parseFloat(v.stock) || 0) : 0);
+                                            : 0;
                                         return sum + (isNaN(vWh) ? 0 : vWh);
                                     }, 0);
                                 }

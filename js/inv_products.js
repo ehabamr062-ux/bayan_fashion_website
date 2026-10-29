@@ -356,7 +356,7 @@ async function saveNewItem(mode = 'save') {
         const totalVariantsStock = variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
         stock = totalVariantsStock;
         if (document.getElementById('newItemStock')) {
-            document.getElementById('newItemStock').value = (warehouseStocks[activeWH] !== undefined) ? warehouseStocks[activeWH] : stock;
+            document.getElementById('newItemStock').value = (warehouseStocks[activeWH] !== undefined) ? warehouseStocks[activeWH] : 0;
         }
     } else if (existingProduct) {
         // صنف عادي بدون تشكيلات: حساب الفرق لمخزن الفرع النشط بدقة تامة دون المساس بالمخازن الأخرى
@@ -365,7 +365,7 @@ async function saveNewItem(mode = 'save') {
             ? origWhStockVal
             : ((warehouseStocks[activeWH] !== undefined)
                 ? (parseFloat(warehouseStocks[activeWH]) || 0)
-                : (activeWH === 'المخزن الرئيسي' ? (parseFloat(existingProduct.stock) || 0) : 0));
+                : 0);
 
         const stockDelta = stock - prevWhStock;
         warehouseStocks[activeWH] = Math.max(0, stock);
@@ -444,7 +444,7 @@ async function saveNewItem(mode = 'save') {
     // 🛡️ تحديد صورة الصنف بدقة فائقة وحمايتها التامة من الاختفاء عند تعديل أي بيانات
     const previewEl = document.getElementById('productImagePreview');
     const isExplicitlyRemoved = (window.productImageRemoved === true) || (previewEl && previewEl.dataset && previewEl.dataset.removed === 'true');
-    
+
     let resolvedImage = null;
     if (isExplicitlyRemoved) {
         resolvedImage = null;
@@ -668,7 +668,7 @@ async function saveNewItem(mode = 'save') {
                 if (qEl) qEl.focus();
             }
         }
-    } catch(e) {
+    } catch (e) {
         console.warn("Auto add target section warning:", e);
     } finally {
         window._quickAddTargetSection = null;
@@ -836,8 +836,6 @@ function fillProductModal(p) {
         currentWhStock = FashionStockEngine.getProductStock(p, activeWH);
     } else if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
         currentWhStock = parseFloat(p.warehouseStocks[activeWH]) || 0;
-    } else if (activeWH === 'المخزن الرئيسي' || !p.warehouseStocks) {
-        currentWhStock = parseFloat(p.stock) || 0;
     } else {
         currentWhStock = 0;
     }
@@ -930,8 +928,6 @@ function fillProductModal(p) {
                     vStockForActiveWH = FashionStockEngine.getVariantStock(v, activeWH);
                 } else if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
                     vStockForActiveWH = parseFloat(v.warehouseStocks[activeWH]) || 0;
-                } else if (activeWH === 'المخزن الرئيسي' || !v.warehouseStocks) {
-                    vStockForActiveWH = parseFloat(v.stock) || 0;
                 } else {
                     vStockForActiveWH = 0;
                 }
@@ -981,7 +977,7 @@ function fillProductModal(p) {
 }
 
 // عرض توزيع الرصيد على المخازن والفروع المسجلة
-window.renderProductWarehouseStocksTable = function(p) {
+window.renderProductWarehouseStocksTable = function (p) {
     const tbody = document.getElementById('productWarehouseStocksBody');
     if (!tbody) return;
     tbody.innerHTML = '';
@@ -1013,9 +1009,9 @@ window.renderProductWarehouseStocksTable = function(p) {
                 ${stockInWh}
             </td>
             <td style="padding: 8px 10px;">
-                ${stockInWh > 0 
-                    ? '<span style="color: #047857; font-weight: 800; font-size: 0.78rem;">متوفر ✅</span>' 
-                    : '<span style="color: #ef4444; font-weight: 800; font-size: 0.78rem;">نفذ ⚠️</span>'}
+                ${stockInWh > 0
+                ? '<span style="color: #047857; font-weight: 800; font-size: 0.78rem;">متوفر ✅</span>'
+                : '<span style="color: #ef4444; font-weight: 800; font-size: 0.78rem;">نفذ ⚠️</span>'}
             </td>
         `;
         tbody.appendChild(tr);
@@ -1023,7 +1019,7 @@ window.renderProductWarehouseStocksTable = function(p) {
 };
 
 // توليد باركود دولي فريد تلقائياً للصنف الرئيسي مع حماية من التغيير العرضي
-window.generateMainProductBarcode = function(force = false) {
+window.generateMainProductBarcode = function (force = false) {
     const inp = document.getElementById('newItemBarcode');
     if (!inp) return;
     const currentVal = inp.value.trim();
@@ -1050,7 +1046,7 @@ window.generateMainProductBarcode = function(force = false) {
 };
 
 // وظيفة إدخال أو مسح باركود دولي يدوي مع حماية من التعديل العرضي
-window.promptManualBarcodeEntry = async function(force = false) {
+window.promptManualBarcodeEntry = async function (force = false) {
     const inp = document.getElementById('newItemBarcode');
     if (!inp) return;
     const currentVal = inp.value.trim();
@@ -1068,7 +1064,7 @@ window.promptManualBarcodeEntry = async function(force = false) {
             return;
         }
     }
-    
+
     let entered = null;
     if (typeof showCustomPrompt === 'function') {
         entered = await showCustomPrompt('📷 يرجى تمرير الاسكانر لقراءة باركود الصنف أو كتابته يدوياً:', currentVal || '', 'text');
@@ -1086,7 +1082,7 @@ window.promptManualBarcodeEntry = async function(force = false) {
 };
 
 // وظيفة نسخ محتوى الحقل بنقرة واحدة
-window.copyFieldContent = function(elementId, labelName = 'الكود') {
+window.copyFieldContent = function (elementId, labelName = 'الكود') {
     const el = document.getElementById(elementId);
     if (!el || !el.value.trim()) {
         if (typeof showToast === 'function') showToast(`⚠️ لا يوجد ${labelName} لنسخه!`, 'warning');
@@ -1109,14 +1105,14 @@ window.copyFieldContent = function(elementId, labelName = 'الكود') {
 };
 
 // وظيفة إظهار/إخفاء شروحات علامة الاستفهام
-window.toggleFieldHelp = function(helpBoxId) {
+window.toggleFieldHelp = function (helpBoxId) {
     const box = document.getElementById(helpBoxId);
     if (!box) return;
     box.classList.toggle('hidden');
 };
 
 // طباعة تيكت الباركود مباشرة من كارت الصنف
-window.printCurrentProductBarcodeDirect = function() {
+window.printCurrentProductBarcodeDirect = function () {
     const name = document.getElementById('newItemName')?.value || 'صنف جديد';
     const barcode = document.getElementById('newItemBarcode')?.value || document.getElementById('newItemSysCode')?.value || '2000000000001';
     const price = parseFloat(document.getElementById('newItemPrice')?.value) || 0;
@@ -1175,15 +1171,15 @@ window.printCurrentProductBarcodeDirect = function() {
 // =========================================================================
 // 📸 ضغط وتصغير صور الأصناف تلقائياً (Smart Image Compression for Low RAM/DB)
 // =========================================================================
-window.handleProductImage = function(event) {
+window.handleProductImage = function (event) {
     const file = event && event.target && event.target.files ? event.target.files[0] : null;
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = function(e) {
+    reader.onload = function (e) {
         const rawData = e.target.result;
         const img = new Image();
-        img.onload = function() {
+        img.onload = function () {
             try {
                 const maxDim = 400; // أبعاد قصوى ممتازة للوضوح والطباعة بحجم خفيف جداً
                 let w = img.width;
@@ -1207,11 +1203,11 @@ window.handleProductImage = function(event) {
                 // ضغط الصورة إلى JPEG عالي النقاء بحجم 25-45KB فقط
                 const compressedData = canvas.toDataURL('image/jpeg', 0.82);
                 applyCompressedImageData(compressedData);
-            } catch(err) {
+            } catch (err) {
                 applyCompressedImageData(rawData);
             }
         };
-        img.onerror = function() {
+        img.onerror = function () {
             applyCompressedImageData(rawData);
         };
         img.src = rawData;

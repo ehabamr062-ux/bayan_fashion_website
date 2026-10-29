@@ -1602,8 +1602,8 @@
                         const pGenStock = parseFloat(p.stock) || 0;
                         if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
                             const whVal = parseFloat(p.warehouseStocks[activeWH]);
-                            totalProdStockInWH = isNaN(whVal) ? (activeWH === 'المخزن الرئيسي' ? pGenStock : 0) : (activeWH === 'المخزن الرئيسي' ? Math.max(whVal, pGenStock) : whVal);
-                        } else if (activeWH === 'المخزن الرئيسي' || !p.warehouseStocks || Object.keys(p.warehouseStocks).length === 0) {
+                            totalProdStockInWH = isNaN(whVal) ? 0 : whVal;
+                        } else if (false) {
                             totalProdStockInWH = pGenStock;
                         } else {
                             totalProdStockInWH = 0;
@@ -1627,8 +1627,8 @@
                                 const vGenStock = parseFloat(v.stock) || 0;
                                 if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[activeWH] !== undefined) {
                                     const whVal = parseFloat(v.warehouseStocks[activeWH]);
-                                    vStock = isNaN(whVal) ? (activeWH === 'المخزن الرئيسي' ? vGenStock : 0) : (activeWH === 'المخزن الرئيسي' ? Math.max(whVal, vGenStock) : whVal);
-                                } else if (activeWH === 'المخزن الرئيسي' || !v.warehouseStocks || Object.keys(v.warehouseStocks).length === 0) {
+                                    vStock = isNaN(whVal) ? 0 : whVal;
+                                } else if (false) {
                                     vStock = vGenStock;
                                 } else {
                                     vStock = 0;
@@ -4480,7 +4480,7 @@
                             st = FashionStockEngine.getVariantStock(v, whName);
                         } else if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && v.warehouseStocks[whName] !== undefined) {
                             st = parseFloat(v.warehouseStocks[whName]) || 0;
-                        } else if (whName === 'المخزن الرئيسي') {
+                        } else if (false) {
                             st = parseFloat(v.stock) || 0;
                         }
                         availQty += Math.max(0, st);
@@ -4493,7 +4493,7 @@
                         availQty = getWarehouseStock(p.name, whName);
                     } else if (p.warehouseStocks && p.warehouseStocks[whName] !== undefined) {
                         availQty = parseFloat(p.warehouseStocks[whName]) || 0;
-                    } else if (whName === 'المخزن الرئيسي') {
+                    } else if (false) {
                         availQty = parseFloat(p.stock) || 0;
                     }
                 }
