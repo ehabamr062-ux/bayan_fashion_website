@@ -393,3 +393,57 @@ body.dark-mode .section-view::-webkit-scrollbar-corner {
     max-height: calc(80vh);
     box-sizing: border-box;
 }
+
+/* ============================================================
+   إلغاء وإخفاء شريط التمرير الأفقي في قسم أرصدة المخازن والفواتير
+============================================================ */
+
+/* 1. قسم أرصدة المخازن */
+#warehouse-report-section .table-container {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+}
+
+#warehouse-report-section .table-container::-webkit-scrollbar-horizontal,
+#warehouse-report-section .table-container::-webkit-scrollbar:horizontal {
+    display: none !important;
+    height: 0 !important;
+    width: 0 !important;
+}
+
+#warehouse-report-section table,
+#warehouse-report-section #wrTableHead,
+#warehouse-report-section #wrTableBody {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: auto !important;
+}
+
+/* 2. قسم الفواتير */
+#invoices-section #invoicesTableContainer,
+#invoices-section .table-container {
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+}
+
+#invoices-section #invoicesTableContainer::-webkit-scrollbar-horizontal,
+#invoices-section #invoicesTableContainer::-webkit-scrollbar:horizontal,
+#invoices-section .table-container::-webkit-scrollbar-horizontal,
+#invoices-section .table-container::-webkit-scrollbar:horizontal {
+    display: none !important;
+    height: 0 !important;
+    width: 0 !important;
+}
+
+#invoices-section #invoicesMainTable {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: auto !important;
+}
+
+#invoices-section #invoicesMainTable th,
+#invoices-section #invoicesMainTable td {
+    padding: 6px 4px !important;
+    box-sizing: border-box !important;
+}
+

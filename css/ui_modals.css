@@ -2588,7 +2588,16 @@
 body #invoices-section #invoicesTableContainer::-webkit-scrollbar,
 body #invoices-section .table-container::-webkit-scrollbar {
     width: 10px !important;
-    height: 10px !important;
+    height: 0 !important;
+}
+
+body #invoices-section #invoicesTableContainer::-webkit-scrollbar-horizontal,
+body #invoices-section #invoicesTableContainer::-webkit-scrollbar:horizontal,
+body #invoices-section .table-container::-webkit-scrollbar-horizontal,
+body #invoices-section .table-container::-webkit-scrollbar:horizontal {
+    display: none !important;
+    height: 0 !important;
+    width: 0 !important;
 }
 
 body #invoices-section #invoicesTableContainer::-webkit-scrollbar-track,
@@ -2725,9 +2734,11 @@ body #invoicesMainTable th {
     box-sizing: border-box !important;
 }
 
+body #invoicesMainTable th,
 body #invoicesMainTable td {
-    padding: 5px 8px !important;
+    padding: 6px 4px !important;
     font-size: 0.82rem !important;
+    box-sizing: border-box !important;
 }
 
 /* --- Premium Search Box for Item History --- */
