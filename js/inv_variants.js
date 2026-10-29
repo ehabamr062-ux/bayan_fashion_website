@@ -830,7 +830,6 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                         <div class="pt-divider vertical"></div>
                         <div class="pt-price-body vertical">
                             <div class="pt-price-num vertical">${priceFormatted}</div>
-                            <div class="pt-currency-sign vertical">L.E</div>
                         </div>
                     </div>
                 `;
@@ -957,7 +956,7 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                     width: ${printWidth}mm;
                     height: ${printHeight}mm;
                     max-height: ${printHeight}mm;
-                    padding: 2mm 1.5mm;
+                    padding: 2mm 1mm;
                     margin: 0 auto !important;
                     display: flex;
                     flex-direction: column;
@@ -974,23 +973,24 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                     background: #ffffff;
                 }
                 .pt-shop-title.vertical {
-                    font-size: 13.5pt;
+                    font-size: 11pt;
                     font-weight: 900 !important;
-                    -webkit-text-stroke: 0.4px #000000;
+                    -webkit-text-stroke: 0.35px #000000;
                     color: #000000 !important;
                     line-height: 1.15;
-                    margin: 0 0 1mm 0;
-                    white-space: normal;
-                    word-break: break-word;
-                    max-width: 98%;
+                    margin: 0 auto 1.5mm auto;
+                    white-space: nowrap !important;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    max-width: 95%;
                     text-align: center;
-                    letter-spacing: 0.4px;
+                    letter-spacing: 0.3px;
                     -webkit-font-smoothing: antialiased;
                 }
                 .pt-divider.vertical {
                     width: 88%;
                     border-bottom: 2px solid #000000;
-                    margin: 0 auto 1.8mm auto;
+                    margin: 0 auto 2mm auto;
                 }
                 .pt-price-body.vertical {
                     display: flex;
@@ -1002,25 +1002,19 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                     width: 100%;
                 }
                 .pt-price-num.vertical {
-                    font-size: 27pt;
+                    font-size: 32pt;
                     font-weight: 950;
                     color: #000000;
                     line-height: 1;
                     font-family: 'Segoe UI', 'Arial Black', Arial, sans-serif;
                     letter-spacing: 0.5px;
-                    -webkit-text-stroke: 0.45px #000000;
+                    -webkit-text-stroke: 0.5px #000000;
                     -webkit-font-smoothing: antialiased;
                     margin: 0;
+                    white-space: nowrap;
                 }
                 .pt-currency-sign.vertical {
-                    font-size: 13.5pt;
-                    font-weight: 900;
-                    color: #000000;
-                    line-height: 1;
-                    font-family: 'Segoe UI', Arial, sans-serif;
-                    letter-spacing: 0.5px;
-                    margin-top: 1.5mm;
-                    -webkit-font-smoothing: antialiased;
+                    display: none !important;
                 }
 
                 @media print {
@@ -1051,13 +1045,15 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                     .price-tag-label.vertical {
                         width: ${printWidth}mm !important;
                         height: ${printHeight}mm !important;
-                        padding: 2mm 1.2mm !important;
+                        max-height: ${printHeight}mm !important;
+                        padding: 2mm 1mm !important;
                         border: none !important;
                         box-shadow: none !important;
                         page-break-after: always !important;
                         break-after: page !important;
                         page-break-inside: avoid !important;
                         break-inside: avoid !important;
+                        overflow: hidden !important;
                     }
                 }
             </style>
