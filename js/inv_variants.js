@@ -14,8 +14,8 @@ async function printInventoryBarcode() {
     showCustomAlert({
         type: 'question',
         titleText: '🏷️ خيارات طباعة الباركود',
-        msg: hasSelected 
-            ? 'يرجى اختيار نطاق طباعة ملصقات الباركود:' 
+        msg: hasSelected
+            ? 'يرجى اختيار نطاق طباعة ملصقات الباركود:'
             : 'لم تقم بتحديد أصناف معينة من الجدول.<br>هل ترغب في طباعة باركودات <b>كافة الأصناف</b> المسجلة؟',
         confirmText: 'طباعة كافة الأصناف',
         cancelText: hasSelected ? 'طباعة الأصناف المختارة (✔️) فقط' : 'إلغاء',
@@ -55,7 +55,7 @@ function getBarcodeLabelSettings() {
                 scaleValueLength: 5
             }, parsed);
         }
-    } catch(e) {}
+    } catch (e) { }
     return {
         width: 50,
         height: 25,
@@ -141,7 +141,7 @@ function applyBarcodePreset(width, height, offsetX = 0, barcodeHeight = 24, btnE
     if (document.getElementById('bcLabelHeight')) document.getElementById('bcLabelHeight').value = height;
     if (document.getElementById('bcLabelOffsetX')) document.getElementById('bcLabelOffsetX').value = offsetX;
     if (document.getElementById('bcBarcodeHeight')) document.getElementById('bcBarcodeHeight').value = barcodeHeight;
-    
+
     highlightActiveBarcodePreset(width, height);
     saveBarcodeLabelSettings();
     if (typeof showToast === 'function') {
@@ -264,7 +264,7 @@ async function executePrinting(modeOrTargets, copies = 1) {
                     const dbP = await db.products.get(Number(id)) || await db.products.get(String(id));
                     if (dbP) targets.push(dbP);
                 }
-            } catch(e) {}
+            } catch (e) { }
         }
 
         if (targets.length === 0) return showToast("⚠️ لم يتم العثور على بيانات الصنف المحدد للطباعة!", "error");
@@ -280,7 +280,7 @@ async function executePrinting(modeOrTargets, copies = 1) {
                 if (Array.isArray(dbProds) && dbProds.length > 0) {
                     targets = dbProds;
                 }
-            } catch(e) {
+            } catch (e) {
                 console.warn("DB load in executePrinting error:", e);
             }
         }
@@ -375,7 +375,7 @@ async function executePrinting(modeOrTargets, copies = 1) {
     const labelWidth = parseFloat(bSettings.width) || 50;
     const labelHeight = parseFloat(bSettings.height) || 25;
     const isSmall = labelWidth <= 42 || labelHeight <= 28;
-    
+
     // سُمك خطوط الباركود عريض وسريع القراءة مع مسافة أمان لمنع الخروج عن الحواف
     const barcodeW = isSmall ? 1.38 : 1.54;
     const barcodeH = parseInt(bSettings.barcodeHeight || (isSmall ? 19 : 22), 10);
@@ -418,7 +418,7 @@ async function executePrinting(modeOrTargets, copies = 1) {
                         textMargin: 1,
                         margin: 2 // مسافة أمان بيضاء على اليمين واليسار تمنع أكل الخطوط من الحواف
                     });
-                } catch(err) {
+                } catch (err) {
                     console.warn("Barcode rendering error:", err);
                 }
             }
@@ -695,7 +695,7 @@ async function executePrinting(modeOrTargets, copies = 1) {
             try {
                 printIframe.contentWindow.focus();
                 printIframe.contentWindow.print();
-            } catch(e) {
+            } catch (e) {
                 console.error("Iframe print error:", e);
             }
         }, 400);
@@ -732,7 +732,7 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                     const dbP = await db.products.get(Number(id)) || await db.products.get(String(id));
                     if (dbP) targets.push(dbP);
                 }
-            } catch(e) {}
+            } catch (e) { }
         }
         if (targets.length === 0) return showToast("⚠️ لم يتم العثور على بيانات الصنف المحدد للطباعة!", "error");
     } else {
@@ -744,15 +744,15 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
             try {
                 const dbProds = await db.products.toArray();
                 if (Array.isArray(dbProds) && dbProds.length > 0) targets = dbProds;
-            } catch(e) {}
+            } catch (e) { }
         }
         if (targets.length === 0) return showToast("⚠️ المخزن فارغ!", "error");
     }
 
     const bSettings = getBarcodeLabelSettings();
-    const shopName = (document.getElementById('shopName') ? document.getElementById('shopName').value : '') 
-        || (typeof getMerchantStoreName === 'function' ? getMerchantStoreName() : '') 
-        || (typeof window.getMerchantStoreName === 'function' ? window.getMerchantStoreName() : '') 
+    const shopName = (document.getElementById('shopName') ? document.getElementById('shopName').value : '')
+        || (typeof getMerchantStoreName === 'function' ? getMerchantStoreName() : '')
+        || (typeof window.getMerchantStoreName === 'function' ? window.getMerchantStoreName() : '')
         || 'أم العيال';
 
     const printableItems = [];
@@ -1106,7 +1106,7 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
             try {
                 printIframe.contentWindow.focus();
                 printIframe.contentWindow.print();
-            } catch(e) {
+            } catch (e) {
                 console.error("Iframe price tag print error:", e);
             }
         }, 400);
@@ -1133,7 +1133,7 @@ function applyPresetSizes(presetType) {
 function generateVariantBarcode(size = '', color = '', index = 1) {
     const baseCode = document.getElementById('newItemSysCode')?.value || document.getElementById('newItemBarcode')?.value || document.getElementById('newItemCode')?.value || String(Date.now()).slice(-6);
     const cleanBase = String(baseCode).replace(/\D/g, '').slice(-4) || '1001';
-    
+
     let candidate = '';
     let attempts = 0;
     do {
@@ -1145,7 +1145,7 @@ function generateVariantBarcode(size = '', color = '', index = 1) {
     return candidate;
 }
 
-window.copyVariantBarcode = function(btn) {
+window.copyVariantBarcode = function (btn) {
     const row = btn.closest('tr');
     const inp = row ? row.querySelector('.var-barcode-input') : null;
     if (inp && inp.value.trim()) {
@@ -1328,7 +1328,7 @@ function clearAllVariants() {
     }
     const count = tbody.rows.length;
     const confirmMsg = `هل أنت متأكد من مسح كافة التشكيلات (${count}) والبدء من جديد؟`;
-    
+
     const doClear = () => {
         tbody.innerHTML = '';
         updateVariantsCountBadge();
@@ -1398,7 +1398,7 @@ function quickAppendColorToMatrix(colorName) {
     const colorInput = document.getElementById('colorOnlyInput');
     const qtyInput = document.getElementById('colorOnlyQtyInput');
     const stock = qtyInput ? (parseFloat(qtyInput.value) || 1) : 1;
-    
+
     // فحص إذا كان اللون مضافاً مسبقاً في الجدول
     const existingRows = document.getElementById('productVariantsTableBody')?.rows || [];
     for (let i = 0; i < existingRows.length; i++) {
@@ -1668,15 +1668,15 @@ function renderSmartMatrixView() {
                         <span>📌 إجمالي المقاس:</span>
                     </td>
                     ${sizes.map((s, sIdx) => {
-                        const colBg = (sIdx % 2 === 0) ? '#fdf4ff' : '#faf5ff';
-                        return `
+        const colBg = (sIdx % 2 === 0) ? '#fdf4ff' : '#faf5ff';
+        return `
                             <td style="padding: 10px 6px; font-size: 1.05rem; font-weight: 900; color: #6d28d9; background: ${colBg}; border-left: 2px solid #94a3b8; text-align: center;">
                                 <span style="background: #ede9fe; color: #6d28d9; padding: 4px 12px; border-radius: 6px; border: 1.5px solid #ddd6fe; display: inline-block; min-width: 44px;">
                                     ${colTotals[s]}
                                 </span>
                             </td>
                         `;
-                    }).join('')}
+    }).join('')}
                     <td style="padding: 10px 12px; font-size: 1.15rem; font-weight: 900; color: #047857; background: #ecfdf5; border-left: 2px solid #94a3b8; text-align: center;">
                         <span style="background: #d1fae5; color: #065f46; padding: 4px 14px; border-radius: 8px; border: 1.5px solid #a7f3d0; display: inline-block;">
                             ${grandTotalStock}
@@ -1703,7 +1703,7 @@ function syncMatrixInputToDetailedRow(rowIndex, newStock) {
 }
 
 // طباعة تيكت باركود فردي لصف محدد في جدول التشكيلات
-window.printSingleVariantBarcode = async function(btn, event) {
+window.printSingleVariantBarcode = async function (btn, event) {
     const tr = btn.closest('tr');
     if (!tr) return;
 
@@ -1756,7 +1756,7 @@ window.printSingleVariantBarcode = async function(btn, event) {
 };
 
 // استعادة القيم الأصلية لصف واحد في جدول التشكيلات
-window.restoreSingleVariantRow = function(btn) {
+window.restoreSingleVariantRow = function (btn) {
     const tr = btn.closest('tr');
     if (!tr) return;
     const stockInp = tr.querySelector('.var-stock-input');
@@ -1774,7 +1774,7 @@ window.restoreSingleVariantRow = function(btn) {
 };
 
 // استعادة أرصدة لون محدد في الماتريكس
-window.restoreColorRowInMatrix = function(col) {
+window.restoreColorRowInMatrix = function (col) {
     const rows = document.getElementById('productVariantsTableBody')?.rows || [];
     let count = 0;
     for (let i = 0; i < rows.length; i++) {
@@ -1792,7 +1792,7 @@ window.restoreColorRowInMatrix = function(col) {
 };
 
 // تبديل حالة قفل كميات المقاسات والألوان
-window.toggleVariantsStockLock = function() {
+window.toggleVariantsStockLock = function () {
     window.isVariantsStockLocked = !window.isVariantsStockLocked;
     const btn = document.getElementById('btnToggleVariantsLock');
     const icon = document.getElementById('variantsLockIcon');
@@ -1821,7 +1821,7 @@ window.toggleVariantsStockLock = function() {
 };
 
 // مزامنة حالة القفل مع جدول التشكيلات التفصيلي
-window.syncDetailedTableLockState = function() {
+window.syncDetailedTableLockState = function () {
     const rows = document.getElementById('productVariantsTableBody')?.rows || [];
     for (let i = 0; i < rows.length; i++) {
         const stockInp = rows[i].querySelector('.var-stock-input');
@@ -1840,7 +1840,7 @@ window.syncDetailedTableLockState = function() {
 };
 
 // استعادة كافة الأرصدة والتشكيلات الأصلية المحفوظة
-window.restoreAllVariantsStock = function() {
+window.restoreAllVariantsStock = function () {
     const tbody = document.getElementById('productVariantsTableBody');
     if (!tbody) return;
 
@@ -1870,7 +1870,7 @@ window.restoreAllVariantsStock = function() {
 };
 
 // تطبيق كمية موحدة على جميع التشكيلات بنقرة واحدة
-window.applyUniformQtyToAllVariants = function() {
+window.applyUniformQtyToAllVariants = function () {
     const qty = parseFloat(document.getElementById('fillAllVariantsQtyInput')?.value);
     if (isNaN(qty) || qty < 0) {
         if (typeof showToast === 'function') showToast('⚠️ يرجى إدخال كمية صحيحة للتعبئة الموحدة!', 'warning');
@@ -1893,7 +1893,7 @@ window.applyUniformQtyToAllVariants = function() {
 
 window.hasSyncedVariantPrices = true;
 
-window.checkIfVariantsNeedPriceSync = function() {
+window.checkIfVariantsNeedPriceSync = function () {
     const rows = document.getElementById('productVariantsTableBody')?.rows || [];
     if (rows.length === 0) return false;
     const mainPrice = parseFloat(document.getElementById('newItemPrice')?.value) || 0;
@@ -1905,7 +1905,7 @@ window.checkIfVariantsNeedPriceSync = function() {
     return false;
 };
 
-window.updateVariantPriceSyncUI = function() {
+window.updateVariantPriceSyncUI = function () {
     const banner = document.getElementById('variantPriceSyncPromptBanner');
     const tabBadge = document.getElementById('variantsTabSyncBadge');
     const rows = document.getElementById('productVariantsTableBody')?.rows || [];
@@ -2000,12 +2000,12 @@ window.updateVariantPriceSyncUI = function() {
     }
 };
 
-window.highlightVariantSyncPrompt = function() {
+window.highlightVariantSyncPrompt = function () {
     // لم يعد هناك اهتزاز أو إجبار
 };
 
 // تعميم السعر والجملة والتكلفة من كارت الصنف الرئيسي على كافة المقاسات والألوان
-window.syncCardPriceAndDiscountToVariants = function(showSuccessToast = true) {
+window.syncCardPriceAndDiscountToVariants = function (showSuccessToast = true) {
     const mainPrice = parseFloat(document.getElementById('newItemPrice')?.value) || 0;
     const mainWs = parseFloat(document.getElementById('newItemWholesale')?.value) || 0;
     const mainCost = parseFloat(document.getElementById('newItemCost')?.value) || 0;
@@ -2040,7 +2040,7 @@ window.syncCardPriceAndDiscountToVariants = function(showSuccessToast = true) {
 };
 
 // قفل / فتح رصيد الصنف الافتتاحي في تبويب الكميات
-window.toggleMainStockLock = function() {
+window.toggleMainStockLock = function () {
     window.isMainStockLocked = !window.isMainStockLocked;
     const inp = document.getElementById('newItemStock');
     const btn = document.getElementById('toggleMainStockLockBtn');
@@ -2067,7 +2067,7 @@ window.toggleMainStockLock = function() {
 };
 
 // استعادة رصيد الصنف الافتتاحي الأصلي
-window.restoreMainStock = function() {
+window.restoreMainStock = function () {
     const inp = document.getElementById('newItemStock');
     if (inp && inp.dataset.origStock !== undefined) {
         inp.value = inp.dataset.origStock;
