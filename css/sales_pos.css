@@ -638,13 +638,7 @@
             color: #ffffff !important;
             font-weight: 900 !important;
             cursor: pointer;
-            display: flex !important;
-            flex-direction: column !important;
-            align-items: center !important;
-            justify-content: center !important;
             gap: 1px !important;
-            min-height: 48px !important;
-            height: 48px !important;
             font-size: 0.85rem;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.25);
             transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -655,8 +649,29 @@
             -webkit-font-smoothing: antialiased !important;
         }
 
-        .action-btn > span:first-child,
-        .action-btn > span:not(.shortcut) {
+        #sales-section .action-btn,
+        #sales-return-section .action-btn,
+        #purchase-section .action-btn,
+        #purchase-return-section .action-btn,
+        .pos-container .action-btn {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            min-height: 48px !important;
+            height: 48px !important;
+        }
+
+        #sales-section .action-btn > span:first-child,
+        #sales-section .action-btn > span:not(.shortcut),
+        #sales-return-section .action-btn > span:first-child,
+        #sales-return-section .action-btn > span:not(.shortcut),
+        #purchase-section .action-btn > span:first-child,
+        #purchase-section .action-btn > span:not(.shortcut),
+        #purchase-return-section .action-btn > span:first-child,
+        #purchase-return-section .action-btn > span:not(.shortcut),
+        .pos-container .action-btn > span:first-child,
+        .pos-container .action-btn > span:not(.shortcut) {
             font-size: 0.82rem !important;
             font-weight: 900 !important;
             line-height: 1.15 !important;
@@ -670,7 +685,11 @@
             -webkit-font-smoothing: antialiased !important;
         }
 
-        .action-btn * {
+        #sales-section .action-btn *,
+        #sales-return-section .action-btn *,
+        #purchase-section .action-btn *,
+        #purchase-return-section .action-btn *,
+        .pos-container .action-btn * {
             color: #ffffff !important;
         }
 

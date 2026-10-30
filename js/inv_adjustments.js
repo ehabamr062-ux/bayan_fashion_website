@@ -2413,7 +2413,8 @@ function handlePriceAdjSearch() {
         // 1. البحث عبر محرك البحث المرتب والذكي الموحد O(1) Index عبر كامل قاعدة البيانات (51,000+ صنف)
         let matchedProds = [];
         if (typeof window.searchProductsRanked === 'function') {
-            matchedProds = window.searchProductsRanked(query, { limit: 100, filterDeleted: true });
+            const searchLimit = (cat !== 'all') ? 500 : 100;
+            matchedProds = window.searchProductsRanked(query, { limit: searchLimit, filterDeleted: true });
         }
 
         // إذا لم يعثر محرك البحث على شيء أو لم يكن متوفراً، فحص شامل في allProds
@@ -2434,13 +2435,16 @@ function handlePriceAdjSearch() {
                     );
                 }
                 return nameMatch || codeMatch || barcodeMatch || modelMatch || variantMatch;
-            }).slice(0, 100);
+            });
         }
 
-        // فلترة القسم إن وُجد
+        // فلترة القسم إن وُجد أولاً قبل القص لضمان عدم حجب الأصناف المطابقة للقسم
         if (cat !== 'all') {
             matchedProds = matchedProds.filter(p => p.category === cat);
         }
+
+        // تطبيق حد أقصى (100 صنف) بعد الفلترة للأداء
+        matchedProds = matchedProds.slice(0, 100);
 
         // تحويل المنتجات المطابقة إلى عناصر جدول الأسعار مع الحفاظ على أي تعديل تم إجراؤه
         candidateItems = matchedProds.map(p => getOrBuildItem(p)).filter(Boolean);

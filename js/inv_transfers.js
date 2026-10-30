@@ -107,11 +107,10 @@ window.openTransferModal = function (isEdit = false) {
         }
     }
 
-    // حساب إجمالي المخزون في كل الفروع
-
-    const totalStock = productsDB.reduce((acc, p) => acc + (parseFloat(p.stock) || 0), 0);
-
-    const totalValue = productsDB.reduce((acc, p) => acc + ((parseFloat(p.stock) || 0) * (parseFloat(p.cost) || 0)), 0);
+    // حساب إجمالي المخزون في كل الفروع (للأصناف النشطة فقط)
+    const activeProducts = (productsDB || []).filter(p => p && !p.isDeleted);
+    const totalStock = activeProducts.reduce((acc, p) => acc + (parseFloat(p.stock) || 0), 0);
+    const totalValue = activeProducts.reduce((acc, p) => acc + ((parseFloat(p.stock) || 0) * (parseFloat(p.cost) || 0)), 0);
 
     const stockCountElem = document.getElementById('allWhStockCount');
     const stockValueElem = document.getElementById('allWhStockValue');
@@ -211,15 +210,17 @@ window.closeTransferModal = function (isFromTabClose = false) {
         modal.style.setProperty('display', 'none', 'important');
     }
 
-    // إعادة ضبط وضع التعديل وتفريغ القائمة بالكامل
-    isEditMode = false;
-    window.isEditMode = false;
-    editingInvoiceId = null;
-    window.editingInvoiceId = null;
-    editingOriginalDate = null;
-    window.editingOriginalDate = null;
-    editingInvoiceType = null;
-    window.editingInvoiceType = null;
+    // إعادة ضبط وضع التعديل وتفريغ القائمة بالكامل (فقط إذا كان التعديل يخص التحويل المخزني)
+    if (window.editingInvoiceType === 'تحويل مخزني 🚚' || editingInvoiceType === 'تحويل مخزني 🚚') {
+        isEditMode = false;
+        window.isEditMode = false;
+        editingInvoiceId = null;
+        window.editingInvoiceId = null;
+        editingOriginalDate = null;
+        window.editingOriginalDate = null;
+        editingInvoiceType = null;
+        window.editingInvoiceType = null;
+    }
     window.transferItemsBatch = [];
     transferItemsBatch = window.transferItemsBatch;
 
@@ -859,13 +860,16 @@ window.handleTransferProductSearch = function (query) {
 
     let filtered = [];
 
+    const activeProducts = (productsDB || []).filter(p => p && !p.isDeleted);
+
     if (!queryLower) {
-        // عرض الأصناف الافتراضية عند الضغط على الحقل وهو فارغ
-        filtered = (productsDB || []).slice(0, 50);
+        // عرض الأصناف الافتراضية عند الضغط على الحقل وهو فارغ (الأصناف غير المحذوفة فقط)
+        filtered = activeProducts.slice(0, 50);
     } else {
-        filtered = (typeof window.searchProductsRanked === 'function')
+        const rawResults = (typeof window.searchProductsRanked === 'function')
             ? window.searchProductsRanked(query)
-            : (productsDB || []).filter(p => (p.name && p.name.includes(query)) || (p.barcode && String(p.barcode).includes(query)));
+            : activeProducts.filter(p => (p.name && p.name.includes(query)) || (p.barcode && String(p.barcode).includes(query)));
+        filtered = (rawResults || []).filter(p => p && !p.isDeleted);
     }
 
     resultsDiv.innerHTML = '';
