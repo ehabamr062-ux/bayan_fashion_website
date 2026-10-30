@@ -607,15 +607,21 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
             await fs.promises.writeFile(tempReceiptFile, html, 'utf8');
 
             printWin = new BrowserWindow({
-                show: false,
                 width: 350,
-                height: 800,
+                height: 900,
+                x: -20000,
+                y: -20000,
+                show: true,
+                focusable: false,
+                skipTaskbar: true,
+                frame: false,
+                transparent: true,
                 autoHideMenuBar: true,
                 webPreferences: {
                     nodeIntegration: false,
                     contextIsolation: true,
                     sandbox: false,
-                    backgroundThrottling: false // الحفاظ على سرعة المعالجة لنافذة الطباعة المخفية فقط
+                    backgroundThrottling: false
                 }
             });
             _activePrintWin = printWin;
@@ -626,9 +632,12 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
 
             printWin.webContents.on('did-finish-load', async () => {
                 try {
-                    // ⏱️ مهلة آمنة ومؤكدة (400ms) لاكتمال تفريغ الـ DOM ورسم الخطوط على كرت الشاشة
-                    // بدلاً من requestAnimationFrame المعطل في النوافذ المخفية
-                    await new Promise(r => setTimeout(r, 400));
+                    await printWin.webContents.executeJavaScript(`
+                        Promise.all([
+                            document.fonts ? document.fonts.ready : Promise.resolve(),
+                            new Promise(resolve => setTimeout(resolve, 250))
+                        ])
+                    `).catch(() => {});
 
                     const renderStatus = await printWin.webContents.executeJavaScript(`
                         (() => {

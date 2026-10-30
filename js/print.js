@@ -532,7 +532,7 @@ async function printInvoice(invoiceData, options = {}) {
     <title>${docTitle} - ${shopName}</title>
     <link rel="stylesheet" href="${baseUrl}fonts/cairo.css">
     <style>
-        @page { size: ${pageWidth} auto; margin: 0mm; }
+        @page { margin: 0mm; }
         *, *::before, *::after { 
             box-sizing: border-box !important; 
             -webkit-print-color-adjust: exact !important;
