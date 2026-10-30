@@ -6886,11 +6886,11 @@
         window.analysisRenderLimit = window.analysisDisplayLimit;
         window.analysisGroupsLimit = window.analysisDisplayLimit;
 
-        window.loadMoreAnalysisRows = async function(step = 50) {
+        window.loadMoreAnalysisRows = async function(step = 100) {
             const container = document.getElementById('analysisTableContainer');
             const prevScrollTop = container ? container.scrollTop : 0;
             window._isAnalysisLoadingMore = true;
-            window.analysisDisplayLimit = (window.analysisDisplayLimit || 100) + step;
+            window.analysisDisplayLimit = (window.analysisDisplayLimit || 100) + (parseInt(step, 10) || 100);
             window.analysisRenderLimit = window.analysisDisplayLimit;
             window.analysisGroupsLimit = window.analysisDisplayLimit;
             if (typeof renderAnalysisTable === 'function') {
@@ -7125,16 +7125,25 @@
             }
 
             if (window.BayanSQLite && typeof window.BayanSQLite.getSalesAnalysisTransactions === 'function' && (fromDate || toDate)) {
-                basePool = window.BayanSQLite.getSalesAnalysisTransactions(fromDate, toDate, whFilter, userFilter, 500, {
+                basePool = window.BayanSQLite.getSalesAnalysisTransactions(fromDate, toDate, whFilter, userFilter, null, {
                     partner: accFilter,
                     method: methodFilter,
                     searchQuery: searchQuery
                 });
             } else if (window.BayanSQLite && typeof window.BayanSQLite.getTransactionsForPeriod === 'function' && (fromDate || toDate)) {
-                basePool = window.BayanSQLite.getTransactionsForPeriod(fromDate, toDate, 1000, whFilter, userFilter);
+                basePool = window.BayanSQLite.getTransactionsForPeriod(fromDate, toDate, 50000, whFilter, userFilter);
             }
             if (!basePool || basePool.length === 0) {
-                basePool = window.transactions || [];
+                if (window.BayanSQLite && typeof window.BayanSQLite.getSalesAnalysisTransactions === 'function') {
+                    basePool = window.BayanSQLite.getSalesAnalysisTransactions(fromDate, toDate, whFilter, userFilter, null, {
+                        partner: accFilter,
+                        method: methodFilter,
+                        searchQuery: searchQuery
+                    });
+                }
+                if (!basePool || basePool.length === 0) {
+                    basePool = window.transactions || [];
+                }
             }
             let data = basePool.filter(t => {
                 if (!t || !t.type) return false;
@@ -7360,7 +7369,7 @@
 
             // 7. توجيه العرض حسب النمط الحالي
             if (currentAnalysisMode === 'returns') {
-                renderMostReturningCustomers();
+                renderMostReturningCustomers(data);
                 return;
             }
             if (currentAnalysisMode === 'customers') {
@@ -7395,10 +7404,12 @@
 
             // 8. بناء الجدول - النمط التفصيلي (Detailed Mode)
             if (currentAnalysisMode === 'detailed') {
-                const totalMatching = data.length;
+                const totalMatchingCount = data.length;
+                const totalMatching = totalMatchingCount;
+                window.analysisTotalMatchingCount = totalMatchingCount;
                 const limit = window.analysisDisplayLimit || 100;
                 const displayedData = data.slice(0, limit);
-                const hasMore = totalMatching > displayedData.length;
+                const hasMore = displayedData.length < totalMatchingCount;
 
                 displayedData.forEach((t, idx) => {
                     const isReturn = t.type && t.type.includes('مرتجع');
@@ -7472,14 +7483,14 @@
                                 <div style="display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap;">
                                     <div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:30px; padding:6px 16px; font-weight:800; font-size:0.86rem; color:#334155; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 5px rgba(0,0,0,0.03);">
                                         <span>📊</span>
-                                        <span>معروض <strong style="color:#4f46e5; font-size:0.95rem;">(${displayedData.length})</strong> من إجمالي <strong style="color:#0f172a; font-size:0.95rem;">(${totalMatching})</strong> حركة</span>
+                                        <span>معروض <strong style="color:#4f46e5; font-size:0.95rem;">(${displayedData.length.toLocaleString('en-US')})</strong> من إجمالي <strong style="color:#0f172a; font-size:0.95rem;">(${totalMatchingCount.toLocaleString('en-US')})</strong> حركة</span>
                                     </div>
-                                    <button type="button" onclick="loadMoreAnalysisRows(50)"
+                                    <button type="button" onclick="loadMoreAnalysisRows(100)"
                                         style="height:38px; padding:0 18px; background:linear-gradient(135deg, #4f46e5, #4338ca); color:#ffffff; border:none; border-radius:10px; font-weight:900; font-size:0.88rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; box-shadow:0 4px 12px rgba(79,70,229,0.25); transition:all 0.2s ease;"
                                         onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(79,70,229,0.35)';"
                                         onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(79,70,229,0.25)';">
                                         <span style="font-size:1rem;">⚡</span>
-                                        <span>عرض المزيد (+50)</span>
+                                        <span>عرض المزيد (+100)</span>
                                     </button>
                                     <button type="button" onclick="loadAllAnalysisRows()"
                                         style="height:38px; padding:0 16px; background:#ffffff; color:#0f172a; border:1.5px solid #94a3b8; border-radius:10px; font-weight:900; font-size:0.88rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; box-shadow:0 2px 6px rgba(0,0,0,0.04); transition:all 0.2s ease;"
@@ -7492,13 +7503,13 @@
                             </td>
                         </tr>
                     `);
-                } else if (totalMatching > 0) {
+                } else if (totalMatchingCount > 0) {
                     rowsHtml.push(`
                         <tr id="analysisLoadMoreRow">
                             <td colspan="13" style="text-align:center; padding:12px 20px; background:#f8fafc; border-top:1.5px solid #e2e8f0;">
                                 <div style="display:inline-flex; align-items:center; gap:8px; background:#ffffff; border:1.5px solid #e2e8f0; border-radius:20px; padding:4px 16px; font-size:0.82rem; font-weight:800; color:#64748b;">
                                     <span>✅</span>
-                                    <span>معروض <strong style="color:#10b981;">(${displayedData.length})</strong> من إجمالي <strong style="color:#0f172a;">(${totalMatching})</strong> حركة (تم عرض كامل النتائج)</span>
+                                    <span>معروض <strong style="color:#10b981;">(${displayedData.length.toLocaleString('en-US')})</strong> من إجمالي <strong style="color:#0f172a;">(${totalMatchingCount.toLocaleString('en-US')})</strong> حركة (تم عرض كامل النتائج)</span>
                                 </div>
                             </td>
                         </tr>
@@ -7611,14 +7622,14 @@
                                 <div style="display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap;">
                                     <div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:30px; padding:6px 16px; font-weight:800; font-size:0.86rem; color:#334155; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 5px rgba(0,0,0,0.03);">
                                         <span>📊</span>
-                                        <span>معروض <strong style="color:#4f46e5; font-size:0.95rem;">(${displayedGroups.length})</strong> من إجمالي <strong style="color:#0f172a; font-size:0.95rem;">(${totalGroups})</strong> صنف</span>
+                                        <span>معروض <strong style="color:#4f46e5; font-size:0.95rem;">(${displayedGroups.length.toLocaleString('en-US')})</strong> من إجمالي <strong style="color:#0f172a; font-size:0.95rem;">(${totalGroups.toLocaleString('en-US')})</strong> صنف</span>
                                     </div>
-                                    <button type="button" onclick="loadMoreAnalysisRows(50)"
+                                    <button type="button" onclick="loadMoreAnalysisRows(100)"
                                         style="height:38px; padding:0 18px; background:linear-gradient(135deg, #4f46e5, #4338ca); color:#ffffff; border:none; border-radius:10px; font-weight:900; font-size:0.88rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; box-shadow:0 4px 12px rgba(79,70,229,0.25); transition:all 0.2s ease;"
                                         onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(79,70,229,0.35)';"
                                         onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(79,70,229,0.25)';">
                                         <span style="font-size:1rem;">⚡</span>
-                                        <span>عرض المزيد (+50)</span>
+                                        <span>عرض المزيد (+100)</span>
                                     </button>
                                     <button type="button" onclick="loadAllAnalysisRows()"
                                         style="height:38px; padding:0 16px; background:#ffffff; color:#0f172a; border:1.5px solid #94a3b8; border-radius:10px; font-weight:900; font-size:0.88rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; box-shadow:0 2px 6px rgba(0,0,0,0.04); transition:all 0.2s ease;"
@@ -7637,7 +7648,7 @@
                             <td colspan="13" style="text-align:center; padding:12px 20px; background:#f8fafc; border-top:1.5px solid #e2e8f0;">
                                 <div style="display:inline-flex; align-items:center; gap:8px; background:#ffffff; border:1.5px solid #e2e8f0; border-radius:20px; padding:4px 16px; font-size:0.82rem; font-weight:800; color:#64748b;">
                                     <span>✅</span>
-                                    <span>معروض <strong style="color:#10b981;">(${displayedGroups.length})</strong> من إجمالي <strong style="color:#0f172a;">(${totalGroups})</strong> صنف (تم عرض كامل النتائج)</span>
+                                    <span>معروض <strong style="color:#10b981;">(${displayedGroups.length.toLocaleString('en-US')})</strong> من إجمالي <strong style="color:#0f172a;">(${totalGroups.toLocaleString('en-US')})</strong> صنف (تم عرض كامل النتائج)</span>
                                 </div>
                             </td>
                         </tr>
@@ -8377,7 +8388,7 @@
         window.printAnalysisReport = printAnalysisReport;
 
         // --- تقرير العملاء الأكثر إرجاعاً المطور والمحاذى بدقة ---
-        async function renderMostReturningCustomers() {
+        async function renderMostReturningCustomers(dataPool = null) {
             currentAnalysisMode = 'returns';
 
             const modeButtons = [
@@ -8402,14 +8413,15 @@
 
             const fromDate = document.getElementById('anDateFrom')?.value;
             const toDate = document.getElementById('anDateTo')?.value;
-            if (typeof window.loadTransactionsForDateRange === 'function' && (fromDate || toDate)) {
+            if (typeof window.loadTransactionsForDateRange === 'function' && (fromDate || toDate) && (!dataPool || dataPool.length === 0)) {
                 await window.loadTransactionsForDateRange(fromDate, toDate);
             }
             const searchQuery = (document.getElementById('anSearchInput')?.value || '').trim().toLowerCase();
 
             // ⚡ فلترة مرتجعات البيع بتمريرة واحدة فائقة السرعة O(N)
             const targetMethodRet = methodFilter !== 'all' ? methodFilter.toLowerCase() : null;
-            let returns = (window.transactions || []).filter(t => {
+            const sourcePool = (Array.isArray(dataPool) && dataPool.length > 0) ? dataPool : (window.transactions || []);
+            let returns = sourcePool.filter(t => {
                 if (!t || !t.type || !t.type.includes('مرتجع بيع')) return false;
 
                 const dt = t.dateISO || '';

@@ -69,7 +69,7 @@
 
         free() {
             if (this._iterator && typeof this._iterator.return === 'function') {
-                try { this._iterator.return(); } catch(e) {}
+                try { this._iterator.return(); } catch (e) { }
             }
             this._iterator = null;
             this._current = null;
@@ -154,8 +154,8 @@
             this._writePromise = null;
             this._idb = null;
             this._idbPromise = null;
-            const req = (typeof window !== 'undefined' && window.require) 
-                ? window.require 
+            const req = (typeof window !== 'undefined' && window.require)
+                ? window.require
                 : (typeof require !== 'undefined' ? require : null);
             this.req = req;
             this.isElectron = !!req;
@@ -259,7 +259,7 @@
                 if (!isNaN(d.getTime())) {
                     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
                 }
-            } catch (_) {}
+            } catch (_) { }
 
             return str.slice(0, 10);
         }
@@ -285,7 +285,7 @@
                     } else {
                         appDir = loc.substring(0, loc.lastIndexOf('/'));
                     }
-                } catch (e) {}
+                } catch (e) { }
             }
             // 2. من تطبيق إلكترون الأساسي
             if (!appDir && this.req) {
@@ -295,7 +295,7 @@
                     if (app && typeof app.getAppPath === 'function') {
                         appDir = app.getAppPath();
                     }
-                } catch (e) {}
+                } catch (e) { }
             }
             // 3. مسار Node.js الأساسي
             if (!appDir && typeof __dirname !== 'undefined' && __dirname) {
@@ -315,14 +315,14 @@
                 else if (typeof require === 'function') req = require;
                 else if (typeof globalThis !== 'undefined' && typeof globalThis.require === 'function') req = globalThis.require;
                 else if (typeof process !== 'undefined' && process.mainModule && typeof process.mainModule.require === 'function') req = process.mainModule.require;
-            } catch (e) {}
+            } catch (e) { }
 
             this.req = req;
             this.isElectron = !!req;
             if (req) {
-                try { this.fs = req('fs'); } catch (e) {}
-                try { this.path = req('path'); } catch (e) {}
-                try { this.os = req('os'); } catch (e) {}
+                try { this.fs = req('fs'); } catch (e) { }
+                try { this.path = req('path'); } catch (e) { }
+                try { this.os = req('os'); } catch (e) { }
             }
             if (this.path && this.os && !this.dbPath) {
                 try {
@@ -336,7 +336,7 @@
                         this.fs.mkdirSync(imgDir, { recursive: true });
                     }
                     this.imageDir = imgDir;
-                } catch (e) {}
+                } catch (e) { }
             }
             return !!(this.fs && this.path);
         }
@@ -399,7 +399,7 @@
                         this.schedulePersist(250);
                         return val;
                     }).catch((err) => {
-                        try { this.db.run("ROLLBACK;"); } catch (r) {}
+                        try { this.db.run("ROLLBACK;"); } catch (r) { }
                         this._inTransaction = false;
                         throw err;
                     });
@@ -410,7 +410,7 @@
                 this.schedulePersist(250);
                 return res;
             } catch (err) {
-                try { this.db.run("ROLLBACK;"); } catch (r) {}
+                try { this.db.run("ROLLBACK;"); } catch (r) { }
                 this._inTransaction = false;
                 throw err;
             }
@@ -455,18 +455,18 @@
                                         if (typeof nativeDb.backup === 'function') {
                                             nativeDb.backup(bakPath).then(() => {
                                                 console.log("🛡️ [SQLite Auto-Recovery] تم حفظ نسخة الطوارئ الاحتياطية (.bak) بنجاح وبدون أي تجميد.");
-                                            }).catch(() => {});
+                                            }).catch(() => { });
                                         } else if (this.fs.copyFile) {
-                                            this.fs.copyFile(this.dbPath, bakPath, () => {});
+                                            this.fs.copyFile(this.dbPath, bakPath, () => { });
                                         }
-                                    } catch (e) {}
+                                    } catch (e) { }
                                 }, 30000);
                             }
 
                             // إنشاء الجداول والفهارس فوراً
                             try {
                                 this._createSchema();
-                            } catch(sErr) {
+                            } catch (sErr) {
                                 console.warn("[SQLite] Schema warning:", sErr.message);
                             }
 
@@ -502,7 +502,7 @@
                                 const sqlMod = this.req('./lib/sql-wasm.js');
                                 if (typeof sqlMod === 'function') window.initSqlJs = sqlMod;
                                 else if (sqlMod && typeof sqlMod.default === 'function') window.initSqlJs = sqlMod.default;
-                            } catch(reqErr) {}
+                            } catch (reqErr) { }
                         }
                         if (typeof initSqlJs !== 'function') {
                             await this._loadScript('lib/sql-wasm.js');
@@ -602,7 +602,7 @@
                             if (this.fs.existsSync(tmpPath)) {
                                 this.fs.unlinkSync(tmpPath);
                             }
-                        } catch (e) {}
+                        } catch (e) { }
                     }
 
                     let dbLoadedSuccessfully = false;
@@ -624,7 +624,7 @@
                                             this.fs.copyFileSync(this.dbPath, bakPath);
                                         }
                                         console.log("🛡️ [SQLite Auto-Recovery] تم حفظ وتحديث نسخة الطوارئ الاحتياطية (.bak) بنجاح.");
-                                    } catch (copyBakErr) {}
+                                    } catch (copyBakErr) { }
                                 }, 5000);
                             }
                         } catch (corruptErr) {
@@ -688,7 +688,7 @@
                                         this.schedulePersist(200);
                                         console.log("🧹 [SQLite] تم ضغط وتنظيف قاعدة البيانات واستعادة المساحة بنجاح (VACUUM & Optimize).");
                                     }
-                                } catch(vErr) {}
+                                } catch (vErr) { }
                             }, 45000);
                         }
                     }
@@ -696,7 +696,7 @@
                     // إنشاء الجداول والفهارس فوراً
                     try {
                         this._createSchema();
-                    } catch(sErr) {
+                    } catch (sErr) {
                         console.warn("[SQLite] Schema warning:", sErr.message);
                     }
 
@@ -742,7 +742,7 @@
                 if (pCount === 0 && tCount === 0 && aCount === 0) {
                     await this._autoMigrateIfEmpty();
                 }
-            } catch(cntErr) {}
+            } catch (cntErr) { }
 
             // ⚡ فحص وتعبئة جدول transaction_items الذكي بهدوء ودون أي تجميد للنظام
             try {
@@ -762,7 +762,7 @@
                         if (typeof localStorage !== 'undefined') localStorage.setItem('bayan_ti_backfilled', 'done');
                     }
                 }
-            } catch(tiErr) {}
+            } catch (tiErr) { }
 
             // 📸 فحص وتفريغ أي صور Base64 قديمة متبقية في جدول products إلى القرص بهدوء عند خمول النظام
             const imgDone = (typeof localStorage !== 'undefined' && localStorage.getItem('bayan_legacy_img_migrated') === 'done');
@@ -791,7 +791,7 @@
                     PRAGMA mmap_size = 536870912;
                     PRAGMA busy_timeout = 5000;
                 `);
-            } catch(pErr) {}
+            } catch (pErr) { }
 
             // 1. جدول الأصناف والمنتجات
             this.db.run(`
@@ -831,7 +831,7 @@
                 if (!hasCodeCol) {
                     try {
                         this.db.run("ALTER TABLE products ADD COLUMN code TEXT;");
-                    } catch(alterErr) {}
+                    } catch (alterErr) { }
                 }
 
                 // تعبئة عمود code من حقل JSON القديم أو الباركود للأصناف الموجودة مسبقاً
@@ -841,13 +841,13 @@
                         SET code = COALESCE(json_extract(raw_json, '$.code'), barcode, '') 
                         WHERE code IS NULL OR code = '';
                     `);
-                } catch(updErr) {}
+                } catch (updErr) { }
 
                 // بعد التأكد التام من وجود العمود، ننشئ الفهرس بأمان
                 try {
                     this.db.run("CREATE INDEX IF NOT EXISTS idx_prod_code ON products(code);");
-                } catch(idxErr) {}
-            } catch(colMigErr) {
+                } catch (idxErr) { }
+            } catch (colMigErr) {
                 console.warn("[SQLite] products code migration notice:", colMigErr.message);
             }
 
@@ -889,14 +889,14 @@
                     CREATE INDEX IF NOT EXISTS idx_tx_type_date ON transactions(type, dateISO);
                     CREATE INDEX IF NOT EXISTS idx_tx_date_type_method ON transactions(dateISO, type, method);
                 `);
-            } catch(txErr) {
+            } catch (txErr) {
                 console.warn("[SQLite] transactions table schema notice:", txErr.message);
             }
 
             // 🛡️ ترقية الأعمدة المضافة مسبقاً لجدول الحركات لمنع أي خطأ أثناء الفحص أو الهجرة
-            try { this.db.run("ALTER TABLE transactions ADD COLUMN originalInvoiceId TEXT;"); } catch(e) {}
-            try { this.db.run("ALTER TABLE transactions ADD COLUMN status TEXT;"); } catch(e) {}
-            try { this.db.run("ALTER TABLE transactions ADD COLUMN terminal TEXT;"); } catch(e) {}
+            try { this.db.run("ALTER TABLE transactions ADD COLUMN originalInvoiceId TEXT;"); } catch (e) { }
+            try { this.db.run("ALTER TABLE transactions ADD COLUMN status TEXT;"); } catch (e) { }
+            try { this.db.run("ALTER TABLE transactions ADD COLUMN terminal TEXT;"); } catch (e) { }
 
             // 🛡️ فحص وترقية جدول transactions ليكون id TEXT PRIMARY KEY في قواعد البيانات القائمة
             try {
@@ -908,7 +908,7 @@
                         if (idCol && String(idCol.type || '').toUpperCase().includes('INT')) {
                             isIntId = true;
                         }
-                    } catch(e) {}
+                    } catch (e) { }
                 }
                 if (!isIntId) {
                     const infoTx = this.db.exec("PRAGMA table_info(transactions);");
@@ -957,25 +957,25 @@
                         CREATE INDEX IF NOT EXISTS idx_tx_date_type_wh ON transactions(dateISO, type, warehouse);
                     `);
                 }
-            } catch(migErr) {
+            } catch (migErr) {
                 console.warn("[SQLite] transactions id migration notice:", migErr.message);
             }
             try {
                 // ترقية الفهرس المركب للتاريخ والنوع والحالة للبحث التاريخي فائق السرعة
                 this.db.run("DROP INDEX IF EXISTS idx_tx_date_type;");
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_type ON transactions(dateISO, type, status);");
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_status ON transactions(status);");
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run("ALTER TABLE accounts ADD COLUMN debit REAL DEFAULT 0;");
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run("ALTER TABLE accounts ADD COLUMN credit REAL DEFAULT 0;");
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run(`
                     UPDATE accounts 
@@ -983,37 +983,37 @@
                         credit = COALESCE(CAST(json_extract(raw_json, '$.credit') AS REAL), 0)
                     WHERE (debit IS NULL OR debit = 0) AND (credit IS NULL OR credit = 0) AND raw_json IS NOT NULL;
                 `);
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_origInvId ON transactions(originalInvoiceId);");
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_wh ON transactions(dateISO, warehouse);");
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);");
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_type_wh ON transactions(dateISO, type, warehouse);");
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_partner_status ON transactions(partner, status);");
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_wh_date ON transactions(warehouse, dateISO);");
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_type_date ON transactions(type, dateISO);");
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_type_status ON transactions(type, status);");
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_acc_type ON accounts(type);");
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_acc_mobile ON accounts(mobile);");
-            } catch(e) {}
+            } catch (e) { }
 
             // 2.1 جدول بنود الفواتير الذكي والمفهرس لتسريع تقارير الأصناف التاريخية بنسبة 95%
             this.db.run(`
@@ -1052,7 +1052,7 @@
             // تنظيف تلقائي آمن عند بدء التشغيل لأي بنود يتيمة ليس لها سجل أصل في جدول transactions
             try {
                 this.db.run(`DELETE FROM transaction_items WHERE tx_id IS NOT NULL AND tx_id != '' AND tx_id NOT IN (SELECT id FROM transactions);`);
-            } catch(tiCleanErr) {}
+            } catch (tiCleanErr) { }
 
             // 3. جدول الحسابات (العملاء والموردين)
             this.db.run(`
@@ -1107,22 +1107,22 @@
             // ترقية وتأكيد وجود عمود وفهرس سلة المحذوفات idx_trash_date
             try {
                 this.db.run("ALTER TABLE trash ADD COLUMN deleted_at TEXT;");
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run("UPDATE trash SET deleted_at = deletedAt WHERE (deleted_at IS NULL OR deleted_at = '') AND deletedAt IS NOT NULL;");
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_trash_date ON trash(deleted_at);");
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_trash_deletedAt ON trash(deletedAt);");
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_trash_type ON trash(type);");
-            } catch(e) {}
+            } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_items_date_prod ON transaction_items(dateISO, productName);");
-            } catch(e) {}
+            } catch (e) { }
 
             // 📅 توحيد صيغ التواريخ التاريخية (Date Normalization Migration) لتسريع استعلامات التقارير والفلاتر
             try {
@@ -1171,7 +1171,7 @@
                     INSERT OR IGNORE INTO warehouses (id, name, address) VALUES (1, 'المخزن الرئيسي', 'المقر الرئيسي');
                     INSERT OR IGNORE INTO users (id, name, pin, role) VALUES (1, 'المدير', '1234', 'admin');
                 `);
-            } catch(e) {}
+            } catch (e) { }
         }
 
         /**
@@ -1195,7 +1195,7 @@
             if (row.raw_json) {
                 try {
                     res = typeof row.raw_json === 'string' ? JSON.parse(row.raw_json) : row.raw_json;
-                } catch (e) {}
+                } catch (e) { }
             }
             if (!res || typeof res !== 'object') res = {};
             for (const key in row) {
@@ -1233,7 +1233,7 @@
                             this.fs.mkdirSync(dir, { recursive: true });
                         }
                         this.imageDir = dir;
-                    } catch (e) {}
+                    } catch (e) { }
                 }
             }
             return this.imageDir;
@@ -1386,7 +1386,7 @@
                                     count++;
                                 }
                             }
-                        } catch(e) {}
+                        } catch (e) { }
                     }
                     upStmt.free();
                 });
@@ -1394,7 +1394,7 @@
                     console.log(`✅ [SQLite Image Offloader] تم ترحيل ${count} صورة بنجاح إلى مجلد product_images وتخفيف قاعدة البيانات.`);
                     this.schedulePersist(500);
                 }
-            } catch(err) {
+            } catch (err) {
                 console.warn('[SQLite Image Offloader notice]:', err.message);
             }
         }
@@ -1458,7 +1458,7 @@
                         // تجريد الحقول المكررة من raw_json وتخزين الإضافات فقط أو null
                         let lineRawJson = this._extractExtraFields(line, itemColKeys);
                         if (typeof lineRawJson === 'object' && lineRawJson !== null) {
-                            try { lineRawJson = JSON.stringify(lineRawJson); } catch(e) { lineRawJson = '{}'; }
+                            try { lineRawJson = JSON.stringify(lineRawJson); } catch (e) { lineRawJson = '{}'; }
                         } else if (typeof lineRawJson !== 'string') {
                             lineRawJson = String(lineRawJson || '{}');
                         }
@@ -1470,7 +1470,7 @@
                             lineRawJson
                         ]));
                     }
-                } 
+                }
                 // الحالة 2: السجل نفسه يمثل سطراً لصنف مفرد
                 else if (item.product || item.productName || item.barcode || item.name) {
                     const barcode = String(item.barcode || item.code || '');
@@ -1487,7 +1487,7 @@
 
                     let singleRawJson = this._extractExtraFields(item, itemColKeys);
                     if (typeof singleRawJson === 'object' && singleRawJson !== null) {
-                        try { singleRawJson = JSON.stringify(singleRawJson); } catch(e) { singleRawJson = '{}'; }
+                        try { singleRawJson = JSON.stringify(singleRawJson); } catch (e) { singleRawJson = '{}'; }
                     } else if (typeof singleRawJson !== 'string') {
                         singleRawJson = String(singleRawJson || '{}');
                     }
@@ -1503,8 +1503,8 @@
                 console.warn("[SQLite] _syncTransactionItems notice:", tiErr.message);
             } finally {
                 if (shouldFree) {
-                    if (delStmt) try { delStmt.free(); } catch(e) {}
-                    if (insStmt) try { insStmt.free(); } catch(e) {}
+                    if (delStmt) try { delStmt.free(); } catch (e) { }
+                    if (insStmt) try { insStmt.free(); } catch (e) { }
                 }
             }
         }
@@ -1541,7 +1541,7 @@
                                 if (!r || !r[0]) continue;
                                 const item = JSON.parse(r[0]);
                                 this._syncTransactionItems(item);
-                            } catch (pErr) {}
+                            } catch (pErr) { }
                         }
                     });
                     idx = end;
@@ -1765,7 +1765,7 @@
                             try {
                                 this.db.run("DELETE FROM transactions WHERE invoiceId = ? AND id != ? AND type = ?;", [cleanInvoiceId, cleanId, cleanType]);
                                 this.db.run("DELETE FROM transaction_items WHERE invoiceId = ? AND tx_id != ?;", [cleanInvoiceId, cleanId]);
-                            } catch(cleanOldErr) {}
+                            } catch (cleanOldErr) { }
                         }
                         const cleanOrigInvId = (item.originalInvoiceId != null && item.originalInvoiceId !== '') ? String(item.originalInvoiceId) : null;
                         const cleanDateISO = this.normalizeDateISO(item.dateISO || item.date);
@@ -1963,7 +1963,7 @@
                                                 this.db.run("DELETE FROM transactions WHERE invoiceId = ?;", [sInv]);
                                             }
                                             this.db.run("DELETE FROM transaction_items WHERE invoiceId = ?;", [sInv]);
-                                        } catch(cleanPreErr) {}
+                                        } catch (cleanPreErr) { }
                                     }
                                 }
                             }
@@ -2055,7 +2055,7 @@
                                     'discount', 'itemDiscount', 'addition', 'extra', 'total', 'profit', 'warehouse'
                                 ]);
                                 if (typeof rawJson === 'object' && rawJson !== null) {
-                                    try { rawJson = JSON.stringify(rawJson); } catch(e) { rawJson = '{}'; }
+                                    try { rawJson = JSON.stringify(rawJson); } catch (e) { rawJson = '{}'; }
                                 } else if (typeof rawJson !== 'string') {
                                     rawJson = String(rawJson || '{}');
                                 }
@@ -2154,9 +2154,9 @@
                             }
                         }
                     } finally {
-                        if (mainStmt) try { mainStmt.free(); } catch(e) {}
-                        if (delTiStmt) try { delTiStmt.free(); } catch(e) {}
-                        if (insTiStmt) try { insTiStmt.free(); } catch(e) {}
+                        if (mainStmt) try { mainStmt.free(); } catch (e) { }
+                        if (delTiStmt) try { delTiStmt.free(); } catch (e) { }
+                        if (insTiStmt) try { insTiStmt.free(); } catch (e) { }
                     }
 
                     return items.map(i => i ? i.id : null);
@@ -2190,7 +2190,7 @@
                         const val = id != null ? String(id) : null;
                         delTi.run([val, val]);
                         delTi.free();
-                    } catch (tiErr) {}
+                    } catch (tiErr) { }
                 }
                 this._isDirty = true;
                 this.schedulePersist(250);
@@ -2232,7 +2232,7 @@
                                 }
                             }
                             delTi.free();
-                        } catch (tiErr) {}
+                        } catch (tiErr) { }
                     }
                     return true;
                 });
@@ -2273,7 +2273,7 @@
             try {
                 this.db.run(`DELETE FROM "${safeTable}";`);
                 if (safeTable === 'transactions') {
-                    try { this.db.run(`DELETE FROM transaction_items;`); } catch (tiErr) {}
+                    try { this.db.run(`DELETE FROM transaction_items;`); } catch (tiErr) { }
                 }
                 this.schedulePersist();
                 return true;
@@ -2517,12 +2517,12 @@
         /**
          * ⚡ جلب حركات فترة محددة مباشرة من SQLite دون تكديسها في مصفوفة الذاكرة العامة
          */
-        getTransactionsForPeriod(fromDate, toDate, limit = 5000, warehouse = null, cashier = null) {
+        getTransactionsForPeriod(fromDate, toDate, limit = 50000, warehouse = null, cashier = null) {
             if (!this.db) return [];
             try {
                 const fDate = String(fromDate || '').trim();
                 const tDate = String(toDate || '').trim();
-                const lim = parseInt(limit, 10) || 5000;
+                const lim = (limit !== undefined && limit !== null && parseInt(limit, 10) > 0) ? parseInt(limit, 10) : null;
 
                 let query = "SELECT * FROM transactions WHERE 1=1";
                 const params = [];
@@ -2542,8 +2542,13 @@
                     query += " AND cashier = ?";
                     params.push(cashier);
                 }
-                query += " ORDER BY dateISO ASC, id ASC LIMIT ?;";
-                params.push(lim);
+                query += " ORDER BY dateISO ASC, id ASC";
+                if (lim) {
+                    query += " LIMIT ?;";
+                    params.push(lim);
+                } else {
+                    query += ";";
+                }
 
                 if (this.isNative && this.nativeDb) {
                     const rows = this.nativeDb.prepare(query).all(...params);
@@ -2880,15 +2885,19 @@
 
         /**
          * ⚡ جلب حركات فواتير البيع والمرتجع المفلترة لجدول تحليل المبيعات
-         * محددة بـ limit آمن لمنع تجميد المتصفح مع جلب أحدث الحركات أولاً
+         * بدون سقف ثابت مقيد (أو بحد اختياري) مع جلب كامل حركات الفترة بدقة 100%
          */
-        getSalesAnalysisTransactions(fromDate, toDate, warehouse = 'all', cashier = 'all', limit = 500, options = {}) {
+        getSalesAnalysisTransactions(fromDate, toDate, warehouse = 'all', cashier = 'all', limit = null, options = {}) {
             if (!this.db) return [];
             try {
+                if (typeof limit === 'object' && limit !== null) {
+                    options = limit;
+                    limit = null;
+                }
                 const fDate = String(fromDate || '').trim();
                 const tDate = String(toDate || '').trim();
-                const lim = parseInt(limit, 10) || 500;
-                const { partner = 'all', method = 'all', searchQuery = '' } = options;
+                const lim = (limit !== undefined && limit !== null && parseInt(limit, 10) > 0) ? parseInt(limit, 10) : null;
+                const { partner = 'all', method = 'all', searchQuery = '' } = options || {};
 
                 let sql = "SELECT * FROM transactions WHERE (status IS NULL OR status != 'void') AND (type LIKE '%بيع%' OR type LIKE '%مرتجع بيع%')";
                 const params = [];
@@ -2923,8 +2932,13 @@
                     params.push(q, q, q);
                 }
 
-                sql += " ORDER BY dateISO DESC, id DESC LIMIT ?;";
-                params.push(lim);
+                sql += " ORDER BY dateISO DESC, id DESC";
+                if (lim) {
+                    sql += " LIMIT ?;";
+                    params.push(lim);
+                } else {
+                    sql += ";";
+                }
 
                 if (this.isNative && this.nativeDb) {
                     const rows = this.nativeDb.prepare(sql).all(...params);
@@ -3280,10 +3294,10 @@
                                             if (v && v.barcode) matchedBarcodes.add(v.barcode);
                                         });
                                     }
-                                } catch(e){}
+                                } catch (e) { }
                             }
                         });
-                    } catch(e) {}
+                    } catch (e) { }
 
                     const bArr = Array.from(matchedBarcodes);
                     const nArr = Array.from(matchedNames);
@@ -3494,10 +3508,10 @@
                         if (pRow) {
                             let pStock = parseFloat(pRow.stock) || 0;
                             let whStocks = {};
-                            try { whStocks = typeof pRow.warehouseStocks === 'string' ? JSON.parse(pRow.warehouseStocks) : (pRow.warehouseStocks || {}); } catch(e){}
-                            
+                            try { whStocks = typeof pRow.warehouseStocks === 'string' ? JSON.parse(pRow.warehouseStocks) : (pRow.warehouseStocks || {}); } catch (e) { }
+
                             let vars = [];
-                            try { vars = typeof pRow.variants === 'string' ? JSON.parse(pRow.variants) : (pRow.variants || []); } catch(e){}
+                            try { vars = typeof pRow.variants === 'string' ? JSON.parse(pRow.variants) : (pRow.variants || []); } catch (e) { }
 
                             if (typeof FashionStockEngine !== 'undefined' && FashionStockEngine.getVariantStock) {
                                 const pObj = {
@@ -3544,7 +3558,7 @@
                                 }
                             }
                         }
-                    } catch(e) {}
+                    } catch (e) { }
                     prodCurrentStockMap.set(stockKey, curStock);
                     return curStock;
                 };
@@ -3804,7 +3818,7 @@
                     }
                     stmt.free();
                     return items;
-                } catch(e2) {}
+                } catch (e2) { }
             }
             return [];
         }
@@ -4481,8 +4495,8 @@
 
             // سندات القبض والصرف ليس لها أصناف بضاعة إطلاقاً
             const isFinancial = cleanType.includes('قبض') || cleanType === 'receipt' ||
-                                cleanType.includes('صرف') || cleanType.includes('دفع') ||
-                                cleanType === 'payment' || cleanType === 'disburse';
+                cleanType.includes('صرف') || cleanType.includes('دفع') ||
+                cleanType === 'payment' || cleanType === 'disburse';
             if (isFinancial) return [];
 
             try {
@@ -4801,7 +4815,7 @@
                 try {
                     const chk = this.db.exec("SELECT 1 FROM transaction_items LIMIT 1;");
                     hasTiData = (chk && chk.length > 0 && chk[0].values && chk[0].values.length > 0);
-                } catch(e) {}
+                } catch (e) { }
 
                 if (hasTiData) {
                     const sql = `
@@ -4904,7 +4918,7 @@
                                 if (parts[0].trim() === targetWH) summary[pName].wStock -= qty;
                             }
                         }
-                    } catch(trErr) {}
+                    } catch (trErr) { }
 
                     return summary;
                 }
@@ -4978,7 +4992,7 @@
             } catch (e) {
                 return false;
             } finally {
-                if (stmt) try { stmt.free(); } catch(e) {}
+                if (stmt) try { stmt.free(); } catch (e) { }
             }
         }
 
@@ -5089,7 +5103,7 @@
         searchReturnInvoices({ ref = '', product = '', account = '', dateFrom = '', dateTo = '', isSalesReturn = true, limit = 300 } = {}) {
             if (!this.db) return [];
             try {
-                const typeClause = isSalesReturn 
+                const typeClause = isSalesReturn
                     ? "(type LIKE 'بيع%' OR type LIKE 'فاتورة بيع%' OR type IN ('بيع', 'بيع 📤', 'فاتورة بيع')) AND type NOT LIKE 'مرتجع%'"
                     : "(type LIKE 'شراء%' OR type LIKE 'فاتورة شراء%' OR type IN ('شراء', 'شراء 📥', 'فاتورة شراء')) AND type NOT LIKE 'مرتجع%'";
                 let sql = `SELECT * FROM transactions WHERE (${typeClause})`;
@@ -5388,8 +5402,8 @@
                     this.persistNow();
                     console.log("✅ [SQLite Auto-Seed] تم تجهيز وترحيل ملف SQLite بنجاح تام من بيانات السيرفر (مع المستخدمين والإعدادات).");
                 }
-            } catch(e) {
-                try { this.db.run("ROLLBACK;"); } catch(r) {}
+            } catch (e) {
+                try { this.db.run("ROLLBACK;"); } catch (r) { }
                 console.warn("[SQLite Auto-Seed] Notice:", e.message);
             }
         }
@@ -5403,7 +5417,7 @@
                 if (this._saveTimer) clearTimeout(this._saveTimer);
                 this._saveTimer = setTimeout(() => {
                     if (this.nativeDb) {
-                        try { this.nativeDb.pragma('wal_checkpoint(PASSIVE)'); } catch(e) {}
+                        try { this.nativeDb.pragma('wal_checkpoint(PASSIVE)'); } catch (e) { }
                     }
                     this._isDirty = false;
                 }, typeof delayMs === 'number' ? delayMs : 500);
@@ -5438,7 +5452,7 @@
                         clearTimeout(timer);
                         const db = e.target.result;
                         this._idb = db;
-                        db.onversionchange = () => { try { db.close(); } catch(c) {} this._idb = null; };
+                        db.onversionchange = () => { try { db.close(); } catch (c) { } this._idb = null; };
                         db.onclose = () => { this._idb = null; };
                         resolve(db);
                     };
@@ -5450,7 +5464,7 @@
                         clearTimeout(timer);
                         resolve(null);
                     };
-                } catch(e) {
+                } catch (e) {
                     resolve(null);
                 }
             }).finally(() => {
@@ -5592,12 +5606,12 @@
                     try {
                         if (this.fs && this.fs.promises && typeof this.fs.promises.copyFile === 'function') {
                             await this.fs.promises.copyFile(tmpPath, targetPath);
-                            await this.fs.promises.unlink(tmpPath).catch(() => {});
+                            await this.fs.promises.unlink(tmpPath).catch(() => { });
                         } else {
                             await new Promise((resolve, reject) => {
                                 this.fs.copyFile(tmpPath, targetPath, (cErr) => {
                                     if (cErr) return reject(cErr);
-                                    this.fs.unlink(tmpPath, () => {});
+                                    this.fs.unlink(tmpPath, () => { });
                                     resolve();
                                 });
                             });
@@ -5625,7 +5639,7 @@
                     this._saveTimer = null;
                 }
                 if (this.nativeDb) {
-                    try { this.nativeDb.pragma('wal_checkpoint(PASSIVE)'); } catch(e) {}
+                    try { this.nativeDb.pragma('wal_checkpoint(PASSIVE)'); } catch (e) { }
                 }
                 this._isDirty = false;
                 this._hasPendingWrite = false;
@@ -5703,19 +5717,19 @@
                 try {
                     const bakPath = this.dbPath + '.bak';
                     if (this.isNative && this.nativeDb) {
-                        try { this.nativeDb.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+                        try { this.nativeDb.pragma('wal_checkpoint(TRUNCATE)'); } catch (e) { }
                         if (typeof this.nativeDb.backup === 'function') {
                             try {
                                 await this.nativeDb.backup(bakPath);
                                 return true;
-                            } catch(backupErr) {
+                            } catch (backupErr) {
                                 console.warn('[SQLite] nativeDb.backup notice, fallback to copyFileSync:', backupErr.message);
                             }
                         }
                     }
                     this.fs.copyFileSync(this.dbPath, bakPath);
                     return true;
-                } catch(e) {
+                } catch (e) {
                     return false;
                 }
             }
@@ -5732,7 +5746,7 @@
             }
             if (this.isNative) {
                 if (this.nativeDb) {
-                    try { this.nativeDb.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+                    try { this.nativeDb.pragma('wal_checkpoint(TRUNCATE)'); } catch (e) { }
                 }
                 await this.createBackupFile();
                 if (shouldClose) {
@@ -5764,15 +5778,15 @@
             if (!this.db) return;
             if (this.isNative) {
                 if (this.nativeDb) {
-                    try { this.nativeDb.pragma('wal_checkpoint(TRUNCATE)'); } catch(e) {}
+                    try { this.nativeDb.pragma('wal_checkpoint(TRUNCATE)'); } catch (e) { }
                     const bakPath = this.dbPath + '.bak';
                     try {
                         if (typeof this.nativeDb.backup === 'function') {
-                            this.nativeDb.backup(bakPath).catch(() => {});
+                            this.nativeDb.backup(bakPath).catch(() => { });
                         } else if (this.fs && this.fs.existsSync(this.dbPath)) {
                             this.fs.copyFileSync(this.dbPath, bakPath);
                         }
-                    } catch(bErr) {}
+                    } catch (bErr) { }
                 }
                 return true;
             }
@@ -5795,7 +5809,7 @@
                     try {
                         const bakPath = this.dbPath + '.bak';
                         this.fs.copyFileSync(this.dbPath, bakPath);
-                    } catch(bErr) {}
+                    } catch (bErr) { }
                     console.log("💾 [SQLite] Emergency sync flush completed successfully to disk.");
                 } else {
                     this._persistToBrowserStorage(data);
@@ -5816,14 +5830,14 @@
             if (this.isNative && this.nativeDb) {
                 try {
                     this.nativeDb.pragma('wal_checkpoint(TRUNCATE)');
-                } catch(e) {}
+                } catch (e) { }
                 try {
                     this.nativeDb.close();
                     this.nativeDb = null;
                     this.db = null;
                     this.isInitialized = false;
                     console.log("🔒 [SQLite Native] تم إغلاق الاتصال بقاعدة البيانات بنجاح وتحرير ملفات القفل.");
-                } catch(e) {
+                } catch (e) {
                     console.warn("⚠️ [SQLite Native] تحذير إغلاق الاتصال:", e.message);
                 }
             } else if (this.db) {
@@ -5832,7 +5846,7 @@
                     if (typeof this.db.close === 'function') this.db.close();
                     this.db = null;
                     this.isInitialized = false;
-                } catch(e) {}
+                } catch (e) { }
             }
         }
 
@@ -5846,7 +5860,7 @@
                 } else if (this.db && typeof this.db.run === 'function') {
                     this.db.run('PRAGMA shrink_memory;');
                 }
-            } catch(e) {}
+            } catch (e) { }
         }
 
         /**
@@ -5855,7 +5869,7 @@
         async _autoMigrateIfEmpty() {
             try {
                 if (typeof Dexie === 'undefined') {
-                    try { await this._loadScript('lib/dexie.js'); } catch(e) {}
+                    try { await this._loadScript('lib/dexie.js'); } catch (e) { }
                 }
                 if (typeof Dexie !== 'undefined') {
                     const testDb = new Dexie("BayanDatabase");
@@ -5867,7 +5881,7 @@
                         warehouses: "++id, name",
                         users: "++id, name, pin"
                     });
-                    await testDb.open().catch(() => {});
+                    await testDb.open().catch(() => { });
                     const pCount = testDb.products ? await testDb.products.count().catch(() => 0) : 0;
                     const aCount = testDb.accounts ? await testDb.accounts.count().catch(() => 0) : 0;
                     const uCount = testDb.users ? await testDb.users.count().catch(() => 0) : 0;
@@ -5876,7 +5890,7 @@
                         await this.migrateFromIndexedDB();
                         console.log("✅ [SQLite Auto-Migrate] تم الترحيل التلقائي بنجاح تام دون تدخل المستخدم!");
                     }
-                    try { testDb.close(); } catch(e) {}
+                    try { testDb.close(); } catch (e) { }
                 }
             } catch (err) {
                 console.warn("[SQLite Auto-Migrate] Auto migrate notice:", err.message);
@@ -5893,7 +5907,7 @@
             if (typeof Dexie === 'undefined') {
                 try {
                     await this._loadScript('lib/dexie.js');
-                } catch(e) {}
+                } catch (e) { }
             }
             let sourceDb = null;
             if (typeof Dexie !== 'undefined') {
@@ -5913,9 +5927,9 @@
                         syncQueue: "++id, timestamp, action, type, status",
                         warehouses: "++id, name"
                     });
-                    await dexieInst.open().catch(() => {});
+                    await dexieInst.open().catch(() => { });
                     sourceDb = dexieInst;
-                } catch(e) {}
+                } catch (e) { }
             }
             if (!sourceDb && (window.bayanDB !== this && window.db !== this)) {
                 sourceDb = window.bayanDB || window.db;
@@ -5934,7 +5948,7 @@
             };
 
             // استخدام معاملة ذرية (Transaction) لضمان كتابة آلاف السجلات في أقل من ثانية واحدة!
-            try { this.db.run("COMMIT;"); } catch(e) {}
+            try { this.db.run("COMMIT;"); } catch (e) { }
             this.db.run("BEGIN TRANSACTION;");
 
             try {
@@ -6077,7 +6091,7 @@
                 console.log("🎉 [SQLite] اكتمل الترحيل بنجاح تام إلى ملف SQLite:", stats);
                 return { success: true, stats };
             } catch (err) {
-                try { this.db.run("ROLLBACK;"); } catch(r) {}
+                try { this.db.run("ROLLBACK;"); } catch (r) { }
                 console.error("❌ [SQLite] خطأ أثناء الترحيل، تم التراجع:", err);
                 throw err;
             }
@@ -6098,9 +6112,9 @@
     }
 
     // دالة واجهة المستخدم لبدء الترحيل بضغطة زر مع تنبيه تأكيد وإحصائيات كاملة
-    window.promptMigrateToSQLite = async function() {
+    window.promptMigrateToSQLite = async function () {
         if (!window.BayanSQLite) return;
-        
+
         const confirmMsg = `
             <div style="text-align: right; line-height: 1.8;">
                 <p style="font-weight: bold; font-size: 1.1rem; color: #1e293b;">هل ترغب في ترحيل ونقل كافة البيانات إلى ملف قاعدة بيانات SQLite؟</p>
@@ -6111,7 +6125,7 @@
                 </ul>
             </div>
         `;
-        
+
         if (typeof showCustomAlert === 'function') {
             showCustomAlert({
                 type: 'info',
@@ -6156,7 +6170,7 @@
 
     // 🔍 دالة الحصول على المسار الفعلي لقاعدة بيانات SQLite على القرص الصلب
     // 🔍 دالة الحصول على مسار مجلد قاعدة بيانات SQLite
-    window.getSqliteFolderPath = function() {
+    window.getSqliteFolderPath = function () {
         let req = (typeof window !== 'undefined' && window.require) ? window.require : (typeof require !== 'undefined' ? require : null);
         if (req) {
             try {
@@ -6165,7 +6179,7 @@
                 if (os && path) {
                     return path.join(os.homedir(), '.bayan_pos');
                 }
-            } catch (e) {}
+            } catch (e) { }
         }
         if (typeof process !== 'undefined' && process.env && process.env.USERPROFILE) {
             return process.env.USERPROFILE + '\\.bayan_pos';
@@ -6174,20 +6188,20 @@
     };
 
     // 🔍 دالة الحصول على المسار الفعلي لملف قاعدة البيانات
-    window.getSqliteDbPath = function() {
+    window.getSqliteDbPath = function () {
         const folder = window.getSqliteFolderPath();
         let req = (typeof window !== 'undefined' && window.require) ? window.require : (typeof require !== 'undefined' ? require : null);
         if (req) {
             try {
                 const path = req('path');
                 if (path) return path.join(folder, 'bayan_pos.db');
-            } catch (e) {}
+            } catch (e) { }
         }
         return folder + '\\bayan_pos.db';
     };
 
     // 📋 دالة نسخ مسار المجلد (للفتح السلس في Run بدون تحذيرات ويندوز)
-    window.copySqlitePath = async function(btnElement) {
+    window.copySqlitePath = async function (btnElement) {
         const folderPath = window.getSqliteFolderPath();
         let copied = false;
 
@@ -6196,7 +6210,7 @@
                 await navigator.clipboard.writeText(folderPath);
                 copied = true;
             }
-        } catch (e) {}
+        } catch (e) { }
 
         if (!copied) {
             try {
@@ -6209,7 +6223,7 @@
                 tempInput.select();
                 copied = document.execCommand('copy');
                 document.body.removeChild(tempInput);
-            } catch (e) {}
+            } catch (e) { }
         }
 
         if (copied) {
@@ -6236,7 +6250,7 @@
     };
 
     // 📋 دالة نسخ قيمة أي حقل محدد
-    window.copyInputValue = async function(inputId, btn) {
+    window.copyInputValue = async function (inputId, btn) {
         const input = document.getElementById(inputId);
         const textToCopy = input ? input.value : window.getSqliteFolderPath();
 
@@ -6246,14 +6260,14 @@
                 await navigator.clipboard.writeText(textToCopy);
                 copied = true;
             }
-        } catch (e) {}
+        } catch (e) { }
 
         if (!copied && input) {
             try {
                 input.select();
                 input.setSelectionRange(0, 99999);
                 copied = document.execCommand('copy');
-            } catch (e) {}
+            } catch (e) { }
         }
 
         if (copied) {
@@ -6281,7 +6295,7 @@
     };
 
     // 🪟 نافذة عرض ونسخ مسار قاعدة بيانات SQLite مع الشرح والتسهيل (تصميم أفقي مريح ومضغوط رأسياً)
-    window.showSqlitePathModal = function() {
+    window.showSqlitePathModal = function () {
         const folderPath = window.getSqliteFolderPath();
         const filePath = window.getSqliteDbPath();
 
@@ -6369,7 +6383,7 @@
     };
 
     // 📂 دالة فتح مسار مجلد وملف قاعدة بيانات SQLite مباشرة على ويندوز
-    window.openSqliteFolder = async function() {
+    window.openSqliteFolder = async function () {
         console.log("📂 جاري فتح مسار ملف قاعدة بيانات SQLite على ويندوز...");
         let req = (typeof window !== 'undefined' && window.require) ? window.require : (typeof require !== 'undefined' ? require : null);
 
@@ -6399,7 +6413,7 @@
                             opened = true;
                         }
                     }
-                } catch (shErr) {}
+                } catch (shErr) { }
 
                 // محاولة 2: عبر ipcRenderer للعملية الرئيسية
                 if (!opened) {
@@ -6408,7 +6422,7 @@
                         if (electron && electron.ipcRenderer) {
                             opened = await electron.ipcRenderer.invoke('open-sqlite-folder');
                         }
-                    } catch (ipcErr) {}
+                    } catch (ipcErr) { }
                 }
 
                 // محاولة 3: تشغيل explorer.exe مباشرة عبر child_process
@@ -6423,7 +6437,7 @@
                             }
                             opened = true;
                         }
-                    } catch (cpErr) {}
+                    } catch (cpErr) { }
                 }
             } catch (err) {
                 console.warn("Folder open notice:", err);
@@ -6443,7 +6457,7 @@
     };
 
     // 🖼️ دالة فتح مسار مجلد صور الأصناف مباشرة على ويندوز
-    window.openProductImagesFolder = async function() {
+    window.openProductImagesFolder = async function () {
         console.log("🖼️ جاري فتح مجلد صور الأصناف على ويندوز...");
         let req = (typeof window !== 'undefined' && window.require) ? window.require : (typeof require !== 'undefined' ? require : null);
         let opened = false;
@@ -6464,7 +6478,7 @@
                         await electron.shell.openPath(imgDir);
                         opened = true;
                     }
-                } catch (shErr) {}
+                } catch (shErr) { }
 
                 if (!opened) {
                     try {
@@ -6473,7 +6487,7 @@
                             cp.exec(`explorer.exe "${imgDir}"`);
                             opened = true;
                         }
-                    } catch (cpErr) {}
+                    } catch (cpErr) { }
                 }
             } catch (err) {
                 console.warn("Image folder open notice:", err);
@@ -6490,7 +6504,7 @@
     };
 
     // 🧹 دالة تشغيل الضغط والتفريغ الفوري من الواجهة
-    window.runSqliteOptimization = function(btn) {
+    window.runSqliteOptimization = function (btn) {
         if (!window.BayanSQLite) return;
         if (btn) {
             btn.disabled = true;
