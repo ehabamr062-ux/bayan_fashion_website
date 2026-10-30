@@ -42,7 +42,48 @@
         // ============================================================
         // ⏳ محرك مؤشر التحميل المركزي الموحد (Unified Section Loader Engine)
         // ============================================================
-        window.showSectionLoader = function(targetIdOrEl, title = 'جاري معالجة وتجهيز البيانات...', subtitle = 'يرجى الانتظار لحين اكتمال التحميل') {
+        // دالة مساعدة عامة لحساب عدد الأصناف النشطة غير المحذوفة في النظام
+        window.getActiveProductsCount = function() {
+            try {
+                const allProds = (typeof productsDB !== 'undefined' && Array.isArray(productsDB))
+                    ? productsDB
+                    : (window.productsDB && Array.isArray(window.productsDB) ? window.productsDB : []);
+                if (allProds.length > 0) {
+                    return allProds.filter(p => p && !p.isDeleted).length;
+                }
+            } catch (e) {}
+            return 0;
+        };
+
+        window.showSectionLoader = function(targetIdOrEl, title = 'جاري معالجة وتجهيز البيانات...', subtitle = null, itemsCount = null) {
+            // استخراج عدد الأصناف النشطة الفعلي في النظام ديناميكياً
+            let count = (typeof itemsCount === 'number' && itemsCount >= 0) ? itemsCount : null;
+            if (count === null && typeof window.getActiveProductsCount === 'function') {
+                count = window.getActiveProductsCount();
+            }
+
+            // تحديد العنوان الفرعي المناسب ديناميكياً بدون أي نصوص وهمية ثابتة
+            let finalSubtitle = subtitle;
+            if (!finalSubtitle || finalSubtitle === 'يرجى الانتظار لحين اكتمال التحميل') {
+                if (count && count > 0) {
+                    finalSubtitle = `جاري تحميل بيانات (${count}) صنف وموديل...`;
+                } else {
+                    finalSubtitle = 'يرجى الانتظار لحين اكتمال التحميل';
+                }
+            } else if (typeof finalSubtitle === 'string') {
+                if (finalSubtitle.includes('50 ألف') || finalSubtitle.includes('50 الف') || finalSubtitle.includes('50000') || finalSubtitle.includes('50,000')) {
+                    if (count && count > 0) {
+                        finalSubtitle = `جاري تحميل بيانات (${count}) صنف وموديل...`;
+                    } else {
+                        finalSubtitle = 'تحميل وتجهيز بيانات وتشكيلات الأصناف...';
+                    }
+                }
+            }
+
+            let finalTitle = title || 'جاري معالجة وتجهيز البيانات...';
+            if (typeof finalTitle === 'string' && (finalTitle.includes('50 ألف') || finalTitle.includes('50 الف') || finalTitle.includes('50000'))) {
+                finalTitle = (count && count > 0) ? `جاري تحميل بيانات (${count}) صنف...` : 'جاري قراءة وتجهيز الأصناف...';
+            }
             try {
                 // إزالة أي لودر قديم موجود في الصفحة فوراً لمنع أي تكرار
                 document.querySelectorAll('.bayan-section-loader-overlay').forEach(el => {
@@ -88,9 +129,9 @@
                             <span style="font-size: 2.1rem; animation: bayanLoaderPulse 1.4s ease-in-out infinite; line-height: 1;">⏳</span>
                         </div>
                         <div style="font-size: 1.15rem; font-weight: 900; color: #ffffff; line-height: 1.4; letter-spacing: -0.2px;">
-                            ${title}
+                            ${finalTitle}
                         </div>
-                        ${subtitle ? `<div style="font-size: 0.88rem; color: #a7f3d0; font-weight: 700; line-height: 1.4;">${subtitle}</div>` : ''}
+                        ${finalSubtitle ? `<div style="font-size: 0.88rem; color: #a7f3d0; font-weight: 700; line-height: 1.4;">${finalSubtitle}</div>` : ''}
                     </div>
                 `;
 

@@ -595,7 +595,9 @@ async function renderInventoryTable(isLoadMore = false) {
 
     const showLoader = (!rawSearch && !isLoadMore && typeof window.showSectionLoader === 'function' && (!tbody.children || tbody.children.length === 0));
     if (showLoader) {
-        window.showSectionLoader(null, 'جاري قراءة وتجهيز الأصناف...', 'تحميل بيانات وتشكيلات الـ 50 ألف صنف');
+        const allProds = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
+        const activeCount = allProds.filter(p => !p.isDeleted).length;
+        window.showSectionLoader(null, 'جاري قراءة وتجهيز الأصناف...', `جاري تحميل بيانات ${activeCount} صنف...`, activeCount);
         await new Promise(r => setTimeout(r, 45));
     }
 
@@ -1235,7 +1237,9 @@ async function renderWarehouseReportTable(isSearchTrigger = false) {
 
     const showLoader = (!isSearchTrigger && typeof window.showSectionLoader === 'function');
     if (showLoader) {
-        window.showSectionLoader(null, 'جاري جرد أرصدة المخازن...', 'احتساب كميات وتكاليف البضاعة في الفروع');
+        const allProds = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
+        const activeCount = allProds.filter(p => !p.isDeleted).length;
+        window.showSectionLoader(null, 'جاري جرد أرصدة المخازن...', `احتساب كميات وتكاليف (${activeCount}) صنف في الفروع...`, activeCount);
         await new Promise(r => setTimeout(r, 45));
     }
     try {

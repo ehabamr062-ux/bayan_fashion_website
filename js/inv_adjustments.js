@@ -1157,7 +1157,9 @@ window.openPriceAdjustmentModal = openPriceAdjustmentModal;
 async function initPriceAdjustmentFiltersAndData(selectedIds = []) {
     const showLoader = (typeof window.showSectionLoader === 'function');
     if (showLoader) {
-        window.showSectionLoader(null, 'جاري فتح منصة تعديل الأسعار...', 'تحضير المقاسات وتشكيلات الموديلات وقوائم الأسعار');
+        const allProds = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
+        const activeCount = allProds.filter(p => !p.isDeleted).length;
+        window.showSectionLoader(null, 'جاري فتح منصة تعديل الأسعار...', `تحضير المقاسات وتشكيلات (${activeCount}) صنف...`, activeCount);
         await new Promise(r => setTimeout(r, 45));
     }
     try {
