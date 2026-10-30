@@ -205,6 +205,46 @@ window.restoreDataFromContent = async function (jsonContent, fileName = '', isEm
             await new Promise(r => setTimeout(r, 60));
 
             try {
+                // 🛡️ 1. المعالجة الوقائية وتوحيد أرصدة الأصناف (Stock Auto-Healing) وتفريغ الصور في إلكترون
+                cleanProducts.forEach(p => {
+                    p.stock = parseFloat(p.stock) || 0;
+
+                    // معالجة أرصدة المخازن العامة
+                    if (typeof p.warehouseStocks === 'string') {
+                        try { p.warehouseStocks = JSON.parse(p.warehouseStocks); } catch (e) { p.warehouseStocks = null; }
+                    }
+                    if (!p.warehouseStocks || typeof p.warehouseStocks !== 'object' || Object.keys(p.warehouseStocks).length === 0) {
+                        p.warehouseStocks = { 'المخزن الرئيسي': p.stock };
+                    }
+
+                    // معالجة تشكيلات المقاسات والألوان (variants)
+                    if (typeof p.variants === 'string') {
+                        try { p.variants = JSON.parse(p.variants); } catch (e) { p.variants = []; }
+                    }
+                    if (Array.isArray(p.variants) && p.variants.length > 0) {
+                        p.variants.forEach(v => {
+                            v.stock = parseFloat(v.stock) || 0;
+                            if (typeof v.warehouseStocks === 'string') {
+                                try { v.warehouseStocks = JSON.parse(v.warehouseStocks); } catch (e) { v.warehouseStocks = null; }
+                            }
+                            if (!v.warehouseStocks || typeof v.warehouseStocks !== 'object' || Object.keys(v.warehouseStocks).length === 0) {
+                                v.warehouseStocks = { 'المخزن الرئيسي': v.stock };
+                            }
+                        });
+                        // إعادة حساب الرصيد الإجمالي للصنف من مجموع التشكيلات
+                        p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
+                    }
+
+                    // تفريغ الصور إلى القرص في بيئة إلكترون
+                    if (window.BayanSQLite && typeof window.BayanSQLite._saveProductImage === 'function' && p.image && typeof p.image === 'string' && p.image.startsWith('data:image')) {
+                        try {
+                            p.image = window.BayanSQLite._saveProductImage(p.id, p.image);
+                        } catch (imgErr) {
+                            console.warn(`[Restore] Error dumping image for product ${p.id}:`, imgErr);
+                        }
+                    }
+                });
+
                 let restoredUsers = [];
                 if (hasUsers) {
                     restoredUsers = data.users.filter(u => u && typeof u === 'object').map(u => {
@@ -359,6 +399,38 @@ window.restoreDataFromContent = async function (jsonContent, fileName = '', isEm
                 if (db.wallpapers && cleanWallpapers.length > 0) {
                     await db.wallpapers.bulkPut(cleanWallpapers);
                 }
+
+                // ⚡ 2. المزامنة المباشرة مع SQLite في بيئة إلكترون (Direct SQLite Synchronization)
+                if (window.BayanSQLite && window.BayanSQLite.db) {
+                    if (subEl) {
+                        subEl.innerHTML = `جاري مزامنة وتثبيت البيانات في محرك SQLite الداخلي... ⚡`;
+                    }
+                    try {
+                        window.BayanSQLite.clear('products');
+                        window.BayanSQLite.clear('transactions');
+                        window.BayanSQLite.clear('accounts');
+                        window.BayanSQLite.clear('trash');
+
+                        window.BayanSQLite.bulkPut('products', cleanProducts);
+                        window.BayanSQLite.bulkPut('transactions', cleanTransactions);
+                        window.BayanSQLite.bulkPut('accounts', cleanAccounts);
+                        if (cleanTrash.length > 0) {
+                            window.BayanSQLite.bulkPut('trash', cleanTrash);
+                        }
+
+                        if (typeof window.BayanSQLite.flush === 'function') {
+                            await window.BayanSQLite.flush();
+                        }
+                        console.log("✅ [SQLite Restore] تم تحديث جداول products و transactions و accounts بنجاح في SQLite.");
+                    } catch (sqlErr) {
+                        console.error("❌ [SQLite Restore] خطأ أثناء المزامنة المباشرة مع SQLite:", sqlErr);
+                    }
+                }
+
+                // ⚡ 3. تحديث مصفوفات الذاكرة العامة قبل إعادة التشغيل
+                window.productsDB = cleanProducts;
+                window.transactions = cleanTransactions;
+                window.accounts = cleanAccounts;
 
                 if (data.settings && typeof data.settings === 'object') {
                     try {
