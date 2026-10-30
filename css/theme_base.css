@@ -5038,9 +5038,30 @@ body.is-logged-out #transferModal {
     overflow-x: auto !important;
 }
 
-#transferModal .transfer-footer,
-#transferModal .transfer-footer-stats,
+#transferModal .transfer-footer {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+}
+
+#transferModal .transfer-footer-stats {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    flex-wrap: nowrap !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+}
+
 #transferModal .transfer-footer-actions {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+    gap: 12px !important;
+    flex-wrap: nowrap !important;
     white-space: nowrap !important;
     flex-shrink: 0 !important;
 }
@@ -5051,6 +5072,17 @@ body.is-logged-out #transferModal {
 #transferModal .transfer-footer-actions .action-btn {
     white-space: nowrap !important;
     flex-shrink: 0 !important;
+    display: inline-flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: center !important;
+    text-shadow: none !important;
+}
+
+#transferModal .transfer-footer-actions button *,
+#transferModal .transfer-footer-actions .action-btn * {
+    white-space: nowrap !important;
+    text-shadow: none !important;
 }
 
 

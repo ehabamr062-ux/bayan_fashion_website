@@ -14563,27 +14563,27 @@
                 </div>
 
                 <!-- الجانب الأيسر: أزرار الإجراءات بدون أي انضغاط -->
-                <div class="transfer-footer-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: nowrap;">
-                    <button type="button" class="action-btn" onclick="closeTransferModal()"
-                        style="height: 42px; padding: 0 18px; border-radius: 10px; background: #ffffff !important; color: #dc2626 !important; border: 1.5px solid #fecaca !important; font-weight: 800; font-size: 0.9rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; transition: 0.2s;"
+                <div class="transfer-footer-actions" style="display: flex; align-items: center; justify-content: flex-end; gap: 12px; flex-wrap: nowrap; flex-shrink: 0;">
+                    <button type="button" onclick="closeTransferModal()"
+                        style="height: 44px; padding: 0 20px; background: #ffffff !important; color: #dc2626 !important; border: 1.5px solid #fecaca !important; border-radius: 12px; font-weight: 900; font-size: 0.92rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.04); white-space: nowrap !important; flex-shrink: 0 !important; transition: 0.2s;"
                         onmouseover="this.style.background='#fef2f2'; this.style.borderColor='#ef4444';"
                         onmouseout="this.style.background='#ffffff'; this.style.borderColor='#fecaca';">
-                        <span>✕</span>
-                        <span>إلغاء</span>
+                        <span style="color: #dc2626 !important; font-size: 1.05rem;">✕</span>
+                        <span style="color: #dc2626 !important;">إلغاء</span>
                     </button>
-                    <button type="button" class="action-btn" onclick="printTransferNote()"
-                        style="height: 42px; padding: 0 20px; border-radius: 10px; background: linear-gradient(135deg, #0284c7, #0369a1) !important; color: #ffffff !important; border: none !important; font-weight: 900; font-size: 0.92rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; box-shadow: 0 3px 8px rgba(2,132,199,0.25); transition: 0.2s;"
+                    <button type="button" onclick="printTransferNote()"
+                        style="height: 44px; padding: 0 22px; background: linear-gradient(135deg, #0284c7, #0369a1) !important; color: #ffffff !important; border: none !important; border-radius: 12px; font-weight: 900; font-size: 0.94rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 14px rgba(2,132,199,0.3); white-space: nowrap !important; flex-shrink: 0 !important; transition: 0.2s;"
                         onmouseover="this.style.transform='translateY(-1px)';"
                         onmouseout="this.style.transform='translateY(0)';">
-                        <span>🖨️</span>
-                        <span>طباعة الإذن</span>
+                        <span style="color: #ffffff !important; font-size: 1.05rem;">🖨️</span>
+                        <span style="color: #ffffff !important;">طباعة الإذن</span>
                     </button>
-                    <button type="button" class="action-btn" onclick="processBatchTransfer()"
-                        style="height: 42px; padding: 0 24px; border-radius: 10px; background: linear-gradient(135deg, #059669, #047857) !important; color: #ffffff !important; border: none !important; font-weight: 900; font-size: 0.95rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; box-shadow: 0 3px 12px rgba(5,150,105,0.3); transition: 0.2s;"
+                    <button type="button" onclick="processBatchTransfer()"
+                        style="height: 44px; padding: 0 26px; background: linear-gradient(135deg, #059669, #047857) !important; color: #ffffff !important; border: none !important; border-radius: 12px; font-weight: 900; font-size: 0.98rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 16px rgba(5,150,105,0.35); white-space: nowrap !important; flex-shrink: 0 !important; transition: 0.2s;"
                         onmouseover="this.style.transform='translateY(-1px)';"
                         onmouseout="this.style.transform='translateY(0)';">
-                        <span>🚚</span>
-                        <span>تنفيذ التحويل</span>
+                        <span style="color: #ffffff !important; font-size: 1.15rem;">🚚</span>
+                        <span style="color: #ffffff !important;">تنفيذ التحويل</span>
                     </button>
                 </div>
             </div>
