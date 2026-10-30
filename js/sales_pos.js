@@ -399,9 +399,18 @@ async function handleSearch(query) {
                             : rawP;
                         const priceVal = parseFloat(p.price) || 0;
                         const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
-                        const stockVal = typeof getWarehouseStock === 'function'
-                            ? getWarehouseStock(p.name, activeWH)
-                            : ((typeof getLiveProductWhStock === 'function') ? getLiveProductWhStock(p, activeWH) : (parseFloat(p.stock) || 0));
+                        let stockVal = 0;
+                        if (typeof window.FashionStockEngine !== 'undefined' && typeof window.FashionStockEngine.getProductStock === 'function') {
+                            stockVal = window.FashionStockEngine.getProductStock(p, activeWH);
+                        } else if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
+                            stockVal = parseFloat(p.warehouseStocks[activeWH]) || 0;
+                        } else if (typeof getLiveProductWhStock === 'function') {
+                            stockVal = getLiveProductWhStock(p, activeWH);
+                        } else if (typeof getWarehouseStock === 'function') {
+                            stockVal = getWarehouseStock(p.name, activeWH);
+                        } else {
+                            stockVal = parseFloat(p.stock) || 0;
+                        }
                         const safeName = (window.escapeHtml ? window.escapeHtml(p.name) : p.name);
                         const safeCode = (window.escapeHtml ? window.escapeHtml(p.code || p.id) : (p.code || p.id));
                         const safeBarcode = (window.escapeHtml ? window.escapeHtml(p.barcode || '---') : (p.barcode || '---'));
@@ -3202,6 +3211,12 @@ async function saveBill(force = false, accountChecked = false, event = null) {
 
         });
 
+        if (typeof window.FashionStockEngine !== 'undefined' && typeof window.FashionStockEngine.syncProductTotals === 'function') {
+            affectedProducts.forEach(prod => {
+                window.FashionStockEngine.syncProductTotals(prod, activeWH);
+            });
+        }
+
         // ⚡ حفظ المعاملة والأصناف المتأثرة فورياً وبدون إعادة كتابة الجداول (في الوضعين: جديد وتعديل)
         if (typeof window.saveTransactionChanges === 'function') {
             const affectedAccountsList = [];
@@ -3217,6 +3232,10 @@ async function saveBill(force = false, accountChecked = false, event = null) {
         } else {
             await saveData();
         }
+
+        if (typeof invalidateStockCache === 'function') invalidateStockCache();
+        if (typeof window.invalidateStockCache === 'function') window.invalidateStockCache();
+        if (typeof window.rebuildProductFastIndex === 'function') window.rebuildProductFastIndex();
 
         if (!isEditMode && typeof window.registerTrialInvoiceCreation === 'function') {
             window.registerTrialInvoiceCreation();
