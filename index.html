@@ -14275,10 +14275,13 @@
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <button onclick="closeTransferModal()"
-                        style="background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.3); font-size: 1.1rem; cursor: pointer; color: white; width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; transition: 0.2s;"
-                        onmouseover="this.style.background='#dc2626';"
-                        onmouseout="this.style.background='rgba(255,255,255,0.15)';">✕</button>
+                    <button type="button" onclick="closeTransferModal()" 
+                        style="background: #ffffff; color: #1e293b; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 0 16px; height: 38px; font-weight: 800; font-size: 0.88rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; transition: 0.2s;"
+                        onmouseover="this.style.background='#fee2e2'; this.style.borderColor='#ef4444'; this.style.color='#dc2626';"
+                        onmouseout="this.style.background='#ffffff'; this.style.borderColor='#cbd5e1'; this.style.color='#1e293b';">
+                        <span style="font-size: 1rem;">↩️</span>
+                        <span>العودة للشاشة الرئيسية</span>
+                    </button>
                 </div>
             </div>
 
@@ -14402,11 +14405,11 @@
 
                 <!-- 🔍 شريط البحث والإضافة السريعة للأصناف (شريط موحد في سطر واحد بارتفاع 42px) -->
                 <div id="transferSingleItemSelect"
-                    style="background: #ffffff; padding: 8px 16px; border-radius: 12px; border: 1.5px solid #e2e8f0; display: flex; gap: 8px; align-items: flex-end; flex-wrap: nowrap; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
+                    style="background: #ffffff; padding: 8px 16px; border-radius: 12px; border: 1.5px solid #e2e8f0; display: flex; gap: 10px; align-items: flex-end; flex-wrap: nowrap; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.03); width: 100%; box-sizing: border-box;">
                     <!-- اسم الصنف أو الباركود -->
-                    <div style="flex: 2.5; min-width: 200px;">
+                    <div style="flex: 2.5; min-width: 220px;">
                         <label
-                            style="display: block; margin-bottom: 4px; font-weight: 800; font-size: 0.78rem; color: #2563eb;">🔍
+                            style="display: block; margin-bottom: 4px; font-weight: 800; font-size: 0.78rem; color: #2563eb;">📦
                             ابحث عن صنف لإضافته للتحويل</label>
                         <div style="position: relative;">
                             <input type="text" id="transferProductSearch" class="search-input"
@@ -14422,7 +14425,7 @@
                     </div>
 
                     <!-- المقاس -->
-                    <div style="width: 90px; flex-shrink: 0;">
+                    <div style="width: 105px; flex-shrink: 0;">
                         <label
                             style="display: block; margin-bottom: 4px; font-weight: 800; font-size: 0.78rem; color: #475569;">📏
                             المقاس</label>
@@ -14431,7 +14434,7 @@
                     </div>
 
                     <!-- اللون -->
-                    <div style="width: 90px; flex-shrink: 0;">
+                    <div style="width: 105px; flex-shrink: 0;">
                         <label
                             style="display: block; margin-bottom: 4px; font-weight: 800; font-size: 0.78rem; color: #475569;">🎨
                             اللون</label>
@@ -14442,8 +14445,8 @@
                     <!-- الكمية -->
                     <div style="width: 90px; flex-shrink: 0;">
                         <label
-                            style="display: block; margin-bottom: 4px; font-weight: 800; font-size: 0.78rem; color: #475569;"
-                            data-i18n="qty">الكمية</label>
+                            style="display: block; margin-bottom: 4px; font-weight: 800; font-size: 0.78rem; color: #475569;">🔢
+                            الكمية</label>
                         <input type="number" id="transferQty" class="search-input" value="1"
                             style="height: 42px; border-radius: 10px; text-align: center; font-weight: 900; border: 1.5px solid #cbd5e1; width: 100%; font-size: 1rem; color: #0f172a; box-sizing: border-box; background: #fff;"
                             onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#cbd5e1'"
@@ -14451,10 +14454,10 @@
                     </div>
 
                     <!-- السعر -->
-                    <div style="width: 105px; flex-shrink: 0;">
+                    <div style="width: 110px; flex-shrink: 0;">
                         <label
-                            style="display: block; margin-bottom: 4px; font-weight: 800; font-size: 0.78rem; color: #475569;"
-                            data-i18n="price">السعر</label>
+                            style="display: block; margin-bottom: 4px; font-weight: 800; font-size: 0.78rem; color: #475569;">💰
+                            السعر</label>
                         <input type="number" id="transferPrice" class="search-input" value="0.00"
                             style="height: 42px; border-radius: 10px; text-align: center; font-weight: 900; color: #2563eb; border: 1.5px solid #cbd5e1; width: 100%; font-size: 0.95rem; box-sizing: border-box; background: #fff;"
                             onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#cbd5e1'"
@@ -14464,7 +14467,7 @@
                     <!-- زر الإضافة الأفقي العريض -->
                     <div style="flex-shrink: 0;">
                         <button type="button" onclick="addManualTransferItem()"
-                            style="height: 42px; padding: 0 18px; background: linear-gradient(135deg, #0284c7, #0369a1); color: white; border: none; border-radius: 10px; font-weight: 900; font-size: 0.92rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; box-shadow: 0 3px 10px rgba(2,132,199,0.3); transition: 0.2s;"
+                            style="height: 42px; padding: 0 20px; background: linear-gradient(135deg, #0284c7, #0369a1); color: white; border: none; border-radius: 10px; font-weight: 900; font-size: 0.92rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; box-shadow: 0 3px 10px rgba(2,132,199,0.3); transition: 0.2s;"
                             onmouseover="this.style.transform='translateY(-1px)';"
                             onmouseout="this.style.transform='translateY(0)';">
                             <span>➕</span>
@@ -14537,12 +14540,11 @@
                     </div>
 
                     <!-- 2. زر تخصيص الأعمدة -->
-                    <button type="button" class="tool-btn" onclick="toggleTransferColMenu(event)"
-                        style="height: 42px; padding: 0 14px; background: #f8fafc; border: 1.5px solid #cbd5e1; color: #334155; border-radius: 10px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 0.85rem; white-space: nowrap; box-sizing: border-box;"
-                        onmouseover="this.style.background='#e2e8f0'; this.style.borderColor='#94a3b8';"
-                        onmouseout="this.style.background='#f8fafc'; this.style.borderColor='#cbd5e1';"
+                    <button type="button" onclick="toggleTransferColMenu(event)" 
+                        style="background: #ffffff !important; color: #1e293b !important; border: 1.5px solid #cbd5e1 !important; border-radius: 9px; padding: 0 14px; height: 38px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 5px rgba(0,0,0,0.03);"
                         title="تخصيص وإظهار/إخفاء أعمدة جدول التحويل">
-                        <span>⚙️ تخصيص الأعمدة</span>
+                        <span>⚙️</span>
+                        <span style="color: #1e293b !important; font-weight: 800;">تخصيص الأعمدة</span>
                     </button>
 
                     <!-- 3. كبسولة إجمالي القيمة -->
@@ -14563,18 +14565,21 @@
                 <!-- الجانب الأيسر: أزرار الإجراءات بدون أي انضغاط -->
                 <div class="transfer-footer-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: nowrap;">
                     <button type="button" class="action-btn" onclick="closeTransferModal()"
-                        style="height: 42px; padding: 0 18px; background: #f1f5f9 !important; color: #475569 !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; font-weight: 800; cursor: pointer; transition: 0.2s; font-size: 0.88rem; white-space: nowrap; flex-shrink: 0; box-sizing: border-box;">
-                        ✕ إلغاء
+                        style="height: 42px; padding: 0 18px; border-radius: 10px; background: #ffffff !important; color: #dc2626 !important; border: 1.5px solid #fecaca !important; font-weight: 800; font-size: 0.9rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; transition: 0.2s;"
+                        onmouseover="this.style.background='#fef2f2'; this.style.borderColor='#ef4444';"
+                        onmouseout="this.style.background='#ffffff'; this.style.borderColor='#fecaca';">
+                        <span>✕</span>
+                        <span>إلغاء</span>
                     </button>
                     <button type="button" class="action-btn" onclick="printTransferNote()"
-                        style="height: 42px; padding: 0 20px; background: #0284c7 !important; color: white !important; border: none !important; border-radius: 10px; font-weight: 900; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px; font-size: 0.88rem; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25); white-space: nowrap; flex-shrink: 0; box-sizing: border-box;"
-                        onmouseover="this.style.background='#0369a1'; this.style.transform='translateY(-1px)';"
-                        onmouseout="this.style.background='#0284c7'; this.style.transform='translateY(0)';">
+                        style="height: 42px; padding: 0 20px; border-radius: 10px; background: linear-gradient(135deg, #0284c7, #0369a1) !important; color: #ffffff !important; border: none !important; font-weight: 900; font-size: 0.92rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; box-shadow: 0 3px 8px rgba(2,132,199,0.25); transition: 0.2s;"
+                        onmouseover="this.style.transform='translateY(-1px)';"
+                        onmouseout="this.style.transform='translateY(0)';">
                         <span>🖨️</span>
                         <span>طباعة الإذن</span>
                     </button>
                     <button type="button" class="action-btn" onclick="processBatchTransfer()"
-                        style="height: 42px; padding: 0 24px; background: linear-gradient(135deg, #059669, #047857) !important; color: white !important; border: none !important; border-radius: 10px; font-weight: 900; font-size: 0.95rem; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px; box-shadow: 0 3px 12px rgba(5, 150, 105, 0.3); white-space: nowrap; flex-shrink: 0; box-sizing: border-box;"
+                        style="height: 42px; padding: 0 24px; border-radius: 10px; background: linear-gradient(135deg, #059669, #047857) !important; color: #ffffff !important; border: none !important; font-weight: 900; font-size: 0.95rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; box-shadow: 0 3px 12px rgba(5,150,105,0.3); transition: 0.2s;"
                         onmouseover="this.style.transform='translateY(-1px)';"
                         onmouseout="this.style.transform='translateY(0)';">
                         <span>🚚</span>
