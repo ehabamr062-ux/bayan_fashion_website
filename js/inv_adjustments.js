@@ -1240,6 +1240,8 @@ function closePriceAdjustmentModal(isFromTabClose = false) {
     window.priceAdjCurrentFiltered = null;
     window.priceAdjUndoStack = [];
     window.priceAdjDisplayLimit = 50;
+    window.priceAdjTotalCount = 0;
+    window.priceAdjTotalSystemCount = 0;
     if (typeof updateUndoButtonState === 'function') updateUndoButtonState();
 
     // إغلاق التبويب الرسمي والرجوع السلس للتبويب السابق
@@ -1255,6 +1257,8 @@ window.closePriceAdjustmentModal = closePriceAdjustmentModal;
 window.priceAdjData = window.priceAdjData || [];
 window.priceAdjCurrentFiltered = null;
 window.priceAdjDisplayLimit = 50;
+window.priceAdjTotalCount = 0;
+window.priceAdjTotalSystemCount = 0;
 
 /**
  * بناء وتنسيق عنصر الصنف لعرضه وإدارته داخل جدول تعديل الأسعار المجمع
@@ -1386,15 +1390,22 @@ function loadPriceAdjustmentData(selectedIds = []) {
             return;
         }
 
+        // حساب الإجمالي الحقيقي لجميع المنتجات غير المحذوفة في النظام
+        const activeProds = allProds.filter(p => !p.isDeleted);
+        const totalNonDeletedCount = activeProds.length;
+        window.priceAdjTotalCount = totalNonDeletedCount;
+        window.priceAdjTotalSystemCount = totalNonDeletedCount;
+
         const searchQ = document.getElementById('priceAdjSearch') ? document.getElementById('priceAdjSearch').value.toLowerCase().trim() : '';
         const catQ = document.getElementById('priceAdjCategory') ? document.getElementById('priceAdjCategory').value : 'all';
 
         let targets = [];
 
         if (selectedIds.length > 0 && !searchQ) {
-            targets = allProds.filter(p => selectedIds.includes(p.id));
+            targets = activeProds.filter(p => selectedIds.includes(p.id));
+            window.priceAdjTotalCount = targets.length;
         } else if (searchQ.length > 0 || catQ !== 'all') {
-            targets = allProds.filter(p => {
+            targets = activeProds.filter(p => {
                 const nameMatch = String(p.name || '').toLowerCase().includes(searchQ);
                 const codeMatch = String(p.code || p.sysCode || '').toLowerCase().includes(searchQ);
                 const barcodeMatch = String(p.barcode || '').toLowerCase().includes(searchQ);
@@ -1410,9 +1421,11 @@ function loadPriceAdjustmentData(selectedIds = []) {
                 const catMatch = (catQ === 'all') || (p.category === catQ);
                 return (nameMatch || codeMatch || barcodeMatch || variantMatch) && catMatch;
             });
+            window.priceAdjTotalCount = targets.length;
         } else {
-            // حماية الذاكرة والـ DOM: عند فتح النافذة بدون فلترة محددة، تحميل أول 250 صنف لتسريع الاستجابة الفورية
-            targets = allProds.length > 250 ? allProds.slice(0, 250) : allProds;
+            // جلب عينة أولية (250 صنف) للأداء بسلاسة دون أن يخطئ إجمالي العدد في النظام
+            targets = activeProds.length > 250 ? activeProds.slice(0, 250) : activeProds;
+            window.priceAdjTotalCount = totalNonDeletedCount;
         }
 
         window.priceAdjData = [];
@@ -1441,6 +1454,7 @@ function loadPriceAdjustmentData(selectedIds = []) {
             if (item) window.priceAdjData.push(item);
         });
 
+        window.priceAdjCurrentFiltered = null;
         window.priceAdjDisplayLimit = 50;
         renderPriceAdjustmentTable();
         updatePriceAdjStats();
@@ -1456,7 +1470,24 @@ function loadPriceAdjustmentData(selectedIds = []) {
 
 function loadMorePriceAdjItems() {
     window.priceAdjDisplayLimit = (window.priceAdjDisplayLimit || 50) + 50;
+
+    // دعم جلب المزيد من الأصناف تلقائياً عند الضغط على عرض المزيد في الحالة العامة
+    if (!window.priceAdjCurrentFiltered && Array.isArray(window.priceAdjData)) {
+        const allProds = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
+        const activeProds = allProds.filter(p => !p.isDeleted);
+        if (window.priceAdjData.length < activeProds.length && window.priceAdjData.length < window.priceAdjDisplayLimit) {
+            const nextBatch = activeProds.slice(window.priceAdjData.length, Math.min(activeProds.length, window.priceAdjDisplayLimit + 50));
+            const lastBuyMap = window._priceAdjLastBuyMap || {};
+            const activeWH = window._priceAdjActiveWH || 'المخزن الرئيسي';
+            nextBatch.forEach(p => {
+                const item = buildPriceAdjItem(p, lastBuyMap, activeWH);
+                if (item) window.priceAdjData.push(item);
+            });
+        }
+    }
+
     renderPriceAdjustmentTable(window.priceAdjCurrentFiltered);
+    updatePriceAdjStats();
 }
 window.loadMorePriceAdjItems = loadMorePriceAdjItems;
 
@@ -1591,7 +1622,11 @@ function renderPriceAdjustmentTable(filteredData = null) {
         `);
     });
 
-    if (dataToRender.length > limit) {
+    const totalToReport = filteredData 
+        ? filteredData.length 
+        : (window.priceAdjTotalCount || (typeof productsDB !== 'undefined' && Array.isArray(productsDB) ? productsDB.filter(p => !p.isDeleted).length : dataToRender.length));
+
+    if (totalToReport > itemsToShow.length) {
         htmlBuffer.push(`
             <tr id="priceAdjLoadMoreRow" style="background: #f8fafc; border-top: 2px solid #e2e8f0;">
                 <td colspan="15" style="text-align: center; padding: 14px 20px;">
@@ -1599,7 +1634,7 @@ function renderPriceAdjustmentTable(filteredData = null) {
                         style="padding: 9px 24px; background: linear-gradient(135deg, #059669, #10b981); color: white; border: none; border-radius: 10px; font-weight: 900; font-size: 0.92rem; cursor: pointer; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); transition: 0.2s; display: inline-flex; align-items: center; gap: 10px;"
                         onmouseover="this.style.transform='translateY(-1px)';" onmouseout="this.style.transform='translateY(0)';">
                         <span>⚡ عرض المزيد من الموديلات (+50)</span>
-                        <span style="background: rgba(255,255,255,0.22); padding: 3px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 800;">معروض ${itemsToShow.length} من أصل ${dataToRender.length}</span>
+                        <span style="background: rgba(255,255,255,0.22); padding: 3px 10px; border-radius: 6px; font-size: 0.8rem; font-weight: 800;">معروض ${itemsToShow.length} من أصل ${totalToReport}</span>
                     </button>
                 </td>
             </tr>
@@ -2454,7 +2489,13 @@ function handlePriceAdjSearch() {
     const isFiltered = query !== '' || cat !== 'all' || stockFilter !== 'all' || typeFilter !== 'all' || sizeFilter !== 'all' || colorFilter !== 'all';
     window.priceAdjCurrentFiltered = isFiltered ? filtered : null;
     window.priceAdjDisplayLimit = 50; // ⚡ إعادة ضبط سقف العرض إلى 50 عند كل بحث أو فلترة لسرعة استجابة لحظية
-    renderPriceAdjustmentTable(filtered);
+    if (!isFiltered) {
+        window.priceAdjTotalCount = window.priceAdjTotalSystemCount || ((typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB.filter(p => !p.isDeleted).length : (window.priceAdjData ? window.priceAdjData.length : 0));
+        renderPriceAdjustmentTable(null);
+    } else {
+        window.priceAdjTotalCount = filtered.length;
+        renderPriceAdjustmentTable(filtered);
+    }
     updatePriceAdjStats();
 }
 window.handlePriceAdjSearch = handlePriceAdjSearch;
@@ -2639,7 +2680,12 @@ function updatePriceAdjStats() {
 
     const totalProfit = totalSale - totalCost;
 
-    if (document.getElementById('priceAdjCount')) document.getElementById('priceAdjCount').innerText = currentList.length;
+    if (document.getElementById('priceAdjCount')) {
+        const displayTotal = window.priceAdjCurrentFiltered 
+            ? window.priceAdjCurrentFiltered.length 
+            : (window.priceAdjTotalCount || ((typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB.filter(p => !p.isDeleted).length : currentList.length));
+        document.getElementById('priceAdjCount').innerText = displayTotal;
+    }
     if (document.getElementById('priceAdjVariantsCount')) document.getElementById('priceAdjVariantsCount').innerText = variantsCount;
     if (document.getElementById('priceAdjTotalCost')) document.getElementById('priceAdjTotalCost').innerText = totalCost.toFixed(2);
     if (document.getElementById('priceAdjTotalSale')) document.getElementById('priceAdjTotalSale').innerText = totalSale.toFixed(2);
