@@ -802,7 +802,7 @@
         async exportFullDatabaseJSON() {
             await this._ensureReady();
             const exportData = {
-                version: window.appVersion || '5.0.7',
+                version: window.appVersion || '5.0.8',
                 engine: 'SQLite',
                 exportedAt: new Date().toISOString(),
                 tables: {}

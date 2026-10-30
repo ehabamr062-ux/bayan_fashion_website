@@ -1018,7 +1018,7 @@ function requestActivation(plan, price) {
         return;
     }
 
-    const version = window.appVersion || '5.0.7';
+    const version = window.appVersion || '5.0.8';
     const modeText = isCloud ? 'مزامنة سحابية أونلاين ☁️' : 'ترخيص محلي أوفلاين 💻';
 
     const message = `السلام عليكم\nأريد الاشتراك في Bayan POS Fashion (بَيَان فاشون للملابس والأحذية)\n\nاسم المحل: ${shopName}\nMachine ID: ${mId}\nرقم الهاتف: ${phone}\nالباقة المطلوبة: ${plan}\nنوع النظام: ${modeText}\nالمبلغ: ${price} ج.م\nإصدار البرنامج: ${version}\n\nتم تحويل المبلغ وجاري انتظار كود التفعيل.`;

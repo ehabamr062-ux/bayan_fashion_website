@@ -1317,7 +1317,7 @@ ipcMain.handle('quit-and-install-update', () => {
 
 try { ipcMain.removeHandler('get-app-version'); } catch(e) {}
 ipcMain.handle('get-app-version', () => {
-    return app.getVersion() || '5.0.7';
+    return app.getVersion() || '5.0.8';
 });
 
 // =========================================================================
