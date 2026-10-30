@@ -6768,26 +6768,78 @@
         }
         window.selectAnalysisRow = selectAnalysisRow;
 
-        // دالة إظهار وإخفاء شريط الفلاتر المتقدمة لتقليل الزحام وتوفير مساحة للجدول
-        function toggleAnalysisFiltersBar() {
+        // دوال إظهار وإخفاء وإدارة لوحة الفلاتر المتقدمة العائمة (Floating Dropdown Popover)
+        function closeAnalysisFiltersBar() {
+            const bar = document.getElementById('anAdvancedFiltersBar');
+            const btn = document.getElementById('anToggleFiltersBtn');
+            if (bar) bar.style.display = 'none';
+            if (btn) {
+                btn.style.background = '#f8fafc';
+                btn.style.borderColor = '#cbd5e1';
+                btn.style.color = '#334155';
+            }
+        }
+        window.closeAnalysisFiltersBar = closeAnalysisFiltersBar;
+
+        function applyAndCloseAnalysisFilters() {
+            updateAnalysisActiveFiltersBadge();
+            window.analysisDisplayLimit = 100;
+            window.analysisRenderLimit = 100;
+            window.analysisGroupsLimit = 100;
+            if (typeof renderAnalysisTable === 'function') {
+                renderAnalysisTable();
+            }
+            closeAnalysisFiltersBar();
+        }
+        window.applyAndCloseAnalysisFilters = applyAndCloseAnalysisFilters;
+
+        function toggleAnalysisFiltersBar(event) {
+            if (event && typeof event.stopPropagation === 'function') {
+                event.stopPropagation();
+            }
             const bar = document.getElementById('anAdvancedFiltersBar');
             const btn = document.getElementById('anToggleFiltersBtn');
             if (!bar) return;
             const isHidden = (bar.style.display === 'none' || !bar.style.display);
-            bar.style.display = isHidden ? 'flex' : 'none';
-            if (btn) {
-                if (isHidden) {
+            if (isHidden) {
+                bar.style.display = 'block';
+                // مزامنة حقل الصنف مع شريط البحث الرئيسي
+                const anFilterProd = document.getElementById('anFilterProduct');
+                const anSearch = document.getElementById('anSearchInput');
+                if (anFilterProd && anSearch) {
+                    anFilterProd.value = anSearch.value;
+                }
+                if (btn) {
                     btn.style.background = '#e0e7ff';
                     btn.style.borderColor = '#6366f1';
                     btn.style.color = '#4338ca';
-                } else {
-                    btn.style.background = '#f8fafc';
-                    btn.style.borderColor = '#cbd5e1';
-                    btn.style.color = '#334155';
                 }
+                // ضمان بقاء اللوحة داخل حدود الشاشة في مختلف الشاشات ودقات العرض
+                requestAnimationFrame(() => {
+                    const rect = bar.getBoundingClientRect();
+                    if (rect.left < 10) {
+                        bar.style.setProperty('right', 'auto', 'important');
+                        bar.style.setProperty('left', '0', 'important');
+                    }
+                });
+            } else {
+                closeAnalysisFiltersBar();
             }
         }
         window.toggleAnalysisFiltersBar = toggleAnalysisFiltersBar;
+
+        // مستمع النقر خارج القائمة العائمة لإغلاقها تلقائياً (Click Outside Listener)
+        if (!window._analysisClickOutsideAttached) {
+            document.addEventListener('click', function (event) {
+                const bar = document.getElementById('anAdvancedFiltersBar');
+                const btn = document.getElementById('anToggleFiltersBtn');
+                if (!bar || bar.style.display === 'none') return;
+                if (!bar.contains(event.target) && (!btn || !btn.contains(event.target))) {
+                    closeAnalysisFiltersBar();
+                }
+            });
+            window._analysisClickOutsideAttached = true;
+        }
 
         // تحديث شارة عدد الفلاتر النشطة
         function updateAnalysisActiveFiltersBadge() {
@@ -6797,6 +6849,7 @@
             if (document.getElementById('anMethod') && document.getElementById('anMethod').value !== 'all') count++;
             if (document.getElementById('anWarehouse') && document.getElementById('anWarehouse').value !== 'all') count++;
             if (document.getElementById('anUser') && document.getElementById('anUser').value !== 'all') count++;
+            if (document.getElementById('anFilterProduct') && document.getElementById('anFilterProduct').value.trim()) count++;
             const badge = document.getElementById('anActiveFiltersCount');
             if (badge) {
                 badge.innerText = count;
@@ -6812,6 +6865,14 @@
             if (document.getElementById('anMethod')) document.getElementById('anMethod').value = 'all';
             if (document.getElementById('anWarehouse')) document.getElementById('anWarehouse').value = 'all';
             if (document.getElementById('anUser')) document.getElementById('anUser').value = 'all';
+            const anFilterProd = document.getElementById('anFilterProduct');
+            if (anFilterProd) anFilterProd.value = '';
+            const anSearch = document.getElementById('anSearchInput');
+            if (anSearch) {
+                anSearch.value = '';
+                const clearBtn = document.getElementById('anSearchClearBtn');
+                if (clearBtn) clearBtn.style.display = 'none';
+            }
             updateAnalysisActiveFiltersBadge();
             window.analysisDisplayLimit = 100;
             window.analysisRenderLimit = 100;

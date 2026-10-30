@@ -3235,76 +3235,145 @@
                             onchange="renderAnalysisTable()">
                     </div>
 
-                    <!-- زر إظهار/إخفاء الفلاتر المتقدمة لمنع تزاحم الشاشة -->
-                    <button id="anToggleFiltersBtn" type="button" onclick="toggleAnalysisFiltersBar()"
-                        style="height: 30px; padding: 0 10px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #f8fafc; color: #334155; font-weight: 800; font-size: 0.76rem; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: 0.2s;"
-                        title="إظهار أو إخفاء فلاتر العملاء، التصنيفات، المخازن، وطرق الدفع">
-                        <span>⚡</span>
-                        <span>فلاتر متقدمة</span>
-                        <span id="anActiveFiltersCount"
-                            style="background: #4f46e5; color: white; border-radius: 10px; padding: 1px 6px; font-size: 0.68rem; display: none;">0</span>
-                    </button>
+                    <!-- الحاوية الحاضنة لمجموعة أزرار الفلاتر والإجراءات ولوحة الفلاتر العائمة -->
+                    <div style="display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; position: relative;">
+                        <!-- زر فلاتر متقدمة -->
+                        <button id="anToggleFiltersBtn" type="button" onclick="toggleAnalysisFiltersBar(event)"
+                            style="height: 36px; padding: 0 14px; border-radius: 9px; font-weight: 800; font-size: 0.85rem; white-space: nowrap !important; flex-shrink: 0 !important; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; border: 1.5px solid #cbd5e1; background: #f8fafc; color: #334155; transition: all 0.2s ease;"
+                            title="إظهار أو إخفاء فلاتر العملاء، التصنيفات، المخازن، وطرق الدفع">
+                            <span style="font-size: 0.95rem;">⚡</span>
+                            <span>فلاتر متقدمة</span>
+                            <span id="anActiveFiltersCount"
+                                style="background: #4f46e5; color: white; border-radius: 10px; padding: 1px 7px; font-size: 0.72rem; font-weight: 900; display: none;">0</span>
+                        </button>
 
-                    <!-- أزرار الإجراءات السريعة -->
-                    <button class="analysis-refresh-square" onclick="renderAnalysisTable()"
-                        style="width: 30px; height: 30px; border-radius: 8px; background: #4f46e5; color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; transition: 0.2s;"
-                        title="تحديث البيانات">🔄</button>
-                    <button class="btn-tool-square" onclick="showAnalysisColumnCustomizer()"
-                        style="width: 30px; height: 30px; border-radius: 8px; background: #334155; color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 0.85rem; transition: 0.2s;"
-                        title="تخصيص الأعمدة">⚙️</button>
-                </div>
-            </div>
+                        <!-- أيقونة تحديث البيانات -->
+                        <button class="analysis-refresh-square" onclick="renderAnalysisTable()"
+                            style="width: 36px; height: 36px; min-width: 36px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0 !important; cursor: pointer; background: #4f46e5; color: white; border: none; font-size: 0.95rem; transition: 0.2s; box-shadow: 0 2px 6px rgba(79,70,229,0.25);"
+                            title="تحديث البيانات">🔄</button>
 
-            <!-- 1.5 شريط الفلاتر المتقدمة القابل للطي (Collapsible Advanced Filters Bar) -->
-            <div id="anAdvancedFiltersBar"
-                style="display: none; align-items: center; justify-content: space-between; gap: 6px; background: white; padding: 4px 10px; border-radius: 8px; border: 1px solid #cbd5e1; margin-bottom: 5px; flex-shrink: 0; box-shadow: 0 1px 3px rgba(0,0,0,0.02); flex-wrap: wrap;">
-                <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                    <span
-                        style="font-size: 0.75rem; font-weight: 900; color: #475569; display: flex; align-items: center; gap: 3px;">
-                        <span>🎯</span> تصفية حسب:
-                    </span>
-                    <!-- فلتر الحسابات والعملاء -->
-                    <select id="anAccount" class="search-input"
-                        style="height: 28px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 800; color: #1e293b; padding: 0 6px; font-size: 0.74rem; background: #fff; min-width: 125px; cursor: pointer;"
-                        onchange="updateAnalysisActiveFiltersBadge(); renderAnalysisTable();">
-                        <option value="all">👤 كل العملاء</option>
-                    </select>
+                        <!-- أيقونة تخصيص الأعمدة -->
+                        <button class="btn-tool-square" onclick="showAnalysisColumnCustomizer()"
+                            style="width: 36px; height: 36px; min-width: 36px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0 !important; cursor: pointer; background: #334155; color: white; border: none; font-size: 0.95rem; transition: 0.2s;"
+                            title="تخصيص الأعمدة">⚙️</button>
 
-                    <!-- فلتر التصنيفات -->
-                    <select id="anCategory" class="search-input"
-                        style="height: 28px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 800; color: #1e293b; padding: 0 6px; font-size: 0.74rem; background: #fff; min-width: 125px; cursor: pointer;"
-                        onchange="updateAnalysisActiveFiltersBadge(); renderAnalysisTable();">
-                        <option value="all">📦 كل التصنيفات</option>
-                    </select>
+                        <!-- لوحة الفلاتر المتقدمة العائمة (Floating Dropdown Popover) -->
+                        <div id="anAdvancedFiltersBar"
+                            style="display: none; position: absolute !important; top: calc(100% + 8px) !important; right: 0 !important; left: auto !important; width: min(540px, 92vw) !important; background: #ffffff !important; border: 1.5px solid #cbd5e1 !important; border-radius: 16px !important; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25) !important; z-index: 99999 !important; padding: 18px !important; box-sizing: border-box !important;">
 
-                    <!-- فلتر طرق السداد -->
-                    <select id="anMethod" class="search-input"
-                        style="height: 28px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 800; color: #1e293b; padding: 0 6px; font-size: 0.74rem; background: #fff; min-width: 120px; cursor: pointer;"
-                        onchange="updateAnalysisActiveFiltersBadge(); renderAnalysisTable();">
-                        <option value="all">💳 كل طرق السداد</option>
-                    </select>
+                            <!-- ترويسة اللوحة العائمة -->
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; padding-bottom: 10px; border-bottom: 1.5px solid #f1f5f9;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <span style="font-size: 1.15rem; background: #eef2ff; color: #4f46e5; width: 30px; height: 30px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center;">⚡</span>
+                                    <div>
+                                        <div style="font-weight: 900; font-size: 0.92rem; color: #0f172a;">فلاتر وتصفية المبيعات المتقدمة</div>
+                                        <div style="font-size: 0.73rem; color: #64748b; font-weight: 600;">تصفية متعددة وشاملة لكافة حركات النظام</div>
+                                    </div>
+                                </div>
+                                <button type="button" onclick="closeAnalysisFiltersBar()"
+                                    style="width: 28px; height: 28px; border-radius: 8px; border: none; background: #f1f5f9; color: #64748b; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 0.85rem; font-weight: bold; transition: 0.2s;"
+                                    onmouseover="this.style.background='#fee2e2'; this.style.color='#dc2626';"
+                                    onmouseout="this.style.background='#f1f5f9'; this.style.color='#64748b';">✕</button>
+                            </div>
 
-                    <!-- فلتر المخازن -->
-                    <select id="anWarehouse" class="search-input"
-                        style="height: 28px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 800; color: #1e293b; padding: 0 6px; font-size: 0.74rem; background: #fff; min-width: 115px; cursor: pointer;"
-                        onchange="updateAnalysisActiveFiltersBadge(); renderAnalysisTable();">
-                        <option value="all">🏢 كل المخازن</option>
-                    </select>
+                            <!-- شبكة الحقول المنظمة من عمودين (2-Column Grid) -->
+                            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px;">
+                                <!-- 1. العميل / الحساب -->
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <label style="font-size: 0.76rem; font-weight: 800; color: #334155; display: flex; align-items: center; gap: 4px;">
+                                        <span>👤</span> <span>العميل / الحساب:</span>
+                                    </label>
+                                    <select id="anAccount" class="search-input"
+                                        style="width: 100%; height: 36px; border-radius: 9px; border: 1.5px solid #cbd5e1; font-weight: 800; color: #1e293b; padding: 0 10px; font-size: 0.82rem; background: #fff; cursor: pointer; outline: none; transition: 0.2s; box-sizing: border-box;"
+                                        onchange="updateAnalysisActiveFiltersBadge();">
+                                        <option value="all">👤 كل العملاء</option>
+                                    </select>
+                                </div>
 
-                    <!-- فلتر المستخدمين والكاشير -->
-                    <select id="anUser" class="search-input"
-                        style="height: 28px; border-radius: 6px; border: 1px solid #cbd5e1; font-weight: 800; color: #1e293b; padding: 0 6px; font-size: 0.74rem; background: #fff; min-width: 115px; cursor: pointer;"
-                        onchange="updateAnalysisActiveFiltersBadge(); renderAnalysisTable();">
-                        <option value="all">🧑‍💼 كل المستخدمين</option>
-                    </select>
-                </div>
+                                <!-- 2. الصنف / كود الموديل -->
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <label style="font-size: 0.76rem; font-weight: 800; color: #334155; display: flex; align-items: center; gap: 4px;">
+                                        <span>🏷️</span> <span>الصنف / كود الموديل:</span>
+                                    </label>
+                                    <input type="text" id="anFilterProduct"
+                                        style="width: 100%; height: 36px; border-radius: 9px; border: 1.5px solid #cbd5e1; font-weight: 800; color: #1e293b; padding: 0 10px; font-size: 0.82rem; background: #fff; outline: none; transition: 0.2s; box-sizing: border-box;"
+                                        placeholder="ابحث بالاسم أو الباركود..."
+                                        oninput="const inp = document.getElementById('anSearchInput'); if (inp) { inp.value = this.value; document.getElementById('anSearchClearBtn').style.display = this.value.trim() ? 'flex' : 'none'; }"
+                                        onkeydown="if(event.key === 'Enter') applyAndCloseAnalysisFilters();">
+                                </div>
 
-                <button type="button" onclick="resetAnalysisAdvancedFilters()"
-                    style="height: 26px; padding: 0 10px; border-radius: 6px; border: none; background: #fee2e2; color: #b91c1c; font-weight: 800; font-size: 0.72rem; cursor: pointer; display: flex; align-items: center; gap: 4px;"
-                    title="إعادة ضبط كافة الفلاتر المتقدمة">
-                    <span>✕</span> تفريغ الفلاتر
-                </button>
-            </div>
+                                <!-- 3. التصنيف / القسم -->
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <label style="font-size: 0.76rem; font-weight: 800; color: #334155; display: flex; align-items: center; gap: 4px;">
+                                        <span>📦</span> <span>القسم / التصنيف:</span>
+                                    </label>
+                                    <select id="anCategory" class="search-input"
+                                        style="width: 100%; height: 36px; border-radius: 9px; border: 1.5px solid #cbd5e1; font-weight: 800; color: #1e293b; padding: 0 10px; font-size: 0.82rem; background: #fff; cursor: pointer; outline: none; transition: 0.2s; box-sizing: border-box;"
+                                        onchange="updateAnalysisActiveFiltersBadge();">
+                                        <option value="all">📦 كل التصنيفات</option>
+                                    </select>
+                                </div>
+
+                                <!-- 4. طريقة السداد -->
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <label style="font-size: 0.76rem; font-weight: 800; color: #334155; display: flex; align-items: center; gap: 4px;">
+                                        <span>💳</span> <span>طريقة السداد:</span>
+                                    </label>
+                                    <select id="anMethod" class="search-input"
+                                        style="width: 100%; height: 36px; border-radius: 9px; border: 1.5px solid #cbd5e1; font-weight: 800; color: #1e293b; padding: 0 10px; font-size: 0.82rem; background: #fff; cursor: pointer; outline: none; transition: 0.2s; box-sizing: border-box;"
+                                        onchange="updateAnalysisActiveFiltersBadge();">
+                                        <option value="all">💳 كل طرق السداد</option>
+                                    </select>
+                                </div>
+
+                                <!-- 5. الفرع / المخزن -->
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <label style="font-size: 0.76rem; font-weight: 800; color: #334155; display: flex; align-items: center; gap: 4px;">
+                                        <span>🏢</span> <span>الفرع / المخزن:</span>
+                                    </label>
+                                    <select id="anWarehouse" class="search-input"
+                                        style="width: 100%; height: 36px; border-radius: 9px; border: 1.5px solid #cbd5e1; font-weight: 800; color: #1e293b; padding: 0 10px; font-size: 0.82rem; background: #fff; cursor: pointer; outline: none; transition: 0.2s; box-sizing: border-box;"
+                                        onchange="updateAnalysisActiveFiltersBadge();">
+                                        <option value="all">🏢 كل المخازن</option>
+                                    </select>
+                                </div>
+
+                                <!-- 6. المستخدم / الكاشير -->
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <label style="font-size: 0.76rem; font-weight: 800; color: #334155; display: flex; align-items: center; gap: 4px;">
+                                        <span>🧑‍💼</span> <span>المستخدم / الكاشير:</span>
+                                    </label>
+                                    <select id="anUser" class="search-input"
+                                        style="width: 100%; height: 36px; border-radius: 9px; border: 1.5px solid #cbd5e1; font-weight: 800; color: #1e293b; padding: 0 10px; font-size: 0.82rem; background: #fff; cursor: pointer; outline: none; transition: 0.2s; box-sizing: border-box;"
+                                        onchange="updateAnalysisActiveFiltersBadge();">
+                                        <option value="all">🧑‍💼 كل المستخدمين</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- الشريط السفلي للأزرار التفاعلية -->
+                            <div style="display: flex; align-items: center; gap: 8px; border-top: 1.5px solid #f1f5f9; padding-top: 12px;">
+                                <button type="button" onclick="applyAndCloseAnalysisFilters()"
+                                    style="flex: 1.4; height: 38px; background: linear-gradient(135deg, #16a34a, #15803d); color: #ffffff; border: none; border-radius: 10px; font-weight: 900; font-size: 0.88rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25); transition: 0.2s;"
+                                    onmouseover="this.style.transform='translateY(-1px)';"
+                                    onmouseout="this.style.transform='translateY(0)';">
+                                    <span>🔍</span> تطبيق الفلترة
+                                </button>
+                                <button type="button" onclick="resetAnalysisAdvancedFilters()"
+                                    style="flex: 1; height: 38px; background: #f1f5f9; color: #475569; border: 1.5px solid #cbd5e1; border-radius: 10px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;"
+                                    onmouseover="this.style.background='#e2e8f0';"
+                                    onmouseout="this.style.background='#f1f5f9';">
+                                    <span>🔄</span> تفريغ الفلاتر
+                                </button>
+                                <button type="button" onclick="closeAnalysisFiltersBar()"
+                                    style="flex: 0.8; height: 38px; background: #fee2e2; color: #b91c1c; border: 1.5px solid #fca5a5; border-radius: 10px; font-weight: 800; font-size: 0.85rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;"
+                                    onmouseover="this.style.background='#fecaca';"
+                                    onmouseout="this.style.background='#fee2e2';">
+                                    <span>✕</span> إغلاق
+                                </button>
+                            </div>
+                        </div>
+                    </div>
 
             <!-- 2. شريط الأنماط والأدوات المدمج (Compact Modes & Toolbar) -->
             <div class="adj-top-bar"

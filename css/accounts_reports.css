@@ -654,15 +654,37 @@
             background-color: #4c0519 !important;
         }
 
+        /* ⚡ لوحة الفلاتر المتقدمة العائمة لقسم تحليل المبيعات */
+        #anAdvancedFiltersBar {
+            position: absolute !important;
+            top: calc(100% + 8px) !important;
+            right: 0 !important;
+            left: auto !important;
+            width: min(540px, 92vw) !important;
+            background: #ffffff !important;
+            border: 1.5px solid #cbd5e1 !important;
+            border-radius: 16px !important;
+            box-shadow: 0 20px 50px rgba(15, 23, 42, 0.25) !important;
+            z-index: 99999 !important;
+            padding: 18px !important;
+            box-sizing: border-box !important;
+        }
+
         /* دعم المظهر الليلي الفاخر لكافة بطاقات وعناصر قسم التحليل */
         body.dark-mode #analysis-section .panel-header,
         body.dark-mode #analysis-section .adj-top-bar,
         body.dark-mode #analysis-section #analysis-summary-grid,
-        body.dark-mode #analysis-section #anAdvancedFiltersBar,
         body.dark-mode #analysis-section #analysis-charts-area > div {
             background: #1e293b !important;
             border-color: #334155 !important;
             color: #f8fafc !important;
+        }
+
+        body.dark-mode #analysis-section #anAdvancedFiltersBar {
+            background: #1e293b !important;
+            border-color: #334155 !important;
+            color: #f8fafc !important;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5) !important;
         }
 
         body.dark-mode #analysis-section #anToggleFiltersBtn {
