@@ -5001,3 +5001,48 @@ body.dark-mode #purchase-section {
     table-layout: auto !important;
 }
 
+/* ============================================================
+ * 🚚 هندسة وتصميم شاشة تحويل المخزون المجمّع (#transferModal)
+ * ============================================================ */
+#transferModal {
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+#transferModal .modal-content {
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
+    overflow: hidden !important;
+}
+
+#transferModal .transfer-panel-header,
+#transferModal #transferSingleItemSelect,
+#transferModal .transfer-footer {
+    flex-shrink: 0 !important;
+}
+
+#transferModal .table-container {
+    flex: 1 !important;
+    min-height: 0 !important;
+    overflow-y: auto !important;
+    overflow-x: auto !important;
+}
+
+#transferModal .transfer-footer,
+#transferModal .transfer-footer-stats,
+#transferModal .transfer-footer-actions {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+}
+
+#transferModal .transfer-footer button,
+#transferModal .transfer-footer .action-btn,
+#transferModal .transfer-footer-actions button,
+#transferModal .transfer-footer-actions .action-btn {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+}
+
+

@@ -14258,7 +14258,7 @@
         <div class="modal-content"
             style="width: 100vw !important; max-width: 100vw !important; height: 100% !important; max-height: 100% !important; border-radius: 0 !important; border: none !important; box-shadow: none !important; margin: 0 !important; padding: 0 !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; background: #ffffff; direction: rtl; text-align: right;">
 
-            <!-- 🎭 هيدر المودال الفخم -->
+            <!-- 🎭 هيدر المودال الفخم (نظيف بدون زحام) -->
             <div class="transfer-modal-header"
                 style="background: linear-gradient(135deg, #059669 0%, #047857 100%) !important; padding: 12px 24px; min-height: 60px; color: #ffffff; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #10b981; flex-shrink: 0; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
                 <div style="display: flex; align-items: center; gap: 14px;">
@@ -14275,69 +14275,51 @@
                 </div>
 
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <!-- إحصائيات سريعة -->
-                    <div onclick="window.showCombinedStock()"
-                        style="background: rgba(255, 255, 255, 0.15); padding: 6px 16px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.3); text-align: center; cursor: pointer; transition: 0.2s;"
-                        onmouseover="this.style.background='rgba(255, 255, 255, 0.25)';"
-                        onmouseout="this.style.background='rgba(255, 255, 255, 0.15)';"
-                        title="اضغط لعرض تفاصيل أرصدة الصنف في جميع المخازن">
-                        <div style="font-size: 0.7rem; color: #ffffff; opacity: 0.95; margin-bottom: 1px; font-weight: 800;">📊 رصيد كل المخازن</div>
-                        <div id="allWhStockCount" style="font-weight: 900; font-size: 1rem; color: #ffffff; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">0 قطعة
-                        </div>
-                    </div>
-
-                    <button class="tool-btn" onclick="toggleTransferColMenu(event)"
-                        style="background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.3); color: white; padding: 7px 16px; border-radius: 9px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 0.85rem;"
-                        onmouseover="this.style.background='rgba(255,255,255,0.25)';"
-                        onmouseout="this.style.background='rgba(255,255,255,0.15)';">
-                        <span>⚙️ الأعمدة</span>
-                    </button>
-
                     <button onclick="closeTransferModal()"
                         style="background: rgba(255,255,255,0.15); border: 1.5px solid rgba(255,255,255,0.3); font-size: 1.1rem; cursor: pointer; color: white; width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; transition: 0.2s;"
                         onmouseover="this.style.background='#dc2626';"
                         onmouseout="this.style.background='rgba(255,255,255,0.15)';">✕</button>
                 </div>
+            </div>
 
-                <!-- ⚙️ نافذة تخصيص الأعمدة (مودال متوسط في المنتصف) -->
-                <div id="transferColMenu" class="hidden"
-                    style="position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 440px; max-width: 90vw; text-align: right; padding: 22px; background: #ffffff; border-radius: 20px; box-shadow: 0 25px 60px rgba(0,0,0,0.35); z-index: 2005; border: 2px solid #16a34a; display: flex; flex-direction: column; animation: modalFadeIn 0.25s ease-out; direction: rtl;">
-                    <div
-                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 12px;">
-                        <h3
-                            style="margin: 0; font-size: 1.1rem; font-weight: 900; color: #0f172a; display: flex; align-items: center; gap: 8px;">
-                            <span>⚙️</span> تخصيص أعمدة التحويل
-                        </h3>
-                        <button type="button" onclick="toggleTransferColMenu()"
-                            style="background: #f1f5f9; border: none; font-size: 1rem; cursor: pointer; color: #64748b; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">✕</button>
-                    </div>
-
-                    <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px;">
-                        <label
-                            style="display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: #f8fafc; border-radius: 12px; cursor: pointer; border: 1.5px solid #e2e8f0; font-weight: 800; color: #334155; font-size: 0.9rem;">
-                            <span>إظهار سعر التحويل</span>
-                            <input type="checkbox" checked onchange="toggleTransferCol('col-tr-price', this.checked)"
-                                style="width: 18px; height: 18px; accent-color: #16a34a; cursor: pointer;">
-                        </label>
-                        <label
-                            style="display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: #f8fafc; border-radius: 12px; cursor: pointer; border: 1.5px solid #e2e8f0; font-weight: 800; color: #334155; font-size: 0.9rem;">
-                            <span>إظهار إجمالي القيمة</span>
-                            <input type="checkbox" checked onchange="toggleTransferCol('col-tr-total', this.checked)"
-                                style="width: 18px; height: 18px; accent-color: #16a34a; cursor: pointer;">
-                        </label>
-                        <label
-                            style="display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: #f8fafc; border-radius: 12px; cursor: pointer; border: 1.5px solid #e2e8f0; font-weight: 800; color: #334155; font-size: 0.9rem;">
-                            <span>إظهار زر الحذف</span>
-                            <input type="checkbox" checked onchange="toggleTransferCol('col-tr-delete', this.checked)"
-                                style="width: 18px; height: 18px; accent-color: #16a34a; cursor: pointer;">
-                        </label>
-                    </div>
-
+            <!-- ⚙️ نافذة تخصيص الأعمدة (مودال متوسط في المنتصف) -->
+            <div id="transferColMenu" class="hidden"
+                style="position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 440px; max-width: 90vw; text-align: right; padding: 22px; background: #ffffff; border-radius: 20px; box-shadow: 0 25px 60px rgba(0,0,0,0.35); z-index: 20050; border: 2px solid #16a34a; display: flex; flex-direction: column; animation: modalFadeIn 0.25s ease-out; direction: rtl;">
+                <div
+                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1.5px solid #f1f5f9; padding-bottom: 12px;">
+                    <h3
+                        style="margin: 0; font-size: 1.1rem; font-weight: 900; color: #0f172a; display: flex; align-items: center; gap: 8px;">
+                        <span>⚙️</span> تخصيص أعمدة التحويل
+                    </h3>
                     <button type="button" onclick="toggleTransferColMenu()"
-                        style="height: 42px; background: linear-gradient(135deg, #16a34a, #15803d); color: white; border: none; border-radius: 10px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25); font-size: 0.92rem; transition: 0.2s;">
-                        حفظ وإغلاق ✅
-                    </button>
+                        style="background: #f1f5f9; border: none; font-size: 1rem; cursor: pointer; color: #64748b; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">✕</button>
                 </div>
+
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px;">
+                    <label
+                        style="display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: #f8fafc; border-radius: 12px; cursor: pointer; border: 1.5px solid #e2e8f0; font-weight: 800; color: #334155; font-size: 0.9rem;">
+                        <span>إظهار سعر التحويل</span>
+                        <input type="checkbox" checked onchange="toggleTransferCol('col-tr-price', this.checked)"
+                            style="width: 18px; height: 18px; accent-color: #16a34a; cursor: pointer;">
+                    </label>
+                    <label
+                        style="display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: #f8fafc; border-radius: 12px; cursor: pointer; border: 1.5px solid #e2e8f0; font-weight: 800; color: #334155; font-size: 0.9rem;">
+                        <span>إظهار إجمالي القيمة</span>
+                        <input type="checkbox" checked onchange="toggleTransferCol('col-tr-total', this.checked)"
+                            style="width: 18px; height: 18px; accent-color: #16a34a; cursor: pointer;">
+                    </label>
+                    <label
+                        style="display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: #f8fafc; border-radius: 12px; cursor: pointer; border: 1.5px solid #e2e8f0; font-weight: 800; color: #334155; font-size: 0.9rem;">
+                        <span>إظهار زر الحذف</span>
+                        <input type="checkbox" checked onchange="toggleTransferCol('col-tr-delete', this.checked)"
+                            style="width: 18px; height: 18px; accent-color: #16a34a; cursor: pointer;">
+                    </label>
+                </div>
+
+                <button type="button" onclick="toggleTransferColMenu()"
+                    style="height: 42px; background: linear-gradient(135deg, #16a34a, #15803d); color: white; border: none; border-radius: 10px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 12px rgba(22, 163, 74, 0.25); font-size: 0.92rem; transition: 0.2s;">
+                    حفظ وإغلاق ✅
+                </button>
             </div>
 
             <div
@@ -14418,18 +14400,18 @@
                     </div>
                 </div>
 
-                <!-- 🔍 شريط البحث والإضافة السريعة للأصناف (شريط موحد في سطر واحد كشريط البيع) -->
+                <!-- 🔍 شريط البحث والإضافة السريعة للأصناف (شريط موحد في سطر واحد بارتفاع 42px) -->
                 <div id="transferSingleItemSelect"
                     style="background: #ffffff; padding: 8px 16px; border-radius: 12px; border: 1.5px solid #e2e8f0; display: flex; gap: 8px; align-items: flex-end; flex-wrap: nowrap; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.03);">
                     <!-- اسم الصنف أو الباركود -->
-                    <div style="flex: 3; min-width: 220px;">
+                    <div style="flex: 2.5; min-width: 200px;">
                         <label
                             style="display: block; margin-bottom: 4px; font-weight: 800; font-size: 0.78rem; color: #2563eb;">🔍
                             ابحث عن صنف لإضافته للتحويل</label>
                         <div style="position: relative;">
                             <input type="text" id="transferProductSearch" class="search-input"
                                 placeholder="اكتب اسم الصنف أو الباركود..."
-                                style="width: 100%; height: 36px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #ffffff; color: #0f172a; font-weight: 800; font-size: 0.9rem; padding: 0 10px; text-align: right; box-sizing: border-box; transition: 0.2s;"
+                                style="width: 100%; height: 42px; border-radius: 10px; border: 1.5px solid #cbd5e1; background: #ffffff; color: #0f172a; font-weight: 800; font-size: 0.92rem; padding: 0 12px; text-align: right; box-sizing: border-box; transition: 0.2s;"
                                 onfocus="this.style.borderColor='#2563eb'; handleTransferProductSearch(this.value);"
                                 onblur="this.style.borderColor='#cbd5e1';"
                                 oninput="handleTransferProductSearch(this.value)">
@@ -14440,87 +14422,87 @@
                     </div>
 
                     <!-- المقاس -->
-                    <div style="width: 85px; flex-shrink: 0;">
+                    <div style="width: 90px; flex-shrink: 0;">
                         <label
                             style="display: block; margin-bottom: 4px; font-weight: 800; font-size: 0.78rem; color: #475569;">📏
                             المقاس</label>
                         <input type="text" id="transferSize" class="search-input" placeholder="المقاس..."
-                            style="height: 36px; border-radius: 8px; text-align: center; font-weight: 800; border: 1.5px solid #cbd5e1; width: 100%; font-size: 0.85rem; box-sizing: border-box; background: #fff;">
+                            style="height: 42px; border-radius: 10px; text-align: center; font-weight: 800; border: 1.5px solid #cbd5e1; width: 100%; font-size: 0.88rem; box-sizing: border-box; background: #fff;">
                     </div>
 
                     <!-- اللون -->
-                    <div style="width: 85px; flex-shrink: 0;">
+                    <div style="width: 90px; flex-shrink: 0;">
                         <label
                             style="display: block; margin-bottom: 4px; font-weight: 800; font-size: 0.78rem; color: #475569;">🎨
                             اللون</label>
                         <input type="text" id="transferColor" class="search-input" placeholder="اللون..."
-                            style="height: 36px; border-radius: 8px; text-align: center; font-weight: 800; border: 1.5px solid #cbd5e1; width: 100%; font-size: 0.85rem; box-sizing: border-box; background: #fff;">
+                            style="height: 42px; border-radius: 10px; text-align: center; font-weight: 800; border: 1.5px solid #cbd5e1; width: 100%; font-size: 0.88rem; box-sizing: border-box; background: #fff;">
                     </div>
 
                     <!-- الكمية -->
-                    <div style="width: 85px; flex-shrink: 0;">
+                    <div style="width: 90px; flex-shrink: 0;">
                         <label
                             style="display: block; margin-bottom: 4px; font-weight: 800; font-size: 0.78rem; color: #475569;"
                             data-i18n="qty">الكمية</label>
                         <input type="number" id="transferQty" class="search-input" value="1"
-                            style="height: 36px; border-radius: 8px; text-align: center; font-weight: 900; border: 1.5px solid #cbd5e1; width: 100%; font-size: 0.95rem; color: #0f172a; box-sizing: border-box; background: #fff;"
+                            style="height: 42px; border-radius: 10px; text-align: center; font-weight: 900; border: 1.5px solid #cbd5e1; width: 100%; font-size: 1rem; color: #0f172a; box-sizing: border-box; background: #fff;"
                             onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#cbd5e1'"
                             onkeydown="if(event.key==='Enter') document.getElementById('transferPrice').focus()">
                     </div>
 
                     <!-- السعر -->
-                    <div style="width: 100px; flex-shrink: 0;">
+                    <div style="width: 105px; flex-shrink: 0;">
                         <label
                             style="display: block; margin-bottom: 4px; font-weight: 800; font-size: 0.78rem; color: #475569;"
                             data-i18n="price">السعر</label>
                         <input type="number" id="transferPrice" class="search-input" value="0.00"
-                            style="height: 36px; border-radius: 8px; text-align: center; font-weight: 900; color: #2563eb; border: 1.5px solid #cbd5e1; width: 100%; font-size: 0.9rem; box-sizing: border-box; background: #fff;"
+                            style="height: 42px; border-radius: 10px; text-align: center; font-weight: 900; color: #2563eb; border: 1.5px solid #cbd5e1; width: 100%; font-size: 0.95rem; box-sizing: border-box; background: #fff;"
                             onfocus="this.style.borderColor='#2563eb'" onblur="this.style.borderColor='#cbd5e1'"
                             onkeydown="if(event.key==='Enter') addManualTransferItem()">
                     </div>
 
-                    <!-- زر الإضافة -->
+                    <!-- زر الإضافة الأفقي العريض -->
                     <div style="flex-shrink: 0;">
-                        <button class="action-btn" onclick="addManualTransferItem()"
-                            style="height: 36px; padding: 0 16px; background: linear-gradient(135deg, #2563eb, #1d4ed8) !important; color: white !important; border: none !important; border-radius: 8px; font-weight: 800; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25); white-space: nowrap;"
+                        <button type="button" onclick="addManualTransferItem()"
+                            style="height: 42px; padding: 0 18px; background: linear-gradient(135deg, #0284c7, #0369a1); color: white; border: none; border-radius: 10px; font-weight: 900; font-size: 0.92rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap; box-shadow: 0 3px 10px rgba(2,132,199,0.3); transition: 0.2s;"
                             onmouseover="this.style.transform='translateY(-1px)';"
                             onmouseout="this.style.transform='translateY(0)';">
-                            <span style="font-size: 1.05rem; font-weight: 800;">+</span>
+                            <span>➕</span>
                             <span>إضافة للتحويل</span>
                         </button>
                     </div>
                 </div>
 
-                <!-- 📊 جدول أصناف التحويل (يتمدد رأسياً بالكامل دون فراغات بيضاء) -->
-                <div
-                    style="flex: 1; min-height: 0; height: 100%; border: 1.5px solid #e2e8f0; border-radius: 12px; overflow-y: auto; background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.02); position: relative; display: flex; flex-direction: column;">
+                <!-- 📊 جدول أصناف التحويل (يتمدد رأسياً بالكامل مع سكرول داخلي مستقل) -->
+                <div class="table-container"
+                    style="flex: 1; min-height: 0; overflow-y: auto; overflow-x: auto; border: 1.5px solid #e2e8f0; border-radius: 12px; background: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,0.02); position: relative; display: flex; flex-direction: column;">
                     <table class="invoice-table" style="width: 100%; border-collapse: separate; border-spacing: 0;">
                         <thead
                             style="background: linear-gradient(135deg, #0f172a, #1e293b); color: white; position: sticky; top: 0; z-index: 10;">
                             <tr>
                                 <th class="col-tr-name"
-                                    style="padding: 9px 12px; text-align: right; font-size: 0.84rem; font-weight: 800;">
+                                    style="padding: 10px 12px; text-align: right; font-size: 0.85rem; font-weight: 800;">
                                     اسم الصنف</th>
                                 <th class="col-tr-size"
-                                    style="padding: 9px 8px; text-align: center; font-size: 0.84rem; font-weight: 800; width: 85px;">
+                                    style="padding: 10px 8px; text-align: center; font-size: 0.85rem; font-weight: 800; width: 85px;">
                                     المقاس</th>
                                 <th class="col-tr-color"
-                                    style="padding: 9px 8px; text-align: center; font-size: 0.84rem; font-weight: 800; width: 85px;">
+                                    style="padding: 10px 8px; text-align: center; font-size: 0.85rem; font-weight: 800; width: 85px;">
                                     اللون</th>
                                 <th class="col-tr-stock"
-                                    style="padding: 9px 8px; text-align: center; font-size: 0.84rem; font-weight: 800; width: 90px;">
+                                    style="padding: 10px 8px; text-align: center; font-size: 0.85rem; font-weight: 800; width: 90px;">
                                     الرصيد المتاح</th>
                                 <th class="col-tr-qty"
-                                    style="padding: 9px 8px; text-align: center; font-size: 0.84rem; font-weight: 800; width: 95px;">
+                                    style="padding: 10px 8px; text-align: center; font-size: 0.85rem; font-weight: 800; width: 95px;">
                                     الكمية المحولة</th>
                                 <th class="col-tr-price"
-                                    style="padding: 9px 8px; text-align: center; font-size: 0.84rem; font-weight: 800; width: 100px;">
+                                    style="padding: 10px 8px; text-align: center; font-size: 0.85rem; font-weight: 800; width: 100px;">
                                     سعر التحويل</th>
                                 <th class="col-tr-total"
-                                    style="padding: 9px 8px; text-align: center; font-size: 0.84rem; font-weight: 800; width: 110px;">
+                                    style="padding: 10px 8px; text-align: center; font-size: 0.85rem; font-weight: 800; width: 110px;">
                                     إجمالي القيمة</th>
                                 <th class="col-tr-delete"
-                                    style="padding: 9px 8px; text-align: center; font-size: 0.84rem; font-weight: 800; width: 50px;">
+                                    style="padding: 10px 8px; text-align: center; font-size: 0.85rem; font-weight: 800; width: 50px;">
                                     حذف</th>
                             </tr>
                         </thead>
@@ -14539,40 +14521,64 @@
                 </div>
             </div>
 
-            <!-- 💰 الفوتر والأزرار النهائية الثابتة بأسفل الشاشة -->
-            <div
-                style="padding: 10px 18px; background: #ffffff; border-top: 1.5px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; direction: rtl; flex-shrink: 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.02);">
-                <div style="display: flex; gap: 16px; align-items: center;">
-                    <div class="col-tr-total"
-                        style="background: #f8fafc; padding: 6px 14px; border-radius: 9px; border: 1.5px solid #e2e8f0; display: flex; align-items: baseline; gap: 8px;">
-                        <span style="font-size: 0.8rem; color: #64748b; font-weight: 800;">إجمالي القيمة:</span>
-                        <div id="transferTotalValue" style="font-size: 1.15rem; font-weight: 900; color: #0f172a;">0.00
-                            ج.م</div>
+            <!-- 💰 الشريط السفلي المطور الثابت (Transfer Modal Modern Footer) -->
+            <div class="transfer-footer"
+                style="display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; background: #ffffff; border-top: 1.5px solid #e2e8f0; flex-shrink: 0; gap: 12px; flex-wrap: nowrap; direction: rtl; box-shadow: 0 -2px 10px rgba(0,0,0,0.02);">
+                <!-- الجانب الأيمن: البيانات والإحصائيات بالترتيب المطلوب -->
+                <div class="transfer-footer-stats" style="display: flex; gap: 10px; align-items: center; flex-wrap: nowrap;">
+                    <!-- 1. كبسولة رصيد كل المخازن -->
+                    <div onclick="window.showCombinedStock()"
+                        style="background: #f8fafc; padding: 0 14px; height: 42px; border-radius: 10px; border: 1.5px solid #e2e8f0; display: flex; align-items: center; gap: 8px; cursor: pointer; transition: 0.2s; white-space: nowrap; box-sizing: border-box;"
+                        onmouseover="this.style.background='#e0f2fe'; this.style.borderColor='#38bdf8';"
+                        onmouseout="this.style.background='#f8fafc'; this.style.borderColor='#e2e8f0';"
+                        title="اضغط لعرض تفاصيل أرصدة الصنف في جميع المخازن">
+                        <span style="font-size: 0.8rem; color: #0369a1; font-weight: 800;">📦 رصيد كل المخازن:</span>
+                        <b id="allWhStockCount" style="font-size: 0.95rem; font-weight: 900; color: #0284c7;">0 قطعة</b>
                     </div>
+
+                    <!-- 2. زر تخصيص الأعمدة -->
+                    <button type="button" class="tool-btn" onclick="toggleTransferColMenu(event)"
+                        style="height: 42px; padding: 0 14px; background: #f8fafc; border: 1.5px solid #cbd5e1; color: #334155; border-radius: 10px; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 0.85rem; white-space: nowrap; box-sizing: border-box;"
+                        onmouseover="this.style.background='#e2e8f0'; this.style.borderColor='#94a3b8';"
+                        onmouseout="this.style.background='#f8fafc'; this.style.borderColor='#cbd5e1';"
+                        title="تخصيص وإظهار/إخفاء أعمدة جدول التحويل">
+                        <span>⚙️ تخصيص الأعمدة</span>
+                    </button>
+
+                    <!-- 3. كبسولة إجمالي القيمة -->
+                    <div class="col-tr-total"
+                        style="background: #f8fafc; padding: 0 14px; height: 42px; border-radius: 10px; border: 1.5px solid #e2e8f0; display: flex; align-items: center; gap: 8px; white-space: nowrap; box-sizing: border-box;">
+                        <span style="font-size: 0.8rem; color: #64748b; font-weight: 800;">💰 إجمالي القيمة:</span>
+                        <b id="transferTotalValue" style="font-size: 1.05rem; font-weight: 900; color: #0f172a;">0.00 ج.م</b>
+                    </div>
+
+                    <!-- 4. كبسولة عدد الأصناف -->
                     <div
-                        style="background: #f8fafc; padding: 6px 14px; border-radius: 9px; border: 1.5px solid #e2e8f0; display: flex; align-items: baseline; gap: 8px;">
-                        <span style="font-size: 0.8rem; color: #64748b; font-weight: 800;">عدد الأصناف:</span>
-                        <div id="transferItemsCount" style="font-size: 1.15rem; font-weight: 900; color: #059669;">0
-                        </div>
+                        style="background: #f8fafc; padding: 0 14px; height: 42px; border-radius: 10px; border: 1.5px solid #e2e8f0; display: flex; align-items: center; gap: 8px; white-space: nowrap; box-sizing: border-box;">
+                        <span style="font-size: 0.8rem; color: #64748b; font-weight: 800;">📋 عدد الأصناف:</span>
+                        <b id="transferItemsCount" style="font-size: 1.05rem; font-weight: 900; color: #059669;">0</b>
                     </div>
                 </div>
 
-                <div style="display: flex; gap: 10px; align-items: center;">
-                    <button class="action-btn" onclick="closeTransferModal()"
-                        style="height: 38px; padding: 0 18px; background: #f1f5f9 !important; color: #475569 !important; border: 1.5px solid #cbd5e1 !important; border-radius: 9px; font-weight: 800; cursor: pointer; transition: 0.2s; font-size: 0.86rem;">
-                        إلغاء ✕
+                <!-- الجانب الأيسر: أزرار الإجراءات بدون أي انضغاط -->
+                <div class="transfer-footer-actions" style="display: flex; gap: 10px; align-items: center; flex-wrap: nowrap;">
+                    <button type="button" class="action-btn" onclick="closeTransferModal()"
+                        style="height: 42px; padding: 0 18px; background: #f1f5f9 !important; color: #475569 !important; border: 1.5px solid #cbd5e1 !important; border-radius: 10px; font-weight: 800; cursor: pointer; transition: 0.2s; font-size: 0.88rem; white-space: nowrap; flex-shrink: 0; box-sizing: border-box;">
+                        ✕ إلغاء
                     </button>
-                    <button class="action-btn" onclick="printTransferNote()"
-                        style="height: 38px; padding: 0 18px; background: linear-gradient(135deg, #0284c7, #0369a1) !important; color: white !important; border: none !important; border-radius: 9px; font-weight: 800; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px; font-size: 0.86rem; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);"
+                    <button type="button" class="action-btn" onclick="printTransferNote()"
+                        style="height: 42px; padding: 0 20px; background: #0284c7 !important; color: white !important; border: none !important; border-radius: 10px; font-weight: 900; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px; font-size: 0.88rem; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25); white-space: nowrap; flex-shrink: 0; box-sizing: border-box;"
+                        onmouseover="this.style.background='#0369a1'; this.style.transform='translateY(-1px)';"
+                        onmouseout="this.style.background='#0284c7'; this.style.transform='translateY(0)';">
+                        <span>🖨️</span>
+                        <span>طباعة الإذن</span>
+                    </button>
+                    <button type="button" class="action-btn" onclick="processBatchTransfer()"
+                        style="height: 42px; padding: 0 24px; background: linear-gradient(135deg, #059669, #047857) !important; color: white !important; border: none !important; border-radius: 10px; font-weight: 900; font-size: 0.95rem; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px; box-shadow: 0 3px 12px rgba(5, 150, 105, 0.3); white-space: nowrap; flex-shrink: 0; box-sizing: border-box;"
                         onmouseover="this.style.transform='translateY(-1px)';"
                         onmouseout="this.style.transform='translateY(0)';">
-                        <span>🖨️ طباعة الإذن</span>
-                    </button>
-                    <button class="action-btn" onclick="processBatchTransfer()"
-                        style="height: 38px; padding: 0 22px; background: linear-gradient(135deg, #059669, #047857) !important; color: white !important; border: none !important; border-radius: 9px; font-weight: 900; font-size: 0.92rem; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px; box-shadow: 0 3px 12px rgba(5, 150, 105, 0.25);"
-                        onmouseover="this.style.transform='translateY(-1px)';"
-                        onmouseout="this.style.transform='translateY(0)';">
-                        <span>✅ تنفيذ التحويل الآن</span>
+                        <span>🚚</span>
+                        <span>تنفيذ التحويل</span>
                     </button>
                 </div>
             </div>
