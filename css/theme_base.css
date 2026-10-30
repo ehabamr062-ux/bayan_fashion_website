@@ -5004,9 +5004,17 @@ body.dark-mode #purchase-section {
 /* ============================================================
  * 🚚 هندسة وتصميم شاشة تحويل المخزون المجمّع (#transferModal)
  * ============================================================ */
-#transferModal {
+#transferModal.hidden,
+body.is-logged-out #transferModal {
+    display: none !important;
+}
+
+#transferModal:not(.hidden) {
     display: flex !important;
     flex-direction: column !important;
+}
+
+#transferModal {
     overflow: hidden !important;
 }
 
