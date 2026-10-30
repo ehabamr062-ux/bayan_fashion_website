@@ -1685,6 +1685,22 @@
         }
 
         /**
+         * 🏷️ استخراج بادئة نوع العملية لمنع تصادم المعرفات بين الأقسام
+         */
+        _getTypePrefix(tp) {
+            const s = String(tp || '').trim();
+            if (s.includes('مرتجع بيع') || s.includes('مرتجع مبيعات') || s === 'sale_return') return 'SR';
+            if (s.includes('مرتجع شراء') || s.includes('مرتجع مشتريات') || s === 'purchase_return') return 'PR';
+            if (s.includes('بيع') || s.includes('مبيعات') || s === 'sale') return 'S';
+            if (s.includes('شراء') || s.includes('مشتريات') || s === 'purchase') return 'P';
+            if (s.includes('قبض') || s === 'receipt') return 'R';
+            if (s.includes('صرف') || s.includes('دفع') || s === 'disburse') return 'D';
+            if (s.includes('تحويل') || s.includes('transfer')) return 'T';
+            if (s.includes('تسوية') || s.includes('جرد') || s.includes('adj')) return 'A';
+            return 'TX';
+        }
+
+        /**
          * ⚡ حفظ أو تحديث سجل واحد بدون تكرار البيانات في raw_json
          */
         put(tableName, item) {
@@ -1746,25 +1762,28 @@
                 } else if (tableName === 'transactions') {
                     // 🔒 تغليف إدخال رأس الفاتورة وبنودها داخل Transaction ذرية موحدة لمنع الفواتير اليتيمة
                     this.runInTransaction(() => {
+                        const cleanType = String(item.type || 'sale');
+                        const prefix = this._getTypePrefix(cleanType);
                         let cleanId = (item.id != null && item.id !== '') ? String(item.id) : null;
-                        if (!cleanId) {
+                        if (!cleanId || cleanId === String(item.invoiceId) || /^\d+$/.test(cleanId)) {
                             if (item.isInvoiceHead && item.invoiceId) {
-                                cleanId = String(item.invoiceId);
+                                cleanId = `${prefix}_${item.invoiceId}`;
                             } else if (item.invoiceId) {
-                                cleanId = `${item.invoiceId}_item_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+                                cleanId = `${prefix}_${item.invoiceId}_item_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
                             } else {
-                                cleanId = 'TX_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+                                cleanId = `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
                             }
+                        } else if (item.isInvoiceHead && item.invoiceId && !cleanId.startsWith(prefix + '_')) {
+                            cleanId = `${prefix}_${item.invoiceId}`;
                         }
                         item.id = cleanId;
                         const cleanInvoiceId = String(item.invoiceId != null && item.invoiceId !== '' ? item.invoiceId : cleanId);
-                        const cleanType = String(item.type || 'sale');
 
-                        // عند حفظ رأس فاتورة جديد، نحذف مسبقاً أي سطور فرعية قديمة (_item_) سابقة لنفس الفاتورة
+                        // عند حفظ رأس فاتورة جديد، نحذف مسبقاً أي سطور فرعية قديمة (_item_) سابقة لنفس الفاتورة مع اشتراط تطابق النوع
                         if (item.isInvoiceHead && item.invoiceId) {
                             try {
                                 this.db.run("DELETE FROM transactions WHERE invoiceId = ? AND id != ? AND type = ?;", [cleanInvoiceId, cleanId, cleanType]);
-                                this.db.run("DELETE FROM transaction_items WHERE invoiceId = ? AND tx_id != ?;", [cleanInvoiceId, cleanId]);
+                                this.db.run("DELETE FROM transaction_items WHERE invoiceId = ? AND tx_id != ? AND type = ?;", [cleanInvoiceId, cleanId, cleanType]);
                             } catch (cleanOldErr) { }
                         }
                         const cleanOrigInvId = (item.originalInvoiceId != null && item.originalInvoiceId !== '') ? String(item.originalInvoiceId) : null;
@@ -1947,7 +1966,7 @@
                             `);
                             const cachedStmts = { delTiStmt, insTiStmt };
 
-                            // تنظيف مسبق للسطور الفرعية القديمة (_item_) لأي فاتورة يعاد حفظها أو تحديثها بالكامل
+                            // تنظيف مسبق للسطور الفرعية القديمة (_item_) لأي فاتورة يعاد حفظها أو تحديثها بالكامل مع اشتراط تطابق النوع
                             const cleanedHeadInvoices = new Set();
                             for (const it of items) {
                                 if (it && it.isInvoiceHead && it.invoiceId) {
@@ -1959,10 +1978,11 @@
                                         try {
                                             if (sType) {
                                                 this.db.run("DELETE FROM transactions WHERE invoiceId = ? AND type = ?;", [sInv, sType]);
+                                                this.db.run("DELETE FROM transaction_items WHERE invoiceId = ? AND type = ?;", [sInv, sType]);
                                             } else {
                                                 this.db.run("DELETE FROM transactions WHERE invoiceId = ?;", [sInv]);
+                                                this.db.run("DELETE FROM transaction_items WHERE invoiceId = ?;", [sInv]);
                                             }
-                                            this.db.run("DELETE FROM transaction_items WHERE invoiceId = ?;", [sInv]);
                                         } catch (cleanPreErr) { }
                                     }
                                 }
@@ -1971,15 +1991,19 @@
                             for (let itemIdx = 0; itemIdx < items.length; itemIdx++) {
                                 const item = items[itemIdx];
                                 if (!item) continue;
+                                const cleanType = String(item.type || 'sale');
+                                const prefix = this._getTypePrefix(cleanType);
                                 let cleanId = (item.id != null && item.id !== '') ? String(item.id) : null;
-                                if (!cleanId) {
+                                if (!cleanId || cleanId === String(item.invoiceId) || /^\d+$/.test(cleanId)) {
                                     if (item.isInvoiceHead && item.invoiceId) {
-                                        cleanId = String(item.invoiceId);
+                                        cleanId = `${prefix}_${item.invoiceId}`;
                                     } else if (item.invoiceId) {
-                                        cleanId = `${item.invoiceId}_item_${itemIdx + 1}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+                                        cleanId = `${prefix}_${item.invoiceId}_item_${itemIdx + 1}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
                                     } else {
-                                        cleanId = 'TX_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
+                                        cleanId = `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
                                     }
+                                } else if (item.isInvoiceHead && item.invoiceId && !cleanId.startsWith(prefix + '_')) {
+                                    cleanId = `${prefix}_${item.invoiceId}`;
                                 }
                                 if (seenIdsInBatch.has(cleanId)) {
                                     cleanId = `${cleanId}_item_${itemIdx + 1}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
@@ -1990,7 +2014,6 @@
                                 const cleanOrigInvId = (item.originalInvoiceId != null && item.originalInvoiceId !== '') ? String(item.originalInvoiceId) : null;
                                 const cleanDateISO = this.normalizeDateISO(item.dateISO || item.date);
                                 const cleanTime = String(item.time || item.timeISO || (item.dateISO && String(item.dateISO).includes('T') ? String(item.dateISO).split('T')[1].slice(0, 8) : ''));
-                                const cleanType = String(item.type || 'sale');
                                 const cleanPartner = String(item.partner || item.customer || item.client || '');
                                 const cleanTotal = Number(item.total != null && !isNaN(item.total) ? item.total : (item.finalTotal || item.grandTotal || 0)) || 0;
                                 const cleanPaid = Number(item.paidAmount != null && !isNaN(item.paidAmount) ? item.paidAmount : (item.paid != null ? item.paid : 0)) || 0;

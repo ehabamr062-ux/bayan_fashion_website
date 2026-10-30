@@ -1545,6 +1545,8 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
             }
         }
 
+        const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
+
         // 🛑 فحص رصيد المخزن المتاح لمرتجع الشراء (منع إرجاع بضاعة غير متوفرة بالمخزن)
         let purReturnStockErrors = [];
         purReturnCart.forEach(item => {
@@ -1595,9 +1597,12 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
 
             const baseQty = (parseFloat(item.qty) || 0) * factor;
 
+            const sSize = String(item.selectedSize || item.size || '').trim();
+            const sColor = String(item.selectedColor || item.color || '').trim();
+
             // تحديد المخزن: من الصنف المرتجع، أو مخزن المستخدم الحالي الحاضر (أولوية للمقر الفعلي)، أو الفاتورة الأصلية، أو الرئيسي
             const origMatch = originalInvoiceId ? transactions.find(t => String(t.invoiceId) === String(originalInvoiceId) && (t.product === item.name || t.productName === item.name)) : null;
-            const activeWH = (item.warehouse || (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) || (origMatch && origMatch.warehouse) || 'المخزن الرئيسي').trim();
+            const itemWH = (item.warehouse || (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) || (origMatch && origMatch.warehouse) || activeWH || 'المخزن الرئيسي').trim();
 
             if (p) {
                 if (typeof window.FashionStockEngine !== 'undefined') {
@@ -1605,12 +1610,12 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
                         product: p,
                         variantRef: item.selectedVariant || { size: sSize, color: sColor, barcode: item.barcode },
                         qtyDelta: -baseQty,
-                        warehouseName: activeWH
+                        warehouseName: itemWH
                     });
                 } else {
                     p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
                     if (!p.warehouseStocks || typeof p.warehouseStocks !== 'object') p.warehouseStocks = {};
-                    p.warehouseStocks[activeWH] = Math.max(0, (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty);
+                    p.warehouseStocks[itemWH] = Math.max(0, (parseFloat(p.warehouseStocks[itemWH]) || 0) - baseQty);
                 }
 
                 if (!affectedProducts.some(ap => ap.id === p.id)) {

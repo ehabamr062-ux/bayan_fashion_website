@@ -740,7 +740,7 @@ async function renderInvoicesTable(isLoadMore = false) {
         }
 
         let rawData = transactions;
-        if (window.BayanSQLite && typeof window.BayanSQLite.queryFilteredTransactions === 'function' && window.BayanSQLite.db && (fromDate || toDate || searchId || searchPartner || (typeFilter && typeFilter !== 'all') || whFilterVal)) {
+        if (window.BayanSQLite && typeof window.BayanSQLite.queryFilteredTransactions === 'function' && window.BayanSQLite.db) {
             const sqlFiltered = window.BayanSQLite.queryFilteredTransactions({
                 fromDate,
                 toDate,
@@ -1564,7 +1564,8 @@ window.openAdvancedEditModal = async function (invId = null) {
 
     });
 
-    const isCash = (head.method && (head.method.includes('نقدي') || head.method.includes('كاش') || head.method.includes('نقدية')));
+    const isCash = (head && head.method && (head.method.includes('نقدي') || head.method.includes('كاش') || head.method.includes('نقدية')));
+    const isGoods = head && head.type && !head.type.includes('قبض') && !head.type.includes('صرف');
 
     const content = `
 
@@ -2833,10 +2834,14 @@ window.revertAndClearOldInvoice = async function (invId, type) {
             }
         }
 
-        // تنظيف فوري متزامن لبنود الفاتورة في جدول transaction_items
+        // تنظيف فوري متزامن لبنود الفاتورة في جدول transaction_items مع فلتر النوع لمنع مسح بنود فواتير الأقسام الأخرى
         if (window.BayanSQLite && window.BayanSQLite.db) {
             try {
-                window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE invoiceId = ? OR tx_id = ?;", [String(invId), String(invId)]);
+                if (cleanType) {
+                    window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE (invoiceId = ? OR tx_id = ?) AND (type = ? OR type LIKE ?);", [String(invId), String(invId), cleanType, `%${cleanType}%`]);
+                } else {
+                    window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE invoiceId = ? OR tx_id = ?;", [String(invId), String(invId)]);
+                }
                 window.BayanSQLite._isDirty = true;
             } catch (tiErr) { }
         }
@@ -3170,10 +3175,15 @@ async function deleteTransaction(idx) {
 
                     }
 
-                    // تنظيف فوري متزامن لبنود الفاتورة في جدول transaction_items
+                    // تنظيف فوري متزامن لبنود الفاتورة في جدول transaction_items مع فلتر النوع
                     if (window.BayanSQLite && window.BayanSQLite.db) {
                         try {
-                            window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE invoiceId = ? OR tx_id = ?;", [String(invId), String(invId)]);
+                            const tType = t && t.type ? String(t.type).replace(/📤|📥|↩️|⚖️/g, '').trim() : '';
+                            if (tType) {
+                                window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE (invoiceId = ? OR tx_id = ?) AND (type = ? OR type LIKE ?);", [String(invId), String(invId), tType, `%${tType}%`]);
+                            } else {
+                                window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE invoiceId = ? OR tx_id = ?;", [String(invId), String(invId)]);
+                            }
                             window.BayanSQLite._isDirty = true;
                         } catch (tiErr) { }
                     }

@@ -196,12 +196,12 @@ function createWindow() {
             return;
         }
 
-        // صمام أمان زمني فائق السرعة في حال تعليق الريندرر (ثانية واحدة كحد أقصى للخروج الفوري Zero-Shutdown Lag)
+        // صمام أمان زمني في حال تعليق الريندرر (4 ثوانٍ كحد أقصى لإتمام عمليات الكتابة وحماية الهاردات البطيئة)
         if (global.quitTimeout) clearTimeout(global.quitTimeout);
         global.quitTimeout = setTimeout(() => {
             isQuitting = true;
             app.exit(0);
-        }, 1000);
+        }, 4000);
     });
 
     win.on('closed', () => {
