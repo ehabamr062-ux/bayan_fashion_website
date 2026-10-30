@@ -5962,7 +5962,10 @@
 
         window.renderAnalysisReport = function() {
             if (typeof renderAnalysisTable === 'function') {
-                renderAnalysisTable();
+                window.analysisDisplayLimit = 100;
+            window.analysisRenderLimit = 100;
+            window.analysisGroupsLimit = 100;
+            renderAnalysisTable();
             }
         };
 
@@ -6420,6 +6423,9 @@
                 }
             });
 
+            window.analysisDisplayLimit = 100;
+            window.analysisRenderLimit = 100;
+            window.analysisGroupsLimit = 100;
             renderAnalysisTable();
 
             if (shouldScroll) {
@@ -6738,6 +6744,9 @@
             if (sortIcon) {
                 sortIcon.innerText = (analysisDateSortDir === 'desc') ? ' 🔽' : ' 🔼';
             }
+            window.analysisDisplayLimit = 100;
+            window.analysisRenderLimit = 100;
+            window.analysisGroupsLimit = 100;
             renderAnalysisTable();
         }
         window.toggleAnalysisDateSort = toggleAnalysisDateSort;
@@ -6804,9 +6813,53 @@
             if (document.getElementById('anWarehouse')) document.getElementById('anWarehouse').value = 'all';
             if (document.getElementById('anUser')) document.getElementById('anUser').value = 'all';
             updateAnalysisActiveFiltersBadge();
+            window.analysisDisplayLimit = 100;
+            window.analysisRenderLimit = 100;
+            window.analysisGroupsLimit = 100;
             renderAnalysisTable();
         }
         window.resetAnalysisAdvancedFilters = resetAnalysisAdvancedFilters;
+
+        // ⚡ إدارة سقف العرض التدريجي لشاشة تحليل المبيعات (Lazy Batch Loading)
+        window.analysisDisplayLimit = window.analysisDisplayLimit || 100;
+        window.analysisRenderLimit = window.analysisDisplayLimit;
+        window.analysisGroupsLimit = window.analysisDisplayLimit;
+
+        window.loadMoreAnalysisRows = async function(step = 50) {
+            const container = document.getElementById('analysisTableContainer');
+            const prevScrollTop = container ? container.scrollTop : 0;
+            window._isAnalysisLoadingMore = true;
+            window.analysisDisplayLimit = (window.analysisDisplayLimit || 100) + step;
+            window.analysisRenderLimit = window.analysisDisplayLimit;
+            window.analysisGroupsLimit = window.analysisDisplayLimit;
+            if (typeof renderAnalysisTable === 'function') {
+                await renderAnalysisTable();
+            }
+            window._isAnalysisLoadingMore = false;
+            if (container) {
+                requestAnimationFrame(() => {
+                    container.scrollTop = prevScrollTop;
+                });
+            }
+        };
+
+        window.loadAllAnalysisRows = async function() {
+            const container = document.getElementById('analysisTableContainer');
+            const prevScrollTop = container ? container.scrollTop : 0;
+            window._isAnalysisLoadingMore = true;
+            window.analysisDisplayLimit = 999999;
+            window.analysisRenderLimit = window.analysisDisplayLimit;
+            window.analysisGroupsLimit = window.analysisDisplayLimit;
+            if (typeof renderAnalysisTable === 'function') {
+                await renderAnalysisTable();
+            }
+            window._isAnalysisLoadingMore = false;
+            if (container) {
+                requestAnimationFrame(() => {
+                    container.scrollTop = prevScrollTop;
+                });
+            }
+        };
 
         // ⚡ مؤقت تأخير ذكي لبحث قسم التحليل السريع لمنع استهلاك المعالج أثناء الكتابة
         let _analysisSearchDebounceTimer = null;
@@ -6816,7 +6869,10 @@
             }
             _analysisSearchDebounceTimer = setTimeout(() => {
                 _analysisSearchDebounceTimer = null;
-                renderAnalysisTable();
+                window.analysisDisplayLimit = 100;
+            window.analysisRenderLimit = 100;
+            window.analysisGroupsLimit = 100;
+            renderAnalysisTable();
             }, delay);
         };
 
@@ -6842,6 +6898,17 @@
             const catFilter = document.getElementById('anCategory')?.value || 'all';
             const whFilter = document.getElementById('anWarehouse')?.value || 'all';
             const userFilter = document.getElementById('anUser')?.value || 'all';
+
+            // فحص تغير الفلاتر أو البحث أو النمط لإعادة ضبط سقف العرض لـ 100 تلقائياً
+            const currentFilterSignature = `${fromDate}|${toDate}|${searchQuery}|${accFilter}|${methodFilter}|${catFilter}|${whFilter}|${userFilter}|${currentAnalysisMode}`;
+            if (window._lastAnalysisFilterSignature !== currentFilterSignature && !window._isAnalysisLoadingMore) {
+                window.analysisDisplayLimit = 100;
+                window.analysisRenderLimit = 100;
+                window.analysisGroupsLimit = 100;
+                window._lastAnalysisFilterSignature = currentFilterSignature;
+            } else {
+                window._lastAnalysisFilterSignature = currentFilterSignature;
+            }
 
             // 2. تحديث وتعبئة القوائم الديناميكية بدون إنشاء مصفوفات وسيطة تستهلك الذاكرة
             const accSelect = document.getElementById('anAccount');
@@ -7268,7 +7335,7 @@
             // 8. بناء الجدول - النمط التفصيلي (Detailed Mode)
             if (currentAnalysisMode === 'detailed') {
                 const totalMatching = data.length;
-                const limit = window.analysisRenderLimit || 150;
+                const limit = window.analysisDisplayLimit || 100;
                 const displayedData = data.slice(0, limit);
                 const hasMore = totalMatching > displayedData.length;
 
@@ -7339,11 +7406,39 @@
 
                 if (hasMore) {
                     rowsHtml.push(`
-                        <tr>
-                            <td colspan="13" style="text-align:center; padding:15px; background:#f8fafc; border-top:1px solid #e2e8f0;">
-                                <button type="button" class="tool-btn" style="padding:8px 24px; font-size:0.95rem; font-weight:bold; background:#4f46e5; color:white; border-radius:10px; border:none; cursor:pointer; box-shadow:0 2px 6px rgba(79,70,229,0.3);" onclick="window.analysisRenderLimit = (window.analysisRenderLimit || 150) + 150; renderAnalysisTable();">
-                                    ⬇️ عرض المزيد (+150 حركة) - معروض ${displayedData.length} من أصل ${totalMatching}
-                                </button>
+                        <tr id="analysisLoadMoreRow">
+                            <td colspan="13" style="text-align:center; padding:14px 20px; background:linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); border-top:2px solid #e2e8f0;">
+                                <div style="display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap;">
+                                    <div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:30px; padding:6px 16px; font-weight:800; font-size:0.86rem; color:#334155; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 5px rgba(0,0,0,0.03);">
+                                        <span>📊</span>
+                                        <span>معروض <strong style="color:#4f46e5; font-size:0.95rem;">(${displayedData.length})</strong> من إجمالي <strong style="color:#0f172a; font-size:0.95rem;">(${totalMatching})</strong> حركة</span>
+                                    </div>
+                                    <button type="button" onclick="loadMoreAnalysisRows(50)"
+                                        style="height:38px; padding:0 18px; background:linear-gradient(135deg, #4f46e5, #4338ca); color:#ffffff; border:none; border-radius:10px; font-weight:900; font-size:0.88rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; box-shadow:0 4px 12px rgba(79,70,229,0.25); transition:all 0.2s ease;"
+                                        onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(79,70,229,0.35)';"
+                                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(79,70,229,0.25)';">
+                                        <span style="font-size:1rem;">⚡</span>
+                                        <span>عرض المزيد (+50)</span>
+                                    </button>
+                                    <button type="button" onclick="loadAllAnalysisRows()"
+                                        style="height:38px; padding:0 16px; background:#ffffff; color:#0f172a; border:1.5px solid #94a3b8; border-radius:10px; font-weight:900; font-size:0.88rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; box-shadow:0 2px 6px rgba(0,0,0,0.04); transition:all 0.2s ease;"
+                                        onmouseover="this.style.background='#f8fafc'; this.style.borderColor='#4f46e5'; this.style.color='#4f46e5';"
+                                        onmouseout="this.style.background='#ffffff'; this.style.borderColor='#94a3b8'; this.style.color='#0f172a';">
+                                        <span style="font-size:1rem;">🚀</span>
+                                        <span>عرض الكل</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `);
+                } else if (totalMatching > 0) {
+                    rowsHtml.push(`
+                        <tr id="analysisLoadMoreRow">
+                            <td colspan="13" style="text-align:center; padding:12px 20px; background:#f8fafc; border-top:1.5px solid #e2e8f0;">
+                                <div style="display:inline-flex; align-items:center; gap:8px; background:#ffffff; border:1.5px solid #e2e8f0; border-radius:20px; padding:4px 16px; font-size:0.82rem; font-weight:800; color:#64748b;">
+                                    <span>✅</span>
+                                    <span>معروض <strong style="color:#10b981;">(${displayedData.length})</strong> من إجمالي <strong style="color:#0f172a;">(${totalMatching})</strong> حركة (تم عرض كامل النتائج)</span>
+                                </div>
                             </td>
                         </tr>
                     `);
@@ -7398,7 +7493,7 @@
 
                 const sortedGroups = Object.values(groups).sort((a, b) => b.netTotal - a.netTotal);
                 const totalGroups = sortedGroups.length;
-                const gLimit = window.analysisGroupsLimit || 250;
+                const gLimit = window.analysisDisplayLimit || 100;
                 const displayedGroups = sortedGroups.slice(0, gLimit);
                 const hasMoreGroups = totalGroups > displayedGroups.length;
 
@@ -7450,11 +7545,39 @@
 
                 if (hasMoreGroups) {
                     rowsHtml.push(`
-                        <tr>
-                            <td colspan="13" style="text-align:center; padding:15px; background:#f8fafc; border-top:1px solid #e2e8f0;">
-                                <button type="button" class="tool-btn" style="padding:8px 24px; font-size:0.95rem; font-weight:bold; background:#4f46e5; color:white; border-radius:10px; border:none; cursor:pointer; box-shadow:0 2px 6px rgba(79,70,229,0.3);" onclick="window.analysisGroupsLimit = (window.analysisGroupsLimit || 250) + 250; renderAnalysisTable();">
-                                    ⬇️ عرض المزيد (+250 صنف) - معروض ${displayedGroups.length} من أصل ${totalGroups}
-                                </button>
+                        <tr id="analysisLoadMoreRow">
+                            <td colspan="13" style="text-align:center; padding:14px 20px; background:linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%); border-top:2px solid #e2e8f0;">
+                                <div style="display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap;">
+                                    <div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:30px; padding:6px 16px; font-weight:800; font-size:0.86rem; color:#334155; display:inline-flex; align-items:center; gap:6px; box-shadow:0 2px 5px rgba(0,0,0,0.03);">
+                                        <span>📊</span>
+                                        <span>معروض <strong style="color:#4f46e5; font-size:0.95rem;">(${displayedGroups.length})</strong> من إجمالي <strong style="color:#0f172a; font-size:0.95rem;">(${totalGroups})</strong> صنف</span>
+                                    </div>
+                                    <button type="button" onclick="loadMoreAnalysisRows(50)"
+                                        style="height:38px; padding:0 18px; background:linear-gradient(135deg, #4f46e5, #4338ca); color:#ffffff; border:none; border-radius:10px; font-weight:900; font-size:0.88rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; box-shadow:0 4px 12px rgba(79,70,229,0.25); transition:all 0.2s ease;"
+                                        onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(79,70,229,0.35)';"
+                                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(79,70,229,0.25)';">
+                                        <span style="font-size:1rem;">⚡</span>
+                                        <span>عرض المزيد (+50)</span>
+                                    </button>
+                                    <button type="button" onclick="loadAllAnalysisRows()"
+                                        style="height:38px; padding:0 16px; background:#ffffff; color:#0f172a; border:1.5px solid #94a3b8; border-radius:10px; font-weight:900; font-size:0.88rem; cursor:pointer; display:inline-flex; align-items:center; gap:8px; box-shadow:0 2px 6px rgba(0,0,0,0.04); transition:all 0.2s ease;"
+                                        onmouseover="this.style.background='#f8fafc'; this.style.borderColor='#4f46e5'; this.style.color='#4f46e5';"
+                                        onmouseout="this.style.background='#ffffff'; this.style.borderColor='#94a3b8'; this.style.color='#0f172a';">
+                                        <span style="font-size:1rem;">🚀</span>
+                                        <span>عرض الكل</span>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `);
+                } else if (totalGroups > 0) {
+                    rowsHtml.push(`
+                        <tr id="analysisLoadMoreRow">
+                            <td colspan="13" style="text-align:center; padding:12px 20px; background:#f8fafc; border-top:1.5px solid #e2e8f0;">
+                                <div style="display:inline-flex; align-items:center; gap:8px; background:#ffffff; border:1.5px solid #e2e8f0; border-radius:20px; padding:4px 16px; font-size:0.82rem; font-weight:800; color:#64748b;">
+                                    <span>✅</span>
+                                    <span>معروض <strong style="color:#10b981;">(${displayedGroups.length})</strong> من إجمالي <strong style="color:#0f172a;">(${totalGroups})</strong> صنف (تم عرض كامل النتائج)</span>
+                                </div>
                             </td>
                         </tr>
                     `);
@@ -7466,6 +7589,8 @@
             applyAnalysisColumnVisibility();
         }
         window.renderAnalysisTable = renderAnalysisTable;
+        window.renderSalesAnalysisTable = renderAnalysisTable;
+        window.renderAnalysisReport = renderAnalysisTable;
 
         // --- 1. تقرير كبار العملاء ومسحوباتهم ومديونياتهم التنازلية ---
         function renderCustomerAnalysisReport(data, totalPeriodSales) {
@@ -7909,8 +8034,9 @@
         window.viewSelectedAnalysisInvoice = viewSelectedAnalysisInvoice;
 
         async function applyAnalysisPeriodFilter(period) {
-            window.analysisRenderLimit = 150;
-            window.analysisGroupsLimit = 250;
+            window.analysisDisplayLimit = 100;
+            window.analysisRenderLimit = 100;
+            window.analysisGroupsLimit = 100;
             const fromInput = document.getElementById('anDateFrom');
             const toInput = document.getElementById('anDateTo');
             const customContainer = document.getElementById('anCustomDates');
