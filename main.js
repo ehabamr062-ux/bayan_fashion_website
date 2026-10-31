@@ -555,7 +555,7 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
             _activePrintDestroyTimer = null;
         }
         if (_activePrintWin && !_activePrintWin.isDestroyed()) {
-            try { _activePrintWin.destroy(); } catch (e) {}
+            try { _activePrintWin.close(); } catch (e) {}
             _activePrintWin = null;
         }
 
@@ -569,20 +569,20 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                 clearTimeout(timeoutTimer);
                 resolve(res);
 
-                // ⏱️ مهلة آمنة (2 ثانية فقط) في الخلفية قبل إغلاق نافذة الطباعة لضمان انتهاء Spooler ويندوز
+                // ⏱️ مهلة آمنة (8 ثوانٍ) في الخلفية قبل إغلاق نافذة الطباعة لمنح Windows Spooler الوقت الكافي لطباعة الفاتورة دون قطع مفاجئ
                 if (delayDestroy) {
                     _activePrintDestroyTimer = setTimeout(() => {
                         if (printWin && !printWin.isDestroyed()) {
-                            try { printWin.destroy(); } catch (e) {}
+                            try { printWin.close(); } catch (e) {}
                             if (_activePrintWin === printWin) _activePrintWin = null;
                         }
                         if (tempReceiptFile) {
                             try { if (fs.existsSync(tempReceiptFile)) fs.unlinkSync(tempReceiptFile); } catch (e) {}
                         }
-                    }, 2000);
+                    }, 8000);
                 } else {
                     if (printWin && !printWin.isDestroyed()) {
-                        try { printWin.destroy(); } catch (e) {}
+                        try { printWin.close(); } catch (e) {}
                         if (_activePrintWin === printWin) _activePrintWin = null;
                     }
                     if (tempReceiptFile) {
@@ -609,14 +609,11 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
             printWin = new BrowserWindow({
                 width: 350,
                 height: 900,
-                x: -20000,
-                y: -20000,
-                show: true,
+                show: false,
+                backgroundColor: '#ffffff',
                 focusable: false,
                 skipTaskbar: true,
                 frame: false,
-                transparent: true,
-                autoHideMenuBar: true,
                 webPreferences: {
                     nodeIntegration: false,
                     contextIsolation: true,
@@ -654,22 +651,24 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                         return cleanup({ success: false, error: 'Invoice content is blank' }, false);
                     }
 
-                    let targetDevice = (printerName && String(printerName).trim()) || '';
-
-                    // إذا لم يتم تحديد طابعة محددة بالاسم، البحث الذكي عن طابعة الكاشير والإيصالات الحرارية (مثل XP-80C)
-                    if (!targetDevice) {
-                        try {
-                            const printers = await printWin.webContents.getPrintersAsync();
-                            const receiptPrinter = printers.find(p => /XP-80|80C|Xprinter|POS|Receipt|Thermal|Cashier|58|80/i.test(p.name));
+                    let targetDevice = '';
+                    try {
+                        const printers = await printWin.webContents.getPrintersAsync();
+                        const pNameInput = (printerName && String(printerName).trim()) || '';
+                        if (pNameInput && printers.some(p => p.name === pNameInput)) {
+                            targetDevice = pNameInput;
+                        } else {
+                            const receiptPrinter = printers.find(p => /XP-80|80C|Xprinter|POS|Receipt|Thermal|Cashier/i.test(p.name));
                             if (receiptPrinter) {
                                 targetDevice = receiptPrinter.name;
                             } else {
                                 const defaultPrinter = printers.find(p => p.isDefault);
                                 if (defaultPrinter) targetDevice = defaultPrinter.name;
                             }
-                        } catch (pe) {
-                            console.warn('[Print Silent] getPrintersAsync fallback notice:', pe.message);
                         }
+                    } catch (pe) {
+                        console.warn('[Print Silent] getPrintersAsync fallback notice:', pe.message);
+                        if (printerName) targetDevice = String(printerName).trim();
                     }
 
                     const printOptions = {
