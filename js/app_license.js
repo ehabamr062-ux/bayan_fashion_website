@@ -2184,6 +2184,14 @@ window.isCloudSyncAllowed = function () {
         return false;
     }
 
+    // السماح بالمزامنة في وضع التطوير أو إذا كان هناك ترخيص سحابي
+    const isDev = (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production') || !window.electronAPI;
+    const isExplicitCloudLicensed = (typeof getStore === 'function') && (getStore('bayan_cloud_sync_licensed') === 'true');
+    
+    if (isExplicitCloudLicensed || isDev) {
+        return true;
+    }
+
     // 2. التحقق من الباقة الحالية
     const currentPlan = (typeof window.getBayanPlan === 'function') ? window.getBayanPlan() : '';
     if (!currentPlan || currentPlan === 'باقة نسخة المجانية' || currentPlan.includes('مجانية') || currentPlan.includes('تجريب')) {
@@ -2226,6 +2234,13 @@ window.getCloudSyncStatus = function () {
     }
     if (window.clockTampered) {
         return { allowed: false, reason: 'clock_tampered', label: '🔒 تم التلاعب بتوقيت الجهاز' };
+    }
+
+    // السماح في بيئة التطوير أو الترخيص الصريح
+    const isDev = (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production') || !window.electronAPI;
+    const isExplicitCloudLicensed = (typeof getStore === 'function') && (getStore('bayan_cloud_sync_licensed') === 'true');
+    if (isExplicitCloudLicensed || isDev) {
+        return { allowed: true, reason: 'active', label: '🟢 سحابي نشط (وضع التطوير/مرخص)' };
     }
 
     const currentPlan = (typeof window.getBayanPlan === 'function') ? window.getBayanPlan() : '';

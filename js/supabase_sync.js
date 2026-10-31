@@ -41,6 +41,12 @@
                 return Boolean(window.isCloudSyncAllowed());
             }
             try {
+                const isDev = (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production') || !window.electronAPI;
+                const isExplicitCloudLicensed = (typeof getStore === 'function') && (getStore('bayan_cloud_sync_licensed') === 'true');
+                if (isExplicitCloudLicensed || isDev) {
+                    return true;
+                }
+
                 const plan = (typeof window.getBayanPlan === 'function')
                     ? window.getBayanPlan()
                     : (localStorage.getItem('bayan_current_plan') || '');
