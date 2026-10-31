@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 
 <head>
@@ -158,6 +158,34 @@
                 <span id="dashRecentInvoicesSub" style="font-size: 0.72rem; color: var(--text-dim); font-weight: 700;">تحديث حي فوري ⚡</span>
             </div>
 
+            <!-- شريط تصنيف وفلترة حركات اليوم المتقدم -->
+            <div class="tx-filter-bar">
+                <button type="button" class="tx-filter-chip active" data-tx-filter="all" onclick="window.BayanMobile.setTxTypeFilter('all')">
+                    الكل
+                </button>
+                <button type="button" class="tx-filter-chip" data-tx-filter="sale" onclick="window.BayanMobile.setTxTypeFilter('sale')">
+                    🛍️ مبيعات
+                </button>
+                <button type="button" class="tx-filter-chip" data-tx-filter="purchase" onclick="window.BayanMobile.setTxTypeFilter('purchase')">
+                    📦 مشتريات
+                </button>
+                <button type="button" class="tx-filter-chip" data-tx-filter="receipt" onclick="window.BayanMobile.setTxTypeFilter('receipt')">
+                    📥 قبض
+                </button>
+                <button type="button" class="tx-filter-chip" data-tx-filter="disburse" onclick="window.BayanMobile.setTxTypeFilter('disburse')">
+                    📤 صرف
+                </button>
+                <button type="button" class="tx-filter-chip" data-tx-filter="return" onclick="window.BayanMobile.setTxTypeFilter('return')">
+                    ↩️ مرتجعات
+                </button>
+                <button type="button" class="tx-filter-chip" data-tx-filter="adjustment" onclick="window.BayanMobile.setTxTypeFilter('adjustment')">
+                    ⚖️ تسويات
+                </button>
+                <button type="button" class="tx-filter-chip" data-tx-filter="transfer" onclick="window.BayanMobile.setTxTypeFilter('transfer')">
+                    🔄 تحويلات
+                </button>
+            </div>
+
             <div id="recentActivityList" class="activity-list">
                 <!-- يُملأ برمجياً -->
             </div>
@@ -174,6 +202,7 @@
                     <span class="search-icon">🔍</span>
                     <input type="text" id="productSearchInput" placeholder="ابحث باسم الموديل أو الكود أو الباركود..."
                         autocomplete="off">
+                    <button type="button" id="productSearchClearBtn" class="search-clear-btn" onclick="window.BayanMobile.clearProductSearch()" title="مسح النص">✕</button>
                 </div>
                 <button type="button" class="btn-scan-camera" onclick="window.BayanMobile.triggerCameraScan()"
                     title="مسح الباركود بكاميرا الموبايل">
@@ -1048,6 +1077,37 @@
 
             <!-- نموذج بيانات الصنف -->
             <div class="add-prod-form">
+                <!-- قسم رفع واختيار صورة الموديل والفستان -->
+                <div class="prod-image-upload-wrap" style="margin-bottom: 14px;">
+                    <label class="form-label" style="display: flex; align-items: center; justify-content: space-between;">
+                        <span>📸 صورة الموديل / الفستان:</span>
+                        <span id="prodImageSizeHint" style="font-size: 0.72rem; color: var(--text-dim); font-weight: 700;">(تُضغط وتُرفع تلقائياً)</span>
+                    </label>
+                    <div class="prod-image-picker-box">
+                        <input type="file" id="newProdImageInput" accept="image/*" style="display: none;" onchange="window.BayanMobile.handleProductImageUpload(event)">
+                        
+                        <div id="prodImageEmptyState" class="prod-image-empty-state" onclick="document.getElementById('newProdImageInput').click()">
+                            <div class="prod-img-picker-icon">📷</div>
+                            <div class="prod-img-picker-text">
+                                <b>اضغط لاختيار أو تصوير الموديل</b>
+                                <span>من كاميرا الهاتف أو ألبوم الصور</span>
+                            </div>
+                        </div>
+
+                        <div id="prodImagePreviewState" class="prod-image-preview-state" style="display: none;">
+                            <img id="newProdImagePreview" src="" alt="صورة الصنف" class="prod-preview-thumb">
+                            <div class="prod-preview-actions">
+                                <button type="button" class="btn-change-image" onclick="document.getElementById('newProdImageInput').click()">
+                                    <span>🔄</span> تغيير
+                                </button>
+                                <button type="button" class="btn-remove-image" onclick="window.BayanMobile.removeProductImage()">
+                                    <span>🗑️</span> حذف
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="form-group" style="margin-bottom: 12px;">
                     <label class="form-label">اسم الموديل / الصنف: *</label>
                     <input type="text" id="newProdName" class="form-input" placeholder="مثال: ترينج ميلتون شتوي أو تيشرت بولو..." autocomplete="off">

@@ -80,7 +80,9 @@
         accountFilter: 'all',
         dashboardPeriod: 'today',
         dashboardStartDate: '',
-        dashboardEndDate: ''
+        dashboardEndDate: '',
+        txTypeFilter: 'all',
+        newProductImageBase64: ''
     };
 
     // ============================================================
@@ -1164,9 +1166,18 @@
         if (elCard) elCard.textContent = stats.cardSales.toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
         if (elExpense) elExpense.textContent = stats.expenses.toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
 
-        // قائمة الفواتير والحركات
+        // قائمة الفواتير والحركات الذكية
         const listEl = document.getElementById('recentActivityList');
         if (!listEl) return;
+
+        // تطبيق فلتر نوع المعاملة
+        let displayTxs = stats.periodTxs;
+        if (State.txTypeFilter && State.txTypeFilter !== 'all') {
+            displayTxs = displayTxs.filter(tx => {
+                const c = classifyTransaction(tx);
+                return c.key === State.txTypeFilter;
+            });
+        }
 
         if (stats.periodTxs.length === 0) {
             const emptyLabel = (period === 'today') ? 'اليوم' : (period === 'yesterday' ? 'الأمس' : range.label);
@@ -1175,8 +1186,8 @@
                     <div class="empty-sales-icon-wrap">
                         <span class="empty-sales-icon">🛍️</span>
                     </div>
-                    <h4 class="empty-sales-title">لا توجد مبيعات مسجلة في هذا اليوم 🛍️</h4>
-                    <p class="empty-sales-desc">فترة (${emptyLabel}) لا تحتوي على أي فواتير مسجلة بعد. يمكنك بدء تسجيل أول عملية بيع فوري الآن بنقرة واحدة.</p>
+                    <h4 class="empty-sales-title">لا توجد حركات مسجلة في هذا اليوم 🛍️</h4>
+                    <p class="empty-sales-desc">فترة (${emptyLabel}) لا تحتوي على أي فواتير أو حركات مسجلة بعد. يمكنك بدء تسجيل أول عملية بيع فوري الآن بنقرة واحدة.</p>
                     <button type="button" class="btn-empty-pos-shortcut" onclick="window.BayanMobile.switchTab('pos')">
                         <span>🛒</span> إنشاء فاتورة بيع جديدة
                     </button>
@@ -1185,55 +1196,105 @@
             return;
         }
 
-        const sorted = [...stats.periodTxs].sort((a, b) => {
+        if (displayTxs.length === 0) {
+            const filterLabels = {
+                sale: 'مبيعات 🛍️',
+                purchase: 'مشتريات 📦',
+                receipt: 'سندات قبض 📥',
+                disburse: 'سندات صرف 📤',
+                return: 'مرتجعات ↩️',
+                adjustment: 'تسويات مخزنية ⚖️',
+                transfer: 'تحويلات مخزنية 🔄'
+            };
+            const currentLabel = filterLabels[State.txTypeFilter] || State.txTypeFilter;
+            listEl.innerHTML = `
+                <div class="empty-sales-card" style="padding: 30px 16px;">
+                    <div class="empty-sales-icon-wrap">
+                        <span class="empty-sales-icon">🔍</span>
+                    </div>
+                    <h4 class="empty-sales-title">لا توجد ${currentLabel} مسجلة</h4>
+                    <p class="empty-sales-desc">لم يتم تسجيل أي حركات مطابقة لهذا التصنيف خلال الفترة المحددة.</p>
+                    <button type="button" class="btn-empty-pos-shortcut" onclick="window.BayanMobile.setTxTypeFilter('all')">
+                        <span>📋</span> عرض كافة الحركات
+                    </button>
+                </div>
+            `;
+            return;
+        }
+
+        const sorted = [...displayTxs].sort((a, b) => {
             const dateA = a.dateISO || '';
             const dateB = b.dateISO || '';
             if (dateA !== dateB) return dateB.localeCompare(dateA);
             const idA = parseInt(a.id || 0, 10);
             const idB = parseInt(b.id || 0, 10);
             return idB - idA;
-        }).slice(0, 30);
+        }).slice(0, 40);
 
         listEl.innerHTML = sorted.map(tx => {
-            const typeStr = String(tx.type || '');
-            const isRet = typeStr.includes('مرتجع');
-            const isDisburse = typeStr.includes('صرف');
-            const isReceipt = typeStr.includes('قبض');
-            const isSale = typeStr.includes('بيع') && !isRet;
-
-            let icon = '🧾';
-            let badgeClass = '';
-            if (isRet) { icon = '↩️'; badgeClass = 'return'; }
-            else if (isDisburse) { icon = '📤'; badgeClass = 'disburse'; }
-            else if (isReceipt) { icon = '📥'; badgeClass = 'receipt'; }
-            else if (isSale) { icon = '🛍️'; badgeClass = 'sale'; }
-
+            const classification = classifyTransaction(tx);
             const dateStr = tx.dateISO || (tx.date ? String(tx.date).split('،')[0] : '');
             const timeStr = tx.timeISO || (tx.date ? String(tx.date).split('،')[1] || tx.date : '--:--');
             const displayDateTime = (period === 'today') ? timeStr : `${dateStr} ${timeStr}`;
             const rawMethod = tx.method || tx.paymentMethod || 'كاش (نقدي)';
             const payMethodText = getPayMethodLabel(rawMethod);
-            const total = parseFloat(tx.invoiceGrandTotal || tx.total || tx.paidAmount || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const itemsSummary = tx.product || (Array.isArray(tx.items) ? tx.items.map(i => i.name).slice(0, 2).join('، ') : typeStr);
+            const totalVal = Math.abs(parseFloat(tx.invoiceGrandTotal || tx.total || tx.paidAmount || tx.amount || 0));
+            const total = totalVal.toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const itemsSummary = tx.product || (Array.isArray(tx.items) ? tx.items.map(i => i.name).slice(0, 2).join('، ') : (tx.description || tx.notes || classification.label));
+            const sign = classification.isNegative ? '-' : '+';
+            const priceColor = classification.isNegative ? '#f43f5e' : (classification.key === 'sale' ? 'var(--emerald)' : classification.color);
 
             return `
-                <div class="activity-card ${badgeClass}" onclick="window.BayanMobile.openInvoiceDetails('${tx.invoiceId || tx.id}')">
+                <div class="activity-card ${classification.badgeClass}" onclick="window.BayanMobile.openInvoiceDetails('${tx.invoiceId || tx.id}')">
                     <div class="activity-meta">
-                        <div class="activity-badge ${badgeClass}">
-                            ${icon}
+                        <div class="activity-badge ${classification.badgeClass}">
+                            ${classification.icon}
                         </div>
                         <div class="activity-details">
-                            <h4>#${tx.invoiceId || tx.id || '---'} <span style="font-size:0.75rem; color:var(--text-dim);">(${typeStr})</span></h4>
+                            <h4>#${tx.invoiceId || tx.id || '---'} <span style="font-size:0.75rem; color:var(--text-dim); font-weight:700;">(${classification.label})</span></h4>
                             <p>${itemsSummary} • ${displayDateTime}</p>
                         </div>
                     </div>
                     <div class="activity-right">
-                        <div class="activity-price" style="color: ${isRet || isDisburse ? '#f43f5e' : 'var(--emerald)'};">${isRet || isDisburse ? '-' : '+'}${total} ج.م</div>
+                        <div class="activity-price" style="color: ${priceColor};">${sign}${total} ج.م</div>
                         <span class="activity-pay-tag">${payMethodText}</span>
                     </div>
                 </div>
             `;
         }).join('');
+    }
+
+    // تصنيف المعاملات بذكاء ودقة إلى 7 فئات أساسية
+    function classifyTransaction(tx) {
+        const s = String(tx.type || tx.txType || tx.kind || '').trim().toLowerCase();
+        if (s.includes('مرتجع') || s.includes('return') || s.includes('مردود')) {
+            return { key: 'return', label: 'مرتجع', icon: '↩️', color: '#ea580c', badgeClass: 'return', isNegative: true };
+        }
+        if (s.includes('صرف') || s.includes('disburse') || s.includes('مصروف') || s.includes('نثريات')) {
+            return { key: 'disburse', label: 'سند صرف', icon: '📤', color: '#e11d48', badgeClass: 'disburse', isNegative: true };
+        }
+        if (s.includes('قبض') || s.includes('receipt') || s.includes('إيداع') || s.includes('ايداع')) {
+            return { key: 'receipt', label: 'سند قبض', icon: '📥', color: '#0891b2', badgeClass: 'receipt', isNegative: false };
+        }
+        if (s.includes('شراء') || s.includes('purchase') || s.includes('مشتريات')) {
+            return { key: 'purchase', label: 'فاتورة شراء', icon: '📦', color: '#2563eb', badgeClass: 'purchase', isNegative: true };
+        }
+        if (s.includes('تسوي') || s.includes('adjust') || s.includes('عجز') || s.includes('زيادة')) {
+            return { key: 'adjustment', label: 'تسوية مخزنية', icon: '⚖️', color: '#7c3aed', badgeClass: 'adjustment', isNegative: false };
+        }
+        if (s.includes('تحويل') || s.includes('transfer') || s.includes('نقل')) {
+            return { key: 'transfer', label: 'تحويل مخزني', icon: '🔄', color: '#d97706', badgeClass: 'transfer', isNegative: false };
+        }
+        return { key: 'sale', label: 'فاتورة بيع', icon: '🛍️', color: 'var(--emerald)', badgeClass: 'sale', isNegative: false };
+    }
+
+    // تغيير فلتر نوع الحركات في الداشبورد
+    function setTxTypeFilter(filterType) {
+        State.txTypeFilter = filterType || 'all';
+        document.querySelectorAll('.tx-filter-chip').forEach(chip => {
+            chip.classList.toggle('active', chip.dataset.txFilter === State.txTypeFilter);
+        });
+        renderDashboard();
     }
 
     function getPayMethodLabel(m) {
@@ -1302,16 +1363,33 @@
             // Variants Matrix (Sizes & Colors)
             const variantsHtml = renderProductVariantsMatrix(p);
 
+            const hasThumb = Boolean(p.image);
+            const headHtml = hasThumb ? `
+                <div class="product-head-with-thumb">
+                    <img src="${p.image}" class="product-card-img-thumb" alt="${p.name || ''}" loading="lazy" onerror="this.style.display='none'">
+                    <div style="flex: 1; min-width: 0;">
+                        <div class="product-title">${p.name || 'صنف بدون اسم'}</div>
+                        <div class="product-barcode-row" style="margin: 2px 0 0 0;">
+                            <span>🏷️ ${p.code || p.barcode || 'بدون كود'}</span>
+                            ${p.category ? `<span>• 📁 ${p.category}</span>` : ''}
+                        </div>
+                    </div>
+                    <div class="product-price-badge">${price} ج.م</div>
+                </div>
+            ` : `
+                <div class="product-head">
+                    <div class="product-title">${p.name || 'صنف بدون اسم'}</div>
+                    <div class="product-price-badge">${price} ج.م</div>
+                </div>
+                <div class="product-barcode-row">
+                    <span>🏷️ ${p.code || p.barcode || 'بدون كود'}</span>
+                    ${p.category ? `<span>• 📁 ${p.category}</span>` : ''}
+                </div>
+            `;
+
             return `
                 <div class="product-card" id="prod-${p.id}" onclick="window.BayanMobile.openAddToCartModal('${p.id}')" style="cursor: pointer;">
-                    <div class="product-head">
-                        <div class="product-title">${p.name || 'صنف بدون اسم'}</div>
-                        <div class="product-price-badge">${price} ج.م</div>
-                    </div>
-                    <div class="product-barcode-row">
-                        <span>🏷️ ${p.code || p.barcode || 'بدون كود'}</span>
-                        ${p.category ? `<span>• 📁 ${p.category}</span>` : ''}
-                    </div>
+                    ${headHtml}
 
                     ${variantsHtml}
 
@@ -2670,6 +2748,9 @@
         if (costInp) costInp.value = '';
         if (wholesaleInp) wholesaleInp.value = '';
 
+        // Reset product image uploader
+        removeProductImage();
+
         // Auto generate barcode
         generateBarcode();
 
@@ -2683,6 +2764,79 @@
     function closeAddProductModal() {
         const modal = document.getElementById('addProductModalOverlay');
         if (modal) modal.classList.remove('active');
+        removeProductImage();
+    }
+
+    // ============================================================
+    // 📸 PRODUCT IMAGE UPLOADER & COMPRESSION ENGINE
+    // ============================================================
+    function handleProductImageUpload(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        if (!file.type.startsWith('image/')) {
+            showToast('يرجى اختيار ملف صورة صالح (JPG, PNG, WebP) ⚠️', 'warning');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = function (e) {
+            const img = new Image();
+            img.onload = function () {
+                const canvas = document.createElement('canvas');
+                const maxDim = 600;
+                let w = img.width;
+                let h = img.height;
+
+                if (w > maxDim || h > maxDim) {
+                    if (w > h) {
+                        h = Math.round(h * (maxDim / w));
+                        w = maxDim;
+                    } else {
+                        w = Math.round(w * (maxDim / h));
+                        h = maxDim;
+                    }
+                }
+
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+
+                // ضغط الصورة إلى صيغة JPEG بجودة 0.8 لتكون خفيفة جداً (~30-50KB)
+                const compressed = canvas.toDataURL('image/jpeg', 0.8);
+                State.newProductImageBase64 = compressed;
+
+                const preview = document.getElementById('newProdImagePreview');
+                if (preview) preview.src = compressed;
+
+                const emptyBox = document.getElementById('prodImageEmptyState');
+                const previewBox = document.getElementById('prodImagePreviewState');
+                if (emptyBox) emptyBox.style.display = 'none';
+                if (previewBox) previewBox.style.display = 'flex';
+
+                showToast('تم التقاط وضغط صورة الموديل بنجاح 📸✨', 'success');
+            };
+            img.onerror = function () {
+                showToast('تعذر قراءة ملف الصورة، يرجى المحاولة مرة أخرى ⚠️', 'error');
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function removeProductImage() {
+        State.newProductImageBase64 = '';
+        const inp = document.getElementById('newProdImageInput');
+        if (inp) inp.value = '';
+
+        const emptyBox = document.getElementById('prodImageEmptyState');
+        const previewBox = document.getElementById('prodImagePreviewState');
+        if (emptyBox) emptyBox.style.display = 'flex';
+        if (previewBox) previewBox.style.display = 'none';
+
+        const preview = document.getElementById('newProdImagePreview');
+        if (preview) preview.src = '';
     }
 
     function generateBarcode() {
@@ -2825,6 +2979,7 @@
             quantity: totalStock,
             warehouseStocks: { [activeWh]: totalStock },
             variants: variantsList,
+            image: State.newProductImageBase64 || '',
             shop_id: currentShopId,
             created_at: new Date().toISOString()
         };
@@ -2854,6 +3009,7 @@
                 price: newProduct.price,
                 wholesale: newProduct.wholesale,
                 stock: newProduct.stock,
+                image: newProduct.image || null,
                 raw_json: { ...newProduct, localId: newProduct.id, shop_id: currentShopId },
                 updated_at: new Date().toISOString()
             };
@@ -2885,6 +3041,7 @@
             showToast(`تم حفظ الصنف محلياً في الذاكرة ✅`, 'info');
             closeAddProductModal();
         } finally {
+            removeProductImage();
             if (btnSave) {
                 btnSave.disabled = false;
                 btnSave.innerHTML = '<span>💾</span> حفظ الصنف وترحيله للسحابة والماستر';
@@ -2938,11 +3095,27 @@
         const searchInput = document.getElementById('productSearchInput');
         if (searchInput) {
             searchInput.value = barcode;
+            const clearBtn = document.getElementById('productSearchClearBtn');
+            if (clearBtn) clearBtn.style.display = 'flex';
             State.searchQuery = barcode;
             renderProducts();
         }
         // Switch to products tab
         switchTab('products');
+    }
+
+    function clearProductSearch() {
+        const searchInput = document.getElementById('productSearchInput');
+        const clearBtn = document.getElementById('productSearchClearBtn');
+        if (searchInput) {
+            searchInput.value = '';
+            searchInput.focus();
+        }
+        if (clearBtn) {
+            clearBtn.style.display = 'none';
+        }
+        State.searchQuery = '';
+        renderProducts();
     }
 
     // ============================================================
@@ -4370,8 +4543,13 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         const searchInput = document.getElementById('productSearchInput');
         if (searchInput) {
             let searchDebounceTimer = null;
+            const clearBtn = document.getElementById('productSearchClearBtn');
             searchInput.addEventListener('input', (e) => {
-                State.searchQuery = e.target.value;
+                const val = e.target.value;
+                State.searchQuery = val;
+                if (clearBtn) {
+                    clearBtn.style.display = val.trim() ? 'flex' : 'none';
+                }
                 if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
                 searchDebounceTimer = setTimeout(() => {
                     renderProducts();
@@ -4530,6 +4708,11 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         generateVariantRows,
         onVariantRowQtyChange,
         submitNewProduct,
+        handleProductImageUpload,
+        removeProductImage,
+        clearProductSearch,
+        setTxTypeFilter,
+        classifyTransaction,
         renderAccountsView,
         setAccountFilter,
         onAccountSearchInput,
