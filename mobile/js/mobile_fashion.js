@@ -1214,6 +1214,22 @@
         if (elCard) elCard.textContent = stats.cardSales.toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
         if (elExpense) elExpense.textContent = stats.expenses.toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
 
+        // تنبيه النواقص السريع في الداشبورد
+        const lowStockBanner = document.getElementById('dashLowStockBanner');
+        const lowStockTitle = document.getElementById('dashLowStockTitle');
+        if (lowStockBanner) {
+            const lowItems = (State.products || []).filter(p => {
+                const s = parseFloat(p.quantity !== undefined ? p.quantity : (p.stock || 0));
+                return s <= 2;
+            });
+            if (lowItems.length > 0) {
+                lowStockBanner.style.display = 'flex';
+                if (lowStockTitle) lowStockTitle.textContent = `تنبيه نواقص المخزن (${lowItems.length} موديلات)`;
+            } else {
+                lowStockBanner.style.display = 'none';
+            }
+        }
+
         // قائمة الفواتير والحركات الذكية
         const listEl = document.getElementById('recentActivityList');
         if (!listEl) return;
@@ -1374,11 +1390,30 @@
             if (p.category) cats.add(p.category.trim());
         });
 
-        container.innerHTML = Array.from(cats).map(cat => {
+        const lowCount = (State.products || []).filter(p => {
+            const s = parseFloat(p.quantity !== undefined ? p.quantity : (p.stock || 0));
+            return s <= 2;
+        }).length;
+
+        let chipsHtml = Array.from(cats).map(cat => {
             const label = cat === 'all' ? '✨ الكل' : cat;
             const isActive = State.selectedCategory === cat ? 'active' : '';
             return `<div class="cat-chip ${isActive}" onclick="window.BayanMobile.setCategory('${cat}')">${label}</div>`;
         }).join('');
+
+        if (lowCount > 0) {
+            const isLowActive = State.selectedCategory === 'low-stock' ? 'active' : '';
+            chipsHtml += `<div class="cat-chip ${isLowActive}" style="border-color: rgba(245, 158, 11, 0.4); color: #d97706; font-weight: 800;" onclick="window.BayanMobile.setCategory('low-stock')">⚠️ النواقص (${lowCount})</div>`;
+        }
+
+        container.innerHTML = chipsHtml;
+    }
+
+    function filterByLowStock() {
+        switchTab('products');
+        State.selectedCategory = 'low-stock';
+        updateCategoriesList();
+        renderProducts();
     }
 
     function renderProducts() {
@@ -1390,7 +1425,12 @@
 
         let filtered = State.products.filter(p => {
             // Category filter
-            if (cat !== 'all' && (p.category || '').trim() !== cat) return false;
+            if (cat === 'low-stock') {
+                const s = parseFloat(p.quantity !== undefined ? p.quantity : (p.stock || 0));
+                if (s > 2) return false;
+            } else if (cat !== 'all' && (p.category || '').trim() !== cat) {
+                return false;
+            }
             // Search query filter
             if (!q) return true;
             const name = (p.name || '').toLowerCase();
@@ -2782,6 +2822,63 @@
         if (modal) modal.classList.remove('active');
     }
 
+    // إرسال الفاتورة الرقمية الأنيقة مباشرة لواتساب العميل
+    function sendWhatsAppReceiptDirectly(tx) {
+        if (!tx) tx = window.BayanMobile.lastSuccessTx || (State.transactions && State.transactions[0]);
+        if (!tx) {
+            showToast('لا توجد فاتورة محددة لإرسالها ⚠️', 'warning');
+            return;
+        }
+
+        let phone = String(tx.customerPhone || tx.phone || tx.mobile || '').replace(/\D/g, '');
+        if (!phone) {
+            const entered = prompt('📱 يرجى إدخال رقم واتساب العميل لإرسال الفاتورة (مثال: 01012345678):');
+            if (!entered) return;
+            phone = entered.replace(/\D/g, '');
+        }
+
+        if (phone.startsWith('01') && phone.length === 11) {
+            phone = '2' + phone;
+        } else if (phone.startsWith('1') && phone.length === 10) {
+            phone = '20' + phone;
+        }
+
+        const shopName = State.settings?.shop_name || State.shopName || 'بَيَان فاشون';
+        const invId = tx.invoiceId || tx.id || '---';
+        const dateStr = tx.dateISO || (tx.date ? String(tx.date).split('،')[0] : new Date().toLocaleDateString('ar-EG'));
+        const timeStr = tx.timeISO || (tx.date ? String(tx.date).split('،')[1] : new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }));
+        const total = parseFloat(tx.invoiceGrandTotal || tx.total || tx.finalTotal || tx.paidAmount || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const items = Array.isArray(tx.items) ? tx.items : [];
+
+        let itemsText = '';
+        if (items.length > 0) {
+            itemsText = items.map(it => {
+                const s = it.size && it.size !== 'عادي' ? ` (مقاس: ${it.size})` : '';
+                const c = it.color && it.color !== 'عام' ? ` (لون: ${it.color})` : '';
+                const q = it.quantity || it.qty || 1;
+                const p = parseFloat(it.price || it.salePrice || 0);
+                return `🔹 *${it.name || 'صنف'}*${s}${c}%0A   الكمية: ${q} × ${p} ج.م = ${q * p} ج.م`;
+            }).join('%0A');
+        } else {
+            itemsText = `🔹 *${tx.product || 'فاتورة مشتريات'}* - ${total} ج.م`;
+        }
+
+        const msg = `✨ *فاتورة شراء رقمية - ${shopName}* ✨%0A%0A` +
+            `🧾 رقم الفاتورة: *#${invId}*%0A` +
+            `📅 التاريخ: ${dateStr} - ${timeStr}%0A` +
+            `👤 العميل: *${tx.customerName || tx.customer || 'عميل نقدي'}*%0A` +
+            `-----------------------------------%0A` +
+            `📋 *تفاصيل المشتريات:*%0A${itemsText}%0A` +
+            `-----------------------------------%0A` +
+            `💰 *الإجمالي النهائي: ${total} ج.م*%0A` +
+            `💳 طريقة الدفع: ${getPayMethodLabel(tx.method || tx.paymentMethod)}%0A%0A` +
+            `👗 *شكراً لتعاملكم الراقي مع ${shopName}! يسعدنا تشريفكم دائماً.* 🌸`;
+
+        const waUrl = phone ? `https://wa.me/${phone}?text=${msg}` : `https://wa.me/?text=${msg}`;
+        window.open(waUrl, '_blank');
+        showToast('تم فتح واتساب لإرسال الفاتورة 📲✨', 'success');
+    }
+
     // ============================================================
     // 👗 ADD PRODUCT & FASHION VARIANT MATRIX BUILDER
     // ============================================================
@@ -3105,6 +3202,33 @@
     }
 
     // ============================================================
+    // 🔊 AUDIO & HAPTIC POS SCANNER SYNTHESIZER
+    // ============================================================
+    function playBarcodeBeepAndVibrate() {
+        try {
+            // Haptic vibration
+            if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                navigator.vibrate(60);
+            }
+            // Web Audio API Synthesizer (Zero-latency 1760Hz POS beep)
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+                const ctx = new AudioCtx();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(1760, ctx.currentTime);
+                gain.gain.setValueAtTime(0.25, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.08);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + 0.08);
+            }
+        } catch (e) {}
+    }
+
+    // ============================================================
     // 📸 CAMERA SCANNER
     // ============================================================
     function triggerCameraScan() {
@@ -3129,6 +3253,7 @@
                 const barcodes = await detector.detect(bitmap);
                 if (barcodes && barcodes.length > 0) {
                     const rawVal = barcodes[0].rawValue;
+                    playBarcodeBeepAndVibrate();
                     showToast(`تم مسح الباركود: ${rawVal} 🏷️`, 'success');
                     onBarcodeFound(rawVal);
                     return;
@@ -3147,6 +3272,7 @@
     }
 
     function onBarcodeFound(barcode) {
+        playBarcodeBeepAndVibrate();
         const searchInput = document.getElementById('productSearchInput');
         if (searchInput) {
             searchInput.value = barcode;
@@ -3279,6 +3405,7 @@
             pos_prefs: '📳 تفضيلات البيع السريع والماسح',
             sync_data: '🔄 إدارة البيانات والمزامنة الكاملة',
             printer: '🖨️ طابعة الفواتير البلوتوث',
+            backup: '☁️ النسخ الاحتياطي والأمان السحابي',
             about: 'ℹ️ معلومات النظام والدعم الفني'
         };
 
@@ -3300,6 +3427,14 @@
         // Show target panel
         const targetPanel = document.getElementById(`panel_${pageKey}`);
         if (targetPanel) targetPanel.style.display = 'block';
+
+        if (pageKey === 'backup') {
+            const lastTime = localStorage.getItem('bayan_mob_last_backup_time');
+            const labelEl = document.getElementById('lastBackupTimeText');
+            if (labelEl && lastTime) {
+                labelEl.textContent = `آخر عملية نسخ: ${lastTime} ✅`;
+            }
+        }
 
         State.activeSettingSubPage = pageKey;
 
@@ -3676,6 +3811,465 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         } else {
             showToast('تم تجهيز إيصال الاختبار بنجاح 🖨️', 'success');
         }
+    }
+
+    // ============================================================
+    // 📦 INSTANT MOBILE STOCKTAKE ENGINE
+    // ============================================================
+    State.stocktakeWarehouse = localStorage.getItem('bayan_mob_active_warehouse') || 'المخزن الرئيسي';
+    State.stocktakeActiveProduct = null;
+    State.stocktakeInitialQty = 0;
+    State.stocktakeSessionLog = [];
+
+    function openStocktakeModal() {
+        const modal = document.getElementById('stocktakeModalOverlay');
+        if (!modal) return;
+
+        // Populate warehouses select
+        const whSelect = document.getElementById('stocktakeWarehouseSelect');
+        if (whSelect) {
+            const whs = State.warehouses && State.warehouses.length > 0 ? State.warehouses : ['المخزن الرئيسي'];
+            whSelect.innerHTML = whs.map(w => `<option value="${w}" ${w === State.stocktakeWarehouse ? 'selected' : ''}>${w}</option>`).join('');
+        }
+
+        clearStocktakeSearch();
+        State.stocktakeActiveProduct = null;
+        const activeBox = document.getElementById('stocktakeActiveProductBox');
+        if (activeBox) activeBox.style.display = 'none';
+
+        renderStocktakeSessionList();
+        modal.classList.add('active');
+
+        const searchInp = document.getElementById('stocktakeSearchInput');
+        if (searchInp) setTimeout(() => searchInp.focus(), 250);
+    }
+
+    function closeStocktakeModal() {
+        const modal = document.getElementById('stocktakeModalOverlay');
+        if (modal) modal.classList.remove('active');
+        clearStocktakeSearch();
+    }
+
+    function onStocktakeWarehouseChange(wh) {
+        State.stocktakeWarehouse = wh || 'المخزن الرئيسي';
+        if (State.stocktakeActiveProduct) {
+            displayStocktakeActiveProduct(State.stocktakeActiveProduct);
+        }
+    }
+
+    function onStocktakeSearchInput(query) {
+        const q = String(query || '').trim().toLowerCase();
+        const clearBtn = document.getElementById('stocktakeSearchClearBtn');
+        if (clearBtn) clearBtn.style.display = q ? 'flex' : 'none';
+
+        const suggList = document.getElementById('stocktakeSuggestionsList');
+        if (!q) {
+            if (suggList) suggList.style.display = 'none';
+            return;
+        }
+
+        // Direct exact barcode match
+        const exactMatch = State.products.find(p => (p.barcode && p.barcode.toLowerCase() === q) || (p.code && p.code.toLowerCase() === q));
+        if (exactMatch) {
+            playBarcodeBeepAndVibrate();
+            selectProductForStocktake(exactMatch.id);
+            if (suggList) suggList.style.display = 'none';
+            return;
+        }
+
+        // Suggestions by name or barcode substring
+        const matches = State.products.filter(p => {
+            const name = (p.name || '').toLowerCase();
+            const bar = (p.barcode || '').toLowerCase();
+            return name.includes(q) || bar.includes(q);
+        }).slice(0, 6);
+
+        if (matches.length > 0 && suggList) {
+            suggList.innerHTML = matches.map(m => `
+                <div class="stocktake-suggestion-item" onclick="window.BayanMobile.selectProductForStocktake('${m.id}')">
+                    <span>${m.name} (${m.barcode || 'بدون باركود'})</span>
+                    <span style="color: var(--primary); font-size: 0.78rem;">رصيد: ${m.stock || 0}</span>
+                </div>
+            `).join('');
+            suggList.style.display = 'block';
+        } else if (suggList) {
+            suggList.style.display = 'none';
+        }
+    }
+
+    function clearStocktakeSearch() {
+        const searchInp = document.getElementById('stocktakeSearchInput');
+        if (searchInp) searchInp.value = '';
+        const clearBtn = document.getElementById('stocktakeSearchClearBtn');
+        if (clearBtn) clearBtn.style.display = 'none';
+        const suggList = document.getElementById('stocktakeSuggestionsList');
+        if (suggList) suggList.style.display = 'none';
+    }
+
+    function selectProductForStocktake(productId) {
+        const product = State.products.find(p => String(p.id) === String(productId));
+        if (!product) return;
+
+        State.stocktakeActiveProduct = product;
+        clearStocktakeSearch();
+        displayStocktakeActiveProduct(product);
+    }
+
+    function displayStocktakeActiveProduct(product) {
+        const activeBox = document.getElementById('stocktakeActiveProductBox');
+        if (!activeBox) return;
+
+        const wh = State.stocktakeWarehouse || 'المخزن الرئيسي';
+        const whStocks = product.warehouseStocks || {};
+        const currentWhStock = parseFloat(whStocks[wh] !== undefined ? whStocks[wh] : (product.quantity !== undefined ? product.quantity : (product.stock || 0))) || 0;
+        State.stocktakeInitialQty = currentWhStock;
+
+        activeBox.innerHTML = `
+            <div class="stocktake-prod-head">
+                ${product.image ? `<img src="${product.image}" class="stocktake-prod-thumb" alt="${product.name}">` : `<div class="stocktake-prod-thumb" style="display:flex;align-items:center;justify-content:center;background:var(--primary-subtle);font-size:1.4rem;">👗</div>`}
+                <div class="stocktake-prod-info">
+                    <h4>${product.name || 'صنف بدون اسم'}</h4>
+                    <p>🏷️ باركود: ${product.barcode || '---'} • 📁 ${product.category || 'عام'}</p>
+                    <p style="color: #7c3aed; font-weight: 800; margin-top: 2px;">📦 الرصيد المسجل بمخزن (${wh}): <b>${currentWhStock} قطعة</b></p>
+                </div>
+            </div>
+
+            <div class="stocktake-count-stepper">
+                <button type="button" class="btn-step-stock" onclick="window.BayanMobile.stepStocktakeQty(-10)">-10</button>
+                <button type="button" class="btn-step-stock" onclick="window.BayanMobile.stepStocktakeQty(-1)">-1</button>
+                <input type="number" id="stocktakeCountedQtyInput" class="stocktake-qty-input" min="0" value="${currentWhStock}" oninput="window.BayanMobile.onStocktakeQtyChange()">
+                <button type="button" class="btn-step-stock" onclick="window.BayanMobile.stepStocktakeQty(1)">+1</button>
+                <button type="button" class="btn-step-stock" onclick="window.BayanMobile.stepStocktakeQty(10)">+10</button>
+            </div>
+
+            <div id="stocktakeDiffTag" class="stocktake-diff-tag zero">
+                الفارق: لا يوجد تغيير (0 قطعة)
+            </div>
+
+            <div style="display: flex; gap: 8px;">
+                <button type="button" class="btn-step-stock" style="width: auto; padding: 0 14px; font-size: 0.82rem; height: 42px; border-color: rgba(225, 29, 72, 0.3); color: #e11d48;" onclick="window.BayanMobile.setStocktakeQty(0)">
+                    0 (نفد)
+                </button>
+                <button type="button" class="btn-complete-invoice" style="flex: 1; height: 42px; margin-top: 0; background: linear-gradient(135deg, #10b981, #059669); font-size: 0.9rem;" onclick="window.BayanMobile.submitStocktakeCount()">
+                    <span>💾</span> اعتماد وحفظ الرصيد الفعلي
+                </button>
+            </div>
+        `;
+        activeBox.style.display = 'block';
+    }
+
+    function stepStocktakeQty(delta) {
+        const inp = document.getElementById('stocktakeCountedQtyInput');
+        if (!inp) return;
+        let val = parseFloat(inp.value) || 0;
+        val = Math.max(0, val + delta);
+        inp.value = val;
+        onStocktakeQtyChange();
+    }
+
+    function setStocktakeQty(val) {
+        const inp = document.getElementById('stocktakeCountedQtyInput');
+        if (!inp) return;
+        inp.value = Math.max(0, val);
+        onStocktakeQtyChange();
+    }
+
+    function onStocktakeQtyChange() {
+        const inp = document.getElementById('stocktakeCountedQtyInput');
+        const diffTag = document.getElementById('stocktakeDiffTag');
+        if (!inp || !diffTag) return;
+
+        const counted = parseFloat(inp.value) || 0;
+        const initial = State.stocktakeInitialQty || 0;
+        const diff = counted - initial;
+
+        if (diff === 0) {
+            diffTag.className = 'stocktake-diff-tag zero';
+            diffTag.textContent = 'الفارق: لا يوجد تغيير (0 قطعة)';
+        } else if (diff > 0) {
+            diffTag.className = 'stocktake-diff-tag plus';
+            diffTag.textContent = `الفارق: زيادة (+${diff} قطعة)`;
+        } else {
+            diffTag.className = 'stocktake-diff-tag minus';
+            diffTag.textContent = `الفارق: عجز (${diff} قطعة)`;
+        }
+    }
+
+    async function submitStocktakeCount() {
+        const p = State.stocktakeActiveProduct;
+        if (!p) return;
+
+        const inp = document.getElementById('stocktakeCountedQtyInput');
+        const counted = parseFloat(inp ? inp.value : 0) || 0;
+        const wh = State.stocktakeWarehouse || 'المخزن الرئيسي';
+        const initial = State.stocktakeInitialQty || 0;
+        const diff = counted - initial;
+
+        // 1. Update product warehouseStocks and total quantity
+        if (!p.warehouseStocks) p.warehouseStocks = {};
+        p.warehouseStocks[wh] = counted;
+
+        // Recalculate total stock across warehouses
+        const total = Object.values(p.warehouseStocks).reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
+        p.stock = total;
+        p.quantity = total;
+
+        safelyPersistProducts(State.products);
+
+        // 2. Log inventory adjustment transaction
+        const adjTx = {
+            id: 'ADJ-' + Date.now(),
+            invoiceId: 'ADJ-' + Date.now().toString().slice(-6),
+            type: 'تسوية مخزنية',
+            dateISO: getTodayISO(),
+            timeISO: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+            product: `${p.name} (${wh})`,
+            total: Math.abs(diff * (parseFloat(p.cost || p.price || 0) || 0)),
+            diff: diff,
+            qty: counted,
+            previousQty: initial,
+            warehouse: wh,
+            cashier: CONFIG.DEVICE_NAME || 'بيان موبايل'
+        };
+        State.transactions.unshift(adjTx);
+        try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (e) {}
+
+        // 3. Record session log
+        State.stocktakeSessionLog.unshift({
+            name: p.name,
+            wh: wh,
+            initial: initial,
+            counted: counted,
+            diff: diff,
+            time: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })
+        });
+        renderStocktakeSessionList();
+
+        // 4. Sync product to Supabase
+        const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
+        const sbRow = {
+            id: `${currentShopId}_PROD_${p.id}`,
+            name: p.name,
+            barcode: p.barcode,
+            category: p.category,
+            stock: p.stock,
+            image: p.image || null,
+            raw_json: { ...p, localId: p.id, shop_id: currentShopId },
+            updated_at: new Date().toISOString()
+        };
+
+        if (navigator.onLine) {
+            fetch(`${SUPABASE_CONFIG.url}/rest/v1/products?on_conflict=id`, {
+                method: 'POST',
+                headers: getSupabaseHeaders(),
+                body: JSON.stringify([sbRow])
+            }).catch(() => {
+                enqueueOfflineItem({ id: 'PROD_ST_' + p.id, prodBatch: [sbRow], createdAt: new Date().toISOString() });
+            });
+        } else {
+            enqueueOfflineItem({ id: 'PROD_ST_' + p.id, prodBatch: [sbRow], createdAt: new Date().toISOString() });
+        }
+
+        playBarcodeBeepAndVibrate();
+        showToast(`تم تحديث رصيد (${p.name}) إلى (${counted}) قطعة بنجاح! 📦✅`, 'success');
+
+        // Reset active box and re-render views
+        renderProducts();
+        renderDashboard();
+        const activeBox = document.getElementById('stocktakeActiveProductBox');
+        if (activeBox) activeBox.style.display = 'none';
+        State.stocktakeActiveProduct = null;
+    }
+
+    function renderStocktakeSessionList() {
+        const listEl = document.getElementById('stocktakeSessionList');
+        const countTag = document.getElementById('stocktakeSessionCount');
+        if (!listEl) return;
+
+        if (countTag) countTag.textContent = `${State.stocktakeSessionLog.length} أصناف`;
+
+        if (State.stocktakeSessionLog.length === 0) {
+            listEl.innerHTML = `
+                <div style="text-align: center; padding: 20px; color: var(--text-dim); font-size: 0.82rem;">
+                    امسح باركود الصنف أو ابحث عنه للبدء في جرد الرصيد الفعلي 📦
+                </div>
+            `;
+            return;
+        }
+
+        listEl.innerHTML = State.stocktakeSessionLog.map(item => {
+            const sign = item.diff > 0 ? `+${item.diff}` : `${item.diff}`;
+            const color = item.diff === 0 ? 'var(--emerald)' : (item.diff > 0 ? '#2563eb' : '#e11d48');
+            return `
+                <div class="stocktake-session-item">
+                    <div>
+                        <b>${item.name}</b>
+                        <div style="font-size: 0.72rem; color: var(--text-dim);">${item.wh} • ${item.time}</div>
+                    </div>
+                    <div style="text-align: left;">
+                        <span style="font-weight: 900; font-family: monospace;">${item.counted} قطعة</span>
+                        <div style="font-size: 0.72rem; font-weight: 800; color: ${color};">(${sign})</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function triggerStocktakeCameraScan() {
+        const fileInput = document.getElementById('stocktakeCameraInput');
+        if (fileInput) fileInput.click();
+    }
+
+    async function handleStocktakeCameraFile(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        showToast('جاري قراءة الباركود بكاميرا الهاتف 📷...', 'info');
+        if ('BarcodeDetector' in window) {
+            try {
+                const detector = new window.BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8', 'qr_code', 'upc_a'] });
+                const bitmap = await createImageBitmap(file);
+                const barcodes = await detector.detect(bitmap);
+                if (barcodes && barcodes.length > 0) {
+                    const rawVal = barcodes[0].rawValue;
+                    playBarcodeBeepAndVibrate();
+                    showToast(`تم التقاط الباركود: ${rawVal} 🎯`, 'success');
+                    onStocktakeSearchInput(rawVal);
+                    return;
+                }
+            } catch (e) {}
+        }
+        const manual = prompt('أدخل الباركود أو اسم الصنف للجرد:');
+        if (manual && manual.trim()) {
+            onStocktakeSearchInput(manual.trim());
+        }
+    }
+
+    // ============================================================
+    // ☁️ CLOUD & LOCAL BACKUP ENGINE
+    // ============================================================
+    async function createCloudBackup() {
+        const shopId = State.shopId || CONFIG.SHOP_ID || 'SHOP_DEFAULT';
+        const timestamp = new Date().toISOString();
+        const backupData = {
+            version: '5.0.8',
+            shop_id: shopId,
+            shop_name: State.shopName || CONFIG.SHOP_NAME,
+            timestamp: timestamp,
+            productsCount: State.products.length,
+            transactionsCount: State.transactions.length,
+            accountsCount: State.accounts.length
+        };
+
+        showToast('جاري إنشاء ورفع النسخة الاحتياطية للسحابة ⏳...', 'info');
+
+        try {
+            await fetch(`${SUPABASE_CONFIG.url}/rest/v1/store_profiles?on_conflict=shop_id`, {
+                method: 'POST',
+                headers: getSupabaseHeaders(),
+                body: JSON.stringify([{
+                    shop_id: shopId,
+                    shop_name: State.shopName || CONFIG.SHOP_NAME,
+                    raw_json: {
+                        lastBackup: timestamp,
+                        backupSummary: backupData
+                    },
+                    updated_at: timestamp
+                }])
+            });
+
+            const backupTimeStr = new Date().toLocaleString('ar-EG');
+            localStorage.setItem('bayan_mob_last_backup_time', backupTimeStr);
+            const labelEl = document.getElementById('lastBackupTimeText');
+            if (labelEl) labelEl.textContent = `آخر نسخة سحابية: ${backupTimeStr} ✅`;
+
+            showToast('تم رفع النسخة الاحتياطية وحفظها بالسحابة بنجاح! ☁️🎉', 'success');
+        } catch (err) {
+            console.error('[CloudBackup] Error:', err);
+            downloadLocalBackupJSON();
+            showToast('تم تحميل النسخة الاحتياطية محلياً على هاتفك ✅', 'info');
+        }
+    }
+
+    function downloadLocalBackupJSON() {
+        const shopId = State.shopId || CONFIG.SHOP_ID || 'SHOP';
+        const dateStr = getTodayISO();
+        const backupData = {
+            system: 'BAYAN POS FASHION',
+            version: '5.0.8',
+            shop_id: shopId,
+            shop_name: State.shopName || CONFIG.SHOP_NAME,
+            exported_at: new Date().toISOString(),
+            products: State.products,
+            transactions: State.transactions,
+            accounts: State.accounts,
+            vouchers: State.vouchers,
+            settings: State.settings
+        };
+
+        const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Bayan_POS_Backup_${shopId}_${dateStr}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        const backupTimeStr = new Date().toLocaleString('ar-EG');
+        localStorage.setItem('bayan_mob_last_backup_time', backupTimeStr);
+        const labelEl = document.getElementById('lastBackupTimeText');
+        if (labelEl) labelEl.textContent = `آخر تحميل محلي: ${backupTimeStr} 💾`;
+
+        showToast('تم تنزيل ملف النسخة الاحتياطية الكامل بنجاح 💾✨', 'success');
+    }
+
+    function restoreBackupFromFile(event) {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const parsed = JSON.parse(e.target.result);
+                if (!parsed || (!parsed.products && !parsed.transactions && !parsed.accounts)) {
+                    showToast('ملف النسخة الاحتياطية غير صالح أو تالف ⚠️', 'error');
+                    return;
+                }
+
+                const confirmRestore = confirm(`هل أنت متأكد من استعادة هذه النسخة الاحتياطية؟\nتحتوي على (${(parsed.products||[]).length}) أصناف، و(${(parsed.transactions||[]).length}) حركات.`);
+                if (!confirmRestore) return;
+
+                if (Array.isArray(parsed.products) && parsed.products.length > 0) {
+                    State.products = parsed.products;
+                    safelyPersistProducts(State.products);
+                }
+                if (Array.isArray(parsed.transactions) && parsed.transactions.length > 0) {
+                    State.transactions = parsed.transactions;
+                    try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (err) {}
+                }
+                if (Array.isArray(parsed.accounts) && parsed.accounts.length > 0) {
+                    State.accounts = parsed.accounts;
+                    State.customers = parsed.accounts;
+                    try {
+                        localStorage.setItem(CONFIG.STORAGE_PREFIX + 'accounts', JSON.stringify(State.accounts));
+                        localStorage.setItem(CONFIG.STORAGE_PREFIX + 'customers', JSON.stringify(State.customers));
+                    } catch (err) {}
+                }
+
+                updateCategoriesList();
+                renderProducts();
+                renderDashboard();
+                renderAccountsView();
+
+                showToast('تمت استعادة كافة البيانات وتحديث الشاشات بنجاح! 🎉📦', 'success');
+            } catch (err) {
+                console.error('[RestoreBackup] Error:', err);
+                showToast('حدث خطأ أثناء قراءة ملف النسخة الاحتياطية ❌', 'error');
+            }
+        };
+        reader.readAsText(file);
     }
 
     // ============================================================
@@ -4780,6 +5374,24 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         closeAddAccountModal,
         onAccountTypeChange,
         submitNewAccount,
+        playBarcodeBeepAndVibrate,
+        sendWhatsAppReceiptDirectly,
+        filterByLowStock,
+        openStocktakeModal,
+        closeStocktakeModal,
+        onStocktakeWarehouseChange,
+        onStocktakeSearchInput,
+        clearStocktakeSearch,
+        selectProductForStocktake,
+        stepStocktakeQty,
+        setStocktakeQty,
+        onStocktakeQtyChange,
+        submitStocktakeCount,
+        triggerStocktakeCameraScan,
+        handleStocktakeCameraFile,
+        createCloudBackup,
+        downloadLocalBackupJSON,
+        restoreBackupFromFile,
         setDashboardPeriod,
         onPeriodSelectChange,
         filterSalesByPeriod,

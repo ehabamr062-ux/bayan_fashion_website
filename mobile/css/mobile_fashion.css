@@ -4071,3 +4071,341 @@ body {
     background: rgba(192, 132, 252, 0.15);
     border-color: rgba(192, 132, 252, 0.3);
 }
+
+/* ============================================================
+   📦 INSTANT MOBILE STOCKTAKE & LOW STOCK ALERTS
+   ============================================================ */
+.btn-open-stocktake {
+    background: linear-gradient(135deg, #7c3aed, #6d28d9);
+    color: #ffffff;
+    border: none;
+    border-radius: var(--radius-md);
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    font-weight: 800;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(124, 58, 237, 0.35);
+    transition: all 0.2s ease;
+}
+
+.btn-open-stocktake:active {
+    transform: scale(0.95);
+}
+
+.low-stock-alert-card {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(234, 88, 12, 0.08));
+    border: 1.5px solid rgba(245, 158, 11, 0.35);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.low-stock-alert-card:active {
+    transform: scale(0.98);
+}
+
+.low-stock-icon {
+    font-size: 1.4rem;
+    background: rgba(245, 158, 11, 0.2);
+    border-radius: 10px;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.low-stock-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.low-stock-info h4 {
+    font-size: 0.86rem;
+    font-weight: 900;
+    color: #d97706;
+    margin-bottom: 2px;
+}
+
+.low-stock-info p {
+    font-size: 0.74rem;
+    color: var(--text-dim);
+    margin: 0;
+    line-height: 1.3;
+}
+
+.low-stock-arrow {
+    font-size: 1.2rem;
+    color: #d97706;
+    font-weight: 900;
+}
+
+/* Stocktake Modal Sheet */
+.stocktake-sheet {
+    background: var(--surface);
+    border-radius: 20px 20px 0 0;
+    padding: 20px 18px 30px;
+    max-width: 520px;
+    width: 100%;
+    margin: 0 auto;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.stocktake-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+
+.stocktake-title {
+    font-size: 1.05rem;
+    font-weight: 900;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.stocktake-wh-row {
+    background: var(--input-bg);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: var(--text-dim);
+}
+
+.stocktake-wh-select {
+    background: var(--surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-family: inherit;
+    font-weight: 800;
+    font-size: 0.82rem;
+    color: var(--text-main);
+    outline: none;
+}
+
+.stocktake-search-wrap {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.stocktake-suggestions-list {
+    background: var(--surface);
+    border: 1.5px solid var(--border-subtle);
+    border-radius: 12px;
+    max-height: 180px;
+    overflow-y: auto;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+}
+
+.stocktake-suggestion-item {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    font-size: 0.84rem;
+    font-weight: 800;
+    color: var(--text-main);
+    transition: background 0.15s ease;
+}
+
+.stocktake-suggestion-item:last-child {
+    border-bottom: none;
+}
+
+.stocktake-suggestion-item:active {
+    background: var(--input-bg);
+}
+
+.stocktake-active-box {
+    background: var(--input-bg);
+    border: 1.5px solid #7c3aed;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 14px;
+    box-shadow: 0 4px 16px rgba(124, 58, 237, 0.12);
+}
+
+.stocktake-prod-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.stocktake-prod-thumb {
+    width: 52px;
+    height: 52px;
+    border-radius: 10px;
+    object-fit: cover;
+    border: 1px solid var(--border-subtle);
+}
+
+.stocktake-prod-info h4 {
+    font-size: 0.95rem;
+    font-weight: 900;
+    color: var(--text-main);
+    margin-bottom: 2px;
+}
+
+.stocktake-prod-info p {
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin: 0;
+}
+
+.stocktake-count-stepper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 14px 0;
+}
+
+.btn-step-stock {
+    background: var(--surface);
+    border: 1.5px solid var(--border-subtle);
+    color: var(--text-main);
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.btn-step-stock:active {
+    transform: scale(0.92);
+}
+
+.stocktake-qty-input {
+    width: 90px;
+    height: 44px;
+    text-align: center;
+    font-size: 1.3rem;
+    font-weight: 900;
+    font-family: monospace;
+    color: #7c3aed;
+    background: var(--surface);
+    border: 2px solid #7c3aed;
+    border-radius: 12px;
+    outline: none;
+}
+
+.stocktake-diff-tag {
+    text-align: center;
+    font-size: 0.8rem;
+    font-weight: 800;
+    padding: 6px 12px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+
+.stocktake-diff-tag.zero {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--emerald);
+}
+
+.stocktake-diff-tag.plus {
+    background: rgba(37, 99, 235, 0.1);
+    color: #2563eb;
+}
+
+.stocktake-diff-tag.minus {
+    background: rgba(225, 29, 72, 0.1);
+    color: #e11d48;
+}
+
+.stocktake-history-wrap {
+    border-top: 1px dashed var(--border-subtle);
+    padding-top: 14px;
+}
+
+.stocktake-history-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: var(--text-main);
+}
+
+.stocktake-count-tag {
+    background: rgba(124, 58, 237, 0.12);
+    color: #7c3aed;
+    padding: 2px 8px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-weight: 800;
+}
+
+.stocktake-session-item {
+    background: var(--input-bg);
+    border-radius: 10px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    font-size: 0.8rem;
+}
+
+/* Dark mode for stocktake & low stock alerts */
+[data-theme="dark"] .low-stock-alert-card {
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.3);
+}
+
+[data-theme="dark"] .low-stock-info h4 {
+    color: #fbbf24;
+}
+
+[data-theme="dark"] .stocktake-sheet {
+    background: #0f172a;
+}
+
+[data-theme="dark"] .stocktake-wh-row,
+[data-theme="dark"] .stocktake-active-box,
+[data-theme="dark"] .stocktake-session-item {
+    background: #1e293b;
+    border-color: #334155;
+}
+
+[data-theme="dark"] .stocktake-wh-select,
+[data-theme="dark"] .btn-step-stock,
+[data-theme="dark"] .stocktake-suggestions-list {
+    background: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
+}

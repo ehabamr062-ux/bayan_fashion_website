@@ -162,6 +162,16 @@
                 </div>
             </div>
 
+            <!-- ⚠️ تنبيه نواقص المخزن السريع -->
+            <div id="dashLowStockBanner" class="low-stock-alert-card" style="display: none;" onclick="window.BayanMobile.filterByLowStock()">
+                <div class="low-stock-icon">⚠️</div>
+                <div class="low-stock-info">
+                    <h4 id="dashLowStockTitle">تنبيه نواقص المخزن (0 أصناف)</h4>
+                    <p>يوجد موديلات شارف رصيدها على النفاد (قطعتين أو أقل). اضغط لمعاينتها وجردها فوراً 🔍</p>
+                </div>
+                <div class="low-stock-arrow">‹</div>
+            </div>
+
             <!-- قائمة أحدث الفواتير والحركات المنفذة باليوم مع القائمة المنسدلة للتصنيف -->
             <div class="activity-section-header">
                 <div class="section-headline" style="margin-bottom: 8px;">
@@ -216,13 +226,16 @@
                     onchange="window.BayanMobile.handleCameraFile(event)">
             </div>
 
-            <!-- شريط فئات وأقسام الأصناف مع زر إضافة صنف جديد -->
+            <!-- شريط فئات وأقسام الأصناف مع زر إضافة صنف جديد وزر جرد المخزن -->
             <div class="products-top-row">
                 <div id="categoriesScroll" class="cat-chips-scroll" style="margin-bottom: 0; flex: 1;">
                     <!-- يُملأ برمجياً -->
                 </div>
+                <button type="button" class="btn-open-stocktake" onclick="window.BayanMobile.openStocktakeModal()" title="جرد سريع للمخزن">
+                    <span>📦</span> جرد
+                </button>
                 <button type="button" class="btn-open-add-product" onclick="window.BayanMobile.openAddProductModal()">
-                    <span>➕</span> صنف جديد
+                    <span>➕</span> صنف
                 </button>
             </div>
 
@@ -463,6 +476,16 @@
                         <div class="settings-item-content">
                             <div class="settings-item-title">معلومات النظام والدعم الفني</div>
                             <div class="settings-item-subtitle">الإصدار v5.0.8 • واتساب المساعدة</div>
+                        </div>
+                        <div class="settings-item-arrow">‹</div>
+                    </div>
+
+                    <!-- 9. النسخ الاحتياطي والأمان السحابي -->
+                    <div class="settings-nav-item" onclick="window.BayanMobile.openSettingSubPage('backup')">
+                        <div class="settings-item-icon" style="background: rgba(124, 58, 237, 0.12); color: #7c3aed;">☁️</div>
+                        <div class="settings-item-content">
+                            <div class="settings-item-title">النسخ الاحتياطي والأمان السحابي</div>
+                            <div id="settingSnippetBackup" class="settings-item-subtitle">حفظ واستعادة قاعدة البيانات بضغطة زر</div>
                         </div>
                         <div class="settings-item-arrow">‹</div>
                     </div>
@@ -812,6 +835,37 @@
                     </div>
                 </div>
 
+                <!-- 9️⃣ لوحة النسخ الاحتياطي والأمان السحابي -->
+                <div id="panel_backup" class="setting-detail-panel" style="display: none;">
+                    <div class="settings-card">
+                        <h4 class="settings-card-title">☁️ النسخ الاحتياطي السحابي والمحلي</h4>
+                        <p class="settings-card-desc">احفظ بيانات محلك (الأصناف، الفواتير، الحسابات، الإعدادات) بضغطة زر لحمايتها من أي فقدان:</p>
+
+                        <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 14px;">
+                            <button type="button" class="btn-complete-invoice" style="background: linear-gradient(135deg, #7c3aed, #6d28d9); box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35); height: 46px;" onclick="window.BayanMobile.createCloudBackup()">
+                                <span>☁️</span> إنشاء نسخة احتياطية سحابية الآن
+                            </button>
+
+                            <button type="button" class="btn-complete-invoice" style="background: linear-gradient(135deg, #0284c7, #0369a1); box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3); height: 46px;" onclick="window.BayanMobile.downloadLocalBackupJSON()">
+                                <span>💾</span> تحميل ملف النسخة الاحتياطية (JSON)
+                            </button>
+
+                            <div style="border-top: 1px dashed var(--border-subtle); padding-top: 14px; margin-top: 4px;">
+                                <label class="form-label" style="margin-bottom: 8px;">📥 استعادة نسخة احتياطية سابقة:</label>
+                                <input type="file" id="restoreBackupFileInput" accept=".json" style="display: none;" onchange="window.BayanMobile.restoreBackupFromFile(event)">
+                                <button type="button" class="btn-change-image" style="width: 100%; justify-content: center; height: 44px; font-size: 0.88rem;" onclick="document.getElementById('restoreBackupFileInput').click()">
+                                    <span>📂</span> اختيار ملف النسخة الاحتياطية واستعادتها
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="backupHistoryCard" class="settings-card" style="margin-top: 14px;">
+                        <h4 class="settings-card-title" style="font-size: 0.88rem;">🕒 آخر عملية نسخ احتياطي:</h4>
+                        <p id="lastBackupTimeText" style="font-size: 0.82rem; color: var(--text-dim); margin-top: 4px;">لم يتم إنشاء نسخة بعد على هذا الجهاز.</p>
+                    </div>
+                </div>
+
             </div>
         </section>
 
@@ -914,16 +968,18 @@
                 </div>
             </div>
 
-            <div style="display: flex; gap: 8px;">
-                <button type="button" id="btnSuccessReceiptImage" class="btn-complete-invoice" style="flex: 1.2; background: linear-gradient(135deg, #0284c7, #0369a1); box-shadow: 0 4px 14px rgba(2,132,199,0.3);" onclick="window.BayanMobile.openReceiptImageModal(window.BayanMobile.lastSuccessTx)">
-                    <span>📸</span> صورة إيصال واتساب
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                <button type="button" id="btnSendWhatsAppDirect" class="btn-complete-invoice" style="width: 100%; height: 46px; background: linear-gradient(135deg, #25d366, #128c7e); box-shadow: 0 4px 16px rgba(37,211,102,0.35); font-size: 0.95rem;" onclick="window.BayanMobile.sendWhatsAppReceiptDirectly(window.BayanMobile.lastSuccessTx)">
+                    <span>📲</span> إرسال الفاتورة لواتساب العميل مباشرة
                 </button>
-                <button type="button" id="btnShareWhatsApp" class="btn-complete-invoice" style="flex: 0.9; background: linear-gradient(135deg, #25d366, #128c7e); box-shadow: 0 4px 14px rgba(37,211,102,0.3);">
-                    <span>💬</span> نص واتساب
-                </button>
-                <button type="button" class="btn-complete-invoice" style="flex: 0.7; background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); box-shadow: none;" onclick="window.BayanMobile.closeInvoiceSuccessModal()">
-                    إغلاق
-                </button>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" id="btnSuccessReceiptImage" class="btn-complete-invoice" style="flex: 1.2; background: linear-gradient(135deg, #0284c7, #0369a1); box-shadow: 0 4px 14px rgba(2,132,199,0.3);" onclick="window.BayanMobile.openReceiptImageModal(window.BayanMobile.lastSuccessTx)">
+                        <span>📸</span> كارت الإيصال
+                    </button>
+                    <button type="button" class="btn-complete-invoice" style="flex: 0.8; background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); box-shadow: none;" onclick="window.BayanMobile.closeInvoiceSuccessModal()">
+                        إغلاق
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -1275,6 +1331,61 @@
                 <button type="button" id="btnSaveNewAccount" class="btn-complete-invoice" onclick="window.BayanMobile.submitNewAccount()">
                     <span>💾</span> حفظ الحساب وترحيله للسحابة والماستر
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📦 نافذة الجرد السريع بالمخزن المباشر -->
+    <div id="stocktakeModalOverlay" class="modal-overlay" onclick="if(event.target===this)window.BayanMobile.closeStocktakeModal()">
+        <div class="stocktake-sheet">
+            <div class="sheet-handle"></div>
+            <div class="stocktake-header">
+                <div class="stocktake-title">
+                    <span>📦</span> جرد المخزن السريع
+                </div>
+                <button type="button" class="btn-close-modal" onclick="window.BayanMobile.closeStocktakeModal()">✕</button>
+            </div>
+
+            <!-- اختيار المخزن المراد جرده -->
+            <div class="stocktake-wh-row">
+                <label for="stocktakeWarehouseSelect">المخزن المستهدف للجرد:</label>
+                <select id="stocktakeWarehouseSelect" class="stocktake-wh-select" onchange="window.BayanMobile.onStocktakeWarehouseChange(this.value)">
+                    <!-- يُملأ بالمخازن المتاحة -->
+                </select>
+            </div>
+
+            <!-- مربع مسح أو اختيار الصنف -->
+            <div class="stocktake-search-wrap">
+                <div class="search-input-box" style="flex: 1;">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="stocktakeSearchInput" placeholder="امسح الباركود أو اكتب اسم الموديل..." autocomplete="off" oninput="window.BayanMobile.onStocktakeSearchInput(this.value)">
+                    <button type="button" id="stocktakeSearchClearBtn" class="search-clear-btn" style="display: none;" onclick="window.BayanMobile.clearStocktakeSearch()">✕</button>
+                </div>
+                <button type="button" class="btn-scan-camera" onclick="window.BayanMobile.triggerStocktakeCameraScan()" title="مسح بكاميرا الهاتف">
+                    📷
+                </button>
+                <input type="file" id="stocktakeCameraInput" accept="image/*" capture="environment" style="display: none;" onchange="window.BayanMobile.handleStocktakeCameraFile(event)">
+            </div>
+
+            <!-- قائمة الاقتراحات السريعة عند البحث بالاسم -->
+            <div id="stocktakeSuggestionsList" class="stocktake-suggestions-list" style="display: none;"></div>
+
+            <!-- الصندوق النشط للصنف المجرود حالياً -->
+            <div id="stocktakeActiveProductBox" class="stocktake-active-box" style="display: none;">
+                <!-- يُملأ برمجياً ببيانات الصنف والكمية الحالية وتعديلها -->
+            </div>
+
+            <!-- سجل الحركات المجرودة في هذه الجلسة -->
+            <div class="stocktake-history-wrap">
+                <div class="stocktake-history-head">
+                    <span>📋 حركات الجرد بهذه الجلسة:</span>
+                    <span id="stocktakeSessionCount" class="stocktake-count-tag">0 أصناف</span>
+                </div>
+                <div id="stocktakeSessionList" class="stocktake-session-list">
+                    <div style="text-align: center; padding: 20px; color: var(--text-dim); font-size: 0.82rem;">
+                        امسح باركود الصنف أو ابحث عنه للبدء في جرد الرصيد الفعلي 📦
+                    </div>
+                </div>
             </div>
         </div>
     </div>
