@@ -9,16 +9,41 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="description" content="بيان فاشون موبايل - لوحة المتابعة الحية ومراقبة الدرج والبيع السريع">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>بيان فاشون موبايل 📱 | الداش بورد ونقطة البيع</title>
 
     <!-- خط القاهرة والأيقونات -->
     <link rel="stylesheet" href="../fonts/cairo.css">
-    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.0.8">
+    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.5">
     <style id="mobile-fashion-android-overhaul"></style>
     <script>
         // إعداد الوضع الفاتح كالوضع الافتراضي الفوري
         const savedTheme = localStorage.getItem('bayan_mob_theme') || 'light';
         document.documentElement.setAttribute('data-theme', savedTheme);
+
+        // 🚀 كسر وتحديث الكاش التلقائي لمزامنة أحدث ملفات النظام فوراً
+        (function () {
+            try {
+                if ('caches' in window) {
+                    caches.keys().then(keys => {
+                        keys.forEach(key => {
+                            if (key.includes('v5.0.8') || (key.includes('bayan-') && !key.includes('v5.1.5'))) {
+                                caches.delete(key);
+                            }
+                        });
+                    });
+                }
+                if ('serviceWorker' in navigator) {
+                    navigator.serviceWorker.getRegistrations().then(regs => {
+                        for (let reg of regs) {
+                            reg.update();
+                        }
+                    });
+                }
+            } catch (e) { }
+        })();
     </script>
 </head>
 
@@ -475,7 +500,7 @@
                         <div class="settings-item-icon" style="background: rgba(100, 116, 139, 0.15); color: var(--text-dim);">ℹ️</div>
                         <div class="settings-item-content">
                             <div class="settings-item-title">معلومات النظام والدعم الفني</div>
-                            <div class="settings-item-subtitle">الإصدار v5.0.8 • واتساب المساعدة</div>
+                            <div class="settings-item-subtitle">الإصدار v5.1.5 • واتساب المساعدة</div>
                         </div>
                         <div class="settings-item-arrow">‹</div>
                     </div>
@@ -812,7 +837,7 @@
                     <div class="settings-card" style="text-align: center; padding: 24px 18px;">
                         <div style="font-size: 3rem; margin-bottom: 8px;">👗</div>
                         <h3 style="font-size: 1.3rem; font-weight: 900; color: var(--text-main); margin-bottom: 4px;">بَيَان فاشون كاشير كلاود</h3>
-                        <p style="font-size: 0.82rem; color: var(--text-dim); margin-bottom: 14px;">إصدار الهواتف والتابلت الفاخر • الإصدار 5.0.8</p>
+                        <p style="font-size: 0.82rem; color: var(--text-dim); margin-bottom: 14px;">إصدار الهواتف والتابلت الفاخر • الإصدار 5.1.5</p>
 
                         <div class="branch-info-box" style="text-align: right; margin-bottom: 20px;">
                             <div class="branch-info-row">
@@ -1392,7 +1417,7 @@
 
     <!-- سكريبتات التشغيل والمكتبات المدمجة -->
     <script src="../lib/html2canvas.min.js"></script>
-    <script src="js/mobile_fashion.js?v=5.0.8"></script>
+    <script src="js/mobile_fashion.js?v=5.1.5"></script>
 </body>
 
 </html>

@@ -6,6 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bayan POS - Business Management System</title>
 
+    <script>
+        // 📱 توجيه تلقائي ذكي للهواتف المحمولة إلى نسخة الموبايل عند التصفح عبر الويب
+        (function () {
+            try {
+                if (typeof window !== 'undefined' && !window.electronAPI && !navigator.userAgent.includes('Electron')) {
+                    var isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || (window.innerWidth <= 768 && 'ontouchstart' in window);
+                    if (isMobile && !window.location.pathname.includes('/mobile')) {
+                        var base = window.location.pathname.replace(/\/index\.html$/, '').replace(/\/$/, '');
+                        window.location.replace(base + '/mobile/index.html' + window.location.search);
+                    }
+                }
+            } catch (e) { }
+        })();
+    </script>
+
     <style id="bayan-initial-screen-style">
         html,
         body {

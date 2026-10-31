@@ -3,9 +3,9 @@
 //  النسخة المطورة للعمل أوفلاين 100%
 // ============================================================
 
-const CACHE_NAME = 'bayan-pos-v5.0.8';
-const STATIC_CACHE = 'bayan-static-v5.0.8';
-const DYNAMIC_CACHE = 'bayan-dynamic-v5.0.8';
+const CACHE_NAME = 'bayan-pos-v5.1.5';
+const STATIC_CACHE = 'bayan-static-v5.1.5';
+const DYNAMIC_CACHE = 'bayan-dynamic-v5.1.5';
 
 // كافة ملفات النظام الأساسية المتوفرة محلياً (بدون تكرار لتفادي خطأ Entry already exists على GitHub Pages)
 const STATIC_FILES = [
@@ -24,6 +24,8 @@ const STATIC_FILES = [
     './css/treasury_audit.css',
     './css/barcode_print.css',
     './mobile/index.html',
+    './mobile/css/mobile_fashion.css?v=5.1.5',
+    './mobile/js/mobile_fashion.js?v=5.1.5',
     './mobile/css/mobile_fashion.css',
     './mobile/js/mobile_fashion.js',
     './js/store.js',
@@ -129,7 +131,7 @@ self.addEventListener('activate', (event) => {
     );
 });
 
-// استراتيجية التحكم في الطلبات (Cache First with Network Fallback)
+// استراتيجية التحكم في الطلبات (Network First للصفحات والموبايل، Cache First للملفات الثابتة الأخرى)
 self.addEventListener('fetch', (event) => {
     const { request } = event;
     if (!request || request.method !== 'GET') return;
@@ -137,6 +139,33 @@ self.addEventListener('fetch', (event) => {
 
     const url = new URL(request.url);
     if (url.pathname.includes('socket.io') || url.pathname.includes('/api/')) return;
+
+    // لصفحات HTML وملفات نسخة الموبايل: Network First لضمان وصول أي تحديث جديد فوراً للعميل
+    const isNavigationOrDoc = request.mode === 'navigate' || request.destination === 'document' || url.pathname.endsWith('.html') || url.pathname.endsWith('/');
+    const isMobileAsset = url.pathname.includes('/mobile/');
+
+    if (isNavigationOrDoc || isMobileAsset) {
+        event.respondWith(
+            fetch(request).then((networkResponse) => {
+                if (networkResponse && networkResponse.status === 200) {
+                    const responseToCache = networkResponse.clone();
+                    caches.open(DYNAMIC_CACHE).then((cache) => {
+                        cache.put(request, responseToCache).catch(() => {});
+                    }).catch(() => {});
+                }
+                return networkResponse;
+            }).catch(() => {
+                return caches.match(request).then((cachedResponse) => {
+                    if (cachedResponse) return cachedResponse;
+                    if (url.pathname.includes('/mobile/')) {
+                        return caches.match('./mobile/index.html');
+                    }
+                    return caches.match('./index.html') || caches.match('./');
+                });
+            })
+        );
+        return;
+    }
 
     event.respondWith(
         caches.match(request).then((cachedResponse) => {

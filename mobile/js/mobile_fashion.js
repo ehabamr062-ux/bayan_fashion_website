@@ -4152,7 +4152,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         const shopId = State.shopId || CONFIG.SHOP_ID || 'SHOP_DEFAULT';
         const timestamp = new Date().toISOString();
         const backupData = {
-            version: '5.0.8',
+            version: '5.1.5',
             shop_id: shopId,
             shop_name: State.shopName || CONFIG.SHOP_NAME,
             timestamp: timestamp,
@@ -4196,7 +4196,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         const dateStr = getTodayISO();
         const backupData = {
             system: 'BAYAN POS FASHION',
-            version: '5.0.8',
+            version: '5.1.5',
             shop_id: shopId,
             shop_name: State.shopName || CONFIG.SHOP_NAME,
             exported_at: new Date().toISOString(),
