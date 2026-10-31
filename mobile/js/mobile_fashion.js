@@ -1406,13 +1406,30 @@
     // ============================================================
     // 🛒 QUICK MOBILE POS ("ممكن يبيع ولا حاجة")
     // ============================================================
-    function addToCart(product, size = '', color = '', qty = 1) {
+    function addToCart(product, size = '', color = '', qty = 1, customPrice) {
         if (!product) return;
         const availableStock = getVariantStock(product, size, color);
 
         if (availableStock <= 0) {
             showToast(`عفواً! مقاس (${size || 'عادي'}) لون (${color || 'عام'}) نفد من المخزن تماماً (رصيد 0) ❌`, 'error');
             return;
+        }
+
+        let itemPrice = (customPrice !== undefined && !isNaN(customPrice) && customPrice > 0)
+            ? customPrice
+            : parseFloat(product.price || product.salePrice || 0);
+
+        if ((customPrice === undefined || customPrice <= 0) && Array.isArray(product.variants) && product.variants.length > 0) {
+            const v = product.variants.find(item => 
+                (!size || String(item.size || '').trim().toLowerCase() === String(size || '').trim().toLowerCase()) && 
+                (!color || String(item.color || '').trim().toLowerCase() === String(color || '').trim().toLowerCase())
+            );
+            if (v) {
+                const vPrice = parseFloat(v.price !== undefined ? v.price : (v.salePrice || 0));
+                if (!isNaN(vPrice) && vPrice > 0) {
+                    itemPrice = vPrice;
+                }
+            }
         }
 
         const cartKey = `${product.id}_${size}_${color}`;
@@ -1432,7 +1449,7 @@
                 productId: product.id,
                 name: product.name,
                 code: product.code || product.barcode || '',
-                price: parseFloat(product.price || product.salePrice || 0),
+                price: itemPrice,
                 size: size || 'عادي',
                 color: color || 'عادي',
                 qty: qty,
@@ -1649,6 +1666,7 @@
         const mm = String(now.getMonth() + 1).padStart(2, '0');
         const dd = String(now.getDate()).padStart(2, '0');
         const dateKey = `${yy}${mm}${dd}`; // e.g. "261019"
+        const term = State.terminalLetter || 'B';
 
         const lastDate = localStorage.getItem('bayan_mob_last_invoice_date') || '';
         let lastSeq = parseInt(localStorage.getItem('bayan_mob_last_invoice_seq') || '0', 10);
@@ -1664,12 +1682,19 @@
         }
 
         // فحص وقائي في الفواتير المسجلة محلياً لمنع أي تكرار لنفس اليوم
+        const prefix = `MOB-${term}-${dateKey}-`;
+        const legacyPrefix = `MOB-${dateKey}-`;
         if (Array.isArray(State.transactions) && State.transactions.length > 0) {
-            const prefix = `MOB-${dateKey}-`;
             State.transactions.forEach(t => {
                 const id = String(t.invoiceId || t.id || '');
                 if (id.startsWith(prefix)) {
                     const rawPart = id.replace(prefix, '');
+                    const numPart = parseInt(rawPart, 10);
+                    if (!isNaN(numPart) && numPart > lastSeq) {
+                        lastSeq = numPart;
+                    }
+                } else if (id.startsWith(legacyPrefix)) {
+                    const rawPart = id.replace(legacyPrefix, '');
                     const numPart = parseInt(rawPart, 10);
                     if (!isNaN(numPart) && numPart > lastSeq) {
                         lastSeq = numPart;
@@ -1682,7 +1707,7 @@
         localStorage.setItem('bayan_mob_last_invoice_seq', String(nextSeq));
 
         const seqStr = String(nextSeq).padStart(3, '0');
-        return `MOB-${dateKey}-${seqStr}`;
+        return `MOB-${term}-${dateKey}-${seqStr}`;
     }
 
     // Submit Mobile Invoice
@@ -2131,7 +2156,22 @@
             return;
         }
 
-        addToCart(prod, size, color, 1);
+        // إذا كان المقاس المختار له سعر مخصص في التشكيلة (variant.price > 0) يتم اعتماده
+        let finalPrice = parseFloat(prod.price || prod.salePrice || 0);
+        if (Array.isArray(prod.variants) && prod.variants.length > 0) {
+            const v = prod.variants.find(item => 
+                (!size || String(item.size || '').trim().toLowerCase() === String(size || '').trim().toLowerCase()) && 
+                (!color || String(item.color || '').trim().toLowerCase() === String(color || '').trim().toLowerCase())
+            );
+            if (v) {
+                const vPrice = parseFloat(v.price !== undefined ? v.price : (v.salePrice || 0));
+                if (!isNaN(vPrice) && vPrice > 0) {
+                    finalPrice = vPrice;
+                }
+            }
+        }
+
+        addToCart(prod, size, color, 1, finalPrice);
         closeAddToCartModal();
     }
 
@@ -2147,6 +2187,21 @@
             return;
         }
 
+        // إذا كان المقاس المختار له سعر مخصص في التشكيلة (variant.price > 0) يتم اعتماده
+        let finalPrice = parseFloat(prod.price || prod.salePrice || 0);
+        if (Array.isArray(prod.variants) && prod.variants.length > 0) {
+            const v = prod.variants.find(item => 
+                (!size || String(item.size || '').trim().toLowerCase() === String(size || '').trim().toLowerCase()) && 
+                (!color || String(item.color || '').trim().toLowerCase() === String(color || '').trim().toLowerCase())
+            );
+            if (v) {
+                const vPrice = parseFloat(v.price !== undefined ? v.price : (v.salePrice || 0));
+                if (!isNaN(vPrice) && vPrice > 0) {
+                    finalPrice = vPrice;
+                }
+            }
+        }
+
         closeAddToCartModal();
 
         // One-tap quick checkout: set cart to this single item and submit immediately
@@ -2155,7 +2210,7 @@
             productId: prod.id,
             name: prod.name,
             code: prod.code || prod.barcode || '',
-            price: parseFloat(prod.price || prod.salePrice || 0),
+            price: finalPrice,
             size: size,
             color: color,
             qty: 1,
@@ -4311,12 +4366,16 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         // تطبيق فوري لبيانات المتجر المخزنة محلياً على الهيدر والإعدادات فور بدء التشغيل
         applyStoreProfileToUI();
 
-        // Setup Search Input Listener
+        // Setup Search Input Listener (Debounce 200ms لمنع أي تهنيج أثناء الكتابة السريعة)
         const searchInput = document.getElementById('productSearchInput');
         if (searchInput) {
+            let searchDebounceTimer = null;
             searchInput.addEventListener('input', (e) => {
                 State.searchQuery = e.target.value;
-                renderProducts();
+                if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+                searchDebounceTimer = setTimeout(() => {
+                    renderProducts();
+                }, 200);
             });
         }
 

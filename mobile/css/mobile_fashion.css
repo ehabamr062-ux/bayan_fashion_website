@@ -24,10 +24,10 @@
     --text-dim: #64748b;
     --text-light: #94a3b8;
 
-    --primary: #6366f1;
-    --primary-hover: #4f46e5;
-    --primary-glow: rgba(99, 102, 241, 0.22);
-    --primary-subtle: #eef2ff;
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --primary-glow: rgba(37, 99, 235, 0.25);
+    --primary-subtle: #eff6ff;
 
     --gold: #d97706;
     --gold-glow: rgba(217, 119, 6, 0.18);
@@ -74,10 +74,10 @@
     --text-dim: #64748b;
     --text-light: #475569;
 
-    --primary: #8b5cf6;
-    --primary-hover: #7c3aed;
-    --primary-glow: rgba(139, 92, 246, 0.35);
-    --primary-subtle: rgba(139, 92, 246, 0.15);
+    --primary: #3b82f6;
+    --primary-hover: #2563eb;
+    --primary-glow: rgba(59, 130, 246, 0.35);
+    --primary-subtle: rgba(59, 130, 246, 0.15);
 
     --gold: #f59e0b;
     --gold-glow: rgba(245, 158, 11, 0.3);
@@ -162,16 +162,17 @@ body {
 }
 
 .brand-icon {
-    width: 38px;
-    height: 38px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 20px;
-    box-shadow: 0 4px 12px var(--primary-glow);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 22px;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    flex-shrink: 0;
 }
 
 .brand-info h1 {
@@ -264,20 +265,30 @@ body {
    📱 MAIN CONTAINER & TAB VIEWS
    ============================================================ */
 .mobile-content {
-    padding: 16px;
-    max-width: 580px;
-    margin: 0 auto;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    padding: 14px 14px 120px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    box-sizing: border-box;
 }
 
 .tab-view {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     display: none;
+    flex-direction: column;
+    gap: 14px;
     opacity: 0;
     transform: translateY(6px);
     transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
 .tab-view.active {
-    display: block;
+    display: flex;
     opacity: 1;
     transform: translateY(0);
 }
@@ -403,21 +414,21 @@ body {
    💰 DASHBOARD & CASH HERO CARD (ULTRA-LUXURY MESH GRADIENT)
    ============================================================ */
 .drawer-hero-card {
-    background: linear-gradient(135deg, #3730a3 0%, #4f46e5 40%, #7c3aed 100%);
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 45%, #1d4ed8 100%);
     border-radius: var(--radius-lg);
     padding: 22px 20px;
     color: #ffffff;
-    box-shadow: 0 16px 36px -6px rgba(79, 70, 229, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.18) inset;
+    box-shadow: 0 16px 36px -6px rgba(37, 99, 235, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.22) inset;
     margin-bottom: 20px;
     position: relative;
     overflow: hidden;
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
 .drawer-hero-card:active {
-    transform: scale(0.99);
+    transform: scale(0.98);
 }
 
 .drawer-hero-card::before {
@@ -485,12 +496,12 @@ body {
 }
 
 .drawer-amount {
-    font-size: 2.45rem;
+    font-size: 2.65rem;
     font-weight: 900;
     font-family: 'Cairo', monospace, sans-serif;
     letter-spacing: -0.5px;
     line-height: 1;
-    text-shadow: 0 2px 16px rgba(0, 0, 0, 0.25), 0 0 28px rgba(255, 255, 255, 0.25);
+    text-shadow: 0 2px 16px rgba(0, 0, 0, 0.3), 0 0 28px rgba(255, 255, 255, 0.25);
 }
 
 .drawer-currency {
@@ -535,16 +546,18 @@ body {
    📊 STATS GRID (TACTILE TOUCH CARDS)
    ============================================================ */
 .stats-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 12px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
     margin-bottom: 22px;
 }
 
 .stat-card {
     background: var(--bg-card);
     border: 1.5px solid var(--border-subtle);
-    border-radius: var(--radius-md);
+    border-radius: 18px;
     padding: 14px;
     display: flex;
     align-items: center;
@@ -552,10 +565,11 @@ body {
     box-shadow: var(--shadow-sm);
     transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
     user-select: none;
+    overflow: hidden;
 }
 
 .stat-card:active {
-    transform: translateY(-2px) scale(0.98);
+    transform: scale(0.97);
     box-shadow: var(--shadow-md);
     border-color: var(--primary);
 }
@@ -635,6 +649,68 @@ body {
     display: flex;
     flex-direction: column;
     gap: 10px;
+}
+
+/* 🛍️ MODERN EMPTY SALES CARD */
+.empty-sales-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 32px 18px;
+    background: var(--bg-card);
+    border: 1.5px dashed var(--border-subtle);
+    border-radius: 20px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+    margin: 6px 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+.empty-sales-icon-wrap {
+    width: 60px;
+    height: 60px;
+    border-radius: 18px;
+    background: linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(30, 58, 138, 0.18));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+    margin-bottom: 12px;
+    border: 1px solid rgba(37, 99, 235, 0.25);
+    box-shadow: 0 6px 18px -3px rgba(37, 99, 235, 0.2);
+}
+.empty-sales-title {
+    font-size: 1rem;
+    font-weight: 900;
+    color: var(--text-main);
+    margin-bottom: 6px;
+}
+.empty-sales-desc {
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    line-height: 1.5;
+    max-width: 290px;
+    margin-bottom: 16px;
+    font-weight: 600;
+}
+.btn-empty-pos-shortcut {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
+    color: #ffffff;
+    font-size: 0.85rem;
+    font-weight: 800;
+    border: none;
+    border-radius: 9999px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+    transition: transform 0.15s ease;
+}
+.btn-empty-pos-shortcut:active {
+    transform: scale(0.95);
 }
 
 .activity-item {
@@ -820,10 +896,10 @@ body {
 .product-card {
     background: var(--bg-card);
     border: 1.5px solid var(--border-subtle);
-    border-radius: var(--radius-lg);
+    border-radius: 18px;
     padding: 16px;
     box-shadow: var(--shadow-sm);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease, border-color 0.2s ease;
     position: relative;
     overflow: hidden;
 }
@@ -831,7 +907,7 @@ body {
 .product-card:active {
     border-color: var(--primary);
     box-shadow: 0 8px 24px var(--primary-glow);
-    transform: translateY(-1px);
+    transform: scale(0.97);
 }
 
 .product-head {
@@ -902,17 +978,20 @@ body {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.76rem;
+    font-size: 0.85rem;
     font-weight: 800;
-    padding: 6px 12px;
-    border-radius: 9px;
+    min-height: 42px;
+    min-width: 42px;
+    padding: 8px 14px;
+    border-radius: 12px;
     background: var(--primary-subtle);
     color: var(--primary);
-    border: 1px solid rgba(99, 102, 241, 0.28);
+    border: 1.5px solid rgba(37, 99, 235, 0.28);
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     user-select: none;
     -webkit-tap-highlight-color: transparent;
+    box-sizing: border-box;
 }
 
 .size-pill:active {
@@ -1082,23 +1161,29 @@ body {
 }
 
 .btn-stepper {
-    width: 28px;
-    height: 28px;
+    width: 36px;
+    min-width: 36px;
+    height: 36px;
+    min-height: 36px;
     border-radius: 50%;
     background: var(--bg-card);
-    border: 1px solid var(--border-subtle);
+    border: 1.5px solid var(--border-subtle);
     color: var(--text-main);
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 900;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: all 0.15s ease;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
 .btn-stepper:active {
-    transform: scale(0.9);
+    transform: scale(0.92);
+    background: var(--primary);
+    color: #ffffff;
+    border-color: var(--primary);
 }
 
 .cart-item-qty {
@@ -2495,6 +2580,225 @@ body {
 /* ============================================================
    👥 ACCOUNTS & PARTNERS VIEW (CUSTOMERS & SUPPLIERS)
    ============================================================ */
+.accounts-search-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.account-search-box-wrap {
+    flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: 48px;
+    box-sizing: border-box;
+}
+
+.account-search-icon {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 17px;
+    color: var(--text-light);
+    pointer-events: none;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    user-select: none;
+}
+
+.account-search-input {
+    width: 100%;
+    min-height: 48px;
+    height: 48px;
+    border-radius: 14px;
+    background: var(--bg-card);
+    border: 1.5px solid var(--border-subtle);
+    font-size: 15px;
+    font-family: inherit;
+    font-weight: 700;
+    color: var(--text-main);
+    padding: 12px 42px 12px 38px;
+    box-sizing: border-box;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.account-search-input::placeholder {
+    color: var(--text-light);
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.account-search-input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px var(--primary-glow);
+    outline: none;
+}
+
+.account-search-clear-btn {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--bg-surface-hover);
+    border: 1px solid var(--border-strong);
+    color: var(--text-dim);
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    z-index: 3;
+    transition: all 0.18s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.account-search-clear-btn:active {
+    transform: translateY(-50%) scale(0.9);
+}
+
+.btn-add-account-top {
+    height: 48px;
+    min-height: 48px;
+    padding: 0 16px;
+    border-radius: 14px;
+    border: none;
+    background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+    color: #ffffff;
+    font-size: 0.88rem;
+    font-weight: 800;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3);
+    flex-shrink: 0;
+    white-space: nowrap;
+    transition: transform 0.15s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.btn-add-account-top:active {
+    transform: scale(0.95);
+}
+
+.accounts-pill-switcher {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 2px 2px 8px 2px;
+    margin-bottom: 14px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.accounts-pill-switcher::-webkit-scrollbar {
+    display: none;
+}
+
+.acc-pill-btn {
+    flex-shrink: 0;
+    min-height: 40px;
+    padding: 8px 16px;
+    border-radius: 9999px;
+    background: var(--bg-card);
+    color: var(--text-muted);
+    font-size: 0.82rem;
+    font-weight: 800;
+    font-family: inherit;
+    border: 1.5px solid var(--border-subtle);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+}
+
+.acc-pill-btn:active {
+    transform: scale(0.95);
+}
+
+.acc-pill-btn.active {
+    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%) !important;
+    color: #ffffff !important;
+    border-color: transparent !important;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.35) !important;
+    transform: translateY(-1px);
+}
+
+.acc-pill-btn.debt-pill.active {
+    background: linear-gradient(135deg, #9f1239 0%, #e11d48 100%) !important;
+    color: #ffffff !important;
+    border-color: transparent !important;
+    box-shadow: 0 4px 14px rgba(225, 29, 72, 0.38) !important;
+}
+
+.acc-pill-btn.credit-pill.active {
+    background: linear-gradient(135deg, #065f46 0%, #059669 100%) !important;
+    color: #ffffff !important;
+    border-color: transparent !important;
+    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.38) !important;
+}
+
+.acc-phone-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(37, 99, 235, 0.08);
+    border: 1px solid rgba(37, 99, 235, 0.22);
+    color: var(--primary) !important;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-decoration: none !important;
+    transition: all 0.18s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.acc-phone-badge:active {
+    transform: scale(0.95);
+    background: rgba(37, 99, 235, 0.18);
+}
+
+.btn-acc-action.call {
+    background: rgba(37, 99, 235, 0.08);
+    color: var(--primary);
+    border-color: rgba(37, 99, 235, 0.25);
+    font-weight: 900;
+}
+
+.btn-acc-action.call:active {
+    background: rgba(37, 99, 235, 0.2);
+    color: #1d4ed8;
+}
+
 .accounts-cards-container {
     display: flex;
     flex-direction: column;
@@ -2505,12 +2809,59 @@ body {
 .account-card {
     background: var(--bg-card);
     border: 1.5px solid var(--border-subtle);
-    border-radius: var(--radius-lg);
-    padding: 14px 16px;
+    border-radius: 18px;
+    padding: 16px;
     box-shadow: var(--shadow-sm);
-    transition: all 0.25s ease;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.2s ease, border-color 0.2s ease;
     position: relative;
     overflow: hidden;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.account-card:active {
+    transform: scale(0.97);
+}
+
+/* دعم الوضع الداكن للحسابات والبحث */
+[data-theme="dark"] .account-search-input {
+    background: #1e293b;
+    border-color: #334155;
+    color: #f8fafc;
+}
+[data-theme="dark"] .account-search-input:focus {
+    background: #1e293b;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+[data-theme="dark"] .account-search-clear-btn {
+    background: #334155;
+    border-color: #475569;
+    color: #cbd5e1;
+}
+[data-theme="dark"] .acc-pill-btn {
+    background: #1e293b;
+    border-color: #334155;
+    color: #cbd5e1;
+}
+[data-theme="dark"] .account-card {
+    background: #1e293b;
+    border-color: #334155;
+}
+[data-theme="dark"] .account-balance-banner.debt {
+    background: rgba(225, 29, 72, 0.15);
+    border-color: rgba(225, 29, 72, 0.35);
+    color: #fda4af;
+}
+[data-theme="dark"] .account-balance-banner.credit {
+    background: rgba(16, 185, 129, 0.15);
+    border-color: rgba(16, 185, 129, 0.35);
+    color: #6ee7b7;
+}
+[data-theme="dark"] .account-balance-banner.zero {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
 }
 
 .account-card:hover {
