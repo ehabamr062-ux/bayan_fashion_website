@@ -534,7 +534,6 @@ async function printInvoice(invoiceData, options = {}) {
     <style>
         @page { 
             size: ${pageWidth === '57mm' ? '58mm auto' : (pageWidth === 'A4' || pageWidth === '210mm' ? 'A4 portrait' : (pageWidth === 'A5' || pageWidth === '148mm' ? 'A5 portrait' : '80mm auto'))}; 
-            margin: 0mm; 
         }
         *, *::before, *::after { 
             box-sizing: border-box !important; 
@@ -900,7 +899,7 @@ function build80mmStandard(d) {
     const qrSectionHtml = renderDualQrCodesHtml(d, 82, false);
 
     return `
-    <div style="width:100%; max-width:76mm; margin:0; font-family:'Arial','Tahoma','Segoe UI',sans-serif; direction:rtl; padding:1mm 2mm; color:#000000; box-sizing:border-box; line-height:1.35; font-weight:900;">
+    <div style="width:100%; max-width:72mm; margin:0; font-family:'Arial','Tahoma','Segoe UI',sans-serif; direction:rtl; padding:1mm 2mm; color:#000000; box-sizing:border-box; line-height:1.35; font-weight:900;">
         <div style="text-align:center; border-bottom:3px solid #000000; padding-bottom:6px; margin-bottom:6px;">
             <div style="font-size:24px; font-weight:900; line-height:1.2; letter-spacing:normal;">${d.shopName}</div>
             ${d.shopAddress ? `<div style="font-size:13px; font-weight:900; margin-top:2px;">${d.shopAddress}</div>` : ''}
@@ -1012,7 +1011,7 @@ function build80mmCompact(d) {
     const qrSectionHtml = renderDualQrCodesHtml(d, 82, false);
 
     return `
-    <div style="width:100%; max-width:76mm; margin:0; font-family:'Arial','Tahoma','Segoe UI',sans-serif; direction:rtl; padding:1mm 2mm; color:#000000; font-size:13.5px; font-weight:900; box-sizing:border-box;">
+    <div style="width:100%; max-width:72mm; margin:0; font-family:'Arial','Tahoma','Segoe UI',sans-serif; direction:rtl; padding:1mm 2mm; color:#000000; font-size:13.5px; font-weight:900; box-sizing:border-box;">
         <div style="text-align:center; border-bottom:3px solid #000000; padding-bottom:6px; margin-bottom:6px;">
             <div style="font-size:24px; font-weight:900; line-height:1.2; letter-spacing:normal;">${d.shopName}</div>
             ${d.shopAddress ? `<div style="font-size:13px; font-weight:900; margin-top:2px;">${d.shopAddress}</div>` : ''}

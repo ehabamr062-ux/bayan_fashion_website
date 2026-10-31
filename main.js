@@ -675,7 +675,7 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                     const printOptions = {
                         silent: true,
                         printBackground: true,
-                        margins: { marginType: 'none' },
+                        margins: { marginType: 'printableArea' },
                         preferCSSPageSize: true,
                         pageSize: is57mm
                             ? { width: 58000, height: 297000 }
