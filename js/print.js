@@ -532,7 +532,10 @@ async function printInvoice(invoiceData, options = {}) {
     <title>${docTitle} - ${shopName}</title>
     <link rel="stylesheet" href="${baseUrl}fonts/cairo.css">
     <style>
-        @page { margin: 0mm; }
+        @page { 
+            size: ${pageWidth === '57mm' ? '58mm auto' : (pageWidth === 'A4' || pageWidth === '210mm' ? 'A4 portrait' : (pageWidth === 'A5' || pageWidth === '148mm' ? 'A5 portrait' : '80mm auto'))}; 
+            margin: 0mm; 
+        }
         *, *::before, *::after { 
             box-sizing: border-box !important; 
             -webkit-print-color-adjust: exact !important;
@@ -614,7 +617,8 @@ async function printInvoice(invoiceData, options = {}) {
                 const targetPrinter = (typeof getStore === 'function' ? getStore('bayan_receipt_printer') : '') || '';
                 const result = await electron.ipcRenderer.invoke('print-receipt-silent', {
                     html: fullHtml,
-                    printerName: targetPrinter
+                    printerName: targetPrinter,
+                    pageWidth: pageWidth
                 });
 
                 if (result && result.success) {
@@ -896,7 +900,7 @@ function build80mmStandard(d) {
     const qrSectionHtml = renderDualQrCodesHtml(d, 82, false);
 
     return `
-    <div style="width:72mm; max-width:72mm; margin:0 auto; font-family:'Arial','Tahoma','Segoe UI',sans-serif; direction:rtl; padding:1mm 2mm; color:#000000; box-sizing:border-box; line-height:1.35; font-weight:900;">
+    <div style="width:100%; max-width:76mm; margin:0; font-family:'Arial','Tahoma','Segoe UI',sans-serif; direction:rtl; padding:1mm 2mm; color:#000000; box-sizing:border-box; line-height:1.35; font-weight:900;">
         <div style="text-align:center; border-bottom:3px solid #000000; padding-bottom:6px; margin-bottom:6px;">
             <div style="font-size:24px; font-weight:900; line-height:1.2; letter-spacing:normal;">${d.shopName}</div>
             ${d.shopAddress ? `<div style="font-size:13px; font-weight:900; margin-top:2px;">${d.shopAddress}</div>` : ''}
@@ -1008,7 +1012,7 @@ function build80mmCompact(d) {
     const qrSectionHtml = renderDualQrCodesHtml(d, 82, false);
 
     return `
-    <div style="width:72mm; max-width:72mm; margin:0 auto; font-family:'Arial','Tahoma','Segoe UI',sans-serif; direction:rtl; padding:1mm 2mm; color:#000000; font-size:13.5px; font-weight:900; box-sizing:border-box;">
+    <div style="width:100%; max-width:76mm; margin:0; font-family:'Arial','Tahoma','Segoe UI',sans-serif; direction:rtl; padding:1mm 2mm; color:#000000; font-size:13.5px; font-weight:900; box-sizing:border-box;">
         <div style="text-align:center; border-bottom:3px solid #000000; padding-bottom:6px; margin-bottom:6px;">
             <div style="font-size:24px; font-weight:900; line-height:1.2; letter-spacing:normal;">${d.shopName}</div>
             ${d.shopAddress ? `<div style="font-size:13px; font-weight:900; margin-top:2px;">${d.shopAddress}</div>` : ''}
@@ -1097,7 +1101,7 @@ function build57mm(d) {
     const qrSectionHtml = renderDualQrCodesHtml(d, 66, true);
 
     return `
-    <div style="width:57mm; font-family:'Arial','Tahoma',sans-serif; direction:rtl; padding:2mm; color:#000000; font-size:12px; font-weight:900;">
+    <div style="width:100%; max-width:57mm; margin:0; font-family:'Arial','Tahoma',sans-serif; direction:rtl; padding:2mm; color:#000000; font-size:12px; font-weight:900; box-sizing:border-box;">
         <div style="text-align:center; border-bottom:2.5px solid #000; padding-bottom:5px; margin-bottom:5px;">
             <strong style="font-size:16px;">${d.shopName}</strong><br>
             <span style="font-size:13px; font-weight:900;">${d.docTitle}</span>

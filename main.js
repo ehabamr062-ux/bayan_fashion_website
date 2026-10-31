@@ -9,7 +9,7 @@ app.on('gpu-process-crashed', (event, killed) => {
     console.warn('⚠️ [GPU Guard] تعثر معالج الرسوميات، تحويل العرض تلقائياً للنمط الآمن...');
     try {
         app.disableHardwareAcceleration();
-    } catch (e) {}
+    } catch (e) { }
 });
 
 // =========================================================================
@@ -121,7 +121,7 @@ function createWindow() {
     // منع اختصارات لوحة المفاتيح الخاصة بالـ Console والـ Reload + توجيه اختصار Ctrl+N لفتح فاتورة بيع جديدة بأمان
     win.webContents.on('before-input-event', (event, input) => {
         const key = input.key.toLowerCase();
-        
+
         // Ctrl+N لفتح تبويب فاتورة بيع جديدة بأمان داخل نفس النافذة لمنع تضارب قاعدة بيانات SQLite
         if (input.control && key === 'n') {
             event.preventDefault();
@@ -351,7 +351,7 @@ ipcMain.handle('select-backup-file', async () => {
             fileSize: fs.statSync(chosenFile).size,
             content: content
         };
-    } catch(err) {
+    } catch (err) {
         console.error("select-backup-file error:", err);
         return { error: err.message };
     }
@@ -391,7 +391,7 @@ ipcMain.handle('open-sqlite-folder', () => {
             shell.openPath(sqliteDir);
         }
         return true;
-    } catch(e) {}
+    } catch (e) { }
     return false;
 });
 
@@ -400,12 +400,12 @@ ipcMain.on('save-backup-and-quit', async (event, backupData) => {
     try {
         // ⚡ خروج بصري فوري 0ms: إخفاء كافة النوافذ فوراً لمنع أي شعور بتجمد الواجهة أثناء كتابة الملفات
         BrowserWindow.getAllWindows().forEach(w => {
-            try { if (!w.isDestroyed()) w.hide(); } catch(e) {}
+            try { if (!w.isDestroyed()) w.hide(); } catch (e) { }
         });
 
         const desktopDir = app.getPath('desktop');
         const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '_');
-        
+
         // ⚡ مع القواعد الضخمة: نسخ غير متزامن فائق السرعة لملف SQLite دون استهلاك الرام ودون حظر الـ Main Thread
         const os = require('os');
         const dbPath = path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db');
@@ -447,7 +447,7 @@ ipcMain.on('proceed-quit', () => {
     }
     isQuitting = true;
     BrowserWindow.getAllWindows().forEach(w => {
-        try { if (!w.isDestroyed()) w.hide(); } catch(e) {}
+        try { if (!w.isDestroyed()) w.hide(); } catch (e) { }
     });
     app.exit(0);
 });
@@ -459,7 +459,7 @@ ipcMain.on('quit-directly', () => {
     }
     isQuitting = true;
     BrowserWindow.getAllWindows().forEach(w => {
-        try { if (!w.isDestroyed()) w.hide(); } catch(e) {}
+        try { if (!w.isDestroyed()) w.hide(); } catch (e) { }
     });
     app.exit(0);
 });
@@ -555,7 +555,7 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
             _activePrintDestroyTimer = null;
         }
         if (_activePrintWin && !_activePrintWin.isDestroyed()) {
-            try { _activePrintWin.close(); } catch (e) {}
+            try { _activePrintWin.close(); } catch (e) { }
             _activePrintWin = null;
         }
 
@@ -573,20 +573,20 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                 if (delayDestroy) {
                     _activePrintDestroyTimer = setTimeout(() => {
                         if (printWin && !printWin.isDestroyed()) {
-                            try { printWin.close(); } catch (e) {}
+                            try { printWin.close(); } catch (e) { }
                             if (_activePrintWin === printWin) _activePrintWin = null;
                         }
                         if (tempReceiptFile) {
-                            try { if (fs.existsSync(tempReceiptFile)) fs.unlinkSync(tempReceiptFile); } catch (e) {}
+                            try { if (fs.existsSync(tempReceiptFile)) fs.unlinkSync(tempReceiptFile); } catch (e) { }
                         }
                     }, 8000);
                 } else {
                     if (printWin && !printWin.isDestroyed()) {
-                        try { printWin.close(); } catch (e) {}
+                        try { printWin.close(); } catch (e) { }
                         if (_activePrintWin === printWin) _activePrintWin = null;
                     }
                     if (tempReceiptFile) {
-                        try { if (fs.existsSync(tempReceiptFile)) fs.unlinkSync(tempReceiptFile); } catch (e) {}
+                        try { if (fs.existsSync(tempReceiptFile)) fs.unlinkSync(tempReceiptFile); } catch (e) { }
                     }
                 }
             }
@@ -597,7 +597,7 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
         }, 20000);
 
         try {
-            const { html, printerName } = payload || {};
+            const { html, printerName, pageWidth } = payload || {};
             if (!html || typeof html !== 'string' || !html.trim()) {
                 return cleanup({ success: false, error: 'No invoice HTML provided' }, false);
             }
@@ -634,7 +634,7 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                             document.fonts ? document.fonts.ready : Promise.resolve(),
                             new Promise(resolve => setTimeout(resolve, 250))
                         ])
-                    `).catch(() => {});
+                    `).catch(() => { });
 
                     const renderStatus = await printWin.webContents.executeJavaScript(`
                         (() => {
@@ -671,10 +671,15 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                         if (printerName) targetDevice = String(printerName).trim();
                     }
 
+                    const is57mm = (pageWidth === '57mm') || (payload && payload.pageWidth === '57mm');
                     const printOptions = {
                         silent: true,
                         printBackground: true,
-                        margins: { marginType: 'none' }
+                        margins: { marginType: 'none' },
+                        preferCSSPageSize: true,
+                        pageSize: is57mm
+                            ? { width: 58000, height: 297000 }
+                            : { width: 80000, height: 297000 }
                     };
 
                     if (targetDevice) {
@@ -844,7 +849,7 @@ ipcMain.handle('get-hardware-uuid', () => {
                 });
                 const match = out.match(/MachineGuid\s+REG_SZ\s+([a-fA-F0-9-]+)/i);
                 if (match && match[1]) rawGuid = match[1].trim();
-            } catch(e) {}
+            } catch (e) { }
         }
 
         if (!rawGuid) {
@@ -858,10 +863,10 @@ ipcMain.handle('get-hardware-uuid', () => {
 
         try {
             fs.writeFileSync(keyFile, hwid, 'utf8');
-        } catch(e) {}
+        } catch (e) { }
 
         return hwid;
-    } catch(err) {
+    } catch (err) {
         console.warn('[Main] get-hardware-uuid fallback:', err.message);
         return null;
     }
@@ -896,7 +901,7 @@ function autoMigrateLegacyBackups() {
                         }
                         // حذف الملفات القديمة فقط إذا لم تكن في مجلد التنزيلات
                         if (dir !== path.join(os.homedir(), 'Downloads')) {
-                            try { fs.unlinkSync(src); } catch (e) {}
+                            try { fs.unlinkSync(src); } catch (e) { }
                         }
                     }
                 });
@@ -908,7 +913,7 @@ function autoMigrateLegacyBackups() {
                             console.log(`🧹 Cleaned up legacy backup folder: ${dir}`);
                         }
                     }
-                } catch (e) {}
+                } catch (e) { }
             }
         });
     } catch (err) {
@@ -919,7 +924,7 @@ function autoMigrateLegacyBackups() {
 setTimeout(() => {
     try {
         autoMigrateLegacyBackups();
-    } catch(e) {
+    } catch (e) {
         console.warn("Background backup migration:", e);
     }
 }, 10000);
@@ -940,7 +945,7 @@ ipcMain.handle('save-backup-data', async (_e, payload) => {
         }
         const pad = (n) => String(n).padStart(2, '0');
         const d = new Date();
-        const timestamp = `${d.getFullYear()}_${pad(d.getMonth()+1)}_${pad(d.getDate())}__${pad(d.getHours())}_${pad(d.getMinutes())}_${pad(d.getSeconds())}`;
+        const timestamp = `${d.getFullYear()}_${pad(d.getMonth() + 1)}_${pad(d.getDate())}__${pad(d.getHours())}_${pad(d.getMinutes())}_${pad(d.getSeconds())}`;
         const prefix = payload?.isManual ? 'backup_pos_manual_' : 'backup_pos_auto_';
         const fileName = `${prefix}${timestamp}.json`;
         const filePath = path.join(backupDir, fileName);
@@ -953,7 +958,7 @@ ipcMain.handle('save-backup-data', async (_e, payload) => {
                 const desktopFilePath = path.join(desktopDir, fileName);
                 await fs.promises.writeFile(desktopFilePath, payload?.dataStr || '{}', 'utf8');
                 console.log("Manual backup also saved to Desktop:", desktopFilePath);
-            } catch(deskErr) {
+            } catch (deskErr) {
                 console.warn("Could not save copy to desktop:", deskErr);
             }
         }
@@ -968,7 +973,7 @@ ipcMain.handle('save-backup-data', async (_e, payload) => {
                 await fs.promises.copyFile(sqliteOriginalPath, dbBackupPath);
                 console.log("Direct SQLite binary backup saved:", dbBackupPath);
             }
-        } catch(dbCopyErr) {
+        } catch (dbCopyErr) {
             console.warn("SQLite direct copy notice:", dbCopyErr.message);
         }
 
@@ -987,7 +992,7 @@ ipcMain.handle('save-sqlite-direct-backup', async (_e, payload) => {
         }
         const pad = (n) => String(n).padStart(2, '0');
         const d = new Date();
-        const timestamp = `${d.getFullYear()}_${pad(d.getMonth()+1)}_${pad(d.getDate())}__${pad(d.getHours())}_${pad(d.getMinutes())}_${pad(d.getSeconds())}`;
+        const timestamp = `${d.getFullYear()}_${pad(d.getMonth() + 1)}_${pad(d.getDate())}__${pad(d.getHours())}_${pad(d.getMinutes())}_${pad(d.getSeconds())}`;
         const prefix = payload?.isManual ? 'backup_pos_manual_' : 'backup_pos_auto_';
         const fileName = `${prefix}${timestamp}.db`;
         const filePath = path.join(backupDir, fileName);
@@ -1002,7 +1007,7 @@ ipcMain.handle('save-sqlite-direct-backup', async (_e, payload) => {
             try {
                 await fs.promises.copyFile(sqliteOriginalPath, filePath);
                 copied = true;
-            } catch(copyErr) {
+            } catch (copyErr) {
                 console.warn("[save-sqlite-direct-backup] Primary db copy busy, attempting fallback to .bak:", copyErr.message);
             }
         }
@@ -1012,7 +1017,7 @@ ipcMain.handle('save-sqlite-direct-backup', async (_e, payload) => {
             try {
                 await fs.promises.copyFile(sqliteBakPath, filePath);
                 copied = true;
-            } catch(bakErr) {
+            } catch (bakErr) {
                 console.error("[save-sqlite-direct-backup] Fallback copy error:", bakErr.message);
             }
         }
@@ -1022,7 +1027,7 @@ ipcMain.handle('save-sqlite-direct-backup', async (_e, payload) => {
             if (payload?.isManual) {
                 try {
                     let desktopDir = '';
-                    try { desktopDir = app.getPath('desktop'); } catch(e) {}
+                    try { desktopDir = app.getPath('desktop'); } catch (e) { }
                     if (!desktopDir || !fs.existsSync(desktopDir)) {
                         desktopDir = path.join(os.homedir(), 'Desktop');
                     }
@@ -1030,7 +1035,7 @@ ipcMain.handle('save-sqlite-direct-backup', async (_e, payload) => {
                         const desktopFilePath = path.join(desktopDir, fileName);
                         await fs.promises.copyFile(filePath, desktopFilePath);
                     }
-                } catch(dErr) {
+                } catch (dErr) {
                     console.warn("[save-sqlite-direct-backup] Desktop copy notice:", dErr.message);
                 }
             }
@@ -1059,14 +1064,14 @@ ipcMain.handle('restore-sqlite-direct-backup', async (_e, srcFilePath) => {
         if (fs.existsSync(sqliteOriginalPath)) {
             try {
                 await fs.promises.copyFile(sqliteOriginalPath, sqliteOriginalPath + '.before_restore.bak');
-            } catch(bakErr) {}
+            } catch (bakErr) { }
         }
 
         // 🛡️ صمام أمان حاسم: تنظيف ملفات الـ WAL و SHM القديمة لمنع تضارب أو تلف قاعدة البيانات المسترجعة
         const walPath = sqliteOriginalPath + '-wal';
         const shmPath = sqliteOriginalPath + '-shm';
-        try { if (fs.existsSync(walPath)) fs.unlinkSync(walPath); } catch (_) {}
-        try { if (fs.existsSync(shmPath)) fs.unlinkSync(shmPath); } catch (_) {}
+        try { if (fs.existsSync(walPath)) fs.unlinkSync(walPath); } catch (_) { }
+        try { if (fs.existsSync(shmPath)) fs.unlinkSync(shmPath); } catch (_) { }
 
         await fs.promises.copyFile(srcFilePath, sqliteOriginalPath);
         console.log("⚡ [Direct SQLite Restore] تم استعادة ملف قاعدة البيانات بنجاح من:", srcFilePath);
@@ -1314,7 +1319,7 @@ ipcMain.handle('quit-and-install-update', () => {
     }
 });
 
-try { ipcMain.removeHandler('get-app-version'); } catch(e) {}
+try { ipcMain.removeHandler('get-app-version'); } catch (e) { }
 ipcMain.handle('get-app-version', () => {
     return app.getVersion() || '5.0.8';
 });
@@ -1322,7 +1327,7 @@ ipcMain.handle('get-app-version', () => {
 // =========================================================================
 // 🧹 حارس الذاكرة لنواة إلكترون وتفريغ الكاش (Memory Guard & Cache Trimmer)
 // =========================================================================
-try { ipcMain.removeHandler('bayan-trim-memory'); } catch(e) {}
+try { ipcMain.removeHandler('bayan-trim-memory'); } catch (e) { }
 ipcMain.handle('bayan-trim-memory', async () => {
     try {
         if (typeof global.gc === 'function') {
@@ -1344,9 +1349,9 @@ setInterval(() => {
             global.gc();
         }
         if (mainWindow && !mainWindow.isDestroyed() && mainWindow.webContents && mainWindow.webContents.session) {
-            mainWindow.webContents.session.clearCache().catch(() => {});
+            mainWindow.webContents.session.clearCache().catch(() => { });
         }
-    } catch (_) {}
+    } catch (_) { }
 }, 30 * 60 * 1000);
 
 // =========================================================================
