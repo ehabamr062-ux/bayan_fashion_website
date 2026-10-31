@@ -16,7 +16,7 @@
 
     <!-- خط القاهرة والأيقونات -->
     <link rel="stylesheet" href="../fonts/cairo.css">
-    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.5">
+    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.6">
     <style id="mobile-fashion-android-overhaul"></style>
     <script>
         // إعداد الوضع الفاتح كالوضع الافتراضي الفوري
@@ -54,23 +54,25 @@
         <div class="brand-section">
             <div class="brand-icon">👗</div>
             <div class="brand-info">
-                <h1 id="topbarShopName"><span class="shop-title-text">بيان فاشون</span> <span class="badge-tag">موبايل 📱</span></h1>
+                <h1 id="topbarShopName">
+                    <span class="shop-title-text">بيان فاشون</span>
+                    <span class="badge-tag">موبايل</span>
+                </h1>
                 <p id="topbarShopSub">متابعة الخزينة والبيع السريع</p>
             </div>
         </div>
 
         <div class="topbar-actions">
-            <!-- زر تبديل الوضع الفاتح والداكن السريع -->
+            <div id="connectionStatusPill" class="status-pill unpaired" onclick="window.BayanMobile.handleStatusClick()"
+                title="اضغط لإدخال كود المحل والاقتران">
+                <span class="status-dot"></span>
+                <span id="connectionStatusText">غير مقترن</span>
+            </div>
             <button type="button" id="topThemeToggleBtn" class="btn-icon-top" onclick="window.BayanMobile.toggleTheme()"
                 title="تبديل مظهر الشاشة (فاتح / داكن)">
                 ☀️
             </button>
-            <div id="connectionStatusPill" class="status-pill" onclick="window.BayanMobile.reconnect()"
-                title="اضغط لإعادة الاتصال">
-                <span class="status-dot"></span>
-                <span id="connectionStatusText">متصل 🟢</span>
-            </div>
-            <button type="button" class="btn-icon-top" onclick="window.BayanMobile.reconnect()" title="تحديث البيانات">
+            <button type="button" id="topSyncBtn" class="btn-icon-top" onclick="window.BayanMobile.reconnect()" title="تحديث ومزامنة البيانات">
                 🔄
             </button>
         </div>
@@ -83,6 +85,16 @@
              1️⃣ شاشة الداش بورد ورصد الدرج ("يشوف الكيس")
              ========================================== -->
         <section id="view-dashboard" class="tab-view active">
+
+            <!-- 🔔 شريط تنبيه الاقتران في حال لم يتم ربط الهاتف بكود المحل بعد -->
+            <div id="dashUnpairedNotice" class="unpaired-notice-banner" style="display: none;" onclick="window.BayanMobile.openPinModal()">
+                <div class="notice-icon">⚡</div>
+                <div class="notice-content">
+                    <div class="notice-title">الهاتف غير مقترن بفرعك بعد!</div>
+                    <div class="notice-sub">اضغط هنا لإدخال كود المحل وربط المبيعات والخزينة مع الكاشير</div>
+                </div>
+                <div class="notice-arrow">‹</div>
+            </div>
 
             <!-- 🗓️ القائمة المنسدلة لاختيار الفترة الزمنية واليومية -->
             <div class="filter-dropdown-card">
@@ -500,7 +512,7 @@
                         <div class="settings-item-icon" style="background: rgba(100, 116, 139, 0.15); color: var(--text-dim);">ℹ️</div>
                         <div class="settings-item-content">
                             <div class="settings-item-title">معلومات النظام والدعم الفني</div>
-                            <div class="settings-item-subtitle">الإصدار v5.1.5 • واتساب المساعدة</div>
+                            <div class="settings-item-subtitle">الإصدار v5.1.6 • واتساب المساعدة</div>
                         </div>
                         <div class="settings-item-arrow">‹</div>
                     </div>
@@ -837,7 +849,7 @@
                     <div class="settings-card" style="text-align: center; padding: 24px 18px;">
                         <div style="font-size: 3rem; margin-bottom: 8px;">👗</div>
                         <h3 style="font-size: 1.3rem; font-weight: 900; color: var(--text-main); margin-bottom: 4px;">بَيَان فاشون كاشير كلاود</h3>
-                        <p style="font-size: 0.82rem; color: var(--text-dim); margin-bottom: 14px;">إصدار الهواتف والتابلت الفاخر • الإصدار 5.1.5</p>
+                        <p style="font-size: 0.82rem; color: var(--text-dim); margin-bottom: 14px;">إصدار الهواتف والتابلت الفاخر • الإصدار 5.1.6</p>
 
                         <div class="branch-info-box" style="text-align: right; margin-bottom: 20px;">
                             <div class="branch-info-row">
@@ -1417,7 +1429,7 @@
 
     <!-- سكريبتات التشغيل والمكتبات المدمجة -->
     <script src="../lib/html2canvas.min.js"></script>
-    <script src="js/mobile_fashion.js?v=5.1.5"></script>
+    <script src="js/mobile_fashion.js?v=5.1.6"></script>
 </body>
 
 </html>

@@ -117,13 +117,28 @@
         State.isConnected = connected;
         const pill = document.getElementById('connectionStatusPill');
         const text = document.getElementById('connectionStatusText');
-        if (pill) {
-            if (connected) {
+        const notice = document.getElementById('dashUnpairedNotice');
+
+        let currentShopId = State.shopId || CONFIG.SHOP_ID || localStorage.getItem('bayan_mob_shop_id');
+        const isPaired = isValidPairedShop(currentShopId);
+
+        if (notice) {
+            notice.style.display = isPaired ? 'none' : 'flex';
+        }
+
+        if (pill && text) {
+            if (connected && isPaired) {
                 pill.className = 'status-pill';
-                text.textContent = 'متصل بالسحابة 🟢';
+                text.textContent = 'متصل';
+                pill.title = 'متصل بالسحابة بنجاح 🟢';
+            } else if (!isPaired || (message && (message.includes('اقتران') || message.includes('كود')))) {
+                pill.className = 'status-pill unpaired';
+                text.textContent = 'غير مقترن';
+                pill.title = 'الهاتف غير مقترن بكود المحل - اضغط لإدخال الكود ⚡';
             } else {
                 pill.className = 'status-pill offline';
-                text.textContent = message || 'غير متصل 🔴';
+                text.textContent = 'أوفلاين';
+                pill.title = 'العمل بنمط أوفلاين محلي - اضغط لإعادة الاتصال 🔴';
             }
         }
     }
@@ -368,7 +383,7 @@
         const topbarNameEl = document.getElementById('topbarShopName');
         const topbarSubEl = document.getElementById('topbarShopSub');
         if (topbarNameEl) {
-            topbarNameEl.innerHTML = `<span class="shop-title-text">${sName}</span> <span class="badge-tag">موبايل 📱</span>`;
+            topbarNameEl.innerHTML = `<span class="shop-title-text">${sName}</span> <span class="badge-tag">موبايل</span>`;
         }
         if (topbarSubEl) {
             if (sPhone) {
@@ -4152,7 +4167,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         const shopId = State.shopId || CONFIG.SHOP_ID || 'SHOP_DEFAULT';
         const timestamp = new Date().toISOString();
         const backupData = {
-            version: '5.1.5',
+            version: '5.1.6',
             shop_id: shopId,
             shop_name: State.shopName || CONFIG.SHOP_NAME,
             timestamp: timestamp,
@@ -4196,7 +4211,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         const dateStr = getTodayISO();
         const backupData = {
             system: 'BAYAN POS FASHION',
-            version: '5.1.5',
+            version: '5.1.6',
             shop_id: shopId,
             shop_name: State.shopName || CONFIG.SHOP_NAME,
             exported_at: new Date().toISOString(),
@@ -5400,6 +5415,14 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         generateInvoiceId,
         syncStoreProfile,
         applyStoreProfileToUI,
+        handleStatusClick: () => {
+            let currentShopId = State.shopId || CONFIG.SHOP_ID || localStorage.getItem('bayan_mob_shop_id');
+            if (!isValidPairedShop(currentShopId)) {
+                openPinModal();
+            } else {
+                reconnect();
+            }
+        },
         reconnect: async () => {
             showToast('جاري إعادة فحص الاتصال بالسحابة...', 'warning');
             const ok = await checkServerInfo();

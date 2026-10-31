@@ -137,128 +137,292 @@ body {
 }
 
 /* ============================================================
-   🔝 TOP APP BAR
+   🔝 TOP APP BAR (LUXURY MOBILE HEADER)
    ============================================================ */
 .mobile-topbar {
     position: sticky;
     top: 0;
-    z-index: 100;
+    z-index: 1000;
+    height: 60px;
+    padding: 0 12px;
     background: var(--topbar-bg);
-    backdrop-filter: blur(18px);
-    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border-subtle);
-    padding: 10px 16px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    transition: all 0.3s ease;
-    box-shadow: var(--shadow-sm);
+    gap: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .brand-section {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 9px;
+    min-width: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
 }
 
 .brand-icon {
-    width: 42px;
-    height: 42px;
-    border-radius: 14px;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    aspect-ratio: 1 / 1;
+    border-radius: 12px;
     background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 22px;
-    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    font-size: 20px;
+    box-shadow: 0 3px 10px rgba(37, 99, 235, 0.28);
+    border: 1px solid rgba(255, 255, 255, 0.2);
     flex-shrink: 0;
 }
 
+.brand-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+    overflow: hidden;
+}
+
 .brand-info h1 {
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 900;
     color: var(--text-main);
     display: flex;
     align-items: center;
     gap: 6px;
-    line-height: 1.2;
+    line-height: 1.25;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
-.brand-info p {
-    font-size: 0.72rem;
-    color: var(--text-dim);
-    font-weight: 700;
+.shop-title-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    max-width: 135px;
+    vertical-align: middle;
 }
 
 .badge-tag {
-    font-size: 0.65rem;
+    font-size: 0.60rem;
     background: var(--primary-subtle);
     color: var(--primary);
     border: 1px solid var(--border-subtle);
-    padding: 2px 7px;
+    padding: 2px 6px;
     border-radius: 6px;
     font-weight: 800;
+    line-height: 1.2;
+    flex-shrink: 0;
+    letter-spacing: 0.2px;
+    vertical-align: middle;
+}
+
+.brand-info p {
+    font-size: 0.68rem;
+    color: var(--text-dim);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+    margin: 2px 0 0 0;
+    max-width: 170px;
 }
 
 .topbar-actions {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    flex-shrink: 0;
 }
 
+/* Status Pill */
 .status-pill {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     background: var(--emerald-subtle);
-    border: 1px solid rgba(16, 185, 129, 0.25);
-    padding: 5px 10px;
-    border-radius: var(--radius-full);
-    font-size: 0.72rem;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 4px 9px;
+    border-radius: 999px;
+    font-size: 0.70rem;
     font-weight: 800;
     color: var(--emerald);
     cursor: pointer;
     transition: all 0.2s ease;
+    white-space: nowrap;
+    user-select: none;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.status-pill:active {
+    transform: scale(0.94);
+}
+
+.status-dot {
+    width: 6.5px;
+    height: 6.5px;
+    min-width: 6.5px;
+    border-radius: 50%;
+    background: var(--emerald);
+    box-shadow: 0 0 6px var(--emerald);
+    flex-shrink: 0;
 }
 
 .status-pill.offline {
     background: var(--rose-subtle);
-    border-color: rgba(225, 29, 72, 0.25);
+    border-color: rgba(225, 29, 72, 0.3);
     color: var(--rose);
-}
-
-.status-dot {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    background: var(--emerald);
-    box-shadow: 0 0 8px var(--emerald);
 }
 
 .status-pill.offline .status-dot {
     background: var(--rose);
-    box-shadow: 0 0 8px var(--rose);
+    box-shadow: 0 0 6px var(--rose);
+}
+
+.status-pill.unpaired {
+    background: var(--gold-subtle);
+    border-color: rgba(217, 119, 6, 0.35);
+    color: var(--gold);
+}
+
+[data-theme="dark"] .status-pill.unpaired {
+    color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.4);
+    background: rgba(245, 158, 11, 0.14);
+}
+
+.status-pill.unpaired .status-dot {
+    background: var(--gold);
+    box-shadow: 0 0 6px var(--gold);
+    animation: statusPulse 1.8s infinite;
+}
+
+@keyframes statusPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
 }
 
 .btn-icon-top {
-    width: 36px;
-    height: 36px;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    aspect-ratio: 1 / 1;
     border-radius: 10px;
     background: var(--bg-card);
     border: 1px solid var(--border-subtle);
     color: var(--text-main);
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
+    font-size: 15px;
     cursor: pointer;
     box-shadow: var(--shadow-sm);
     transition: all 0.2s ease;
+    flex-shrink: 0;
+    padding: 0;
+    margin: 0;
 }
 
 .btn-icon-top:active {
     transform: scale(0.92);
+    background: var(--primary-subtle);
+}
+
+/* 🔔 شريط تنبيه عدم الاقتران بالداش بورد */
+.unpaired-notice-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.14) 0%, rgba(217, 119, 6, 0.22) 100%);
+    border: 1px solid rgba(245, 158, 11, 0.38);
+    border-radius: var(--radius-md);
+    padding: 11px 14px;
+    margin-bottom: 14px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.10);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.unpaired-notice-banner:active {
+    transform: scale(0.98);
+}
+
+.unpaired-notice-banner .notice-icon {
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+.unpaired-notice-banner .notice-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.unpaired-notice-banner .notice-title {
+    font-size: 0.85rem;
+    color: var(--gold);
+    font-weight: 900;
+}
+
+[data-theme="dark"] .unpaired-notice-banner .notice-title {
+    color: #fbbf24;
+}
+
+.unpaired-notice-banner .notice-sub {
+    font-size: 0.72rem;
+    color: var(--text-dim);
+    font-weight: 600;
+    line-height: 1.35;
+}
+
+.unpaired-notice-banner .notice-arrow {
+    font-size: 1.2rem;
+    color: var(--gold);
+    font-weight: 900;
+    flex-shrink: 0;
+}
+
+@media (max-width: 380px) {
+    .mobile-topbar {
+        padding: 0 10px;
+        gap: 6px;
+    }
+    .brand-icon {
+        width: 35px;
+        height: 35px;
+        min-width: 35px;
+        font-size: 18px;
+    }
+    .shop-title-text {
+        max-width: 95px;
+        font-size: 0.88rem;
+    }
+    .brand-info p {
+        display: none;
+    }
+    .btn-icon-top {
+        width: 32px;
+        height: 32px;
+        min-width: 32px;
+        font-size: 14px;
+    }
+    .status-pill {
+        padding: 3px 7px;
+        font-size: 0.67rem;
+    }
 }
 
 /* ============================================================
