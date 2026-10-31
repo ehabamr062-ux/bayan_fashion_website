@@ -7,8 +7,8 @@
 [data-theme="light"] {
     --bg-body: #f8fafc;
     --bg-body-gradient: radial-gradient(circle at 10% 10%, rgba(99, 102, 241, 0.05) 0%, transparent 45%),
-                        radial-gradient(circle at 90% 90%, rgba(16, 185, 129, 0.04) 0%, transparent 45%),
-                        #f8fafc;
+        radial-gradient(circle at 90% 90%, rgba(16, 185, 129, 0.04) 0%, transparent 45%),
+        #f8fafc;
     --bg-surface: #ffffff;
     --bg-surface-elevated: #ffffff;
     --bg-surface-hover: #f1f5f9;
@@ -57,8 +57,8 @@
 [data-theme="dark"] {
     --bg-body: #0b0f19;
     --bg-body-gradient: radial-gradient(circle at 10% 20%, rgba(139, 92, 246, 0.12) 0%, transparent 40%),
-                        radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.08) 0%, transparent 40%),
-                        #0b0f19;
+        radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.08) 0%, transparent 40%),
+        #0b0f19;
     --bg-surface: #111827;
     --bg-surface-elevated: #1e293b;
     --bg-surface-hover: #1f293d;
@@ -313,8 +313,15 @@ body {
 }
 
 @keyframes customDateSlide {
-    0% { opacity: 0; transform: translateY(-8px) scale(0.98); }
-    100% { opacity: 1; transform: translateY(0) scale(1); }
+    0% {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.98);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .custom-date-header {
@@ -411,14 +418,14 @@ body {
 }
 
 /* ============================================================
-   💰 DASHBOARD & CASH HERO CARD (ULTRA-LUXURY MESH GRADIENT)
+   💰 DASHBOARD & CASH HERO CARD (ROYAL VIOLET / PURPLE MESH GRADIENT)
    ============================================================ */
 .drawer-hero-card {
-    background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 45%, #1d4ed8 100%);
+    background: linear-gradient(135deg, #4c1d95 0%, #6d28d9 45%, #7c3aed 80%, #8b5cf6 100%);
     border-radius: var(--radius-lg);
     padding: 22px 20px;
     color: #ffffff;
-    box-shadow: 0 16px 36px -6px rgba(37, 99, 235, 0.42), 0 0 0 1px rgba(255, 255, 255, 0.22) inset;
+    box-shadow: 0 16px 36px -6px rgba(109, 40, 217, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.22) inset;
     margin-bottom: 20px;
     position: relative;
     overflow: hidden;
@@ -450,7 +457,7 @@ body {
     left: -20%;
     width: 220px;
     height: 220px;
-    background: radial-gradient(circle, rgba(16, 185, 129, 0.28) 0%, transparent 65%);
+    background: radial-gradient(circle, rgba(192, 132, 252, 0.35) 0%, transparent 65%);
     border-radius: 50%;
     pointer-events: none;
 }
@@ -595,16 +602,19 @@ body {
     color: var(--emerald);
     box-shadow: 0 4px 12px var(--emerald-glow);
 }
+
 .stat-icon.vodafone {
     background: var(--rose-subtle);
     color: var(--rose);
     box-shadow: 0 4px 12px var(--rose-glow);
 }
+
 .stat-icon.card {
     background: var(--primary-subtle);
     color: var(--primary);
     box-shadow: 0 4px 12px var(--primary-glow);
 }
+
 .stat-icon.expense {
     background: var(--gold-subtle);
     color: var(--gold);
@@ -667,6 +677,7 @@ body {
     width: 100%;
     box-sizing: border-box;
 }
+
 .empty-sales-icon-wrap {
     width: 60px;
     height: 60px;
@@ -680,12 +691,14 @@ body {
     border: 1px solid rgba(37, 99, 235, 0.25);
     box-shadow: 0 6px 18px -3px rgba(37, 99, 235, 0.2);
 }
+
 .empty-sales-title {
     font-size: 1rem;
     font-weight: 900;
     color: var(--text-main);
     margin-bottom: 6px;
 }
+
 .empty-sales-desc {
     font-size: 0.8rem;
     color: var(--text-dim);
@@ -694,6 +707,7 @@ body {
     margin-bottom: 16px;
     font-weight: 600;
 }
+
 .btn-empty-pos-shortcut {
     display: inline-flex;
     align-items: center;
@@ -709,6 +723,7 @@ body {
     box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
     transition: transform 0.15s ease;
 }
+
 .btn-empty-pos-shortcut:active {
     transform: scale(0.95);
 }
@@ -1293,9 +1308,17 @@ body {
     font-weight: 800;
 }
 
-.stock-status.in-stock { color: var(--emerald); }
-.stock-status.low-stock { color: var(--gold); }
-.stock-status.out-of-stock { color: var(--rose); }
+.stock-status.in-stock {
+    color: var(--emerald);
+}
+
+.stock-status.low-stock {
+    color: var(--gold);
+}
+
+.stock-status.out-of-stock {
+    color: var(--rose);
+}
 
 .btn-add-cart-quick {
     background: linear-gradient(135deg, var(--primary), var(--primary-hover));
@@ -1622,7 +1645,8 @@ body {
     transition: all 0.2s ease;
 }
 
-.btn-action-edit:active, .btn-action-delete:active {
+.btn-action-edit:active,
+.btn-action-delete:active {
     transform: scale(0.96);
 }
 
@@ -1897,9 +1921,11 @@ body {
     border-color: var(--emerald);
     box-shadow: 0 4px 16px var(--emerald-glow), inset 0 0 0 1px var(--emerald);
 }
+
 .pay-btn-radio[data-method="cash"].active .pay-icon {
     transform: scale(1.15);
 }
+
 .pay-btn-radio[data-method="cash"].active .pay-name {
     color: var(--emerald);
     font-weight: 900;
@@ -1911,9 +1937,11 @@ body {
     border-color: var(--rose);
     box-shadow: 0 4px 16px var(--rose-glow), inset 0 0 0 1px var(--rose);
 }
+
 .pay-btn-radio[data-method="vodafone"].active .pay-icon {
     transform: scale(1.15);
 }
+
 .pay-btn-radio[data-method="vodafone"].active .pay-name {
     color: var(--rose);
     font-weight: 900;
@@ -1925,9 +1953,11 @@ body {
     border-color: var(--primary);
     box-shadow: 0 4px 16px var(--primary-glow), inset 0 0 0 1px var(--primary);
 }
+
 .pay-btn-radio[data-method="card"].active .pay-icon {
     transform: scale(1.15);
 }
+
 .pay-btn-radio[data-method="card"].active .pay-name {
     color: var(--primary);
     font-weight: 900;
@@ -1939,9 +1969,11 @@ body {
     border-color: var(--gold);
     box-shadow: 0 4px 16px var(--gold-glow), inset 0 0 0 1px var(--gold);
 }
+
 .pay-btn-radio[data-method="credit"].active .pay-icon {
     transform: scale(1.15);
 }
+
 .pay-btn-radio[data-method="credit"].active .pay-name {
     color: var(--gold);
     font-weight: 900;
@@ -2028,6 +2060,7 @@ body {
     margin-bottom: 14px;
     line-height: 1.5;
 }
+
 /* ============================================================
    📱 NATIVE MOBILE SETTINGS HUB (MENU & SUBPAGES)
    ============================================================ */
@@ -2036,8 +2069,15 @@ body {
 }
 
 @keyframes settingsFadeIn {
-    0% { opacity: 0; transform: translateY(6px); }
-    100% { opacity: 1; transform: translateY(0); }
+    0% {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .settings-group-title {
@@ -2122,8 +2162,15 @@ body {
 }
 
 @keyframes subpageSlideIn {
-    0% { opacity: 0; transform: translateX(18px); }
-    100% { opacity: 1; transform: translateX(0); }
+    0% {
+        opacity: 0;
+        transform: translateX(18px);
+    }
+
+    100% {
+        opacity: 1;
+        transform: translateX(0);
+    }
 }
 
 .subpage-header {
@@ -2179,8 +2226,13 @@ body {
 }
 
 @keyframes panelFade {
-    0% { opacity: 0; }
-    100% { opacity: 1; }
+    0% {
+        opacity: 0;
+    }
+
+    100% {
+        opacity: 1;
+    }
 }
 
 /* 🔘 iOS/Android Toggle Switch */
@@ -2246,11 +2298,11 @@ body {
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
 }
 
-.ios-switch input:checked + .ios-slider {
+.ios-switch input:checked+.ios-slider {
     background-color: var(--emerald);
 }
 
-.ios-switch input:checked + .ios-slider:before {
+.ios-switch input:checked+.ios-slider:before {
     transform: translateX(20px);
 }
 
@@ -2516,8 +2568,15 @@ body {
 }
 
 @keyframes navPillPop {
-    0% { transform: scaleX(0); opacity: 0; }
-    100% { transform: scaleX(1); opacity: 1; }
+    0% {
+        transform: scaleX(0);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scaleX(1);
+        opacity: 1;
+    }
 }
 
 .cart-count-badge {
@@ -2646,13 +2705,31 @@ body {
     animation: toastPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.mobile-toast.success { border-color: var(--emerald); color: var(--emerald); }
-.mobile-toast.error { border-color: var(--rose); color: var(--rose); }
-.mobile-toast.warning { border-color: var(--gold); color: var(--gold); }
+.mobile-toast.success {
+    border-color: var(--emerald);
+    color: var(--emerald);
+}
+
+.mobile-toast.error {
+    border-color: var(--rose);
+    color: var(--rose);
+}
+
+.mobile-toast.warning {
+    border-color: var(--gold);
+    color: var(--gold);
+}
 
 @keyframes toastPop {
-    from { opacity: 0; transform: translateY(-15px) scale(0.95); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+    from {
+        opacity: 0;
+        transform: translateY(-15px) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 /* ========================================================
@@ -2699,16 +2776,19 @@ body {
     align-items: center;
     gap: 4px;
 }
+
 .c-bal-pill.bal-credit {
     background: rgba(16, 185, 129, 0.15);
     color: var(--emerald);
     border: 1px solid rgba(16, 185, 129, 0.3);
 }
+
 .c-bal-pill.bal-debt {
     background: rgba(244, 63, 94, 0.15);
     color: var(--rose);
     border: 1px solid rgba(244, 63, 94, 0.3);
 }
+
 .c-bal-pill.bal-zero {
     background: rgba(148, 163, 184, 0.15);
     color: var(--text-dim);
@@ -2720,9 +2800,11 @@ body {
     font-weight: 800;
     padding: 4px 0;
 }
+
 .summary-row.prev-balance-row.credit {
     color: var(--emerald);
 }
+
 .summary-row.prev-balance-row.debt {
     color: var(--rose);
 }
@@ -2737,11 +2819,13 @@ body {
     font-weight: 900;
     color: var(--text-main);
 }
+
 .summary-row.net-account-row.credit {
     border-color: rgba(16, 185, 129, 0.4);
     background: rgba(16, 185, 129, 0.08);
     color: var(--emerald);
 }
+
 .summary-row.net-account-row.debt {
     border-color: rgba(244, 63, 94, 0.4);
     background: rgba(244, 63, 94, 0.08);
@@ -2769,13 +2853,16 @@ body {
     margin-bottom: 8px;
     font-size: 0.84rem;
 }
+
 .receipt-row:last-child {
     margin-bottom: 0;
 }
+
 .receipt-row .label {
     color: var(--text-dim);
     font-weight: 700;
 }
+
 .receipt-row .value {
     color: var(--text-main);
     font-weight: 800;
@@ -2791,16 +2878,19 @@ body {
     padding: 10px 12px;
     margin-bottom: 8px;
 }
+
 .receipt-item-row .item-title {
     font-weight: 800;
     font-size: 0.88rem;
     color: var(--text-main);
 }
+
 .receipt-item-row .item-meta {
     font-size: 0.72rem;
     color: var(--text-dim);
     margin-top: 2px;
 }
+
 .receipt-item-row .item-total {
     font-weight: 900;
     font-size: 0.95rem;
@@ -3068,35 +3158,42 @@ body {
     border-color: #334155;
     color: #f8fafc;
 }
+
 [data-theme="dark"] .account-search-input:focus {
     background: #1e293b;
     border-color: #3b82f6;
     box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
+
 [data-theme="dark"] .account-search-clear-btn {
     background: #334155;
     border-color: #475569;
     color: #cbd5e1;
 }
+
 [data-theme="dark"] .acc-pill-btn {
     background: #1e293b;
     border-color: #334155;
     color: #cbd5e1;
 }
+
 [data-theme="dark"] .account-card {
     background: #1e293b;
     border-color: #334155;
 }
+
 [data-theme="dark"] .account-balance-banner.debt {
     background: rgba(225, 29, 72, 0.15);
     border-color: rgba(225, 29, 72, 0.35);
     color: #fda4af;
 }
+
 [data-theme="dark"] .account-balance-banner.credit {
     background: rgba(16, 185, 129, 0.15);
     border-color: rgba(16, 185, 129, 0.35);
     color: #6ee7b7;
 }
+
 [data-theme="dark"] .account-balance-banner.zero {
     background: rgba(255, 255, 255, 0.05);
     border-color: rgba(255, 255, 255, 0.1);
@@ -3837,4 +3934,140 @@ body {
     border-color: #334155;
 }
 
+/* ============================================================
+   🎯 MODERN FILTER DROPDOWN SELECT CARDS (PERIOD & TRANSACTIONS)
+   ============================================================ */
+.filter-dropdown-card {
+    background: var(--surface);
+    border: 1.5px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+    margin-bottom: 16px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
 
+.filter-dropdown-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.filter-dropdown-title {
+    font-size: 0.86rem;
+    font-weight: 800;
+    color: var(--text-main);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.filter-dropdown-icon {
+    font-size: 1.1rem;
+}
+
+.active-period-badge {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: #7c3aed;
+    background: rgba(124, 58, 237, 0.12);
+    border: 1px solid rgba(124, 58, 237, 0.25);
+    padding: 3px 10px;
+    border-radius: var(--radius-full);
+}
+
+.activity-section-header {
+    margin-bottom: 12px;
+}
+
+.tx-filter-dropdown-wrap {
+    margin-top: 8px;
+    margin-bottom: 12px;
+}
+
+.tx-filter-select-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    font-weight: 800;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+}
+
+.custom-select-wrap {
+    position: relative;
+    width: 100%;
+}
+
+.modern-select-dropdown {
+    width: 100%;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: var(--input-bg);
+    border: 1.5px solid var(--border-subtle);
+    border-radius: 12px;
+    padding: 12px 14px 12px 38px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 800;
+    color: var(--text-main);
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03);
+    transition: all 0.2s ease;
+    outline: none;
+}
+
+.modern-select-dropdown:focus {
+    border-color: #7c3aed;
+    box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.18);
+    background: var(--surface);
+}
+
+.select-arrow-icon {
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    pointer-events: none;
+    font-size: 0.65rem;
+    color: var(--text-dim);
+    transition: transform 0.2s;
+}
+
+.custom-select-wrap:focus-within .select-arrow-icon {
+    transform: translateY(-50%) rotate(180deg);
+    color: #7c3aed;
+}
+
+/* Dark mode for dropdowns & hero card */
+[data-theme="dark"] .drawer-hero-card {
+    background: linear-gradient(135deg, #3b0764 0%, #581c87 45%, #6b21a8 80%, #7e22ce 100%);
+    box-shadow: 0 16px 36px -6px rgba(126, 34, 206, 0.48), 0 0 0 1px rgba(255, 255, 255, 0.16) inset;
+}
+
+[data-theme="dark"] .filter-dropdown-card {
+    background: #111827;
+    border-color: #334155;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="dark"] .modern-select-dropdown {
+    background: #1e293b;
+    border-color: #334155;
+    color: #f1f5f9;
+}
+
+[data-theme="dark"] .modern-select-dropdown:focus {
+    border-color: #8b5cf6;
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.25);
+    background: #0f172a;
+}
+
+[data-theme="dark"] .active-period-badge {
+    color: #c084fc;
+    background: rgba(192, 132, 252, 0.15);
+    border-color: rgba(192, 132, 252, 0.3);
+}

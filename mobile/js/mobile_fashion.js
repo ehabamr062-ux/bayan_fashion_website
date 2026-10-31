@@ -148,7 +148,7 @@
                     if (Array.isArray(productsList) && productsList.length > 500) {
                         localStorage.setItem(CONFIG.STORAGE_PREFIX + 'products', JSON.stringify(productsList.slice(0, 500)));
                     }
-                } catch (subErr) {}
+                } catch (subErr) { }
                 showToast('⚡ حجم الأصناف كبير، تم حفظ الكتالوج كاملاً في الذاكرة السريعة دون استهلاك مساحة الهاتف', 'info');
             } else {
                 console.warn('[Storage] Product save error:', storageErr);
@@ -343,7 +343,7 @@
         State.shopName = shopName;
 
         let curSettings = {};
-        try { curSettings = JSON.parse(localStorage.getItem('bayan_mob_settings') || '{}'); } catch (e) {}
+        try { curSettings = JSON.parse(localStorage.getItem('bayan_mob_settings') || '{}'); } catch (e) { }
         curSettings.shop_name = shopName;
         if (phone) curSettings.shop_phone = phone;
         if (address) curSettings.shop_address = address;
@@ -356,7 +356,7 @@
 
     function applyStoreProfileToUI(storeInfo) {
         if (!storeInfo) {
-            try { storeInfo = JSON.parse(localStorage.getItem('bayan_mob_store_info') || 'null'); } catch (e) {}
+            try { storeInfo = JSON.parse(localStorage.getItem('bayan_mob_store_info') || 'null'); } catch (e) { }
         }
         if (!storeInfo) return;
 
@@ -458,8 +458,8 @@
 
             // 0. مزامنة بيانات المتجر التلقائية (Store Profile Sync)
             if (Array.isArray(cRes) && cRes.length > 0) {
-                const storeRow = cRes.find(r => 
-                    r.id === `CONFIG_DEVICE_PAIRING_${currentShopId}` || 
+                const storeRow = cRes.find(r =>
+                    r.id === `CONFIG_DEVICE_PAIRING_${currentShopId}` ||
                     (r.category === 'اقتران' && r.raw_json && (
                         String(r.raw_json.shopId || '').toUpperCase() === currentShopId.toUpperCase() ||
                         String(r.raw_json.shop_id || '').toUpperCase() === currentShopId.toUpperCase()
@@ -526,7 +526,7 @@
                         ...raw
                     };
                 });
-                try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (e) {}
+                try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (e) { }
             }
 
             // 2. استخراج قائمة المخازن الحقيقية المعتمدة المسجلة على اللابتوب
@@ -571,7 +571,7 @@
             }
 
             State.warehouses = detectedWhList;
-            try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'warehouses', JSON.stringify(State.warehouses)); } catch(e){}
+            try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'warehouses', JSON.stringify(State.warehouses)); } catch (e) { }
 
             // ضبط المخزن النشط تلقائياً
             if (!State.activeWarehouse || !State.warehouses.includes(State.activeWarehouse)) {
@@ -651,7 +651,7 @@
                     try {
                         localStorage.setItem(CONFIG.STORAGE_PREFIX + 'accounts', JSON.stringify(State.accounts));
                         localStorage.setItem(CONFIG.STORAGE_PREFIX + 'customers', JSON.stringify(State.customers));
-                    } catch (e) {}
+                    } catch (e) { }
                 }
             }
 
@@ -665,16 +665,16 @@
             const cachedT = localStorage.getItem(CONFIG.STORAGE_PREFIX + 'transactions');
             const cachedC = localStorage.getItem(CONFIG.STORAGE_PREFIX + 'customers');
             const cachedA = localStorage.getItem(CONFIG.STORAGE_PREFIX + 'accounts');
-            if (cachedP) { 
-                try { 
-                    State.products = JSON.parse(cachedP); 
+            if (cachedP) {
+                try {
+                    State.products = JSON.parse(cachedP);
                     window.allProducts = State.products;
-                } catch(e){} 
+                } catch (e) { }
             }
-            if (cachedT) { try { State.transactions = JSON.parse(cachedT); } catch(e){} }
-            if (cachedC) { try { State.customers = JSON.parse(cachedC); } catch(e){} }
+            if (cachedT) { try { State.transactions = JSON.parse(cachedT); } catch (e) { } }
+            if (cachedC) { try { State.customers = JSON.parse(cachedC); } catch (e) { } }
             if (cachedA) {
-                try { State.accounts = JSON.parse(cachedA); } catch(e){}
+                try { State.accounts = JSON.parse(cachedA); } catch (e) { }
             } else if (cachedC) {
                 State.accounts = State.customers;
             }
@@ -755,13 +755,13 @@
     function isNonCash(m) {
         if (!m) return false;
         const str = String(m).toLowerCase().trim();
-        return str.includes('بنك') || str.includes('تحويل') || str.includes('فيزا') || 
-               str.includes('شيك') || str.includes('شبكة') || str.includes('فودافون') || 
-               str.includes('فودافن') || str.includes('vodafone') || str.includes('voda') || 
-               str.includes('اورنج') || str.includes('orange') || str.includes('اتصالات') || 
-               str.includes('etisalat') || str.includes('وي') || str.includes('we') || 
-               str.includes('انستا') || str.includes('insta') || str.includes('محفظة') || 
-               str.includes('wallet') || str.includes('card') || str.includes('visa');
+        return str.includes('بنك') || str.includes('تحويل') || str.includes('فيزا') ||
+            str.includes('شيك') || str.includes('شبكة') || str.includes('فودافون') ||
+            str.includes('فودافن') || str.includes('vodafone') || str.includes('voda') ||
+            str.includes('اورنج') || str.includes('orange') || str.includes('اتصالات') ||
+            str.includes('etisalat') || str.includes('وي') || str.includes('we') ||
+            str.includes('انستا') || str.includes('insta') || str.includes('محفظة') ||
+            str.includes('wallet') || str.includes('card') || str.includes('visa');
     }
 
     function formatDateISO(d) {
@@ -929,7 +929,7 @@
         // للفترات السابقة: صافي النقدية المتحصلة خلال الفترة نفسها
         const isTodayPeriod = (State.dashboardPeriod === 'today');
         const netCashPeriod = (cashSales - cashReturns - expenses);
-        const displayedDrawerCash = isTodayPeriod 
+        const displayedDrawerCash = isTodayPeriod
             ? (netDrawerCashAllTime !== 0 ? netDrawerCashAllTime : Math.max(0, netCashPeriod))
             : netCashPeriod;
 
@@ -1011,7 +1011,7 @@
                     });
 
                     if (newCount > 0) {
-                        try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (e) {}
+                        try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (e) { }
                         renderDashboard();
                     }
                 }
@@ -1023,6 +1023,23 @@
 
     function setDashboardPeriod(period) {
         State.dashboardPeriod = period;
+
+        const periodSelect = document.getElementById('dashboardPeriodSelect');
+        if (periodSelect && periodSelect.value !== period) {
+            periodSelect.value = period;
+        }
+
+        const activeLabel = document.getElementById('activePeriodLabel');
+        if (activeLabel) {
+            const labels = {
+                'today': 'اليوم',
+                'yesterday': 'الأمس',
+                'week': 'آخر 7 أيام',
+                'month': 'هذا الشهر',
+                'custom': 'فترة مخصصة'
+            };
+            activeLabel.textContent = labels[period] || period;
+        }
 
         const chipMap = {
             'today': 'periodChipToday',
@@ -1048,20 +1065,35 @@
         syncPeriodTransactionsFromCloud(range.start, range.end);
     }
 
+    function onPeriodSelectChange(val) {
+        if (val === 'custom') {
+            toggleCustomDateRange(true);
+        } else {
+            const customBox = document.getElementById('customDateRangeBox');
+            if (customBox) customBox.style.display = 'none';
+            setDashboardPeriod(val);
+        }
+    }
+
     // دالة مرادفة معتمدة لفلترة المبيعات حسب الفترة
     function filterSalesByPeriod(period) {
         return setDashboardPeriod(period);
     }
 
-    function toggleCustomDateRange() {
+    function toggleCustomDateRange(forceOpen) {
         const customBox = document.getElementById('customDateRangeBox');
         if (!customBox) return;
 
         const isVisible = (customBox.style.display === 'block');
-        if (isVisible) {
-            customBox.style.display = 'none';
-        } else {
+        const shouldShow = (forceOpen !== undefined) ? forceOpen : !isVisible;
+
+        if (shouldShow) {
             customBox.style.display = 'block';
+
+            const periodSelect = document.getElementById('dashboardPeriodSelect');
+            if (periodSelect) periodSelect.value = 'custom';
+            const activeLabel = document.getElementById('activePeriodLabel');
+            if (activeLabel) activeLabel.textContent = 'فترة مخصصة';
 
             const startInput = document.getElementById('dashCustomStartDate');
             const endInput = document.getElementById('dashCustomEndDate');
@@ -1082,6 +1114,17 @@
             });
             const chipCustom = document.getElementById('periodChipCustom');
             if (chipCustom) chipCustom.classList.add('active');
+        } else {
+            customBox.style.display = 'none';
+            if (State.dashboardPeriod !== 'custom') {
+                const periodSelect = document.getElementById('dashboardPeriodSelect');
+                if (periodSelect) periodSelect.value = State.dashboardPeriod;
+                const activeLabel = document.getElementById('activePeriodLabel');
+                if (activeLabel) {
+                    const labels = { 'today': 'اليوم', 'yesterday': 'الأمس', 'week': 'آخر 7 أيام', 'month': 'هذا الشهر' };
+                    activeLabel.textContent = labels[State.dashboardPeriod] || 'اليوم';
+                }
+            }
         }
     }
 
@@ -1100,6 +1143,11 @@
         State.dashboardPeriod = 'custom';
         State.dashboardStartDate = startVal <= endVal ? startVal : endVal;
         State.dashboardEndDate = startVal <= endVal ? endVal : startVal;
+
+        const periodSelect = document.getElementById('dashboardPeriodSelect');
+        if (periodSelect) periodSelect.value = 'custom';
+        const activeLabel = document.getElementById('activePeriodLabel');
+        if (activeLabel) activeLabel.textContent = `${State.dashboardStartDate} إلى ${State.dashboardEndDate}`;
 
         const chipCustom = document.getElementById('periodChipCustom');
         if (chipCustom) chipCustom.classList.add('active');
@@ -1128,8 +1176,8 @@
 
         // تحديث النصوص والعناوين حسب الفترة
         if (elDrawerTitleText) {
-            elDrawerTitleText.textContent = (period === 'today') 
-                ? 'رصيد النقدية المتاح بالدرج (الكاش)' 
+            elDrawerTitleText.textContent = (period === 'today')
+                ? 'رصيد النقدية المتاح بالدرج (الكاش)'
                 : `صافي كاش الدرج (${range.label})`;
         }
         if (elDashSalesLabel) {
@@ -1291,9 +1339,16 @@
     // تغيير فلتر نوع الحركات في الداشبورد
     function setTxTypeFilter(filterType) {
         State.txTypeFilter = filterType || 'all';
+
+        const selectEl = document.getElementById('txTypeFilterSelect');
+        if (selectEl && selectEl.value !== State.txTypeFilter) {
+            selectEl.value = State.txTypeFilter;
+        }
+
         document.querySelectorAll('.tx-filter-chip').forEach(chip => {
             chip.classList.toggle('active', chip.dataset.txFilter === State.txTypeFilter);
         });
+
         renderDashboard();
     }
 
@@ -1409,8 +1464,8 @@
     function getVariantStock(product, size = '', color = '') {
         if (!product) return 0;
         if (Array.isArray(product.variants) && product.variants.length > 0) {
-            const v = product.variants.find(item => 
-                (!size || String(item.size || '').trim().toLowerCase() === String(size || '').trim().toLowerCase()) && 
+            const v = product.variants.find(item =>
+                (!size || String(item.size || '').trim().toLowerCase() === String(size || '').trim().toLowerCase()) &&
                 (!color || String(item.color || '').trim().toLowerCase() === String(color || '').trim().toLowerCase())
             );
             if (v) {
@@ -1460,11 +1515,11 @@
                 const safeSize = String(v.size || 'M').replace(/'/g, "\\'");
                 const safeColor = String(color || 'عام').replace(/'/g, "\\'");
                 const label = isOut ? `${v.size || 'M'} (نفد ❌)` : `${v.size || 'M'} (${qty})`;
-                const clickHandler = isOut 
-                    ? `window.BayanMobile.onOutStockClicked('${safeSize}', '${safeColor}')` 
+                const clickHandler = isOut
+                    ? `window.BayanMobile.onOutStockClicked('${safeSize}', '${safeColor}')`
                     : `window.BayanMobile.quickAddVariant('${product.id}', '${safeSize}', '${safeColor}')`;
-                const titleText = isOut 
-                    ? `مقاس ${safeSize} لون ${safeColor} نفد من المخزن تماماً (رصيد 0)` 
+                const titleText = isOut
+                    ? `مقاس ${safeSize} لون ${safeColor} نفد من المخزن تماماً (رصيد 0)`
                     : `اضغط لبيع مقاس ${safeSize} لون ${safeColor} (متبقي ${qty})`;
 
                 return `<span class="size-pill ${pillClass}" onclick="event.stopPropagation(); ${clickHandler}" title="${titleText}">${label}</span>`;
@@ -1498,8 +1553,8 @@
             : parseFloat(product.price || product.salePrice || 0);
 
         if ((customPrice === undefined || customPrice <= 0) && Array.isArray(product.variants) && product.variants.length > 0) {
-            const v = product.variants.find(item => 
-                (!size || String(item.size || '').trim().toLowerCase() === String(size || '').trim().toLowerCase()) && 
+            const v = product.variants.find(item =>
+                (!size || String(item.size || '').trim().toLowerCase() === String(size || '').trim().toLowerCase()) &&
                 (!color || String(item.color || '').trim().toLowerCase() === String(color || '').trim().toLowerCase())
             );
             if (v) {
@@ -1877,8 +1932,8 @@
 
                     // خصم من متغيرات المقاس واللون والمخزن المحدد للمتغير
                     if (Array.isArray(prod.variants)) {
-                        const v = prod.variants.find(varItem => 
-                            (!item.size || String(varItem.size || '').trim().toLowerCase() === String(item.size || '').trim().toLowerCase()) && 
+                        const v = prod.variants.find(varItem =>
+                            (!item.size || String(varItem.size || '').trim().toLowerCase() === String(item.size || '').trim().toLowerCase()) &&
                             (!item.color || String(varItem.color || '').trim().toLowerCase() === String(item.color || '').trim().toLowerCase())
                         );
                         if (v) {
@@ -1930,7 +1985,7 @@
                 try {
                     localStorage.setItem(CONFIG.STORAGE_PREFIX + 'customers', JSON.stringify(State.customers));
                     localStorage.setItem(CONFIG.STORAGE_PREFIX + 'accounts', JSON.stringify(State.accounts));
-                } catch (e) {}
+                } catch (e) { }
 
                 custPayload = [
                     {
@@ -1953,8 +2008,8 @@
             // 3. اعتماد الفاتورة محلياً فوراً (Local-First Success) وتفريغ السلة
             State.transactions.unshift(newTx);
             State.cart = [];
-            try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'products', JSON.stringify(State.products)); } catch (e) {}
-            try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (e) {}
+            try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'products', JSON.stringify(State.products)); } catch (e) { }
+            try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (e) { }
 
             updateCartCount();
             renderCartView();
@@ -2033,7 +2088,7 @@
                                 method: 'POST',
                                 headers: getSupabaseHeaders(),
                                 body: JSON.stringify(prodBatch)
-                            }).catch(() => {});
+                            }).catch(() => { });
                         }
 
                         if (custPayload && custPayload.length > 0) {
@@ -2041,7 +2096,7 @@
                                 method: 'POST',
                                 headers: getSupabaseHeaders(),
                                 body: JSON.stringify(custPayload)
-                            }).catch(() => {});
+                            }).catch(() => { });
                         }
 
                         showToast(`✅ تم حفظ الفاتورة #${invoiceId} ومزامنتها سحابياً!`, 'success');
@@ -2114,7 +2169,7 @@
                         method: 'POST',
                         headers: getSupabaseHeaders(),
                         body: JSON.stringify(item.custPayload)
-                    }).catch(() => {});
+                    }).catch(() => { });
                 }
                 successCount++;
             } catch (err) {
@@ -2125,7 +2180,7 @@
 
         try {
             localStorage.setItem('bayan_mob_offline_queue', JSON.stringify(remainingQueue));
-        } catch (e) {}
+        } catch (e) { }
 
         isProcessingOfflineQueue = false;
 
@@ -2193,8 +2248,8 @@
                 const isActive = (s === firstAvailableSize && !isOut);
                 const cls = `cat-chip ${isActive ? 'active' : ''} ${isOut ? 'disabled' : ''}`;
                 const label = isOut ? `${s} (نفد ❌)` : `${s} (متوفر: ${sStock})`;
-                const clickAction = isOut 
-                    ? `window.BayanMobile.onOutStockClicked('${s}', '')` 
+                const clickAction = isOut
+                    ? `window.BayanMobile.onOutStockClicked('${s}', '')`
                     : `window.BayanMobile.selectVariantSize(this, '${s}')`;
                 return `<div class="${cls}" onclick="${clickAction}">${label}</div>`;
             }).join('');
@@ -2237,8 +2292,8 @@
         // إذا كان المقاس المختار له سعر مخصص في التشكيلة (variant.price > 0) يتم اعتماده
         let finalPrice = parseFloat(prod.price || prod.salePrice || 0);
         if (Array.isArray(prod.variants) && prod.variants.length > 0) {
-            const v = prod.variants.find(item => 
-                (!size || String(item.size || '').trim().toLowerCase() === String(size || '').trim().toLowerCase()) && 
+            const v = prod.variants.find(item =>
+                (!size || String(item.size || '').trim().toLowerCase() === String(size || '').trim().toLowerCase()) &&
                 (!color || String(item.color || '').trim().toLowerCase() === String(color || '').trim().toLowerCase())
             );
             if (v) {
@@ -2268,8 +2323,8 @@
         // إذا كان المقاس المختار له سعر مخصص في التشكيلة (variant.price > 0) يتم اعتماده
         let finalPrice = parseFloat(prod.price || prod.salePrice || 0);
         if (Array.isArray(prod.variants) && prod.variants.length > 0) {
-            const v = prod.variants.find(item => 
-                (!size || String(item.size || '').trim().toLowerCase() === String(size || '').trim().toLowerCase()) && 
+            const v = prod.variants.find(item =>
+                (!size || String(item.size || '').trim().toLowerCase() === String(size || '').trim().toLowerCase()) &&
                 (!color || String(item.color || '').trim().toLowerCase() === String(color || '').trim().toLowerCase())
             );
             if (v) {
@@ -2515,8 +2570,8 @@
                         }
 
                         if (Array.isArray(prod.variants) && prod.variants.length > 0) {
-                            const v = prod.variants.find(varItem => 
-                                (!soldItem.size || String(varItem.size || '').trim().toLowerCase() === String(soldItem.size || '').trim().toLowerCase()) && 
+                            const v = prod.variants.find(varItem =>
+                                (!soldItem.size || String(varItem.size || '').trim().toLowerCase() === String(soldItem.size || '').trim().toLowerCase()) &&
                                 (!soldItem.color || String(varItem.color || '').trim().toLowerCase() === String(soldItem.color || '').trim().toLowerCase())
                             );
                             if (v) {
@@ -2552,7 +2607,7 @@
                 try {
                     localStorage.setItem(CONFIG.STORAGE_PREFIX + 'customers', JSON.stringify(State.customers));
                     localStorage.setItem(CONFIG.STORAGE_PREFIX + 'accounts', JSON.stringify(State.accounts));
-                } catch (e) {}
+                } catch (e) { }
 
                 // ترحيل كشف حساب العملاء بعد الخصم للسحابة
                 const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
@@ -2577,7 +2632,7 @@
                         method: 'POST',
                         headers: getSupabaseHeaders(),
                         body: JSON.stringify(custUpdatePayload)
-                    }).catch(() => {});
+                    }).catch(() => { });
                 }
             }
 
@@ -2609,7 +2664,7 @@
                     method: 'POST',
                     headers: getSupabaseHeaders(),
                     body: JSON.stringify(prodBatch)
-                }).catch(() => {});
+                }).catch(() => { });
             }
 
             // 4. حذف الفاتورة من السحابة
@@ -2617,11 +2672,11 @@
             await fetch(`${SUPABASE_CONFIG.url}/rest/v1/transactions?id=eq.${invId}`, {
                 method: 'DELETE',
                 headers: getSupabaseHeaders()
-            }).catch(() => {});
+            }).catch(() => { });
             await fetch(`${SUPABASE_CONFIG.url}/rest/v1/transactions?invoice_id=eq.${invId}`, {
                 method: 'DELETE',
                 headers: getSupabaseHeaders()
-            }).catch(() => {});
+            }).catch(() => { });
 
             // 5. تسجيل حركة الإلغاء في treasury_audit ليعلم الكمبيوتر فورياً
             const voidPayload = [{
@@ -2637,12 +2692,12 @@
                 method: 'POST',
                 headers: getSupabaseHeaders(),
                 body: JSON.stringify(voidPayload)
-            }).catch(() => {});
+            }).catch(() => { });
 
             // 6. إزالة الفاتورة من القائمة المحلية وتحديث الذاكرة
             State.transactions = State.transactions.filter(t => String(t.invoiceId || t.id) !== String(invId));
-            try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'products', JSON.stringify(State.products)); } catch (e) {}
-            try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (e) {}
+            try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'products', JSON.stringify(State.products)); } catch (e) { }
+            try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (e) { }
 
             if (promptUser) {
                 closeInvoiceDetailsModal();
@@ -3131,8 +3186,8 @@
             const oldPlainPin = localStorage.getItem('bayan_mob_treasury_pin');
             const enteredHash = hashSecurityPin(entered);
 
-            const isMatch = (storedHash && enteredHash === storedHash) || 
-                            (oldPlainPin && String(entered).trim() === String(oldPlainPin).trim());
+            const isMatch = (storedHash && enteredHash === storedHash) ||
+                (oldPlainPin && String(entered).trim() === String(oldPlainPin).trim());
 
             if (!isMatch) {
                 showToast('رمز الـ PIN غير صحيح! تم حظر الوصول للخزينة واليومية ❌', 'error');
@@ -3183,12 +3238,12 @@
                                 try {
                                     localStorage.setItem(CONFIG.STORAGE_PREFIX + 'accounts', JSON.stringify(State.accounts));
                                     localStorage.setItem(CONFIG.STORAGE_PREFIX + 'customers', JSON.stringify(State.customers));
-                                } catch (e) {}
+                                } catch (e) { }
                                 if (State.activeTab === 'accounts') renderAccountsView();
                             }
                         }
                     })
-                    .catch(() => {});
+                    .catch(() => { });
             }
         }
 
@@ -3252,7 +3307,7 @@
         if (pushHistory) {
             try {
                 window.history.pushState({ settingSubPage: pageKey }, '');
-            } catch (e) {}
+            } catch (e) { }
         }
 
         // Initialize panel data
@@ -3277,7 +3332,7 @@
         if (triggerHistoryBack && wasInSubpage && window.history.state && window.history.state.settingSubPage) {
             try {
                 window.history.back();
-            } catch (e) {}
+            } catch (e) { }
         }
 
         renderSettingsView();
@@ -3333,7 +3388,7 @@
         let storedSettings = {};
         try {
             storedSettings = JSON.parse(localStorage.getItem('bayan_mob_settings') || '{}');
-        } catch (e) {}
+        } catch (e) { }
 
         const shopNameInp = document.getElementById('settingShopNameInput');
         const shopPhoneInp = document.getElementById('settingShopPhoneInput');
@@ -3378,7 +3433,7 @@
         let prefs = {};
         try {
             prefs = JSON.parse(localStorage.getItem('bayan_mob_pos_prefs') || '{}');
-        } catch (e) {}
+        } catch (e) { }
 
         const hapticCheck = document.getElementById('settingPrefHaptic');
         const beepCheck = document.getElementById('settingPrefBeep');
@@ -3649,7 +3704,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         let storedSettings = {};
         try {
             storedSettings = JSON.parse(localStorage.getItem('bayan_mob_settings') || '{}');
-        } catch (e) {}
+        } catch (e) { }
 
         const shopName = storedSettings.shop_name || State.shopName || 'بَيَان فاشون';
         const shopPhone = storedSettings.shop_phone || '';
@@ -3691,8 +3746,8 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         if (rcWarehouse) rcWarehouse.textContent = tx.warehouse || State.activeWarehouse || 'المخزن الرئيسي';
 
         // Populate items
-        const allItems = (Array.isArray(tx.items) && tx.items.length > 0) 
-            ? tx.items 
+        const allItems = (Array.isArray(tx.items) && tx.items.length > 0)
+            ? tx.items
             : (Array.isArray(tx.raw_items) && tx.raw_items.length > 0 ? tx.raw_items : [tx]);
 
         if (rcItemsBody) {
@@ -4039,8 +4094,8 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         const listEl = document.getElementById('accountsList');
         if (!listEl) return;
 
-        const allAccs = Array.isArray(State.accounts) && State.accounts.length > 0 
-            ? State.accounts 
+        const allAccs = Array.isArray(State.accounts) && State.accounts.length > 0
+            ? State.accounts
             : (Array.isArray(State.customers) ? State.customers : []);
 
         // 1. حساب الإحصائيات العامة للأرصدة والديون
@@ -4126,8 +4181,8 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
             const isSupp = (rawType === 'supplier' || rawType.includes('مورد') || String(a.typeLabel || '').includes('مورد'));
             const bal = parseFloat(a.balance) || 0;
             const absBal = Math.abs(bal).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-            const typeBadge = isSupp 
-                ? '<span class="acc-type-pill supplier">🏢 مورد</span>' 
+            const typeBadge = isSupp
+                ? '<span class="acc-type-pill supplier">🏢 مورد</span>'
                 : '<span class="acc-type-pill client">👤 عميل</span>';
             const avatarIcon = isSupp ? '🏢' : '👤';
             const cleanPhone = String(a.mobile || a.phone || '').trim();
@@ -4155,8 +4210,8 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
             // رابط واتساب مباشر محترف مع رصيد الحساب المحدث
             const shopTitle = State.settings?.shop_name || 'بَيَان فاشون';
             const waGreeting = `السلام عليكم يا فندم، تحياتنا من ${shopTitle} ✨%0Aنود إحاطتكم علماً بأن رصيد حسابكم المسجل طرفنا حالياً هو: (${balDisplayVal} ${balStatusText}).%0Aشكراً لتعاملكم الراقي معنا! 🌸`;
-            const waLink = cleanPhone 
-                ? `https://wa.me/${cleanPhone.startsWith('0') ? '2' + cleanPhone : cleanPhone}?text=${waGreeting}` 
+            const waLink = cleanPhone
+                ? `https://wa.me/${cleanPhone.startsWith('0') ? '2' + cleanPhone : cleanPhone}?text=${waGreeting}`
                 : `https://wa.me/?text=${waGreeting}`;
 
             return `
@@ -4246,8 +4301,8 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
     }
 
     function openAccountStatement(accIdentifier) {
-        const allAccs = Array.isArray(State.accounts) && State.accounts.length > 0 
-            ? State.accounts 
+        const allAccs = Array.isArray(State.accounts) && State.accounts.length > 0
+            ? State.accounts
             : (Array.isArray(State.customers) ? State.customers : []);
         const cleanId = String(accIdentifier || '').trim();
         const acc = allAccs.find(a => String(a.id) === cleanId || cleanArabic(a.name) === cleanArabic(cleanId));
@@ -4478,7 +4533,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
             try {
                 localStorage.setItem(CONFIG.STORAGE_PREFIX + 'accounts', JSON.stringify(State.accounts));
                 localStorage.setItem(CONFIG.STORAGE_PREFIX + 'customers', JSON.stringify(State.customers));
-            } catch (e) {}
+            } catch (e) { }
 
             renderAccountsView();
 
@@ -4726,6 +4781,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         onAccountTypeChange,
         submitNewAccount,
         setDashboardPeriod,
+        onPeriodSelectChange,
         filterSalesByPeriod,
         toggleCustomDateRange,
         applyCustomDateRange,
@@ -4744,7 +4800,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                 showToast('تعذر الاتصال بالسحابة ❌', 'error');
             }
         },
-        updateServerUrl: () => {}
+        updateServerUrl: () => { }
     };
 
     if (document.readyState === 'loading') {

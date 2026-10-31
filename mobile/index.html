@@ -59,18 +59,28 @@
              ========================================== -->
         <section id="view-dashboard" class="tab-view active">
 
-            <!-- 🗓️ أشرطة اختيار الفترة الزمنية واليومية -->
-            <div class="dashboard-period-selector" style="margin-bottom: 12px;">
-                <div class="categories-scroll" style="margin-bottom: 8px;">
-                    <div class="cat-chip active" id="periodChipToday" onclick="window.BayanMobile.setDashboardPeriod('today')">🌟 اليوم</div>
-                    <div class="cat-chip" id="periodChipYesterday" onclick="window.BayanMobile.setDashboardPeriod('yesterday')">⏪ الأمس</div>
-                    <div class="cat-chip" id="periodChipWeek" onclick="window.BayanMobile.setDashboardPeriod('week')">🗓️ آخر 7 أيام</div>
-                    <div class="cat-chip" id="periodChipMonth" onclick="window.BayanMobile.setDashboardPeriod('month')">📅 هذا الشهر</div>
-                    <div class="cat-chip" id="periodChipCustom" onclick="window.BayanMobile.toggleCustomDateRange()">🔍 تاريخ مخصص 📅</div>
+            <!-- 🗓️ القائمة المنسدلة لاختيار الفترة الزمنية واليومية -->
+            <div class="filter-dropdown-card">
+                <div class="filter-dropdown-header">
+                    <div class="filter-dropdown-title">
+                        <span class="filter-dropdown-icon">🗓️</span>
+                        <span>فترة تقرير اليومية:</span>
+                    </div>
+                    <span id="activePeriodLabel" class="active-period-badge">اليوم</span>
+                </div>
+                <div class="custom-select-wrap">
+                    <select id="dashboardPeriodSelect" class="modern-select-dropdown" onchange="window.BayanMobile.onPeriodSelectChange(this.value)">
+                        <option value="today" selected>🌟 اليوم (فواتير وحركات اليوم الحالية)</option>
+                        <option value="yesterday">⏪ الأمس (حركات ومبيعات الأمس)</option>
+                        <option value="week">🗓️ آخر 7 أيام (أسبوع كامل)</option>
+                        <option value="month">📅 هذا الشهر (إجمالي الشهر الحالي)</option>
+                        <option value="custom">🔍 تحديد تاريخ مخصص (من تاريخ - إلى تاريخ)...</option>
+                    </select>
+                    <span class="select-arrow-icon">▼</span>
                 </div>
 
                 <!-- شريط إدخال فترة مخصصة (تاريخ من - إلى) -->
-                <div id="customDateRangeBox" class="custom-date-box" style="display: none;">
+                <div id="customDateRangeBox" class="custom-date-box" style="display: none; margin-top: 10px;">
                     <div class="custom-date-header">
                         <span class="custom-date-title"><span>📅</span> تحديد فترة زمنية مخصصة:</span>
                         <button type="button" class="btn-close-custom-date" onclick="window.BayanMobile.toggleCustomDateRange()">✕ إغلاق</button>
@@ -152,38 +162,31 @@
                 </div>
             </div>
 
-            <!-- قائمة أحدث الفواتير المنفذة باليوم -->
-            <div class="section-headline">
-                <h3><span>🧾</span> <span id="dashRecentInvoicesTitle">أحدث حركات البيع اليوم</span></h3>
-                <span id="dashRecentInvoicesSub" style="font-size: 0.72rem; color: var(--text-dim); font-weight: 700;">تحديث حي فوري ⚡</span>
-            </div>
+            <!-- قائمة أحدث الفواتير والحركات المنفذة باليوم مع القائمة المنسدلة للتصنيف -->
+            <div class="activity-section-header">
+                <div class="section-headline" style="margin-bottom: 8px;">
+                    <h3><span>🧾</span> <span id="dashRecentInvoicesTitle">أحدث حركات اليوم</span></h3>
+                    <span id="dashRecentInvoicesSub" style="font-size: 0.72rem; color: var(--text-dim); font-weight: 700;">تحديث حي فوري ⚡</span>
+                </div>
 
-            <!-- شريط تصنيف وفلترة حركات اليوم المتقدم -->
-            <div class="tx-filter-bar">
-                <button type="button" class="tx-filter-chip active" data-tx-filter="all" onclick="window.BayanMobile.setTxTypeFilter('all')">
-                    الكل
-                </button>
-                <button type="button" class="tx-filter-chip" data-tx-filter="sale" onclick="window.BayanMobile.setTxTypeFilter('sale')">
-                    🛍️ مبيعات
-                </button>
-                <button type="button" class="tx-filter-chip" data-tx-filter="purchase" onclick="window.BayanMobile.setTxTypeFilter('purchase')">
-                    📦 مشتريات
-                </button>
-                <button type="button" class="tx-filter-chip" data-tx-filter="receipt" onclick="window.BayanMobile.setTxTypeFilter('receipt')">
-                    📥 قبض
-                </button>
-                <button type="button" class="tx-filter-chip" data-tx-filter="disburse" onclick="window.BayanMobile.setTxTypeFilter('disburse')">
-                    📤 صرف
-                </button>
-                <button type="button" class="tx-filter-chip" data-tx-filter="return" onclick="window.BayanMobile.setTxTypeFilter('return')">
-                    ↩️ مرتجعات
-                </button>
-                <button type="button" class="tx-filter-chip" data-tx-filter="adjustment" onclick="window.BayanMobile.setTxTypeFilter('adjustment')">
-                    ⚖️ تسويات
-                </button>
-                <button type="button" class="tx-filter-chip" data-tx-filter="transfer" onclick="window.BayanMobile.setTxTypeFilter('transfer')">
-                    🔄 تحويلات
-                </button>
+                <div class="tx-filter-dropdown-wrap">
+                    <label for="txTypeFilterSelect" class="tx-filter-select-label">
+                        <span>🔍</span> تصفية نوع الحركة:
+                    </label>
+                    <div class="custom-select-wrap">
+                        <select id="txTypeFilterSelect" class="modern-select-dropdown" onchange="window.BayanMobile.setTxTypeFilter(this.value)">
+                            <option value="all">📋 كل الأقسام والحركات (الكل)</option>
+                            <option value="sale">🛍️ فواتير البيع (مبيعات)</option>
+                            <option value="purchase">📦 فواتير الشراء (مشتريات)</option>
+                            <option value="receipt">📥 سندات القبض (قبض)</option>
+                            <option value="disburse">📤 سندات الصرف (صرف)</option>
+                            <option value="return">↩️ المرتجعات (مرتجع)</option>
+                            <option value="adjustment">⚖️ التسويات المخزنية (عجز وزيادة)</option>
+                            <option value="transfer">🔄 التحويلات المخزنية بين الفروع</option>
+                        </select>
+                        <span class="select-arrow-icon">▼</span>
+                    </div>
+                </div>
             </div>
 
             <div id="recentActivityList" class="activity-list">
