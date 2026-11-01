@@ -889,6 +889,8 @@
                     CREATE INDEX IF NOT EXISTS idx_tx_wh_date ON transactions(warehouse, dateISO);
                     CREATE INDEX IF NOT EXISTS idx_tx_type_date ON transactions(type, dateISO);
                     CREATE INDEX IF NOT EXISTS idx_tx_date_type_method ON transactions(dateISO, type, method);
+                    CREATE INDEX IF NOT EXISTS idx_tx_isHead ON transactions(isInvoiceHead);
+                    CREATE INDEX IF NOT EXISTS idx_tx_date_isHead ON transactions(dateISO, isInvoiceHead);
                 `);
             } catch (txErr) {
                 console.warn("[SQLite] transactions table schema notice:", txErr.message);
@@ -899,6 +901,24 @@
             try { this.db.run("ALTER TABLE transactions ADD COLUMN status TEXT;"); } catch (e) { }
             try { this.db.run("ALTER TABLE transactions ADD COLUMN terminal TEXT;"); } catch (e) { }
             try { this.db.run("ALTER TABLE transactions ADD COLUMN isInvoiceHead INTEGER DEFAULT NULL;"); } catch (e) { }
+
+            // 🛡️ ترقية وتصحيح قيمة isInvoiceHead الفيزيائية للبيانات القديمة لمرة واحدة
+            try {
+                this.db.run(`
+                    UPDATE transactions 
+                    SET isInvoiceHead = 1 
+                    WHERE isInvoiceHead IS NULL AND (json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true');
+                `);
+                this.db.run(`
+                    UPDATE transactions 
+                    SET isInvoiceHead = 0 
+                    WHERE isInvoiceHead IS NULL;
+                `);
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_isHead ON transactions(isInvoiceHead);");
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_isHead ON transactions(dateISO, isInvoiceHead);");
+            } catch (headMigErr) {
+                console.warn("[SQLite] transactions isInvoiceHead migration notice:", headMigErr.message);
+            }
 
             // 🛡️ فحص وترقية جدول transactions ليكون id TEXT PRIMARY KEY في قواعد البيانات القائمة
             try {
@@ -1801,15 +1821,16 @@
                         const cleanMethod = String(item.method || item.paymentMethod || '');
                         const cleanCashier = String(item.cashier || item.user || '');
                         const cleanWarehouse = String(item.warehouse || '');
+                        const cleanHead = (item.isInvoiceHead === true || item.isInvoiceHead === 1 || item.isInvoiceHead === 'true') ? 1 : 0;
 
-                        let rawJson = this._extractExtraFields(item, ['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'user', 'warehouse']);
+                        let rawJson = this._extractExtraFields(item, ['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'user', 'warehouse', 'isInvoiceHead']);
                         if (typeof rawJson === 'object' && rawJson !== null) {
                             try { rawJson = JSON.stringify(rawJson); } catch (e) { rawJson = '{}'; }
                         } else if (typeof rawJson !== 'string') {
                             rawJson = String(rawJson || '{}');
                         }
 
-                        const stmt = this.db.prepare(`INSERT OR REPLACE INTO transactions (id, invoiceId, originalInvoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
+                        const stmt = this.db.prepare(`INSERT OR REPLACE INTO transactions (id, invoiceId, originalInvoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, isInvoiceHead, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
                         stmt.run(this._safeBind([
                             cleanId,
                             cleanInvoiceId,
@@ -1824,6 +1845,7 @@
                             cleanMethod,
                             cleanCashier,
                             cleanWarehouse,
+                            cleanHead,
                             rawJson
                         ]));
                         stmt.free();
@@ -1962,7 +1984,7 @@
                                 ]));
                             }
                         } else if (tableName === 'transactions') {
-                            mainStmt = this.db.prepare(`INSERT OR REPLACE INTO transactions (id, invoiceId, originalInvoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
+                            mainStmt = this.db.prepare(`INSERT OR REPLACE INTO transactions (id, invoiceId, originalInvoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, isInvoiceHead, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
                             delTiStmt = this.db.prepare("DELETE FROM transaction_items WHERE tx_id = ?;");
                             insTiStmt = this.db.prepare(`
                                 INSERT INTO transaction_items 
@@ -2026,8 +2048,9 @@
                                 const cleanMethod = String(item.method || item.paymentMethod || '');
                                 const cleanCashier = String(item.cashier || item.user || '');
                                 const cleanWarehouse = String(item.warehouse || '');
+                                const cleanHead = (item.isInvoiceHead === true || item.isInvoiceHead === 1 || item.isInvoiceHead === 'true') ? 1 : 0;
 
-                                let rawJson = this._extractExtraFields(item, ['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'user', 'warehouse']);
+                                let rawJson = this._extractExtraFields(item, ['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'user', 'warehouse', 'isInvoiceHead']);
                                 if (typeof rawJson === 'object' && rawJson !== null) {
                                     try { rawJson = JSON.stringify(rawJson); } catch (e) { rawJson = '{}'; }
                                 } else if (typeof rawJson !== 'string') {
@@ -2048,6 +2071,7 @@
                                     cleanMethod,
                                     cleanCashier,
                                     cleanWarehouse,
+                                    cleanHead,
                                     rawJson
                                 ]));
 
@@ -2686,9 +2710,26 @@
                                 )
                             ELSE 0 END
                         ), 0) AS profit,
-                        COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND raw_json LIKE '%invoiceDiscount%' AND json_extract(raw_json, '$.invoiceDiscount') > 0 THEN json_extract(raw_json, '$.invoiceDiscount') ELSE 0 END), 0) AS totalDisc,
+                        COALESCE(SUM(
+                            CASE 
+                                WHEN type LIKE '%بيع%' 
+                                     AND (isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' OR invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---')
+                                     AND raw_json LIKE '%invoiceDiscount%' 
+                                     AND json_extract(raw_json, '$.invoiceDiscount') > 0 
+                                THEN json_extract(raw_json, '$.invoiceDiscount') 
+                                ELSE 0 
+                            END
+                        ), 0) AS totalDisc,
                         COUNT(DISTINCT CASE WHEN type LIKE '%بيع%' AND raw_json LIKE '%invoiceDiscount%' AND json_extract(raw_json, '$.invoiceDiscount') > 0 THEN invoiceId END) AS discCount,
-                        COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND (raw_json LIKE '%invoiceExtra%' OR raw_json LIKE '%invoiceTax%') THEN COALESCE(json_extract(raw_json, '$.invoiceExtra'), json_extract(raw_json, '$.invoiceTax'), 0) ELSE 0 END), 0) AS totalExtra,
+                        COALESCE(SUM(
+                            CASE 
+                                WHEN type LIKE '%بيع%' 
+                                     AND (isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' OR invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---')
+                                     AND (raw_json LIKE '%invoiceExtra%' OR raw_json LIKE '%invoiceTax%') 
+                                THEN COALESCE(json_extract(raw_json, '$.invoiceExtra'), json_extract(raw_json, '$.invoiceTax'), 0) 
+                                ELSE 0 
+                            END
+                        ), 0) AS totalExtra,
                         COUNT(DISTINCT CASE WHEN type LIKE '%بيع%' AND ((raw_json LIKE '%invoiceExtra%' AND json_extract(raw_json, '$.invoiceExtra') > 0) OR (raw_json LIKE '%invoiceTax%' AND json_extract(raw_json, '$.invoiceTax') > 0)) THEN invoiceId END) AS extraCount
                     FROM transactions
                     WHERE (status IS NULL OR status != 'void') AND dateISO >= ? AND dateISO <= ?
@@ -4194,11 +4235,11 @@
                         a.address,
                         a.raw_json,
                         ROUND(
-                            COALESCE(
-                                NULLIF(COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0), 0),
-                                a.balance,
-                                0
-                            ) + COALESCE(SUM(
+                            CASE 
+                                WHEN (a.debit IS NOT NULL OR a.credit IS NOT NULL OR json_extract(a.raw_json, '$.debit') IS NOT NULL OR json_extract(a.raw_json, '$.credit') IS NOT NULL)
+                                THEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0))
+                                ELSE COALESCE(a.balance, 0)
+                            END + COALESCE(SUM(
                                 CASE 
                                     WHEN t.type LIKE '%بيع%' AND t.type NOT LIKE '%مرتجع%' THEN (
                                         CASE 
@@ -4343,11 +4384,11 @@
 
                 const sql = `
                     SELECT ROUND(
-                        COALESCE(
-                            NULLIF(COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0), 0),
-                            a.balance,
-                            0
-                        ) + COALESCE(SUM(
+                        CASE 
+                            WHEN (a.debit IS NOT NULL OR a.credit IS NOT NULL OR json_extract(a.raw_json, '$.debit') IS NOT NULL OR json_extract(a.raw_json, '$.credit') IS NOT NULL)
+                            THEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0))
+                            ELSE COALESCE(a.balance, 0)
+                        END + COALESCE(SUM(
                             CASE 
                                 WHEN t.type LIKE '%بيع%' AND t.type NOT LIKE '%مرتجع%' THEN (
                                     CASE 
@@ -4416,11 +4457,11 @@
                 if (!beforeDateISO) {
                     const openSql = `
                         SELECT ROUND(
-                            COALESCE(
-                                NULLIF(COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0), 0),
-                                a.balance,
-                                0
-                            )
+                            CASE 
+                                WHEN (a.debit IS NOT NULL OR a.credit IS NOT NULL OR json_extract(a.raw_json, '$.debit') IS NOT NULL OR json_extract(a.raw_json, '$.credit') IS NOT NULL)
+                                THEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0))
+                                ELSE COALESCE(a.balance, 0)
+                            END
                         , 2) AS priorBalance
                         FROM accounts a WHERE a.name = ? LIMIT 1;
                     `;
@@ -4440,11 +4481,11 @@
 
                 const sql = `
                     SELECT ROUND(
-                        COALESCE(
-                            NULLIF(COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0), 0),
-                            a.balance,
-                            0
-                        ) + COALESCE(SUM(
+                        CASE 
+                            WHEN (a.debit IS NOT NULL OR a.credit IS NOT NULL OR json_extract(a.raw_json, '$.debit') IS NOT NULL OR json_extract(a.raw_json, '$.credit') IS NOT NULL)
+                            THEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0))
+                            ELSE COALESCE(a.balance, 0)
+                        END + COALESCE(SUM(
                             CASE 
                                 WHEN t.type LIKE '%بيع%' AND t.type NOT LIKE '%مرتجع%' THEN (
                                     CASE 
@@ -5450,11 +5491,12 @@
                     }
 
                     if (Array.isArray(data.transactions)) {
-                        const stmt = this.db.prepare(`INSERT OR REPLACE INTO transactions (id, invoiceId, originalInvoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
+                        const stmt = this.db.prepare(`INSERT OR REPLACE INTO transactions (id, invoiceId, originalInvoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, isInvoiceHead, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
                         data.transactions.forEach(t => {
                             const cDate = this.normalizeDateISO(t.dateISO || t.date);
                             const cTime = String(t.time || (t.dateISO && String(t.dateISO).includes('T') ? String(t.dateISO).split('T')[1].slice(0, 8) : ''));
-                            stmt.run(this._safeBind([t.id || null, String(t.invoiceId || ''), t.originalInvoiceId ? String(t.originalInvoiceId) : null, cDate, cTime, t.type || '', t.partner || '', parseFloat(t.total) || 0, parseFloat(t.paidAmount) || 0, parseFloat(t.remaining) || 0, t.method || '', t.cashier || '', t.warehouse || '', JSON.stringify(t)]));
+                            const cHead = (t.isInvoiceHead === true || t.isInvoiceHead === 1 || t.isInvoiceHead === 'true') ? 1 : 0;
+                            stmt.run(this._safeBind([t.id || null, String(t.invoiceId || ''), t.originalInvoiceId ? String(t.originalInvoiceId) : null, cDate, cTime, t.type || '', t.partner || '', parseFloat(t.total) || 0, parseFloat(t.paidAmount) || 0, parseFloat(t.remaining) || 0, t.method || '', t.cashier || '', t.warehouse || '', cHead, JSON.stringify(t)]));
                         });
                         stmt.free();
                     }
@@ -6102,14 +6144,16 @@
                 if (sourceDb.transactions) {
                     const txs = await sourceDb.transactions.toArray();
                     const stmt = this.db.prepare(`
-                        INSERT OR REPLACE INTO transactions (id, invoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, raw_json)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                        INSERT OR REPLACE INTO transactions (id, invoiceId, originalInvoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, isInvoiceHead, raw_json)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                     `);
                     txs.forEach(t => {
                         if (!t) return;
+                        const cHead = (t.isInvoiceHead === true || t.isInvoiceHead === 1 || t.isInvoiceHead === 'true') ? 1 : 0;
                         stmt.run(this._safeBind([
                             t.id != null ? t.id : null,
                             t.invoiceId != null ? String(t.invoiceId) : '',
+                            t.originalInvoiceId != null ? String(t.originalInvoiceId) : null,
                             this.normalizeDateISO(t.dateISO || t.date),
                             t.time != null ? String(t.time) : (t.dateISO && String(t.dateISO).includes('T') ? String(t.dateISO).split('T')[1].slice(0, 8) : ''),
                             t.type != null ? String(t.type) : '',
@@ -6120,6 +6164,7 @@
                             t.method != null ? String(t.method) : '',
                             t.cashier != null ? String(t.cashier) : (t.user != null ? String(t.user) : ''),
                             t.warehouse != null ? String(t.warehouse) : '',
+                            cHead,
                             JSON.stringify(t) || '{}'
                         ]));
                         stats.transactions++;
