@@ -722,6 +722,8 @@
 
             // دالة مساعدة لحساب المدفوع نقداً والآجل بدقة بناءً على طريقة الدفع واسم الشريك
             function getTxPaymentDetails(t) {
+                if (!t) return { total: 0, paid: 0, credit: 0, isCash: true, isNonCash: false, isDeferred: false };
+
                 const total = parseFloat(t.total) || parseFloat(t.price) || 0;
                 const method = String(t.method || t.paymentMethod || t.treasury || '').toLowerCase();
                 const partner = String(t.partner || '').trim();
@@ -731,22 +733,31 @@
                 const isCash = !isNonCash && !isDeferred && (method.includes('نقد') || method.includes('كاش') || method.includes('cash') ||
                                (!isDeferred && (partner === 'عميل نقدي' || partner === 'مورد نقدي' || partner === 'نقدي' || partner === 'كاش' || !partner || partner === 'بدون')));
 
+                // 🔒 صمام الأمان الحاسم: إذا كان السطر ليس رأس فاتورة (سطر فرعي لصنف داخل فاتورة متعددة الأصناف):
+                // يكون paid = 0 و credit = 0 ولا يتم احتساب أي كاش أو آجل من السطور الفرعية منعاً للازدواجية وتضخم الكاش
+                if (t.isInvoiceHead === false || t.isInvoiceHead === 0 || t.isInvoiceHead === 'false') {
+                    return { total, paid: 0, credit: 0, isCash, isNonCash, isDeferred };
+                }
+
+                // إذا كان السطر رأس فاتورة (isInvoiceHead) أو فاتورة صنف واحد:
+                // يتم احتساب المدفوع الفعلي بحيث يستحيل أن يتجاوز صافي قيمة الفاتورة
+                const invGrandTotal = parseFloat(t.invoiceGrandTotal || t.total) || 0;
                 let paid = 0;
                 let credit = 0;
 
                 if (isCash) {
-                    paid = (t.paidAmount != null && parseFloat(t.paidAmount) > 0) ? parseFloat(t.paidAmount) : total;
-                    credit = Math.max(0, total - paid);
+                    paid = invGrandTotal;
+                    credit = 0;
                 } else if (isDeferred) {
-                    paid = parseFloat(t.paidAmount != null ? t.paidAmount : (t.paid || 0));
-                    if (paid > total) paid = total;
-                    credit = Math.max(0, total - paid);
+                    const rawPaid = parseFloat(t.paidAmount != null ? t.paidAmount : (t.paid || 0));
+                    paid = Math.min(Math.max(0, rawPaid), invGrandTotal);
+                    credit = Math.max(0, invGrandTotal - paid);
                 } else {
                     if (t.paidAmount != null && parseFloat(t.paidAmount) >= 0) {
-                        paid = parseFloat(t.paidAmount);
-                        credit = Math.max(0, total - paid);
+                        paid = Math.min(parseFloat(t.paidAmount), invGrandTotal);
+                        credit = Math.max(0, invGrandTotal - paid);
                     } else {
-                        paid = total;
+                        paid = invGrandTotal;
                         credit = 0;
                     }
                 }
@@ -928,10 +939,34 @@
                             CASE 
                                 WHEN type LIKE '%قبض%' THEN total
                                 WHEN type LIKE '%صرف%' THEN -total
-                                WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN COALESCE(paidAmount, total)
-                                WHEN (type LIKE '%شراء%' OR type LIKE '%مشتريات%') AND type NOT LIKE '%مرتجع%' THEN -COALESCE(paidAmount, total)
-                                WHEN type LIKE '%مرتجع بيع%' THEN -COALESCE(paidAmount, total)
-                                WHEN type LIKE '%مرتجع شراء%' THEN COALESCE(paidAmount, total)
+                                WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN 
+                                    CASE 
+                                        WHEN isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' THEN paidAmount 
+                                        WHEN (isInvoiceHead = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 'false') THEN 0
+                                        WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN COALESCE(paidAmount, total)
+                                        ELSE CASE WHEN paidAmount > 0 THEN paidAmount ELSE 0 END
+                                    END
+                                WHEN (type LIKE '%شراء%' OR type LIKE '%مشتريات%') AND type NOT LIKE '%مرتجع%' THEN 
+                                    -CASE 
+                                        WHEN isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' THEN paidAmount 
+                                        WHEN (isInvoiceHead = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 'false') THEN 0
+                                        WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN COALESCE(paidAmount, total)
+                                        ELSE CASE WHEN paidAmount > 0 THEN paidAmount ELSE 0 END
+                                    END
+                                WHEN type LIKE '%مرتجع بيع%' THEN 
+                                    -CASE 
+                                        WHEN isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' THEN paidAmount 
+                                        WHEN (isInvoiceHead = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 'false') THEN 0
+                                        WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN COALESCE(paidAmount, total)
+                                        ELSE CASE WHEN paidAmount > 0 THEN paidAmount ELSE 0 END
+                                    END
+                                WHEN type LIKE '%مرتجع شراء%' THEN 
+                                    CASE 
+                                        WHEN isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' THEN paidAmount 
+                                        WHEN (isInvoiceHead = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 'false') THEN 0
+                                        WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN COALESCE(paidAmount, total)
+                                        ELSE CASE WHEN paidAmount > 0 THEN paidAmount ELSE 0 END
+                                    END
                                 ELSE 0
                             END
                         ), 0) AS balance
@@ -1733,6 +1768,48 @@
                         addedInvoicesCount++;
                     }
                 });
+            }
+
+            // 🔒 ضمان المعادلة المحاسبية الإلزامية ومنع تضخم عمود (نقدي):
+            // (الإجمالي = نقدي + فودافون كاش + فيزا/إلكتروني + آجل)
+            // يستحيل برمجيّاً أن يكون عمود "نقدي" أكبر من عمود "الإجمالي"
+
+            // 1. مبيعات التجزئة (قطاعي)
+            const retailOtherNonCash = Math.max(0, (retailSales.nonCash || 0) - (retailSales.vodafoneCash || 0));
+            const retailMaxAllowedCash = Math.max(0, (retailSales.total || 0) - ((retailSales.vodafoneCash || 0) + retailOtherNonCash + (retailSales.credit || 0)));
+            if (retailSales.cash > retailMaxAllowedCash) {
+                retailSales.cash = retailMaxAllowedCash;
+            }
+            if (retailSales.cash > retailSales.total) {
+                retailSales.cash = retailSales.total;
+            }
+
+            // 2. مبيعات الجملة
+            const wholesaleOtherNonCash = Math.max(0, (wholesaleSales.nonCash || 0) - (wholesaleSales.vodafoneCash || 0));
+            const wholesaleMaxAllowedCash = Math.max(0, (wholesaleSales.total || 0) - ((wholesaleSales.vodafoneCash || 0) + wholesaleOtherNonCash + (wholesaleSales.credit || 0)));
+            if (wholesaleSales.cash > wholesaleMaxAllowedCash) {
+                wholesaleSales.cash = wholesaleMaxAllowedCash;
+            }
+            if (wholesaleSales.cash > wholesaleSales.total) {
+                wholesaleSales.cash = wholesaleSales.total;
+            }
+
+            // 3. إجمالي المبيعات العامة الموحدة (مجموع التجزئة + الجملة بدقة تامة)
+            sales.count = (retailSales.count || 0) + (wholesaleSales.count || 0);
+            sales.total = (retailSales.total || 0) + (wholesaleSales.total || 0);
+            sales.cash = (retailSales.cash || 0) + (wholesaleSales.cash || 0);
+            sales.vodafoneCash = (retailSales.vodafoneCash || 0) + (wholesaleSales.vodafoneCash || 0);
+            sales.credit = (retailSales.credit || 0) + (wholesaleSales.credit || 0);
+            sales.nonCash = (retailSales.nonCash || 0) + (wholesaleSales.nonCash || 0);
+
+            // 4. مرتجع المبيعات
+            const srOtherNonCash = Math.max(0, (salesReturn.nonCash || 0) - (salesReturn.vodafoneCash || 0));
+            const srMaxAllowedCash = Math.max(0, (salesReturn.total || 0) - ((salesReturn.vodafoneCash || 0) + srOtherNonCash + (salesReturn.credit || 0)));
+            if (salesReturn.cash > srMaxAllowedCash) {
+                salesReturn.cash = srMaxAllowedCash;
+            }
+            if (salesReturn.cash > salesReturn.total) {
+                salesReturn.cash = salesReturn.total;
             }
 
             // 📊 حساب إجماليات كافة العمليات المالية بالكامل (بيع قطاعي وجملة + شراء + قبض + صرف + مرتجعات)

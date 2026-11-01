@@ -869,6 +869,7 @@
                         cashier TEXT,
                         warehouse TEXT,
                         status TEXT,
+                        isInvoiceHead INTEGER DEFAULT NULL,
                         raw_json TEXT
                     );
                     CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(dateISO);
@@ -897,6 +898,7 @@
             try { this.db.run("ALTER TABLE transactions ADD COLUMN originalInvoiceId TEXT;"); } catch (e) { }
             try { this.db.run("ALTER TABLE transactions ADD COLUMN status TEXT;"); } catch (e) { }
             try { this.db.run("ALTER TABLE transactions ADD COLUMN terminal TEXT;"); } catch (e) { }
+            try { this.db.run("ALTER TABLE transactions ADD COLUMN isInvoiceHead INTEGER DEFAULT NULL;"); } catch (e) { }
 
             // 🛡️ فحص وترقية جدول transactions ليكون id TEXT PRIMARY KEY في قواعد البيانات القائمة
             try {
@@ -1217,6 +1219,9 @@
             }
             if (res.image && typeof res.image === 'string') {
                 res.image = this._resolveProductImage(res.image);
+            }
+            if (res.isInvoiceHead !== undefined && res.isInvoiceHead !== null) {
+                res.isInvoiceHead = (res.isInvoiceHead === 1 || res.isInvoiceHead === true || res.isInvoiceHead === 'true');
             }
             return res;
         }
@@ -2609,11 +2614,45 @@
                         COUNT(DISTINCT invoiceId) AS invCount,
                         COUNT(*) AS rowCount,
                         COALESCE(SUM(total), 0) AS sumTotal,
-                        COALESCE(SUM(paidAmount), 0) AS sumPaid,
-                        COALESCE(SUM(remaining), 0) AS sumRemaining,
+                        COALESCE(SUM(
+                            CASE 
+                                WHEN isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' THEN paidAmount 
+                                WHEN (isInvoiceHead = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 'false') THEN 0
+                                WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN COALESCE(paidAmount, total)
+                                WHEN isInvoiceHead IS NULL AND json_extract(raw_json, '$.isInvoiceHead') IS NULL THEN 
+                                    CASE WHEN paidAmount > 0 THEN paidAmount ELSE 0 END
+                                ELSE 0 
+                            END
+                        ), 0) AS sumPaid,
+                        COALESCE(SUM(
+                            CASE 
+                                WHEN isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' THEN remaining 
+                                WHEN (isInvoiceHead = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 'false') THEN 0
+                                WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN remaining
+                                WHEN isInvoiceHead IS NULL AND json_extract(raw_json, '$.isInvoiceHead') IS NULL THEN remaining
+                                ELSE 0 
+                            END
+                        ), 0) AS sumRemaining,
                         COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND raw_json LIKE '%wholesale%' AND json_extract(raw_json, '$.priceLevel') = 'wholesale' THEN total ELSE 0 END), 0) AS wholesaleTotal,
-                        COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND raw_json LIKE '%wholesale%' AND json_extract(raw_json, '$.priceLevel') = 'wholesale' THEN paidAmount ELSE 0 END), 0) AS wholesalePaid,
-                        COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND raw_json LIKE '%wholesale%' AND json_extract(raw_json, '$.priceLevel') = 'wholesale' THEN remaining ELSE 0 END), 0) AS wholesaleRemaining,
+                        COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND raw_json LIKE '%wholesale%' AND json_extract(raw_json, '$.priceLevel') = 'wholesale' THEN (
+                            CASE 
+                                WHEN isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' THEN paidAmount 
+                                WHEN (isInvoiceHead = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 'false') THEN 0
+                                WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN COALESCE(paidAmount, total)
+                                WHEN isInvoiceHead IS NULL AND json_extract(raw_json, '$.isInvoiceHead') IS NULL THEN 
+                                    CASE WHEN paidAmount > 0 THEN paidAmount ELSE 0 END
+                                ELSE 0 
+                            END
+                        ) ELSE 0 END), 0) AS wholesalePaid,
+                        COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND raw_json LIKE '%wholesale%' AND json_extract(raw_json, '$.priceLevel') = 'wholesale' THEN (
+                            CASE 
+                                WHEN isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' THEN remaining 
+                                WHEN (isInvoiceHead = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 'false') THEN 0
+                                WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN remaining
+                                WHEN isInvoiceHead IS NULL AND json_extract(raw_json, '$.isInvoiceHead') IS NULL THEN remaining
+                                ELSE 0 
+                            END
+                        ) ELSE 0 END), 0) AS wholesaleRemaining,
                         COUNT(DISTINCT CASE WHEN type LIKE '%بيع%' AND raw_json LIKE '%wholesale%' AND json_extract(raw_json, '$.priceLevel') = 'wholesale' THEN invoiceId END) AS wholesaleCount,
                         COALESCE(SUM(
                             CASE WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' AND (raw_json NOT LIKE '%wholesale%' OR json_extract(raw_json, '$.priceLevel') != 'wholesale') THEN
@@ -3179,8 +3218,25 @@
                     SELECT 
                         COUNT(DISTINCT invoiceId) AS invCount,
                         COALESCE(SUM(total), 0) AS sumTotal,
-                        COALESCE(SUM(paidAmount), 0) AS sumPaid,
-                        COALESCE(SUM(remaining), 0) AS sumRemaining,
+                        COALESCE(SUM(
+                            CASE 
+                                WHEN isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' THEN paidAmount 
+                                WHEN (isInvoiceHead = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 'false') THEN 0
+                                WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN COALESCE(paidAmount, total)
+                                WHEN isInvoiceHead IS NULL AND json_extract(raw_json, '$.isInvoiceHead') IS NULL THEN 
+                                    CASE WHEN paidAmount > 0 THEN paidAmount ELSE 0 END
+                                ELSE 0 
+                            END
+                        ), 0) AS sumPaid,
+                        COALESCE(SUM(
+                            CASE 
+                                WHEN isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' THEN remaining 
+                                WHEN (isInvoiceHead = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 'false') THEN 0
+                                WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN remaining
+                                WHEN isInvoiceHead IS NULL AND json_extract(raw_json, '$.isInvoiceHead') IS NULL THEN remaining
+                                ELSE 0 
+                            END
+                        ), 0) AS sumRemaining,
                         COALESCE(SUM(
                             CASE WHEN type LIKE '%مرتجع%' THEN -ABS(COALESCE(json_extract(raw_json, '$.profit'), 0))
                             ELSE COALESCE(json_extract(raw_json, '$.profit'), 0) END
@@ -5194,8 +5250,25 @@
                         method,
                         COUNT(DISTINCT (CASE WHEN invoiceId IS NOT NULL AND TRIM(invoiceId) != '' AND invoiceId != '---' THEN invoiceId ELSE id END)) as invCount,
                         COALESCE(SUM(total), 0) as sumTotal,
-                        COALESCE(SUM(paidAmount), 0) as sumPaid,
-                        COALESCE(SUM(remaining), 0) as sumRemaining
+                        COALESCE(SUM(
+                            CASE 
+                                WHEN isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' THEN paidAmount 
+                                WHEN (isInvoiceHead = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 'false') THEN 0
+                                WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN COALESCE(paidAmount, total)
+                                WHEN isInvoiceHead IS NULL AND json_extract(raw_json, '$.isInvoiceHead') IS NULL THEN 
+                                    CASE WHEN paidAmount > 0 THEN paidAmount ELSE 0 END
+                                ELSE 0 
+                            END
+                        ), 0) as sumPaid,
+                        COALESCE(SUM(
+                            CASE 
+                                WHEN isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' THEN remaining 
+                                WHEN (isInvoiceHead = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 'false') THEN 0
+                                WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN remaining
+                                WHEN isInvoiceHead IS NULL AND json_extract(raw_json, '$.isInvoiceHead') IS NULL THEN remaining
+                                ELSE 0 
+                            END
+                        ), 0) as sumRemaining
                     FROM transactions
                     WHERE dateISO >= ? AND dateISO <= ?
                 `;
