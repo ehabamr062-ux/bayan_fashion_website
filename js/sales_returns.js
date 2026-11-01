@@ -829,7 +829,7 @@ async function saveSalesReturn(force = false, accountChecked = false) {
             const sSize = String(item.selectedSize || item.size || '').trim();
             const sColor = String(item.selectedColor || item.color || '').trim();
 
-            // تحديد المخزن: من الصنف المرتجع، أو مخزن المستخدم الحالي الحاضر (أولوية للمقر الفعلي)، أو الفاتورة الأصلية، أو الرئيسي
+            // تحديد المخزن: الأولوية لمخزن الفاتورة الأصلية المستدعاة لضمان عودة البضاعة لنفس مقرها الفعلي
             const origMatch = originalInvoiceId ? (transactions.find(t => 
                 String(t.invoiceId) === String(originalInvoiceId) && 
                 (t.product === item.name || t.productName === item.name) &&
@@ -838,13 +838,15 @@ async function saveSalesReturn(force = false, accountChecked = false) {
                 t.type && t.type.includes('بيع') && !t.type.includes('مرتجع')
             ) || transactions.find(t => 
                 String(t.invoiceId) === String(originalInvoiceId) && 
-                (t.product === item.name || t.productName === item.name) &&
+                (t.product === item.name || t.productName === item.name) && 
                 t.type && t.type.includes('بيع') && !t.type.includes('مرتجع')
             )) : null;
 
             const activeWH = (item.warehouse && item.warehouse.trim() !== '')
                 ? item.warehouse.trim()
-                : (((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : (origMatch ? origMatch.warehouse : 'المخزن الرئيسي')) || 'المخزن الرئيسي').trim();
+                : (origMatch && origMatch.warehouse && origMatch.warehouse.trim() !== '')
+                    ? origMatch.warehouse.trim()
+                    : (((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي') || 'المخزن الرئيسي').trim();
 
             if (p) {
                 if (typeof window.FashionStockEngine !== 'undefined') {
@@ -1602,7 +1604,7 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
 
             // تحديد المخزن: من الصنف المرتجع، أو مخزن المستخدم الحالي الحاضر (أولوية للمقر الفعلي)، أو الفاتورة الأصلية، أو الرئيسي
             const origMatch = originalInvoiceId ? transactions.find(t => String(t.invoiceId) === String(originalInvoiceId) && (t.product === item.name || t.productName === item.name)) : null;
-            const itemWH = (item.warehouse || (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) || (origMatch && origMatch.warehouse) || activeWH || 'المخزن الرئيسي').trim();
+            const itemWH = (item.warehouse || (origMatch && origMatch.warehouse) || (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) || activeWH || 'المخزن الرئيسي').trim();
 
             if (p) {
                 if (typeof window.FashionStockEngine !== 'undefined') {
@@ -3582,6 +3584,7 @@ async function confirmReturnItemsSelection() {
                     code: finalCode,
                     barcode: finalCode,
 
+                    warehouse: (originalItem.warehouse || (currentReturnInvoiceItems && currentReturnInvoiceItems[0] ? currentReturnInvoiceItems[0].warehouse : '') || '').trim(), // حفظ مخزن الفاتورة الأصلية المستدعاة
                     invoiceId: originalItem.invoiceId // حفظ رقم الفاتورة الأصلية في الصنف
 
                 });
