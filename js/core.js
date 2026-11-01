@@ -73,11 +73,11 @@ window.BayanNetworkHub = {
 // 🔢 المزامنة التلقائية لرقم الإصدار الموحد (Single Source of Truth Unification)
 // المصدر الرسمي الوحيد هو package.json عبر app.getVersion()
 // =========================================================================
-window.appVersion = '5.0.8';
-window.APP_VERSION = '5.0.8';
+window.appVersion = '5.0.9';
+window.APP_VERSION = '5.0.9';
 
 async function fetchAppVersion() {
-    let version = '5.0.8';
+    let version = '5.0.9';
     try {
         if (typeof window !== 'undefined' && window.require) {
             const electron = window.require('electron');
@@ -97,7 +97,7 @@ async function fetchAppVersion() {
 }
 
 function syncAppVersionUI(version) {
-    if (!version) version = window.appVersion || '5.0.8';
+    if (!version) version = window.appVersion || '5.0.9';
     window.appVersion = version;
     window.APP_VERSION = version;
 

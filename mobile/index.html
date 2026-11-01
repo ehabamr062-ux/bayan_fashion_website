@@ -29,7 +29,7 @@
                 if ('caches' in window) {
                     caches.keys().then(keys => {
                         keys.forEach(key => {
-                            if (key.includes('v5.0.8') || (key.includes('bayan-') && !key.includes('v5.1.5'))) {
+                            if (key.includes('v5.0.8') || key.includes('v5.0.9') || (key.includes('bayan-') && !key.includes('v5.0.9'))) {
                                 caches.delete(key);
                             }
                         });
