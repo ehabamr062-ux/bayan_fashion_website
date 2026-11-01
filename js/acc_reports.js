@@ -3430,7 +3430,7 @@
             const expected = window.currentDrawerClosingState?.expectedCash !== undefined 
                 ? window.currentDrawerClosingState.expectedCash 
                 : (window.currentDrawerClosingState?.netCashMovement || 0);
-            const diff = actual - Math.abs(expected);
+            const diff = actual - expected;
             const absDiff = Math.abs(diff);
 
             if (absDiff < 0.01) {
@@ -3859,7 +3859,7 @@
 
             const actual = parseFloat(val) || 0;
             const expected = window.currentDrawerClosingState.expectedCash !== undefined ? window.currentDrawerClosingState.expectedCash : window.currentDrawerClosingState.netCashMovement;
-            const diff = actual - Math.abs(expected);
+            const diff = actual - expected;
             const absDiff = Math.abs(diff);
 
             window.currentDrawerClosingState.actualCash = actual;

@@ -1429,6 +1429,32 @@
          */
         _syncTransactionItems(item, optCachedStmts = null) {
             if (!this.db || !item || !item.id) return;
+
+            // 🛑 استبعاد سندات الصرف والقبض والمصروفات المالية من جدول بنود البضاعة لمنع تلوث حركة وأرباح الأصناف
+            const txType = String(item.type || '').trim();
+            if (txType && (
+                txType.includes('صرف') || 
+                txType.includes('قبض') || 
+                txType.includes('سند') || 
+                txType === 'expense' || 
+                txType === 'receipt' || 
+                txType === 'disbursement' ||
+                txType === 'payment'
+            )) {
+                // التأكد من عدم وجود بنود قديمة لنفس المعرف إن وُجدت مسبقاً
+                try {
+                    const sTxId = String(item.id);
+                    if (this.isNative && this.nativeDb) {
+                        this.nativeDb.prepare("DELETE FROM transaction_items WHERE tx_id = ?;").run(sTxId);
+                    } else if (this.db) {
+                        const delStmt = this.db.prepare("DELETE FROM transaction_items WHERE tx_id = ?;");
+                        delStmt.run([sTxId]);
+                        delStmt.free();
+                    }
+                } catch (_) {}
+                return;
+            }
+
             let delStmt = optCachedStmts ? optCachedStmts.delTiStmt : null;
             let insStmt = optCachedStmts ? optCachedStmts.insTiStmt : null;
             const shouldFree = !optCachedStmts;

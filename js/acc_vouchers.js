@@ -161,6 +161,8 @@
 
                     type: 'قبض 📥',
 
+                    isInvoiceHead: true,
+
                     voucherCategory: type,
 
                     method: receiptMethod,
@@ -483,6 +485,8 @@
                     timeISO: dt.time,
 
                     type: 'صرف 📤',
+
+                    isInvoiceHead: true,
 
                     voucherCategory: type,
 
