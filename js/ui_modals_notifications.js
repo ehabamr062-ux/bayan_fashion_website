@@ -2009,281 +2009,9 @@
                     receiptArea.innerHTML = content;
                     window.print();
                 } else if (tx.type.includes('قبض') || tx.type.includes('صرف')) {
-                    const isReceipt = tx.type.includes('قبض');
-                    let savedPosSettings = {};
-                    try { savedPosSettings = JSON.parse(getStore('pos_settings') || '{}'); } catch(e) {}
-                    const shopName = savedPosSettings.name || (document.getElementById('shopName') ? document.getElementById('shopName').value : 'مؤسستي');
-                    const footerMsg = savedPosSettings.printFooterMsg || (document.getElementById('printFooterMsg') ? document.getElementById('printFooterMsg').value : 'شكراً لتعاملكم معنا!');
-                    const id = tx.invoiceId || tx.id || '-';
-                    const date = tx.dateISO || (tx.date ? tx.date.split(' ')[0] : new Date().toLocaleDateString('en-CA'));
-                    const partnerName = tx.partner || 'غير محدد';
-                    const amount = parseFloat(tx.total || tx.paidAmount || tx.price) || 0;
-
-                    let balBefore = 0, balAfter = 0;
-                    if (typeof window.getAccountBalance === 'function') {
-                        const currentBalance = window.getAccountBalance(partnerName);
-                        // الحركة محفوظة مسبقاً فالرصيد الحالي هو الرصيد بعد الحركة
-                        balAfter = currentBalance;
-                        if (isReceipt) {
-                            balBefore = currentBalance + amount;
-                        } else {
-                            balBefore = currentBalance - amount;
-                        }
-                    }
-
-                    const formatMoney = (num) => {
-                        const isNeg = num < 0;
-                        const formatted = Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                        return isNeg ? `-${formatted}` : formatted;
-                    };
-
-                    const title = isReceipt ? 'سند قبض نقدية' : 'سند صرف نقدية';
-                    const actionLabel = isReceipt ? 'وصلنا من السيد:' : 'صرف للسيد:';
-                    const amountLabel = isReceipt ? 'المبلغ المقبوض:' : 'المبلغ المنصرف:';
-                    const col1Label = isReceipt ? 'الرصيد السابق' : 'كان له';
-                    const col2Label = isReceipt ? 'المبلغ المقبوض' : 'المنصرف';
-                    const col3Label = isReceipt ? 'المتبقي عليه' : 'المتبقي له';
-                    const sign2Label = isReceipt ? 'الختم والاعتماد' : 'المدير المالي';
-                    
-                    const htmlContent = `
-                        <html dir="rtl" lang="ar">
-                        <head>
-                            <meta charset="utf-8">
-                            <title>${title} #${id} - ${shopName}</title>
-                            <style>
-                                @page { margin: 0; size: 80mm auto; }
-                                *, *::before, *::after { 
-                                    box-sizing: border-box !important; 
-                                    -webkit-print-color-adjust: exact !important;
-                                    print-color-adjust: exact !important;
-                                }
-                                html, body {
-                                    margin: 0 !important;
-                                    padding: 0 !important;
-                                    width: 100% !important;
-                                    max-width: 80mm !important;
-                                    height: auto !important;
-                                    overflow: visible !important;
-                                    background: #ffffff !important;
-                                    color: #000000 !important;
-                                    font-family: 'Arial', 'Tahoma', 'Segoe UI', 'Cairo', sans-serif !important;
-                                    direction: rtl;
-                                    text-align: right;
-                                    font-weight: 900 !important;
-                                    -webkit-text-stroke: 0.55px #000000 !important;
-                                    text-shadow: 0.25px 0 0 #000, -0.25px 0 0 #000, 0 0.25px 0 #000, 0 -0.25px 0 #000 !important;
-                                }
-                                /* 🖨️ تعزيز ثقل الحبر والسواد الفاحم الصريح للطابعات الحرارية بدون بهتان */
-                                body, div, span, b, strong, td, th, p, label {
-                                    color: #000000 !important;
-                                    font-weight: 900 !important;
-                                    -webkit-text-stroke: 0.55px #000000 !important;
-                                    text-shadow: 0.25px 0 0 #000, -0.25px 0 0 #000, 0 0.25px 0 #000, 0 -0.25px 0 #000 !important;
-                                }
-                                b, strong, th, .bold-text {
-                                    -webkit-text-stroke: 0.75px #000000 !important;
-                                    font-weight: 900 !important;
-                                }
-                                .receipt-card {
-                                    width: 72mm;
-                                    margin: 0 auto;
-                                    padding: 2mm 1mm;
-                                    text-align: center;
-                                    box-sizing: border-box;
-                                }
-                                .shop-header {
-                                    font-size: 20px;
-                                    font-weight: 900;
-                                    margin-bottom: 5px;
-                                    color: #000000 !important;
-                                    line-height: 1.25;
-                                }
-                                .doc-badge {
-                                    font-size: 14.5px;
-                                    font-weight: 900;
-                                    border: 2.5px solid #000000;
-                                    display: inline-block;
-                                    padding: 3px 16px;
-                                    border-radius: 4px;
-                                    margin-bottom: 8px;
-                                    color: #000000 !important;
-                                }
-                                .meta-row {
-                                    display: flex;
-                                    justify-content: space-between;
-                                    align-items: flex-start;
-                                    flex-wrap: wrap;
-                                    font-size: 12.5px;
-                                    font-weight: 900;
-                                    border-bottom: 2px solid #000000;
-                                    padding-bottom: 5px;
-                                    margin-bottom: 8px;
-                                    gap: 4px;
-                                    color: #000000 !important;
-                                }
-                                .box-info {
-                                    border: 2px solid #000000;
-                                    border-radius: 6px;
-                                    padding: 8px;
-                                    margin-bottom: 10px;
-                                    text-align: right;
-                                    font-size: 13.5px;
-                                    font-weight: 900;
-                                    color: #000000 !important;
-                                    line-height: 1.35;
-                                    word-break: break-word;
-                                }
-                                .amount-container {
-                                    margin-top: 6px;
-                                    text-align: center;
-                                    font-size: 13.5px;
-                                    font-weight: 900;
-                                    color: #000000 !important;
-                                }
-                                .amount-val {
-                                    font-size: 22px;
-                                    font-weight: 900;
-                                    border: 2.5px solid #000000;
-                                    display: inline-block;
-                                    padding: 3px 14px;
-                                    border-radius: 6px;
-                                    margin-top: 4px;
-                                    font-family: 'Segoe UI', Arial, sans-serif;
-                                    direction: ltr !important;
-                                    color: #000000 !important;
-                                    -webkit-text-stroke: 0.75px #000000 !important;
-                                }
-                                .summary-table {
-                                    width: 100%;
-                                    border-collapse: collapse !important;
-                                    margin-bottom: 12px;
-                                    border: 2px solid #000000;
-                                    box-sizing: border-box;
-                                }
-                                .summary-table th {
-                                    border: 1.5px solid #000000;
-                                    padding: 5px 2px;
-                                    font-size: 11.5px;
-                                    font-weight: 900;
-                                    color: #000000 !important;
-                                    background: #ffffff !important;
-                                    -webkit-text-stroke: 0.65px #000000 !important;
-                                }
-                                .summary-table td {
-                                    border: 1.5px solid #000000;
-                                    padding: 6px 2px;
-                                    font-size: 12.5px;
-                                    font-weight: 900;
-                                    text-align: center;
-                                    font-family: 'Segoe UI', Arial, sans-serif;
-                                    direction: ltr !important;
-                                    white-space: nowrap;
-                                    color: #000000 !important;
-                                }
-                                .sign-grid {
-                                    display: grid;
-                                    grid-template-columns: 1fr 1fr;
-                                    gap: 15px;
-                                    margin-top: 20px;
-                                    font-size: 12px;
-                                    font-weight: 900;
-                                    color: #000000 !important;
-                                }
-                                .sign-line {
-                                    border-top: 2px solid #000000;
-                                    padding-top: 5px;
-                                    text-align: center;
-                                    color: #000000 !important;
-                                }
-                                .footer-text {
-                                    margin-top: 15px;
-                                    border-top: 2px dashed #000000;
-                                    padding-top: 8px;
-                                    font-size: 11.5px;
-                                    font-weight: 900;
-                                    color: #000000 !important;
-                                    line-height: 1.4;
-                                }
-                                @media print {
-                                    .no-print { display: none !important; }
-                                    html, body {
-                                        padding: 0 !important;
-                                        margin: 0 !important;
-                                        width: 100% !important;
-                                    }
-                                }
-                            </style>
-                        </head>
-                        <body>
-                            <div class="receipt-card">
-                                <div class="shop-header">${shopName}</div>
-                                <div class="doc-badge">${title}</div>
-                                <div class="meta-row">
-                                    <span>رقم: ${id}</span>
-                                    <span>التاريخ: ${date}</span>
-                                </div>
-
-                                <div class="box-info">
-                                    <div>${actionLabel} <b style="font-size:14px; font-weight:900;">${partnerName}</b></div>
-                                    <div class="amount-container">
-                                        <div>${amountLabel}</div>
-                                        <div class="amount-val">${formatMoney(amount)}</div>
-                                    </div>
-                                </div>
-
-                                <table class="summary-table">
-                                    <thead>
-                                        <tr>
-                                            <th style="width:33%;">${col1Label}</th>
-                                            <th style="width:34%;">${col2Label}</th>
-                                            <th style="width:33%;">${col3Label}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr>
-                                            <td>${formatMoney(balBefore)}</td>
-                                            <td>${formatMoney(amount)}</td>
-                                            <td>${formatMoney(balAfter)}</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-
-                                <div class="sign-grid">
-                                    <div class="sign-line">توقيع المستلم</div>
-                                    <div class="sign-line">${sign2Label}</div>
-                                </div>
-
-                                <div class="footer-text">
-                                    <div>${footerMsg}</div>
-                                    <div style="font-size:10px; color:#000000 !important; font-weight:900; margin-top:3px;">نظام بَيَان POS المتكامل</div>
-                                </div>
-                            </div>
-                            <script>
-                                window.onload = function() {
-                                    window.focus();
-                                    setTimeout(function() {
-                                        window.print();
-                                        setTimeout(function() { window.close(); }, 500);
-                                    }, 200);
-                                };
-                            <\/script>
-                        </body>
-                        </html>
-                    `;
-
-                    const printWindow = window.open('', '_blank');
-                    if (printWindow) {
-                        printWindow.document.write(htmlContent);
-                        printWindow.document.close();
-                    } else {
-                        let receiptArea = document.getElementById('receipt-area');
-                        if (!receiptArea) {
-                            receiptArea = document.createElement('div');
-                            receiptArea.id = 'receipt-area';
-                            document.body.appendChild(receiptArea);
-                        }
-                        receiptArea.innerHTML = htmlContent;
-                        window.print();
+                    if (typeof window.printFinancialVoucher === 'function') {
+                        window.printFinancialVoucher(tx);
+                        return;
                     }
                 } else {
                     if (typeof printInvoice === 'function') {
@@ -2608,11 +2336,11 @@
                         </button>
 
                         <div style="display: flex; gap: 10px;">
-                            <button type="button" onclick="if(window.shareFinancialVoucherWhatsApp) window.shareFinancialVoucherWhatsApp('${docId}')" 
+                            <button type="button" onclick="if(window.shareFinancialVoucherWhatsApp) window.shareFinancialVoucherWhatsApp(window._activeFinancialVoucherTx || '${docId}')" 
                                 style="padding: 9px 18px; border-radius: 10px; border: none; background: #25d366; color: #ffffff; font-weight: 800; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);">
                                 <span>💬</span> مشاركة واتساب
                             </button>
-                            <button type="button" onclick="if(window.printFinancialVoucherById) window.printFinancialVoucherById('${docId}')" 
+                            <button type="button" onclick="if(window.printFinancialVoucher) window.printFinancialVoucher(window._activeFinancialVoucherTx || '${docId}', '${tx.type || ''}', '${tx.id || ''}')" 
                                 style="padding: 9px 22px; border-radius: 10px; border: none; background: ${themeGradient}; color: #ffffff; font-weight: 900; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
                                 <span>🖨️</span> طباعة السند
                             </button>
@@ -2622,17 +2350,27 @@
                 </div>
             `;
 
+            window._activeFinancialVoucherTx = tx;
             document.body.appendChild(overlay);
 
-            if (autoPrint && typeof window.printFinancialVoucherById === 'function') {
-                setTimeout(() => window.printFinancialVoucherById(docId), 300);
+            if (autoPrint && typeof window.printFinancialVoucher === 'function') {
+                setTimeout(() => window.printFinancialVoucher(tx, tx.type, tx.id), 300);
             }
         };
 
-        window.shareFinancialVoucherWhatsApp = function(docId) {
-            if (!docId) return;
-            const pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
-            const t = pool.find(x => String(x.invoiceId) === String(docId) || String(x.id) === String(docId)) || {};
+        window.shareFinancialVoucherWhatsApp = function(docIdOrTx) {
+            if (!docIdOrTx) return;
+            let t = (typeof docIdOrTx === 'object' && docIdOrTx !== null) ? docIdOrTx : null;
+            if (!t) {
+                const sId = String(docIdOrTx).trim();
+                const pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+                t = pool.find(x => x && (String(x.invoiceId) === sId || String(x.id) === sId) && (String(x.type || '').includes('قبض') || String(x.type || '').includes('صرف')));
+                if (!t && window.BayanSQLite && typeof window.BayanSQLite.getInvoiceFullDetails === 'function') {
+                    t = window.BayanSQLite.getInvoiceFullDetails(sId, 'سند');
+                }
+            }
+            if (!t) return;
+            const docId = t.invoiceId || t.id || '-';
             const amount = parseFloat(t.total || t.price || 0).toFixed(2);
             const isReceipt = String(t.type || '').includes('قبض');
             const title = isReceipt ? 'سند استلام نقدية (قبض)' : 'سند صرف نقدية';
@@ -2648,30 +2386,371 @@
             window.open(url, '_blank');
         };
 
-        window.printFinancialVoucherById = function(docId) {
-            if (!docId) return;
-            const pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
-            const t = pool.find(x => String(x.invoiceId) === String(docId) || String(x.id) === String(docId));
-            if (!t) return;
-            
-            const isReceipt = String(t.type || '').includes('قبض');
-            if (isReceipt && typeof printReceiptData === 'function' && document.getElementById('receiptID')) {
-                document.getElementById('receiptID').value = t.invoiceId || t.id || '';
-                if (document.getElementById('receiptCustomer')) document.getElementById('receiptCustomer').value = t.partner || t.customer || '';
-                if (document.getElementById('receiptAmount')) document.getElementById('receiptAmount').value = t.total || t.price || 0;
-                if (document.getElementById('receiptDate')) document.getElementById('receiptDate').value = t.dateISO || (t.date ? String(t.date).split(' ')[0] : '');
-                if (document.getElementById('receiptNotes')) document.getElementById('receiptNotes').value = t.product || t.notes || '';
-                printReceiptData();
-            } else if (!isReceipt && typeof printDisbursementData === 'function' && document.getElementById('disburseID')) {
-                document.getElementById('disburseID').value = t.invoiceId || t.id || '';
-                if (document.getElementById('disbursePayee')) document.getElementById('disbursePayee').value = t.partner || t.customer || t.payee || '';
-                if (document.getElementById('disburseAmount')) document.getElementById('disburseAmount').value = t.total || t.price || 0;
-                if (document.getElementById('disburseDate')) document.getElementById('disburseDate').value = t.dateISO || (t.date ? String(t.date).split(' ')[0] : '');
-                if (document.getElementById('disburseNotes')) document.getElementById('disburseNotes').value = t.product || t.notes || '';
-                printDisbursementData();
+        // ====================================================================
+        // 🖨️ المحرك الموحد المتقدم لطباعة السندات المالية (Receipt & Disburse Engine)
+        // ====================================================================
+        window.printFinancialVoucher = function(txOrId, optType = '', optTxId = '') {
+            if (!txOrId && txOrId !== 0) return;
+            let t = null;
+            if (typeof txOrId === 'object' && txOrId !== null) {
+                t = txOrId;
             } else {
+                const sDocId = String(txOrId).trim();
+                const sTxId = String(optTxId || '').trim();
+                const cleanType = String(optType || '').trim().toLowerCase();
+                const isReceiptOnly = cleanType.includes('قبض') || cleanType === 'receipt';
+                const isDisburseOnly = cleanType.includes('صرف') || cleanType.includes('دفع') || cleanType === 'payment' || cleanType === 'disburse';
+                const pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+
+                t = pool.find(x => {
+                    if (!x) return false;
+                    const xType = String(x.type || '').toLowerCase();
+                    if (isReceiptOnly && !xType.includes('قبض') && xType !== 'receipt') return false;
+                    if (isDisburseOnly && !xType.includes('صرف') && !xType.includes('دفع') && xType !== 'payment' && xType !== 'disburse') return false;
+                    if (sTxId && String(x.id) === sTxId) return true;
+                    return (x.invoiceId != null && String(x.invoiceId) === sDocId) ||
+                           (x.id != null && String(x.id) === sDocId);
+                });
+
+                if (!t && window.BayanSQLite && typeof window.BayanSQLite.getInvoiceFullDetails === 'function') {
+                    t = window.BayanSQLite.getInvoiceFullDetails(sDocId, optType || (isReceiptOnly ? 'سند قبض' : (isDisburseOnly ? 'سند صرف' : '')), sTxId);
+                }
+
+                if (!t) {
+                    t = pool.find(x => x && (String(x.invoiceId) === sDocId || String(x.id) === sDocId) && (String(x.type || '').includes('قبض') || String(x.type || '').includes('صرف')));
+                }
+            }
+
+            if (!t) {
+                if (typeof showCustomAlert === 'function') {
+                    showCustomAlert({
+                        type: 'warning',
+                        titleText: '⚠️ تنبيه',
+                        msg: 'لم يتم العثور على بيانات السند المالي المحدد للطباعة.'
+                    });
+                }
+                return;
+            }
+
+            const tType = String(t.type || '');
+            const isReceipt = tType.includes('قبض') || tType.toLowerCase() === 'receipt';
+            let savedPosSettings = {};
+            try { savedPosSettings = JSON.parse(getStore('pos_settings') || '{}'); } catch(e) {}
+            const shopName = savedPosSettings.name || (document.getElementById('shopName') ? document.getElementById('shopName').value : 'بـيـان POS');
+            const shopAddress = savedPosSettings.address || (document.getElementById('shopAddress') ? document.getElementById('shopAddress').value : '');
+            const shopPhone = savedPosSettings.phone || (document.getElementById('shopPhone1') ? document.getElementById('shopPhone1').value : '');
+            const footerMsg = savedPosSettings.printFooterMsg || (document.getElementById('printFooterMsg') ? document.getElementById('printFooterMsg').value : 'شكراً لتعاملكم معنا!');
+
+            const id = t.invoiceId || t.id || '-';
+            const date = t.dateISO || (t.date ? String(t.date).split(' ')[0] : new Date().toLocaleDateString('en-CA'));
+            const time = t.timeISO || (t.date && String(t.date).includes(' ') ? String(t.date).split(' ')[1] : '') || (t.time || '');
+            const partnerName = t.partner || t.customer || t.payee || t.account || 'طرف نقدي';
+            const amount = parseFloat(t.total || t.paidAmount || t.price || 0) || 0;
+            const method = (typeof window.formatPaymentMethodDisplay === 'function' ? window.formatPaymentMethodDisplay(t) : t.method) || 'كاش (نقدي)';
+            const cashier = t.user || t.cashier || (window.currentUser ? window.currentUser.name : '-');
+            const warehouse = t.warehouse || 'المخزن الرئيسي';
+            const notes = t.product || t.notes || '';
+            const tafqeet = typeof window.tafqeetArabic === 'function' ? window.tafqeetArabic(amount) : `${amount.toFixed(2)} ج.م`;
+
+            let hasPartnerBalance = false;
+            let balBefore = 0, balAfter = 0;
+            let balBeforeLabel = '0.00', balAfterLabel = '0.00';
+
+            if (partnerName && partnerName !== 'غير محدد' && typeof window.isGenericCashPartner === 'function' && !window.isGenericCashPartner(partnerName) && typeof window.getAccountBalance === 'function') {
+                hasPartnerBalance = true;
+                const curBal = window.getAccountBalance(partnerName);
+                balAfter = curBal;
+                if (isReceipt) {
+                    balBefore = curBal + amount;
+                } else {
+                    balBefore = curBal - amount;
+                }
+
+                if (isReceipt) {
+                    balBeforeLabel = balBefore > 0.01 
+                        ? `${balBefore.toFixed(2)} (عليه)` 
+                        : (balBefore < -0.01 ? `${Math.abs(balBefore).toFixed(2)} (له)` : '0.00 (خالص)');
+                    balAfterLabel = balAfter > 0.01 
+                        ? `${balAfter.toFixed(2)} (متبقي عليه)` 
+                        : (balAfter < -0.01 ? `${Math.abs(balAfter).toFixed(2)} (رصيد له)` : '0.00 (خالص)');
+                } else {
+                    balBeforeLabel = balBefore < -0.01 
+                        ? `${Math.abs(balBefore).toFixed(2)} (كان له)` 
+                        : (balBefore > 0.01 ? `${balBefore.toFixed(2)} (كان عليه)` : '0.00 (خالص)');
+                    balAfterLabel = balAfter < -0.01 
+                        ? `${Math.abs(balAfter).toFixed(2)} (متبقي له)` 
+                        : (balAfter > 0.01 ? `${balAfter.toFixed(2)} (متبقي عليه)` : '0.00 (خالص)');
+                }
+            }
+
+            const title = isReceipt ? 'سند قبض نقدية' : 'سند صرف نقدية';
+            const actionLabel = isReceipt ? 'وصلنا من السيد:' : 'صرف للسيد:';
+            const amountLabel = isReceipt ? 'المبلغ المقبوض:' : 'المبلغ المنصرف:';
+            const col1Title = isReceipt ? 'الرصيد السابق' : 'كان له';
+            const col2Title = isReceipt ? 'المبلغ المقبوض' : 'المنصرف';
+            const col3Title = isReceipt ? 'الرصيد بعد السند' : 'المتبقي له';
+            const sign2Label = isReceipt ? 'الختم والاعتماد' : 'المدير المالي';
+
+            const formatMoney = (num) => {
+                const isNeg = num < 0;
+                const formatted = Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                return isNeg ? `-${formatted}` : formatted;
+            };
+
+            const htmlContent = `
+                <html dir="rtl" lang="ar">
+                <head>
+                    <meta charset="utf-8">
+                    <title>${title} #${id} - ${shopName}</title>
+                    <style>
+                        @page { margin: 0; size: 80mm auto; }
+                        *, *::before, *::after { 
+                            box-sizing: border-box !important; 
+                            -webkit-print-color-adjust: exact !important;
+                            print-color-adjust: exact !important;
+                        }
+                        html, body {
+                            margin: 0 !important;
+                            padding: 0 !important;
+                            width: 100% !important;
+                            max-width: 80mm !important;
+                            height: auto !important;
+                            overflow: visible !important;
+                            background: #ffffff !important;
+                            color: #000000 !important;
+                            font-family: 'Arial', 'Tahoma', 'Segoe UI', 'Cairo', sans-serif !important;
+                            direction: rtl;
+                            text-align: right;
+                            font-weight: 900 !important;
+                            -webkit-text-stroke: 0.55px #000000 !important;
+                            text-shadow: 0.25px 0 0 #000, -0.25px 0 0 #000, 0 0.25px 0 #000, 0 -0.25px 0 #000 !important;
+                        }
+                        body, div, span, b, strong, td, th, p, label {
+                            color: #000000 !important;
+                            font-weight: 900 !important;
+                            -webkit-text-stroke: 0.55px #000000 !important;
+                            text-shadow: 0.25px 0 0 #000, -0.25px 0 0 #000, 0 0.25px 0 #000, 0 -0.25px 0 #000 !important;
+                        }
+                        b, strong, th, .bold-text {
+                            -webkit-text-stroke: 0.75px #000000 !important;
+                            font-weight: 900 !important;
+                        }
+                        .receipt-card {
+                            width: 72mm;
+                            margin: 0 auto;
+                            padding: 2mm 1mm;
+                            text-align: center;
+                            box-sizing: border-box;
+                        }
+                        .shop-header {
+                            font-size: 19px;
+                            font-weight: 900;
+                            margin-bottom: 3px;
+                            color: #000000 !important;
+                            line-height: 1.2;
+                        }
+                        .shop-meta {
+                            font-size: 11px;
+                            font-weight: 800;
+                            margin-bottom: 6px;
+                            color: #000000 !important;
+                        }
+                        .doc-badge {
+                            font-size: 14px;
+                            font-weight: 900;
+                            border: 2px solid #000000;
+                            display: inline-block;
+                            padding: 3px 14px;
+                            border-radius: 5px;
+                            margin-bottom: 8px;
+                            color: #000000 !important;
+                        }
+                        .meta-row {
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            font-size: 12px;
+                            font-weight: 900;
+                            border-bottom: 2px solid #000000;
+                            padding-bottom: 4px;
+                            margin-bottom: 8px;
+                            color: #000000 !important;
+                        }
+                        .box-info {
+                            border: 1.8px solid #000000;
+                            border-radius: 6px;
+                            padding: 8px;
+                            margin-bottom: 8px;
+                            text-align: right;
+                            font-size: 13px;
+                            font-weight: 900;
+                            color: #000000 !important;
+                            line-height: 1.35;
+                        }
+                        .amount-container {
+                            margin-top: 6px;
+                            text-align: center;
+                            font-size: 13px;
+                            font-weight: 900;
+                            color: #000000 !important;
+                        }
+                        .amount-val {
+                            font-size: 22px;
+                            font-weight: 900;
+                            border: 2px solid #000000;
+                            display: inline-block;
+                            padding: 3px 14px;
+                            border-radius: 6px;
+                            margin-top: 4px;
+                            font-family: 'Segoe UI', Arial, sans-serif;
+                            direction: ltr !important;
+                            color: #000000 !important;
+                            -webkit-text-stroke: 0.75px #000000 !important;
+                        }
+                        .tafqeet-val {
+                            margin-top: 5px;
+                            font-size: 11.5px;
+                            font-weight: 900;
+                            color: #000000 !important;
+                        }
+                        .summary-table {
+                            width: 100%;
+                            border-collapse: collapse !important;
+                            margin-bottom: 10px;
+                            border: 2px solid #000000;
+                            box-sizing: border-box;
+                        }
+                        .summary-table th {
+                            border: 1.5px solid #000000;
+                            padding: 4px 2px;
+                            font-size: 11px;
+                            font-weight: 900;
+                            color: #000000 !important;
+                            background: #ffffff !important;
+                        }
+                        .summary-table td {
+                            border: 1.5px solid #000000;
+                            padding: 5px 2px;
+                            font-size: 11.5px;
+                            font-weight: 900;
+                            text-align: center;
+                            color: #000000 !important;
+                        }
+                        .sign-grid {
+                            display: grid;
+                            grid-template-columns: 1fr 1fr;
+                            gap: 15px;
+                            margin-top: 16px;
+                            font-size: 11.5px;
+                            font-weight: 900;
+                            color: #000000 !important;
+                        }
+                        .sign-line {
+                            border-top: 1.8px solid #000000;
+                            padding-top: 4px;
+                            text-align: center;
+                            color: #000000 !important;
+                        }
+                        .footer-text {
+                            margin-top: 12px;
+                            border-top: 1.5px dashed #000000;
+                            padding-top: 6px;
+                            font-size: 11px;
+                            font-weight: 900;
+                            color: #000000 !important;
+                            line-height: 1.35;
+                        }
+                        @media print {
+                            .no-print { display: none !important; }
+                            html, body {
+                                padding: 0 !important;
+                                margin: 0 !important;
+                                width: 100% !important;
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="receipt-card">
+                        <div class="shop-header">${shopName}</div>
+                        ${(shopAddress || shopPhone) ? `<div class="shop-meta">${shopAddress ? shopAddress + ' • ' : ''}${shopPhone ? 'هاتف: ' + shopPhone : ''}</div>` : ''}
+                        <div class="doc-badge">${title}</div>
+                        <div class="meta-row">
+                            <span>رقم: <b>#${id}</b></span>
+                            <span>التاريخ: ${date} ${time ? '🕒 ' + time : ''}</span>
+                        </div>
+
+                        <div class="box-info">
+                            <div>${actionLabel} <b style="font-size:14px; font-weight:900;">${partnerName}</b></div>
+                            <div style="font-size:11.5px; margin-top:3px; color:#333;">طريقة السداد: <b>${method}</b> ${cashier ? '• الكاشير: <b>' + cashier + '</b>' : ''}</div>
+                            ${notes ? `<div style="font-size:11.5px; margin-top:2px;">البيان: <b>${notes}</b></div>` : ''}
+                            <div class="amount-container">
+                                <div>${amountLabel}</div>
+                                <div class="amount-val">${formatMoney(amount)} ج.م</div>
+                                <div class="tafqeet-val">(${tafqeet})</div>
+                            </div>
+                        </div>
+
+                        ${hasPartnerBalance ? `
+                        <table class="summary-table">
+                            <thead>
+                                <tr>
+                                    <th style="width:33%;">${col1Title}</th>
+                                    <th style="width:34%;">${col2Title}</th>
+                                    <th style="width:33%;">${col3Title}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>${balBeforeLabel}</td>
+                                    <td>${formatMoney(amount)}</td>
+                                    <td>${balAfterLabel}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        ` : ''}
+
+                        <div class="sign-grid">
+                            <div class="sign-line">توقيع المستلم</div>
+                            <div class="sign-line">${sign2Label}</div>
+                        </div>
+
+                        <div class="footer-text">
+                            <div>${footerMsg}</div>
+                            <div style="font-size:9.5px; margin-top:2px;">نظام بَيَان POS المتكامل ✨</div>
+                        </div>
+                    </div>
+                    <script>
+                        window.onload = function() {
+                            window.focus();
+                            setTimeout(function() {
+                                window.print();
+                                setTimeout(function() { window.close(); }, 500);
+                            }, 200);
+                        };
+                    <\/script>
+                </body>
+                </html>
+            `;
+
+            const printWindow = window.open('', '_blank');
+            if (printWindow) {
+                printWindow.document.write(htmlContent);
+                printWindow.document.close();
+            } else {
+                let receiptArea = document.getElementById('receipt-area');
+                if (!receiptArea) {
+                    receiptArea = document.createElement('div');
+                    receiptArea.id = 'receipt-area';
+                    document.body.appendChild(receiptArea);
+                }
+                receiptArea.innerHTML = htmlContent;
                 window.print();
             }
+        };
+
+        window.printFinancialVoucherById = function(docId, type = '', txId = '') {
+            return window.printFinancialVoucher(docId, type, txId);
         };
 
         // ====================================================================

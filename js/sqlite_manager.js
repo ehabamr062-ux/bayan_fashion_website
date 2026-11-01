@@ -2401,6 +2401,10 @@
                         sql += " AND (type LIKE 'تحويل%' OR type LIKE 'transfer%')";
                     } else if (cleanType.includes('تسوية')) {
                         sql += " AND (type LIKE 'تسوية%' OR type LIKE 'adjustment%')";
+                    } else if (cleanType.includes('قبض') || cleanType.includes('receipt')) {
+                        sql += " AND (type LIKE '%قبض%' OR type LIKE '%receipt%')";
+                    } else if (cleanType.includes('صرف') || cleanType.includes('دفع') || cleanType.includes('disburse') || cleanType.includes('payment')) {
+                        sql += " AND (type LIKE '%صرف%' OR type LIKE '%دفع%' OR type LIKE '%disburse%' OR type LIKE '%payment%')";
                     } else {
                         sql += " AND type = ?";
                         params.push(cleanType);
@@ -4898,6 +4902,10 @@
                         sql += " AND (type LIKE 'تحويل%' OR type LIKE 'transfer%')";
                     } else if (cleanType.includes('تسوية')) {
                         sql += " AND (type LIKE 'تسوية%' OR type LIKE 'adjustment%')";
+                    } else if (cleanType.includes('قبض') || cleanType.includes('receipt')) {
+                        sql += " AND (type LIKE '%قبض%' OR type LIKE '%receipt%')";
+                    } else if (cleanType.includes('صرف') || cleanType.includes('دفع') || cleanType.includes('disburse') || cleanType.includes('payment')) {
+                        sql += " AND (type LIKE '%صرف%' OR type LIKE '%دفع%' OR type LIKE '%disburse%' OR type LIKE '%payment%')";
                     } else {
                         sql += " AND type = ?";
                         params.push(cleanType);

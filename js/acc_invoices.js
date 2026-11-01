@@ -1236,15 +1236,39 @@ async function viewInvoiceItems(invoiceId, type = '', autoPrint = false, optTxId
         else if (typeClean.includes('تحويل')) category = 'transfer';
     }
 
-    // 💵 توجيه مباشر لسندات القبض والصرف لنافذتها المخصصة لمنع جلب أي أصناف بضاعة
+    const poolMemEarly = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+    if (!category && (optTxId || invoiceId)) {
+        const sId = String(invoiceId || '').trim();
+        const sTxId = String(optTxId || '').trim();
+        const sampleTx = poolMemEarly.find(t => t && ((sTxId && String(t.id) === sTxId) || (sId && String(t.invoiceId) === sId)));
+        if (sampleTx && sampleTx.type) {
+            const sType = String(sampleTx.type);
+            if (sType.includes('قبض')) category = 'receipt';
+            else if (sType.includes('صرف') || sType.includes('دفع')) category = 'disbursement';
+            else if (sType.includes('تحويل')) category = 'transfer';
+            else if (sType.includes('تسوية') || sType.includes('جرد')) category = 'adjustment';
+        }
+    }
+
+    // 💵 توجيه مباشر لسندات القبض والصرف لنافذتها المخصصة لمنع جلب أي أصناف بضاعة نهائياً
     if (category === 'receipt' || category === 'disbursement') {
-        let pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
-        let vTx = pool.find(t => t && ((optTxId && String(t.id) === String(optTxId)) || (String(t.invoiceId) === String(invoiceId) && (category === 'receipt' ? (String(t.type || '').includes('قبض') || String(t.type || '') === 'receipt') : (String(t.type || '').includes('صرف') || String(t.type || '').includes('دفع'))))));
+        let vTx = poolMemEarly.find(t => t && ((optTxId && String(t.id) === String(optTxId)) || (String(t.invoiceId) === String(invoiceId) && (category === 'receipt' ? (String(t.type || '').includes('قبض') || String(t.type || '') === 'receipt') : (String(t.type || '').includes('صرف') || String(t.type || '').includes('دفع'))))));
         if (!vTx && window.BayanSQLite && typeof window.BayanSQLite.getInvoiceFullDetails === 'function') {
-            vTx = window.BayanSQLite.getInvoiceFullDetails(invoiceId, type, optTxId);
+            vTx = window.BayanSQLite.getInvoiceFullDetails(invoiceId, category === 'receipt' ? 'سند قبض' : 'سند صرف', optTxId);
         }
         if (vTx && typeof window.renderFinancialVoucherModal === 'function') {
             return window.renderFinancialVoucherModal(vTx, autoPrint);
+        } else {
+            if (typeof showCustomAlert === 'function') {
+                showCustomAlert({
+                    type: 'warning',
+                    titleText: '⚠️ تنبيه',
+                    msg: `لم يتم العثور على بيانات السند المالي رقم (#${invoiceId || optTxId}).`
+                });
+            } else if (typeof showToast === 'function') {
+                showToast('لم يتم العثور على بيانات السند المالي', 'warning');
+            }
+            return;
         }
     }
 

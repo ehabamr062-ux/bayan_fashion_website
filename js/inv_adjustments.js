@@ -1642,8 +1642,8 @@ function renderPriceAdjustmentTable(filteredData = null) {
         `);
     });
 
-    const totalToReport = filteredData 
-        ? filteredData.length 
+    const totalToReport = filteredData
+        ? filteredData.length
         : (window.priceAdjTotalCount || (typeof productsDB !== 'undefined' && Array.isArray(productsDB) ? productsDB.filter(p => !p.isDeleted).length : dataToRender.length));
 
     if (totalToReport > itemsToShow.length) {
@@ -2705,8 +2705,8 @@ function updatePriceAdjStats() {
     const totalProfit = totalSale - totalCost;
 
     if (document.getElementById('priceAdjCount')) {
-        const displayTotal = window.priceAdjCurrentFiltered 
-            ? window.priceAdjCurrentFiltered.length 
+        const displayTotal = window.priceAdjCurrentFiltered
+            ? window.priceAdjCurrentFiltered.length
             : (window.priceAdjTotalCount || ((typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB.filter(p => !p.isDeleted).length : currentList.length));
         document.getElementById('priceAdjCount').innerText = displayTotal;
     }

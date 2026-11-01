@@ -624,6 +624,26 @@
             const id = document.getElementById('receiptID')?.value || '';
             const date = document.getElementById('receiptDate')?.value || new Date().toLocaleDateString('en-CA');
             const time = document.getElementById('receiptTime')?.value || new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+            const notes = document.getElementById('receiptNotes')?.value || '';
+            const receiptMethod = (typeof receiptTreasury !== 'undefined' ? receiptTreasury : 'كاش');
+
+            if (typeof window.printFinancialVoucher === 'function') {
+                return window.printFinancialVoucher({
+                    type: 'قبض 📥',
+                    invoiceId: id,
+                    id: id,
+                    partner: payer,
+                    customer: payer,
+                    total: amount,
+                    price: amount,
+                    paidAmount: amount,
+                    dateISO: date,
+                    timeISO: time,
+                    method: receiptMethod,
+                    product: notes,
+                    notes: notes
+                });
+            }
 
             let savedPosSettings = {};
             try { savedPosSettings = JSON.parse(getStore('pos_settings') || '{}'); } catch(e) {}
@@ -905,6 +925,26 @@
             const id = document.getElementById('disburseID')?.value || '';
             const date = document.getElementById('disburseDate')?.value || new Date().toLocaleDateString('en-CA');
             const time = document.getElementById('disburseTime')?.value || new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+            const notes = document.getElementById('disburseNotes')?.value || '';
+            const disburseMethod = (typeof disburseTreasury !== 'undefined' ? disburseTreasury : 'كاش');
+
+            if (typeof window.printFinancialVoucher === 'function') {
+                return window.printFinancialVoucher({
+                    type: 'صرف 📤',
+                    invoiceId: id,
+                    id: id,
+                    partner: payee,
+                    payee: payee,
+                    total: amount,
+                    price: amount,
+                    paidAmount: amount,
+                    dateISO: date,
+                    timeISO: time,
+                    method: disburseMethod,
+                    product: notes,
+                    notes: notes
+                });
+            }
 
             let savedPosSettings = {};
             try { savedPosSettings = JSON.parse(getStore('pos_settings') || '{}'); } catch(e) {}
