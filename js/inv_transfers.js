@@ -2223,155 +2223,75 @@ window.acceptTransferFromNotify = async function (invId) {
         return s;
     };
 
-    const affectedProducts = [];
-    transItems.forEach(item => {
-        item.transferStatus = 'received';
-        item.receivedBy = receiverUser;
-        item.receivedAt = nowFull;
+    // 🛡️ لقطة حماية سريعة في الذاكرة لضمان ذرية حركة النقل (Atomic Transfer Snapshot)
+    const backupProductsMap = new Map();
+    const backupTransItems = JSON.parse(JSON.stringify(transItems));
 
-        // 🚚 في لحظة التأكيد والاستلام الفعلي: يتم الخصم من المخزن المصدر والإضافة للمخزن المستلم
-        const factor = parseFloat(item.unitFactor) || 1;
-        const baseQty = (parseFloat(item.qty) || 0) * factor;
-        if (baseQty <= 0) return;
+    try {
+        const affectedProducts = [];
+        transItems.forEach(item => {
+            item.transferStatus = 'received';
+            item.receivedBy = receiverUser;
+            item.receivedAt = nowFull;
 
-        // 1. استخراج وتأكيد اسم مخزن المصدر ومخزن الوجهة عبر FashionStockEngine.resolveWarehouse
-        let rawFrom = item.sourceWarehouse || item.fromWarehouse || item.from || transItems[0]?.sourceWarehouse || 'المخزن الرئيسي';
-        let rawTo = item.warehouse || item.toWarehouse || item.destWarehouse || item.to || transItems[0]?.warehouse || transItems[0]?.toWarehouse || '';
+            // 🚚 في لحظة التأكيد والاستلام الفعلي: يتم الخصم من المخزن المصدر والإضافة للمخزن المستلم
+            const factor = parseFloat(item.unitFactor) || 1;
+            const baseQty = (parseFloat(item.qty) || 0) * factor;
+            if (baseQty <= 0) return;
 
-        if ((!rawTo || rawTo === rawFrom) && (item.partner || transItems[0]?.partner)) {
-            const pStr = String(item.partner || transItems[0]?.partner || '');
-            if (pStr.includes('->')) {
-                const parts = pStr.split('->').map(s => s.trim());
-                if (parts[0]) rawFrom = parts[0];
-                if (parts[1]) rawTo = parts[1];
-            }
-        }
-        if (!rawTo && typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) {
-            rawTo = currentUser.warehouseName;
-        }
+            // 1. استخراج وتأكيد اسم مخزن المصدر ومخزن الوجهة عبر FashionStockEngine.resolveWarehouse
+            let rawFrom = item.sourceWarehouse || item.fromWarehouse || item.from || transItems[0]?.sourceWarehouse || 'المخزن الرئيسي';
+            let rawTo = item.warehouse || item.toWarehouse || item.destWarehouse || item.to || transItems[0]?.warehouse || transItems[0]?.toWarehouse || '';
 
-        const wFrom = window.FashionStockEngine ? window.FashionStockEngine.resolveWarehouse(rawFrom || 'المخزن الرئيسي') : (rawFrom ? String(rawFrom).trim() : 'المخزن الرئيسي');
-        let wTo = window.FashionStockEngine ? window.FashionStockEngine.resolveWarehouse(rawTo || '') : (rawTo ? String(rawTo).trim() : '');
-
-        if (!wTo || wFrom === wTo) {
-            if (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) {
-                const userWh = window.FashionStockEngine ? window.FashionStockEngine.resolveWarehouse(currentUser.warehouseName) : currentUser.warehouseName.trim();
-                if (userWh && userWh !== wFrom) {
-                    wTo = userWh;
+            if ((!rawTo || rawTo === rawFrom) && (item.partner || transItems[0]?.partner)) {
+                const pStr = String(item.partner || transItems[0]?.partner || '');
+                if (pStr.includes('->')) {
+                    const parts = pStr.split('->').map(s => s.trim());
+                    if (parts[0]) rawFrom = parts[0];
+                    if (parts[1]) rawTo = parts[1];
                 }
             }
-        }
-
-        if (!wTo) return;
-
-        // مطابقة ذكية للصنف بالمعرف أو الاسم أو الباركود
-        const itemProdName = (item.product || item.name || '').trim();
-        const cleanItemProdName = cleanAttr(itemProdName);
-        const itemBcRaw = (item.barcode || item.code || '').trim();
-
-        const p = (typeof productsDB !== 'undefined' && Array.isArray(productsDB))
-            ? productsDB.find(prod => prod && (
-                (item.productId && String(prod.id) === String(item.productId)) ||
-                (item.id && String(prod.id) === String(item.id)) ||
-                prod.name === itemProdName ||
-                (prod.name && prod.name.trim() === itemProdName) ||
-                cleanAttr(prod.name) === cleanItemProdName ||
-                (itemBcRaw && (String(prod.barcode).trim() === itemBcRaw || (prod.variants && prod.variants.some(v => v && v.barcode && String(v.barcode).trim() === itemBcRaw))))
-            ))
-            : null;
-
-        if (p) {
-            if (!affectedProducts.includes(p)) affectedProducts.push(p);
-
-            // نظف كائن warehouseStocks أولاً من أي مفاتيح مكررة للصنف
-            if (window.FashionStockEngine && typeof window.FashionStockEngine.normalizeWarehouseStocks === 'function') {
-                window.FashionStockEngine.normalizeWarehouseStocks(p);
-            }
-            if (!p.warehouseStocks || typeof p.warehouseStocks !== 'object') {
-                p.warehouseStocks = {};
+            if (!rawTo && typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) {
+                rawTo = currentUser.warehouseName;
             }
 
-            // التحقق مما إذا كان الصنف يمتلك تشكيلات (مقاسات وألوان)
-            const hasVariants = p.variants && Array.isArray(p.variants) && p.variants.length > 0;
+            const wFrom = window.FashionStockEngine ? window.FashionStockEngine.resolveWarehouse(rawFrom || 'المخزن الرئيسي') : (rawFrom ? String(rawFrom).trim() : 'المخزن الرئيسي');
+            let wTo = window.FashionStockEngine ? window.FashionStockEngine.resolveWarehouse(rawTo || '') : (rawTo ? String(rawTo).trim() : '');
 
-            if (hasVariants) {
-                let targetVar = null;
-                const itemBc = itemBcRaw.toLowerCase();
-                if (itemBc) {
-                    targetVar = p.variants.find(v => v && v.barcode && String(v.barcode).trim().toLowerCase() === itemBc);
-                }
-
-                const sSize = cleanAttr(item.size || item.selectedSize);
-                const sColor = cleanAttr(item.color || item.selectedColor);
-
-                if (!targetVar && (sSize || sColor)) {
-                    // 1. مطابقة تامة للمقاس واللون معاً بعد التوحيد والتنظيف
-                    targetVar = p.variants.find(v => {
-                        if (!v) return false;
-                        const vSize = cleanAttr(v.size);
-                        const vColor = cleanAttr(v.color);
-                        if (sSize && sColor) return vSize === sSize && vColor === sColor;
-                        if (sSize && !sColor) return vSize === sSize;
-                        if (!sSize && sColor) return vColor === sColor;
-                        return false;
-                    });
-                }
-
-                // 2. إذا لم يتم التطابق وكان للصنف تشكيلة وحيدة
-                if (!targetVar && p.variants.length === 1) {
-                    targetVar = p.variants[0];
-                }
-
-                // 3. Fallback: إذا لم يتطابق، نأخذ التشكيلة التي تمتلك رصيداً في المخزن المصدر
-                if (!targetVar) {
-                    targetVar = p.variants.find(v => {
-                        const st = window.FashionStockEngine ? window.FashionStockEngine.getVariantStock(v, wFrom) : 0;
-                        return st >= baseQty;
-                    }) || p.variants.find(v => {
-                        const st = window.FashionStockEngine ? window.FashionStockEngine.getVariantStock(v, wFrom) : 0;
-                        return st > 0;
-                    }) || p.variants[0];
-                }
-
-                // تطبيق الخصم والإضافة على التشكيلة المحددة بدقة
-                if (targetVar) {
-                    // نظف كائن warehouseStocks أولاً من أي مفاتيح مكررة
-                    if (window.FashionStockEngine && typeof window.FashionStockEngine.normalizeWarehouseStocks === 'function') {
-                        window.FashionStockEngine.normalizeWarehouseStocks(targetVar);
-                    }
-                    if (!targetVar.warehouseStocks || typeof targetVar.warehouseStocks !== 'object') {
-                        targetVar.warehouseStocks = {};
-                    }
-
-                    // 1. استخراج رصيد مخزن المصدر ومخزن الوجهة عبر FashionStockEngine
-                    let fromStock = window.FashionStockEngine
-                        ? window.FashionStockEngine.getVariantStock(targetVar, wFrom)
-                        : ((targetVar.warehouseStocks && targetVar.warehouseStocks[wFrom] !== undefined) ? parseFloat(targetVar.warehouseStocks[wFrom]) : 0);
-
-                    let toStock = window.FashionStockEngine
-                        ? window.FashionStockEngine.getVariantStock(targetVar, wTo)
-                        : ((targetVar.warehouseStocks && targetVar.warehouseStocks[wTo] !== undefined) ? parseFloat(targetVar.warehouseStocks[wTo]) : 0);
-
-                    // 2. فرض الخصم الفعلي للصنف أو التشكيلة من مخزن المصدر: targetVar.warehouseStocks[wFrom] = Math.max(0, fromStock - baseQty) وعدم تخطي هذه الخطوة أبداً
-                    targetVar.warehouseStocks[wFrom] = Math.max(0, fromStock - baseQty);
-
-                    // 3. إضافة الكمية المحولة لمخزن الوجهة بانتظام
-                    targetVar.warehouseStocks[wTo] = toStock + baseQty;
-
-                    // احذف أي مفتاح رديف غير موحد (مثل "المخزن الرئيسى" بالألف المقصورة)
-                    delete targetVar.warehouseStocks['المخزن الرئيسى'];
-                    delete p.warehouseStocks['المخزن الرئيسى'];
-
-                    // استدعاء FashionStockEngine.syncProductTotals لتحديث الإجماليات العامة فوراً ليتطابق الرئيسي والفرعي بالمللي
-                    if (window.FashionStockEngine && typeof window.FashionStockEngine.syncProductTotals === 'function') {
-                        window.FashionStockEngine.syncProductTotals(p, wTo, wFrom);
-                    } else {
-                        targetVar.stock = Object.values(targetVar.warehouseStocks).reduce((sum, q) => sum + (parseFloat(q) || 0), 0);
-                        p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
+            if (!wTo || wFrom === wTo) {
+                if (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) {
+                    const userWh = window.FashionStockEngine ? window.FashionStockEngine.resolveWarehouse(currentUser.warehouseName) : currentUser.warehouseName.trim();
+                    if (userWh && userWh !== wFrom) {
+                        wTo = userWh;
                     }
                 }
-            } else {
-                // صنف أساسي بدون تشكيلات
+            }
+
+            if (!wTo) return;
+
+            // مطابقة ذكية للصنف بالمعرف أو الاسم أو الباركود
+            const itemProdName = (item.product || item.name || '').trim();
+            const cleanItemProdName = cleanAttr(itemProdName);
+            const itemBcRaw = (item.barcode || item.code || '').trim();
+
+            const p = (typeof productsDB !== 'undefined' && Array.isArray(productsDB))
+                ? productsDB.find(prod => prod && (
+                    (item.productId && String(prod.id) === String(item.productId)) ||
+                    (item.id && String(prod.id) === String(item.id)) ||
+                    prod.name === itemProdName ||
+                    (prod.name && prod.name.trim() === itemProdName) ||
+                    cleanAttr(prod.name) === cleanItemProdName ||
+                    (itemBcRaw && (String(prod.barcode).trim() === itemBcRaw || (prod.variants && prod.variants.some(v => v && v.barcode && String(v.barcode).trim() === itemBcRaw))))
+                ))
+                : null;
+
+            if (p) {
+                if (!backupProductsMap.has(p.id || p.name)) {
+                    backupProductsMap.set(p.id || p.name, JSON.parse(JSON.stringify(p)));
+                }
+                if (!affectedProducts.includes(p)) affectedProducts.push(p);
+
+                // نظف كائن warehouseStocks أولاً من أي مفاتيح مكررة للصنف
                 if (window.FashionStockEngine && typeof window.FashionStockEngine.normalizeWarehouseStocks === 'function') {
                     window.FashionStockEngine.normalizeWarehouseStocks(p);
                 }
@@ -2379,102 +2299,226 @@ window.acceptTransferFromNotify = async function (invId) {
                     p.warehouseStocks = {};
                 }
 
-                let fromStock = window.FashionStockEngine
-                    ? window.FashionStockEngine.getProductStock(p, wFrom)
-                    : ((p.warehouseStocks && p.warehouseStocks[wFrom] !== undefined) ? (parseFloat(p.warehouseStocks[wFrom]) || 0) : 0);
+                // التحقق مما إذا كان الصنف يمتلك تشكيلات (مقاسات وألوان)
+                const hasVariants = p.variants && Array.isArray(p.variants) && p.variants.length > 0;
 
-                let toStock = window.FashionStockEngine
-                    ? window.FashionStockEngine.getProductStock(p, wTo)
-                    : ((p.warehouseStocks && p.warehouseStocks[wTo] !== undefined) ? (parseFloat(p.warehouseStocks[wTo]) || 0) : 0);
+                if (hasVariants) {
+                    let targetVar = null;
+                    const itemBc = itemBcRaw.toLowerCase();
+                    if (itemBc) {
+                        targetVar = p.variants.find(v => v && v.barcode && String(v.barcode).trim().toLowerCase() === itemBc);
+                    }
 
-                // 2. فرض الخصم الفعلي من مخزن المصدر
-                p.warehouseStocks[wFrom] = Math.max(0, fromStock - baseQty);
+                    const sSize = cleanAttr(item.size || item.selectedSize);
+                    const sColor = cleanAttr(item.color || item.selectedColor);
 
-                // 3. إضافة الكمية لمخزن الوجهة
-                p.warehouseStocks[wTo] = toStock + baseQty;
+                    if (!targetVar && (sSize || sColor)) {
+                        // 1. مطابقة تامة للمقاس واللون معاً بعد التوحيد والتنظيف
+                        targetVar = p.variants.find(v => {
+                            if (!v) return false;
+                            const vSize = cleanAttr(v.size);
+                            const vColor = cleanAttr(v.color);
+                            if (sSize && sColor) return vSize === sSize && vColor === sColor;
+                            if (sSize && !sColor) return vSize === sSize;
+                            if (!sSize && sColor) return vColor === sColor;
+                            return false;
+                        });
+                    }
 
-                delete p.warehouseStocks['المخزن الرئيسى'];
+                    // 2. إذا لم يتم التطابق وكان للصنف تشكيلة وحيدة
+                    if (!targetVar && p.variants.length === 1) {
+                        targetVar = p.variants[0];
+                    }
 
-                // استدعاء FashionStockEngine.syncProductTotals لتحديث الإجماليات العامة فوراً
-                if (window.FashionStockEngine && typeof window.FashionStockEngine.syncProductTotals === 'function') {
-                    window.FashionStockEngine.syncProductTotals(p, wTo, wFrom);
+                    // 3. Fallback: إذا لم يتطابق، نأخذ التشكيلة التي تمتلك رصيداً في المخزن المصدر
+                    if (!targetVar) {
+                        targetVar = p.variants.find(v => {
+                            const st = window.FashionStockEngine ? window.FashionStockEngine.getVariantStock(v, wFrom) : 0;
+                            return st >= baseQty;
+                        }) || p.variants.find(v => {
+                            const st = window.FashionStockEngine ? window.FashionStockEngine.getVariantStock(v, wFrom) : 0;
+                            return st > 0;
+                        }) || p.variants[0];
+                    }
+
+                    // تطبيق الخصم والإضافة على التشكيلة المحددة بدقة
+                    if (targetVar) {
+                        // نظف كائن warehouseStocks أولاً من أي مفاتيح مكررة
+                        if (window.FashionStockEngine && typeof window.FashionStockEngine.normalizeWarehouseStocks === 'function') {
+                            window.FashionStockEngine.normalizeWarehouseStocks(targetVar);
+                        }
+                        if (!targetVar.warehouseStocks || typeof targetVar.warehouseStocks !== 'object') {
+                            targetVar.warehouseStocks = {};
+                        }
+
+                        // 1. استخراج رصيد مخزن المصدر ومخزن الوجهة عبر FashionStockEngine
+                        let fromStock = window.FashionStockEngine
+                            ? window.FashionStockEngine.getVariantStock(targetVar, wFrom)
+                            : ((targetVar.warehouseStocks && targetVar.warehouseStocks[wFrom] !== undefined) ? parseFloat(targetVar.warehouseStocks[wFrom]) : 0);
+
+                        let toStock = window.FashionStockEngine
+                            ? window.FashionStockEngine.getVariantStock(targetVar, wTo)
+                            : ((targetVar.warehouseStocks && targetVar.warehouseStocks[wTo] !== undefined) ? parseFloat(targetVar.warehouseStocks[wTo]) : 0);
+
+                        // 2. التحقق من توفر الكمية المحولة في المخزن المصدر دون تصفير وهمي بـ Math.max، وتسجيل العجز الحقيقي إن وُجد
+                        const newFromStock = fromStock - baseQty;
+                        targetVar.warehouseStocks[wFrom] = newFromStock;
+
+                        // 3. إضافة الكمية المحولة لمخزن الوجهة بانتظام
+                        targetVar.warehouseStocks[wTo] = toStock + baseQty;
+
+                        if (newFromStock < 0) {
+                            const shortageVal = Math.abs(newFromStock);
+                            console.warn(`⚠️ [إذن تحويل #${invId}] عجز في المخزن المصدر [${wFrom}] للصنف ${p.name} (مقاس/لون: ${targetVar.size || '-'}/${targetVar.color || '-'}): رصيد متبقي ${fromStock}، تم تحويل ${baseQty}، عجز حقيقي مسجل: ${shortageVal}`);
+                            item.notes = (item.notes ? item.notes + ' | ' : '') + `عجز بالمصدر [${wFrom}]: رصيد ${fromStock}، محول ${baseQty} (عجز: ${shortageVal})`;
+                        }
+
+                        // احذف أي مفتاح رديف غير موحد (مثل "المخزن الرئيسى" بالألف المقصورة)
+                        delete targetVar.warehouseStocks['المخزن الرئيسى'];
+                        delete p.warehouseStocks['المخزن الرئيسى'];
+
+                        // استدعاء FashionStockEngine.syncProductTotals لتحديث الإجماليات العامة فوراً ليتطابق الرئيسي والفرعي بالمللي
+                        if (window.FashionStockEngine && typeof window.FashionStockEngine.syncProductTotals === 'function') {
+                            window.FashionStockEngine.syncProductTotals(p, wTo, wFrom);
+                        } else {
+                            targetVar.stock = Object.values(targetVar.warehouseStocks).reduce((sum, q) => sum + (parseFloat(q) || 0), 0);
+                            p.stock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
+                        }
+                    }
                 } else {
-                    p.stock = Object.values(p.warehouseStocks).reduce((sum, q) => sum + (parseFloat(q) || 0), 0);
+                    // صنف أساسي بدون تشكيلات
+                    if (window.FashionStockEngine && typeof window.FashionStockEngine.normalizeWarehouseStocks === 'function') {
+                        window.FashionStockEngine.normalizeWarehouseStocks(p);
+                    }
+                    if (!p.warehouseStocks || typeof p.warehouseStocks !== 'object') {
+                        p.warehouseStocks = {};
+                    }
+
+                    let fromStock = window.FashionStockEngine
+                        ? window.FashionStockEngine.getProductStock(p, wFrom)
+                        : ((p.warehouseStocks && p.warehouseStocks[wFrom] !== undefined) ? (parseFloat(p.warehouseStocks[wFrom]) || 0) : 0);
+
+                    let toStock = window.FashionStockEngine
+                        ? window.FashionStockEngine.getProductStock(p, wTo)
+                        : ((p.warehouseStocks && p.warehouseStocks[wTo] !== undefined) ? (parseFloat(p.warehouseStocks[wTo]) || 0) : 0);
+
+                    // 2. التحقق من توفر الكمية المحولة في المخزن المصدر دون تصفير وهمي بـ Math.max، وتسجيل العجز الحقيقي إن وُجد
+                    const newFromStock = fromStock - baseQty;
+                    p.warehouseStocks[wFrom] = newFromStock;
+
+                    // 3. إضافة الكمية لمخزن الوجهة
+                    p.warehouseStocks[wTo] = toStock + baseQty;
+
+                    if (newFromStock < 0) {
+                        const shortageVal = Math.abs(newFromStock);
+                        console.warn(`⚠️ [إذن تحويل #${invId}] عجز في المخزن المصدر [${wFrom}] للصنف ${p.name}: رصيد متبقي ${fromStock}، تم تحويل ${baseQty}، عجز حقيقي مسجل: ${shortageVal}`);
+                        item.notes = (item.notes ? item.notes + ' | ' : '') + `عجز بالمصدر [${wFrom}]: رصيد ${fromStock}، محول ${baseQty} (عجز: ${shortageVal})`;
+                    }
+
+                    delete p.warehouseStocks['المخزن الرئيسى'];
+
+                    // استدعاء FashionStockEngine.syncProductTotals لتحديث الإجماليات العامة فوراً
+                    if (window.FashionStockEngine && typeof window.FashionStockEngine.syncProductTotals === 'function') {
+                        window.FashionStockEngine.syncProductTotals(p, wTo, wFrom);
+                    } else {
+                        p.stock = Object.values(p.warehouseStocks).reduce((sum, q) => sum + (parseFloat(q) || 0), 0);
+                    }
                 }
             }
-        }
-    });
-
-    if (typeof window.saveTransactionChanges === 'function') {
-        await window.saveTransactionChanges({
-            modifiedTransactions: isFromCache ? [] : transItems,
-            newTransactions: isFromCache ? transItems : [],
-            modifiedProducts: affectedProducts,
-            modifiedAccounts: []
         });
-    } else {
-        await saveData();
-    }
 
-    if (typeof db !== 'undefined' && db && db.products && affectedProducts.length > 0) {
-        try {
-            await db.products.bulkPut(affectedProducts);
-        } catch (e) { }
-    }
-    if (window.BayanSQLite && typeof window.BayanSQLite.bulkPut === 'function') {
-        try {
-            window.BayanSQLite.bulkPut('products', affectedProducts);
-            window.BayanSQLite.bulkPut('transactions', transItems);
-            if (typeof window.BayanSQLite.schedulePersist === 'function') {
-                window.BayanSQLite.schedulePersist(50);
-            }
-        } catch (e) { }
-    }
+        if (typeof window.saveTransactionChanges === 'function') {
+            await window.saveTransactionChanges({
+                modifiedTransactions: isFromCache ? [] : transItems,
+                newTransactions: isFromCache ? transItems : [],
+                modifiedProducts: affectedProducts,
+                modifiedAccounts: []
+            });
+        } else {
+            await saveData();
+        }
 
-    // تنظيف كاش الأرصدة وتأكيد تحديث الجداول فورياً
-    window._inventoryNeedsRefresh = true;
-    window._bayanLastDataChangeTime = Date.now();
-    if (typeof invalidateStockCache === 'function') invalidateStockCache();
-    if (typeof window.invalidateStockCache === 'function') window.invalidateStockCache();
+        if (typeof db !== 'undefined' && db && db.products && affectedProducts.length > 0) {
+            try {
+                await db.products.bulkPut(affectedProducts);
+            } catch (e) { }
+        }
+        if (window.BayanSQLite && typeof window.BayanSQLite.bulkPut === 'function') {
+            try {
+                window.BayanSQLite.bulkPut('products', affectedProducts);
+                window.BayanSQLite.bulkPut('transactions', transItems);
+                if (typeof window.BayanSQLite.schedulePersist === 'function') {
+                    window.BayanSQLite.schedulePersist(50);
+                }
+            } catch (e) { }
+        }
 
-    // إشعار السيرفر المحلي
-    if (window.BayanNetworkHub && window.BayanNetworkHub.serverUrl) {
-        try {
-            fetch(`${window.BayanNetworkHub.serverUrl}/api/transfers/accept`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ transferId: invId, receiverName: receiverUser })
-            }).catch(() => { });
-        } catch (e) { }
-    }
+        // تنظيف كاش الأرصدة وتأكيد تحديث الجداول فورياً
+        window._inventoryNeedsRefresh = true;
+        window._bayanLastDataChangeTime = Date.now();
+        if (typeof invalidateStockCache === 'function') invalidateStockCache();
+        if (typeof window.invalidateStockCache === 'function') window.invalidateStockCache();
 
-    // 📋 توثيق استلام إذن التحويل رسمياً في سجل الاستلام والتدقيق الموثق
-    const wFrom = transItems[0]?.sourceWarehouse || 'المخزن الرئيسي';
-    const wTo = transItems[0]?.warehouse || 'المخزن المستلم';
-    const itemsSummary = transItems.map(it => `${it.product} (${it.qty} ${it.unit || 'قطعة'})`).join('، ');
+        // إشعار السيرفر المحلي
+        if (window.BayanNetworkHub && window.BayanNetworkHub.serverUrl) {
+            try {
+                fetch(`${window.BayanNetworkHub.serverUrl}/api/transfers/accept`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ transferId: invId, receiverName: receiverUser })
+                }).catch(() => { });
+            } catch (e) { }
+        }
 
-    if (typeof window.acknowledgeNotification === 'function') {
-        window.acknowledgeNotification('transfer', invId, {
-            name: `إذن تحويل #${invId} (${wFrom} ⬅️ ${wTo})`,
-            details: `✅ تم الاستلام والاعتماد المخزني: ${itemsSummary}`,
-            typeLabel: 'تحويل مخزني مستلم',
-            status: 'received',
-            user: receiverUser,
-            warehouse: wTo
-        }, 'transfers', true);
-    }
+        // 📋 توثيق استلام إذن التحويل رسمياً في سجل الاستلام والتدقيق الموثق
+        const wFrom = transItems[0]?.sourceWarehouse || 'المخزن الرئيسي';
+        const wTo = transItems[0]?.warehouse || 'المخزن المستلم';
+        const itemsSummary = transItems.map(it => `${it.product} (${it.qty} ${it.unit || 'قطعة'})`).join('، ');
 
-    if (typeof showToast === 'function') {
-        showToast(`🎉 تم تأكيد استلام إذن التحويل #${invId} وإضافة البضاعة لرصيد المخزن بنجاح!`, 'success');
-    }
-    if (typeof updateNotifications === 'function') updateNotifications();
-    if (typeof renderInventoryTable === 'function') renderInventoryTable();
-    if (typeof updateWarehousesSummaryBoard === 'function') updateWarehousesSummaryBoard();
-    if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
-    if (typeof renderHistoryTable === 'function') renderHistoryTable();
-    if (typeof generateDailyReport === 'function' && document.getElementById('opsSummaryBody')) generateDailyReport();
-    if (typeof showNotificationsModal === 'function') {
-        showNotificationsModal('transfers');
+        if (typeof window.acknowledgeNotification === 'function') {
+            window.acknowledgeNotification('transfer', invId, {
+                name: `إذن تحويل #${invId} (${wFrom} ⬅️ ${wTo})`,
+                details: `✅ تم الاستلام والاعتماد المخزني: ${itemsSummary}`,
+                typeLabel: 'تحويل مخزني مستلم',
+                status: 'received',
+                user: receiverUser,
+                warehouse: wTo
+            }, 'transfers', true);
+        }
+
+        if (typeof showToast === 'function') {
+            showToast(`🎉 تم تأكيد استلام إذن التحويل #${invId} وإضافة البضاعة لرصيد المخزن بنجاح!`, 'success');
+        }
+        if (typeof updateNotifications === 'function') updateNotifications();
+        if (typeof renderInventoryTable === 'function') renderInventoryTable();
+        if (typeof updateWarehousesSummaryBoard === 'function') updateWarehousesSummaryBoard();
+        if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
+        if (typeof renderHistoryTable === 'function') renderHistoryTable();
+        if (typeof generateDailyReport === 'function' && document.getElementById('opsSummaryBody')) generateDailyReport();
+        if (typeof showNotificationsModal === 'function') {
+            showNotificationsModal('transfers');
+        }
+    } catch (err) {
+        console.error("❌ [acceptTransferFromNotify] حدث خطأ أثناء تنفيذ التحويل الذري:", err);
+        // 🔄 التراجع الفوري (Atomic Rollback) واستعادة المنتجات والحركات إلى حالتها السابقة تماماً
+        if (backupProductsMap && backupProductsMap.size > 0 && typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
+            productsDB.forEach((prod, pIdx) => {
+                if (prod && backupProductsMap.has(prod.id || prod.name)) {
+                    productsDB[pIdx] = backupProductsMap.get(prod.id || prod.name);
+                }
+            });
+        }
+        if (Array.isArray(backupTransItems) && backupTransItems.length > 0) {
+            transItems.forEach((it, itIdx) => {
+                if (backupTransItems[itIdx]) {
+                    Object.assign(it, backupTransItems[itIdx]);
+                }
+            });
+        }
+        if (typeof showToast === 'function') {
+            showToast(`❌ تعذر إتمام استلام إذن التحويل #${invId} وتم التراجع عن كافة التغييرات بأمان`, 'error');
+        }
+        return false;
     }
 };
 

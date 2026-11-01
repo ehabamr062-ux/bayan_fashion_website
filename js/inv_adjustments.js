@@ -850,17 +850,35 @@ async function saveAdjustment() {
                 if (!affectedProducts.includes(p)) affectedProducts.push(p);
                 const factor = parseFloat(item.unitFactor) || 1;
                 const countedBase = (parseFloat(item.qty) || 0) * factor;
-                const stockBefore = parseFloat(item.stock) || 0;
-                // فرق الجرد: الرصيد الفعلي المجرود - الرصيد الدفتري المسجل بالمخزن
+
+                const sVal = item.selectedSize || item.size || '';
+                const cVal = item.selectedColor || item.color || '';
+                const vRef = item.selectedVariant || { size: sVal, color: cVal, barcode: item.code };
+
+                // 🌟 قراءة الرصيد الدفتري اللحظي المباشر من الصنف في نفس ثانية الحفظ (Live Stock) لمنع ازدواج خصم المبيعات التي تمت أثناء الجرد
+                let liveStock = 0;
+                if (typeof window.FashionStockEngine !== 'undefined') {
+                    const matchedVar = window.FashionStockEngine.findVariant(p, vRef);
+                    if (matchedVar) {
+                        liveStock = window.FashionStockEngine.getVariantStock(matchedVar, activeWH);
+                    } else {
+                        liveStock = window.FashionStockEngine.getProductStock(p, activeWH);
+                    }
+                } else {
+                    liveStock = (p.warehouseStocks && p.warehouseStocks[activeWH] !== undefined)
+                        ? (parseFloat(p.warehouseStocks[activeWH]) || 0)
+                        : (parseFloat(p.stock) || 0);
+                }
+
+                const stockBefore = liveStock;
+                // فرق الجرد: الرصيد الفعلي المجرود - الرصيد الدفتري المسجل بالمخزن حالياً
                 const diffStock = countedBase - stockBefore;
                 const newBaseStock = diffStock;
 
                 if (typeof window.FashionStockEngine !== 'undefined') {
-                    const sVal = item.selectedSize || item.size || '';
-                    const cVal = item.selectedColor || item.color || '';
                     window.FashionStockEngine.applyMovement({
                         product: p,
-                        variantRef: item.selectedVariant || { size: sVal, color: cVal, barcode: item.code },
+                        variantRef: vRef,
                         qtyDelta: newBaseStock,
                         warehouseName: activeWH
                     });

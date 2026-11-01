@@ -90,10 +90,10 @@ const FashionStockEngine = {
 
         const variants = product.variants;
 
-        // 1. البحث بالباركود الدقيق
+        // 1. البحث بالباركود الدقيق (يدعم barcode أو code)
         const queryBarcode = typeof query === 'string' 
             ? query.trim() 
-            : (query.barcode ? String(query.barcode).trim() : '');
+            : (query.barcode || query.code ? String(query.barcode || query.code).trim() : '');
         if (queryBarcode) {
             const cleanBc = queryBarcode.toLowerCase();
             const byBc = variants.find(v => v && v.barcode && String(v.barcode).trim().toLowerCase() === cleanBc);
@@ -128,6 +128,11 @@ const FashionStockEngine = {
                 match = variants.find(v => v && this.cleanText(v.color) === cColor);
                 if (match) return match;
             }
+        }
+
+        // 3. إذا لم يتطابق المقاس/اللون وكان الصنف يمتلك تشكيلة واحدة فقط، يتم إرجاع هذه التشكيلة تلقائياً
+        if (variants.length === 1 && variants[0]) {
+            return variants[0];
         }
 
         return null;
@@ -318,6 +323,19 @@ const FashionStockEngine = {
                     warehouseStocks: {}
                 };
                 product.variants.push(matchedVar);
+            }
+
+            // 🛡️ إذا كان للصنف تشكيلات وفشلت المطابقة المباشرة، بدلاً من تعديل رصيد الأب المنفصل الذي يُمسح لاحقاً، يتم توجيه الحركة للتشكيلة الفردية أو التشكيلة المطابقة
+            if (!matchedVar && hasVariants && product.variants.length > 0) {
+                if (product.variants.length === 1) {
+                    matchedVar = product.variants[0];
+                } else if (qtyDelta < 0) {
+                    matchedVar = product.variants.find(v => this.getVariantStock(v, targetWH) >= Math.abs(qtyDelta))
+                        || product.variants.find(v => this.getVariantStock(v, targetWH) > 0)
+                        || product.variants[0];
+                } else {
+                    matchedVar = product.variants[0];
+                }
             }
 
             if (matchedVar) {
