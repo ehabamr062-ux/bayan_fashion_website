@@ -2667,6 +2667,94 @@ async function saveBill(force = false, accountChecked = false, event = null) {
             return false;
         }
 
+        // --- 0.1 فحص الأمان الصارم: منع التلاعب بأسعار الأصناف في السلة (Cart Price Tampering Protection) ---
+        const isPriceLocked = (typeof currentUser !== 'undefined' && currentUser && currentUser.lockPriceEdit);
+        const canEditPrice = !isPriceLocked && ((typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin') 
+            || (typeof hasPermission === 'function' && hasPermission('docs_price_edit')));
+
+        if (!canEditPrice) {
+            const priceLevelSelect = document.getElementById('salesPriceLevel');
+            const priceLevel = priceLevelSelect ? priceLevelSelect.value : 'retail';
+            let priceTampered = false;
+
+            for (const item of cart) {
+                const p = productsDB.find(x => x.id === item.id || x.name === item.name);
+                if (p) {
+                    const sSize = String(item.selectedSize || item.size || '').trim();
+                    const sColor = String(item.selectedColor || item.color || '').trim();
+                    let effVariant = item.selectedVariant;
+                    if (!effVariant && p.variants && Array.isArray(p.variants) && (sSize || sColor)) {
+                        effVariant = p.variants.find(v => 
+                            (!sSize || String(v.size || '').trim() === sSize) && 
+                            (!sColor || String(v.color || '').trim() === sColor)
+                        );
+                    }
+
+                    let selectedUnit = item.selectedUnit;
+                    if (typeof selectedUnit === 'string' && p.units && Array.isArray(p.units)) {
+                        selectedUnit = p.units.find(u => u.unitName === selectedUnit);
+                    }
+
+                    let officialBasePrice = 0;
+                    if (effVariant) {
+                        if (priceLevel === 'wholesale') {
+                            officialBasePrice = parseFloat(effVariant.wholesale) || parseFloat(effVariant.price) || parseFloat(p.wholesale) || parseFloat(p.price) || 0;
+                        } else {
+                            officialBasePrice = parseFloat(effVariant.price) || parseFloat(p.price) || 0;
+                        }
+                    } else if (selectedUnit && (selectedUnit.price !== undefined || selectedUnit.wholesale !== undefined)) {
+                        if (priceLevel === 'wholesale') {
+                            officialBasePrice = parseFloat(selectedUnit.wholesale) || parseFloat(selectedUnit.price) || 0;
+                        } else {
+                            officialBasePrice = parseFloat(selectedUnit.price) || 0;
+                        }
+                    } else {
+                        if (priceLevel === 'wholesale') {
+                            officialBasePrice = parseFloat(p.wholesale) || parseFloat(p.price) || 0;
+                        } else {
+                            officialBasePrice = parseFloat(p.price) || 0;
+                        }
+                    }
+
+                    const itemDiscount = (item.discount !== undefined && parseFloat(item.discount) >= 0)
+                        ? parseFloat(item.discount)
+                        : (parseFloat(p.discount) || 0);
+
+                    let expectedPrice = officialBasePrice;
+                    if (itemDiscount > 0) {
+                        expectedPrice = Number(Math.max(0, officialBasePrice - (officialBasePrice * itemDiscount / 100)).toFixed(2));
+                    }
+
+                    // التحقق من تلاعب السعر (إذا كان أقل من السعر المعياري المعتمد)
+                    if (officialBasePrice > 0 && parseFloat(item.price) < (expectedPrice - 0.01)) {
+                        console.warn(`🛡️ [Security] تم رصد تلاعب بسعر الصنف (${item.name}): السعر بالسلة (${item.price}) vs المتوقع (${expectedPrice})`);
+                        item.price = expectedPrice;
+                        item.originalPrice = officialBasePrice;
+                        priceTampered = true;
+                    }
+                }
+            }
+
+            if (priceTampered) {
+                window._lastSaveBillTimestamp = 0;
+                window.isSavingTransaction = false;
+                if (typeof renderCart === 'function') renderCart();
+                if (window.BayanBarcode && typeof BayanBarcode.playBeep === 'function') BayanBarcode.playBeep(false);
+                if (typeof showCustomAlert === 'function') {
+                    showCustomAlert({
+                        titleText: "⚠️ تنبيه أمني",
+                        msg: "تم رصد محاولة تلاعب بأسعار الأصناف! تم إلغاء العملية واستعادة السعر الرسمي.",
+                        type: "warning"
+                    });
+                } else if (typeof showToast === 'function') {
+                    showToast("⚠️ تنبيه أمني: تم رصد محاولة تلاعب بأسعار الأصناف! تم إلغاء العملية واستعادة السعر الرسمي.", "warning");
+                } else {
+                    alert("⚠️ تنبيه أمني: تم رصد محاولة تلاعب بأسعار الأصناف! تم إلغاء العملية واستعادة السعر الرسمي.");
+                }
+                return false;
+            }
+        }
+
         // --- 0. فحص الأمان الصارم: منع حفظ الفاتورة إذا كان أي صنف أقل من سعر التكلفة ---
         for (const item of cart) {
             const p = productsDB.find(x => x.id === item.id || x.name === item.name);

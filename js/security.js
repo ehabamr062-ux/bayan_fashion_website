@@ -12,10 +12,25 @@
         }
     } catch (e) { }
 
+    // 🛡️ معالج فك نصوص JSON الآمن لمنع انهيار الواجهة في حال تلف الذاكرة المحلية
+    function _safeJsonParse(str, fallback = {}) {
+        try {
+            if (!str || typeof str !== 'string') return fallback;
+            return JSON.parse(str);
+        } catch (e) {
+            console.warn("⚠️ [_safeJsonParse] Corrupt JSON data recovered with fallback:", e);
+            return fallback;
+        }
+    }
+    if (typeof window !== 'undefined') {
+        window._safeJsonParse = _safeJsonParse;
+    }
+
     // 🔒 ملح محمول ثابت ومخصص للنسخ الاحتياطية لفك الارتباط بعتاد جهاز محدد ومنع قفل الـ PIN
     const PORTABLE_BACKUP_SALT = 'B@Y4N_PORTABLE_BACKUP_SALT_2026';
 
     window.BayanSecurity = {
+        safeJsonParse: _safeJsonParse,
         PORTABLE_BACKUP_SALT: PORTABLE_BACKUP_SALT,
 
         // تشفير خفيف للبيانات الحساسة (Legacy Obfuscation)

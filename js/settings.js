@@ -1158,8 +1158,12 @@ function executeChangeUserPin(idx) {
     }
     u.pin = cleanPin;
     if (currentUser && (currentUser.id === u.id || currentUser.name === u.name)) {
-        currentUser.pin = cleanPin;
-        window.currentUser = currentUser;
+        if (typeof window.setCurrentUserInternal === 'function') {
+            window.setCurrentUserInternal({ ...currentUser, pin: cleanPin });
+        } else {
+            currentUser.pin = cleanPin;
+            window.currentUser = currentUser;
+        }
         if (typeof setStore === 'function') {
             setStore('pos_session_user', JSON.stringify({ userName: currentUser.name, warehouseName: currentUser.warehouseName }));
         }
@@ -1580,8 +1584,13 @@ async function addUser() {
 
     // مزامنة فورية للجلسة الحالية إذا قام المستخدم بتعديل بيانات حسابه المفتوح
     if (currentUser && (currentUser.id === newUser.id || currentUser.name === newUser.name)) {
-        currentUser = { ...currentUser, ...newUser };
-        window.currentUser = currentUser;
+        const updated = { ...currentUser, ...newUser };
+        if (typeof window.setCurrentUserInternal === 'function') {
+            window.setCurrentUserInternal(updated);
+        } else {
+            currentUser = updated;
+            window.currentUser = currentUser;
+        }
         if (typeof setStore === 'function') {
             setStore('pos_session_user', JSON.stringify({ userName: currentUser.name, warehouseName: currentUser.warehouseName }));
         }
@@ -2423,7 +2432,11 @@ function checkPermission(action) {
         if (!realUser) {
             // المستخدم غير موجود في قاعدة البيانات → تنبيه وتحويل نظيف لشاشة تسجيل الدخول
             console.warn('⚠️ [Auth] المستخدم الحالي لم يعد متطابقاً مع قاعدة البيانات.');
-            currentUser = null;
+            if (typeof window.setCurrentUserInternal === 'function') {
+                window.setCurrentUserInternal(null);
+            } else {
+                currentUser = null;
+            }
             removeStore('pos_session_user');
             if (typeof initLogin === 'function') {
                 initLogin();
