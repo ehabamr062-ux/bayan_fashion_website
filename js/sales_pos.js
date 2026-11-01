@@ -2607,6 +2607,22 @@ async function saveBill(force = false, accountChecked = false, event = null) {
     if (window.isSavingTransaction) return false;
     window.isSavingTransaction = true;
 
+    // 🛡️ مؤقت أمان تلقائي لفك قفل الحفظ ومنع تجمد الواجهة (Safety Watchdog Timeout)
+    if (window._savingSafetyTimeout) clearTimeout(window._savingSafetyTimeout);
+    window._savingSafetyTimeout = setTimeout(() => {
+        if (window.isSavingTransaction) {
+            console.warn("⚠️ [Safety Watchdog] Resetting isSavingTransaction due to timeout");
+            window.isSavingTransaction = false;
+            const mainSaveBtn = document.querySelector('#sales-section .btn-save');
+            if (mainSaveBtn) {
+                mainSaveBtn.disabled = false;
+                mainSaveBtn.style.pointerEvents = 'auto';
+                mainSaveBtn.style.opacity = '1';
+                mainSaveBtn.innerHTML = '<span>✅ حفظ الفاتورة</span><span class="shortcut">F9</span>';
+            }
+        }
+    }, 3000);
+
     // ⚡ تعطيل أزرار الحفظ فوراً وتقديم استجابة بصرية لحظية (Instant Feedback)
     const saveBtns = document.querySelectorAll('#sales-section .btn-save, #sales-section .action-btn');
     saveBtns.forEach(b => {
@@ -3394,6 +3410,11 @@ async function saveBill(force = false, accountChecked = false, event = null) {
         return false;
 
     } finally {
+
+        if (window._savingSafetyTimeout) {
+            clearTimeout(window._savingSafetyTimeout);
+            window._savingSafetyTimeout = null;
+        }
 
         const saveBtns = document.querySelectorAll('#sales-section .btn-save, #sales-section .action-btn');
         saveBtns.forEach(b => {

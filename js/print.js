@@ -614,10 +614,15 @@ async function printInvoice(invoiceData, options = {}) {
             const electron = window.require('electron');
             if (electron && electron.ipcRenderer) {
                 const targetPrinter = (typeof getStore === 'function' ? getStore('bayan_receipt_printer') : '') || '';
-                const result = await electron.ipcRenderer.invoke('print-receipt-silent', {
+                const printPromise = electron.ipcRenderer.invoke('print-receipt-silent', {
                     html: fullHtml,
                     printerName: targetPrinter,
                     pageWidth: pageWidth
+                });
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Printer timeout')), 3500));
+                const result = await Promise.race([printPromise, timeoutPromise]).catch(err => {
+                    console.warn("⚠️ Print silent timeout or error:", err);
+                    return { success: false, error: err.message };
                 });
 
                 if (result && result.success) {
@@ -627,14 +632,16 @@ async function printInvoice(invoiceData, options = {}) {
                     }
                     return true;
                 } else {
-                    console.warn('⚠️ [Print Silent] فشل الإرسال الصامت:', result ? result.error : 'unknown');
+                    console.warn('⚠️ [Print Silent] فشل الإرسال الصامت أو انتهاء المهلة:', result ? result.error : 'unknown');
                     if (typeof showToast === 'function') {
                         showToast('⚠️ تعذر إرسال الفاتورة للطابعة الصامتة، يمكنك الطباعة يدوياً عبر F4', 'warning');
                     }
+                    return false;
                 }
             }
         } catch (e) {
             console.warn('Silent print electron fallback notice:', e);
+            return false;
         }
     }
 
