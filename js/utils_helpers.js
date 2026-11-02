@@ -3939,6 +3939,9 @@
             if (tabName === 'updates' && typeof window.initAutoUpdatesPolicyUI === 'function') {
                 window.initAutoUpdatesPolicyUI();
             }
+            if (tabName === 'users' && typeof window.initAdminEmergencyPinSection === 'function') {
+                window.initAdminEmergencyPinSection();
+            }
         }
 
         // ================= استعلام الأصناف والمنتجات السريع =================

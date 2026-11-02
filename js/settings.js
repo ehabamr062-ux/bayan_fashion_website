@@ -1051,6 +1051,9 @@ function renderUsersTable() {
         `;
     });
     tbody.innerHTML = rowsHtml;
+    if (typeof initAdminEmergencyPinSection === 'function') {
+        initAdminEmergencyPinSection();
+    }
 }
 
 function toggleFreezeUser(idx) {
@@ -3629,6 +3632,390 @@ function changeAppColor(color) {
     const settings = JSON.parse(getStore('pos_settings') || '{}');
     settings.mainColor = color;
     setStore('pos_settings', JSON.stringify(settings));
+}
+
+// =========================================================================
+// 🛡️ كود الطوارئ لمدير النظام (Admin Emergency Rescue PIN)
+// =========================================================================
+
+function initAdminEmergencyPinSection() {
+    const cardEl = document.getElementById('adminEmergencyPinCard');
+    if (!cardEl) return;
+
+    const isAdmin = (typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || currentUser.id === 1 || currentUser.id === '1' || currentUser.isAdmin));
+    if (!isAdmin) {
+        cardEl.style.display = 'none';
+        return;
+    }
+    cardEl.style.display = 'block';
+
+    let encPin = null;
+    try {
+        if (typeof getStore === 'function') {
+            encPin = getStore('bayan_admin_emergency_pin');
+        }
+    } catch(e) {}
+    if (!encPin) {
+        try {
+            encPin = localStorage.getItem('bayan_admin_emergency_pin');
+        } catch(e) {}
+    }
+    if (!encPin && window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+        try {
+            const row = window.BayanSQLite.nativeDb.prepare("SELECT value FROM settings WHERE id = 'bayan_admin_emergency_pin' LIMIT 1;").get();
+            if (row && row.value) encPin = row.value;
+        } catch(e) {}
+    }
+
+    const inputEl = document.getElementById('adminEmergencyPinInput');
+    if (inputEl) {
+        if (encPin) {
+            let plainPin = '';
+            if (window.BayanSecurity && typeof window.BayanSecurity.decryptPin === 'function') {
+                plainPin = window.BayanSecurity.decryptPin(encPin);
+            } else {
+                plainPin = String(encPin).trim();
+            }
+            inputEl.value = plainPin || '';
+        } else {
+            inputEl.value = '';
+        }
+        inputEl.type = 'password';
+        const iconEl = document.getElementById('adminEmergencyPinToggleIcon');
+        if (iconEl) iconEl.innerText = '👁️';
+    }
+}
+window.initAdminEmergencyPinSection = initAdminEmergencyPinSection;
+
+function toggleAdminEmergencyPinVisibility() {
+    const inputEl = document.getElementById('adminEmergencyPinInput');
+    const iconEl = document.getElementById('adminEmergencyPinToggleIcon');
+    if (!inputEl) return;
+    if (inputEl.type === 'password') {
+        inputEl.type = 'text';
+        if (iconEl) iconEl.innerText = '🙈';
+    } else {
+        inputEl.type = 'password';
+        if (iconEl) iconEl.innerText = '👁️';
+    }
+}
+window.toggleAdminEmergencyPinVisibility = toggleAdminEmergencyPinVisibility;
+
+function generateRandomEmergencyPin() {
+    const randomPin = String(Math.floor(1000 + Math.random() * 9000));
+    const inputEl = document.getElementById('adminEmergencyPinInput');
+    if (inputEl) {
+        inputEl.value = randomPin;
+        inputEl.type = 'text';
+        const iconEl = document.getElementById('adminEmergencyPinToggleIcon');
+        if (iconEl) iconEl.innerText = '🙈';
+        inputEl.focus();
+    }
+    if (typeof showToast === 'function') {
+        showToast(`🎲 تم توليد كود طوارئ جديد (${randomPin}) - لا تنس الضغط على حفظ!`, "info");
+    }
+}
+window.generateRandomEmergencyPin = generateRandomEmergencyPin;
+
+function copyAdminEmergencyPin() {
+    const inputEl = document.getElementById('adminEmergencyPinInput');
+    const val = inputEl ? inputEl.value.trim() : '';
+    if (!val || !/^\d{4}$/.test(val)) {
+        if (typeof showToast === 'function') {
+            showToast("⚠️ يرجى إدخال أو توليد كود مكون من 4 أرقام أولاً", "error");
+        } else {
+            alert("⚠️ يرجى إدخال أو توليد كود مكون من 4 أرقام أولاً");
+        }
+        return;
+    }
+
+    const onCopied = () => {
+        if (typeof showToast === 'function') {
+            showToast("📋 تم نسخ كود الطوارئ إلى الحافظة بنجاح", "success");
+        } else {
+            alert("📋 تم نسخ كود الطوارئ إلى الحافظة بنجاح");
+        }
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(val).then(onCopied).catch(() => _fallbackCopyEmergencyPin(val, onCopied));
+    } else {
+        _fallbackCopyEmergencyPin(val, onCopied);
+    }
+}
+window.copyAdminEmergencyPin = copyAdminEmergencyPin;
+
+function _fallbackCopyEmergencyPin(val, callback) {
+    const ta = document.createElement('textarea');
+    ta.value = val;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try {
+        document.execCommand('copy');
+        if (callback) callback();
+    } catch(e) {
+        prompt("انسخ كود الطوارئ يدوياً:", val);
+    }
+    ta.remove();
+}
+
+async function saveAdminEmergencyPin() {
+    const isAdmin = (typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || currentUser.id === 1 || currentUser.id === '1' || currentUser.isAdmin));
+    if (!isAdmin) {
+        if (typeof showToast === 'function') {
+            return showToast("🚫 هذه الخاصية مخصصة لمدير النظام المسؤول فقط!", "error");
+        }
+        return alert("🚫 هذه الخاصية مخصصة لمدير النظام المسؤول فقط!");
+    }
+
+    const inputEl = document.getElementById('adminEmergencyPinInput');
+    const pin = (inputEl ? inputEl.value : '').trim();
+
+    if (!pin || !/^\d{4}$/.test(pin)) {
+        if (typeof showToast === 'function') {
+            showToast("⚠️ يجب أن يتكون كود الطوارئ من 4 أرقام عددية حصراً!", "error");
+        } else {
+            alert("⚠️ يجب أن يتكون كود الطوارئ من 4 أرقام عددية حصراً!");
+        }
+        return;
+    }
+
+    // 1. تشفير الكود عبر BayanSecurity.encryptPin
+    const encPin = (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
+        ? window.BayanSecurity.encryptPin(pin)
+        : pin;
+
+    // 2. حفظ في التخزين المؤقت Store و localStorage
+    if (typeof setStore === 'function') {
+        setStore('bayan_admin_emergency_pin', encPin);
+    }
+    try {
+        localStorage.setItem('bayan_admin_emergency_pin', encPin);
+    } catch(e) {}
+
+    // 3. حفظ في جدول settings في SQLite
+    if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+        try {
+            window.BayanSQLite.nativeDb.prepare("INSERT OR REPLACE INTO settings (id, value) VALUES ('bayan_admin_emergency_pin', ?);").run(encPin);
+        } catch(e) {
+            console.warn("SQLite emergency pin save warning:", e);
+        }
+    }
+
+    // 4. حفظ في IndexedDB settings إن وجد
+    try {
+        const targetDb = window.db || window.bayanDB;
+        if (targetDb && targetDb.settings) {
+            await targetDb.settings.put({ id: 'bayan_admin_emergency_pin', value: encPin }).catch(() => {});
+        }
+    } catch(e) {}
+
+    if (typeof showToast === 'function') {
+        showToast("🛡️ تم تعيين وتأمين كود الطوارئ لمدير النظام بنجاح!", "success");
+    } else {
+        alert("🛡️ تم تعيين وتأمين كود الطوارئ لمدير النظام بنجاح!");
+    }
+}
+window.saveAdminEmergencyPin = saveAdminEmergencyPin;
+
+async function generateAndDownloadEmergencyQr() {
+    const inputEl = document.getElementById('adminEmergencyPinInput');
+    let pin = (inputEl ? inputEl.value : '').trim();
+
+    if (!pin || !/^\d{4}$/.test(pin)) {
+        let encPin = (typeof getStore === 'function' ? getStore('bayan_admin_emergency_pin') : null) || localStorage.getItem('bayan_admin_emergency_pin');
+        if (!encPin && window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+            try {
+                const row = window.BayanSQLite.nativeDb.prepare("SELECT value FROM settings WHERE id = 'bayan_admin_emergency_pin' LIMIT 1;").get();
+                if (row && row.value) encPin = row.value;
+            } catch(e) {}
+        }
+        if (encPin) {
+            pin = (window.BayanSecurity && typeof window.BayanSecurity.decryptPin === 'function')
+                ? window.BayanSecurity.decryptPin(encPin)
+                : String(encPin).trim();
+            if (inputEl) inputEl.value = pin;
+        }
+    }
+
+    if (!pin || !/^\d{4}$/.test(pin)) {
+        if (typeof showToast === 'function') {
+            showToast("⚠️ يرجى إدخال أو توليد كود طوارئ مكون من 4 أرقام أولاً!", "error");
+        } else {
+            alert("⚠️ يرجى إدخال أو توليد كود طوارئ مكون من 4 أرقام أولاً!");
+        }
+        return;
+    }
+
+    if (typeof QRCode === 'undefined') {
+        if (typeof showToast === 'function') {
+            showToast("❌ مكتبة الـ QR Code غير متوفرة حالياً!", "error");
+        }
+        return;
+    }
+
+    let shopName = 'بَيَان POS فاشون';
+    try {
+        const settingsObj = (typeof getStore === 'function') ? JSON.parse(getStore('pos_settings') || '{}') : {};
+        if (settingsObj.name && settingsObj.name.trim()) {
+            shopName = settingsObj.name.trim();
+        }
+    } catch(e) {}
+
+    const qrDiv = document.createElement('div');
+    qrDiv.style.position = 'absolute';
+    qrDiv.style.left = '-9999px';
+    qrDiv.style.top = '-9999px';
+    document.body.appendChild(qrDiv);
+
+    try {
+        new QRCode(qrDiv, {
+            text: `BAYAN-EMERGENCY-PIN:${pin}`,
+            width: 220,
+            height: 220,
+            colorDark: "#0f172a",
+            colorLight: "#ffffff",
+            correctLevel: (QRCode.CorrectLevel && QRCode.CorrectLevel.H !== undefined) ? QRCode.CorrectLevel.H : 2
+        });
+
+        await new Promise(r => setTimeout(r, 150));
+
+        let qrCanvasOrImg = qrDiv.querySelector('canvas');
+        if (!qrCanvasOrImg) {
+            const imgEl = qrDiv.querySelector('img');
+            if (imgEl && imgEl.src) {
+                const img = new Image();
+                img.src = imgEl.src;
+                await new Promise((res) => {
+                    img.onload = () => { qrCanvasOrImg = img; res(); };
+                    img.onerror = res;
+                    setTimeout(res, 300);
+                });
+            }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 600;
+        canvas.height = 780;
+        const ctx = canvas.getContext('2d');
+
+        // رسم الخلفية الفاخرة
+        const bgGrad = ctx.createLinearGradient(0, 0, 0, 780);
+        bgGrad.addColorStop(0, '#0f172a');
+        bgGrad.addColorStop(1, '#1e293b');
+        ctx.fillStyle = bgGrad;
+        _drawRoundedRect(ctx, 0, 0, 600, 780, 24);
+        ctx.fill();
+
+        // إطار خارجي سماوي
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 3;
+        _drawRoundedRect(ctx, 10, 10, 580, 760, 20);
+        ctx.stroke();
+
+        // اسم المنشأة
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#f8fafc';
+        ctx.font = 'bold 26px "Segoe UI", Tahoma, sans-serif';
+        ctx.fillText(shopName, 300, 58);
+
+        // شارة البطاقة
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = 'bold 16px "Segoe UI", Tahoma, sans-serif';
+        ctx.fillText('🛡️ بطاقة كود الطوارئ لمدير النظام (Admin Rescue Pass)', 300, 92);
+
+        // خط فاصل
+        ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(60, 115);
+        ctx.lineTo(540, 115);
+        ctx.stroke();
+
+        // حاوية الـ QR Code البيضاء
+        ctx.fillStyle = '#ffffff';
+        _drawRoundedRect(ctx, 160, 140, 280, 280, 16);
+        ctx.fill();
+        ctx.strokeStyle = '#cbd5e1';
+        ctx.lineWidth = 1;
+        _drawRoundedRect(ctx, 160, 140, 280, 280, 16);
+        ctx.stroke();
+
+        // رسم الـ QR Code
+        if (qrCanvasOrImg) {
+            ctx.drawImage(qrCanvasOrImg, 190, 170, 220, 220);
+        }
+
+        // منطقة كود الطوارئ
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'bold 15px "Segoe UI", Tahoma, sans-serif';
+        ctx.fillText('كود الطوارئ السري السريع:', 300, 465);
+
+        ctx.fillStyle = 'rgba(251, 191, 36, 0.12)';
+        _drawRoundedRect(ctx, 170, 485, 260, 70, 12);
+        ctx.fill();
+        ctx.strokeStyle = '#f59e0b';
+        ctx.lineWidth = 2;
+        _drawRoundedRect(ctx, 170, 485, 260, 70, 12);
+        ctx.stroke();
+
+        ctx.fillStyle = '#fde68a';
+        ctx.font = 'bold 44px "Courier New", monospace, sans-serif';
+        ctx.fillText(pin.split('').join('   '), 300, 536);
+
+        // التنبيه الأمني
+        ctx.fillStyle = '#fca5a5';
+        ctx.font = 'bold 15px "Segoe UI", Tahoma, sans-serif';
+        ctx.fillText('⚠️ بطاقة سرية ومحمية - خاصة بمالك ومدير النظام فقط', 300, 595);
+
+        ctx.fillStyle = '#cbd5e1';
+        ctx.font = '13.5px "Segoe UI", Tahoma, sans-serif';
+        ctx.fillText('عند الطوارئ: اكتب هذا الرمز في خانة PIN بشاشة تسجيل الدخول', 300, 630);
+        ctx.fillText('للدخول فوراً كمدير وتجاوز أي قفل دون أي خطوات إضافية.', 300, 652);
+
+        // التذييل
+        const dateStr = new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+        ctx.fillStyle = '#64748b';
+        ctx.font = '12px "Segoe UI", Tahoma, sans-serif';
+        ctx.fillText(`تاريخ الإصدار: ${dateStr}  •  منظومة بَيَان POS فاشون`, 300, 725);
+
+        const dataUrl = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.download = `Bayan-Emergency-PIN-${pin}.png`;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+
+        if (typeof showToast === 'function') {
+            showToast("📱 تم تنزيل بطاقة QR Code لكود الطوارئ بنجاح!", "success");
+        }
+    } catch(err) {
+        console.error("QR card generation error:", err);
+        if (typeof showToast === 'function') {
+            showToast("❌ حدث خطأ أثناء إنشاء بطاقة الـ QR Code", "error");
+        }
+    } finally {
+        qrDiv.remove();
+    }
+}
+window.generateAndDownloadEmergencyQr = generateAndDownloadEmergencyQr;
+
+function _drawRoundedRect(ctx, x, y, width, height, radius) {
+    ctx.beginPath();
+    ctx.moveTo(x + radius, y);
+    ctx.lineTo(x + width - radius, y);
+    ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+    ctx.lineTo(x + width, y + height - radius);
+    ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+    ctx.lineTo(x + radius, y + height);
+    ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+    ctx.lineTo(x, y + radius);
+    ctx.quadraticCurveTo(x, y, x + radius, y);
+    ctx.closePath();
 }
 
 

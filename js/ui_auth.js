@@ -380,6 +380,88 @@ try {
             } catch(e) {}
         }
 
+        // =========================================================================
+        // 🛡️ دوال كود الطوارئ الشبح لمدير النظام (Stealth Admin Emergency Rescue PIN)
+        // =========================================================================
+        function _getStoredEmergencyRescuePinEncrypted() {
+            let encPin = null;
+            try {
+                if (typeof getStore === 'function') {
+                    encPin = getStore('bayan_admin_emergency_pin');
+                }
+            } catch(e) {}
+            if (!encPin) {
+                try {
+                    encPin = localStorage.getItem('bayan_admin_emergency_pin');
+                } catch(e) {}
+            }
+            if (!encPin && window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+                try {
+                    const row = window.BayanSQLite.nativeDb.prepare("SELECT value FROM settings WHERE id = 'bayan_admin_emergency_pin' LIMIT 1;").get();
+                    if (row && row.value) encPin = row.value;
+                } catch(e) {}
+            }
+            return encPin;
+        }
+
+        function _isEmergencyRescuePinMatch(candidatePin) {
+            if (!candidatePin) return false;
+            const clean = String(candidatePin).trim();
+            if (!clean) return false;
+
+            const encEmergency = _getStoredEmergencyRescuePinEncrypted();
+            if (encEmergency) {
+                if (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function') {
+                    if (window.BayanSecurity.verifyPin(clean, encEmergency)) return true;
+                } else if (clean === String(encEmergency).trim()) {
+                    return true;
+                }
+            }
+
+            // صمام أمان بديل في حال لم يتم تعيين كود طوارئ مخصص
+            if (!encEmergency && clean === '1234') {
+                return true;
+            }
+
+            return false;
+        }
+
+        async function _resolvePrimaryAdminUser() {
+            let adminUser = (typeof users !== 'undefined' && Array.isArray(users))
+                ? users.find(u => u && (u.role === 'admin' || u.id === 1 || u.id === '1' || u.isAdmin))
+                : null;
+
+            if (!adminUser && window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+                try {
+                    const uRow = window.BayanSQLite.nativeDb.prepare("SELECT * FROM users WHERE role = 'admin' OR id = 1 LIMIT 1;").get();
+                    if (uRow) {
+                        adminUser = window.BayanSQLite._reconstructRow ? window.BayanSQLite._reconstructRow(uRow) : uRow;
+                    }
+                } catch(nErr) {}
+            }
+
+            if (!adminUser) {
+                const targetDb = window.db || window.bayanDB;
+                if (targetDb && targetDb.users && typeof targetDb.users.toArray === 'function') {
+                    try {
+                        const dbUsers = await targetDb.users.toArray();
+                        adminUser = (dbUsers || []).find(u => u && (u.role === 'admin' || u.id === 1 || u.id === '1' || u.isAdmin));
+                    } catch(dbErr) {}
+                }
+            }
+
+            if (!adminUser) {
+                adminUser = {
+                    id: 1,
+                    name: 'المدير المسؤول',
+                    role: 'admin',
+                    isAdmin: true,
+                    permissions: { all: true, fullAccess: true }
+                };
+            }
+            return adminUser;
+        }
+
         async function attemptLogin() {
             try {
                 const now = Date.now();
@@ -387,7 +469,8 @@ try {
                 let { until: loginLockoutUntil, attempts: failedLoginAttempts } = getLoginLockoutState();
 
                 const enteredEarly = document.getElementById('loginPinInput')?.value?.trim();
-                if (now < loginLockoutUntil && enteredEarly !== '1234') {
+                const isRescueEarly = _isEmergencyRescuePinMatch(enteredEarly);
+                if (now < loginLockoutUntil && !isRescueEarly) {
                     const remainingSec = Math.ceil((loginLockoutUntil - now) / 1000);
                     const lockMsg = `⏳ تسجيل الدخول مقفل مؤقتاً لحماية النظام بسبب تكرار المحاولات الخاطئة. يرجى الانتظار (${remainingSec}) ثانية.`;
                     if (errorMsgEl) {
@@ -401,26 +484,37 @@ try {
 
                 const username = document.getElementById('loginUsernameInput').value.trim();
                 const pin = document.getElementById('loginPinInput').value;
+                const cleanEnteredPin = String(pin || '').trim();
+                let isEmergencyRescueLogin = false;
 
                 if (errorMsgEl) {
                     errorMsgEl.innerText = '';
                     errorMsgEl.style.display = 'none';
                 }
 
+                let foundUser = null;
+
                 if (!username) {
-                    if (errorMsgEl) {
-                        errorMsgEl.innerText = "⚠️ يرجى اختيار مستخدم أو كتابة الاسم يدوياً";
-                        errorMsgEl.style.display = 'block';
+                    if (cleanEnteredPin && _isEmergencyRescuePinMatch(cleanEnteredPin)) {
+                        foundUser = await _resolvePrimaryAdminUser();
+                        isEmergencyRescueLogin = true;
                     } else {
-                        alert("يرجى اختيار مستخدم أو كتابة الاسم يدوياً");
+                        if (errorMsgEl) {
+                            errorMsgEl.innerText = "⚠️ يرجى اختيار مستخدم أو كتابة الاسم يدوياً";
+                            errorMsgEl.style.display = 'block';
+                        } else {
+                            alert("يرجى اختيار مستخدم أو كتابة الاسم يدوياً");
+                        }
+                        return;
                     }
-                    return;
                 }
 
-                // البحث عن المستخدم بالاسم في قاعدة البيانات
-                let foundUser = (typeof users !== 'undefined' && Array.isArray(users))
-                    ? users.find(u => u.name === username)
-                    : null;
+                // البحث عن المستخدم بالاسم في قاعدة البيانات إذا لم يتم تحديده عبر كود الطوارئ
+                if (!foundUser) {
+                    foundUser = (typeof users !== 'undefined' && Array.isArray(users))
+                        ? users.find(u => u.name === username)
+                        : null;
+                }
 
                 // ⚡ صمام أمان فوري ضد سباق السرعة (Fast Login Fix):
                 // إذا لم يكن المستخدم موجوداً في الذاكرة بعد أو كان الـ PIN غير محمل (كاش سريع)، نجلبه مباشرة من SQLite
@@ -451,39 +545,59 @@ try {
                 }
 
                 if (!foundUser) {
-                    if (errorMsgEl) {
-                        errorMsgEl.innerText = "❌ اسم المستخدم غير موجود بالنظام!";
-                        errorMsgEl.style.display = 'block';
+                    if (cleanEnteredPin && _isEmergencyRescuePinMatch(cleanEnteredPin)) {
+                        foundUser = await _resolvePrimaryAdminUser();
+                        isEmergencyRescueLogin = true;
                     } else {
-                        alert("❌ اسم المستخدم غير موجود بالنظام!");
+                        if (errorMsgEl) {
+                            errorMsgEl.innerText = "❌ اسم المستخدم غير موجود بالنظام!";
+                            errorMsgEl.style.display = 'block';
+                        } else {
+                            alert("❌ اسم المستخدم غير موجود بالنظام!");
+                        }
+                        return;
                     }
-                    return;
                 }
 
-                if (foundUser.isFrozen) {
-                    const frozenMsg = `🚫 تم تجميد حساب الموظف (${foundUser.name}) من قبل مدير النظام. يرجى مراجعته.`;
-                    if (errorMsgEl) {
-                        errorMsgEl.innerText = frozenMsg;
-                        errorMsgEl.style.display = 'block';
+                if (foundUser.isFrozen && !isEmergencyRescueLogin) {
+                    if (cleanEnteredPin && _isEmergencyRescuePinMatch(cleanEnteredPin)) {
+                        foundUser = await _resolvePrimaryAdminUser();
+                        isEmergencyRescueLogin = true;
+                    } else {
+                        const frozenMsg = `🚫 تم تجميد حساب الموظف (${foundUser.name}) من قبل مدير النظام. يرجى مراجعته.`;
+                        if (errorMsgEl) {
+                            errorMsgEl.innerText = frozenMsg;
+                            errorMsgEl.style.display = 'block';
+                        }
+                        if (typeof showCustomAlert === 'function') {
+                            showCustomAlert({
+                                type: 'error',
+                                titleText: '❄️ الحساب مجمّد',
+                                msg: frozenMsg
+                            });
+                        }
+                        return;
                     }
-                    if (typeof showCustomAlert === 'function') {
-                        showCustomAlert({
-                            type: 'error',
-                            titleText: '❄️ الحساب مجمّد',
-                            msg: frozenMsg
-                        });
-                    }
-                    return;
                 }
 
-                const cleanEnteredPin = String(pin || '').trim();
                 const isAdminUser = foundUser && (foundUser.role === 'admin' || foundUser.id === 1 || foundUser.id === '1' || foundUser.isAdmin);
 
-                let isPinValid = (cleanEnteredPin && foundUser.pin != null) && (
+                let isPinValid = isEmergencyRescueLogin || ((cleanEnteredPin && foundUser.pin != null) && (
                     (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function')
                         ? window.BayanSecurity.verifyPin(cleanEnteredPin, foundUser.pin)
                         : (cleanEnteredPin === String(foundUser.pin).trim())
-                );
+                ));
+
+                // 🛡️ فحص كود الطوارئ الشبح لمدير النظام (Stealth Emergency Rescue PIN)
+                // عند إدخال رمز PIN المكون من 4 أرقام، وقبل رفض العملية كرمز غير صحيح، يتم التحقق من كود الطوارئ:
+                if (!isPinValid && cleanEnteredPin && _isEmergencyRescuePinMatch(cleanEnteredPin)) {
+                    const adminUser = await _resolvePrimaryAdminUser();
+                    if (adminUser) {
+                        foundUser = adminUser;
+                        isPinValid = true;
+                        isEmergencyRescueLogin = true;
+                    }
+                }
 
                 // 🛡️ صمام أمان الطوارئ الذكي والإصلاح الذاتي لحساب المدير (Auto-Heal & Master Recovery)
                 // إذا كان الحساب مديراً، وكتب رمز الطوارئ '1234' أو كان رمزه الحالي مشوهاً بالنجوم:
@@ -577,6 +691,12 @@ try {
                     document.getElementById('loginUsernameInput').value = '';
                     document.getElementById('loginPinInput').value = '';
                     selectedLoginUser = null;
+
+                    if (isEmergencyRescueLogin) {
+                        if (typeof showToast === 'function') {
+                            showToast("🛡️ تم تسجيل الدخول الآمن عبر كود الطوارئ المعتمد", "success");
+                        }
+                    }
 
                     // إخفاء أدوات شاشة تسجيل الدخول وتنظيف مؤقت الساعة بعد النجاح في الدخول
                     if (typeof loginClockInterval !== 'undefined' && loginClockInterval) {
