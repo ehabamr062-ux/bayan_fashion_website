@@ -651,6 +651,9 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                         return cleanup({ success: false, error: 'Invoice content is blank' }, false);
                     }
 
+                    printWin.setContentSize(350, Math.max(1000, (renderStatus.scrollHeight || 0) + 200));
+                    await new Promise(r => setTimeout(r, 150));
+
                     let targetDevice = '';
                     try {
                         const printers = await printWin.webContents.getPrintersAsync();
@@ -671,15 +674,18 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                         if (printerName) targetDevice = String(printerName).trim();
                     }
 
+                    const contentHeightMicrons = Math.max(180000, Math.ceil(((renderStatus.scrollHeight || 800) * 25400) / 96) + 35000);
                     const is57mm = (pageWidth === '57mm') || (payload && payload.pageWidth === '57mm');
+
                     const printOptions = {
                         silent: true,
                         printBackground: true,
-                        margins: { marginType: 'printableArea' },
-                        preferCSSPageSize: true,
-                        pageSize: is57mm
-                            ? { width: 58000, height: 297000 }
-                            : { width: 80000, height: 297000 }
+                        margins: { marginType: 'none' },
+                        preferCSSPageSize: false,
+                        pageSize: {
+                            width: is57mm ? 58000 : 80000,
+                            height: contentHeightMicrons
+                        }
                     };
 
                     if (targetDevice) {

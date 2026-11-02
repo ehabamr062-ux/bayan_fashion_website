@@ -1005,6 +1005,7 @@ function build80mmStandard(d) {
             
             ${qrSectionHtml}
         </div>
+        <div style="height: 12mm; width: 100%; clear: both;"></div>
     </div>`;
 }
 
@@ -1098,6 +1099,7 @@ function build80mmCompact(d) {
 
             ${qrSectionHtml}
         </div>
+        <div style="height: 12mm; width: 100%; clear: both;"></div>
     </div>`;
 }
 
@@ -1152,6 +1154,7 @@ function build57mm(d) {
             ${d.footerMsg}
             ${qrSectionHtml}
         </div>
+        <div style="height: 12mm; width: 100%; clear: both;"></div>
     </div>`;
 }
 
