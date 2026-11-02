@@ -35,23 +35,29 @@
             return clean.startsWith('SHOP_') && clean !== 'SHOP_DEFAULT' && clean.length >= 10;
         },
 
-        // 🔒 التحقق الحاسم من ترخيص المزامنة السحابية قبل أي اتصال بالسحابة
+        // 🔒 التحقق الحاسم من ترخيص المزامنة السحابية قبل أي اتصال بالسحابة (حظر قاطع وفوري لباقات الأوفلاين)
         _isAllowed: function () {
+            try {
+                // 1. فحص فوري وصارم للباقة: أي باقة أوفلاين أو تجريبية أو مجانية ممنوعة منعاً باتاً من المزامنة السحابية وتحت أي ظرف
+                const plan = (typeof window.getBayanPlan === 'function')
+                    ? window.getBayanPlan()
+                    : ((typeof getStore === 'function' ? getStore('bayan_current_plan') : null) || localStorage.getItem('bayan_current_plan') || '');
+                if (!plan || plan.includes('مجانية') || plan.includes('تجريب') || plan.includes('أوفلاين') || plan.toLowerCase().includes('offline')) {
+                    return false;
+                }
+            } catch (e) { }
+
             if (typeof window.isCloudSyncAllowed === 'function') {
                 return Boolean(window.isCloudSyncAllowed());
             }
-            try {
-                const isExplicitCloudLicensed = (typeof getStore === 'function') && (getStore('bayan_cloud_sync_licensed') === 'true');
-                if (isExplicitCloudLicensed) {
-                    return true;
-                }
 
+            try {
                 const plan = (typeof window.getBayanPlan === 'function')
                     ? window.getBayanPlan()
-                    : (localStorage.getItem('bayan_current_plan') || '');
-                if (!plan || plan.includes('مجانية') || plan.includes('تجريب') || plan.includes('أوفلاين') || plan.toLowerCase().includes('offline')) return false;
+                    : ((typeof getStore === 'function' ? getStore('bayan_current_plan') : null) || localStorage.getItem('bayan_current_plan') || '');
                 const isCloud = plan.includes('سحاب') || plan.includes('Cloud');
-                return Boolean(isCloud);
+                const isExplicitCloudLicensed = (typeof getStore === 'function') && (getStore('bayan_cloud_sync_licensed') === 'true');
+                return Boolean(isCloud || isExplicitCloudLicensed);
             } catch (e) {
                 return false;
             }

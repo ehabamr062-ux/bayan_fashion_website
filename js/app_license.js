@@ -2184,18 +2184,13 @@ window.isCloudSyncAllowed = function () {
         return false;
     }
 
-    // السماح بالمزامنة في وضع التطوير أو إذا كان هناك ترخيص سحابي
-    const isDev = (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production') || !window.electronAPI;
-    const isExplicitCloudLicensed = (typeof getStore === 'function') && (getStore('bayan_cloud_sync_licensed') === 'true');
-    
-    if (isExplicitCloudLicensed || isDev) {
-        return true;
-    }
+    // 2. التحقق الصارم من الباقة الحالية: حظر قاطع وفوري لأي باقة أوفلاين أو تجريبية أو مجانية
+    const currentPlan = (typeof window.getBayanPlan === 'function') 
+        ? window.getBayanPlan() 
+        : ((typeof getStore === 'function' ? getStore('bayan_current_plan') : null) || localStorage.getItem('bayan_current_plan') || '');
 
-    // 2. التحقق من الباقة الحالية
-    const currentPlan = (typeof window.getBayanPlan === 'function') ? window.getBayanPlan() : '';
-    if (!currentPlan || currentPlan === 'باقة نسخة المجانية' || currentPlan.includes('مجانية') || currentPlan.includes('تجريب')) {
-        return false;
+    if (!currentPlan || currentPlan === 'باقة نسخة المجانية' || currentPlan.includes('مجانية') || currentPlan.includes('تجريب') || currentPlan.includes('أوفلاين') || currentPlan.toLowerCase().includes('offline')) {
+        return false; // باقة أوفلاين صريحة - ممنوع المزامنة السحابية نهائياً وتحت أي ظرف!
     }
 
     // 3. التحقق من سريان الاشتراك العام للبرنامج
@@ -2204,11 +2199,7 @@ window.isCloudSyncAllowed = function () {
         return false;
     }
 
-    // 4. التحقق من ترخيص ميزة المزامنة السحابية (حظر باقات الأوفلاين حظراً قاطعاً)
-    if (currentPlan.includes('أوفلاين') || currentPlan.toLowerCase().includes('offline')) {
-        return false; // باقة أوفلاين صريحة - ممنوع المزامنة السحابية نهائياً
-    }
-
+    // 4. التحقق من ترخيص ميزة المزامنة السحابية
     const isExplicitCloud = currentPlan.includes('سحاب') || currentPlan.includes('Cloud');
     const isCloudStoreLicensed = (typeof getStore === 'function') && (getStore('bayan_cloud_sync_licensed') === 'true');
 
