@@ -3427,9 +3427,10 @@
             }
 
             const actual = parseFloat(val) || 0;
-            const expected = window.currentDrawerClosingState?.expectedCash !== undefined 
+            const rawExpected = window.currentDrawerClosingState?.expectedCash !== undefined 
                 ? window.currentDrawerClosingState.expectedCash 
                 : (window.currentDrawerClosingState?.netCashMovement || 0);
+            const expected = Math.abs(rawExpected || 0);
             const diff = actual - expected;
             const absDiff = Math.abs(diff);
 
@@ -3668,9 +3669,10 @@
             window.currentDrawerClosingState.selectedUser = selectedUser || 'all';
 
             // 🌟 احتساب المطلوب بالدرج: حركة اليوم بيومه فقط (المفروض يكون معاك من حركة اليوم)
-            const expected = window.currentDrawerClosingState.includePrevBalance 
+            const rawExpected = window.currentDrawerClosingState.includePrevBalance 
                 ? window.currentDrawerClosingState.finalCashBalance 
                 : window.currentDrawerClosingState.netCashMovement;
+            const expected = Math.abs(rawExpected || 0);
             window.currentDrawerClosingState.expectedCash = expected;
 
             const shiftLabel = document.getElementById('drawerAuditShiftLabel');
@@ -3858,7 +3860,8 @@
             }
 
             const actual = parseFloat(val) || 0;
-            const expected = window.currentDrawerClosingState.expectedCash !== undefined ? window.currentDrawerClosingState.expectedCash : window.currentDrawerClosingState.netCashMovement;
+            const rawExpected = window.currentDrawerClosingState.expectedCash !== undefined ? window.currentDrawerClosingState.expectedCash : window.currentDrawerClosingState.netCashMovement;
+            const expected = Math.abs(rawExpected || 0);
             const diff = actual - expected;
             const absDiff = Math.abs(diff);
 
@@ -4188,9 +4191,10 @@
             }
 
             const state = window.currentDrawerClosingState || {};
-            const expected = state.expectedCash !== undefined ? state.expectedCash : (state.netCashMovement || 0);
+            const rawExpected = state.expectedCash !== undefined ? state.expectedCash : (state.netCashMovement || 0);
+            const expected = Math.abs(rawExpected || 0);
             const actual = parseFloat(actualInput.value) || 0;
-            const diff = actual - Math.abs(expected);
+            const diff = actual - expected;
             const absDiff = Math.abs(diff);
 
             const userShift = (state.selectedUser && state.selectedUser !== 'all') ? state.selectedUser : ((typeof currentUser !== 'undefined' && currentUser) ? currentUser.name : 'كافة المستخدمين');
@@ -4396,9 +4400,10 @@
 
             const state = payload.state || {};
             const repData = payload.repData || {};
-            const expected = payload.expected;
+            const rawExpected = payload.expected;
+            const expected = Math.abs(rawExpected || 0);
             const actual = payload.actual;
-            const diff = actual - Math.abs(expected);
+            const diff = actual - expected;
             const absDiff = Math.abs(diff);
             const userShift = payload.userShift;
 
@@ -4582,8 +4587,8 @@
                 includePrevBalance: state.includePrevBalance || false,
                 previousBalance: state.previousBalance || 0,
                 netCashMovement: state.netCashMovement || 0,
-                expectedCash: state.expectedCash !== undefined ? state.expectedCash : (state.includePrevBalance ? state.finalCashBalance : state.netCashMovement),
-                actualCash: (liveActual !== null) ? liveActual : (state.actualCash !== null ? state.actualCash : (state.expectedCash !== undefined ? state.expectedCash : state.netCashMovement)),
+                expectedCash: Math.abs(state.expectedCash !== undefined ? state.expectedCash : (state.includePrevBalance ? state.finalCashBalance : state.netCashMovement)),
+                actualCash: (liveActual !== null) ? liveActual : (state.actualCash !== null ? state.actualCash : Math.abs(state.expectedCash !== undefined ? state.expectedCash : state.netCashMovement)),
                 difference: (liveActual !== null) ? (liveActual - Math.abs(state.expectedCash !== undefined ? state.expectedCash : state.netCashMovement)) : (state.difference || 0),
                 status: state.status || 'balanced',
                 notes: state.notes || '',
@@ -4626,7 +4631,8 @@
 
             const isIncludePrev = !!rec.includePrevBalance;
             const prevBal = Number(rec.previousBalance || 0);
-            const expected = Number(rec.expectedCash !== undefined ? rec.expectedCash : (isIncludePrev ? (prevBal + netCashDay) : netCashDay));
+            const rawExpected = Number(rec.expectedCash !== undefined ? rec.expectedCash : (isIncludePrev ? (prevBal + netCashDay) : netCashDay));
+            const expected = Math.abs(rawExpected || 0);
 
             let actual = expected;
             if (rec.actualCash !== undefined && rec.actualCash !== null && !isNaN(parseFloat(rec.actualCash))) {
@@ -4635,7 +4641,7 @@
                 actual = liveActual;
             }
 
-            const diff = actual - Math.abs(expected);
+            const diff = actual - expected;
             const absDiff = Math.abs(diff);
 
             const cashierName = (rec.userShift && rec.userShift !== 'كافة المستخدمين' && rec.userShift !== 'all') 
@@ -5609,9 +5615,10 @@
             }
 
             const rec = targetRecord;
-            const expected = Number(rec.expectedCash !== undefined ? rec.expectedCash : (rec.netCashMovement || 0));
+            const rawExpected = Number(rec.expectedCash !== undefined ? rec.expectedCash : (rec.netCashMovement || 0));
+            const expected = Math.abs(rawExpected || 0);
             const initialActual = Number(rec.actualCash !== undefined ? rec.actualCash : expected);
-            const initialDiff = initialActual - Math.abs(expected);
+            const initialDiff = initialActual - expected;
             const initialAbsDiff = Math.abs(initialDiff);
 
             window.currentDrawerClosingState.editingClosureId = rec.id;
@@ -5731,7 +5738,8 @@
             const container = document.getElementById('editDrawerDiffContainer');
             if (!container) return;
 
-            const expected = (expectedVal !== undefined) ? Number(expectedVal) : Number(window.currentDrawerClosingState.editingExpectedCash || 0);
+            const rawExpected = (expectedVal !== undefined) ? Number(expectedVal) : Number(window.currentDrawerClosingState.editingExpectedCash || 0);
+            const expected = Math.abs(rawExpected || 0);
             const val = inp ? inp.value.trim() : '';
             if (val === '' || isNaN(parseFloat(val))) {
                 container.innerHTML = `<div style="background: #f1f5f9; border: 1.5px dashed #cbd5e1; color: #475569; padding: 10px 14px; border-radius: 10px; font-weight: 800; font-size: 0.92rem; text-align: center;">يرجى كتابة المبلغ الفعلي لاحتساب الفارق...</div>`;
@@ -5739,7 +5747,7 @@
             }
 
             const actual = parseFloat(val) || 0;
-            const diff = actual - Math.abs(expected);
+            const diff = actual - expected;
             const absDiff = Math.abs(diff);
 
             if (absDiff < 0.01) {
@@ -5793,8 +5801,9 @@
             }
 
             const rec = closures[idx];
-            const expected = Number(rec.expectedCash !== undefined ? rec.expectedCash : (rec.netCashMovement || 0));
-            const diff = newActual - Math.abs(expected);
+            const rawExpected = Number(rec.expectedCash !== undefined ? rec.expectedCash : (rec.netCashMovement || 0));
+            const expected = Math.abs(rawExpected || 0);
+            const diff = newActual - expected;
             const absDiff = Math.abs(diff);
 
             rec.actualCash = newActual;

@@ -41,9 +41,8 @@
                 return Boolean(window.isCloudSyncAllowed());
             }
             try {
-                const isDev = (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production') || !window.electronAPI;
                 const isExplicitCloudLicensed = (typeof getStore === 'function') && (getStore('bayan_cloud_sync_licensed') === 'true');
-                if (isExplicitCloudLicensed || isDev) {
+                if (isExplicitCloudLicensed) {
                     return true;
                 }
 
@@ -818,7 +817,7 @@
 
             try {
                 const remoteRes = await this._safeFetch(
-                    `${cfg.supabaseUrl}/rest/v1/products?id=like.${encodeURIComponent(shopId)}_PROD_*&select=*`,
+                    `${cfg.supabaseUrl}/rest/v1/products?id=like.${encodeURIComponent(shopId)}_PROD_%&select=*`,
                     { headers: this._getHeaders() }
                 );
 
