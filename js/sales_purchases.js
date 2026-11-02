@@ -13,11 +13,27 @@ function updateHeaderPartnerInfo() {
 
     if (sPB && document.getElementById('customerName')) {
 
-        const name = document.getElementById('customerName').value || '---';
+        const rawName = document.getElementById('customerName').value || '---';
+        const name = rawName.trim();
 
-        sPB.innerText = '👤 عميل: ' + name;
+        const nameClean = (typeof window.cleanArabicCached === 'function')
+            ? window.cleanArabicCached(name)
+            : (typeof cleanArabicCached === 'function' ? cleanArabicCached(name) : name.toLowerCase());
 
-        const acc = accounts.find(a => a.name === name);
+        sPB.innerText = '👤 عميل: ' + (name || '---');
+
+        const accList = (typeof accounts !== 'undefined' && Array.isArray(accounts)) 
+            ? accounts 
+            : ((window.accounts && Array.isArray(window.accounts)) ? window.accounts : []);
+
+        const acc = accList.find(a => {
+            if (!a || !a.name) return false;
+            if (a.name === name) return true;
+            const aClean = (typeof window.cleanArabicCached === 'function')
+                ? window.cleanArabicCached(a.name)
+                : (typeof cleanArabicCached === 'function' ? cleanArabicCached(a.name) : a.name.toLowerCase());
+            return aClean === nameClean;
+        });
 
         if (acc) {
 
@@ -25,9 +41,30 @@ function updateHeaderPartnerInfo() {
 
             if (sBalance) {
 
-                const bal = getAccountBalance(name);
+                const bal = typeof getAccountBalance === 'function' ? getAccountBalance(acc.name || name) : (parseFloat(acc.balance) || 0);
 
-                sBalance.innerText = bal.toFixed(2);
+                if (bal > 0.005) {
+                    sBalance.innerHTML = `<span style="font-family:'Consolas',monospace; font-weight:900;">${Math.abs(bal).toFixed(2)}</span> <span style="font-size:0.82rem; font-weight:900;">(عليه)</span>`;
+                    sBalance.style.color = '#15803d'; // أخضر غامق واضح
+                    if (sBalance.parentElement) {
+                        sBalance.parentElement.style.backgroundColor = '#dcfce7';
+                        sBalance.parentElement.style.borderColor = '#86efac';
+                    }
+                } else if (bal < -0.005) {
+                    sBalance.innerHTML = `<span style="font-family:'Consolas',monospace; font-weight:900;">${Math.abs(bal).toFixed(2)}</span> <span style="font-size:0.82rem; font-weight:900;">(له)</span>`;
+                    sBalance.style.color = '#dc2626'; // أحمر غامق واضح
+                    if (sBalance.parentElement) {
+                        sBalance.parentElement.style.backgroundColor = '#fee2e2';
+                        sBalance.parentElement.style.borderColor = '#fca5a5';
+                    }
+                } else {
+                    sBalance.innerHTML = `<span style="font-family:'Consolas',monospace; font-weight:900;">0.00</span> <span style="font-size:0.82rem; font-weight:800; color:#64748b;">(خالص)</span>`;
+                    sBalance.style.color = '#0f172a';
+                    if (sBalance.parentElement) {
+                        sBalance.parentElement.style.backgroundColor = '#f8fafc';
+                        sBalance.parentElement.style.borderColor = '#e2e8f0';
+                    }
+                }
 
                 // رصيد سابق في شاشة المبيعات (حساب الرصيد السابق الحقيقي المستثنى منه الفاتورة الحالية المعروضة/المعدلة لمنع التكرار المزدوج)
                 let priorBal = bal;
@@ -40,15 +77,15 @@ function updateHeaderPartnerInfo() {
                     activeSalesInvId = String(tabStates[activeTabId].viewingInvoiceId).trim();
                 }
 
-                if (activeSalesInvId && !window.isGenericCashPartner(name)) {
+                if (activeSalesInvId && (!window.isGenericCashPartner || !window.isGenericCashPartner(acc.name || name))) {
                     const allTx = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
                     const headTx = allTx.find(t => String(t.invoiceId) === String(activeSalesInvId) && (t.isInvoiceHead || (t.type && (t.type.includes('بيع') || t.type.includes('مبيعات')))));
                     if (headTx && headTx.prevBalance !== undefined && headTx.prevBalance !== null && !isNaN(parseFloat(headTx.prevBalance))) {
                         priorBal = parseFloat(headTx.prevBalance);
                     } else if (typeof getHistoricalPartnerBalance === 'function') {
-                        priorBal = getHistoricalPartnerBalance(name, activeSalesInvId);
+                        priorBal = getHistoricalPartnerBalance(acc.name || name, activeSalesInvId);
                     } else if (typeof getAccountBalance === 'function') {
-                        priorBal = getAccountBalance(name, activeSalesInvId);
+                        priorBal = getAccountBalance(acc.name || name, activeSalesInvId);
                     }
                 }
 
@@ -69,11 +106,6 @@ function updateHeaderPartnerInfo() {
 
                 }
 
-                // تلوين الرصيد بحبر عريض وواضح جداً (أخضر للمدين، أحمر للدائن، أسود للصفر)
-                sBalance.style.fontWeight = '900';
-                sBalance.style.color = (bal > 0) ? '#15803d' : (bal < 0 ? '#dc2626' : '#000000');
-                sBalance.parentElement.style.backgroundColor = (bal > 0) ? '#dcfce7' : (bal < 0 ? '#fee2e2' : '#fef2f2');
-
             }
 
         } else {
@@ -82,10 +114,12 @@ function updateHeaderPartnerInfo() {
 
             if (sBalance) {
 
-                sBalance.innerText = '0.00';
-                sBalance.style.color = '#000000';
-                sBalance.style.fontWeight = '900';
-                sBalance.parentElement.style.backgroundColor = '#fef2f2';
+                sBalance.innerHTML = `<span style="font-family:'Consolas',monospace; font-weight:900;">0.00</span> <span style="font-size:0.82rem; font-weight:800; color:#64748b;">(خالص)</span>`;
+                sBalance.style.color = '#0f172a';
+                if (sBalance.parentElement) {
+                    sBalance.parentElement.style.backgroundColor = '#f8fafc';
+                    sBalance.parentElement.style.borderColor = '#e2e8f0';
+                }
 
             }
 
@@ -151,7 +185,28 @@ function updateHeaderPartnerInfo() {
 
                 const bal = typeof getAccountBalance === 'function' ? getAccountBalance(acc.name || name) : (parseFloat(acc.balance) || 0);
 
-                pBalance.innerText = bal.toFixed(2);
+                if (bal > 0.005) {
+                    pBalance.innerHTML = `<span style="font-family:'Consolas',monospace; font-weight:900;">${Math.abs(bal).toFixed(2)}</span> <span style="font-size:0.82rem; font-weight:900;">(عليه)</span>`;
+                    pBalance.style.color = '#15803d';
+                    if (pBalance.parentElement) {
+                        pBalance.parentElement.style.backgroundColor = '#dcfce7';
+                        pBalance.parentElement.style.borderColor = '#86efac';
+                    }
+                } else if (bal < -0.005) {
+                    pBalance.innerHTML = `<span style="font-family:'Consolas',monospace; font-weight:900;">${Math.abs(bal).toFixed(2)}</span> <span style="font-size:0.82rem; font-weight:900;">(له)</span>`;
+                    pBalance.style.color = '#dc2626';
+                    if (pBalance.parentElement) {
+                        pBalance.parentElement.style.backgroundColor = '#fee2e2';
+                        pBalance.parentElement.style.borderColor = '#fca5a5';
+                    }
+                } else {
+                    pBalance.innerHTML = `<span style="font-family:'Consolas',monospace; font-weight:900;">0.00</span> <span style="font-size:0.82rem; font-weight:800; color:#64748b;">(خالص)</span>`;
+                    pBalance.style.color = '#0f172a';
+                    if (pBalance.parentElement) {
+                        pBalance.parentElement.style.backgroundColor = '#f8fafc';
+                        pBalance.parentElement.style.borderColor = '#e2e8f0';
+                    }
+                }
 
                 let priorPurBal = bal;
                 let activePurInvId = null;
@@ -183,13 +238,6 @@ function updateHeaderPartnerInfo() {
 
                 }
 
-                // تلوين الرصيد (أخضر للمديونية "عليه للمحل"، أحمر للدائن "له عند المحل"، أبيض للصفر)
-                pBalance.style.fontWeight = '900';
-                pBalance.style.color = (bal > 0) ? 'var(--main-green)' : (bal < 0 ? '#ef4444' : 'white');
-                if (pBalance.parentElement) {
-                    pBalance.parentElement.style.backgroundColor = (bal > 0) ? 'rgba(39, 174, 96, 0.25)' : (bal < 0 ? 'rgba(239, 68, 68, 0.25)' : '#444');
-                }
-
             }
 
         } else {
@@ -200,12 +248,12 @@ function updateHeaderPartnerInfo() {
 
             if (pBalance) {
 
-                pBalance.innerText = '0.00';
-
-                pBalance.style.color = 'white';
-                pBalance.style.fontWeight = '900';
-
-                if (pBalance.parentElement) pBalance.parentElement.style.backgroundColor = '#444';
+                pBalance.innerHTML = `<span style="font-family:'Consolas',monospace; font-weight:900;">0.00</span> <span style="font-size:0.82rem; font-weight:800; color:#64748b;">(خالص)</span>`;
+                pBalance.style.color = '#0f172a';
+                if (pBalance.parentElement) {
+                    pBalance.parentElement.style.backgroundColor = '#f8fafc';
+                    pBalance.parentElement.style.borderColor = '#e2e8f0';
+                }
 
             }
 
