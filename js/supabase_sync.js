@@ -829,7 +829,7 @@
 
             try {
                 const remoteRes = await this._safeFetch(
-                    `${cfg.supabaseUrl}/rest/v1/products?id=like.${encodeURIComponent(shopId)}_PROD_%&select=*`,
+                    `${cfg.supabaseUrl}/rest/v1/products?id=like.${encodeURIComponent(shopId + '_PROD_%')}&select=*`,
                     { headers: this._getHeaders() }
                 );
 
