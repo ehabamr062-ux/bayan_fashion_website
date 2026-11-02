@@ -705,7 +705,6 @@ function updatePurchaseSearchSelection(items) {
 }
 
 function handleSupplierSearch(query) {
-
     const resultsDiv = document.getElementById('supplierSearchResults');
     if (!resultsDiv) return;
 
@@ -713,62 +712,86 @@ function handleSupplierSearch(query) {
 
     const cleanQuery = String(query || '').trim();
     if (!cleanQuery) {
-        resultsDiv.style.display = 'none';
+        resultsDiv.style.setProperty('display', 'none', 'important');
+        resultsDiv.classList.add('hidden');
         return;
     }
 
-    const filtered = (window.BayanInvoiceEngine && typeof BayanInvoiceEngine.searchAccounts === 'function')
-        ? BayanInvoiceEngine.searchAccounts(cleanQuery, 'all')
-        : (typeof accounts !== 'undefined' && Array.isArray(accounts) ? accounts : (window.accounts || [])).filter(a => {
-            if (!a || !a.name) return false;
-            const qLower = cleanQuery.toLowerCase();
-            return a.name.toLowerCase().includes(qLower) ||
-                   (a.code && String(a.code).toLowerCase().includes(qLower)) ||
-                   (a.mobile && String(a.mobile).includes(cleanQuery));
-        });
+    // تنظيف نص البحث للبحث العربي المرن
+    const cleanQ = (typeof window.cleanArabicCached === 'function')
+        ? window.cleanArabicCached(cleanQuery)
+        : (typeof cleanArabicCached === 'function' ? cleanArabicCached(cleanQuery) : cleanQuery.toLowerCase());
+
+    // جلب الحسابات مباشرة من مصفوفة الذاكرة العامة بدون الاعتماد على دالة searchAccounts المعطلة
+    const accList = (typeof accounts !== 'undefined' && Array.isArray(accounts) && accounts.length > 0)
+        ? accounts
+        : ((window.accounts && Array.isArray(window.accounts)) ? window.accounts : []);
+
+    const filtered = accList.filter(a => {
+        if (!a || !a.name) return false;
+        const aName = (typeof window.cleanArabicCached === 'function')
+            ? window.cleanArabicCached(a.name)
+            : (typeof cleanArabicCached === 'function' ? cleanArabicCached(a.name) : a.name.toLowerCase());
+        const aCode = String(a.code || '').toLowerCase();
+        const aPhone = String(a.mobile || a.phone || a.landline || '');
+        return aName.includes(cleanQ) || aCode.includes(cleanQ) || aPhone.includes(cleanQuery);
+    });
 
     if (filtered.length > 0) {
+        // تأمين ظهور النافذة فوق كل كروت الشاشة وإلغاء أي كلاس hidden
+        resultsDiv.classList.remove('hidden');
+        resultsDiv.style.setProperty('display', 'block', 'important');
+        resultsDiv.style.setProperty('position', 'absolute', 'important');
+        resultsDiv.style.setProperty('z-index', '999999', 'important');
+        resultsDiv.style.setProperty('background', '#ffffff', 'important');
+        resultsDiv.style.setProperty('border', '1.5px solid #cbd5e1', 'important');
+        resultsDiv.style.setProperty('box-shadow', '0 15px 35px rgba(0,0,0,0.25)', 'important');
+        resultsDiv.style.setProperty('border-radius', '12px', 'important');
+        resultsDiv.style.setProperty('max-height', '320px', 'important');
+        resultsDiv.style.setProperty('overflow-y', 'auto', 'important');
+        resultsDiv.style.setProperty('width', '100%', 'important');
 
-        resultsDiv.style.display = 'block';
-
-        filtered.forEach(a => {
-
+        filtered.slice(0, 30).forEach(a => {
             const div = document.createElement('div');
-
             div.className = 'result-item';
+            div.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: 0.15s; background: #fff;';
+            div.onmouseover = () => div.style.background = '#f8fafc';
+            div.onmouseout = () => div.style.background = '#fff';
 
             let typeBadgeHtml = '';
             const t = String(a.type || '').toLowerCase();
             if (t === 'client' || t === 'customer' || t.includes('عميل')) {
-                typeBadgeHtml = `<span class="stock-badge" style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px;">عميل 👤</span>`;
+                typeBadgeHtml = `<span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px;">عميل 👤</span>`;
             } else if (t === 'supplier' || t.includes('مورد')) {
-                typeBadgeHtml = `<span class="stock-badge" style="background:#dbeafe; color:#1d4ed8; border:1px solid #bfdbfe; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px;">مورد 📦</span>`;
+                typeBadgeHtml = `<span style="background:#dbeafe; color:#1d4ed8; border:1px solid #bfdbfe; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px;">مورد 📦</span>`;
             } else if (t === 'mixed' || t.includes('مشترك')) {
-                typeBadgeHtml = `<span class="stock-badge" style="background:#ffedd5; color:#c2410c; border:1px solid #fed7aa; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px;">مشترك 🔄</span>`;
+                typeBadgeHtml = `<span style="background:#ffedd5; color:#c2410c; border:1px solid #fed7aa; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px;">مشترك 🔄</span>`;
             } else {
-                typeBadgeHtml = `<span class="stock-badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px;">حساب 🤝</span>`;
+                typeBadgeHtml = `<span style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px;">حساب 🤝</span>`;
             }
 
             const codeDisplay = a.code ? `<small style="color:#64748b; font-size:0.75rem; margin-right:6px;">(#${a.code})</small>` : '';
-            div.innerHTML = `<span style="font-weight:700;">${a.name}${codeDisplay}</span>${typeBadgeHtml}`;
+            div.innerHTML = `<span style="font-weight:800; color:#0f172a;">${a.name}${codeDisplay}</span>${typeBadgeHtml}`;
 
-            div.onclick = () => {
-
-                document.getElementById('supplierName').value = a.name;
-
-                resultsDiv.style.display = 'none';
-
-                updateHeaderPartnerInfo();
-
+            div.onclick = (e) => {
+                e.stopPropagation();
+                const inp = document.getElementById('supplierName');
+                if (inp) inp.value = a.name;
+                resultsDiv.style.setProperty('display', 'none', 'important');
+                resultsDiv.classList.add('hidden');
+                if (typeof updateHeaderPartnerInfo === 'function') {
+                    updateHeaderPartnerInfo();
+                }
             };
 
             resultsDiv.appendChild(div);
-
         });
-
-    } else { resultsDiv.style.display = 'none'; }
-
+    } else {
+        resultsDiv.style.setProperty('display', 'none', 'important');
+        resultsDiv.classList.add('hidden');
+    }
 }
+window.handleSupplierSearch = handleSupplierSearch;
 
 function addToPurchaseCart(id, unitName = null, manualQty = null, manualCost = null, preSelectedVariant = null) {
 
