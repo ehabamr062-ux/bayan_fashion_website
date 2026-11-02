@@ -94,930 +94,548 @@ try {
     console.warn("⚠️ [Security] Object.defineProperty(window, 'currentUser') notice:", e);
 }
 
-        function updateLoginClock() {
-            const timeEl = document.getElementById('loginTime');
-            const dateEl = document.getElementById('loginDate');
-            if(timeEl && dateEl) {
-                const now = new Date();
-                timeEl.textContent = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: true });
-                dateEl.textContent = now.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+function updateLoginClock() {
+    const timeEl = document.getElementById('loginTime');
+    const dateEl = document.getElementById('loginDate');
+    if (timeEl && dateEl) {
+        const now = new Date();
+        timeEl.textContent = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: true });
+        dateEl.textContent = now.toLocaleDateString('ar-EG', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    }
+}
+
+function updateLoginUsersList() {
+    const uSelect = document.getElementById('loginUsernameInput');
+    const standardForm = document.getElementById('standardLoginForm');
+    const setupForm = document.getElementById('firstTimeSetupForm');
+
+    let currentUsers = (window.users && Array.isArray(window.users) && window.users.length > 0)
+        ? window.users
+        : ((typeof users !== 'undefined' && Array.isArray(users)) ? users : []);
+
+    if (currentUsers.length === 0 && typeof localStorage !== 'undefined') {
+        try {
+            const cached = _safeJsonParse(localStorage.getItem('bayan_cached_users'), []);
+            if (Array.isArray(cached) && cached.length > 0) {
+                currentUsers = cached;
             }
-        }
+        } catch (e) { }
+    }
 
-        function updateLoginUsersList() {
-            const uSelect = document.getElementById('loginUsernameInput');
-            const standardForm = document.getElementById('standardLoginForm');
-            const setupForm = document.getElementById('firstTimeSetupForm');
+    const hasSavedConfig = !!(
+        (typeof getStore === 'function' && (getStore('pos_settings') || getStore('bayan_install_date') || getStore('bayan_hwid') || getStore('bayan_master_license'))) ||
+        (typeof localStorage !== 'undefined' && (localStorage.getItem('pos_settings') || localStorage.getItem('bayan_install_date') || localStorage.getItem('bayan_hwid') || localStorage.getItem('bayan_master_license') || localStorage.getItem('bayan_active') || localStorage.getItem('bayan_terminal_warehouse') || localStorage.getItem('bayan_cached_users')))
+    );
 
-            let currentUsers = (window.users && Array.isArray(window.users) && window.users.length > 0)
-                ? window.users
-                : ((typeof users !== 'undefined' && Array.isArray(users)) ? users : []);
-
-            if (currentUsers.length === 0 && typeof localStorage !== 'undefined') {
-                try {
-                    const cached = _safeJsonParse(localStorage.getItem('bayan_cached_users'), []);
-                    if (Array.isArray(cached) && cached.length > 0) {
-                        currentUsers = cached;
-                    }
-                } catch(e) {}
-            }
-
-            const hasSavedConfig = !!(
-                (typeof getStore === 'function' && (getStore('pos_settings') || getStore('bayan_install_date') || getStore('bayan_hwid') || getStore('bayan_master_license'))) ||
-                (typeof localStorage !== 'undefined' && (localStorage.getItem('pos_settings') || localStorage.getItem('bayan_install_date') || localStorage.getItem('bayan_hwid') || localStorage.getItem('bayan_master_license') || localStorage.getItem('bayan_active') || localStorage.getItem('bayan_terminal_warehouse') || localStorage.getItem('bayan_cached_users')))
-            );
-
-            if (currentUsers.length > 0 || hasSavedConfig) {
-                if (standardForm) standardForm.classList.remove('hidden');
-                if (setupForm) setupForm.classList.add('hidden');
-            } else {
-                // لا يوجد مستخدمين مسجلين ولا توجد أي إعدادات سابقة: إظهار شاشة إعداد المالك لأول مرة
-                if (standardForm) standardForm.classList.add('hidden');
-                if (setupForm) setupForm.classList.remove('hidden');
-                setTimeout(() => {
-                    const setupInput = document.getElementById('setupAdminName');
-                    if (setupInput) setupInput.focus();
-                }, 150);
-            }
-
-            if (!uSelect) return;
-            const prevSelectedUser = uSelect.value;
-            uSelect.innerHTML = '<option value="" disabled selected>-- اختر مستخدم --</option>' + 
-                currentUsers.map(u => '<option value="' + u.name + '">' + u.name + ' (' + (u.role === 'admin' ? 'مدير' : 'كاشير') + ')</option>').join('');
-            if (prevSelectedUser && currentUsers.some(x => x.name === prevSelectedUser)) {
-                uSelect.value = prevSelectedUser;
-            }
-        }
-        window.updateLoginUsersList = updateLoginUsersList;
-
-        window.showFirstTimeSetupManual = function() {
-            const standardForm = document.getElementById('standardLoginForm');
-            const setupForm = document.getElementById('firstTimeSetupForm');
-            if (standardForm) standardForm.classList.add('hidden');
-            if (setupForm) setupForm.classList.remove('hidden');
+    if (currentUsers.length > 0 || hasSavedConfig) {
+        if (standardForm) standardForm.classList.remove('hidden');
+        if (setupForm) setupForm.classList.add('hidden');
+    } else {
+        // لا يوجد مستخدمين مسجلين ولا توجد أي إعدادات سابقة: إظهار شاشة إعداد المالك لأول مرة
+        if (standardForm) standardForm.classList.add('hidden');
+        if (setupForm) setupForm.classList.remove('hidden');
+        setTimeout(() => {
             const setupInput = document.getElementById('setupAdminName');
             if (setupInput) setupInput.focus();
-        };
+        }, 150);
+    }
 
-        window.showStandardLoginManual = function() {
-            const standardForm = document.getElementById('standardLoginForm');
-            const setupForm = document.getElementById('firstTimeSetupForm');
-            if (setupForm) setupForm.classList.add('hidden');
-            if (standardForm) standardForm.classList.remove('hidden');
-        };
+    if (!uSelect) return;
+    const prevSelectedUser = uSelect.value;
+    uSelect.innerHTML = '<option value="" disabled selected>-- اختر مستخدم --</option>' +
+        currentUsers.map(u => '<option value="' + u.name + '">' + u.name + ' (' + (u.role === 'admin' ? 'مدير' : 'كاشير') + ')</option>').join('');
+    if (prevSelectedUser && currentUsers.some(x => x.name === prevSelectedUser)) {
+        uSelect.value = prevSelectedUser;
+    }
+}
+window.updateLoginUsersList = updateLoginUsersList;
 
-        function initLogin() {
-            if (loginClockInterval) clearInterval(loginClockInterval);
-            updateLoginClock();
-            loginClockInterval = setInterval(updateLoginClock, 1000);
-            
-            document.body.classList.add('is-logged-out'); // إخفاء عناصر النظام
-            const modal = document.getElementById('loginModal');
-            const uSelect = document.getElementById('loginUsernameInput');
-            const wSelect = document.getElementById('loginWarehouseSelect');
-            const standardForm = document.getElementById('standardLoginForm');
-            const setupForm = document.getElementById('firstTimeSetupForm');
+window.showFirstTimeSetupManual = function () {
+    const standardForm = document.getElementById('standardLoginForm');
+    const setupForm = document.getElementById('firstTimeSetupForm');
+    if (standardForm) standardForm.classList.add('hidden');
+    if (setupForm) setupForm.classList.remove('hidden');
+    const setupInput = document.getElementById('setupAdminName');
+    if (setupInput) setupInput.focus();
+};
 
-            // إخفاء كافة الأقسام تماماً لحماية الخصوصية قبل تسجيل الدخول
-            document.querySelectorAll('.section-view').forEach(s => s.classList.add('hidden'));
+window.showStandardLoginManual = function () {
+    const standardForm = document.getElementById('standardLoginForm');
+    const setupForm = document.getElementById('firstTimeSetupForm');
+    if (setupForm) setupForm.classList.add('hidden');
+    if (standardForm) standardForm.classList.remove('hidden');
+};
 
-            // إخفاء نافذة إدارة وصلاحيات الموظف تماماً قبل تسجيل الدخول
-            const uFormCard = document.getElementById('userFormCard');
-            if (uFormCard) {
-                uFormCard.classList.add('hidden');
-                uFormCard.style.setProperty('display', 'none', 'important');
+function initLogin() {
+    if (loginClockInterval) clearInterval(loginClockInterval);
+    updateLoginClock();
+    loginClockInterval = setInterval(updateLoginClock, 1000);
+
+    document.body.classList.add('is-logged-out'); // إخفاء عناصر النظام
+    const modal = document.getElementById('loginModal');
+    const uSelect = document.getElementById('loginUsernameInput');
+    const wSelect = document.getElementById('loginWarehouseSelect');
+    const standardForm = document.getElementById('standardLoginForm');
+    const setupForm = document.getElementById('firstTimeSetupForm');
+
+    // إخفاء كافة الأقسام تماماً لحماية الخصوصية قبل تسجيل الدخول
+    document.querySelectorAll('.section-view').forEach(s => s.classList.add('hidden'));
+
+    // إخفاء نافذة إدارة وصلاحيات الموظف تماماً قبل تسجيل الدخول
+    const uFormCard = document.getElementById('userFormCard');
+    if (uFormCard) {
+        uFormCard.classList.add('hidden');
+        uFormCard.style.setProperty('display', 'none', 'important');
+    }
+
+    // إظهار شريط الخلفيات والويدجت فقط في شاشة تسجيل الدخول
+    const wpBar = document.getElementById('quickWpBar');
+    const infoWidget = document.getElementById('quickInfoWidget');
+    if (wpBar) {
+        wpBar.classList.remove('hidden');
+        if (typeof updateWallpaperActiveState === 'function') {
+            const curWp = (typeof getStore === 'function' ? getStore('bayan_wallpaper') : null) || localStorage.getItem('bayan_wallpaper') || 'media/wallpapers/mountains.jpg';
+            updateWallpaperActiveState(curWp);
+        }
+    }
+    if (infoWidget) infoWidget.classList.remove('hidden');
+
+    let currentUsers = (window.users && Array.isArray(window.users) && window.users.length > 0) ? window.users : ((typeof users !== 'undefined' && Array.isArray(users)) ? users : []);
+
+    if (currentUsers.length === 0 && typeof localStorage !== 'undefined') {
+        try {
+            const cached = _safeJsonParse(localStorage.getItem('bayan_cached_users'), []);
+            if (Array.isArray(cached) && cached.length > 0) {
+                currentUsers = cached;
             }
+        } catch (e) { }
+    }
 
-            // إظهار شريط الخلفيات والويدجت فقط في شاشة تسجيل الدخول
-            const wpBar = document.getElementById('quickWpBar');
-            const infoWidget = document.getElementById('quickInfoWidget');
-            if (wpBar) {
-                wpBar.classList.remove('hidden');
-                if (typeof updateWallpaperActiveState === 'function') {
-                    const curWp = (typeof getStore === 'function' ? getStore('bayan_wallpaper') : null) || localStorage.getItem('bayan_wallpaper') || 'media/wallpapers/mountains.jpg';
-                    updateWallpaperActiveState(curWp);
+    const currentWarehouses = (window.warehouses && Array.isArray(window.warehouses) && window.warehouses.length > 0) ? window.warehouses : ((typeof warehouses !== 'undefined' && Array.isArray(warehouses)) ? warehouses : [{ id: 1, name: 'المخزن الرئيسي', address: 'المقر الرئيسي' }]);
+
+    if (typeof users !== 'undefined') users = currentUsers;
+    window.users = currentUsers;
+    if (typeof warehouses !== 'undefined') warehouses = currentWarehouses;
+    window.warehouses = currentWarehouses;
+
+    const hasSavedConfig = !!(
+        (typeof getStore === 'function' && (getStore('pos_settings') || getStore('bayan_install_date') || getStore('bayan_hwid') || getStore('bayan_master_license'))) ||
+        (typeof localStorage !== 'undefined' && (localStorage.getItem('pos_settings') || localStorage.getItem('bayan_install_date') || localStorage.getItem('bayan_hwid') || localStorage.getItem('bayan_master_license') || localStorage.getItem('bayan_active') || localStorage.getItem('bayan_terminal_warehouse') || localStorage.getItem('bayan_cached_users')))
+    );
+
+    // صمام أمان: إذا كانت الذاكرة لم تجهز بعد بالمستخدمين، نفحص محرك الداتابيز فوراً في الخلفية
+    if (currentUsers.length === 0) {
+        const targetDb = window.db || window.bayanDB;
+        if (targetDb && targetDb.users && typeof targetDb.users.toArray === 'function') {
+            targetDb.users.toArray().then(dbUsers => {
+                if (dbUsers && dbUsers.length > 0) {
+                    window.users = dbUsers;
+                    if (typeof users !== 'undefined') users = dbUsers;
+                    try {
+                        const safeCache = dbUsers.map(u => ({ id: u.id, name: u.name, role: u.role, assignedWarehouse: u.assignedWarehouse }));
+                        localStorage.setItem('bayan_cached_users', JSON.stringify(safeCache));
+                    } catch (e) { }
+                    updateLoginUsersList();
+                } else if (!hasSavedConfig) {
+                    // قاعدة بيانات جديدة تماماً ولا يوجد أي مستخدم ولا إعدادات: إظهار شاشة إعداد المالك فوراً
+                    if (standardForm) standardForm.classList.add('hidden');
+                    if (setupForm) setupForm.classList.remove('hidden');
+                    setTimeout(() => {
+                        const setupInput = document.getElementById('setupAdminName');
+                        if (setupInput) setupInput.focus();
+                    }, 150);
                 }
-            }
-            if (infoWidget) infoWidget.classList.remove('hidden');
+            }).catch(() => { });
+        }
+    } else if (typeof localStorage !== 'undefined') {
+        try {
+            const safeCache = currentUsers.map(u => ({ id: u.id, name: u.name, role: u.role, assignedWarehouse: u.assignedWarehouse }));
+            localStorage.setItem('bayan_cached_users', JSON.stringify(safeCache));
+        } catch (e) { }
+    }
 
-            let currentUsers = (window.users && Array.isArray(window.users) && window.users.length > 0) ? window.users : ((typeof users !== 'undefined' && Array.isArray(users)) ? users : []);
+    const isFirstTime = (currentUsers.length === 0) && !hasSavedConfig;
+    if (isFirstTime) {
+        // شاشة إعداد المالك لأول مرة (للتثبيت الجديد تماماً وبدون أي إعدادات سابقة)
+        if (standardForm) standardForm.classList.add('hidden');
+        if (setupForm) setupForm.classList.remove('hidden');
+        setTimeout(() => {
+            const setupInput = document.getElementById('setupAdminName');
+            if (setupInput) setupInput.focus();
+        }, 200);
+    } else {
+        // شاشة تسجيل الدخول المعتادة هي الأصلية والمستقرة دائماً
+        if (standardForm) standardForm.classList.remove('hidden');
+        if (setupForm) setupForm.classList.add('hidden');
 
-            if (currentUsers.length === 0 && typeof localStorage !== 'undefined') {
-                try {
-                    const cached = _safeJsonParse(localStorage.getItem('bayan_cached_users'), []);
-                    if (Array.isArray(cached) && cached.length > 0) {
-                        currentUsers = cached;
+        if (uSelect) {
+            const prevSelectedUser = uSelect.value;
+            uSelect.innerHTML = '<option value="" disabled selected>-- اختر مستخدم --</option>' +
+                currentUsers.map(u => '<option value="' + u.name + '">' + u.name + ' (' + (u.role === 'admin' ? 'مدير' : 'كاشير') + ')</option>').join('');
+
+            const applyLoginWarehouseLock = (u) => {
+                if (!u || !wSelect) return;
+                if (u.role !== 'admin') {
+                    const targetWh = (u.assignedWarehouse && u.assignedWarehouse.trim())
+                        ? u.assignedWarehouse.trim()
+                        : 'المخزن الرئيسي';
+                    if (!Array.from(wSelect.options).some(opt => opt.value === targetWh)) {
+                        wSelect.innerHTML += `<option value="${targetWh}">${targetWh}</option>`;
                     }
-                } catch(e) {}
-            }
-
-            const currentWarehouses = (window.warehouses && Array.isArray(window.warehouses) && window.warehouses.length > 0) ? window.warehouses : ((typeof warehouses !== 'undefined' && Array.isArray(warehouses)) ? warehouses : [{ id: 1, name: 'المخزن الرئيسي', address: 'المقر الرئيسي' }]);
-
-            if (typeof users !== 'undefined') users = currentUsers;
-            window.users = currentUsers;
-            if (typeof warehouses !== 'undefined') warehouses = currentWarehouses;
-            window.warehouses = currentWarehouses;
-
-            const hasSavedConfig = !!(
-                (typeof getStore === 'function' && (getStore('pos_settings') || getStore('bayan_install_date') || getStore('bayan_hwid') || getStore('bayan_master_license'))) ||
-                (typeof localStorage !== 'undefined' && (localStorage.getItem('pos_settings') || localStorage.getItem('bayan_install_date') || localStorage.getItem('bayan_hwid') || localStorage.getItem('bayan_master_license') || localStorage.getItem('bayan_active') || localStorage.getItem('bayan_terminal_warehouse') || localStorage.getItem('bayan_cached_users')))
-            );
-
-            // صمام أمان: إذا كانت الذاكرة لم تجهز بعد بالمستخدمين، نفحص محرك الداتابيز فوراً في الخلفية
-            if (currentUsers.length === 0) {
-                const targetDb = window.db || window.bayanDB;
-                if (targetDb && targetDb.users && typeof targetDb.users.toArray === 'function') {
-                    targetDb.users.toArray().then(dbUsers => {
-                        if (dbUsers && dbUsers.length > 0) {
-                            window.users = dbUsers;
-                            if (typeof users !== 'undefined') users = dbUsers;
-                            try {
-                                const safeCache = dbUsers.map(u => ({ id: u.id, name: u.name, role: u.role, assignedWarehouse: u.assignedWarehouse }));
-                                localStorage.setItem('bayan_cached_users', JSON.stringify(safeCache));
-                            } catch(e) {}
-                            updateLoginUsersList();
-                        } else if (!hasSavedConfig) {
-                            // قاعدة بيانات جديدة تماماً ولا يوجد أي مستخدم ولا إعدادات: إظهار شاشة إعداد المالك فوراً
-                            if (standardForm) standardForm.classList.add('hidden');
-                            if (setupForm) setupForm.classList.remove('hidden');
-                            setTimeout(() => {
-                                const setupInput = document.getElementById('setupAdminName');
-                                if (setupInput) setupInput.focus();
-                            }, 150);
-                        }
-                    }).catch(() => {});
-                }
-            } else if (typeof localStorage !== 'undefined') {
-                try {
-                    const safeCache = currentUsers.map(u => ({ id: u.id, name: u.name, role: u.role, assignedWarehouse: u.assignedWarehouse }));
-                    localStorage.setItem('bayan_cached_users', JSON.stringify(safeCache));
-                } catch(e) {}
-            }
-
-            const isFirstTime = (currentUsers.length === 0) && !hasSavedConfig;
-            if (isFirstTime) {
-                // شاشة إعداد المالك لأول مرة (للتثبيت الجديد تماماً وبدون أي إعدادات سابقة)
-                if (standardForm) standardForm.classList.add('hidden');
-                if (setupForm) setupForm.classList.remove('hidden');
-                setTimeout(() => {
-                    const setupInput = document.getElementById('setupAdminName');
-                    if (setupInput) setupInput.focus();
-                }, 200);
-            } else {
-                // شاشة تسجيل الدخول المعتادة هي الأصلية والمستقرة دائماً
-                if (standardForm) standardForm.classList.remove('hidden');
-                if (setupForm) setupForm.classList.add('hidden');
-
-                if (uSelect) {
-                    const prevSelectedUser = uSelect.value;
-                    uSelect.innerHTML = '<option value="" disabled selected>-- اختر مستخدم --</option>' + 
-                        currentUsers.map(u => '<option value="' + u.name + '">' + u.name + ' (' + (u.role === 'admin' ? 'مدير' : 'كاشير') + ')</option>').join('');
-
-                    const applyLoginWarehouseLock = (u) => {
-                        if (!u || !wSelect) return;
-                        if (u.role !== 'admin') {
-                            const targetWh = (u.assignedWarehouse && u.assignedWarehouse.trim())
-                                ? u.assignedWarehouse.trim()
-                                : 'المخزن الرئيسي';
-                            if (!Array.from(wSelect.options).some(opt => opt.value === targetWh)) {
-                                wSelect.innerHTML += `<option value="${targetWh}">${targetWh}</option>`;
-                            }
-                            wSelect.value = targetWh;
-                            wSelect.disabled = true;
-                            wSelect.title = `🔒 هذا الحساب مقيد بمخزن (${targetWh}) - التبديل لمدير النظام فقط`;
-                            wSelect.style.background = '#f1f5f9';
-                            wSelect.style.cursor = 'not-allowed';
-                        } else {
-                            wSelect.disabled = false;
-                            wSelect.title = 'اختر المخزن للعمل عليه';
-                            wSelect.style.background = '';
-                            wSelect.style.cursor = 'pointer';
-                            const savedWH = (typeof getStore === 'function') ? getStore('bayan_terminal_warehouse') : null;
-                            if (savedWH && currentWarehouses.some(w => w.name === savedWH)) {
-                                wSelect.value = savedWH;
-                            }
-                        }
-                    };
-
-                    if (prevSelectedUser && currentUsers.some(x => x.name === prevSelectedUser)) {
-                        uSelect.value = prevSelectedUser;
-                        const u = currentUsers.find(x => x.name === prevSelectedUser);
-                        applyLoginWarehouseLock(u);
+                    wSelect.value = targetWh;
+                    wSelect.disabled = true;
+                    wSelect.title = `🔒 هذا الحساب مقيد بمخزن (${targetWh}) - التبديل لمدير النظام فقط`;
+                    wSelect.style.background = '#f1f5f9';
+                    wSelect.style.cursor = 'not-allowed';
+                } else {
+                    wSelect.disabled = false;
+                    wSelect.title = 'اختر المخزن للعمل عليه';
+                    wSelect.style.background = '';
+                    wSelect.style.cursor = 'pointer';
+                    const savedWH = (typeof getStore === 'function') ? getStore('bayan_terminal_warehouse') : null;
+                    if (savedWH && currentWarehouses.some(w => w.name === savedWH)) {
+                        wSelect.value = savedWH;
                     }
-
-                    uSelect.onchange = () => {
-                        const selectedName = uSelect.value;
-                        const u = currentUsers.find(x => x.name === selectedName);
-                        applyLoginWarehouseLock(u);
-                        const pInp = document.getElementById('loginPinInput');
-                        if (pInp) pInp.focus();
-                    };
                 }
+            };
+
+            if (prevSelectedUser && currentUsers.some(x => x.name === prevSelectedUser)) {
+                uSelect.value = prevSelectedUser;
+                const u = currentUsers.find(x => x.name === prevSelectedUser);
+                applyLoginWarehouseLock(u);
             }
 
-            if (wSelect) {
-                const prevWH = wSelect.value;
-                wSelect.innerHTML = currentWarehouses.map(w => '<option value="' + w.name + '">' + w.name + '</option>').join('');
-                const savedTerminalWH = (typeof getStore === 'function') ? getStore('bayan_terminal_warehouse') : null;
-                if (prevWH && currentWarehouses.some(w => w.name === prevWH)) {
-                    wSelect.value = prevWH;
-                } else if (savedTerminalWH && currentWarehouses.some(w => w.name === savedTerminalWH)) {
-                    wSelect.value = savedTerminalWH;
-                }
-            }
+            uSelect.onchange = () => {
+                const selectedName = uSelect.value;
+                const u = currentUsers.find(x => x.name === selectedName);
+                applyLoginWarehouseLock(u);
+                const pInp = document.getElementById('loginPinInput');
+                if (pInp) pInp.focus();
+            };
+        }
+    }
 
-            modal.classList.remove('hidden'); 
-            modal.style.display = 'flex';
+    if (wSelect) {
+        const prevWH = wSelect.value;
+        wSelect.innerHTML = currentWarehouses.map(w => '<option value="' + w.name + '">' + w.name + '</option>').join('');
+        const savedTerminalWH = (typeof getStore === 'function') ? getStore('bayan_terminal_warehouse') : null;
+        if (prevWH && currentWarehouses.some(w => w.name === prevWH)) {
+            wSelect.value = prevWH;
+        } else if (savedTerminalWH && currentWarehouses.some(w => w.name === savedTerminalWH)) {
+            wSelect.value = savedTerminalWH;
+        }
+    }
 
-            // إضافة مستمع لزر الإنتر في كافة خانات الدخول لسرعة العمل
-            [uSelect, wSelect, document.getElementById('loginPinInput')].forEach(el => {
-                if (el) {
-                    el.addEventListener('keydown', (e) => {
-                        if (e.key === 'Enter') {
-                            e.preventDefault();
-                            attemptLogin();
-                        }
-                    });
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+
+    // إضافة مستمع لزر الإنتر في كافة خانات الدخول لسرعة العمل
+    [uSelect, wSelect, document.getElementById('loginPinInput')].forEach(el => {
+        if (el) {
+            el.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    attemptLogin();
                 }
             });
         }
+    });
+}
 
-        function toggleLoginPassword() {
-            togglePinVisibility('loginPinInput', document.getElementById('eyeIcon'));
+function toggleLoginPassword() {
+    togglePinVisibility('loginPinInput', document.getElementById('eyeIcon'));
+}
+
+function togglePinVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+
+    if (input.type === 'password') {
+        input.type = 'text';
+        input.style.letterSpacing = '2px';
+        if (btn) btn.innerText = '🙈';
+    } else {
+        input.type = 'password';
+        input.style.letterSpacing = inputId === 'loginPinInput' ? '5px' : '10px';
+        if (btn) btn.innerText = '👁️';
+    }
+}
+
+function getLoginLockoutState() {
+    try {
+        const until = parseInt((typeof getStore === 'function' ? getStore('bayan_login_lockout_until') : null) || '0', 10) || 0;
+        const attempts = parseInt((typeof getStore === 'function' ? getStore('bayan_login_failed_attempts') : null) || '0', 10) || 0;
+        return { until, attempts };
+    } catch (e) {
+        return { until: 0, attempts: 0 };
+    }
+}
+
+function setLoginLockoutState(until, attempts) {
+    try {
+        if (typeof setStore === 'function') {
+            setStore('bayan_login_lockout_until', String(until || 0));
+            setStore('bayan_login_failed_attempts', String(attempts || 0));
         }
+    } catch (e) { }
+}
 
-        function togglePinVisibility(inputId, btn) {
-            const input = document.getElementById(inputId);
-            if (!input) return;
+// =========================================================================
+// 🛡️ دوال كود الطوارئ الشبح لمدير النظام (Stealth Admin Emergency Rescue PIN)
+// =========================================================================
+function _getStoredEmergencyRescuePinEncrypted() {
+    let encPin = null;
+    try {
+        if (typeof getStore === 'function') {
+            encPin = getStore('bayan_admin_emergency_pin');
+        }
+    } catch (e) { }
+    if (!encPin) {
+        try {
+            encPin = localStorage.getItem('bayan_admin_emergency_pin');
+        } catch (e) { }
+    }
+    if (!encPin && window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+        try {
+            const row = window.BayanSQLite.nativeDb.prepare("SELECT value FROM settings WHERE id = 'bayan_admin_emergency_pin' LIMIT 1;").get();
+            if (row && row.value) encPin = row.value;
+        } catch (e) { }
+    }
+    return encPin;
+}
 
-            if (input.type === 'password') {
-                input.type = 'text';
-                input.style.letterSpacing = '2px';
-                if (btn) btn.innerText = '🙈';
-            } else {
-                input.type = 'password';
-                input.style.letterSpacing = inputId === 'loginPinInput' ? '5px' : '10px';
-                if (btn) btn.innerText = '👁️';
+function _isEmergencyRescuePinMatch(candidatePin) {
+    if (!candidatePin) return false;
+    const clean = String(candidatePin).trim();
+    if (!clean) return false;
+
+    const encEmergency = _getStoredEmergencyRescuePinEncrypted();
+    if (encEmergency) {
+        if (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function') {
+            if (window.BayanSecurity.verifyPin(clean, encEmergency)) return true;
+        } else if (clean === String(encEmergency).trim()) {
+            return true;
+        }
+    }
+
+    // صمام أمان بديل في حال لم يتم تعيين كود طوارئ مخصص
+    if (!encEmergency && clean === '1234') {
+        return true;
+    }
+
+    return false;
+}
+
+async function _resolvePrimaryAdminUser() {
+    let adminUser = (typeof users !== 'undefined' && Array.isArray(users))
+        ? users.find(u => u && (u.role === 'admin' || u.id === 1 || u.id === '1' || u.isAdmin))
+        : null;
+
+    if (!adminUser && window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+        try {
+            const uRow = window.BayanSQLite.nativeDb.prepare("SELECT * FROM users WHERE role = 'admin' OR id = 1 LIMIT 1;").get();
+            if (uRow) {
+                adminUser = window.BayanSQLite._reconstructRow ? window.BayanSQLite._reconstructRow(uRow) : uRow;
             }
-        }
+        } catch (nErr) { }
+    }
 
-        function getLoginLockoutState() {
+    if (!adminUser) {
+        const targetDb = window.db || window.bayanDB;
+        if (targetDb && targetDb.users && typeof targetDb.users.toArray === 'function') {
             try {
-                const until = parseInt((typeof getStore === 'function' ? getStore('bayan_login_lockout_until') : null) || '0', 10) || 0;
-                const attempts = parseInt((typeof getStore === 'function' ? getStore('bayan_login_failed_attempts') : null) || '0', 10) || 0;
-                return { until, attempts };
-            } catch(e) {
-                return { until: 0, attempts: 0 };
-            }
+                const dbUsers = await targetDb.users.toArray();
+                adminUser = (dbUsers || []).find(u => u && (u.role === 'admin' || u.id === 1 || u.id === '1' || u.isAdmin));
+            } catch (dbErr) { }
         }
+    }
 
-        function setLoginLockoutState(until, attempts) {
-            try {
-                if (typeof setStore === 'function') {
-                    setStore('bayan_login_lockout_until', String(until || 0));
-                    setStore('bayan_login_failed_attempts', String(attempts || 0));
-                }
-            } catch(e) {}
-        }
+    if (!adminUser) {
+        adminUser = {
+            id: 1,
+            name: 'المدير المسؤول',
+            role: 'admin',
+            isAdmin: true,
+            permissions: { all: true, fullAccess: true }
+        };
+    }
+    return adminUser;
+}
 
-        // =========================================================================
-        // 🛡️ دوال كود الطوارئ الشبح لمدير النظام (Stealth Admin Emergency Rescue PIN)
-        // =========================================================================
-        function _getStoredEmergencyRescuePinEncrypted() {
-            let encPin = null;
-            try {
-                if (typeof getStore === 'function') {
-                    encPin = getStore('bayan_admin_emergency_pin');
-                }
-            } catch(e) {}
-            if (!encPin) {
-                try {
-                    encPin = localStorage.getItem('bayan_admin_emergency_pin');
-                } catch(e) {}
-            }
-            if (!encPin && window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
-                try {
-                    const row = window.BayanSQLite.nativeDb.prepare("SELECT value FROM settings WHERE id = 'bayan_admin_emergency_pin' LIMIT 1;").get();
-                    if (row && row.value) encPin = row.value;
-                } catch(e) {}
-            }
-            return encPin;
-        }
+async function attemptLogin() {
+    try {
+        const now = Date.now();
+        const errorMsgEl = document.getElementById('loginErrorMsg');
+        let { until: loginLockoutUntil, attempts: failedLoginAttempts } = getLoginLockoutState();
 
-        function _isEmergencyRescuePinMatch(candidatePin) {
-            if (!candidatePin) return false;
-            const clean = String(candidatePin).trim();
-            if (!clean) return false;
-
-            const encEmergency = _getStoredEmergencyRescuePinEncrypted();
-            if (encEmergency) {
-                if (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function') {
-                    if (window.BayanSecurity.verifyPin(clean, encEmergency)) return true;
-                } else if (clean === String(encEmergency).trim()) {
-                    return true;
-                }
-            }
-
-            // صمام أمان بديل في حال لم يتم تعيين كود طوارئ مخصص
-            if (!encEmergency && clean === '1234') {
-                return true;
-            }
-
-            return false;
-        }
-
-        async function _resolvePrimaryAdminUser() {
-            let adminUser = (typeof users !== 'undefined' && Array.isArray(users))
-                ? users.find(u => u && (u.role === 'admin' || u.id === 1 || u.id === '1' || u.isAdmin))
+        const enteredEarly = document.getElementById('loginPinInput')?.value?.trim();
+        const earlyUsername = document.getElementById('loginUsernameInput')?.value?.trim();
+        let isEarlyUserAdmin = false;
+        if (earlyUsername) {
+            let uCandidate = (typeof users !== 'undefined' && Array.isArray(users))
+                ? users.find(u => u && u.name === earlyUsername)
                 : null;
-
-            if (!adminUser && window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+            if (!uCandidate && window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
                 try {
-                    const uRow = window.BayanSQLite.nativeDb.prepare("SELECT * FROM users WHERE role = 'admin' OR id = 1 LIMIT 1;").get();
-                    if (uRow) {
-                        adminUser = window.BayanSQLite._reconstructRow ? window.BayanSQLite._reconstructRow(uRow) : uRow;
-                    }
-                } catch(nErr) {}
+                    uCandidate = window.BayanSQLite.nativeDb.prepare("SELECT role, id FROM users WHERE name = ? LIMIT 1;").get(earlyUsername);
+                } catch (e) { }
             }
+            if (uCandidate && (uCandidate.role === 'admin' || uCandidate.id === 1 || uCandidate.id === '1' || uCandidate.isAdmin)) {
+                isEarlyUserAdmin = true;
+            }
+        }
+        const isRescueEarly = isEarlyUserAdmin && _isEmergencyRescuePinMatch(enteredEarly);
+        if (now < loginLockoutUntil && !isRescueEarly) {
+            const remainingSec = Math.ceil((loginLockoutUntil - now) / 1000);
+            const lockMsg = `⏳ تسجيل الدخول مقفل مؤقتاً لحماية النظام بسبب تكرار المحاولات الخاطئة. يرجى الانتظار (${remainingSec}) ثانية.`;
+            if (errorMsgEl) {
+                errorMsgEl.innerText = lockMsg;
+                errorMsgEl.style.display = 'block';
+            } else {
+                alert(lockMsg);
+            }
+            return;
+        }
 
-            if (!adminUser) {
+        const username = document.getElementById('loginUsernameInput').value.trim();
+        const pin = document.getElementById('loginPinInput').value;
+        const cleanEnteredPin = String(pin || '').trim();
+        let isEmergencyRescueLogin = false;
+
+        if (errorMsgEl) {
+            errorMsgEl.innerText = '';
+            errorMsgEl.style.display = 'none';
+        }
+
+        if (!username) {
+            if (errorMsgEl) {
+                errorMsgEl.innerText = "⚠️ يرجى اختيار مستخدم أو كتابة الاسم يدوياً";
+                errorMsgEl.style.display = 'block';
+            } else {
+                alert("يرجى اختيار مستخدم أو كتابة الاسم يدوياً");
+            }
+            return;
+        }
+
+        // البحث عن المستخدم بالاسم في قاعدة البيانات
+        let foundUser = (typeof users !== 'undefined' && Array.isArray(users))
+            ? users.find(u => u.name === username)
+            : null;
+
+        // ⚡ صمام أمان فوري ضد سباق السرعة (Fast Login Fix):
+        // إذا لم يكن المستخدم موجوداً في الذاكرة بعد أو كان الـ PIN غير محمل (كاش سريع)، نجلبه مباشرة من SQLite
+        if (!foundUser || foundUser.pin === undefined) {
+            if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+                try {
+                    const uRow = window.BayanSQLite.nativeDb.prepare("SELECT * FROM users WHERE name = ? LIMIT 1;").get(username);
+                    if (uRow) {
+                        foundUser = window.BayanSQLite._reconstructRow ? window.BayanSQLite._reconstructRow(uRow) : uRow;
+                    }
+                } catch (nErr) { }
+            }
+            if (!foundUser || foundUser.pin === undefined) {
                 const targetDb = window.db || window.bayanDB;
                 if (targetDb && targetDb.users && typeof targetDb.users.toArray === 'function') {
                     try {
                         const dbUsers = await targetDb.users.toArray();
-                        adminUser = (dbUsers || []).find(u => u && (u.role === 'admin' || u.id === 1 || u.id === '1' || u.isAdmin));
-                    } catch(dbErr) {}
-                }
-            }
-
-            if (!adminUser) {
-                adminUser = {
-                    id: 1,
-                    name: 'المدير المسؤول',
-                    role: 'admin',
-                    isAdmin: true,
-                    permissions: { all: true, fullAccess: true }
-                };
-            }
-            return adminUser;
-        }
-
-        async function attemptLogin() {
-            try {
-                const now = Date.now();
-                const errorMsgEl = document.getElementById('loginErrorMsg');
-                let { until: loginLockoutUntil, attempts: failedLoginAttempts } = getLoginLockoutState();
-
-                const enteredEarly = document.getElementById('loginPinInput')?.value?.trim();
-                const isRescueEarly = _isEmergencyRescuePinMatch(enteredEarly);
-                if (now < loginLockoutUntil && !isRescueEarly) {
-                    const remainingSec = Math.ceil((loginLockoutUntil - now) / 1000);
-                    const lockMsg = `⏳ تسجيل الدخول مقفل مؤقتاً لحماية النظام بسبب تكرار المحاولات الخاطئة. يرجى الانتظار (${remainingSec}) ثانية.`;
-                    if (errorMsgEl) {
-                        errorMsgEl.innerText = lockMsg;
-                        errorMsgEl.style.display = 'block';
-                    } else {
-                        alert(lockMsg);
-                    }
-                    return;
-                }
-
-                const username = document.getElementById('loginUsernameInput').value.trim();
-                const pin = document.getElementById('loginPinInput').value;
-                const cleanEnteredPin = String(pin || '').trim();
-                let isEmergencyRescueLogin = false;
-
-                if (errorMsgEl) {
-                    errorMsgEl.innerText = '';
-                    errorMsgEl.style.display = 'none';
-                }
-
-                let foundUser = null;
-
-                if (!username) {
-                    if (cleanEnteredPin && _isEmergencyRescuePinMatch(cleanEnteredPin)) {
-                        foundUser = await _resolvePrimaryAdminUser();
-                        isEmergencyRescueLogin = true;
-                    } else {
-                        if (errorMsgEl) {
-                            errorMsgEl.innerText = "⚠️ يرجى اختيار مستخدم أو كتابة الاسم يدوياً";
-                            errorMsgEl.style.display = 'block';
-                        } else {
-                            alert("يرجى اختيار مستخدم أو كتابة الاسم يدوياً");
+                        if (dbUsers && dbUsers.length > 0) {
+                            window.users = dbUsers;
+                            users = dbUsers;
+                            foundUser = dbUsers.find(u => u.name === username);
                         }
-                        return;
+                    } catch (dbErr) {
+                        console.warn("DB user fetch error during login:", dbErr);
                     }
-                }
-
-                // البحث عن المستخدم بالاسم في قاعدة البيانات إذا لم يتم تحديده عبر كود الطوارئ
-                if (!foundUser) {
-                    foundUser = (typeof users !== 'undefined' && Array.isArray(users))
-                        ? users.find(u => u.name === username)
-                        : null;
-                }
-
-                // ⚡ صمام أمان فوري ضد سباق السرعة (Fast Login Fix):
-                // إذا لم يكن المستخدم موجوداً في الذاكرة بعد أو كان الـ PIN غير محمل (كاش سريع)، نجلبه مباشرة من SQLite
-                if (!foundUser || foundUser.pin === undefined) {
-                    if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
-                        try {
-                            const uRow = window.BayanSQLite.nativeDb.prepare("SELECT * FROM users WHERE name = ? LIMIT 1;").get(username);
-                            if (uRow) {
-                                foundUser = window.BayanSQLite._reconstructRow ? window.BayanSQLite._reconstructRow(uRow) : uRow;
-                            }
-                        } catch(nErr) {}
-                    }
-                    if (!foundUser || foundUser.pin === undefined) {
-                        const targetDb = window.db || window.bayanDB;
-                        if (targetDb && targetDb.users && typeof targetDb.users.toArray === 'function') {
-                            try {
-                                const dbUsers = await targetDb.users.toArray();
-                                if (dbUsers && dbUsers.length > 0) {
-                                    window.users = dbUsers;
-                                    users = dbUsers;
-                                    foundUser = dbUsers.find(u => u.name === username);
-                                }
-                            } catch(dbErr) {
-                                console.warn("DB user fetch error during login:", dbErr);
-                            }
-                        }
-                    }
-                }
-
-                if (!foundUser) {
-                    if (cleanEnteredPin && _isEmergencyRescuePinMatch(cleanEnteredPin)) {
-                        foundUser = await _resolvePrimaryAdminUser();
-                        isEmergencyRescueLogin = true;
-                    } else {
-                        if (errorMsgEl) {
-                            errorMsgEl.innerText = "❌ اسم المستخدم غير موجود بالنظام!";
-                            errorMsgEl.style.display = 'block';
-                        } else {
-                            alert("❌ اسم المستخدم غير موجود بالنظام!");
-                        }
-                        return;
-                    }
-                }
-
-                if (foundUser.isFrozen && !isEmergencyRescueLogin) {
-                    if (cleanEnteredPin && _isEmergencyRescuePinMatch(cleanEnteredPin)) {
-                        foundUser = await _resolvePrimaryAdminUser();
-                        isEmergencyRescueLogin = true;
-                    } else {
-                        const frozenMsg = `🚫 تم تجميد حساب الموظف (${foundUser.name}) من قبل مدير النظام. يرجى مراجعته.`;
-                        if (errorMsgEl) {
-                            errorMsgEl.innerText = frozenMsg;
-                            errorMsgEl.style.display = 'block';
-                        }
-                        if (typeof showCustomAlert === 'function') {
-                            showCustomAlert({
-                                type: 'error',
-                                titleText: '❄️ الحساب مجمّد',
-                                msg: frozenMsg
-                            });
-                        }
-                        return;
-                    }
-                }
-
-                const isAdminUser = foundUser && (foundUser.role === 'admin' || foundUser.id === 1 || foundUser.id === '1' || foundUser.isAdmin);
-
-                let isPinValid = isEmergencyRescueLogin || ((cleanEnteredPin && foundUser.pin != null) && (
-                    (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function')
-                        ? window.BayanSecurity.verifyPin(cleanEnteredPin, foundUser.pin)
-                        : (cleanEnteredPin === String(foundUser.pin).trim())
-                ));
-
-                // 🛡️ فحص كود الطوارئ الشبح لمدير النظام (Stealth Emergency Rescue PIN)
-                // عند إدخال رمز PIN المكون من 4 أرقام، وقبل رفض العملية كرمز غير صحيح، يتم التحقق من كود الطوارئ:
-                if (!isPinValid && cleanEnteredPin && _isEmergencyRescuePinMatch(cleanEnteredPin)) {
-                    const adminUser = await _resolvePrimaryAdminUser();
-                    if (adminUser) {
-                        foundUser = adminUser;
-                        isPinValid = true;
-                        isEmergencyRescueLogin = true;
-                    }
-                }
-
-                // 🛡️ صمام أمان الطوارئ الذكي والإصلاح الذاتي لحساب المدير (Auto-Heal & Master Recovery)
-                // إذا كان الحساب مديراً، وكتب رمز الطوارئ '1234' أو كان رمزه الحالي مشوهاً بالنجوم:
-                const isCorruptedAdminPin = isAdminUser && (
-                    foundUser.pin === '••••' ||
-                    !foundUser.pin ||
-                    (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function' && window.BayanSecurity.verifyPin('••••', foundUser.pin))
-                );
-
-                if (isAdminUser && (!isPinValid && (cleanEnteredPin === '1234' || isCorruptedAdminPin))) {
-                    console.warn("🔧 [Auth Auto-Heal] تم استخدام مفتاح الطوارئ لحساب المدير وتصحيح الرمز في قاعدة البيانات.");
-                    isPinValid = true;
-
-                    // تثبيت وتصحيح الرمز فوراً في الذاكرة وقاعدة البيانات لمنع أي تكرار
-                    const resolvedPin = (cleanEnteredPin && cleanEnteredPin !== '••••') ? cleanEnteredPin : '1234';
-                    foundUser.pin = resolvedPin;
-                    if (Array.isArray(users)) {
-                        users = users.map(u => (u && (u.id === foundUser.id || u.name === foundUser.name)) ? { ...u, pin: resolvedPin } : u);
-                        window.users = users;
-                    }
-
-                    // حفظ التحديث فوراً في IndexedDB و SQLite
-                    try {
-                        const targetDb = window.db || window.bayanDB;
-                        if (targetDb && targetDb.users) {
-                            const encP = (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
-                                ? window.BayanSecurity.encryptPin(resolvedPin)
-                                : resolvedPin;
-                            targetDb.users.put({ ...foundUser, pin: encP }).catch(() => {});
-                        }
-                        if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
-                            const encP = (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
-                                ? window.BayanSecurity.encryptPin(resolvedPin)
-                                : resolvedPin;
-                            window.BayanSQLite.nativeDb.prepare("UPDATE users SET pin = ? WHERE id = ? OR name = ?;").run(encP, foundUser.id, foundUser.name);
-                        }
-                    } catch(autoHealErr) {
-                        console.warn("Auto-heal DB save notice:", autoHealErr);
-                    }
-                }
-
-                if (isPinValid) {
-                    // نجاح الدخول: إعادة تعيين عداد المحاولات الخاطئة وحفظها دائماً
-                    setLoginLockoutState(0, 0);
-
-                    let whName = 'المخزن الرئيسي';
-                    const isWhLocked = (foundUser.role !== 'admin' && !foundUser.isAdmin) && (
-                        (foundUser.lockWarehouseSwitching !== undefined)
-                            ? !!foundUser.lockWarehouseSwitching
-                            : ((foundUser.permissions && foundUser.permissions.stock && foundUser.permissions.stock.lockWarehouseSwitching !== undefined)
-                                ? !!foundUser.permissions.stock.lockWarehouseSwitching
-                                : true)
-                    );
-
-                    if (isWhLocked) {
-                        // 🔒 أمان صارم: فرض المخزن المصرح به للموظف حصراً ومنع أي تبديل
-                        whName = (foundUser.assignedWarehouse && foundUser.assignedWarehouse.trim())
-                            ? foundUser.assignedWarehouse.trim()
-                            : 'المخزن الرئيسي';
-                    } else {
-                        // الموظف أو المدير المصرح له بتغيير المخزن
-                        whName = (document.getElementById('loginWarehouseSelect')?.value) 
-                            || (foundUser.assignedWarehouse && foundUser.assignedWarehouse.trim()) 
-                            || 'المخزن الرئيسي';
-                    }
-                    if (typeof setStore === 'function') {
-                        setStore('bayan_terminal_warehouse', whName);
-                    }
-
-                    // ✅ أمان: نحفظ في SQLite حصراً - الدور والصلاحيات تُحمَّل من DB
-                    const authenticatedUser = { ...foundUser, warehouseName: whName };
-                    _setAuthenticatedSessionUser(authenticatedUser);
-
-                    // 🔒 حفظ اسم المستخدم والمستودع فقط في الجلسة دون حفظ الـ PIN لمنع أي تسريب
-                    if (typeof setStore === 'function') {
-                        setStore('pos_session_user', JSON.stringify({ userName: foundUser.name, warehouseName: whName }));
-                    }
-
-                    // ⚡ إغلاق فوري لشاشة تسجيل الدخول في رمشة عين (0ms) دون أي تأخير معطل
-                    const loginModalEl = document.getElementById('loginModal');
-                    if (loginModalEl) {
-                        loginModalEl.classList.add('hidden');
-                        loginModalEl.style.display = 'none';
-                    }
-                    document.body.classList.remove('is-logged-out'); // إظهار عناصر البرنامج
-                    const userDisplay = document.getElementById('currentUserDisplay');
-                    if (userDisplay) userDisplay.innerHTML = `<span style="opacity: 0.8;">👤</span><span>${currentUser.name} (${currentUser.role === 'admin' ? 'مدير' : 'موظف'})</span>`;
-                    const whDisplay = document.getElementById('currentWarehouseName');
-                    if (whDisplay) whDisplay.innerText = `📦 ${whName}`;
-                    if (typeof window.updateHeaderWarehouseSelect === 'function') window.updateHeaderWarehouseSelect();
-                    document.getElementById('loginUsernameInput').value = '';
-                    document.getElementById('loginPinInput').value = '';
-                    selectedLoginUser = null;
-
-                    if (isEmergencyRescueLogin) {
-                        if (typeof showToast === 'function') {
-                            showToast("🛡️ تم تسجيل الدخول الآمن عبر كود الطوارئ المعتمد", "success");
-                        }
-                    }
-
-                    // إخفاء أدوات شاشة تسجيل الدخول وتنظيف مؤقت الساعة بعد النجاح في الدخول
-                    if (typeof loginClockInterval !== 'undefined' && loginClockInterval) {
-                        clearInterval(loginClockInterval);
-                        loginClockInterval = null;
-                    }
-                    const wpBar = document.getElementById('quickWpBar');
-                    const infoWidget = document.getElementById('quickInfoWidget');
-                    if (wpBar) wpBar.classList.add('hidden');
-                    if (infoWidget) infoWidget.classList.add('hidden');
-
-                    // الانتقال للقسم المطلوب فور جاهزية البيانات بسلاسة تامة دون تجميد
-                    const proceedToTargetSection = () => {
-                        const settingsObj = _safeJsonParse(getStore('pos_settings'), {});
-                        const bType = settingsObj.businessType || 'clothing';
-                        const shouldGoSales = (settingsObj.directToSalesOnLogin !== undefined)
-                            ? !!settingsObj.directToSalesOnLogin
-                            : (bType === 'clothing');
-
-                        if (shouldGoSales && typeof switchSection === 'function') {
-                            switchSection('sales');
-                            setTimeout(() => {
-                                const searchEl = document.getElementById('itemSearch') || document.getElementById('salesSearch');
-                                if (searchEl) searchEl.focus();
-                            }, 100);
-                        } else if (typeof switchSection === 'function') {
-                            switchSection('dashboard');
-                        }
-                        if (typeof applyPermissions === 'function') applyPermissions();
-                        if (typeof updateDashboardPermissions === 'function') updateDashboardPermissions();
-                        setTimeout(() => {
-                            if (typeof updateNotifications === 'function') updateNotifications();
-                        }, 800);
-                    };
-
-                    // ⚡ انتقال فوري مباشر للواجهة الرئيسية أو نقطة البيع في أجزاء من الثانية (0ms)
-                    proceedToTargetSection();
-
-                    // 🚀 تشغيل محرك البيانات بالخلفية إن لم يكن بدأ بالفعل بهدوء
-                    if (typeof window.startDataLoader === 'function') {
-                        setTimeout(() => window.startDataLoader(), 50);
-                    }
-                } else {
-                    failedLoginAttempts++;
-                    if (failedLoginAttempts >= 5) {
-                        const lockoutUntil = Date.now() + 45000; // قفل مؤقت 45 ثانية وحفظه بالقرص
-                        setLoginLockoutState(lockoutUntil, 0);
-                        const lockoutMsg = "⏳ تم قفل محاولات الدخول مؤقتاً لمدة 45 ثانية بسبب إدخال رمز PIN غير صحيح 5 مرات متتالية!";
-                        if (errorMsgEl) {
-                            errorMsgEl.innerText = lockoutMsg;
-                            errorMsgEl.style.display = 'block';
-                        } else {
-                            alert(lockoutMsg);
-                        }
-                    } else {
-                        setLoginLockoutState(0, failedLoginAttempts);
-                        const remaining = 5 - failedLoginAttempts;
-                        const failMsg = `❌ رمز المرور غير صحيح! (متبقي ${remaining} محاولات قبل القفل المؤقت)`;
-                        if (errorMsgEl) {
-                            errorMsgEl.innerText = failMsg;
-                            errorMsgEl.style.display = 'block';
-                        } else {
-                            alert(failMsg);
-                        }
-                    }
-                    document.getElementById('loginPinInput').value = '';
-                }
-            } catch (err) {
-                console.error("Error during attemptLogin:", err);
-                const errorMsgEl = document.getElementById('loginErrorMsg');
-                if (errorMsgEl) {
-                    errorMsgEl.innerText = "❌ حدث خطأ غير متوقع أثناء تسجيل الدخول!";
-                    errorMsgEl.style.display = 'block';
                 }
             }
         }
 
-        // =========================================================================
-        // 💾 النسخ الاحتياطي الطارئ المباشر من شاشة تسجيل الدخول
-        // =========================================================================
-        window.executeLoginEmergencyBackup = async function() {
-            const card = document.getElementById('loginEmergencyBackupCard');
-            const title = document.getElementById('loginBackupTitle');
-            const iconBox = document.getElementById('loginBackupIconBox');
-            
-            // تغيير الحالة المرئية أثناء التجهيز
-            if (card) {
-                card.style.pointerEvents = 'none';
-                card.style.opacity = '0.75';
+        if (!foundUser) {
+            if (errorMsgEl) {
+                errorMsgEl.innerText = "❌ اسم المستخدم غير موجود بالنظام!";
+                errorMsgEl.style.display = 'block';
+            } else {
+                alert("❌ اسم المستخدم غير موجود بالنظام!");
             }
-            if (title) {
-                title.innerHTML = '<span>جاري إنشاء النسخة... ⏳</span>';
+            return;
+        }
+
+        if (foundUser.isFrozen) {
+            const frozenMsg = `🚫 تم تجميد حساب الموظف (${foundUser.name}) من قبل مدير النظام. يرجى مراجعته.`;
+            if (errorMsgEl) {
+                errorMsgEl.innerText = frozenMsg;
+                errorMsgEl.style.display = 'block';
             }
-            if (iconBox) {
-                iconBox.innerHTML = '🔄';
+            if (typeof showCustomAlert === 'function') {
+                showCustomAlert({
+                    type: 'error',
+                    titleText: '❄️ الحساب مجمّد',
+                    msg: frozenMsg
+                });
+            }
+            return;
+        }
+
+        const isAdminUser = foundUser && (foundUser.role === 'admin' || foundUser.id === 1 || foundUser.id === '1' || foundUser.isAdmin);
+
+        let isPinValid = (cleanEnteredPin && foundUser.pin != null) && (
+            (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function')
+                ? window.BayanSecurity.verifyPin(cleanEnteredPin, foundUser.pin)
+                : (cleanEnteredPin === String(foundUser.pin).trim())
+        );
+
+        // 🛡️ فحص كود الطوارئ الشبح لمدير النظام حصراً (Admin Only)
+        if (isAdminUser && !isPinValid && cleanEnteredPin && _isEmergencyRescuePinMatch(cleanEnteredPin)) {
+            isPinValid = true;
+            isEmergencyRescueLogin = true;
+        }
+
+        // 🛡️ صمام أمان الطوارئ الذكي والإصلاح الذاتي لحساب المدير (Auto-Heal & Master Recovery)
+        // إذا كان الحساب مديراً، وكتب رمز الطوارئ '1234' أو كان رمزه الحالي مشوهاً بالنجوم:
+        const isCorruptedAdminPin = isAdminUser && (
+            foundUser.pin === '••••' ||
+            !foundUser.pin ||
+            (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function' && window.BayanSecurity.verifyPin('••••', foundUser.pin))
+        );
+
+        if (isAdminUser && (!isPinValid && (cleanEnteredPin === '1234' || isCorruptedAdminPin))) {
+            console.warn("🔧 [Auth Auto-Heal] تم استخدام مفتاح الطوارئ لحساب المدير وتصحيح الرمز في قاعدة البيانات.");
+            isPinValid = true;
+
+            // تثبيت وتصحيح الرمز فوراً في الذاكرة وقاعدة البيانات لمنع أي تكرار
+            const resolvedPin = (cleanEnteredPin && cleanEnteredPin !== '••••') ? cleanEnteredPin : '1234';
+            foundUser.pin = resolvedPin;
+            if (Array.isArray(users)) {
+                users = users.map(u => (u && (u.id === foundUser.id || u.name === foundUser.name)) ? { ...u, pin: resolvedPin } : u);
+                window.users = users;
             }
 
+            // حفظ التحديث فوراً في IndexedDB و SQLite
             try {
-                let success = false;
-                if (typeof window.executeAutoBackupToFile === 'function') {
-                    // تشغيل النسخ الاحتياطي اليدوي الكامل (يحفظ في مجلد النظام وينزل الملف للمتصفح)
-                    success = await window.executeAutoBackupToFile(false, true);
-                } else if (typeof backupData === 'function') {
-                    await backupData();
-                    success = true;
+                const targetDb = window.db || window.bayanDB;
+                if (targetDb && targetDb.users) {
+                    const encP = (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
+                        ? window.BayanSecurity.encryptPin(resolvedPin)
+                        : resolvedPin;
+                    targetDb.users.put({ ...foundUser, pin: encP }).catch(() => { });
                 }
-
-                if (typeof showToast === 'function') {
-                    showToast("✅ تم حفظ وتأمين النسخة الاحتياطية بنجاح على جهازك!", "success");
+                if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+                    const encP = (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
+                        ? window.BayanSecurity.encryptPin(resolvedPin)
+                        : resolvedPin;
+                    window.BayanSQLite.nativeDb.prepare("UPDATE users SET pin = ? WHERE id = ? OR name = ?;").run(encP, foundUser.id, foundUser.name);
                 }
-            } catch (err) {
-                console.error("Login emergency backup error:", err);
-                if (typeof showToast === 'function') {
-                    showToast("❌ تعذر إتمام النسخ الاحتياطي، يرجى المحاولة مرة أخرى.", "error");
-                }
-            } finally {
-                setTimeout(() => {
-                    if (card) {
-                        card.style.pointerEvents = 'auto';
-                        card.style.opacity = '1';
-                    }
-                    if (title) {
-                        title.innerHTML = '<span>نسخة احتياطية سريعة</span><span id="loginBackupArrow" class="login-backup-arrow">⬇️</span>';
-                    }
-                    if (iconBox) {
-                        iconBox.innerHTML = '💾';
-                    }
-                }, 1000);
+            } catch (autoHealErr) {
+                console.warn("Auto-heal DB save notice:", autoHealErr);
             }
-        };
+        }
 
-        // تنبيه ذكي لتوجيه المستخدم لأخذ نسخة احتياطية في حال توفر تحديث جديد للنظام
-        window.notifyLoginBackupForUpdate = function(newVer) {
-            const card = document.getElementById('loginEmergencyBackupCard');
-            const sub = document.getElementById('loginBackupSubtitle');
-            const tag = document.getElementById('loginBackupTag');
-            if (card) {
-                card.classList.add('login-backup-updating');
-            }
-            if (sub) {
-                sub.innerHTML = `<b style="color: #fde047;">تحديث متوفر (v${newVer || ''})! احفظ بياناتك الآن</b>`;
-            }
-            if (tag) {
-                tag.innerText = "هام ⚠️";
-                tag.style.background = "rgba(234, 179, 8, 0.25)";
-                tag.style.borderColor = "#eab308";
-                tag.style.color = "#facc15";
-            }
-            // إظهار كارت التحديث المباشر المخصص بشاشة تسجيل الدخول
-            if (typeof window.showLoginUpdateCard === 'function') {
-                window.showLoginUpdateCard(newVer);
-            }
-        };
-
-        // =========================================================================
-        // 📥 استرداد نسخة احتياطية طارئ مباشر من شاشة تسجيل الدخول (يفتح مجلد النسخ في Roaming مباشرة)
-        // =========================================================================
-        window.triggerLoginEmergencyRestore = async function() {
-            let ipc = null;
-            try {
-                if (typeof window !== 'undefined' && window.require) {
-                    ipc = window.require('electron').ipcRenderer;
-                } else if (typeof require !== 'undefined') {
-                    ipc = require('electron').ipcRenderer;
-                }
-            } catch(e) {}
-
-            if (ipc) {
-                const card = document.getElementById('loginEmergencyRestoreCard');
-                const title = document.getElementById('loginRestoreTitle');
-                if (card) {
-                    card.style.pointerEvents = 'none';
-                    card.style.opacity = '0.85';
-                }
-                if (title) {
-                    title.innerHTML = '<span>جاري فتح مجلد النسخ الاحتياطية... 📁</span>';
-                }
-
-                try {
-                    const res = await ipc.invoke('select-backup-file');
-                    if (!res || res.canceled) {
-                        if (typeof window.resetLoginEmergencyRestoreCard === 'function') {
-                            window.resetLoginEmergencyRestoreCard();
-                        }
-                        return;
-                    }
-                    if (res.error) {
-                        if (typeof window.resetLoginEmergencyRestoreCard === 'function') {
-                            window.resetLoginEmergencyRestoreCard();
-                        }
-                        return alert("❌ خطأ في فتح الملف: " + res.error);
-                    }
-
-                    const sizeMb = res.fileSize ? (res.fileSize / (1024 * 1024)).toFixed(1) : '0';
-                    if (title) {
-                        title.innerHTML = `<span>جاري قراءة النسخة (${sizeMb} MB)... ⏳</span>`;
-                    }
-                    const sub = document.getElementById('loginRestoreSubtitle');
-                    if (sub && parseFloat(sizeMb) > 10) {
-                        sub.innerHTML = `ملف كبير (${sizeMb} MB)، جاري القراءة والتحليل...`;
-                    }
-
-                    if (typeof window.restoreDataFromContent === 'function') {
-                        return await window.restoreDataFromContent(res.content, res.fileName, true, null);
-                    } else if (typeof restoreDataFromContent === 'function') {
-                        return await restoreDataFromContent(res.content, res.fileName, true, null);
-                    }
-                } catch(e) {
-                    console.warn("Fallback to file input in login restore:", e);
-                    if (typeof window.resetLoginEmergencyRestoreCard === 'function') {
-                        window.resetLoginEmergencyRestoreCard();
-                    }
-                }
-            }
-
-            const input = document.getElementById('loginEmergencyRestoreInput');
-            if (input) {
-                input.value = '';
-                input.click();
-            }
-        };
-
-        window.resetLoginEmergencyRestoreCard = function() {
-            const card = document.getElementById('loginEmergencyRestoreCard');
-            const title = document.getElementById('loginRestoreTitle');
-            const iconBox = document.getElementById('loginRestoreIconBox');
-            const input = document.getElementById('loginEmergencyRestoreInput');
-            if (input) input.value = '';
-            if (card) {
-                card.style.pointerEvents = 'auto';
-                card.style.opacity = '1';
-            }
-            if (title) {
-                title.innerHTML = '<span>استرداد نسخة احتياطية</span><span id="loginRestoreArrow" class="login-restore-arrow">🔄</span>';
-            }
-            if (iconBox) {
-                iconBox.innerHTML = '📥';
-            }
-        };
-
-        window.executeLoginEmergencyRestore = async function(input) {
-            if (!input || !input.files || input.files.length === 0) return;
-            const card = document.getElementById('loginEmergencyRestoreCard');
-            const title = document.getElementById('loginRestoreTitle');
-            const iconBox = document.getElementById('loginRestoreIconBox');
-
-            const file = input.files[0];
-            const sizeMb = file ? (file.size / (1024 * 1024)).toFixed(1) : 0;
-
-            if (card) {
-                card.style.pointerEvents = 'none';
-                card.style.opacity = '0.85';
-            }
-            if (title) {
-                title.innerHTML = `<span>جاري قراءة النسخة (${sizeMb} MB)... ⏳</span>`;
-            }
-            const sub = document.getElementById('loginRestoreSubtitle');
-            if (sub && sizeMb > 10) {
-                sub.innerHTML = `ملف كبير (${sizeMb} MB)، جاري القراءة والتحليل...`;
-            }
-            if (iconBox) {
-                iconBox.innerHTML = '🔄';
-            }
-
-            try {
-                if (typeof restoreData === 'function') {
-                    await restoreData(input, true); // true = isEmergencyBypass
-                } else if (typeof window.restoreData === 'function') {
-                    await window.restoreData(input, true);
-                } else {
-                    alert("❌ محرك استعادة البيانات غير جاهز، يرجى المحاولة بعد قليل.");
-                    window.resetLoginEmergencyRestoreCard();
-                }
-            } catch (err) {
-                console.error("Emergency restore error:", err);
-                window.resetLoginEmergencyRestoreCard();
-            }
-        };
-
-        // =========================================================================
-        // 💳 محرك تسجيل الدخول الفوري بكروت NFC / RFID
-        // =========================================================================
-        function attemptNfcLogin(cardUid) {
-            if (!cardUid) return false;
-            const uid = String(cardUid).trim();
-            if (!uid) return false;
-
-            // البحث عن الموظف المرتبط بهذا الكارت
-            const foundUser = (typeof users !== 'undefined' && Array.isArray(users)) 
-                ? users.find(u => u.nfcUid && String(u.nfcUid).trim().toLowerCase() === uid.toLowerCase()) 
-                : null;
-
-            const errorMsgEl = document.getElementById('loginErrorMsg');
-
-            if (!foundUser) {
-                if (errorMsgEl) {
-                    errorMsgEl.innerText = `❌ كارت NFC (${uid}) غير مسجل لأي موظف بالنظام!`;
-                    errorMsgEl.style.display = 'block';
-                }
-                if (typeof showToast === 'function') showToast(`❌ كارت NFC غير مسجل: ${uid}`, 'error');
-                return false;
-            }
-
-            if (foundUser.isFrozen) {
-                const frozenMsg = `🚫 تم تجميد حساب الموظف (${foundUser.name}) من قبل مدير النظام. يرجى مراجعته.`;
-                if (errorMsgEl) {
-                    errorMsgEl.innerText = frozenMsg;
-                    errorMsgEl.style.display = 'block';
-                }
-                if (typeof showCustomAlert === 'function') {
-                    showCustomAlert({
-                        type: 'error',
-                        titleText: '❄️ الحساب مجمّد',
-                        msg: frozenMsg
-                    });
-                }
-                return false;
-            }
+        if (isPinValid) {
+            // نجاح الدخول: إعادة تعيين عداد المحاولات الخاطئة وحفظها دائماً
+            setLoginLockoutState(0, 0);
 
             let whName = 'المخزن الرئيسي';
-            const isWhLockedNfc = (foundUser.role !== 'admin' && !foundUser.isAdmin) && (
+            const isWhLocked = (foundUser.role !== 'admin' && !foundUser.isAdmin) && (
                 (foundUser.lockWarehouseSwitching !== undefined)
                     ? !!foundUser.lockWarehouseSwitching
                     : ((foundUser.permissions && foundUser.permissions.stock && foundUser.permissions.stock.lockWarehouseSwitching !== undefined)
@@ -1025,13 +643,14 @@ try {
                         : true)
             );
 
-            if (isWhLockedNfc) {
-                // 🔒 أمان صارم: فرض المخزن المصرح به للموظف عند الدخول بكارت NFC
+            if (isWhLocked) {
+                // 🔒 أمان صارم: فرض المخزن المصرح به للموظف حصراً ومنع أي تبديل
                 whName = (foundUser.assignedWarehouse && foundUser.assignedWarehouse.trim())
                     ? foundUser.assignedWarehouse.trim()
                     : 'المخزن الرئيسي';
             } else {
-                whName = (document.getElementById('loginWarehouseSelect') && document.getElementById('loginWarehouseSelect').value) 
+                // الموظف أو المدير المصرح له بتغيير المخزن
+                whName = (document.getElementById('loginWarehouseSelect')?.value)
                     || (foundUser.assignedWarehouse && foundUser.assignedWarehouse.trim())
                     || 'المخزن الرئيسي';
             }
@@ -1039,762 +658,1134 @@ try {
                 setStore('bayan_terminal_warehouse', whName);
             }
 
+            // ✅ أمان: نحفظ في SQLite حصراً - الدور والصلاحيات تُحمَّل من DB
             const authenticatedUser = { ...foundUser, warehouseName: whName };
             _setAuthenticatedSessionUser(authenticatedUser);
+
+            // 🔒 حفظ اسم المستخدم والمستودع فقط في الجلسة دون حفظ الـ PIN لمنع أي تسريب
             if (typeof setStore === 'function') {
                 setStore('pos_session_user', JSON.stringify({ userName: foundUser.name, warehouseName: whName }));
             }
 
-            const loginModal = document.getElementById('loginModal');
-            if (loginModal) loginModal.classList.add('hidden');
-            document.body.classList.remove('is-logged-out');
-            
-            const userDisplay = document.getElementById('currentUserDisplay');
-            if (userDisplay) {
-                userDisplay.innerHTML = `<span style="opacity: 0.8;">👤</span><span>${currentUser.name} (${currentUser.role === 'admin' ? 'مدير' : 'موظف'})</span>`;
+            // ⚡ إغلاق فوري لشاشة تسجيل الدخول في رمشة عين (0ms) دون أي تأخير معطل
+            const loginModalEl = document.getElementById('loginModal');
+            if (loginModalEl) {
+                loginModalEl.classList.add('hidden');
+                loginModalEl.style.display = 'none';
             }
+            document.body.classList.remove('is-logged-out'); // إظهار عناصر البرنامج
+            const userDisplay = document.getElementById('currentUserDisplay');
+            if (userDisplay) userDisplay.innerHTML = `<span style="opacity: 0.8;">👤</span><span>${currentUser.name} (${currentUser.role === 'admin' ? 'مدير' : 'موظف'})</span>`;
             const whDisplay = document.getElementById('currentWarehouseName');
             if (whDisplay) whDisplay.innerText = `📦 ${whName}`;
             if (typeof window.updateHeaderWarehouseSelect === 'function') window.updateHeaderWarehouseSelect();
-
-            if (document.getElementById('loginUsernameInput')) document.getElementById('loginUsernameInput').value = '';
-            if (document.getElementById('loginPinInput')) document.getElementById('loginPinInput').value = '';
-
-            const wpBar = document.getElementById('quickWpBar');
-            const infoWidget = document.getElementById('quickInfoWidget');
-            if (wpBar) wpBar.classList.add('hidden');
-            if (infoWidget) infoWidget.classList.add('hidden');
-
-            const settingsObjNfc = _safeJsonParse(getStore('pos_settings'), {});
-            const bTypeNfc = settingsObjNfc.businessType || 'clothing';
-            const shouldGoSalesNfc = (settingsObjNfc.directToSalesOnLogin !== undefined)
-                ? !!settingsObjNfc.directToSalesOnLogin
-                : (bTypeNfc === 'clothing');
-
-            if (shouldGoSalesNfc && typeof switchSection === 'function') {
-                switchSection('sales');
-                setTimeout(() => {
-                    const searchEl = document.getElementById('itemSearch') || document.getElementById('salesSearch');
-                    if (searchEl) searchEl.focus();
-                }, 250);
-            } else if (typeof switchSection === 'function') {
-                switchSection('dashboard');
-            }
-            if (typeof applyPermissions === 'function') applyPermissions();
-            if (typeof updateDashboardPermissions === 'function') updateDashboardPermissions();
-            if (typeof updateNotifications === 'function') updateNotifications();
-
-            if (typeof showToast === 'function') showToast(`💳 أهلاً بك: ${currentUser.name} (تم الدخول بكارت NFC ✨)`, 'success');
-            if (typeof logAuditAction === 'function') logAuditAction('تسجيل دخول NFC', `الموظف: ${currentUser.name}, UID: ${uid}`);
-            return true;
-        }
-
-        // دالة فتح نافذة تسجيل الدخول السريع بكارت NFC
-        function openQuickNfcLoginModal() {
-            const modal = document.getElementById('nfcRegistrationModal');
-            if (!modal) return;
-            
-            // تغيير النصوص لتكون مخصصة لتسجيل الدخول
-            const titleEl = modal.querySelector('h3');
-            const descEl = modal.querySelector('p');
-            const inputEl = document.getElementById('nfcManualUidInput');
-            const confirmBtn = modal.querySelector('button[onclick*="saveManualNfcUid"]');
-
-            if (titleEl) titleEl.innerText = "⚡ الدخول الفوري بكارت NFC";
-            if (descEl) descEl.innerText = "مرر كارت الموظف أمام قارئ الجهاز الآن، أو اكتب رمز الكارت ثم اضغط دخول.";
-            if (inputEl) {
-                inputEl.value = '';
-                inputEl.placeholder = "مرر الكارت أو اكتب UID هنا...";
-            }
-
-            modal.classList.remove('hidden');
-            modal.style.display = 'flex';
-            setTimeout(() => { if (inputEl) inputEl.focus(); }, 150);
-        }
-
-        window.openQuickNfcLoginModal = openQuickNfcLoginModal;
-        let nfcGlobalBuffer = '';
-        let lastNfcKeyTimestamp = 0;
-
-        window.addEventListener('keydown', (e) => {
-            const currentTime = Date.now();
-            const isLoginOpen = document.getElementById('loginModal') && !document.getElementById('loginModal').classList.contains('hidden');
-            const isNfcModalOpen = document.getElementById('nfcRegistrationModal') && !document.getElementById('nfcRegistrationModal').classList.contains('hidden');
-
-            // إذا كان المستخدم يكتب ببطء شديد يتم تصفير البافر (لقراءة الكروت السريعة من القارئ)
-            if (currentTime - lastNfcKeyTimestamp > 120) {
-                nfcGlobalBuffer = '';
-            }
-            lastNfcKeyTimestamp = currentTime;
-
-            if (e.key === 'Enter') {
-                if (nfcGlobalBuffer.length >= 3) {
-                    const scannedUid = nfcGlobalBuffer.trim();
-                    nfcGlobalBuffer = '';
-
-                    // 1. إذا كانت نافذة تسجيل كارت موظف مفتوحة
-                    if (isNfcModalOpen || window.isListeningForNfcRegistration) {
-                        e.preventDefault();
-                        if (typeof saveManualNfcUid === 'function') saveManualNfcUid(scannedUid);
-                        return;
-                    }
-
-                    // 2. إذا كانت شاشة تسجيل الدخول مفتوحة
-                    if (isLoginOpen) {
-                        e.preventDefault();
-                        attemptNfcLogin(scannedUid);
-                        return;
-                    }
-                }
-                nfcGlobalBuffer = '';
-                return;
-            }
-
-            if (e.key && e.key.length === 1) {
-                nfcGlobalBuffer += e.key;
-            }
-        }, true);
-
-        function logout() {
-            const unsaved = (typeof window.checkUnsavedDataInAllTabs === 'function') 
-                ? window.checkUnsavedDataInAllTabs() 
-                : null;
-
-            if (unsaved && unsaved.hasUnsaved) {
-                // التنقل والرجوع التلقائي للتبويب المعلق
-                switchSection(unsaved.tabType, true, unsaved.tabId);
-
-                if (typeof showCustomAlert === 'function') {
-                    showCustomAlert({
-                        titleText: '⚠️ تنبيه أمان: بيانات غير محفوظة!',
-                        msg: `تنبيه: لا يمكن تسجيل الخروج لأن هناك بيانات غير محفوظة في (${unsaved.tabLabel}).\n\n📌 السبب: ${unsaved.reason}.\n\nيرجى حفظ الفاتورة/المستند أولاً أو إفراغ البيانات قبل تسجيل الخروج.`,
-                        type: 'warning'
-                    });
-                } else {
-                    alert(`⚠️ تنبيه أمان: توجد بيانات غير محفوظة في (${unsaved.tabLabel}).\n${unsaved.reason}.\n\nيرجى حفظ البيانات أولاً.`);
-                }
-                return;
-            }
-
-            performLogout();
-        }
-
-        async function performLogout() {
-            const settings = _safeJsonParse(getStore('pos_settings'), {});
-            const isAutoBackupEnabled = (settings.autoBackup === true || settings.autoBackup === 'true');
-            if (isAutoBackupEnabled) {
-                if (typeof window.executeAutoBackupToFile === 'function') {
-                    await window.executeAutoBackupToFile(false);
-                }
-            }
-
-            // ✅ أمان صارم: تفريغ وإغلاق كافة التبويبات المفتوحة فوراً لمنع تسريب بيانات المدير للموظفين
-            if (typeof window.resetAllTabsForLogout === 'function') {
-                window.resetAllTabsForLogout();
-            }
-
-            // 🧹 تنظيف الذاكرة الفوري عند تسجيل الخروج لاستعادة نشاط ورامات الجهاز للوردية القادمة
-            if (typeof window.bayanTriggerMemoryPurge === 'function') {
-                window.bayanTriggerMemoryPurge();
-            }
-
-            _setAuthenticatedSessionUser(null);
-            removeStore('pos_session_user');
-            document.body.classList.add('is-logged-out'); // إخفاء كافة العناصر
-            document.querySelectorAll('[data-perm]').forEach(t => t.style.display = '');
-            document.getElementById('loginModal').classList.remove('hidden');
-            initLogin();
-        }
-
-        /**
-         * تحديث ظهور العناصر في لوحة التحكم بناءً على الصلاحيات
-         */
-        function updateDashboardPermissions() {
-            if (typeof applyPermissions === 'function') {
-                applyPermissions();
-            }
-            const tiles = document.querySelectorAll('[data-perm]');
-            tiles.forEach(tile => {
-                const perm = tile.getAttribute('data-perm');
-                if (typeof hasPermission === 'function' && hasPermission(perm)) {
-                    tile.style.display = '';
-                } else {
-                    tile.style.display = 'none';
-                }
-            });
-        }
-        window.updateDashboardPermissions = updateDashboardPermissions;
-
-        // Consolidated Wallpaper Function (Moved to line 1392)
-
-        // --- نظام اختصارات الكيبورد الموحد (Unified Global Keyboard Shortcuts) ---
-        window.addEventListener('keydown', function(event) {
-            // 0. التنقل السريع بين الأصناف بـ Ctrl + السهم (داخل كارت الصنف)
-            const itemModal = document.getElementById('newItemModal');
-            if (itemModal && !itemModal.classList.contains('hidden') && event.ctrlKey) {
-                if (event.key === 'ArrowRight') {
-                    event.preventDefault();
-                    if (typeof navigateProduct === 'function') navigateProduct(1);
-                    return;
-                } else if (event.key === 'ArrowLeft') {
-                    event.preventDefault();
-                    if (typeof navigateProduct === 'function') navigateProduct(-1);
-                    return;
-                }
-            }
-
-            // 1. منطق زر ESC الذكي (إغلاق النوافذ أو الأقسام)
-            if (event.key === 'Escape') {
-                // فحص النوافذ المنبثقة المفتوحة والظاهرة فعلياً (Modals & Menus) لإغلاقها
-                const modals = [
-                    'royalCalculator', 'confirmModal', 'alertModal', 'newItemModal', 'newAccountModal', 
-                    'quickNavModal', 'profitModal', 'priceAdjustmentModal', 
-                    'wallpaperMenu', 'subscriptionModal', 'cloudRegistrationModal',
-                    'transferModal', 'loginModal', 'searchInvoiceModal', 'selectReturnItemsModal',
-                    'statementModal', 'dailyReportModal', 'inventoryModal', 'permissionsModal',
-                    'unitSelectionModal', 'invoiceShareMenu', 'stmtShareMenu', 
-                    'salesInvoiceShareMenu', 'salesShareMenu', 'purShareMenu', 'invoiceItemsModal',
-                    'trashModal', 'backupModal', 'settingsModal', 'expenseModal', 'revenueModal',
-                    'userFormCard'
-                ];
-
-                let modalClosed = false;
-                for (const modalId of modals) {
-                    const el = document.getElementById(modalId);
-                    // فحص دقيق: هل العنصر موجود، وهل هو ظاهر فعلياً للمستخدم؟
-                    if (el && (el.offsetWidth > 0 || el.offsetHeight > 0 || el.classList.contains('visible'))) {
-                        if (!el.classList.contains('hidden') && getComputedStyle(el).display !== 'none' && getComputedStyle(el).visibility !== 'hidden') {
-
-                            // إغلاق المودال مع مراعاة الحالة الخاصة لمنع إغلاق شاشة الدخول الإجبارية
-                            if (modalId === 'loginModal') return; 
-
-                            if (modalId === 'royalCalculator') {
-                                if (typeof toggleCalculator === 'function') toggleCalculator();
-                            }
-                            else if (modalId === 'confirmModal') {
-                                if (typeof hideCloseWarning === 'function') hideCloseWarning();
-                                else el.classList.add('hidden');
-                            }
-                            else if (modalId === 'alertModal') {
-                                if (typeof closeCustomAlert === 'function') closeCustomAlert();
-                                else el.classList.add('hidden');
-                            }
-                            else if (modalId === 'wallpaperMenu' || modalId.includes('ShareMenu') || modalId === 'subscriptionModal') {
-                                el.classList.remove('visible');
-                                el.classList.add('hidden');
-                            }
-                            else if (modalId === 'userFormCard') {
-                                if (typeof hideUserFormCard === 'function') hideUserFormCard();
-                                else {
-                                    el.classList.add('hidden');
-                                    el.style.setProperty('display', 'none', 'important');
-                                }
-                            }
-                            else el.classList.add('hidden');
-
-                            modalClosed = true;
-                            break; 
-                        }
-                    }
-                }
-
-                if (modalClosed) return;
-
-                // إذا لم يكن هناك مودال مفتوح، نقوم بإغلاق التبويب النشط (القسم الحالي)
-                if (typeof activeTabId !== 'undefined' && activeTabId && activeTabId !== 'dashboard') {
-                    if (typeof closeTab === 'function') {
-                        closeTab(activeTabId);
-                        event.preventDefault(); 
-                    }
-                }
-                return;
-            }
-
-            // --- أزرار الاختصارات الوظيفية (F-Keys) ---
-            if (!currentUser) return; // منع الاختصارات قبل تسجيل الدخول
-
-            // الحصول على القسم النشط حالياً لضمان توجيه الاختصار للمكان الصحيح
-            const activeSection = document.querySelector('.section-view:not(.hidden)');
-            const activeSectionId = activeSection ? activeSection.id : 'dashboard';
-
-            // اختصار Ctrl+N لفتح فاتورة بيع جديدة في تبويب مستقل
-            if ((event.ctrlKey || event.metaKey) && (event.key === 'n' || event.key === 'N')) {
-                event.preventDefault();
-                if (typeof window.openNewBayanWindow === 'function') {
-                    window.openNewBayanWindow();
-                } else if (typeof openNewInvoiceTab === 'function') {
-                    openNewInvoiceTab('sales');
-                }
-                return;
-            }
-
-            // تجميع وتوحيد كافة الاختصارات من أقسام النظام المختلفة
-            if (event.key === 'F1') {
-                event.preventDefault();
-                if (typeof switchSection === 'function') switchSection('dashboard');
-            } else if (event.key === 'F2') {
-                event.preventDefault();
-                if (typeof switchSection === 'function') switchSection('sales');
-            } else if (event.key === 'F3') {
-                event.preventDefault();
-                if (typeof switchSection === 'function') switchSection('purchase');
-            } else if (event.key === 'F4') {
-                event.preventDefault();
-                if (activeSectionId === 'sales-section') {
-                    if (typeof printBill === 'function') printBill();
-                } else if (activeSectionId === 'purchase-section') {
-                    if (typeof printPurchaseBill === 'function') printPurchaseBill();
-                } else if (activeSectionId === 'sales-return-section') {
-                    if (typeof printReturnReceipt === 'function') printReturnReceipt('sales');
-                } else if (activeSectionId === 'purchase-return-section') {
-                    if (typeof printReturnReceipt === 'function') printReturnReceipt('purchase');
-                } else {
-                    window.print();
-                }
-            } else if (event.key === 'F6') {
-                event.preventDefault();
-                if (typeof switchSection === 'function') switchSection('settings');
-                setTimeout(() => {
-                    if (typeof openSettingsTab === 'function') openSettingsTab('business-profile');
-                }, 100);
-            } else if (event.key === 'F7') {
-                event.preventDefault();
-                if (typeof toggleCalculator === 'function') toggleCalculator();
-            } else if (event.key === 'F9') {
-                event.preventDefault();
-                const isAccountModal = !document.getElementById('newAccountModal')?.classList.contains('hidden');
-                const isItemModal = !document.getElementById('newItemModal')?.classList.contains('hidden');
-                const isTransferModal = !document.getElementById('transferModal')?.classList.contains('hidden');
-
-                if (isAccountModal) {
-                    if (typeof saveAccount === 'function') saveAccount(false);
-                } else if (isItemModal) {
-                    if (typeof saveNewItem === 'function') saveNewItem('save');
-                } else if (isTransferModal) {
-                    if (typeof processBatchTransfer === 'function') processBatchTransfer();
-                } else if (activeSectionId === 'sales-section') {
-                    if (typeof saveBill === 'function') saveBill();
-                } else if (activeSectionId === 'purchase-section') {
-                    if (typeof savePurchase === 'function') savePurchase();
-                } else if (activeSectionId === 'sales-return-section') {
-                    if (typeof saveSalesReturn === 'function') saveSalesReturn();
-                } else if (activeSectionId === 'purchase-return-section') {
-                    if (typeof savePurchaseReturn === 'function') savePurchaseReturn();
-                } else if (activeSectionId === 'receipt-section') {
-                    if (typeof saveReceipt === 'function') saveReceipt(true);
-                } else if (activeSectionId === 'disbursement-section') {
-                    if (typeof saveDisbursement === 'function') saveDisbursement(true);
-                } else if (activeSectionId === 'adjustment-section') {
-                    if (typeof saveAdjustment === 'function') saveAdjustment();
-                }
-            } else if (event.key === 'F10') {
-                event.preventDefault();
-                const isAccountModal = !document.getElementById('newAccountModal')?.classList.contains('hidden');
-                const isItemModal = !document.getElementById('newItemModal')?.classList.contains('hidden');
-
-                if (isAccountModal) {
-                    if (typeof closeNewAccountModal === 'function') closeNewAccountModal();
-                    else document.getElementById('newAccountModal').classList.add('hidden');
-                } else if (isItemModal) {
-                    if (typeof closeNewItemModal === 'function') closeNewItemModal();
-                    else document.getElementById('newItemModal').classList.add('hidden');
-                } else if (activeSectionId === 'sales-section') {
-                    if (typeof resetBill === 'function') resetBill();
-                } else if (activeSectionId === 'purchase-section') {
-                    if (typeof resetPurchase === 'function') resetPurchase();
-                } else if (activeSectionId === 'sales-return-section') {
-                    if (typeof resetReturn === 'function') resetReturn();
-                } else if (activeSectionId === 'purchase-return-section') {
-                    if (typeof resetPurReturn === 'function') resetPurReturn();
-                } else if (activeSectionId === 'receipt-section') {
-                    if (typeof resetReceipt === 'function') resetReceipt();
-                } else if (activeSectionId === 'disbursement-section') {
-                    if (typeof resetDisbursement === 'function') resetDisbursement();
-                }
-            } else if (event.key === 'F12') {
-                event.preventDefault();
-                if (activeSectionId === 'receipt-section') {
-                    if (typeof saveReceipt === 'function') saveReceipt(true);
-                } else if (activeSectionId === 'disbursement-section') {
-                    if (typeof saveDisbursement === 'function') saveDisbursement(true);
-                } else if (activeSectionId === 'adjustment-section') {
-                    if (typeof saveAdjustment === 'function') saveAdjustment();
-                }
-            }
-        });
-
-    // ================= الآلة الحاسبة الملكية (Bayan Royal Calculator Logic) =================
-    let calcExpression = "";
-    let calcHistory = [];
-    let isCalcHistoryLoaded = false; // تتبع حالة التحميل
-
-        window.executeFirstTimeSetup = async function() {
-            const name = document.getElementById('setupAdminName').value.trim();
-            const pin = document.getElementById('setupAdminPin').value.trim();
-            const pinConfirm = document.getElementById('setupAdminPinConfirm').value.trim();
-
-            if (!name) return alert("❌ يرجى إدخال اسم المدير المسؤول!");
-            if (!pin) return alert("❌ يرجى إدخال رمز المرور السري!");
-            if (pin.length < 4) return alert("❌ يجب أن يتكون رمز المرور من 4 أرقام على الأقل!");
-            if (pin !== pinConfirm) return alert("❌ رمز المرور غير متطابق!");
-
-            try {
-                // تثبيت نوع النشاط في إعدادات النظام pos_settings ليكون فاشون ومقاسات وألوان دائماً
-                let posSettings = _safeJsonParse(getStore('pos_settings'), {});
-
-                posSettings.businessType = 'clothing';
-                posSettings.enableVariantsMatrix = true;
-
-                setStore('pos_settings', JSON.stringify(posSettings));
-
-                // إضافة المستخدم الأول كأدمن مع تشفير PIN في قاعدة البيانات
-                const encPin = (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
-                    ? window.BayanSecurity.encryptPin(pin)
-                    : pin;
-                const dbUser = { id: 1, name: name, pin: encPin, role: 'admin' };
-                if (typeof db !== 'undefined' && db.users) {
-                    await db.users.put(dbUser);
-                }
-                const memUser = { id: 1, name: name, pin: pin, role: 'admin' };
-                if (!Array.isArray(users)) users = [];
-                // إزالة أي حساب سابق بنفس الاسم أو id 1
-                users = users.filter(u => u && u.id !== 1 && u.name !== name);
-                users.push(memUser);
-                window.users = users;
-
-                // 💾 حفظ فوري في قاعدة بيانات SQLite المحلية والمزامنة
-                if (typeof saveData === 'function') {
-                    await saveData('users');
-                }
-                if (window.BayanSQLite && typeof window.BayanSQLite.saveAllToSQLiteNow === 'function') {
-                    window.BayanSQLite.saveAllToSQLiteNow();
-                }
-
-                // إتمام تسجيل الدخول للمستخدم الجديد
-                const authenticatedUser = { ...memUser, warehouseName: 'المخزن الرئيسي' };
-                _setAuthenticatedSessionUser(authenticatedUser);
-                setStore('pos_session_user', JSON.stringify({ userName: name, warehouseName: 'المخزن الرئيسي' }));
-
-                // تعبئة بيانات كارت النجاح
-                document.getElementById('displayAdminName').innerText = name;
-                document.getElementById('displayAdminPin').innerText = pin;
-                const displayBizEl = document.getElementById('displayAdminBusinessType');
-                if (displayBizEl) displayBizEl.innerText = 'ملابس وأحذية وموضة 👕';
-
-                document.getElementById('currentUserDisplay').innerHTML = `<span style="opacity: 0.8;">👤</span><span>${currentUser.name} (مدير)</span>`;
-                document.getElementById('currentWarehouseName').innerText = `📦 المخزن الرئيسي`;
-
-                // إظهار نافذة النجاح
-                const successModal = document.getElementById('setupSuccessModal');
-                if (successModal) {
-                    successModal.classList.remove('hidden');
-                } else {
-                    alert("🎉 تم إنشاء حساب المالك وتفعيل نظام بَيَان بنجاح!\nالاسم: " + name + "\nرمز المرور: " + pin + "\nنوع النشاط: " + (bizNames[selectedBizType] || selectedBizType));
-                    closeSetupSuccessAndEnter();
-                }
-            } catch (e) {
-                console.error(e);
-                alert("❌ حدث خطأ أثناء تفعيل النظام!");
-            }
-        };
-
-        window.toggleSetupPassword = function(inputId, btn) {
-            const input = document.getElementById(inputId);
-            if (!input) return;
-            if (input.type === 'password') {
-                input.type = 'text';
-                input.style.letterSpacing = 'normal';
-                btn.innerText = '🙈';
-            } else {
-                input.type = 'password';
-                input.style.letterSpacing = '2px';
-                btn.innerText = '👁️';
-            }
-        };
-
-        window.downloadCredentialsImage = function() {
-            try {
-                const adminName = document.getElementById('displayAdminName')?.innerText?.trim() || document.getElementById('setupAdminName')?.value?.trim() || 'المدير المسؤول';
-                const bizType = document.getElementById('displayAdminBusinessType')?.innerText?.trim() || 'ملابس وأحذية وموضة 👕';
-                const adminPin = document.getElementById('displayAdminPin')?.innerText?.trim() || document.getElementById('setupAdminPin')?.value?.trim() || '----';
-
-                const canvas = document.createElement('canvas');
-                canvas.width = 680;
-                canvas.height = 540;
-                const ctx = canvas.getContext('2d');
-
-                // دالة مساعدة لرسم مستطيل بحواف دائرية ناعمة
-                const drawRoundedRect = (x, y, w, h, r) => {
-                    ctx.beginPath();
-                    if (ctx.roundRect) {
-                        ctx.roundRect(x, y, w, h, r);
-                    } else {
-                        ctx.moveTo(x + r, y);
-                        ctx.lineTo(x + w - r, y);
-                        ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-                        ctx.lineTo(x + w, y + h - r);
-                        ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-                        ctx.lineTo(x + r, y + h);
-                        ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-                        ctx.lineTo(x, y + r);
-                        ctx.quadraticCurveTo(x, y, x + r, y);
-                        ctx.closePath();
-                    }
-                };
-
-                // 1. خلفية متدرجة داكنة فائقة الفخامة
-                const bgGrad = ctx.createLinearGradient(0, 0, 680, 540);
-                bgGrad.addColorStop(0, '#1e293b');
-                bgGrad.addColorStop(1, '#0b1329');
-                ctx.fillStyle = bgGrad;
-                drawRoundedRect(10, 10, 660, 520, 24);
-                ctx.fill();
-
-                // 2. إطار خارجي نيون أخضر زمردي
-                ctx.lineWidth = 3;
-                ctx.strokeStyle = '#22c55e';
-                drawRoundedRect(10, 10, 660, 520, 24);
-                ctx.stroke();
-
-                // 3. الأيقونة والعناوين
-                ctx.textAlign = 'center';
-                ctx.fillStyle = '#ffffff';
-                ctx.font = '48px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
-                ctx.fillText('🎉', 340, 75);
-
-                ctx.fillStyle = '#22c55e';
-                ctx.font = 'bold 26px "Cairo", "Segoe UI", Tahoma, sans-serif';
-                ctx.fillText('تم تفعيل نظام بَيَان POS بنجاح!', 340, 120);
-
-                ctx.fillStyle = '#94a3b8';
-                ctx.font = 'bold 15px "Cairo", "Segoe UI", Tahoma, sans-serif';
-                ctx.fillText('كارت بيانات الدخول والاعتماد السري للمدير المسؤول', 340, 150);
-
-                // 4. صندوق البيانات الزجاجي الداخلي
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
-                drawRoundedRect(40, 175, 600, 240, 16);
-                ctx.fill();
-                ctx.lineWidth = 1;
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
-                drawRoundedRect(40, 175, 600, 240, 16);
-                ctx.stroke();
-
-                // خطوط تقسيم داخلية ناعمة
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.07)';
-                ctx.beginPath();
-                ctx.moveTo(60, 255);
-                ctx.lineTo(620, 255);
-                ctx.moveTo(60, 335);
-                ctx.lineTo(620, 335);
-                ctx.stroke();
-
-                // نصوص البيانات (تنسيق عربي احترافي)
-                // سطر 1: اسم المستخدم
-                ctx.textAlign = 'right';
-                ctx.fillStyle = '#94a3b8';
-                ctx.font = 'bold 17px "Cairo", "Segoe UI", Tahoma, sans-serif';
-                ctx.fillText('👤  اسم المدير المسؤول:', 600, 225);
-
-                ctx.textAlign = 'left';
-                ctx.fillStyle = '#ffffff';
-                ctx.font = '900 20px "Cairo", "Segoe UI", Tahoma, sans-serif';
-                ctx.fillText(adminName, 70, 225);
-
-                // سطر 2: نوع النشاط
-                ctx.textAlign = 'right';
-                ctx.fillStyle = '#94a3b8';
-                ctx.font = 'bold 17px "Cairo", "Segoe UI", Tahoma, sans-serif';
-                ctx.fillText('🏢  نوع النشاط التجاري:', 600, 305);
-
-                ctx.textAlign = 'left';
-                ctx.fillStyle = '#38bdf8';
-                ctx.font = 'bold 18px "Cairo", "Segoe UI", Tahoma, sans-serif';
-                ctx.fillText(bizType, 70, 305);
-
-                // سطر 3: رمز المرور PIN
-                ctx.textAlign = 'right';
-                ctx.fillStyle = '#94a3b8';
-                ctx.font = 'bold 17px "Cairo", "Segoe UI", Tahoma, sans-serif';
-                ctx.fillText('🔑  رمز المرور السري (PIN):', 600, 385);
-
-                ctx.textAlign = 'left';
-                ctx.fillStyle = '#4ade80';
-                ctx.font = '900 26px "Cairo", monospace, Tahoma, sans-serif';
-                ctx.fillText(adminPin, 70, 388);
-
-                // 5. شريط التذييل والتوثيق
-                ctx.textAlign = 'center';
-                ctx.fillStyle = '#64748b';
-                ctx.font = 'bold 13px "Cairo", "Segoe UI", Tahoma, sans-serif';
-                const todayStr = new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
-                ctx.fillText(`⚡ نظام بَيَان POS (Fashion Edition v${window.appVersion || '5.0.9'}) | تاريخ التفعيل: ${todayStr}`, 340, 460);
-
-                ctx.fillStyle = '#f59e0b';
-                ctx.font = 'bold 12px "Cairo", "Segoe UI", Tahoma, sans-serif';
-                ctx.fillText('🔒 تنبيه أمني: يرجى الاحتفاظ بهذه الصورة في مكان آمن وعدم مشاركة الرمز مع أي شخص', 340, 485);
-
-                // 6. تحميل فوري ولحظي بدون أي انتظار
-                const link = document.createElement('a');
-                const cleanName = String(adminName).replace(/[^a-zA-Z0-9\u0621-\u064A_-]/g, '_');
-                link.download = `Bayan_POS_Admin_${cleanName || 'Credentials'}.png`;
-                link.href = canvas.toDataURL('image/png');
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-
+            document.getElementById('loginUsernameInput').value = '';
+            document.getElementById('loginPinInput').value = '';
+            selectedLoginUser = null;
+
+            if (isEmergencyRescueLogin) {
                 if (typeof showToast === 'function') {
-                    showToast('✅ تم حفظ كارت بيانات الدخول كصورة فورية بنجاح!', 'success');
-                }
-                if (typeof BayanBarcode !== 'undefined' && typeof BayanBarcode.playBeep === 'function') {
-                    BayanBarcode.playBeep(true);
-                }
-            } catch (e) {
-                console.error('Canvas credentials export error:', e);
-                const card = document.getElementById('setupSuccessCard');
-                if (typeof html2canvas === 'function' && card) {
-                    html2canvas(card, { backgroundColor: '#0f172a', scale: 2 }).then(canvas => {
-                        const link = document.createElement('a');
-                        link.download = 'Bayan_POS_Credentials.png';
-                        link.href = canvas.toDataURL('image/png');
-                        link.click();
-                    });
+                    showToast("🛡️ تم تسجيل الدخول الآمن عبر كود الطوارئ المعتمد", "success");
                 }
             }
-        };
 
-        window.closeSetupSuccessAndEnter = function() {
-            const successModal = document.getElementById('setupSuccessModal');
-            if (successModal) successModal.classList.add('hidden');
-            
-            document.getElementById('loginModal').classList.add('hidden');
-            document.body.classList.remove('is-logged-out');
-            
-            // إخفاء ويدجت الخلفية
+            // إخفاء أدوات شاشة تسجيل الدخول وتنظيف مؤقت الساعة بعد النجاح في الدخول
+            if (typeof loginClockInterval !== 'undefined' && loginClockInterval) {
+                clearInterval(loginClockInterval);
+                loginClockInterval = null;
+            }
             const wpBar = document.getElementById('quickWpBar');
             const infoWidget = document.getElementById('quickInfoWidget');
             if (wpBar) wpBar.classList.add('hidden');
             if (infoWidget) infoWidget.classList.add('hidden');
 
-            switchSection('dashboard');
-            updateNotifications();
-        };
+            // الانتقال للقسم المطلوب فور جاهزية البيانات بسلاسة تامة دون تجميد
+            const proceedToTargetSection = () => {
+                const settingsObj = _safeJsonParse(getStore('pos_settings'), {});
+                const bType = settingsObj.businessType || 'clothing';
+                const shouldGoSales = (settingsObj.directToSalesOnLogin !== undefined)
+                    ? !!settingsObj.directToSalesOnLogin
+                    : (bType === 'clothing');
 
-        // ================= ربط مستمعات الفلاتر الزمنية لحفظ حالة التصفية التلقائية للأقسام =================
-        const bindDateFilterListeners = function() {
-            const configs = [
-                { type: 'invoices', periodId: 'invoicesPeriodFilter', fromId: 'invoicesDateFrom', toId: 'invoicesDateTo' },
-                { type: 'analysis', periodId: 'anPeriodFilter', fromId: 'anDateFrom', toId: 'anDateTo' },
-                { type: 'history', periodId: 'historyPeriodFilter', fromId: 'historyDateFrom', toId: 'historyDateTo' },
-                { type: 'warehouse-report', periodId: 'wrPeriodFilter', fromId: 'wrStartDate', toId: 'wrEndDate' },
-                { type: 'daily-report', periodId: 'dailyReportPeriodFilter', fromId: 'reportDateFrom', toId: 'reportDateTo' },
-                { type: 'statement', periodId: 'stmtPeriodFilter', fromId: 'stmtDateFrom', toId: 'stmtDateTo' }
-            ];
-
-            const saveState = (cfg) => {
-                const p = document.getElementById(cfg.periodId)?.value || null;
-                const f = document.getElementById(cfg.fromId)?.value || null;
-                const t = document.getElementById(cfg.toId)?.value || null;
-                if (!window.savedSectionDateFilters) window.savedSectionDateFilters = {};
-                window.savedSectionDateFilters[cfg.type] = { periodFilter: p, dateFrom: f, dateTo: t };
+                if (shouldGoSales && typeof switchSection === 'function') {
+                    switchSection('sales');
+                    setTimeout(() => {
+                        const searchEl = document.getElementById('itemSearch') || document.getElementById('salesSearch');
+                        if (searchEl) searchEl.focus();
+                    }, 100);
+                } else if (typeof switchSection === 'function') {
+                    switchSection('dashboard');
+                }
+                if (typeof applyPermissions === 'function') applyPermissions();
+                if (typeof updateDashboardPermissions === 'function') updateDashboardPermissions();
+                setTimeout(() => {
+                    if (typeof updateNotifications === 'function') updateNotifications();
+                }, 800);
             };
 
-            configs.forEach(cfg => {
-                [cfg.periodId, cfg.fromId, cfg.toId].forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) {
-                        el.addEventListener('change', () => saveState(cfg));
-                    }
-                });
-            });
-        };
+            // ⚡ انتقال فوري مباشر للواجهة الرئيسية أو نقطة البيع في أجزاء من الثانية (0ms)
+            proceedToTargetSection();
 
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', bindDateFilterListeners);
+            // 🚀 تشغيل محرك البيانات بالخلفية إن لم يكن بدأ بالفعل بهدوء
+            if (typeof window.startDataLoader === 'function') {
+                setTimeout(() => window.startDataLoader(), 50);
+            }
         } else {
-            bindDateFilterListeners();
+            failedLoginAttempts++;
+            if (failedLoginAttempts >= 5) {
+                const lockoutUntil = Date.now() + 45000; // قفل مؤقت 45 ثانية وحفظه بالقرص
+                setLoginLockoutState(lockoutUntil, 0);
+                const lockoutMsg = "⏳ تم قفل محاولات الدخول مؤقتاً لمدة 45 ثانية بسبب إدخال رمز PIN غير صحيح 5 مرات متتالية!";
+                if (errorMsgEl) {
+                    errorMsgEl.innerText = lockoutMsg;
+                    errorMsgEl.style.display = 'block';
+                } else {
+                    alert(lockoutMsg);
+                }
+            } else {
+                setLoginLockoutState(0, failedLoginAttempts);
+                const remaining = 5 - failedLoginAttempts;
+                const failMsg = `❌ رمز المرور غير صحيح! (متبقي ${remaining} محاولات قبل القفل المؤقت)`;
+                if (errorMsgEl) {
+                    errorMsgEl.innerText = failMsg;
+                    errorMsgEl.style.display = 'block';
+                } else {
+                    alert(failMsg);
+                }
+            }
+            document.getElementById('loginPinInput').value = '';
+        }
+    } catch (err) {
+        console.error("Error during attemptLogin:", err);
+        const errorMsgEl = document.getElementById('loginErrorMsg');
+        if (errorMsgEl) {
+            errorMsgEl.innerText = "❌ حدث خطأ غير متوقع أثناء تسجيل الدخول!";
+            errorMsgEl.style.display = 'block';
+        }
+    }
+}
+
+// =========================================================================
+// 💾 النسخ الاحتياطي الطارئ المباشر من شاشة تسجيل الدخول
+// =========================================================================
+window.executeLoginEmergencyBackup = async function () {
+    const card = document.getElementById('loginEmergencyBackupCard');
+    const title = document.getElementById('loginBackupTitle');
+    const iconBox = document.getElementById('loginBackupIconBox');
+
+    // تغيير الحالة المرئية أثناء التجهيز
+    if (card) {
+        card.style.pointerEvents = 'none';
+        card.style.opacity = '0.75';
+    }
+    if (title) {
+        title.innerHTML = '<span>جاري إنشاء النسخة... ⏳</span>';
+    }
+    if (iconBox) {
+        iconBox.innerHTML = '🔄';
+    }
+
+    try {
+        let success = false;
+        if (typeof window.executeAutoBackupToFile === 'function') {
+            // تشغيل النسخ الاحتياطي اليدوي الكامل (يحفظ في مجلد النظام وينزل الملف للمتصفح)
+            success = await window.executeAutoBackupToFile(false, true);
+        } else if (typeof backupData === 'function') {
+            await backupData();
+            success = true;
         }
 
-        // =========================================================================
-        // 🔑 استعادة وإصلاح رمز المدير المسؤول في حالات الطوارئ (Emergency Reset Engine)
-        // =========================================================================
-        window.emergencyResetAdminPinPrompt = async function() {
-            const confirmMsg = "🔑 هل ترغب في إعادة ضبط رمز المدير المسؤول وتعيينه إلى (1234) للدخول فوراً؟\n\n(سيتم فك القفل وتعيين الرمز إلى 1234 لتتمكن من الدخول وتغييره لاحقاً من قسم الإعدادات)";
-            let confirmed = false;
-            if (typeof showCustomConfirm === 'function') {
-                confirmed = await new Promise(res => {
-                    showCustomConfirm({
-                        titleText: '🔑 استعادة حساب المدير المسؤول',
-                        msg: confirmMsg,
-                        confirmBtnText: 'نعم، تعيين إلى 1234',
-                        cancelBtnText: 'إلغاء',
-                        onConfirm: () => res(true),
-                        onCancel: () => res(false)
-                    });
-                });
-            } else {
-                confirmed = confirm(confirmMsg);
+        if (typeof showToast === 'function') {
+            showToast("✅ تم حفظ وتأمين النسخة الاحتياطية بنجاح على جهازك!", "success");
+        }
+    } catch (err) {
+        console.error("Login emergency backup error:", err);
+        if (typeof showToast === 'function') {
+            showToast("❌ تعذر إتمام النسخ الاحتياطي، يرجى المحاولة مرة أخرى.", "error");
+        }
+    } finally {
+        setTimeout(() => {
+            if (card) {
+                card.style.pointerEvents = 'auto';
+                card.style.opacity = '1';
             }
-            
-            if (!confirmed) return;
-            
-            try {
-                if (typeof setLoginLockoutState === 'function') {
-                    setLoginLockoutState(0, 0);
+            if (title) {
+                title.innerHTML = '<span>نسخة احتياطية سريعة</span><span id="loginBackupArrow" class="login-backup-arrow">⬇️</span>';
+            }
+            if (iconBox) {
+                iconBox.innerHTML = '💾';
+            }
+        }, 1000);
+    }
+};
+
+// تنبيه ذكي لتوجيه المستخدم لأخذ نسخة احتياطية في حال توفر تحديث جديد للنظام
+window.notifyLoginBackupForUpdate = function (newVer) {
+    const card = document.getElementById('loginEmergencyBackupCard');
+    const sub = document.getElementById('loginBackupSubtitle');
+    const tag = document.getElementById('loginBackupTag');
+    if (card) {
+        card.classList.add('login-backup-updating');
+    }
+    if (sub) {
+        sub.innerHTML = `<b style="color: #fde047;">تحديث متوفر (v${newVer || ''})! احفظ بياناتك الآن</b>`;
+    }
+    if (tag) {
+        tag.innerText = "هام ⚠️";
+        tag.style.background = "rgba(234, 179, 8, 0.25)";
+        tag.style.borderColor = "#eab308";
+        tag.style.color = "#facc15";
+    }
+    // إظهار كارت التحديث المباشر المخصص بشاشة تسجيل الدخول
+    if (typeof window.showLoginUpdateCard === 'function') {
+        window.showLoginUpdateCard(newVer);
+    }
+};
+
+// =========================================================================
+// 📥 استرداد نسخة احتياطية طارئ مباشر من شاشة تسجيل الدخول (يفتح مجلد النسخ في Roaming مباشرة)
+// =========================================================================
+window.triggerLoginEmergencyRestore = async function () {
+    let ipc = null;
+    try {
+        if (typeof window !== 'undefined' && window.require) {
+            ipc = window.require('electron').ipcRenderer;
+        } else if (typeof require !== 'undefined') {
+            ipc = require('electron').ipcRenderer;
+        }
+    } catch (e) { }
+
+    if (ipc) {
+        const card = document.getElementById('loginEmergencyRestoreCard');
+        const title = document.getElementById('loginRestoreTitle');
+        if (card) {
+            card.style.pointerEvents = 'none';
+            card.style.opacity = '0.85';
+        }
+        if (title) {
+            title.innerHTML = '<span>جاري فتح مجلد النسخ الاحتياطية... 📁</span>';
+        }
+
+        try {
+            const res = await ipc.invoke('select-backup-file');
+            if (!res || res.canceled) {
+                if (typeof window.resetLoginEmergencyRestoreCard === 'function') {
+                    window.resetLoginEmergencyRestoreCard();
                 }
-                const targetDb = window.db || window.bayanDB;
-                let adminUser = (window.users && Array.isArray(window.users)) 
-                    ? window.users.find(u => u && (u.role === 'admin' || u.id === 1 || u.id === '1'))
-                    : null;
-                    
-                if (!adminUser && targetDb && targetDb.users) {
-                    const allU = await targetDb.users.toArray().catch(() => []);
-                    adminUser = allU.find(u => u && (u.role === 'admin' || u.id === 1 || u.id === '1'));
+                return;
+            }
+            if (res.error) {
+                if (typeof window.resetLoginEmergencyRestoreCard === 'function') {
+                    window.resetLoginEmergencyRestoreCard();
                 }
-                
-                const encP = (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
-                    ? window.BayanSecurity.encryptPin('1234')
-                    : '1234';
-                    
-                if (adminUser) {
-                    adminUser.pin = '1234';
-                    if (targetDb && targetDb.users) {
-                        await targetDb.users.put({ ...adminUser, pin: encP });
+                return alert("❌ خطأ في فتح الملف: " + res.error);
+            }
+
+            const sizeMb = res.fileSize ? (res.fileSize / (1024 * 1024)).toFixed(1) : '0';
+            if (title) {
+                title.innerHTML = `<span>جاري قراءة النسخة (${sizeMb} MB)... ⏳</span>`;
+            }
+            const sub = document.getElementById('loginRestoreSubtitle');
+            if (sub && parseFloat(sizeMb) > 10) {
+                sub.innerHTML = `ملف كبير (${sizeMb} MB)، جاري القراءة والتحليل...`;
+            }
+
+            if (typeof window.restoreDataFromContent === 'function') {
+                return await window.restoreDataFromContent(res.content, res.fileName, true, null);
+            } else if (typeof restoreDataFromContent === 'function') {
+                return await restoreDataFromContent(res.content, res.fileName, true, null);
+            }
+        } catch (e) {
+            console.warn("Fallback to file input in login restore:", e);
+            if (typeof window.resetLoginEmergencyRestoreCard === 'function') {
+                window.resetLoginEmergencyRestoreCard();
+            }
+        }
+    }
+
+    const input = document.getElementById('loginEmergencyRestoreInput');
+    if (input) {
+        input.value = '';
+        input.click();
+    }
+};
+
+window.resetLoginEmergencyRestoreCard = function () {
+    const card = document.getElementById('loginEmergencyRestoreCard');
+    const title = document.getElementById('loginRestoreTitle');
+    const iconBox = document.getElementById('loginRestoreIconBox');
+    const input = document.getElementById('loginEmergencyRestoreInput');
+    if (input) input.value = '';
+    if (card) {
+        card.style.pointerEvents = 'auto';
+        card.style.opacity = '1';
+    }
+    if (title) {
+        title.innerHTML = '<span>استرداد نسخة احتياطية</span><span id="loginRestoreArrow" class="login-restore-arrow">🔄</span>';
+    }
+    if (iconBox) {
+        iconBox.innerHTML = '📥';
+    }
+};
+
+window.executeLoginEmergencyRestore = async function (input) {
+    if (!input || !input.files || input.files.length === 0) return;
+    const card = document.getElementById('loginEmergencyRestoreCard');
+    const title = document.getElementById('loginRestoreTitle');
+    const iconBox = document.getElementById('loginRestoreIconBox');
+
+    const file = input.files[0];
+    const sizeMb = file ? (file.size / (1024 * 1024)).toFixed(1) : 0;
+
+    if (card) {
+        card.style.pointerEvents = 'none';
+        card.style.opacity = '0.85';
+    }
+    if (title) {
+        title.innerHTML = `<span>جاري قراءة النسخة (${sizeMb} MB)... ⏳</span>`;
+    }
+    const sub = document.getElementById('loginRestoreSubtitle');
+    if (sub && sizeMb > 10) {
+        sub.innerHTML = `ملف كبير (${sizeMb} MB)، جاري القراءة والتحليل...`;
+    }
+    if (iconBox) {
+        iconBox.innerHTML = '🔄';
+    }
+
+    try {
+        if (typeof restoreData === 'function') {
+            await restoreData(input, true); // true = isEmergencyBypass
+        } else if (typeof window.restoreData === 'function') {
+            await window.restoreData(input, true);
+        } else {
+            alert("❌ محرك استعادة البيانات غير جاهز، يرجى المحاولة بعد قليل.");
+            window.resetLoginEmergencyRestoreCard();
+        }
+    } catch (err) {
+        console.error("Emergency restore error:", err);
+        window.resetLoginEmergencyRestoreCard();
+    }
+};
+
+// =========================================================================
+// 💳 محرك تسجيل الدخول الفوري بكروت NFC / RFID
+// =========================================================================
+function attemptNfcLogin(cardUid) {
+    if (!cardUid) return false;
+    const uid = String(cardUid).trim();
+    if (!uid) return false;
+
+    // البحث عن الموظف المرتبط بهذا الكارت
+    const foundUser = (typeof users !== 'undefined' && Array.isArray(users))
+        ? users.find(u => u.nfcUid && String(u.nfcUid).trim().toLowerCase() === uid.toLowerCase())
+        : null;
+
+    const errorMsgEl = document.getElementById('loginErrorMsg');
+
+    if (!foundUser) {
+        if (errorMsgEl) {
+            errorMsgEl.innerText = `❌ كارت NFC (${uid}) غير مسجل لأي موظف بالنظام!`;
+            errorMsgEl.style.display = 'block';
+        }
+        if (typeof showToast === 'function') showToast(`❌ كارت NFC غير مسجل: ${uid}`, 'error');
+        return false;
+    }
+
+    if (foundUser.isFrozen) {
+        const frozenMsg = `🚫 تم تجميد حساب الموظف (${foundUser.name}) من قبل مدير النظام. يرجى مراجعته.`;
+        if (errorMsgEl) {
+            errorMsgEl.innerText = frozenMsg;
+            errorMsgEl.style.display = 'block';
+        }
+        if (typeof showCustomAlert === 'function') {
+            showCustomAlert({
+                type: 'error',
+                titleText: '❄️ الحساب مجمّد',
+                msg: frozenMsg
+            });
+        }
+        return false;
+    }
+
+    let whName = 'المخزن الرئيسي';
+    const isWhLockedNfc = (foundUser.role !== 'admin' && !foundUser.isAdmin) && (
+        (foundUser.lockWarehouseSwitching !== undefined)
+            ? !!foundUser.lockWarehouseSwitching
+            : ((foundUser.permissions && foundUser.permissions.stock && foundUser.permissions.stock.lockWarehouseSwitching !== undefined)
+                ? !!foundUser.permissions.stock.lockWarehouseSwitching
+                : true)
+    );
+
+    if (isWhLockedNfc) {
+        // 🔒 أمان صارم: فرض المخزن المصرح به للموظف عند الدخول بكارت NFC
+        whName = (foundUser.assignedWarehouse && foundUser.assignedWarehouse.trim())
+            ? foundUser.assignedWarehouse.trim()
+            : 'المخزن الرئيسي';
+    } else {
+        whName = (document.getElementById('loginWarehouseSelect') && document.getElementById('loginWarehouseSelect').value)
+            || (foundUser.assignedWarehouse && foundUser.assignedWarehouse.trim())
+            || 'المخزن الرئيسي';
+    }
+    if (typeof setStore === 'function') {
+        setStore('bayan_terminal_warehouse', whName);
+    }
+
+    const authenticatedUser = { ...foundUser, warehouseName: whName };
+    _setAuthenticatedSessionUser(authenticatedUser);
+    if (typeof setStore === 'function') {
+        setStore('pos_session_user', JSON.stringify({ userName: foundUser.name, warehouseName: whName }));
+    }
+
+    const loginModal = document.getElementById('loginModal');
+    if (loginModal) loginModal.classList.add('hidden');
+    document.body.classList.remove('is-logged-out');
+
+    const userDisplay = document.getElementById('currentUserDisplay');
+    if (userDisplay) {
+        userDisplay.innerHTML = `<span style="opacity: 0.8;">👤</span><span>${currentUser.name} (${currentUser.role === 'admin' ? 'مدير' : 'موظف'})</span>`;
+    }
+    const whDisplay = document.getElementById('currentWarehouseName');
+    if (whDisplay) whDisplay.innerText = `📦 ${whName}`;
+    if (typeof window.updateHeaderWarehouseSelect === 'function') window.updateHeaderWarehouseSelect();
+
+    if (document.getElementById('loginUsernameInput')) document.getElementById('loginUsernameInput').value = '';
+    if (document.getElementById('loginPinInput')) document.getElementById('loginPinInput').value = '';
+
+    const wpBar = document.getElementById('quickWpBar');
+    const infoWidget = document.getElementById('quickInfoWidget');
+    if (wpBar) wpBar.classList.add('hidden');
+    if (infoWidget) infoWidget.classList.add('hidden');
+
+    const settingsObjNfc = _safeJsonParse(getStore('pos_settings'), {});
+    const bTypeNfc = settingsObjNfc.businessType || 'clothing';
+    const shouldGoSalesNfc = (settingsObjNfc.directToSalesOnLogin !== undefined)
+        ? !!settingsObjNfc.directToSalesOnLogin
+        : (bTypeNfc === 'clothing');
+
+    if (shouldGoSalesNfc && typeof switchSection === 'function') {
+        switchSection('sales');
+        setTimeout(() => {
+            const searchEl = document.getElementById('itemSearch') || document.getElementById('salesSearch');
+            if (searchEl) searchEl.focus();
+        }, 250);
+    } else if (typeof switchSection === 'function') {
+        switchSection('dashboard');
+    }
+    if (typeof applyPermissions === 'function') applyPermissions();
+    if (typeof updateDashboardPermissions === 'function') updateDashboardPermissions();
+    if (typeof updateNotifications === 'function') updateNotifications();
+
+    if (typeof showToast === 'function') showToast(`💳 أهلاً بك: ${currentUser.name} (تم الدخول بكارت NFC ✨)`, 'success');
+    if (typeof logAuditAction === 'function') logAuditAction('تسجيل دخول NFC', `الموظف: ${currentUser.name}, UID: ${uid}`);
+    return true;
+}
+
+// دالة فتح نافذة تسجيل الدخول السريع بكارت NFC
+function openQuickNfcLoginModal() {
+    const modal = document.getElementById('nfcRegistrationModal');
+    if (!modal) return;
+
+    // تغيير النصوص لتكون مخصصة لتسجيل الدخول
+    const titleEl = modal.querySelector('h3');
+    const descEl = modal.querySelector('p');
+    const inputEl = document.getElementById('nfcManualUidInput');
+    const confirmBtn = modal.querySelector('button[onclick*="saveManualNfcUid"]');
+
+    if (titleEl) titleEl.innerText = "⚡ الدخول الفوري بكارت NFC";
+    if (descEl) descEl.innerText = "مرر كارت الموظف أمام قارئ الجهاز الآن، أو اكتب رمز الكارت ثم اضغط دخول.";
+    if (inputEl) {
+        inputEl.value = '';
+        inputEl.placeholder = "مرر الكارت أو اكتب UID هنا...";
+    }
+
+    modal.classList.remove('hidden');
+    modal.style.display = 'flex';
+    setTimeout(() => { if (inputEl) inputEl.focus(); }, 150);
+}
+
+window.openQuickNfcLoginModal = openQuickNfcLoginModal;
+let nfcGlobalBuffer = '';
+let lastNfcKeyTimestamp = 0;
+
+window.addEventListener('keydown', (e) => {
+    const currentTime = Date.now();
+    const isLoginOpen = document.getElementById('loginModal') && !document.getElementById('loginModal').classList.contains('hidden');
+    const isNfcModalOpen = document.getElementById('nfcRegistrationModal') && !document.getElementById('nfcRegistrationModal').classList.contains('hidden');
+
+    // إذا كان المستخدم يكتب ببطء شديد يتم تصفير البافر (لقراءة الكروت السريعة من القارئ)
+    if (currentTime - lastNfcKeyTimestamp > 120) {
+        nfcGlobalBuffer = '';
+    }
+    lastNfcKeyTimestamp = currentTime;
+
+    if (e.key === 'Enter') {
+        if (nfcGlobalBuffer.length >= 3) {
+            const scannedUid = nfcGlobalBuffer.trim();
+            nfcGlobalBuffer = '';
+
+            // 1. إذا كانت نافذة تسجيل كارت موظف مفتوحة
+            if (isNfcModalOpen || window.isListeningForNfcRegistration) {
+                e.preventDefault();
+                if (typeof saveManualNfcUid === 'function') saveManualNfcUid(scannedUid);
+                return;
+            }
+
+            // 2. إذا كانت شاشة تسجيل الدخول مفتوحة
+            if (isLoginOpen) {
+                e.preventDefault();
+                attemptNfcLogin(scannedUid);
+                return;
+            }
+        }
+        nfcGlobalBuffer = '';
+        return;
+    }
+
+    if (e.key && e.key.length === 1) {
+        nfcGlobalBuffer += e.key;
+    }
+}, true);
+
+function logout() {
+    const unsaved = (typeof window.checkUnsavedDataInAllTabs === 'function')
+        ? window.checkUnsavedDataInAllTabs()
+        : null;
+
+    if (unsaved && unsaved.hasUnsaved) {
+        // التنقل والرجوع التلقائي للتبويب المعلق
+        switchSection(unsaved.tabType, true, unsaved.tabId);
+
+        if (typeof showCustomAlert === 'function') {
+            showCustomAlert({
+                titleText: '⚠️ تنبيه أمان: بيانات غير محفوظة!',
+                msg: `تنبيه: لا يمكن تسجيل الخروج لأن هناك بيانات غير محفوظة في (${unsaved.tabLabel}).\n\n📌 السبب: ${unsaved.reason}.\n\nيرجى حفظ الفاتورة/المستند أولاً أو إفراغ البيانات قبل تسجيل الخروج.`,
+                type: 'warning'
+            });
+        } else {
+            alert(`⚠️ تنبيه أمان: توجد بيانات غير محفوظة في (${unsaved.tabLabel}).\n${unsaved.reason}.\n\nيرجى حفظ البيانات أولاً.`);
+        }
+        return;
+    }
+
+    performLogout();
+}
+
+async function performLogout() {
+    const settings = _safeJsonParse(getStore('pos_settings'), {});
+    const isAutoBackupEnabled = (settings.autoBackup === true || settings.autoBackup === 'true');
+    if (isAutoBackupEnabled) {
+        if (typeof window.executeAutoBackupToFile === 'function') {
+            await window.executeAutoBackupToFile(false);
+        }
+    }
+
+    // ✅ أمان صارم: تفريغ وإغلاق كافة التبويبات المفتوحة فوراً لمنع تسريب بيانات المدير للموظفين
+    if (typeof window.resetAllTabsForLogout === 'function') {
+        window.resetAllTabsForLogout();
+    }
+
+    // 🧹 تنظيف الذاكرة الفوري عند تسجيل الخروج لاستعادة نشاط ورامات الجهاز للوردية القادمة
+    if (typeof window.bayanTriggerMemoryPurge === 'function') {
+        window.bayanTriggerMemoryPurge();
+    }
+
+    _setAuthenticatedSessionUser(null);
+    removeStore('pos_session_user');
+    document.body.classList.add('is-logged-out'); // إخفاء كافة العناصر
+    document.querySelectorAll('[data-perm]').forEach(t => t.style.display = '');
+    document.getElementById('loginModal').classList.remove('hidden');
+    initLogin();
+}
+
+/**
+ * تحديث ظهور العناصر في لوحة التحكم بناءً على الصلاحيات
+ */
+function updateDashboardPermissions() {
+    if (typeof applyPermissions === 'function') {
+        applyPermissions();
+    }
+    const tiles = document.querySelectorAll('[data-perm]');
+    tiles.forEach(tile => {
+        const perm = tile.getAttribute('data-perm');
+        if (typeof hasPermission === 'function' && hasPermission(perm)) {
+            tile.style.display = '';
+        } else {
+            tile.style.display = 'none';
+        }
+    });
+}
+window.updateDashboardPermissions = updateDashboardPermissions;
+
+// Consolidated Wallpaper Function (Moved to line 1392)
+
+// --- نظام اختصارات الكيبورد الموحد (Unified Global Keyboard Shortcuts) ---
+window.addEventListener('keydown', function (event) {
+    // 0. التنقل السريع بين الأصناف بـ Ctrl + السهم (داخل كارت الصنف)
+    const itemModal = document.getElementById('newItemModal');
+    if (itemModal && !itemModal.classList.contains('hidden') && event.ctrlKey) {
+        if (event.key === 'ArrowRight') {
+            event.preventDefault();
+            if (typeof navigateProduct === 'function') navigateProduct(1);
+            return;
+        } else if (event.key === 'ArrowLeft') {
+            event.preventDefault();
+            if (typeof navigateProduct === 'function') navigateProduct(-1);
+            return;
+        }
+    }
+
+    // 1. منطق زر ESC الذكي (إغلاق النوافذ أو الأقسام)
+    if (event.key === 'Escape') {
+        // فحص النوافذ المنبثقة المفتوحة والظاهرة فعلياً (Modals & Menus) لإغلاقها
+        const modals = [
+            'royalCalculator', 'confirmModal', 'alertModal', 'newItemModal', 'newAccountModal',
+            'quickNavModal', 'profitModal', 'priceAdjustmentModal',
+            'wallpaperMenu', 'subscriptionModal', 'cloudRegistrationModal',
+            'transferModal', 'loginModal', 'searchInvoiceModal', 'selectReturnItemsModal',
+            'statementModal', 'dailyReportModal', 'inventoryModal', 'permissionsModal',
+            'unitSelectionModal', 'invoiceShareMenu', 'stmtShareMenu',
+            'salesInvoiceShareMenu', 'salesShareMenu', 'purShareMenu', 'invoiceItemsModal',
+            'trashModal', 'backupModal', 'settingsModal', 'expenseModal', 'revenueModal',
+            'userFormCard'
+        ];
+
+        let modalClosed = false;
+        for (const modalId of modals) {
+            const el = document.getElementById(modalId);
+            // فحص دقيق: هل العنصر موجود، وهل هو ظاهر فعلياً للمستخدم؟
+            if (el && (el.offsetWidth > 0 || el.offsetHeight > 0 || el.classList.contains('visible'))) {
+                if (!el.classList.contains('hidden') && getComputedStyle(el).display !== 'none' && getComputedStyle(el).visibility !== 'hidden') {
+
+                    // إغلاق المودال مع مراعاة الحالة الخاصة لمنع إغلاق شاشة الدخول الإجبارية
+                    if (modalId === 'loginModal') return;
+
+                    if (modalId === 'royalCalculator') {
+                        if (typeof toggleCalculator === 'function') toggleCalculator();
                     }
-                    if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
-                        try {
-                            window.BayanSQLite.nativeDb.prepare("UPDATE users SET pin = ? WHERE id = ? OR name = ?;").run(encP, adminUser.id, adminUser.name);
-                        } catch(e) {}
+                    else if (modalId === 'confirmModal') {
+                        if (typeof hideCloseWarning === 'function') hideCloseWarning();
+                        else el.classList.add('hidden');
                     }
-                    if (Array.isArray(window.users)) {
-                        window.users = window.users.map(u => (u.id === adminUser.id ? { ...u, pin: '1234' } : u));
-                        if (typeof users !== 'undefined') users = window.users;
+                    else if (modalId === 'alertModal') {
+                        if (typeof closeCustomAlert === 'function') closeCustomAlert();
+                        else el.classList.add('hidden');
                     }
-                    const uSelect = document.getElementById('loginUsernameInput');
-                    if (uSelect) uSelect.value = adminUser.name;
-                } else {
-                    if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
-                        try {
-                            window.BayanSQLite.nativeDb.prepare("UPDATE users SET pin = ? WHERE role = 'admin' OR id = 1;").run(encP);
-                        } catch(e) {}
+                    else if (modalId === 'wallpaperMenu' || modalId.includes('ShareMenu') || modalId === 'subscriptionModal') {
+                        el.classList.remove('visible');
+                        el.classList.add('hidden');
                     }
+                    else if (modalId === 'userFormCard') {
+                        if (typeof hideUserFormCard === 'function') hideUserFormCard();
+                        else {
+                            el.classList.add('hidden');
+                            el.style.setProperty('display', 'none', 'important');
+                        }
+                    }
+                    else el.classList.add('hidden');
+
+                    modalClosed = true;
+                    break;
                 }
-                
-                const pinInput = document.getElementById('loginPinInput');
-                if (pinInput) {
-                    pinInput.value = '1234';
-                    pinInput.focus();
-                }
-                const errEl = document.getElementById('loginErrorMsg');
-                if (errEl) errEl.style.display = 'none';
-                
-                if (typeof showToast === 'function') {
-                    showToast('✅ تم ضبط رمز المدير المسؤول إلى (1234) بنجاح. اضغط تسجيل الدخول!', 'success');
-                } else {
-                    alert('✅ تم ضبط رمز المدير المسؤول إلى (1234) بنجاح. يمكنك تسجيل الدخول الآن!');
-                }
-            } catch(e) {
-                console.error("Emergency reset error:", e);
-                alert("حدث خطأ أثناء استعادة الرمز: " + e.message);
+            }
+        }
+
+        if (modalClosed) return;
+
+        // إذا لم يكن هناك مودال مفتوح، نقوم بإغلاق التبويب النشط (القسم الحالي)
+        if (typeof activeTabId !== 'undefined' && activeTabId && activeTabId !== 'dashboard') {
+            if (typeof closeTab === 'function') {
+                closeTab(activeTabId);
+                event.preventDefault();
+            }
+        }
+        return;
+    }
+
+    // --- أزرار الاختصارات الوظيفية (F-Keys) ---
+    if (!currentUser) return; // منع الاختصارات قبل تسجيل الدخول
+
+    // الحصول على القسم النشط حالياً لضمان توجيه الاختصار للمكان الصحيح
+    const activeSection = document.querySelector('.section-view:not(.hidden)');
+    const activeSectionId = activeSection ? activeSection.id : 'dashboard';
+
+    // اختصار Ctrl+N لفتح فاتورة بيع جديدة في تبويب مستقل
+    if ((event.ctrlKey || event.metaKey) && (event.key === 'n' || event.key === 'N')) {
+        event.preventDefault();
+        if (typeof window.openNewBayanWindow === 'function') {
+            window.openNewBayanWindow();
+        } else if (typeof openNewInvoiceTab === 'function') {
+            openNewInvoiceTab('sales');
+        }
+        return;
+    }
+
+    // تجميع وتوحيد كافة الاختصارات من أقسام النظام المختلفة
+    if (event.key === 'F1') {
+        event.preventDefault();
+        if (typeof switchSection === 'function') switchSection('dashboard');
+    } else if (event.key === 'F2') {
+        event.preventDefault();
+        if (typeof switchSection === 'function') switchSection('sales');
+    } else if (event.key === 'F3') {
+        event.preventDefault();
+        if (typeof switchSection === 'function') switchSection('purchase');
+    } else if (event.key === 'F4') {
+        event.preventDefault();
+        if (activeSectionId === 'sales-section') {
+            if (typeof printBill === 'function') printBill();
+        } else if (activeSectionId === 'purchase-section') {
+            if (typeof printPurchaseBill === 'function') printPurchaseBill();
+        } else if (activeSectionId === 'sales-return-section') {
+            if (typeof printReturnReceipt === 'function') printReturnReceipt('sales');
+        } else if (activeSectionId === 'purchase-return-section') {
+            if (typeof printReturnReceipt === 'function') printReturnReceipt('purchase');
+        } else {
+            window.print();
+        }
+    } else if (event.key === 'F6') {
+        event.preventDefault();
+        if (typeof switchSection === 'function') switchSection('settings');
+        setTimeout(() => {
+            if (typeof openSettingsTab === 'function') openSettingsTab('business-profile');
+        }, 100);
+    } else if (event.key === 'F7') {
+        event.preventDefault();
+        if (typeof toggleCalculator === 'function') toggleCalculator();
+    } else if (event.key === 'F9') {
+        event.preventDefault();
+        const isAccountModal = !document.getElementById('newAccountModal')?.classList.contains('hidden');
+        const isItemModal = !document.getElementById('newItemModal')?.classList.contains('hidden');
+        const isTransferModal = !document.getElementById('transferModal')?.classList.contains('hidden');
+
+        if (isAccountModal) {
+            if (typeof saveAccount === 'function') saveAccount(false);
+        } else if (isItemModal) {
+            if (typeof saveNewItem === 'function') saveNewItem('save');
+        } else if (isTransferModal) {
+            if (typeof processBatchTransfer === 'function') processBatchTransfer();
+        } else if (activeSectionId === 'sales-section') {
+            if (typeof saveBill === 'function') saveBill();
+        } else if (activeSectionId === 'purchase-section') {
+            if (typeof savePurchase === 'function') savePurchase();
+        } else if (activeSectionId === 'sales-return-section') {
+            if (typeof saveSalesReturn === 'function') saveSalesReturn();
+        } else if (activeSectionId === 'purchase-return-section') {
+            if (typeof savePurchaseReturn === 'function') savePurchaseReturn();
+        } else if (activeSectionId === 'receipt-section') {
+            if (typeof saveReceipt === 'function') saveReceipt(true);
+        } else if (activeSectionId === 'disbursement-section') {
+            if (typeof saveDisbursement === 'function') saveDisbursement(true);
+        } else if (activeSectionId === 'adjustment-section') {
+            if (typeof saveAdjustment === 'function') saveAdjustment();
+        }
+    } else if (event.key === 'F10') {
+        event.preventDefault();
+        const isAccountModal = !document.getElementById('newAccountModal')?.classList.contains('hidden');
+        const isItemModal = !document.getElementById('newItemModal')?.classList.contains('hidden');
+
+        if (isAccountModal) {
+            if (typeof closeNewAccountModal === 'function') closeNewAccountModal();
+            else document.getElementById('newAccountModal').classList.add('hidden');
+        } else if (isItemModal) {
+            if (typeof closeNewItemModal === 'function') closeNewItemModal();
+            else document.getElementById('newItemModal').classList.add('hidden');
+        } else if (activeSectionId === 'sales-section') {
+            if (typeof resetBill === 'function') resetBill();
+        } else if (activeSectionId === 'purchase-section') {
+            if (typeof resetPurchase === 'function') resetPurchase();
+        } else if (activeSectionId === 'sales-return-section') {
+            if (typeof resetReturn === 'function') resetReturn();
+        } else if (activeSectionId === 'purchase-return-section') {
+            if (typeof resetPurReturn === 'function') resetPurReturn();
+        } else if (activeSectionId === 'receipt-section') {
+            if (typeof resetReceipt === 'function') resetReceipt();
+        } else if (activeSectionId === 'disbursement-section') {
+            if (typeof resetDisbursement === 'function') resetDisbursement();
+        }
+    } else if (event.key === 'F12') {
+        event.preventDefault();
+        if (activeSectionId === 'receipt-section') {
+            if (typeof saveReceipt === 'function') saveReceipt(true);
+        } else if (activeSectionId === 'disbursement-section') {
+            if (typeof saveDisbursement === 'function') saveDisbursement(true);
+        } else if (activeSectionId === 'adjustment-section') {
+            if (typeof saveAdjustment === 'function') saveAdjustment();
+        }
+    }
+});
+
+// ================= الآلة الحاسبة الملكية (Bayan Royal Calculator Logic) =================
+let calcExpression = "";
+let calcHistory = [];
+let isCalcHistoryLoaded = false; // تتبع حالة التحميل
+
+window.executeFirstTimeSetup = async function () {
+    const name = document.getElementById('setupAdminName').value.trim();
+    const pin = document.getElementById('setupAdminPin').value.trim();
+    const pinConfirm = document.getElementById('setupAdminPinConfirm').value.trim();
+
+    if (!name) return alert("❌ يرجى إدخال اسم المدير المسؤول!");
+    if (!pin) return alert("❌ يرجى إدخال رمز المرور السري!");
+    if (pin.length < 4) return alert("❌ يجب أن يتكون رمز المرور من 4 أرقام على الأقل!");
+    if (pin !== pinConfirm) return alert("❌ رمز المرور غير متطابق!");
+
+    try {
+        // تثبيت نوع النشاط في إعدادات النظام pos_settings ليكون فاشون ومقاسات وألوان دائماً
+        let posSettings = _safeJsonParse(getStore('pos_settings'), {});
+
+        posSettings.businessType = 'clothing';
+        posSettings.enableVariantsMatrix = true;
+
+        setStore('pos_settings', JSON.stringify(posSettings));
+
+        // إضافة المستخدم الأول كأدمن مع تشفير PIN في قاعدة البيانات
+        const encPin = (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
+            ? window.BayanSecurity.encryptPin(pin)
+            : pin;
+        const dbUser = { id: 1, name: name, pin: encPin, role: 'admin' };
+        if (typeof db !== 'undefined' && db.users) {
+            await db.users.put(dbUser);
+        }
+        const memUser = { id: 1, name: name, pin: pin, role: 'admin' };
+        if (!Array.isArray(users)) users = [];
+        // إزالة أي حساب سابق بنفس الاسم أو id 1
+        users = users.filter(u => u && u.id !== 1 && u.name !== name);
+        users.push(memUser);
+        window.users = users;
+
+        // 💾 حفظ فوري في قاعدة بيانات SQLite المحلية والمزامنة
+        if (typeof saveData === 'function') {
+            await saveData('users');
+        }
+        if (window.BayanSQLite && typeof window.BayanSQLite.saveAllToSQLiteNow === 'function') {
+            window.BayanSQLite.saveAllToSQLiteNow();
+        }
+
+        // إتمام تسجيل الدخول للمستخدم الجديد
+        const authenticatedUser = { ...memUser, warehouseName: 'المخزن الرئيسي' };
+        _setAuthenticatedSessionUser(authenticatedUser);
+        setStore('pos_session_user', JSON.stringify({ userName: name, warehouseName: 'المخزن الرئيسي' }));
+
+        // تعبئة بيانات كارت النجاح
+        document.getElementById('displayAdminName').innerText = name;
+        document.getElementById('displayAdminPin').innerText = pin;
+        const displayBizEl = document.getElementById('displayAdminBusinessType');
+        if (displayBizEl) displayBizEl.innerText = 'ملابس وأحذية وموضة 👕';
+
+        document.getElementById('currentUserDisplay').innerHTML = `<span style="opacity: 0.8;">👤</span><span>${currentUser.name} (مدير)</span>`;
+        document.getElementById('currentWarehouseName').innerText = `📦 المخزن الرئيسي`;
+
+        // إظهار نافذة النجاح
+        const successModal = document.getElementById('setupSuccessModal');
+        if (successModal) {
+            successModal.classList.remove('hidden');
+        } else {
+            alert("🎉 تم إنشاء حساب المالك وتفعيل نظام بَيَان بنجاح!\nالاسم: " + name + "\nرمز المرور: " + pin + "\nنوع النشاط: " + (bizNames[selectedBizType] || selectedBizType));
+            closeSetupSuccessAndEnter();
+        }
+    } catch (e) {
+        console.error(e);
+        alert("❌ حدث خطأ أثناء تفعيل النظام!");
+    }
+};
+
+window.toggleSetupPassword = function (inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    if (input.type === 'password') {
+        input.type = 'text';
+        input.style.letterSpacing = 'normal';
+        btn.innerText = '🙈';
+    } else {
+        input.type = 'password';
+        input.style.letterSpacing = '2px';
+        btn.innerText = '👁️';
+    }
+};
+
+window.downloadCredentialsImage = function () {
+    try {
+        const adminName = document.getElementById('displayAdminName')?.innerText?.trim() || document.getElementById('setupAdminName')?.value?.trim() || 'المدير المسؤول';
+        const bizType = document.getElementById('displayAdminBusinessType')?.innerText?.trim() || 'ملابس وأحذية وموضة 👕';
+        const adminPin = document.getElementById('displayAdminPin')?.innerText?.trim() || document.getElementById('setupAdminPin')?.value?.trim() || '----';
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 680;
+        canvas.height = 540;
+        const ctx = canvas.getContext('2d');
+
+        // دالة مساعدة لرسم مستطيل بحواف دائرية ناعمة
+        const drawRoundedRect = (x, y, w, h, r) => {
+            ctx.beginPath();
+            if (ctx.roundRect) {
+                ctx.roundRect(x, y, w, h, r);
+            } else {
+                ctx.moveTo(x + r, y);
+                ctx.lineTo(x + w - r, y);
+                ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+                ctx.lineTo(x + w, y + h - r);
+                ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+                ctx.lineTo(x + r, y + h);
+                ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+                ctx.lineTo(x, y + r);
+                ctx.quadraticCurveTo(x, y, x + r, y);
+                ctx.closePath();
             }
         };
+
+        // 1. خلفية متدرجة داكنة فائقة الفخامة
+        const bgGrad = ctx.createLinearGradient(0, 0, 680, 540);
+        bgGrad.addColorStop(0, '#1e293b');
+        bgGrad.addColorStop(1, '#0b1329');
+        ctx.fillStyle = bgGrad;
+        drawRoundedRect(10, 10, 660, 520, 24);
+        ctx.fill();
+
+        // 2. إطار خارجي نيون أخضر زمردي
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = '#22c55e';
+        drawRoundedRect(10, 10, 660, 520, 24);
+        ctx.stroke();
+
+        // 3. الأيقونة والعناوين
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '48px "Segoe UI Emoji", "Apple Color Emoji", sans-serif';
+        ctx.fillText('🎉', 340, 75);
+
+        ctx.fillStyle = '#22c55e';
+        ctx.font = 'bold 26px "Cairo", "Segoe UI", Tahoma, sans-serif';
+        ctx.fillText('تم تفعيل نظام بَيَان POS بنجاح!', 340, 120);
+
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'bold 15px "Cairo", "Segoe UI", Tahoma, sans-serif';
+        ctx.fillText('كارت بيانات الدخول والاعتماد السري للمدير المسؤول', 340, 150);
+
+        // 4. صندوق البيانات الزجاجي الداخلي
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.04)';
+        drawRoundedRect(40, 175, 600, 240, 16);
+        ctx.fill();
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+        drawRoundedRect(40, 175, 600, 240, 16);
+        ctx.stroke();
+
+        // خطوط تقسيم داخلية ناعمة
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.07)';
+        ctx.beginPath();
+        ctx.moveTo(60, 255);
+        ctx.lineTo(620, 255);
+        ctx.moveTo(60, 335);
+        ctx.lineTo(620, 335);
+        ctx.stroke();
+
+        // نصوص البيانات (تنسيق عربي احترافي)
+        // سطر 1: اسم المستخدم
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'bold 17px "Cairo", "Segoe UI", Tahoma, sans-serif';
+        ctx.fillText('👤  اسم المدير المسؤول:', 600, 225);
+
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 20px "Cairo", "Segoe UI", Tahoma, sans-serif';
+        ctx.fillText(adminName, 70, 225);
+
+        // سطر 2: نوع النشاط
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'bold 17px "Cairo", "Segoe UI", Tahoma, sans-serif';
+        ctx.fillText('🏢  نوع النشاط التجاري:', 600, 305);
+
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#38bdf8';
+        ctx.font = 'bold 18px "Cairo", "Segoe UI", Tahoma, sans-serif';
+        ctx.fillText(bizType, 70, 305);
+
+        // سطر 3: رمز المرور PIN
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = 'bold 17px "Cairo", "Segoe UI", Tahoma, sans-serif';
+        ctx.fillText('🔑  رمز المرور السري (PIN):', 600, 385);
+
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#4ade80';
+        ctx.font = '900 26px "Cairo", monospace, Tahoma, sans-serif';
+        ctx.fillText(adminPin, 70, 388);
+
+        // 5. شريط التذييل والتوثيق
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#64748b';
+        ctx.font = 'bold 13px "Cairo", "Segoe UI", Tahoma, sans-serif';
+        const todayStr = new Date().toLocaleDateString('ar-EG', { year: 'numeric', month: 'long', day: 'numeric' });
+        ctx.fillText(`⚡ نظام بَيَان POS (Fashion Edition v${window.appVersion || '5.0.9'}) | تاريخ التفعيل: ${todayStr}`, 340, 460);
+
+        ctx.fillStyle = '#f59e0b';
+        ctx.font = 'bold 12px "Cairo", "Segoe UI", Tahoma, sans-serif';
+        ctx.fillText('🔒 تنبيه أمني: يرجى الاحتفاظ بهذه الصورة في مكان آمن وعدم مشاركة الرمز مع أي شخص', 340, 485);
+
+        // 6. تحميل فوري ولحظي بدون أي انتظار
+        const link = document.createElement('a');
+        const cleanName = String(adminName).replace(/[^a-zA-Z0-9\u0621-\u064A_-]/g, '_');
+        link.download = `Bayan_POS_Admin_${cleanName || 'Credentials'}.png`;
+        link.href = canvas.toDataURL('image/png');
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        if (typeof showToast === 'function') {
+            showToast('✅ تم حفظ كارت بيانات الدخول كصورة فورية بنجاح!', 'success');
+        }
+        if (typeof BayanBarcode !== 'undefined' && typeof BayanBarcode.playBeep === 'function') {
+            BayanBarcode.playBeep(true);
+        }
+    } catch (e) {
+        console.error('Canvas credentials export error:', e);
+        const card = document.getElementById('setupSuccessCard');
+        if (typeof html2canvas === 'function' && card) {
+            html2canvas(card, { backgroundColor: '#0f172a', scale: 2 }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'Bayan_POS_Credentials.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
+    }
+};
+
+window.closeSetupSuccessAndEnter = function () {
+    const successModal = document.getElementById('setupSuccessModal');
+    if (successModal) successModal.classList.add('hidden');
+
+    document.getElementById('loginModal').classList.add('hidden');
+    document.body.classList.remove('is-logged-out');
+
+    // إخفاء ويدجت الخلفية
+    const wpBar = document.getElementById('quickWpBar');
+    const infoWidget = document.getElementById('quickInfoWidget');
+    if (wpBar) wpBar.classList.add('hidden');
+    if (infoWidget) infoWidget.classList.add('hidden');
+
+    switchSection('dashboard');
+    updateNotifications();
+};
+
+// ================= ربط مستمعات الفلاتر الزمنية لحفظ حالة التصفية التلقائية للأقسام =================
+const bindDateFilterListeners = function () {
+    const configs = [
+        { type: 'invoices', periodId: 'invoicesPeriodFilter', fromId: 'invoicesDateFrom', toId: 'invoicesDateTo' },
+        { type: 'analysis', periodId: 'anPeriodFilter', fromId: 'anDateFrom', toId: 'anDateTo' },
+        { type: 'history', periodId: 'historyPeriodFilter', fromId: 'historyDateFrom', toId: 'historyDateTo' },
+        { type: 'warehouse-report', periodId: 'wrPeriodFilter', fromId: 'wrStartDate', toId: 'wrEndDate' },
+        { type: 'daily-report', periodId: 'dailyReportPeriodFilter', fromId: 'reportDateFrom', toId: 'reportDateTo' },
+        { type: 'statement', periodId: 'stmtPeriodFilter', fromId: 'stmtDateFrom', toId: 'stmtDateTo' }
+    ];
+
+    const saveState = (cfg) => {
+        const p = document.getElementById(cfg.periodId)?.value || null;
+        const f = document.getElementById(cfg.fromId)?.value || null;
+        const t = document.getElementById(cfg.toId)?.value || null;
+        if (!window.savedSectionDateFilters) window.savedSectionDateFilters = {};
+        window.savedSectionDateFilters[cfg.type] = { periodFilter: p, dateFrom: f, dateTo: t };
+    };
+
+    configs.forEach(cfg => {
+        [cfg.periodId, cfg.fromId, cfg.toId].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('change', () => saveState(cfg));
+            }
+        });
+    });
+};
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bindDateFilterListeners);
+} else {
+    bindDateFilterListeners();
+}
+
+// =========================================================================
+// 🔑 استعادة وإصلاح رمز المدير المسؤول في حالات الطوارئ (Emergency Reset Engine)
+// =========================================================================
+window.emergencyResetAdminPinPrompt = async function () {
+    const confirmMsg = "🔑 هل ترغب في إعادة ضبط رمز المدير المسؤول وتعيينه إلى (1234) للدخول فوراً؟\n\n(سيتم فك القفل وتعيين الرمز إلى 1234 لتتمكن من الدخول وتغييره لاحقاً من قسم الإعدادات)";
+    let confirmed = false;
+    if (typeof showCustomConfirm === 'function') {
+        confirmed = await new Promise(res => {
+            showCustomConfirm({
+                titleText: '🔑 استعادة حساب المدير المسؤول',
+                msg: confirmMsg,
+                confirmBtnText: 'نعم، تعيين إلى 1234',
+                cancelBtnText: 'إلغاء',
+                onConfirm: () => res(true),
+                onCancel: () => res(false)
+            });
+        });
+    } else {
+        confirmed = confirm(confirmMsg);
+    }
+
+    if (!confirmed) return;
+
+    try {
+        if (typeof setLoginLockoutState === 'function') {
+            setLoginLockoutState(0, 0);
+        }
+        const targetDb = window.db || window.bayanDB;
+        let adminUser = (window.users && Array.isArray(window.users))
+            ? window.users.find(u => u && (u.role === 'admin' || u.id === 1 || u.id === '1'))
+            : null;
+
+        if (!adminUser && targetDb && targetDb.users) {
+            const allU = await targetDb.users.toArray().catch(() => []);
+            adminUser = allU.find(u => u && (u.role === 'admin' || u.id === 1 || u.id === '1'));
+        }
+
+        const encP = (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
+            ? window.BayanSecurity.encryptPin('1234')
+            : '1234';
+
+        if (adminUser) {
+            adminUser.pin = '1234';
+            if (targetDb && targetDb.users) {
+                await targetDb.users.put({ ...adminUser, pin: encP });
+            }
+            if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+                try {
+                    window.BayanSQLite.nativeDb.prepare("UPDATE users SET pin = ? WHERE id = ? OR name = ?;").run(encP, adminUser.id, adminUser.name);
+                } catch (e) { }
+            }
+            if (Array.isArray(window.users)) {
+                window.users = window.users.map(u => (u.id === adminUser.id ? { ...u, pin: '1234' } : u));
+                if (typeof users !== 'undefined') users = window.users;
+            }
+            const uSelect = document.getElementById('loginUsernameInput');
+            if (uSelect) uSelect.value = adminUser.name;
+        } else {
+            if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+                try {
+                    window.BayanSQLite.nativeDb.prepare("UPDATE users SET pin = ? WHERE role = 'admin' OR id = 1;").run(encP);
+                } catch (e) { }
+            }
+        }
+
+        const pinInput = document.getElementById('loginPinInput');
+        if (pinInput) {
+            pinInput.value = '1234';
+            pinInput.focus();
+        }
+        const errEl = document.getElementById('loginErrorMsg');
+        if (errEl) errEl.style.display = 'none';
+
+        if (typeof showToast === 'function') {
+            showToast('✅ تم ضبط رمز المدير المسؤول إلى (1234) بنجاح. اضغط تسجيل الدخول!', 'success');
+        } else {
+            alert('✅ تم ضبط رمز المدير المسؤول إلى (1234) بنجاح. يمكنك تسجيل الدخول الآن!');
+        }
+    } catch (e) {
+        console.error("Emergency reset error:", e);
+        alert("حدث خطأ أثناء استعادة الرمز: " + e.message);
+    }
+};
 
