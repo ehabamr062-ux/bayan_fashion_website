@@ -45,6 +45,7 @@
             const next = this._iterator.next();
             if (next.done) {
                 this._current = null;
+                this.free();
                 return false;
             }
             this._current = next.value;
@@ -437,7 +438,8 @@
                             nativeDb.pragma('synchronous = NORMAL');
                             nativeDb.pragma('temp_store = MEMORY');
                             nativeDb.pragma('cache_size = -64000');
-                            nativeDb.pragma('mmap_size = 536870912');
+                            nativeDb.pragma('mmap_size = 134217728');
+                            nativeDb.pragma('wal_autocheckpoint = 1000');
                             nativeDb.pragma('busy_timeout = 5000');
                             nativeDb.pragma('threads = 4');
 
@@ -788,10 +790,34 @@
                 this.db.run(`
                     PRAGMA temp_store = MEMORY;
                     PRAGMA cache_size = -64000;
-                    PRAGMA mmap_size = 536870912;
+                    PRAGMA mmap_size = 134217728;
                     PRAGMA busy_timeout = 5000;
+                    PRAGMA wal_autocheckpoint = 1000;
                 `);
             } catch (pErr) { }
+
+            // تأمين جدول الإعدادات للتحقق من حالة ترقيات المخطط
+            try {
+                this.db.run(`
+                    CREATE TABLE IF NOT EXISTS settings (
+                        id TEXT PRIMARY KEY,
+                        value TEXT
+                    );
+                `);
+            } catch (e) { }
+
+            let isV3Migrated = false;
+            try {
+                if (this.isNative && this.nativeDb) {
+                    const row = this.nativeDb.prepare("SELECT value FROM settings WHERE id = 'schema_v3_migrated'").get();
+                    if (row && String(row.value) === '1') isV3Migrated = true;
+                } else {
+                    const res = this.db.exec("SELECT value FROM settings WHERE id = 'schema_v3_migrated'");
+                    if (res && res[0] && res[0].values && res[0].values.length > 0 && String(res[0].values[0][0]) === '1') {
+                        isV3Migrated = true;
+                    }
+                }
+            } catch (e) { }
 
             // 1. جدول الأصناف والمنتجات
             this.db.run(`
@@ -833,15 +859,6 @@
                         this.db.run("ALTER TABLE products ADD COLUMN code TEXT;");
                     } catch (alterErr) { }
                 }
-
-                // تعبئة عمود code من حقل JSON القديم أو الباركود للأصناف الموجودة مسبقاً
-                try {
-                    this.db.run(`
-                        UPDATE products 
-                        SET code = COALESCE(json_extract(raw_json, '$.code'), barcode, '') 
-                        WHERE code IS NULL OR code = '';
-                    `);
-                } catch (updErr) { }
 
                 // بعد التأكد التام من وجود العمود، ننشئ الفهرس بأمان
                 try {
@@ -902,23 +919,11 @@
             try { this.db.run("ALTER TABLE transactions ADD COLUMN terminal TEXT;"); } catch (e) { }
             try { this.db.run("ALTER TABLE transactions ADD COLUMN isInvoiceHead INTEGER DEFAULT NULL;"); } catch (e) { }
 
-            // 🛡️ ترقية وتصحيح قيمة isInvoiceHead الفيزيائية للبيانات القديمة لمرة واحدة
+            // 🛡️ إنشاء فهارس isInvoiceHead
             try {
-                this.db.run(`
-                    UPDATE transactions 
-                    SET isInvoiceHead = 1 
-                    WHERE isInvoiceHead IS NULL AND (json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true');
-                `);
-                this.db.run(`
-                    UPDATE transactions 
-                    SET isInvoiceHead = 0 
-                    WHERE isInvoiceHead IS NULL;
-                `);
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_isHead ON transactions(isInvoiceHead);");
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_isHead ON transactions(dateISO, isInvoiceHead);");
-            } catch (headMigErr) {
-                console.warn("[SQLite] transactions isInvoiceHead migration notice:", headMigErr.message);
-            }
+            } catch (headMigErr) { }
 
             // 🛡️ فحص وترقية جدول transactions ليكون id TEXT PRIMARY KEY في قواعد البيانات القائمة
             try {
@@ -999,14 +1004,6 @@
                 this.db.run("ALTER TABLE accounts ADD COLUMN credit REAL DEFAULT 0;");
             } catch (e) { }
             try {
-                this.db.run(`
-                    UPDATE accounts 
-                    SET debit = COALESCE(CAST(json_extract(raw_json, '$.debit') AS REAL), 0),
-                        credit = COALESCE(CAST(json_extract(raw_json, '$.credit') AS REAL), 0)
-                    WHERE (debit IS NULL OR debit = 0) AND (credit IS NULL OR credit = 0) AND raw_json IS NOT NULL;
-                `);
-            } catch (e) { }
-            try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_origInvId ON transactions(originalInvoiceId);");
             } catch (e) { }
             try {
@@ -1071,11 +1068,6 @@
                 CREATE INDEX IF NOT EXISTS idx_ti_date_type ON transaction_items(dateISO, type);
             `);
 
-            // تنظيف تلقائي آمن عند بدء التشغيل لأي بنود يتيمة ليس لها سجل أصل في جدول transactions
-            try {
-                this.db.run(`DELETE FROM transaction_items WHERE tx_id IS NOT NULL AND tx_id != '' AND tx_id NOT IN (SELECT id FROM transactions);`);
-            } catch (tiCleanErr) { }
-
             // 3. جدول الحسابات (العملاء والموردين)
             this.db.run(`
                 CREATE TABLE IF NOT EXISTS accounts (
@@ -1131,9 +1123,6 @@
                 this.db.run("ALTER TABLE trash ADD COLUMN deleted_at TEXT;");
             } catch (e) { }
             try {
-                this.db.run("UPDATE trash SET deleted_at = deletedAt WHERE (deleted_at IS NULL OR deleted_at = '') AND deletedAt IS NOT NULL;");
-            } catch (e) { }
-            try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_trash_date ON trash(deleted_at);");
             } catch (e) { }
             try {
@@ -1146,45 +1135,90 @@
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_items_date_prod ON transaction_items(dateISO, productName);");
             } catch (e) { }
 
-            // 📅 توحيد صيغ التواريخ التاريخية (Date Normalization Migration) لتسريع استعلامات التقارير والفلاتر
-            try {
-                // 1. إزالة الوقت من dateISO ليصبح تاريخاً قياسياً YYYY-MM-DD
-                this.db.run(`
-                    UPDATE transactions 
-                    SET dateISO = SUBSTR(dateISO, 1, 10) 
-                    WHERE dateISO LIKE '%T%' AND LENGTH(dateISO) > 10;
-                `);
-                this.db.run(`
-                    UPDATE transaction_items 
-                    SET dateISO = SUBSTR(dateISO, 1, 10) 
-                    WHERE dateISO LIKE '%T%' AND LENGTH(dateISO) > 10;
-                `);
+            // 🛡️ عزل استعلامات الترقية الثقيلة لتعمل مرة واحدة فقط داخل معاملة Transaction
+            if (!isV3Migrated) {
+                try {
+                    console.log("⚡ [SQLite] Executing one-time schema v3 upgrade migrations...");
+                    this.db.run("BEGIN TRANSACTION;");
+                    try {
+                        this.db.run(`
+                            UPDATE products 
+                            SET code = COALESCE(json_extract(raw_json, '$.code'), barcode, '') 
+                            WHERE code IS NULL OR code = '';
+                        `);
+                    } catch (e) { }
 
-                // 2. تحويل صيغ YYYY/MM/DD إلى YYYY-MM-DD
-                this.db.run(`
-                    UPDATE transactions 
-                    SET dateISO = REPLACE(dateISO, '/', '-') 
-                    WHERE dateISO LIKE '____/__/__';
-                `);
-                this.db.run(`
-                    UPDATE transaction_items 
-                    SET dateISO = REPLACE(dateISO, '/', '-') 
-                    WHERE dateISO LIKE '____/__/__';
-                `);
+                    try {
+                        this.db.run(`
+                            UPDATE transactions 
+                            SET isInvoiceHead = 1 
+                            WHERE isInvoiceHead IS NULL AND (json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true');
+                        `);
+                        this.db.run(`
+                            UPDATE transactions 
+                            SET isInvoiceHead = 0 
+                            WHERE isInvoiceHead IS NULL;
+                        `);
+                    } catch (e) { }
 
-                // 3. تحويل صيغ DD/MM/YYYY إلى YYYY-MM-DD
-                this.db.run(`
-                    UPDATE transactions 
-                    SET dateISO = SUBSTR(dateISO, 7, 4) || '-' || SUBSTR(dateISO, 4, 2) || '-' || SUBSTR(dateISO, 1, 2)
-                    WHERE dateISO LIKE '__/__/____';
-                `);
-                this.db.run(`
-                    UPDATE transaction_items 
-                    SET dateISO = SUBSTR(dateISO, 7, 4) || '-' || SUBSTR(dateISO, 4, 2) || '-' || SUBSTR(dateISO, 1, 2)
-                    WHERE dateISO LIKE '__/__/____';
-                `);
-            } catch (errDateMig) {
-                console.warn("[SQLite] Date normalization migration notice:", errDateMig.message);
+                    try {
+                        this.db.run(`
+                            UPDATE accounts 
+                            SET debit = COALESCE(CAST(json_extract(raw_json, '$.debit') AS REAL), 0),
+                                credit = COALESCE(CAST(json_extract(raw_json, '$.credit') AS REAL), 0)
+                            WHERE (debit IS NULL OR debit = 0) AND (credit IS NULL OR credit = 0) AND raw_json IS NOT NULL;
+                        `);
+                    } catch (e) { }
+
+                    try {
+                        this.db.run(`DELETE FROM transaction_items WHERE tx_id IS NOT NULL AND tx_id != '' AND tx_id NOT IN (SELECT id FROM transactions);`);
+                    } catch (e) { }
+
+                    try {
+                        this.db.run(`UPDATE trash SET deleted_at = deletedAt WHERE (deleted_at IS NULL OR deleted_at = '') AND deletedAt IS NOT NULL;`);
+                    } catch (e) { }
+
+                    try {
+                        // توحيد صيغ التواريخ التاريخية
+                        this.db.run(`
+                            UPDATE transactions 
+                            SET dateISO = SUBSTR(dateISO, 1, 10) 
+                            WHERE dateISO LIKE '%T%' AND LENGTH(dateISO) > 10;
+                        `);
+                        this.db.run(`
+                            UPDATE transaction_items 
+                            SET dateISO = SUBSTR(dateISO, 1, 10) 
+                            WHERE dateISO LIKE '%T%' AND LENGTH(dateISO) > 10;
+                        `);
+                        this.db.run(`
+                            UPDATE transactions 
+                            SET dateISO = REPLACE(dateISO, '/', '-') 
+                            WHERE dateISO LIKE '____/__/__';
+                        `);
+                        this.db.run(`
+                            UPDATE transaction_items 
+                            SET dateISO = REPLACE(dateISO, '/', '-') 
+                            WHERE dateISO LIKE '____/__/__';
+                        `);
+                        this.db.run(`
+                            UPDATE transactions 
+                            SET dateISO = SUBSTR(dateISO, 7, 4) || '-' || SUBSTR(dateISO, 4, 2) || '-' || SUBSTR(dateISO, 1, 2)
+                            WHERE dateISO LIKE '__/__/____';
+                        `);
+                        this.db.run(`
+                            UPDATE transaction_items 
+                            SET dateISO = SUBSTR(dateISO, 7, 4) || '-' || SUBSTR(dateISO, 4, 2) || '-' || SUBSTR(dateISO, 1, 2)
+                            WHERE dateISO LIKE '__/__/____';
+                        `);
+                    } catch (e) { }
+
+                    this.db.run("INSERT OR REPLACE INTO settings (id, value) VALUES ('schema_v3_migrated', '1');");
+                    this.db.run("COMMIT;");
+                    console.log("✅ [SQLite] Schema v3 migrations completed and saved to settings.");
+                } catch (migErr) {
+                    try { this.db.run("ROLLBACK;"); } catch (rbErr) { }
+                    console.warn("[SQLite] Schema v3 migration transaction notice:", migErr.message);
+                }
             }
 
             // تأمين وجود مستخدم ومخزن افتراضي في حال كانت الجداول فارغة عند التثبيت الجديد أو بعد التصفير

@@ -18,7 +18,7 @@ app.on('gpu-process-crashed', (event, killed) => {
 // 💾 تقليل العمليات الخلفية المجهدة للهارد الميكانيكي HDD
 app.commandLine.appendSwitch('disable-features', 'HardwareMediaKeyHandling,CalculateNativeWinOcclusion,SpareRendererForSitePerProcess');
 // 🧠 ضبط استهلاك الذاكرة لمحرك V8 لتحفيز تنظيف الذاكرة التلقائي (GC) مبكراً
-app.commandLine.appendSwitch('js-flags', '--max-old-space-size=1024 --expose-gc');
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=2048 --expose-gc');
 // 🎮 تفعيل تعدد مسارات المعالجة الرسومية
 app.commandLine.appendSwitch('enable-raster-multithread');
 app.commandLine.appendSwitch('disable-breakpad');
@@ -555,7 +555,7 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
             _activePrintDestroyTimer = null;
         }
         if (_activePrintWin && !_activePrintWin.isDestroyed()) {
-            try { _activePrintWin.close(); } catch (e) { }
+            try { _activePrintWin.destroy(); } catch (e) { }
             _activePrintWin = null;
         }
 
@@ -573,7 +573,7 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                 if (delayDestroy) {
                     _activePrintDestroyTimer = setTimeout(() => {
                         if (printWin && !printWin.isDestroyed()) {
-                            try { printWin.close(); } catch (e) { }
+                            try { printWin.destroy(); } catch (e) { }
                             if (_activePrintWin === printWin) _activePrintWin = null;
                         }
                         if (tempReceiptFile) {
@@ -582,7 +582,7 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                     }, 8000);
                 } else {
                     if (printWin && !printWin.isDestroyed()) {
-                        try { printWin.close(); } catch (e) { }
+                        try { printWin.destroy(); } catch (e) { }
                         if (_activePrintWin === printWin) _activePrintWin = null;
                     }
                     if (tempReceiptFile) {

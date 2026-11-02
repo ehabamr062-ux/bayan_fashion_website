@@ -753,7 +753,20 @@ async function renderInvoicesTable(isLoadMore = false) {
             if (sqlFiltered && sqlFiltered.length > 0) {
                 const existingMap = new Map((window.transactions || []).map(t => [t.id, t]));
                 sqlFiltered.forEach(t => { if (t && t.id) existingMap.set(t.id, t); });
-                window.transactions = Array.from(existingMap.values());
+
+                let mergedList = Array.from(existingMap.values());
+                // سقف أمان لمنع تضخم الرام: إذا تجاوزت السجلات 6000 سجل، نحتفظ بآخر 3000 سجل + سجلات الفلتر الحالي فقط
+                if (mergedList.length > 6000) {
+                    const keepMap = new Map();
+                    // 1. الاحتفاظ بكافة سجلات الفلتر الحالي
+                    sqlFiltered.forEach(t => { if (t && t.id) keepMap.set(t.id, t); });
+                    // 2. الاحتفاظ بآخر 3000 سجل من السجلات المدمجة
+                    const recentSlice = mergedList.slice(-3000);
+                    recentSlice.forEach(t => { if (t && t.id) keepMap.set(t.id, t); });
+                    mergedList = Array.from(keepMap.values());
+                }
+
+                window.transactions = mergedList;
                 if (typeof transactions !== 'undefined') transactions = window.transactions;
                 rawData = sqlFiltered;
             }

@@ -635,21 +635,33 @@
                 targetTx = allTx.slice(-500);
             }
 
+            // بناء Map مسبقة لكافة أسطر الفواتير في تمريرة واحدة O(N) لتفادي التكرار التربيعي O(N^2)
+            const shopPrefixRegex = new RegExp(`^${shopId}_(DESK_|MOB_)?`, 'i');
+            const allTxByInvId = new Map();
+            for (let i = 0; i < allTx.length; i++) {
+                const row = allTx[i];
+                if (!row) continue;
+                const rInv = String(row.invoiceId || row.id || '').replace(shopPrefixRegex, '').replace(/^#/, '').trim();
+                if (!rInv) continue;
+                let list = allTxByInvId.get(rInv);
+                if (!list) {
+                    list = [];
+                    allTxByInvId.set(rInv, list);
+                }
+                list.push(row);
+            }
+
             // تجميع أسطر الفاتورة الواحدة في كائن موحد يضم مصفوفة items لمنع استبدال الأصناف في السحابة
             const groupedMap = new Map();
             targetTx.forEach(t => {
                 if (!t) return;
                 const localInvId = String(t.invoiceId || t.id || Math.random().toString(36).substring(2, 9))
-                    .replace(new RegExp(`^${shopId}_(DESK_|MOB_)?`, 'i'), '')
+                    .replace(shopPrefixRegex, '')
                     .replace(/^#/, '')
                     .trim();
                 if (!groupedMap.has(localInvId)) {
-                    const invoiceRows = allTx.filter(row => {
-                        if (!row) return false;
-                        const rInv = String(row.invoiceId || row.id || '').replace(new RegExp(`^${shopId}_(DESK_|MOB_)?`, 'i'), '').replace(/^#/, '').trim();
-                        return rInv === localInvId;
-                    });
-                    groupedMap.set(localInvId, invoiceRows.length > 0 ? invoiceRows : [t]);
+                    const invoiceRows = allTxByInvId.get(localInvId);
+                    groupedMap.set(localInvId, (invoiceRows && invoiceRows.length > 0) ? invoiceRows : [t]);
                 }
             });
 
@@ -1347,6 +1359,7 @@
 
         // 🔐 5. تسجيل رمز إقران الأجهزة المعتمد في السحابة
         syncPairingPin: async function (customPin = null) {
+            if (!this._isAllowed()) return;
             const cfg = this.getConfig();
             if (!cfg.supabaseUrl || !cfg.supabaseKey) return;
             const shopId = cfg.shopId || this.getShopId();
@@ -1892,8 +1905,9 @@
             }
 
             setTimeout(() => {
-                // رفع كود الاقتران ومعرف المحل للسحابة دائماً لتمكين اقتران التابلت والموبايل فوراً
-                this.syncPairingPin().catch(() => { });
+                if (this._isAllowed()) {
+                    this.syncPairingPin().catch(() => { });
+                }
                 if (!this._isAllowed()) {
                     console.log('🔒 [SupabaseSync] Cloud sync locked for offline/trial license tier.');
                     this.updateUIStatus('locked');
