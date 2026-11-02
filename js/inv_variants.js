@@ -813,23 +813,43 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
     const labelHeight = parseFloat(bSettings.height) || 25;
     const isSmall = labelWidth <= 42 || labelHeight <= 28;
 
-    // في النمط الرأسي (الطولي): العرض هو الأصغر (25 مم) والارتفاع هو الأكبر (50 مم)
-    const printWidth = isVertical ? Math.min(labelWidth, labelHeight) : labelWidth;
-    const printHeight = isVertical ? Math.max(labelWidth, labelHeight) : labelHeight;
+    // مقاس الورقة في الطابعة يظل ثابتاً دائماً بنفس مقاس الرول الفعلي لمنع أي خطأ في حساس الماكينة
+    const printWidth = labelWidth;
+    const printHeight = labelHeight;
+
+    const rawCurrency = (typeof getCurrencySymbol === 'function') ? getCurrencySymbol() : 'ج';
+    const currencySign = (rawCurrency === 'ج.م' || rawCurrency === 'EGP' || rawCurrency === 'ج') ? 'ج' : rawCurrency;
 
     let labelsHtml = '';
     printableItems.forEach(item => {
         const numPrice = parseFloat(item.price) || 0;
         const priceFormatted = (Math.floor(numPrice) === numPrice) ? String(numPrice) : numPrice.toFixed(2);
 
+        // حساب حجم الخط ديناميكياً بحسب عدد خانات السعر لضمان عدم القص والتناسق التام في النمط الرأسي
+        const cleanLen = String(priceFormatted).length;
+        let vertPriceFontSize = '34pt';
+        if (cleanLen >= 6) {
+            vertPriceFontSize = '20pt';
+        } else if (cleanLen === 5) {
+            vertPriceFontSize = '23pt';
+        } else if (cleanLen === 4) {
+            vertPriceFontSize = '27pt';
+        } else {
+            vertPriceFontSize = '34pt';
+        }
+        if (isSmall) {
+            vertPriceFontSize = (Math.round(parseInt(vertPriceFontSize, 10) * 0.82)) + 'pt';
+        }
+
         for (let i = 0; i < item.copies; i++) {
             if (isVertical) {
+                // النمط الرأسي الذكي: يطبع داخل نفس الاستيكر (50×25 مم) مائل 90 درجة بدون اسم المحل
+                // ليخرج بالعرض من الماكينة ويثبت بالطول على الشنطة فيظهر السعر وعلامة الجنيه معدولين وكبار
                 labelsHtml += `
                     <div class="price-tag-label vertical">
-                        <div class="pt-shop-title vertical">${shopName}</div>
-                        <div class="pt-divider vertical"></div>
-                        <div class="pt-price-body vertical">
-                            <div class="pt-price-num vertical">${priceFormatted}</div>
+                        <div class="pt-vertical-rotator">
+                            <div class="pt-currency-badge-vert">${currencySign}</div>
+                            <div class="pt-price-num-vert" style="font-size: ${vertPriceFontSize};">${priceFormatted}</div>
                         </div>
                     </div>
                 `;
@@ -854,11 +874,11 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
         <head>
             <meta charset="UTF-8">
             <base href="${(typeof window !== 'undefined' && window.location) ? window.location.href : ''}">
-            <title>طباعة تيكت السعر المصغر (${isVertical ? 'رأسي طولي' : 'أفقي عريض'})</title>
+            <title>طباعة تيكت السعر المصغر (${isVertical ? 'رأسي طولي للشنط والملابس' : 'أفقي عريض'})</title>
             <link rel="stylesheet" href="fonts/cairo.css">
             <style>
                 @page {
-                    size: ${printWidth}mm ${printHeight}mm ${isVertical ? 'portrait' : 'landscape'};
+                    size: ${printWidth}mm ${printHeight}mm;
                     margin: 0mm !important;
                 }
                 * { 
@@ -951,18 +971,16 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                     margin-left: 2px;
                 }
 
-                /* =================== النمط الرأسي الطولي الواقف =================== */
+                /* =================== النمط الرأسي الذكي (المطبوع بالعرض للشنط والملابس) =================== */
                 .price-tag-label.vertical {
                     width: ${printWidth}mm;
                     height: ${printHeight}mm;
                     max-height: ${printHeight}mm;
-                    padding: 2mm 1mm;
+                    padding: 0 !important;
                     margin: 0 auto !important;
                     display: flex;
-                    flex-direction: column;
                     align-items: center;
                     justify-content: center;
-                    gap: 0;
                     page-break-after: always;
                     break-after: page;
                     page-break-inside: avoid;
@@ -971,50 +989,44 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                     box-sizing: border-box;
                     text-align: center;
                     background: #ffffff;
+                    position: relative;
                 }
-                .pt-shop-title.vertical {
-                    font-size: 11pt;
-                    font-weight: 900 !important;
-                    -webkit-text-stroke: 0.35px #000000;
-                    color: #000000 !important;
-                    line-height: 1.15;
-                    margin: 0 auto 1.5mm auto;
-                    white-space: nowrap !important;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                    max-width: 95%;
-                    text-align: center;
-                    letter-spacing: 0.3px;
-                    -webkit-font-smoothing: antialiased;
-                }
-                .pt-divider.vertical {
-                    width: 88%;
-                    border-bottom: 2px solid #000000;
-                    margin: 0 auto 2mm auto;
-                }
-                .pt-price-body.vertical {
+                .price-tag-label.vertical .pt-vertical-rotator {
+                    width: ${printHeight}mm; /* 25mm */
+                    height: ${printWidth}mm; /* 50mm */
                     display: flex;
                     flex-direction: column;
                     align-items: center;
                     justify-content: center;
-                    gap: 0;
-                    margin: 0 auto;
-                    width: 100%;
+                    transform: rotate(-90deg);
+                    transform-origin: center center;
+                    box-sizing: border-box;
+                    padding: 1.5mm 1mm;
+                    text-align: center;
+                    gap: 1.5mm;
                 }
-                .pt-price-num.vertical {
-                    font-size: 32pt;
-                    font-weight: 950;
-                    color: #000000;
+                body.rot-flipped .price-tag-label.vertical .pt-vertical-rotator {
+                    transform: rotate(90deg) !important;
+                }
+                .price-tag-label.vertical .pt-currency-badge-vert {
+                    font-size: ${isSmall ? '14pt' : '18pt'};
+                    font-weight: 900 !important;
+                    color: #000000 !important;
+                    line-height: 1;
+                    font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+                    margin: 0;
+                    -webkit-text-stroke: 0.45px #000000;
+                }
+                .price-tag-label.vertical .pt-price-num-vert {
+                    font-weight: 950 !important;
+                    color: #000000 !important;
                     line-height: 1;
                     font-family: 'Segoe UI', 'Arial Black', Arial, sans-serif;
                     letter-spacing: 0.5px;
-                    -webkit-text-stroke: 0.5px #000000;
-                    -webkit-font-smoothing: antialiased;
                     margin: 0;
                     white-space: nowrap;
-                }
-                .pt-currency-sign.vertical {
-                    display: none !important;
+                    -webkit-text-stroke: 0.6px #000000;
+                    -webkit-font-smoothing: antialiased;
                 }
 
                 @media print {
@@ -1046,7 +1058,7 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                         width: ${printWidth}mm !important;
                         height: ${printHeight}mm !important;
                         max-height: ${printHeight}mm !important;
-                        padding: 2mm 1mm !important;
+                        padding: 0 !important;
                         border: none !important;
                         box-shadow: none !important;
                         page-break-after: always !important;
@@ -1054,6 +1066,22 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                         page-break-inside: avoid !important;
                         break-inside: avoid !important;
                         overflow: hidden !important;
+                        display: flex !important;
+                        align-items: center !important;
+                        justify-content: center !important;
+                    }
+                    .price-tag-label.vertical .pt-vertical-rotator {
+                        width: ${printHeight}mm !important;
+                        height: ${printWidth}mm !important;
+                        display: flex !important;
+                        flex-direction: column !important;
+                        align-items: center !important;
+                        justify-content: center !important;
+                        transform: rotate(-90deg) !important;
+                        transform-origin: center center !important;
+                    }
+                    body.rot-flipped .price-tag-label.vertical .pt-vertical-rotator {
+                        transform: rotate(90deg) !important;
                     }
                 }
             </style>
@@ -1061,6 +1089,7 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
         <body>
             <div class="no-print" style="text-align: center; margin-bottom: 12px; padding: 10px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;">
                 <button onclick="window.print()" style="background: #059669; color: white; padding: 9px 24px; font-size: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: 900; box-shadow: 0 2px 6px rgba(5,150,105,0.3);">🖨️ بدء طباعة تيكت السعر (${isVertical ? 'رأسي طولي' : 'أفقي عريض'})</button>
+                ${isVertical ? `<button type="button" onclick="document.body.classList.toggle('rot-flipped')" style="background: #6366f1; color: white; padding: 9px 18px; font-size: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 900; box-shadow: 0 2px 6px rgba(99,102,241,0.3);" title="عكس زاوية الدوران 90 درجة">🔄 عكس زاوية الدوران</button>` : ''}
                 <button onclick="window.close()" style="background: #ef4444; color: white; padding: 9px 20px; font-size: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: 900; box-shadow: 0 2px 6px rgba(239,68,68,0.3);">❌ إغلاق</button>
             </div>
             <div class="label-container">
