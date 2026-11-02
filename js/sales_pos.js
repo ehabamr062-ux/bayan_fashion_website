@@ -141,94 +141,136 @@ function clearAccountSearch(inputId, balanceId) {
 }
 
 async function handleCustomerSearch(query) {
-
     const resultsDiv = document.getElementById('customerSearchResults');
+    if (!resultsDiv) return;
 
     resultsDiv.innerHTML = '';
 
-    if (!query) { resultsDiv.style.display = 'none'; return; }
+    const cleanQuery = String(query || '').trim();
+    if (!cleanQuery) {
+        resultsDiv.style.setProperty('display', 'none', 'important');
+        resultsDiv.classList.add('hidden');
+        return;
+    }
 
-    // البحث بالاسم أو الكود مباشرة في المصفوفة المحلية لسرعة الاستجابة
+    const cleanQ = (typeof window.cleanArabicCached === 'function')
+        ? window.cleanArabicCached(cleanQuery)
+        : (typeof cleanArabicCached === 'function' ? cleanArabicCached(cleanQuery) : cleanQuery.toLowerCase());
 
-    const combined = (window.BayanInvoiceEngine && typeof BayanInvoiceEngine.searchAccounts === 'function')
-        ? BayanInvoiceEngine.searchAccounts(query, 'client')
-        : accounts.filter(a =>
-            (a.name && a.name.toLowerCase().includes(queryLower)) ||
-            (a.code && a.code.toString().includes(queryLower)) ||
-            (a.mobile && a.mobile.includes(queryLower))
-        );
+    const accList = (typeof accounts !== 'undefined' && Array.isArray(accounts) && accounts.length > 0)
+        ? accounts
+        : ((window.accounts && Array.isArray(window.accounts)) ? window.accounts : []);
 
-    if (combined.length > 0) {
+    const filtered = accList.filter(a => {
+        if (!a || !a.name) return false;
+        const aName = (typeof window.cleanArabicCached === 'function')
+            ? window.cleanArabicCached(a.name)
+            : (typeof cleanArabicCached === 'function' ? cleanArabicCached(a.name) : a.name.toLowerCase());
+        const aCode = String(a.code || '').toLowerCase();
+        const aPhone = String(a.mobile || a.phone || a.landline || '');
+        return aName.includes(cleanQ) || aCode.includes(cleanQ) || aPhone.includes(cleanQuery);
+    });
 
-        resultsDiv.style.display = 'block';
+    if (filtered.length > 0) {
+        resultsDiv.classList.remove('hidden');
+        resultsDiv.style.setProperty('display', 'block', 'important');
+        resultsDiv.style.setProperty('position', 'absolute', 'important');
+        resultsDiv.style.setProperty('z-index', '999999', 'important');
+        resultsDiv.style.setProperty('background', '#ffffff', 'important');
+        resultsDiv.style.setProperty('border', '1.5px solid #cbd5e1', 'important');
+        resultsDiv.style.setProperty('box-shadow', '0 15px 35px rgba(0,0,0,0.25)', 'important');
+        resultsDiv.style.setProperty('border-radius', '12px', 'important');
+        resultsDiv.style.setProperty('max-height', '320px', 'important');
+        resultsDiv.style.setProperty('overflow-y', 'auto', 'important');
+        resultsDiv.style.setProperty('width', '100%', 'important');
+        resultsDiv.style.setProperty('min-width', '280px', 'important');
 
-        combined.forEach(a => {
-
+        filtered.slice(0, 30).forEach(a => {
             const div = document.createElement('div');
-
             div.className = 'result-item';
+            div.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #f1f5f9; transition: 0.15s; background: #fff;';
+            div.onmouseover = () => div.style.background = '#f8fafc';
+            div.onmouseout = () => div.style.background = '#fff';
 
-            const safeName = (typeof escapeHtml === 'function') ? escapeHtml(a.name) : a.name;
-            div.innerHTML = `<span>${safeName}</span> <span class="stock-badge">${a.type === 'client' ? 'عميل' : (a.type === 'mixed' ? 'مشترك' : 'حساب')}</span>`;
+            let typeBadgeHtml = '';
+            const t = String(a.type || '').toLowerCase();
+            if (t === 'client' || t === 'customer' || t.includes('عميل')) {
+                typeBadgeHtml = `<span style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px;">عميل 👤</span>`;
+            } else if (t === 'supplier' || t.includes('مورد')) {
+                typeBadgeHtml = `<span style="background:#dbeafe; color:#1d4ed8; border:1px solid #bfdbfe; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px;">مورد 📦</span>`;
+            } else if (t === 'mixed' || t.includes('مشترك')) {
+                typeBadgeHtml = `<span style="background:#ffedd5; color:#c2410c; border:1px solid #fed7aa; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px;">مشترك 🔄</span>`;
+            } else {
+                typeBadgeHtml = `<span style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px;">حساب 🤝</span>`;
+            }
 
-            div.onclick = () => {
+            const codeDisplay = a.code ? `<small style="color:#64748b; font-size:0.75rem; margin-right:6px;">(#${a.code})</small>` : '';
+            div.innerHTML = `<span style="font-weight:800; color:#0f172a;">${a.name}${codeDisplay}</span>${typeBadgeHtml}`;
 
-                document.getElementById('customerName').value = a.name;
+            div.onclick = (e) => {
+                e.stopPropagation();
+                const inp = document.getElementById('customerName');
+                if (inp) inp.value = a.name;
+                resultsDiv.style.setProperty('display', 'none', 'important');
+                resultsDiv.classList.add('hidden');
 
-                resultsDiv.style.display = 'none';
-
-                // تحديث مستوى السعر تلقائياً بناءً على بيانات العميل (فقط إذا لم يكن مثبتاً بالدبوس 📌)
                 if (typeof isPriceLevelPinned === 'function' && !isPriceLevelPinned()) {
                     if (a.priceLevel === 'wholesale') {
                         const pl = document.getElementById('salesPriceLevel');
                         if (pl) {
                             pl.value = 'wholesale';
-                            updateCartPriceLevel();
+                            if (typeof updateCartPriceLevel === 'function') updateCartPriceLevel();
                         }
                     } else {
                         const pl = document.getElementById('salesPriceLevel');
                         if (pl) {
                             pl.value = 'retail';
-                            updateCartPriceLevel();
+                            if (typeof updateCartPriceLevel === 'function') updateCartPriceLevel();
                         }
                     }
                 }
 
-                updateHeaderPartnerInfo();
-
-                // تحديث المتغير العالمي عند اختيار العميل
-
-                currentSessionSelectedAddress = (a.address || '').split(/[|,]/)[0];
-
+                if (typeof updateHeaderPartnerInfo === 'function') updateHeaderPartnerInfo();
+                if (typeof currentSessionSelectedAddress !== 'undefined') {
+                    currentSessionSelectedAddress = (a.address || '').split(/[|,]/)[0];
+                }
                 if (typeof calculateChange === 'function') calculateChange();
-
                 if (typeof checkAccountFrozenAndAlert === 'function') {
                     checkAccountFrozenAndAlert(a);
                 }
-
             };
 
             resultsDiv.appendChild(div);
-
         });
-
     } else {
+        resultsDiv.classList.remove('hidden');
+        resultsDiv.style.setProperty('display', 'block', 'important');
+        resultsDiv.style.setProperty('position', 'absolute', 'important');
+        resultsDiv.style.setProperty('z-index', '999999', 'important');
+        resultsDiv.style.setProperty('background', '#ffffff', 'important');
+        resultsDiv.style.setProperty('border', '1.5px solid #cbd5e1', 'important');
+        resultsDiv.style.setProperty('box-shadow', '0 15px 35px rgba(0,0,0,0.25)', 'important');
+        resultsDiv.style.setProperty('border-radius', '12px', 'important');
+        resultsDiv.style.setProperty('padding', '10px', 'important');
+        resultsDiv.style.setProperty('width', '100%', 'important');
 
-        // خيار إضافة عميل جديد مع حماية تامة ضد XSS
-        resultsDiv.style.display = 'block';
-        resultsDiv.innerHTML = '';
-
-        const safeQuery = (typeof escapeHtml === 'function') ? escapeHtml(query) : query;
+        const safeQuery = (typeof escapeHtml === 'function') ? escapeHtml(cleanQuery) : cleanQuery;
         const quickItem = document.createElement('div');
         quickItem.className = 'result-item';
-        quickItem.style.cssText = 'color:var(--main-green); font-weight:bold; justify-content:center; cursor:pointer;';
-        quickItem.innerHTML = `<span>➕ إضافة عميل جديد: ${safeQuery}</span>`;
-        quickItem.onclick = () => quickAddAccount(query);
+        quickItem.style.cssText = 'color:#059669; font-weight:800; font-size:0.9rem; justify-content:center; cursor:pointer; padding:8px; border-radius:8px; background:#ecfdf5; border:1px dashed #10b981; text-align:center;';
+        quickItem.innerHTML = `<span>➕ إضافة حساب جديد: "${safeQuery}"</span>`;
+        quickItem.onclick = (e) => {
+            e.stopPropagation();
+            if (typeof quickAddAccount === 'function') {
+                quickAddAccount(cleanQuery);
+            }
+            resultsDiv.style.setProperty('display', 'none', 'important');
+            resultsDiv.classList.add('hidden');
+        };
         resultsDiv.appendChild(quickItem);
-
     }
-
 }
+window.handleCustomerSearch = handleCustomerSearch;
 
 function quickAddAccount(name) {
 
@@ -520,13 +562,22 @@ if (document.readyState === 'loading') {
     setupProductSearchKeydown();
 }
 
-// إغلاق نافذة البحث عند النقر خارجها في أي مكان بالشاشة
+// إغلاق نافذة البحث واقتراحات العملاء عند النقر خارجها في أي مكان بالشاشة
 document.addEventListener('click', function (e) {
     const resultsDiv = document.getElementById('searchResults');
     const psElem = document.getElementById('productSearch');
     if (resultsDiv && resultsDiv.style.display !== 'none') {
         if (!resultsDiv.contains(e.target) && e.target !== psElem) {
             resultsDiv.style.display = 'none';
+        }
+    }
+
+    const custResults = document.getElementById('customerSearchResults');
+    const custInput = document.getElementById('customerName');
+    if (custResults && custResults.style.display !== 'none') {
+        if (!custResults.contains(e.target) && e.target !== custInput) {
+            custResults.style.setProperty('display', 'none', 'important');
+            custResults.classList.add('hidden');
         }
     }
 });
