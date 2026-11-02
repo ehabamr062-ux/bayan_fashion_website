@@ -418,11 +418,6 @@ function _isEmergencyRescuePinMatch(candidatePin) {
         }
     }
 
-    // صمام أمان بديل في حال لم يتم تعيين كود طوارئ مخصص
-    if (!encEmergency && clean === '1234') {
-        return true;
-    }
-
     return false;
 }
 
@@ -588,46 +583,6 @@ async function attemptLogin() {
         if (isAdminUser && !isPinValid && cleanEnteredPin && _isEmergencyRescuePinMatch(cleanEnteredPin)) {
             isPinValid = true;
             isEmergencyRescueLogin = true;
-        }
-
-        // 🛡️ صمام أمان الطوارئ الذكي والإصلاح الذاتي لحساب المدير (Auto-Heal & Master Recovery)
-        // إذا كان الحساب مديراً، وكتب رمز الطوارئ '1234' أو كان رمزه الحالي مشوهاً بالنجوم:
-        const isCorruptedAdminPin = isAdminUser && (
-            foundUser.pin === '••••' ||
-            !foundUser.pin ||
-            (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function' && window.BayanSecurity.verifyPin('••••', foundUser.pin))
-        );
-
-        if (isAdminUser && (!isPinValid && (cleanEnteredPin === '1234' || isCorruptedAdminPin))) {
-            console.warn("🔧 [Auth Auto-Heal] تم استخدام مفتاح الطوارئ لحساب المدير وتصحيح الرمز في قاعدة البيانات.");
-            isPinValid = true;
-
-            // تثبيت وتصحيح الرمز فوراً في الذاكرة وقاعدة البيانات لمنع أي تكرار
-            const resolvedPin = (cleanEnteredPin && cleanEnteredPin !== '••••') ? cleanEnteredPin : '1234';
-            foundUser.pin = resolvedPin;
-            if (Array.isArray(users)) {
-                users = users.map(u => (u && (u.id === foundUser.id || u.name === foundUser.name)) ? { ...u, pin: resolvedPin } : u);
-                window.users = users;
-            }
-
-            // حفظ التحديث فوراً في IndexedDB و SQLite
-            try {
-                const targetDb = window.db || window.bayanDB;
-                if (targetDb && targetDb.users) {
-                    const encP = (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
-                        ? window.BayanSecurity.encryptPin(resolvedPin)
-                        : resolvedPin;
-                    targetDb.users.put({ ...foundUser, pin: encP }).catch(() => { });
-                }
-                if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
-                    const encP = (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
-                        ? window.BayanSecurity.encryptPin(resolvedPin)
-                        : resolvedPin;
-                    window.BayanSQLite.nativeDb.prepare("UPDATE users SET pin = ? WHERE id = ? OR name = ?;").run(encP, foundUser.id, foundUser.name);
-                }
-            } catch (autoHealErr) {
-                console.warn("Auto-heal DB save notice:", autoHealErr);
-            }
         }
 
         if (isPinValid) {

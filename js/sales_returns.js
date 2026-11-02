@@ -143,7 +143,46 @@ function updateReturnTotal(type) {
 
 // --- 1. مرتجع المبيعات (Sales Return) ---
 
+// 🛡️ فحص سياسة إلزام الفاتورة الأصلية لمرتجع المبيعات (منع المرتجع الحر غير المصرح به)
+function checkSalesReturnRequiresOriginalInvoice() {
+    try {
+        const raw = (typeof getStore === 'function' ? getStore('pos_settings') : null) || (typeof localStorage !== 'undefined' ? localStorage.getItem('pos_settings') : null);
+        const posSettings = JSON.parse(raw || '{}');
+        const isRequired = (posSettings.requireOriginalInvoiceForReturn !== undefined) 
+            ? !!posSettings.requireOriginalInvoiceForReturn 
+            : true;
+
+        if (!isRequired) return false;
+
+        const originalInvoiceId = (document.getElementById('salesReturnInvoiceDisplay')?.innerText || '').trim();
+        const hasOriginalInvoice = Boolean(originalInvoiceId && originalInvoiceId !== '---' && originalInvoiceId !== '');
+        
+        if (!hasOriginalInvoice) {
+            if (window.BayanBarcode && typeof BayanBarcode.playBeep === 'function') {
+                BayanBarcode.playBeep(false);
+            }
+            if (typeof showCustomAlert === 'function') {
+                showCustomAlert({
+                    type: 'error',
+                    titleText: '🚫 المرتجع مقيد بفاتورة بيع أصلية',
+                    msg: 'عذراً، سياسة أمان النظام تمنع إجراء أي مرتجع مبيعات حر بدون استدعاء فاتورة بيع أصلية مسجلة بالنظام.\n\nيرجى الضغط على زر (استدعاء فاتورة) وإدخال أو اختيار رقم الفاتورة أولاً.'
+                });
+            } else if (typeof showToast === 'function') {
+                showToast('🚫 سياسة النظام تمنع المرتجع بدون أصل فاتورة بيع سابقة!', 'error');
+            } else {
+                alert('🚫 سياسة أمان النظام تمنع إجراء أي مرتجع مبيعات إلا باستدعاء فاتورة بيع أصلية مسجلة بالنظام.');
+            }
+            return true;
+        }
+        return false;
+    } catch (e) {
+        return false;
+    }
+}
+window.checkSalesReturnRequiresOriginalInvoice = checkSalesReturnRequiresOriginalInvoice;
+
 function addToReturnCart(productId) {
+    if (checkSalesReturnRequiresOriginalInvoice()) return;
 
     const product = productsDB.find(p => p.id === productId);
 
@@ -164,6 +203,7 @@ function addToReturnCart(productId) {
 }
 
 function completeAddToReturnCart(product, selectedUnit) {
+    if (checkSalesReturnRequiresOriginalInvoice()) return;
 
     let price = product.price;
 
@@ -1935,6 +1975,7 @@ async function handleReturnSearch(query, type) {
 }
 
 function selectReturnProductToHeader(productId, type) {
+    if (type === 'sales' && typeof checkSalesReturnRequiresOriginalInvoice === 'function' && checkSalesReturnRequiresOriginalInvoice()) return;
 
     const product = productsDB.find(p => p.id === productId);
 
@@ -2011,6 +2052,7 @@ function fillReturnHeaderWithUnit(product, unit, type) {
 }
 
 async function handleReturnSearchEnter(query, event, type, forceAdd = false) {
+    if (type === 'sales' && typeof checkSalesReturnRequiresOriginalInvoice === 'function' && checkSalesReturnRequiresOriginalInvoice()) return;
 
     const cleanQuery = String(query || '').trim();
 
