@@ -111,19 +111,45 @@ function updateHeaderPartnerInfo() {
 
     if (pPB && document.getElementById('supplierName')) {
 
-        const name = document.getElementById('supplierName').value || '---';
+        const rawName = document.getElementById('supplierName').value || '---';
+        const name = rawName.trim();
 
-        pPB.innerText = '👤 مورد: ' + name;
+        const nameClean = (typeof window.cleanArabicCached === 'function')
+            ? window.cleanArabicCached(name)
+            : (typeof cleanArabicCached === 'function' ? cleanArabicCached(name) : name.toLowerCase());
 
-        const acc = accounts.find(a => a.name === name);
+        const accList = (typeof accounts !== 'undefined' && Array.isArray(accounts)) 
+            ? accounts 
+            : ((window.accounts && Array.isArray(window.accounts)) ? window.accounts : []);
+
+        const acc = accList.find(a => {
+            if (!a || !a.name) return false;
+            if (a.name === name) return true;
+            const aClean = (typeof window.cleanArabicCached === 'function')
+                ? window.cleanArabicCached(a.name)
+                : (typeof cleanArabicCached === 'function' ? cleanArabicCached(a.name) : a.name.toLowerCase());
+            return aClean === nameClean;
+        });
 
         if (acc) {
+
+            const accType = String(acc.type || '').toLowerCase();
+            let partnerRole = 'مورد';
+            let partnerIcon = '📦';
+            if (accType === 'client' || accType === 'customer' || accType.includes('عميل')) {
+                partnerRole = 'عميل';
+                partnerIcon = '👤';
+            } else if (accType === 'mixed' || accType.includes('مشترك')) {
+                partnerRole = 'مشترك';
+                partnerIcon = '🔄';
+            }
+            pPB.innerText = `${partnerIcon} ${partnerRole}: ${acc.name || name}`;
 
             if (pCode) pCode.innerText = acc.code || '---';
 
             if (pBalance) {
 
-                const bal = getAccountBalance(name);
+                const bal = typeof getAccountBalance === 'function' ? getAccountBalance(acc.name || name) : (parseFloat(acc.balance) || 0);
 
                 pBalance.innerText = bal.toFixed(2);
 
@@ -141,11 +167,11 @@ function updateHeaderPartnerInfo() {
                     }
                 }
 
-                if (activePurInvId && !window.isGenericCashPartner(name)) {
+                if (activePurInvId && (!window.isGenericCashPartner || !window.isGenericCashPartner(acc.name || name))) {
                     if (typeof getHistoricalPartnerBalance === 'function') {
-                        priorPurBal = getHistoricalPartnerBalance(name, activePurInvId);
+                        priorPurBal = getHistoricalPartnerBalance(acc.name || name, activePurInvId);
                     } else if (typeof getAccountBalance === 'function') {
-                        priorPurBal = getAccountBalance(name, activePurInvId);
+                        priorPurBal = getAccountBalance(acc.name || name, activePurInvId);
                     }
                 }
 
@@ -157,15 +183,18 @@ function updateHeaderPartnerInfo() {
 
                 }
 
-                // تلوين الرصيد (أخضر للمديونية "عليه"، أحمر للدائن "له")
-
-                pBalance.style.color = (bal > 0) ? 'var(--main-green)' : (bal < 0 ? '#c0392b' : 'white');
-
-                pBalance.parentElement.style.backgroundColor = (bal > 0) ? 'rgba(39, 174, 96, 0.2)' : (bal < 0 ? 'rgba(192, 57, 43, 0.2)' : '#444');
+                // تلوين الرصيد (أخضر للمديونية "عليه للمحل"، أحمر للدائن "له عند المحل"، أبيض للصفر)
+                pBalance.style.fontWeight = '900';
+                pBalance.style.color = (bal > 0) ? 'var(--main-green)' : (bal < 0 ? '#ef4444' : 'white');
+                if (pBalance.parentElement) {
+                    pBalance.parentElement.style.backgroundColor = (bal > 0) ? 'rgba(39, 174, 96, 0.25)' : (bal < 0 ? 'rgba(239, 68, 68, 0.25)' : '#444');
+                }
 
             }
 
         } else {
+
+            pPB.innerText = '📦 مورد: ' + name;
 
             if (pCode) pCode.innerText = '---';
 
@@ -174,8 +203,9 @@ function updateHeaderPartnerInfo() {
                 pBalance.innerText = '0.00';
 
                 pBalance.style.color = 'white';
+                pBalance.style.fontWeight = '900';
 
-                pBalance.parentElement.style.backgroundColor = '#444';
+                if (pBalance.parentElement) pBalance.parentElement.style.backgroundColor = '#444';
 
             }
 
@@ -417,13 +447,21 @@ async function handlePurchaseSearch(query) {
     }
 }
 
-// إغلاق نافذة نتائج بحث المشتريات عند النقر بالخارج
+// إغلاق نافذة نتائج بحث المشتريات واقتراحات الموردين عند النقر بالخارج
 document.addEventListener('click', function(e) {
     const pResults = document.getElementById('purchaseSearchResults');
     const pInput = document.getElementById('purchaseSearch') || document.getElementById('purchaseProductSearch');
     if (pResults && pResults.style.display !== 'none') {
         if (!pResults.contains(e.target) && e.target !== pInput) {
             pResults.style.display = 'none';
+        }
+    }
+
+    const sResults = document.getElementById('supplierSearchResults');
+    const sInput = document.getElementById('supplierName');
+    if (sResults && sResults.style.display !== 'none') {
+        if (!sResults.contains(e.target) && e.target !== sInput) {
+            sResults.style.display = 'none';
         }
     }
 });
@@ -669,14 +707,25 @@ function updatePurchaseSearchSelection(items) {
 function handleSupplierSearch(query) {
 
     const resultsDiv = document.getElementById('supplierSearchResults');
+    if (!resultsDiv) return;
 
     resultsDiv.innerHTML = '';
 
-    if (!query) { resultsDiv.style.display = 'none'; return; }
+    const cleanQuery = String(query || '').trim();
+    if (!cleanQuery) {
+        resultsDiv.style.display = 'none';
+        return;
+    }
 
     const filtered = (window.BayanInvoiceEngine && typeof BayanInvoiceEngine.searchAccounts === 'function')
-        ? BayanInvoiceEngine.searchAccounts(query, 'supplier')
-        : accounts.filter(a => a && a.name && a.name.includes(query));
+        ? BayanInvoiceEngine.searchAccounts(cleanQuery, 'all')
+        : (typeof accounts !== 'undefined' && Array.isArray(accounts) ? accounts : (window.accounts || [])).filter(a => {
+            if (!a || !a.name) return false;
+            const qLower = cleanQuery.toLowerCase();
+            return a.name.toLowerCase().includes(qLower) ||
+                   (a.code && String(a.code).toLowerCase().includes(qLower)) ||
+                   (a.mobile && String(a.mobile).includes(cleanQuery));
+        });
 
     if (filtered.length > 0) {
 
@@ -688,7 +737,20 @@ function handleSupplierSearch(query) {
 
             div.className = 'result-item';
 
-            div.innerHTML = `<span>${a.name}</span><span class="stock-badge">${a.type === 'supplier' ? 'مورد' : (a.type === 'mixed' ? 'مشترك' : 'حساب')}</span>`;
+            let typeBadgeHtml = '';
+            const t = String(a.type || '').toLowerCase();
+            if (t === 'client' || t === 'customer' || t.includes('عميل')) {
+                typeBadgeHtml = `<span class="stock-badge" style="background:#dcfce7; color:#15803d; border:1px solid #bbf7d0; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px;">عميل 👤</span>`;
+            } else if (t === 'supplier' || t.includes('مورد')) {
+                typeBadgeHtml = `<span class="stock-badge" style="background:#dbeafe; color:#1d4ed8; border:1px solid #bfdbfe; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px;">مورد 📦</span>`;
+            } else if (t === 'mixed' || t.includes('مشترك')) {
+                typeBadgeHtml = `<span class="stock-badge" style="background:#ffedd5; color:#c2410c; border:1px solid #fed7aa; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px;">مشترك 🔄</span>`;
+            } else {
+                typeBadgeHtml = `<span class="stock-badge" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px;">حساب 🤝</span>`;
+            }
+
+            const codeDisplay = a.code ? `<small style="color:#64748b; font-size:0.75rem; margin-right:6px;">(#${a.code})</small>` : '';
+            div.innerHTML = `<span style="font-weight:700;">${a.name}${codeDisplay}</span>${typeBadgeHtml}`;
 
             div.onclick = () => {
 
