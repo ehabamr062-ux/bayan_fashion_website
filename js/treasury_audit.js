@@ -151,7 +151,7 @@ function getTreasuryDateRange() {
 }
 
 // 3. دالة التحكم في البند المخصص وتعبئة إجمالي المبيعات والمقبوضات تلقائياً عند اختيار "مبيعات"
-function handleTreasuryCategoryChange(val) {
+async function handleTreasuryCategoryChange(val) {
     const customInput = document.getElementById('trCustomCategory');
     if (customInput) {
         if (val === '__custom__') {
@@ -170,6 +170,13 @@ function handleTreasuryCategoryChange(val) {
         if (!currentDate) {
             currentDate = new Date().toLocaleDateString('en-CA');
             if (dateInput) dateInput.value = currentDate;
+        }
+
+        const todayISO = new Date().toLocaleDateString('en-CA');
+        if (currentDate < todayISO && typeof window.loadTransactionsForDateRange === 'function') {
+            try {
+                await window.loadTransactionsForDateRange(currentDate, currentDate);
+            } catch (e) {}
         }
 
         const res = calculateNetCashDrawerInflow(currentDate);
@@ -219,8 +226,40 @@ function calculateNetCashDrawerInflow(targetDate) {
     };
 
     try {
-        const allTx = (window.transactions || []);
+        let allTx = (window.transactions || []);
         const cleanDate = currentDate.slice(0, 10);
+        const todayISO = new Date().toLocaleDateString('en-CA');
+
+        // التحقق من توفر حركات التاريخ في الذاكرة الحية وجلبها من SQLite عند استعلام تواريخ سابقة
+        const hasDateInMemory = allTx.some(t => {
+            const d = (t.dateISO || t.date || '').slice(0, 10);
+            return d === cleanDate;
+        });
+
+        if (!hasDateInMemory || cleanDate < todayISO) {
+            if (window.BayanSQLite && typeof window.BayanSQLite.getTransactionsForPeriod === 'function' && window.BayanSQLite.db) {
+                try {
+                    const periodTx = window.BayanSQLite.getTransactionsForPeriod(cleanDate, cleanDate, 50000, 'all', 'all');
+                    if (periodTx && periodTx.length > 0) {
+                        allTx = periodTx;
+                        if (Array.isArray(window.transactions)) {
+                            const existingIds = new Set(window.transactions.map(t => t.id || t.invoiceId));
+                            periodTx.forEach(t => {
+                                const tId = t.id || t.invoiceId;
+                                if (!existingIds.has(tId)) {
+                                    window.transactions.push(t);
+                                    existingIds.add(tId);
+                                }
+                            });
+                        }
+                    }
+                } catch (e) {
+                    console.warn("[TreasuryAudit] getTransactionsForPeriod notice:", e);
+                }
+            } else if (typeof window.loadTransactionsForDateRange === 'function') {
+                window.loadTransactionsForDateRange(cleanDate, cleanDate).catch(() => {});
+            }
+        }
 
         const salesInvoices = {};
         const salesReturnsInvoices = {};
@@ -343,9 +382,38 @@ function calculateNetCashDrawerInflow(targetDate) {
 }
 
 // 4. تحديث إحصائيات الكروت والملخص المالي المنطقي الشامل
-function updateTreasuryAuditStats() {
-    const records = window.treasuryAuditRecords || [];
+async function updateTreasuryAuditStats() {
     const range = getTreasuryDateRange();
+    const todayISO = new Date().toLocaleDateString('en-CA');
+
+    // التحقق من توفر حركات الفترة المحددة في الذاكرة وجلبها عند الاستعلام عن فترات سابقة
+    if (range.start < todayISO || range.end < todayISO) {
+        if (typeof window.loadTransactionsForDateRange === 'function') {
+            try {
+                await window.loadTransactionsForDateRange(range.start, range.end);
+            } catch (err) {
+                console.warn("[TreasuryAudit] loadTransactionsForDateRange error:", err);
+            }
+        } else if (window.BayanSQLite && typeof window.BayanSQLite.getTransactionsForPeriod === 'function' && window.BayanSQLite.db) {
+            try {
+                const sqTx = window.BayanSQLite.getTransactionsForPeriod(range.start, range.end, 50000, 'all', 'all');
+                if (sqTx && sqTx.length > 0 && Array.isArray(window.transactions)) {
+                    const existingIds = new Set(window.transactions.map(t => t.id || t.invoiceId));
+                    sqTx.forEach(t => {
+                        const tId = t.id || t.invoiceId;
+                        if (!existingIds.has(tId)) {
+                            window.transactions.push(t);
+                            existingIds.add(tId);
+                        }
+                    });
+                }
+            } catch (err) {
+                console.warn("[TreasuryAudit] SQLite getTransactionsForPeriod error:", err);
+            }
+        }
+    }
+
+    const records = window.treasuryAuditRecords || [];
     
     // فلترة عمليات الفترة المحددة
     const filteredRecords = records.filter(r => r.date >= range.start && r.date <= range.end);
@@ -644,7 +712,7 @@ function renderTreasuryAuditTable() {
 }
 
 // دالة التحكم في البند المخصص وتحديث المبالغ تلقائياً عند اختيار مبيعات في نافذة التعديل
-function handleEditModalCategoryChange(val) {
+async function handleEditModalCategoryChange(val) {
     const customInput = document.getElementById('editModalCustomCategory');
     if (customInput) {
         if (val === '__custom__') {
@@ -661,6 +729,13 @@ function handleEditModalCategoryChange(val) {
         const id = parseInt(document.getElementById('editModalRecordId').value);
         const record = (window.treasuryAuditRecords || []).find(r => r.id === id);
         const targetDate = record ? record.date : (document.getElementById('trDate') ? document.getElementById('trDate').value : '');
+
+        const todayISO = new Date().toLocaleDateString('en-CA');
+        if (targetDate && targetDate < todayISO && typeof window.loadTransactionsForDateRange === 'function') {
+            try {
+                await window.loadTransactionsForDateRange(targetDate, targetDate);
+            } catch (e) {}
+        }
 
         const res = calculateNetCashDrawerInflow(targetDate);
         const bottomInput = document.getElementById('editModalAmountBottom');

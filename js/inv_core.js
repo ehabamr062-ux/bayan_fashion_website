@@ -467,7 +467,7 @@ function getInvSummaryMap(currentWH) {
         } else if (type.includes('مرتجع شراء')) {
             change = -qty; s.out += qty;
         } else if (type.includes('تسوية')) {
-            change = type.includes('+') ? qty : -qty;
+            change = qty;
         }
 
         if (!type.includes('تحويل')) s.globalChange += change;

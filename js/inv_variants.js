@@ -1566,10 +1566,10 @@ function renderSmartMatrixView() {
         return;
     }
 
-    // استخراج كافة المقاسات والألوان الفريدة
+    // استخراج كافة المقاسات والألوان وتجميع كميات التشكيلات المتطابقة
     const sizeSet = new Set();
     const colorSet = new Set();
-    const matrixMap = {}; // key: `${color}__${size}` => { rowIndex, stock, origStock, barcode, price, cost }
+    const matrixMap = {}; // key: `${color}__${size}` => { rowIndex, rowIndices, stock, origStock }
 
     for (let i = 0; i < rows.length; i++) {
         const size = rows[i].querySelector('.var-size-input')?.value?.trim() || 'موحد';
@@ -1581,11 +1581,19 @@ function renderSmartMatrixView() {
         sizeSet.add(size);
         colorSet.add(color);
 
-        matrixMap[`${color}__${size}`] = {
-            rowIndex: i,
-            stock: stock,
-            origStock: origStock
-        };
+        const key = `${color}__${size}`;
+        if (!matrixMap[key]) {
+            matrixMap[key] = {
+                rowIndex: i,
+                rowIndices: [i],
+                stock: stock,
+                origStock: origStock
+            };
+        } else {
+            matrixMap[key].rowIndices.push(i);
+            matrixMap[key].stock += stock;
+            matrixMap[key].origStock += origStock;
+        }
     }
 
     const sizes = Array.from(sizeSet);
@@ -1629,7 +1637,7 @@ function renderSmartMatrixView() {
         sizes.forEach((sz, sIdx) => {
             const item = matrixMap[`${col}__${sz}`];
             const stockVal = item ? item.stock : 0;
-            const rIdx = item ? item.rowIndex : -1;
+            const rIdxParam = item ? (item.rowIndices && item.rowIndices.length > 1 ? `'${item.rowIndices.join(',')}'` : item.rowIndex) : -1;
             const origVal = item ? item.origStock : 0;
             const isChanged = item && origVal !== undefined && origVal !== stockVal;
             rowSum += stockVal;
@@ -1642,9 +1650,9 @@ function renderSmartMatrixView() {
                 cellsHtml += `
                     <td style="padding: 8px 4px; border-bottom: 1.5px solid #cbd5e1; border-left: 2px solid #94a3b8; background: ${colBg}; text-align: center; vertical-align: middle;">
                         <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
-                            <input type="number" value="${stockVal}" min="0" data-row-index="${rIdx}" data-orig-stock="${origVal}" data-size="${sz}" data-color="${col}"
+                            <input type="number" value="${stockVal}" min="0" data-row-indices="${item.rowIndices ? item.rowIndices.join(',') : item.rowIndex}" data-orig-stock="${origVal}" data-size="${sz}" data-color="${col}"
                                 ${isLocked ? 'readonly' : ''}
-                                onchange="syncMatrixInputToDetailedRow(${rIdx}, this.value)"
+                                onchange="syncMatrixInputToDetailedRow(${rIdxParam}, this.value)"
                                 onfocus="if(window.isVariantsStockLocked) { this.blur(); if(typeof showToast==='function') showToast('🔒 الكميات مقفلة ومحمية. انقر على زر القفل 🔓 في الأعلى للتعديل', 'warning'); } else { this.select(); }"
                                 style="width: 70px; height: 36px; font-size: 1.1rem; font-weight: 900; text-align: center; border: 2px solid ${isChanged ? '#f59e0b' : (isLocked ? '#94a3b8' : '#2563eb')}; border-radius: 8px; color: ${stockVal > 0 ? '#047857' : '#64748b'}; background: ${isLocked ? (stockVal > 0 ? '#f0fdf4' : '#ffffff') : '#eff6ff'}; cursor: ${isLocked ? 'not-allowed' : 'text'}; transition: 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.06);"
                                 title="المقاس: ${sz} | اللون: ${col}${isChanged ? ` (الأصل: ${origVal})` : ''}">
@@ -1720,12 +1728,48 @@ function renderSmartMatrixView() {
     wrapper.innerHTML = tableHtml;
 }
 
-function syncMatrixInputToDetailedRow(rowIndex, newStock) {
+function syncMatrixInputToDetailedRow(target, newStock) {
     const rows = document.getElementById('productVariantsTableBody')?.rows || [];
-    if (rows[rowIndex]) {
-        const stockInp = rows[rowIndex].querySelector('.var-stock-input');
-        if (stockInp) {
-            stockInp.value = newStock;
+    const val = parseFloat(newStock) || 0;
+
+    let indices = [];
+    if (Array.isArray(target)) {
+        indices = target;
+    } else if (typeof target === 'string' && target.includes(',')) {
+        indices = target.split(',').map(n => parseInt(n.trim(), 10)).filter(n => !isNaN(n));
+    } else if (typeof target === 'number') {
+        indices = [target];
+    } else if (typeof target === 'string' && target.includes('__')) {
+        const [c, s] = target.split('__');
+        for (let i = 0; i < rows.length; i++) {
+            const sz = rows[i].querySelector('.var-size-input')?.value?.trim() || 'موحد';
+            const col = rows[i].querySelector('.var-color-input')?.value?.trim() || 'موحد';
+            if (sz === s && col === c) indices.push(i);
+        }
+    } else if (typeof target === 'string') {
+        const parsed = parseInt(target, 10);
+        if (!isNaN(parsed)) indices = [parsed];
+    }
+
+    if (indices.length === 1) {
+        const r = rows[indices[0]];
+        if (r) {
+            const stockInp = r.querySelector('.var-stock-input');
+            if (stockInp) stockInp.value = val;
+        }
+    } else if (indices.length > 1) {
+        // تحديث كافة الأسطر المتطابقة لنفس المقاس واللون: وضع الرصيد في السطر الرئيسي وتصفير الأسطر المكررة
+        const firstRow = rows[indices[0]];
+        if (firstRow) {
+            const stockInp = firstRow.querySelector('.var-stock-input');
+            if (stockInp) stockInp.value = val;
+        }
+        for (let k = 1; k < indices.length; k++) {
+            const dupRow = rows[indices[k]];
+            if (dupRow) {
+                const stockInp = dupRow.querySelector('.var-stock-input');
+                if (stockInp) stockInp.value = 0;
+            }
         }
     }
     renderSmartMatrixView();

@@ -863,9 +863,9 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td>${formatMoney(balBefore)}</td>
+                                    <td>${formatMoney(Math.abs(balBefore))}</td>
                                     <td>${formatMoney(amount)}</td>
-                                    <td>${formatMoney(balAfter)}</td>
+                                    <td>${formatMoney(Math.abs(balAfter))}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -956,10 +956,10 @@
             let balBefore, balAfter;
             if (isAlreadySaved) {
                 balAfter = currentBalance;
-                balBefore = currentBalance - amount;
+                balBefore = currentBalance + amount;
             } else {
                 balBefore = currentBalance;
-                balAfter = currentBalance + amount;
+                balAfter = currentBalance - amount;
             }
 
             const formatMoney = (num) => {
@@ -1164,9 +1164,9 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td>${formatMoney(balBefore)}</td>
+                                    <td>${formatMoney(Math.abs(balBefore))}</td>
                                     <td>${formatMoney(amount)}</td>
-                                    <td>${formatMoney(balAfter)}</td>
+                                    <td>${formatMoney(Math.abs(balAfter))}</td>
                                 </tr>
                             </tbody>
                         </table>

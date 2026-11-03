@@ -288,15 +288,6 @@
             accountsColumnOrder = [...DEFAULT_ACCOUNTS_COL_ORDER];
         }
 
-        function toggleAccountsColumn(index, isVisible) {
-
-            accountsColumnVisibility[index] = isVisible;
-
-            setStore('pos_acc_cols', JSON.stringify(accountsColumnVisibility));
-
-            renderAccountsTable();
-        }
-
         // ================= تخصيص أعمدة كشف الحساب (Statement Columns) =================
 
         let statementColumnVisibility = JSON.parse(getStore('pos_stmt_cols') || '{"0":false,"1":true,"2":true,"3":true,"4":true,"5":true,"6":true}');
@@ -880,7 +871,7 @@
                 const row = document.createElement('tr');
                 row.style.cursor = 'pointer';
                 row.dataset.accId = acc.id;
-                if (selectedAccountID === acc.id) {
+                if (String(selectedAccountID) === String(acc.id)) {
                     row.classList.add('acc-selected-row');
                 }
                 row.onclick = () => selectAccountRow(acc.id);
@@ -911,7 +902,7 @@
                     7: `<span style="color:var(--text-primary);">${totalSales.toFixed(2)}</span>`,
                     8: lastReceiptDate,
                     9: lastTransDate,
-                    10: `<div style="display:flex; justify-content:center; align-items:center; width:100%;"><input type="radio" name="accSelect" ${selectedAccountID === acc.id ? 'checked' : ''} onclick="event.stopPropagation(); selectAccountRow(${acc.id});" style="width: 20px; height: 20px; accent-color: #be185d; cursor: pointer;"></div>`
+                    10: `<div style="display:flex; justify-content:center; align-items:center; width:100%;"><input type="radio" name="accSelect" ${String(selectedAccountID) === String(acc.id) ? 'checked' : ''} onclick="event.stopPropagation(); selectAccountRow(${acc.id});" style="width: 20px; height: 20px; accent-color: #be185d; cursor: pointer;"></div>`
                 };
 
                 accountsColumnOrder.forEach(colIdx => {
@@ -988,7 +979,7 @@
                 else alert("⚠️ يرجى تحديد واختيار حساب من الجدول أولاً!");
                 return;
             }
-            const acc = accounts.find(a => a.id === selectedAccountID);
+            const acc = accounts.find(a => String(a.id) === String(selectedAccountID));
             if (!acc) {
                 if (typeof showToast === 'function') showToast("⚠️ لم يتم العثور على الحساب المختار!", "error");
                 return;
@@ -1010,8 +1001,13 @@
             if (!selectedAccountID) return alert("⚠️ يرجى اختيار حساب من الجدول أولاً!");
 
             // جلب البيانات مباشرة من قاعدة البيانات لضمان الحصول على أحدث القيم المسجلة
-
-            const acc = await db.accounts.get(selectedAccountID);
+            let acc = await db.accounts.get(selectedAccountID);
+            if (!acc && typeof selectedAccountID === 'string' && !isNaN(selectedAccountID)) {
+                acc = await db.accounts.get(Number(selectedAccountID));
+            }
+            if (!acc) {
+                acc = accounts.find(a => String(a.id) === String(selectedAccountID));
+            }
 
             if (!acc) return;
 
@@ -1123,7 +1119,7 @@
             if (!checkPermission('accounts_delete')) return;
             if (!selectedAccountID) return alert("⚠️ يرجى اختيار حساب من الجدول أولاً!");
 
-            const acc = accounts.find(a => a.id === selectedAccountID);
+            const acc = accounts.find(a => String(a.id) === String(selectedAccountID));
             if (!acc) return;
 
             const actualBal = typeof getAccountBalance === 'function' ? getAccountBalance(acc.name) : ((parseFloat(acc.debit) || 0) - (parseFloat(acc.credit) || 0));
@@ -1146,8 +1142,11 @@
                     addToTrash('account', acc, `حساب: ${acc.name}`);
                 }
 
-                accounts = accounts.filter(a => a.id !== selectedAccountID);
-                await db.accounts.delete(selectedAccountID);
+                accounts = accounts.filter(a => String(a.id) !== String(selectedAccountID));
+                await db.accounts.delete(acc.id);
+                if (String(acc.id) !== String(selectedAccountID)) {
+                    await db.accounts.delete(selectedAccountID).catch(() => {});
+                }
                 if (typeof window.invalidateAccountBalancesCache === 'function') {
                     window.invalidateAccountBalancesCache();
                 }
