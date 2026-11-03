@@ -35,29 +35,33 @@
             return clean.startsWith('SHOP_') && clean !== 'SHOP_DEFAULT' && clean.length >= 10;
         },
 
-        // 🔒 التحقق الحاسم من ترخيص المزامنة السحابية قبل أي اتصال بالسحابة (حظر قاطع وفوري لباقات الأوفلاين)
+        // 🔒 التحقق الحاسم من ترخيص المزامنة السحابية قبل أي اتصال بالسحابة (حظر قاطع وفوري لأي باقة بدون ترخيص سحابي صريح)
         _isAllowed: function () {
             try {
-                // 1. فحص فوري وصارم للباقة: أي باقة أوفلاين أو تجريبية أو مجانية ممنوعة منعاً باتاً من المزامنة السحابية وتحت أي ظرف
+                // 1. جلب الباقة الحالية
                 const plan = (typeof window.getBayanPlan === 'function')
                     ? window.getBayanPlan()
                     : ((typeof getStore === 'function' ? getStore('bayan_current_plan') : null) || localStorage.getItem('bayan_current_plan') || '');
+
+                // 2. حظر فوري وصارم لأي باقة أوفلاين أو تجريبية أو مجانية
                 if (!plan || plan.includes('مجانية') || plan.includes('تجريب') || plan.includes('أوفلاين') || plan.toLowerCase().includes('offline')) {
                     return false;
                 }
-            } catch (e) { }
 
-            if (typeof window.isCloudSyncAllowed === 'function') {
-                return Boolean(window.isCloudSyncAllowed());
-            }
-
-            try {
-                const plan = (typeof window.getBayanPlan === 'function')
-                    ? window.getBayanPlan()
-                    : ((typeof getStore === 'function' ? getStore('bayan_current_plan') : null) || localStorage.getItem('bayan_current_plan') || '');
-                const isCloud = plan.includes('سحاب') || plan.includes('Cloud');
+                // 3. المزامنة مغلقة افتراضياً (Return false) لأي باقة لا تتضمن صراحةً "سحابية" أو "Cloud"
+                // حتى لو كانت الباقة "مدى الحياة" أو "سنوية"، ما لم يكن مفعلاً لها ترخيص سحابي صريح
+                const isExplicitCloud = plan.includes('سحاب') || plan.includes('Cloud');
                 const isExplicitCloudLicensed = (typeof getStore === 'function') && (getStore('bayan_cloud_sync_licensed') === 'true');
-                return Boolean(isCloud || isExplicitCloudLicensed);
+                if (!isExplicitCloud && !isExplicitCloudLicensed) {
+                    return false;
+                }
+
+                // 4. فحص الصلاحيات المركزية الإضافية (سريان الاشتراك، فحص التلاعب بالوقت، الحظر عن بعد)
+                if (typeof window.isCloudSyncAllowed === 'function') {
+                    return Boolean(window.isCloudSyncAllowed());
+                }
+
+                return true;
             } catch (e) {
                 return false;
             }
@@ -1441,6 +1445,10 @@
 
                         for (const rAcc of remoteAccs) {
                             if (!rAcc || !rAcc.name) continue;
+                            // 🛡️ حظر قاطع لمنع استيراد أي حساب تجريبي من السحابة نهائياً
+                            if (typeof window.isDemoAccount === 'function' && window.isDemoAccount(rAcc.name, rAcc.code)) {
+                                continue;
+                            }
                             const existing = accList.find(a => cleanArFn(a.name) === cleanArFn(rAcc.name));
                             if (!existing) {
                                 const newId = Number(rAcc.id) || (Date.now() + Math.floor(Math.random() * 1000));
@@ -1510,9 +1518,9 @@
                 }
             } catch (impErr) { }
 
-            // تجهيز ورفع العملاء وبنود السندات المخصصة
+            // تجهيز ورفع العملاء وبنود السندات المخصصة (مع استبعاد أي حسابات تجريبية نهائياً)
             const allMappedAccounts = accList
-                .filter(a => a && a.name)
+                .filter(a => a && a.name && (typeof window.isDemoAccount !== 'function' || !window.isDemoAccount(a.name, a.code)))
                 .map(a => {
                     const tp = String(a.type || '').toLowerCase();
                     const isSupp = (tp === 'supplier' || tp.includes('مورد'));

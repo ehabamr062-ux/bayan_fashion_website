@@ -948,10 +948,10 @@
                         <span class="field-hint">أكواد وأرصدة افتتاحية وهواتف</span>
                     </div>
                     <div class="input-row">
-                        <input type="number" id="inputAccounts" class="field-input" value="500" min="5" max="50000" oninput="syncSlider('inputAccounts', 'sliderAccounts'); updateEstimates();">
+                        <input type="number" id="inputAccounts" class="field-input" value="0" min="0" max="50000" oninput="syncSlider('inputAccounts', 'sliderAccounts'); updateEstimates();">
                     </div>
                     <div class="slider-row">
-                        <input type="range" id="sliderAccounts" class="range-slider" min="50" max="5000" step="50" value="500" oninput="syncInput('sliderAccounts', 'inputAccounts'); updateEstimates();">
+                        <input type="range" id="sliderAccounts" class="range-slider" min="0" max="5000" step="50" value="0" oninput="syncInput('sliderAccounts', 'inputAccounts'); updateEstimates();">
                     </div>
                     <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
                         <button type="button" class="step-btn" onclick="adjustVal('inputAccounts', 100)">+100</button>
@@ -1164,13 +1164,8 @@
         const sizes = ['S', 'M', 'L', 'XL', '2XL', '3XL', '38', '40', '42', '44'];
         const colors = ['أسود', 'أبيض', 'كحلي', 'رمادي ملانج', 'بيج صحراوي', 'زيتي غامق', 'نبيتي شتوي', 'كشمير ناعم', 'أزرق بترولي', 'هافان جملي'];
         
-        const partnerNames = [
-            'أحمد محمود الشناوي', 'محمد عبد الله خليل', 'إسلام فتحي حسن', 'ياسر إبراهيم النجار', 'كريم عادل الدسوقي',
-            'سارة أحمد فاروق', 'ميادة سمير غانم', 'نورهان سعيد علام', 'شركة الفارس للأقمشة الفاخرة', 'مصنع النور للأزياء الجاهزة',
-            'مكتب الأندلس لتوريدات الملابس', 'محلات مكة فاشون سنتر', 'مؤسسة الصفوة تكستايل', 'المهندس طارق منصور',
-            'سعد حسني البحراوي', 'شركة الرواد للملابس القطنية', 'مؤسسة براند إكس للأزياء', 'وكالة النيل للموضة',
-            'عميل نقدي عام (المحل)', 'مؤسسة التوفيق للمنسوجات', 'شركة الأمل للفاشون والموضة', 'محمود رأفت للتجارة'
-        ];
+        // تم إلغاء التوليد التلقائي لأسماء الحسابات التجريبية نهائياً لحماية أجهزة وبيانات العملاء
+        const partnerNames = [];
 
         const paymentMethods = ['نقدي', 'فيزا / بطاقة بنكية', 'فودافون كاش / إنستاباي', 'آجل (حساب عميل)'];
 
@@ -1248,7 +1243,7 @@
         async function startGeneration() {
             const numProds = Math.max(1, parseInt(document.getElementById('inputProds').value, 10) || 3000);
             const numTxs = Math.max(1, parseInt(document.getElementById('inputTxs').value, 10) || 5000);
-            const numAccs = Math.max(1, parseInt(document.getElementById('inputAccounts').value, 10) || 500);
+            const numAccs = Math.max(0, parseInt(document.getElementById('inputAccounts').value, 10) || 0);
             const numWhs = Math.max(1, parseInt(document.getElementById('inputWarehouses').value, 10) || 2);
             const numUsers = Math.max(1, parseInt(document.getElementById('inputUsers').value, 10) || 3);
             const daysRange = Math.max(1, parseInt(document.getElementById('inputDaysRange').value, 10) || 180);
@@ -1306,15 +1301,14 @@
                 });
             }
 
-            // 3. توليد العملاء والموردين بهندسة خفيفة وسريعة
-            updateUI(10, 'جاري توليد العملاء والموردين والأرصدة الافتتاحية...', `0 / ${numAccs}`);
+            // 3. إلغاء التوليد التلقائي لأسماء الحسابات التجريبية نهائياً لحماية أجهزة وبيانات العملاء
+            updateUI(10, 'جاري إعداد بيانات الحسابات...', `${numAccs} حساب`);
             await new Promise(r => setTimeout(r, 20));
 
             const accounts = [];
             for (let i = 1; i <= numAccs; i++) {
                 const isSupplier = (i % 6 === 0);
-                const baseName = partnerNames[(i - 1) % partnerNames.length];
-                const accName = `${baseName} (#${i})`;
+                const accName = isSupplier ? `مورد عام (${i})` : `عميل نقدي (${i})`;
                 const initBal = (i % 4 === 0) ? (Math.floor(Math.random() * 15) * 100) : 0;
                 
                 const accObj = {
@@ -1469,11 +1463,13 @@
                 }
 
                 // اختيار الطرف المناسب (عميل أو مورد)
-                let chosenAcc;
-                if (txType.includes('شراء') || txType === 'سند صرف') {
-                    chosenAcc = accounts.find(a => a.type === 'supplier') || accounts[0];
-                } else {
-                    chosenAcc = accounts[(i * 2) % accounts.length];
+                let chosenAcc = null;
+                if (accounts.length > 0) {
+                    if (txType.includes('شراء') || txType === 'سند صرف') {
+                        chosenAcc = accounts.find(a => a.type === 'supplier') || accounts[0];
+                    } else {
+                        chosenAcc = accounts[(i * 2) % accounts.length];
+                    }
                 }
 
                 let total = 0;
@@ -1601,7 +1597,7 @@
                     dateISO: dateISO,
                     time: time,
                     type: txType,
-                    partner: isTransfer ? 'تحويل فروع' : chosenAcc.name,
+                    partner: isTransfer ? 'تحويل فروع' : (chosenAcc ? chosenAcc.name : (txType.includes('شراء') || txType === 'سند صرف' ? 'مورد عام نقدي' : 'عميل نقدي عام')),
                     total: total,
                     paidAmount: paidAmount,
                     remaining: remaining,

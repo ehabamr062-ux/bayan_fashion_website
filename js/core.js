@@ -806,6 +806,261 @@ if (getStore('bayan_inventory_categories')) {
 
 // --- نظام الحفظ والاسترجاع (SQLite) ---
 
+// =========================================================================
+// 🧹 منظومة التطهير التلقائي الذكية للحسابات التجريبية (Demo Accounts Auto-Purge)
+// =========================================================================
+const DEMO_PARTNER_BASE_NAMES = [
+    'أحمد محمود الشناوي',
+    'محمد عبد الله خليل',
+    'إسلام فتحي حسن',
+    'ياسر إبراهيم النجار',
+    'كريم عادل الدسوقي',
+    'سارة أحمد فاروق',
+    'ميادة سمير غانم',
+    'نورهان سعيد علام',
+    'شركة الفارس للأقمشة الفاخرة',
+    'شركة الفارس للأقمشة',
+    'مصنع النور للأزياء الجاهزة',
+    'مصنع النور للأزياء',
+    'مكتب الأندلس لتوريدات الملابس',
+    'محلات مكة فاشون سنتر',
+    'مؤسسة الصفوة تكستايل',
+    'المهندس طارق منصور',
+    'سعد حسني البحراوي',
+    'شركة الرواد للملابس القطنية',
+    'مؤسسة براند إكس للأزياء',
+    'وكالة النيل للموضة',
+    'وكالة الشرق للموضة',
+    'عميل نقدي عام (المحل)',
+    'مؤسسة التوفيق للمنسوجات',
+    'شركة الأمل للفاشون والموضة',
+    'محمود رأفت للتجارة',
+    'شركة النيل للأقمشة والمنسوجات',
+    'أحمد سعيد الطوخي'
+];
+
+window.isDemoAccount = function (rawName, rawCode = '') {
+    if (!rawName || typeof rawName !== 'string') return false;
+    const cleanAr = s => String(s || '').trim().toLowerCase()
+        .replace(/[أإآ]/g, 'ا')
+        .replace(/ة/g, 'ه')
+        .replace(/[ىي]/g, 'ي')
+        .replace(/\s+/g, ' ');
+
+    const cName = cleanAr(rawName);
+    const cCode = String(rawCode || '').trim().toUpperCase();
+
+    // 1. فحص كود الحساب A0001 - A0055 أو A001 - A055
+    const codeMatch = cCode.match(/^A0*([1-9]|[1-4][0-9]|5[0-5])$/);
+    const isDemoCode = Boolean(codeMatch);
+
+    // 2. فحص الرقم المتسلسل (#1) إلى (#55) في نهاية الاسم
+    const hashMatch = rawName.match(/[\(（]#?(\d+)[\)）]$/);
+    if (hashMatch) {
+        const num = parseInt(hashMatch[1], 10);
+        if (num >= 1 && num <= 55) {
+            const baseOnly = cleanAr(rawName.replace(/[\(（]#?\d+[\)）]$/, ''));
+            const matchesBase = DEMO_PARTNER_BASE_NAMES.some(b => {
+                const cb = cleanAr(b);
+                return cb === baseOnly || baseOnly.includes(cb) || cb.includes(baseOnly);
+            });
+            if (matchesBase || isDemoCode) return true;
+        }
+    }
+
+    // 3. إذا كان الكود A0001 - A0055 والاسم يحتوي على أي من الأسماء التجريبية
+    if (isDemoCode) {
+        if (DEMO_PARTNER_BASE_NAMES.some(b => cleanAr(b) === cName || cName.includes(cleanAr(b)))) {
+            return true;
+        }
+    }
+
+    // 4. مطابقة صريحة للأسماء التجريبية مع الترقيم
+    for (let i = 1; i <= 55; i++) {
+        for (const b of DEMO_PARTNER_BASE_NAMES) {
+            if (cName === cleanAr(`${b} (#${i})`) || cName === cleanAr(`${b} (${i})`)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+};
+
+// 🛡️ فحص حاسم: هل الحساب مرتبط بأي فواتير أو حركات مالية في جدول transactions؟
+async function hasAccountTransactions(acc) {
+    if (!acc) return false;
+    const cleanAr = s => String(s || '').trim().toLowerCase()
+        .replace(/[أإآ]/g, 'ا')
+        .replace(/ة/g, 'ه')
+        .replace(/[ىي]/g, 'ي')
+        .replace(/\s+/g, ' ');
+
+    const accNameClean = cleanAr(acc.name);
+    const accCode = String(acc.code || '').trim();
+    const accId = String(acc.id || '');
+
+    // 1. فحص الفواتير والعمليات في الذاكرة الحية
+    const liveTxs = (typeof transactions !== 'undefined' && Array.isArray(transactions))
+        ? transactions
+        : (window.transactions || []);
+    for (let i = 0; i < liveTxs.length; i++) {
+        const t = liveTxs[i];
+        if (!t) continue;
+        if (t.partner && cleanAr(t.partner) === accNameClean) return true;
+        if (t.partnerId && String(t.partnerId) === accId) return true;
+        if (accCode && (String(t.partnerCode || '').trim() === accCode || String(t.accountCode || '').trim() === accCode)) return true;
+    }
+
+    // 2. فحص محرك SQLite الأصلي لتغطية كامل تاريخ الفواتير والحركات المالية
+    if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+        try {
+            const checkQuery = `
+                SELECT 1 FROM transactions 
+                WHERE partner = ? 
+                   OR (partnerCode IS NOT NULL AND partnerCode = ?) 
+                LIMIT 1;
+            `;
+            const row = window.BayanSQLite.nativeDb.prepare(checkQuery).get(acc.name, accCode);
+            if (row) return true;
+
+            const rowItem = window.BayanSQLite.nativeDb.prepare("SELECT 1 FROM transaction_items WHERE partner = ? LIMIT 1;").get(acc.name);
+            if (rowItem) return true;
+        } catch (e) {
+            console.warn("[hasAccountTransactions SQLite Native]:", e);
+        }
+    } else if (window.BayanSQLite && window.BayanSQLite.db) {
+        try {
+            const res = window.BayanSQLite.db.exec("SELECT 1 FROM transactions WHERE partner = ? LIMIT 1;", [acc.name]);
+            if (res && res.length > 0 && res[0].values && res[0].values.length > 0) return true;
+        } catch (e) {
+            console.warn("[hasAccountTransactions SQLite sql.js]:", e);
+        }
+    }
+
+    // 3. فحص قاعدة IndexedDB (Dexie)
+    if (window.db && window.db.transactions) {
+        try {
+            const count = await window.db.transactions.where('partner').equals(acc.name).count();
+            if (count > 0) return true;
+        } catch (e) {}
+    }
+
+    return false;
+}
+
+window.purgeDemoAccountsIfUnused = async function () {
+    try {
+        let accList = (typeof accounts !== 'undefined' && Array.isArray(accounts) && accounts.length > 0)
+            ? accounts
+            : (window.accounts || []);
+
+        if ((!accList || accList.length === 0) && window.db && window.db.accounts) {
+            try {
+                accList = await window.db.accounts.toArray();
+            } catch (e) {}
+        }
+
+        if (!accList || !Array.isArray(accList) || accList.length === 0) {
+            return { purgedCount: 0, purgedNames: [] };
+        }
+
+        const toDelete = [];
+        for (const acc of accList) {
+            if (!acc || !acc.name) continue;
+            if (window.isDemoAccount(acc.name, acc.code)) {
+                const hasTx = await hasAccountTransactions(acc);
+                if (!hasTx) {
+                    toDelete.push(acc);
+                }
+            }
+        }
+
+        if (toDelete.length === 0) {
+            return { purgedCount: 0, purgedNames: [] };
+        }
+
+        const deleteIds = new Set(toDelete.map(a => String(a.id)));
+        const cleanAr = s => String(s || '').trim().toLowerCase()
+            .replace(/[أإآ]/g, 'ا')
+            .replace(/ة/g, 'ه')
+            .replace(/[ىي]/g, 'ي')
+            .replace(/\s+/g, ' ');
+        const deleteNamesClean = new Set(toDelete.map(a => cleanAr(a.name)));
+
+        // 1. الحذف من الذاكرة الحية (Active Memory)
+        if (window.accounts && Array.isArray(window.accounts)) {
+            window.accounts = window.accounts.filter(a => a && !deleteIds.has(String(a.id)) && !deleteNamesClean.has(cleanAr(a.name)));
+        }
+        if (typeof accounts !== 'undefined' && Array.isArray(accounts)) {
+            accounts = accounts.filter(a => a && !deleteIds.has(String(a.id)) && !deleteNamesClean.has(cleanAr(a.name)));
+        }
+
+        // 2. الحذف من قاعدة بيانات IndexedDB
+        if (window.db && window.db.accounts) {
+            for (const acc of toDelete) {
+                try {
+                    await window.db.accounts.delete(acc.id);
+                    if (typeof acc.id === 'string' && !isNaN(Number(acc.id))) {
+                        await window.db.accounts.delete(Number(acc.id));
+                    }
+                } catch (e) {}
+            }
+        }
+
+        // 3. الحذف من قاعدة بيانات SQLite (Native & sql.js)
+        if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+            try {
+                const stmtId = window.BayanSQLite.nativeDb.prepare("DELETE FROM accounts WHERE id = ?;");
+                const stmtName = window.BayanSQLite.nativeDb.prepare("DELETE FROM accounts WHERE name = ?;");
+                const deleteTx = window.BayanSQLite.nativeDb.transaction((list) => {
+                    for (const a of list) {
+                        if (a.id) stmtId.run(a.id);
+                        if (a.name) stmtName.run(a.name);
+                    }
+                });
+                deleteTx(toDelete);
+            } catch (e) {
+                console.warn("[purgeDemoAccounts SQLite Native]:", e);
+            }
+        } else if (window.BayanSQLite && window.BayanSQLite.db) {
+            try {
+                for (const a of toDelete) {
+                    window.BayanSQLite.db.run("DELETE FROM accounts WHERE id = ? OR name = ?;", [a.id, a.name]);
+                }
+                if (typeof window.BayanSQLite.persistNative === 'function') {
+                    window.BayanSQLite.persistNative();
+                }
+            } catch (e) {
+                console.warn("[purgeDemoAccounts SQLite sql.js]:", e);
+            }
+        }
+
+        // 4. تحديث جداول وقوائم الواجهة
+        if (typeof updateDatalists === 'function') {
+            try { updateDatalists(); } catch (e) {}
+        }
+        if (typeof renderAccountsTable === 'function') {
+            const accSec = document.getElementById('accounts-section');
+            if (accSec && !accSec.classList.contains('hidden')) {
+                try { renderAccountsTable(); } catch (e) {}
+            }
+        }
+        if (typeof window.invalidateAccountBalancesCache === 'function') {
+            try { window.invalidateAccountBalancesCache(); } catch (e) {}
+        }
+
+        console.log(`🧹 [Auto-Cleanup] تم تطهير وحذف ${toDelete.length} حساب تجريبي غير مستخدم بنجاح.`);
+        return {
+            purgedCount: toDelete.length,
+            purgedNames: toDelete.map(a => a.name)
+        };
+    } catch (err) {
+        console.error("❌ [purgeDemoAccountsIfUnused Error]:", err);
+        return { purgedCount: 0, purgedNames: [], error: err.message };
+    }
+};
+
 // --- نظام الحسابات والديناميكية ---
 
 async function loadData() {
@@ -906,6 +1161,13 @@ async function loadData() {
 
         if (typeof window.invalidateAccountBalancesCache === 'function') {
             window.invalidateAccountBalancesCache();
+        }
+
+        // 🧹 تنظيف وتطهير تلقائي ذكي للحسابات التجريبية الـ 55 غير المستخدمة عند الإقلاع
+        try {
+            await window.purgeDemoAccountsIfUnused();
+        } catch (purgeErr) {
+            console.warn("Auto-cleanup demo accounts notice:", purgeErr);
         }
 
         trashBin = trData || [];
