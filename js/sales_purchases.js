@@ -2172,6 +2172,15 @@ async function savePurchase(force = false, accountChecked = false) {
             await saveData();
         }
 
+        // 🔄 تحديث وتفريغ كاش الأرصدة المالية للمورد لتحديث رصيده في شريط الهيدر والتقارير فوراً
+        if (typeof window.invalidateAccountBalancesCache === 'function') {
+            window.invalidateAccountBalancesCache();
+            if (finalPartner) window.invalidateAccountBalancesCache(finalPartner);
+        }
+        if (typeof updatePurchaseHeaderPartnerInfo === 'function') {
+            updatePurchaseHeaderPartnerInfo();
+        }
+
         if (!isEditMode && typeof window.registerTrialInvoiceCreation === 'function') {
             window.registerTrialInvoiceCreation();
         }

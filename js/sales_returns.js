@@ -1218,6 +1218,19 @@ function resetReturn() {
 
     if (document.getElementById('returnTotalQty')) document.getElementById('returnTotalQty').innerText = '0';
 
+    // تصفير صريح لحقول الخصم والضريبة والملاحظات لمنع توارثها بين الفواتير
+    const srDisc = document.getElementById('salesReturnDiscount');
+    if (srDisc) srDisc.value = '';
+    const srDiscType = document.getElementById('salesReturnDiscountType');
+    if (srDiscType) srDiscType.value = 'val';
+    const srTax = document.getElementById('salesReturnTax');
+    if (srTax) srTax.value = '';
+    const srTaxType = document.getElementById('salesReturnTaxType');
+    if (srTaxType) srTaxType.value = 'val';
+    if (document.getElementById('salesReturnDiscountAmountDisplay')) document.getElementById('salesReturnDiscountAmountDisplay').innerText = '0.00';
+    if (document.getElementById('salesReturnTaxAmountDisplay')) document.getElementById('salesReturnTaxAmountDisplay').innerText = '0.00';
+    if (document.getElementById('salesReturnNotes')) document.getElementById('salesReturnNotes').value = '';
+
     const nextId = getNextSequence('مرتجع بيع');
 
     if (document.getElementById('salesReturnBadgeID')) document.getElementById('salesReturnBadgeID').innerText = nextId;
@@ -1885,6 +1898,19 @@ function resetPurReturn() {
     if (document.getElementById('purReturnItemsCount')) document.getElementById('purReturnItemsCount').innerText = '0';
 
     if (document.getElementById('purReturnTotalQty')) document.getElementById('purReturnTotalQty').innerText = '0';
+
+    // تصفير صريح لحقول الخصم والضريبة والملاحظات لمرتجع الشراء
+    const prDisc = document.getElementById('purReturnDiscount');
+    if (prDisc) prDisc.value = '';
+    const prDiscType = document.getElementById('purReturnDiscountType');
+    if (prDiscType) prDiscType.value = 'val';
+    const prTax = document.getElementById('purReturnTax');
+    if (prTax) prTax.value = '';
+    const prTaxType = document.getElementById('purReturnTaxType');
+    if (prTaxType) prTaxType.value = 'val';
+    if (document.getElementById('purReturnDiscountAmountDisplay')) document.getElementById('purReturnDiscountAmountDisplay').innerText = '0.00';
+    if (document.getElementById('purReturnTaxAmountDisplay')) document.getElementById('purReturnTaxAmountDisplay').innerText = '0.00';
+    if (document.getElementById('purReturnNotes')) document.getElementById('purReturnNotes').value = '';
 
     const nextId = getNextSequence('مرتجع شراء');
 

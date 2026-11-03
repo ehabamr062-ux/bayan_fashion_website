@@ -3430,7 +3430,7 @@
             const rawExpected = window.currentDrawerClosingState?.expectedCash !== undefined 
                 ? window.currentDrawerClosingState.expectedCash 
                 : (window.currentDrawerClosingState?.netCashMovement || 0);
-            const expected = Math.abs(rawExpected || 0);
+            const expected = Number(rawExpected) || 0;
             const diff = actual - expected;
             const absDiff = Math.abs(diff);
 
@@ -3672,7 +3672,7 @@
             const rawExpected = window.currentDrawerClosingState.includePrevBalance 
                 ? window.currentDrawerClosingState.finalCashBalance 
                 : window.currentDrawerClosingState.netCashMovement;
-            const expected = Math.abs(rawExpected || 0);
+            const expected = Number(rawExpected) || 0;
             window.currentDrawerClosingState.expectedCash = expected;
 
             const shiftLabel = document.getElementById('drawerAuditShiftLabel');
@@ -3861,7 +3861,7 @@
 
             const actual = parseFloat(val) || 0;
             const rawExpected = window.currentDrawerClosingState.expectedCash !== undefined ? window.currentDrawerClosingState.expectedCash : window.currentDrawerClosingState.netCashMovement;
-            const expected = Math.abs(rawExpected || 0);
+            const expected = Number(rawExpected) || 0;
             const diff = actual - expected;
             const absDiff = Math.abs(diff);
 
@@ -5739,7 +5739,7 @@
             if (!container) return;
 
             const rawExpected = (expectedVal !== undefined) ? Number(expectedVal) : Number(window.currentDrawerClosingState.editingExpectedCash || 0);
-            const expected = Math.abs(rawExpected || 0);
+            const expected = Number(rawExpected) || 0;
             const val = inp ? inp.value.trim() : '';
             if (val === '' || isNaN(parseFloat(val))) {
                 container.innerHTML = `<div style="background: #f1f5f9; border: 1.5px dashed #cbd5e1; color: #475569; padding: 10px 14px; border-radius: 10px; font-weight: 800; font-size: 0.92rem; text-align: center;">يرجى كتابة المبلغ الفعلي لاحتساب الفارق...</div>`;

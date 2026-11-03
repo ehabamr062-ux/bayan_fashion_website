@@ -896,6 +896,11 @@ async function saveAdjustment() {
                 const customNotes = item.notes || (document.getElementById('adjNotes') ? document.getElementById('adjNotes').value.trim() : '');
                 const fullNotes = `جرد مخزن [${activeWH}]: دفتري ${stockBefore} | فعلي ${countedBase} | ${diffDesc}${customNotes ? ' - ' + customNotes : ''}`;
 
+                const sAdjBarcode = (item.selectedVariant && item.selectedVariant.barcode)
+                    ? String(item.selectedVariant.barcode).trim()
+                    : String(item.code || item.barcode || (p ? (p.barcode || p.code) : '') || '').trim();
+                const sAdjProdId = p ? p.id : (item.productId || item.id || null);
+
                 transactions.push({
                     date: dt.full,
                     dateISO: dt.iso,
@@ -903,6 +908,9 @@ async function saveAdjustment() {
                     type: 'تسوية مخزن ⚖️',
                     method: '-',
                     invoiceId: adjId,
+                    productId: sAdjProdId,
+                    barcode: sAdjBarcode,
+                    code: sAdjBarcode,
                     product: p.name,
                     unit: item.selectedUnit ? item.selectedUnit.unitName : (p.unit || 'قطعة'),
                     size: item.selectedSize || item.size || '',

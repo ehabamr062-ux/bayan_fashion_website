@@ -392,8 +392,8 @@ function computeTransactionRunningBalances(targetWarehouse = 'all') {
             if (type.includes('تحويل')) {
                 if (item.t.transferStatus === 'received') {
                     if (isSpecificWh) {
-                        const src = item.t.sourceWarehouse || item.t.fromWarehouse || item.t.warehouse;
-                        const dst = item.t.toWarehouse || item.t.destWarehouse;
+                        const src = item.t.sourceWarehouse || item.t.fromWarehouse;
+                        const dst = item.t.toWarehouse || item.t.destWarehouse || (item.t.warehouse && item.t.warehouse !== src ? item.t.warehouse : '');
                         if (dst === targetWarehouse) {
                             delta = qty; // وارد للمخزن
                         } else if (src === targetWarehouse) {
