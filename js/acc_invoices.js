@@ -1442,12 +1442,22 @@ async function viewInvoiceItems(invoiceId, type = '', autoPrint = false, optTxId
     tx.items = rawItems.map(i => {
         const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 0));
         const price = parseFloat(i.price != null ? i.price : (i.costPrice || i.purchasePrice || 0));
-        let disc = parseFloat(i.discount != null ? i.discount : (i.itemDiscount != null ? i.itemDiscount : 0)) || 0;
+        
+        // 🛡️ حصر خصم البند على الخصم الفردي الخاص بالصنف فقط واستبعاد الخصم الموزع للفاتورة
+        let disc = 0;
+        if (i.itemDiscount != null && parseFloat(i.itemDiscount) > 0) {
+            disc = parseFloat(i.itemDiscount);
+        } else if (i.discount != null && parseFloat(i.discount) > 0 && !i.distributedDiscount) {
+            // التأكد من أنه ليس مجرد خصم موزع من إجمالي الفاتورة
+            disc = parseFloat(i.discount);
+        }
         const discType = i.discountType || i.itemDiscountType || 'val';
         let addition = parseFloat(i.addition != null ? i.addition : (i.extra != null ? i.extra : 0)) || 0;
         const total = parseFloat(i.total != null ? i.total : (qty * price - disc + addition));
 
         return {
+            productId: i.productId || null,
+            barcode: i.barcode || i.code || '',
             name: i.product || i.productName || i.name || 'صنف غير محدد',
             qty: qty,
             unit: i.unit || '-',
@@ -1455,6 +1465,7 @@ async function viewInvoiceItems(invoiceId, type = '', autoPrint = false, optTxId
             color: i.color || i.selectedColor || '',
             price: price,
             discount: disc,
+            itemDiscount: disc,
             discountType: discType,
             addition: addition,
             extra: addition,

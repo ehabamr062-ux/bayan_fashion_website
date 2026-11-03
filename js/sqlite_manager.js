@@ -1519,9 +1519,9 @@
                 // قائمة الحقول المخزنة كأعمدة لتجريدها من raw_json
                 const itemColKeys = [
                     'id', 'tx_id', 'invoiceId', 'dateISO', 'time', 'type', 'partner',
-                    'barcode', 'code', 'product', 'productName', 'name', 'size', 'selectedSize',
+                    'barcode', 'code', 'productId', 'product', 'productName', 'name', 'size', 'selectedSize',
                     'color', 'selectedColor', 'qty', 'quantity', 'price', 'cost', 'costPrice',
-                    'discount', 'itemDiscount', 'addition', 'extra', 'total', 'profit', 'warehouse'
+                    'discount', 'itemDiscount', 'distributedDiscount', 'addition', 'extra', 'total', 'profit', 'warehouse'
                 ];
 
                 // الحالة 1: السجل يحتوي على مصفوفة أصناف داخلية (items)
@@ -1530,6 +1530,7 @@
                         if (!line) continue;
                         const barcode = String(line.barcode || line.code || '');
                         const pName = String(line.product || line.productName || line.name || '');
+                        const pId = line.productId || null;
                         const size = String(line.size || line.selectedSize || '');
                         const color = String(line.color || line.selectedColor || '');
                         const qty = Number(line.qty != null ? line.qty : (line.quantity || 0)) || 0;
@@ -1540,9 +1541,10 @@
                         const total = Number(line.total != null ? line.total : (qty * price - discount + addition)) || 0;
                         const profit = Number(line.profit != null ? line.profit : ((price - cost) * qty)) || 0;
 
-                        // تجريد الحقول المكررة من raw_json وتخزين الإضافات فقط أو null
+                        // تجريد الحقول المكررة من raw_json وتخزين الإضافات فقط مع الحفاظ على productId
                         let lineRawJson = this._extractExtraFields(line, itemColKeys);
                         if (typeof lineRawJson === 'object' && lineRawJson !== null) {
+                            if (pId && !lineRawJson.productId) lineRawJson.productId = pId;
                             try { lineRawJson = JSON.stringify(lineRawJson); } catch (e) { lineRawJson = '{}'; }
                         } else if (typeof lineRawJson !== 'string') {
                             lineRawJson = String(lineRawJson || '{}');
@@ -1560,6 +1562,7 @@
                 else if (item.product || item.productName || item.barcode || item.name) {
                     const barcode = String(item.barcode || item.code || '');
                     const pName = String(item.product || item.productName || item.name || '');
+                    const pId = item.productId || null;
                     const size = String(item.size || item.selectedSize || '');
                     const color = String(item.color || item.selectedColor || '');
                     const qty = Number(item.qty != null ? item.qty : (item.quantity || 0)) || 0;
@@ -1572,6 +1575,7 @@
 
                     let singleRawJson = this._extractExtraFields(item, itemColKeys);
                     if (typeof singleRawJson === 'object' && singleRawJson !== null) {
+                        if (pId && !singleRawJson.productId) singleRawJson.productId = pId;
                         try { singleRawJson = JSON.stringify(singleRawJson); } catch (e) { singleRawJson = '{}'; }
                     } else if (typeof singleRawJson !== 'string') {
                         singleRawJson = String(singleRawJson || '{}');
@@ -2053,8 +2057,10 @@
                             `);
                             const cachedStmts = { delTiStmt, insTiStmt };
 
-                            // تنظيف مسبق للسطور الفرعية القديمة (_item_) لأي فاتورة يعاد حفظها أو تحديثها بالكامل مع اشتراط تطابق النوع
+                            // تنظيف مسبق للسطور الفرعية القديمة (_item_) فقط عندما تحتوي الدفعة على كامل بنود الفاتورة
+                            // أما إذا كان التحديث يخص سطر الرأس منفرداً، فنحمي سطور البنود الفرعية من الحذف غير المقصود
                             const cleanedHeadInvoices = new Set();
+                            const hasSubItemsInBatch = items.some(it => it && !it.isInvoiceHead);
                             for (const it of items) {
                                 if (it && it.isInvoiceHead && it.invoiceId) {
                                     const invKey = `${String(it.invoiceId)}_${String(it.type || '')}`;
@@ -2063,12 +2069,21 @@
                                         const sInv = String(it.invoiceId);
                                         const sType = String(it.type || '');
                                         try {
-                                            if (sType) {
-                                                this.db.run("DELETE FROM transactions WHERE invoiceId = ? AND type = ?;", [sInv, sType]);
-                                                this.db.run("DELETE FROM transaction_items WHERE invoiceId = ? AND type = ?;", [sInv, sType]);
+                                            if (hasSubItemsInBatch) {
+                                                if (sType) {
+                                                    this.db.run("DELETE FROM transactions WHERE invoiceId = ? AND type = ?;", [sInv, sType]);
+                                                    this.db.run("DELETE FROM transaction_items WHERE invoiceId = ? AND type = ?;", [sInv, sType]);
+                                                } else {
+                                                    this.db.run("DELETE FROM transactions WHERE invoiceId = ?;", [sInv]);
+                                                    this.db.run("DELETE FROM transaction_items WHERE invoiceId = ?;", [sInv]);
+                                                }
                                             } else {
-                                                this.db.run("DELETE FROM transactions WHERE invoiceId = ?;", [sInv]);
-                                                this.db.run("DELETE FROM transaction_items WHERE invoiceId = ?;", [sInv]);
+                                                // تحديث الرأس فقط: حذف سطر الرأس القديم دون المساس بأي من بنود الأصناف الفرعية
+                                                if (sType) {
+                                                    this.db.run("DELETE FROM transactions WHERE invoiceId = ? AND type = ? AND (isInvoiceHead = 1 OR id NOT LIKE '%_item_%');", [sInv, sType]);
+                                                } else {
+                                                    this.db.run("DELETE FROM transactions WHERE invoiceId = ? AND (isInvoiceHead = 1 OR id NOT LIKE '%_item_%');", [sInv]);
+                                                }
                                             }
                                         } catch (cleanPreErr) { }
                                     }

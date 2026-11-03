@@ -3346,6 +3346,18 @@ async function saveBill(force = false, accountChecked = false, event = null) {
 
             const profit = itemNetTotal - itemTotalCost;
 
+            // 🏷️ فصل دقيق للخصومات: حصر حقل discount بالخصم الممنوح فردياً للصنف، ونقل الخصم الموزع لحقل منفصل
+            const lineDistributedDisc = (cartItem.qty * cartItem.price > itemNetTotal) ? ((cartItem.qty * cartItem.price) - itemNetTotal).toFixed(2) : '0.00';
+            const explicitItemDisc = (cartItem.itemDiscount !== undefined && cartItem.itemDiscount !== null)
+                ? (parseFloat(cartItem.itemDiscount) || 0)
+                : ((cartItem.originalPrice && cartItem.price < cartItem.originalPrice) ? ((cartItem.originalPrice - cartItem.price) * cartItem.qty) : 0);
+
+            const sBarcode = (cartItem.selectedVariant && cartItem.selectedVariant.barcode)
+                ? String(cartItem.selectedVariant.barcode).trim()
+                : String(cartItem.code || cartItem.barcode || (product ? (product.barcode || product.code) : '') || '').trim();
+
+            const sProductId = product ? product.id : (cartItem.productId || cartItem.id || null);
+
             // تسجيل الحركة الجديدة
             const newRow = {
                 date: dt.full,
@@ -3354,6 +3366,9 @@ async function saveBill(force = false, accountChecked = false, event = null) {
                 type: 'بيع 📤',
                 method: selectedMethod,
                 invoiceId: newInvoiceId,
+                productId: sProductId,
+                barcode: sBarcode,
+                code: sBarcode,
                 product: product ? product.name : (cartItem.name || 'صنف حر'),
                 unit: cartItem.selectedUnit ? (typeof cartItem.selectedUnit === 'object' ? cartItem.selectedUnit.unitName : cartItem.selectedUnit) : (cartItem.unit || 'قطعة'),
                 size: cartItem.selectedSize || '',
@@ -3361,7 +3376,9 @@ async function saveBill(force = false, accountChecked = false, event = null) {
                 priceLevel: document.getElementById('salesPriceLevel')?.value || 'retail',
                 qty: cartItem.qty,
                 price: cartItem.price,
-                discount: (cartItem.qty * cartItem.price > itemNetTotal) ? ((cartItem.qty * cartItem.price) - itemNetTotal).toFixed(2) : '0.00',
+                discount: explicitItemDisc > 0 ? explicitItemDisc.toFixed(2) : '0.00',
+                itemDiscount: explicitItemDisc > 0 ? explicitItemDisc.toFixed(2) : '0.00',
+                distributedDiscount: lineDistributedDisc,
                 addition: (itemNetTotal > cartItem.qty * cartItem.price) ? (itemNetTotal - (cartItem.qty * cartItem.price)).toFixed(2) : '0.00',
                 total: itemNetTotal.toFixed(2),
                 profit: profit.toFixed(2),
@@ -4538,18 +4555,20 @@ async function loadInvoiceToSalesPOS(targetInvoiceId) {
 
     // تحويل البنود إلى سلة البيع بكامل تفاصيل المقاس واللون والوحدة واستعادة كائن التشكيلة بدقة
     cart = validItems.map(it => {
-        const prodTitle = it.product || it.productName || it.name || 'صنف';
-        const targetId = (it.productId != null && it.productId !== '') ? it.productId : it.id;
+        const prodTitle = (it.product || it.productName || it.name || '').trim();
+        const explicitProductId = (it.productId != null && it.productId !== '') ? String(it.productId) : null;
         const itBarcode = String(it.code || it.barcode || '').trim();
         const itSize = String(it.selectedSize || it.size || '').trim();
         const itColor = String(it.selectedColor || it.color || '').trim();
 
-        // أ) الأولوية لمطابقة الصنف بـ (productId || id) أولاً قبل الاسم
+        // تسلسل المطابقة الصارم بالترتيب الحصري:
+        // 1. أولاً: عبر المعرف الصريح productId فقط (مع منع الاعتماد نهائياً على it.id الخاص بسجل الحركة)
         let p = null;
         if (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
-            if (targetId != null && targetId !== '') {
-                p = productsDB.find(x => String(x.id) === String(targetId));
+            if (explicitProductId) {
+                p = productsDB.find(x => String(x.id) === explicitProductId);
             }
+            // 2. ثانياً: عبر الباركود التام أو كود الصنف أو باركود التشكيلة
             if (!p && itBarcode) {
                 p = productsDB.find(x => 
                     String(x.barcode || '').trim() === itBarcode ||
@@ -4557,8 +4576,9 @@ async function loadInvoiceToSalesPOS(targetInvoiceId) {
                     (x.variants && Array.isArray(x.variants) && x.variants.some(v => String(v.barcode || '').trim() === itBarcode))
                 );
             }
+            // 3. ثالثاً: عبر المطابقة التامة لاسم الصنف
             if (!p && prodTitle) {
-                p = productsDB.find(x => x.name === prodTitle);
+                p = productsDB.find(x => x.name && x.name.trim() === prodTitle);
             }
         }
 
@@ -4595,11 +4615,11 @@ async function loadInvoiceToSalesPOS(targetInvoiceId) {
         const unitFactor = parseFloat(it.unitFactor) || (u ? (parseFloat(u.factor) || 1) : 1);
 
         return {
-            id: p ? p.id : (it.productId || it.id || (Date.now() + Math.random())),
-            productId: p ? p.id : (it.productId || null),
-            product: prodTitle,
-            name: prodTitle,
-            code: (matchedVariant && matchedVariant.barcode) ? matchedVariant.barcode : (it.code || (p ? p.code : (it.barcode || ''))),
+            id: p ? p.id : (explicitProductId || (Date.now() + Math.random())),
+            productId: p ? p.id : explicitProductId,
+            product: p ? p.name : (prodTitle || 'صنف'),
+            name: p ? p.name : (prodTitle || 'صنف'),
+            code: (matchedVariant && matchedVariant.barcode) ? matchedVariant.barcode : (itBarcode || (p ? (p.barcode || p.code) : '')),
             qty: parseFloat(it.qty || 1),
             price: parseFloat(it.price || 0),
             cost: effCost,

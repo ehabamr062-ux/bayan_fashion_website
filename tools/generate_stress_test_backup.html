@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -35,7 +36,7 @@
 
         body {
             background-color: var(--bg);
-            background-image: 
+            background-image:
                 radial-gradient(circle at 50% -10%, rgba(99, 102, 241, 0.28) 0%, transparent 55%),
                 radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.15) 0%, transparent 50%),
                 radial-gradient(circle at 0% 60%, rgba(14, 165, 233, 0.12) 0%, transparent 45%);
@@ -57,7 +58,7 @@
             max-width: 1000px;
             width: 100%;
             padding: 38px 42px;
-            box-shadow: 
+            box-shadow:
                 0 30px 80px rgba(0, 0, 0, 0.75),
                 0 0 0 1px rgba(255, 255, 255, 0.06),
                 inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -378,8 +379,13 @@
         }
 
         @keyframes btnShimmer {
-            0% { transform: translateX(-100%) rotate(25deg); }
-            100% { transform: translateX(100%) rotate(25deg); }
+            0% {
+                transform: translateX(-100%) rotate(25deg);
+            }
+
+            100% {
+                transform: translateX(100%) rotate(25deg);
+            }
         }
 
         .generate-btn:hover {
@@ -451,15 +457,22 @@
             border: 1.5px solid rgba(59, 130, 246, 0.4);
             border-radius: 20px;
             padding: 24px;
-            box-shadow: 
+            box-shadow:
                 0 15px 40px rgba(37, 99, 235, 0.2),
                 inset 0 1px 0 rgba(255, 255, 255, 0.1);
             animation: dashFadeIn 0.35s cubic-bezier(0.4, 0, 0.2, 1);
         }
 
         @keyframes dashFadeIn {
-            from { opacity: 0; transform: translateY(12px) scale(0.99); }
-            to { opacity: 1; transform: translateY(0) scale(1); }
+            from {
+                opacity: 0;
+                transform: translateY(12px) scale(0.99);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
         }
 
         .dash-header {
@@ -516,10 +529,25 @@
             color: #f8fafc;
         }
 
-        .dash-num.green { color: #34d399; text-shadow: 0 0 10px rgba(52, 211, 153, 0.4); }
-        .dash-num.amber { color: #fbbf24; text-shadow: 0 0 10px rgba(251, 191, 36, 0.4); }
-        .dash-num.red { color: #f87171; text-shadow: 0 0 10px rgba(248, 113, 113, 0.4); }
-        .dash-num.sky { color: #38bdf8; text-shadow: 0 0 10px rgba(56, 189, 248, 0.4); }
+        .dash-num.green {
+            color: #34d399;
+            text-shadow: 0 0 10px rgba(52, 211, 153, 0.4);
+        }
+
+        .dash-num.amber {
+            color: #fbbf24;
+            text-shadow: 0 0 10px rgba(251, 191, 36, 0.4);
+        }
+
+        .dash-num.red {
+            color: #f87171;
+            text-shadow: 0 0 10px rgba(248, 113, 113, 0.4);
+        }
+
+        .dash-num.sky {
+            color: #38bdf8;
+            text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+        }
 
         .dash-download-bar {
             display: flex;
@@ -634,7 +662,7 @@
             --sky: #0284c7;
             --accent: #059669;
             background-color: #f1f5f9;
-            background-image: 
+            background-image:
                 radial-gradient(circle at 50% -10%, rgba(99, 102, 241, 0.12) 0%, transparent 60%),
                 radial-gradient(circle at 100% 100%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
                 radial-gradient(circle at 0% 50%, rgba(14, 165, 233, 0.08) 0%, transparent 45%);
@@ -644,7 +672,7 @@
         body.light-theme .container {
             background: #ffffff;
             border-color: #e2e8f0;
-            box-shadow: 
+            box-shadow:
                 0 25px 60px rgba(15, 23, 42, 0.08),
                 0 1px 3px rgba(0, 0, 0, 0.05);
         }
@@ -816,10 +844,25 @@
             color: #0f172a;
         }
 
-        body.light-theme .dash-num.green { color: #059669; text-shadow: none; }
-        body.light-theme .dash-num.amber { color: #d97706; text-shadow: none; }
-        body.light-theme .dash-num.red { color: #dc2626; text-shadow: none; }
-        body.light-theme .dash-num.sky { color: #0284c7; text-shadow: none; }
+        body.light-theme .dash-num.green {
+            color: #059669;
+            text-shadow: none;
+        }
+
+        body.light-theme .dash-num.amber {
+            color: #d97706;
+            text-shadow: none;
+        }
+
+        body.light-theme .dash-num.red {
+            color: #dc2626;
+            text-shadow: none;
+        }
+
+        body.light-theme .dash-num.sky {
+            color: #0284c7;
+            text-shadow: none;
+        }
 
         body.light-theme .dl-btn {
             background: #ffffff;
@@ -853,23 +896,49 @@
         }
 
         @media (max-width: 768px) {
-            .container { padding: 22px 18px; border-radius: 20px; }
-            h1 { font-size: 1.55rem; }
-            .fields-grid { grid-template-columns: 1fr; }
-            .estimation-bar { flex-direction: column; align-items: flex-start; }
-            .dash-download-bar { justify-content: center; width: 100%; }
-            .dash-download-bar span { width: 100%; text-align: center; }
-            .top-nav-bar { justify-content: center; }
+            .container {
+                padding: 22px 18px;
+                border-radius: 20px;
+            }
+
+            h1 {
+                font-size: 1.55rem;
+            }
+
+            .fields-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .estimation-bar {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .dash-download-bar {
+                justify-content: center;
+                width: 100%;
+            }
+
+            .dash-download-bar span {
+                width: 100%;
+                text-align: center;
+            }
+
+            .top-nav-bar {
+                justify-content: center;
+            }
         }
     </style>
 </head>
+
 <body>
 
     <div class="container">
         <!-- شريط التنقل العلوي مع زر التبديل -->
         <div class="top-nav-bar">
             <span class="badge">⚡ أداة التوليد الذكية للنسخ الاحتياطية - بَيَان POS (v5.0.9)</span>
-            <button type="button" class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="تبديل مظهر الواجهة بين الفاتح والداكن">
+            <button type="button" class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()"
+                title="تبديل مظهر الواجهة بين الفاتح والداكن">
                 <span id="themeToggleIcon" class="theme-icon">☀️</span>
                 <span id="themeToggleText">الوضع الفاتح</span>
             </button>
@@ -879,7 +948,8 @@
         <div class="header">
             <h1>توليد نسخة احتياطية مخصصة لاختبار السيستم والأداء</h1>
             <p class="subtitle">
-                اكتب أي أعداد تريدها بحرية تامة أو اسحب السلايدر مباشرة. المحرك مُحسن لإنشاء ملف JSON مضغوط وخفيف جداً، يشمل فواتير متعددة الأصناف، مرتجعات، سندات، تحويلات، مع محاكاة ساعات الذروة والملخص المالي الفوري.
+                اكتب أي أعداد تريدها بحرية تامة أو اسحب السلايدر مباشرة. المحرك مُحسن لإنشاء ملف JSON مضغوط وخفيف جداً،
+                يشمل فواتير متعددة الأصناف، مرتجعات، سندات، تحويلات، مع محاكاة ساعات الذروة والملخص المالي الفوري.
             </p>
         </div>
 
@@ -888,11 +958,16 @@
             <div class="section-header">
                 <span class="section-title">🎯 حدد الأعداد المطلوبة بحرية تامة:</span>
                 <div class="quick-presets-bar">
-                    <span style="font-size: 0.78rem; color: #94a3b8; font-weight: bold; align-self: center;">نماذج سريعة:</span>
-                    <button type="button" class="preset-btn" onclick="setPreset(1000, 2000, 100, 2, 2)">خفيف (1K)</button>
-                    <button type="button" class="preset-btn" onclick="setPreset(5000, 10000, 500, 2, 3)">متوسط (5K)</button>
-                    <button type="button" class="preset-btn" onclick="setPreset(20000, 50000, 1500, 3, 5)">كبير (20K)</button>
-                    <button type="button" class="preset-btn" onclick="setPreset(50000, 100000, 3000, 5, 8)">عملاق (50K)</button>
+                    <span style="font-size: 0.78rem; color: #94a3b8; font-weight: bold; align-self: center;">نماذج
+                        سريعة:</span>
+                    <button type="button" class="preset-btn" onclick="setPreset(1000, 2000, 100, 2, 2)">خفيف
+                        (1K)</button>
+                    <button type="button" class="preset-btn" onclick="setPreset(5000, 10000, 500, 2, 3)">متوسط
+                        (5K)</button>
+                    <button type="button" class="preset-btn" onclick="setPreset(20000, 50000, 1500, 3, 5)">كبير
+                        (20K)</button>
+                    <button type="button" class="preset-btn" onclick="setPreset(50000, 100000, 3000, 5, 8)">عملاق
+                        (50K)</button>
                 </div>
             </div>
 
@@ -906,10 +981,12 @@
                         <span class="field-hint">موديلات بباركود وألوان ومقاسات</span>
                     </div>
                     <div class="input-row">
-                        <input type="number" id="inputProds" class="field-input" value="3000" min="10" max="250000" oninput="syncSlider('inputProds', 'sliderProds'); updateEstimates();">
+                        <input type="number" id="inputProds" class="field-input" value="3000" min="10" max="250000"
+                            oninput="syncSlider('inputProds', 'sliderProds'); updateEstimates();">
                     </div>
                     <div class="slider-row">
-                        <input type="range" id="sliderProds" class="range-slider" min="100" max="50000" step="500" value="3000" oninput="syncInput('sliderProds', 'inputProds'); updateEstimates();">
+                        <input type="range" id="sliderProds" class="range-slider" min="100" max="50000" step="500"
+                            value="3000" oninput="syncInput('sliderProds', 'inputProds'); updateEstimates();">
                     </div>
                     <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
                         <button type="button" class="step-btn" onclick="adjustVal('inputProds', 1000)">+1,000</button>
@@ -927,10 +1004,12 @@
                         <span class="field-hint">بيع، شراء، مرتجع، قبض، صرف، تحويل</span>
                     </div>
                     <div class="input-row">
-                        <input type="number" id="inputTxs" class="field-input" value="5000" min="10" max="500000" oninput="syncSlider('inputTxs', 'sliderTxs'); updateEstimates();">
+                        <input type="number" id="inputTxs" class="field-input" value="5000" min="10" max="500000"
+                            oninput="syncSlider('inputTxs', 'sliderTxs'); updateEstimates();">
                     </div>
                     <div class="slider-row">
-                        <input type="range" id="sliderTxs" class="range-slider" min="500" max="100000" step="1000" value="5000" oninput="syncInput('sliderTxs', 'inputTxs'); updateEstimates();">
+                        <input type="range" id="sliderTxs" class="range-slider" min="500" max="100000" step="1000"
+                            value="5000" oninput="syncInput('sliderTxs', 'inputTxs'); updateEstimates();">
                     </div>
                     <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
                         <button type="button" class="step-btn" onclick="adjustVal('inputTxs', 2000)">+2,000</button>
@@ -948,15 +1027,18 @@
                         <span class="field-hint">أكواد وأرصدة افتتاحية وهواتف</span>
                     </div>
                     <div class="input-row">
-                        <input type="number" id="inputAccounts" class="field-input" value="0" min="0" max="50000" oninput="syncSlider('inputAccounts', 'sliderAccounts'); updateEstimates();">
+                        <input type="number" id="inputAccounts" class="field-input" value="0" min="0" max="50000"
+                            oninput="syncSlider('inputAccounts', 'sliderAccounts'); updateEstimates();">
                     </div>
                     <div class="slider-row">
-                        <input type="range" id="sliderAccounts" class="range-slider" min="0" max="5000" step="50" value="0" oninput="syncInput('sliderAccounts', 'inputAccounts'); updateEstimates();">
+                        <input type="range" id="sliderAccounts" class="range-slider" min="0" max="5000" step="50"
+                            value="0" oninput="syncInput('sliderAccounts', 'inputAccounts'); updateEstimates();">
                     </div>
                     <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
                         <button type="button" class="step-btn" onclick="adjustVal('inputAccounts', 100)">+100</button>
                         <button type="button" class="step-btn" onclick="adjustVal('inputAccounts', 500)">+500</button>
-                        <button type="button" class="step-btn" onclick="adjustVal('inputAccounts', 1000)">+1,000</button>
+                        <button type="button" class="step-btn"
+                            onclick="adjustVal('inputAccounts', 1000)">+1,000</button>
                     </div>
                 </div>
 
@@ -969,15 +1051,18 @@
                         <span class="field-hint">أرصدة مستقلة وتحويلات بينية</span>
                     </div>
                     <div class="input-row">
-                        <input type="number" id="inputWarehouses" class="field-input" value="2" min="1" max="50" oninput="syncSlider('inputWarehouses', 'sliderWarehouses'); updateEstimates();">
+                        <input type="number" id="inputWarehouses" class="field-input" value="2" min="1" max="50"
+                            oninput="syncSlider('inputWarehouses', 'sliderWarehouses'); updateEstimates();">
                     </div>
                     <div class="slider-row">
-                        <input type="range" id="sliderWarehouses" class="range-slider" min="1" max="15" step="1" value="2" oninput="syncInput('sliderWarehouses', 'inputWarehouses'); updateEstimates();">
+                        <input type="range" id="sliderWarehouses" class="range-slider" min="1" max="15" step="1"
+                            value="2" oninput="syncInput('sliderWarehouses', 'inputWarehouses'); updateEstimates();">
                     </div>
                     <div style="display: flex; gap: 4px; margin-top: 8px; justify-content: center;">
                         <button type="button" class="step-btn" onclick="adjustVal('inputWarehouses', 1)">+1 فرع</button>
                         <button type="button" class="step-btn" onclick="adjustVal('inputWarehouses', 2)">+2 فرع</button>
-                        <button type="button" class="step-btn" onclick="adjustVal('inputWarehouses', 5)">+5 فروع</button>
+                        <button type="button" class="step-btn" onclick="adjustVal('inputWarehouses', 5)">+5
+                            فروع</button>
                     </div>
                 </div>
 
@@ -990,12 +1075,15 @@
                         <span class="field-hint">أدمن + كاشيرات بصلاحيات و PIN</span>
                     </div>
                     <div class="input-row">
-                        <input type="number" id="inputUsers" class="field-input" value="3" min="1" max="50" oninput="syncSlider('inputUsers', 'sliderUsers'); updateEstimates();">
+                        <input type="number" id="inputUsers" class="field-input" value="3" min="1" max="50"
+                            oninput="syncSlider('inputUsers', 'sliderUsers'); updateEstimates();">
                     </div>
                     <div class="slider-row">
-                        <input type="range" id="sliderUsers" class="range-slider" min="1" max="20" step="1" value="3" oninput="syncInput('sliderUsers', 'inputUsers'); updateEstimates();">
+                        <input type="range" id="sliderUsers" class="range-slider" min="1" max="20" step="1" value="3"
+                            oninput="syncInput('sliderUsers', 'inputUsers'); updateEstimates();">
                     </div>
-                    <div style="margin-top: 8px; font-size: 0.74rem; color: #38bdf8; font-weight: 800; text-align: center; background: rgba(56, 189, 248, 0.08); padding: 4px; border-radius: 6px;">
+                    <div
+                        style="margin-top: 8px; font-size: 0.74rem; color: #38bdf8; font-weight: 800; text-align: center; background: rgba(56, 189, 248, 0.08); padding: 4px; border-radius: 6px;">
                         🔑 باسورد الأدمن: <b>1001</b> | الكاشيرات: <b>1002</b> فما فوق
                     </div>
                 </div>
@@ -1009,14 +1097,16 @@
                         <span class="field-hint">توزيع واقعي حتى اليوم الحالي</span>
                     </div>
                     <div class="input-row">
-                        <select id="inputDaysRange" class="field-input" style="font-size: 0.95rem; font-weight: 800; padding: 11px;" onchange="updateEstimates();">
+                        <select id="inputDaysRange" class="field-input"
+                            style="font-size: 0.95rem; font-weight: 800; padding: 11px;" onchange="updateEstimates();">
                             <option value="30">آخر شهر (30 يوماً)</option>
                             <option value="90">آخر 3 أشهر (90 يوماً)</option>
                             <option value="180" selected>آخر 6 أشهر (180 يوماً)</option>
                             <option value="365">آخر سنة كاملة (365 يوماً)</option>
                         </select>
                     </div>
-                    <div style="margin-top: 10px; font-size: 0.74rem; color: #34d399; font-weight: 800; text-align: center; background: rgba(16, 185, 129, 0.08); padding: 4px; border-radius: 6px;">
+                    <div
+                        style="margin-top: 10px; font-size: 0.74rem; color: #34d399; font-weight: 800; text-align: center; background: rgba(16, 185, 129, 0.08); padding: 4px; border-radius: 6px;">
                         ⚡ محاكاة ساعات ذروة المساء (65%) وعطلات الويك إند
                     </div>
                 </div>
@@ -1024,7 +1114,10 @@
 
             <!-- إبراز تنوع العمليات المحاسبية الذكية -->
             <div class="features-grid">
-                <div class="feature-chip" style="background: rgba(16, 185, 129, 0.15); border-color: #34d399; color: #a7f3d0;"><span class="dot" style="background: #34d399;"></span> ⚡ نسخة فائقة الخفة والرشاقة (وفرت 75% من الحجم)</div>
+                <div class="feature-chip"
+                    style="background: rgba(16, 185, 129, 0.15); border-color: #34d399; color: #a7f3d0;"><span
+                        class="dot" style="background: #34d399;"></span> ⚡ نسخة فائقة الخفة والرشاقة (وفرت 75% من الحجم)
+                </div>
                 <div class="feature-chip"><span class="dot"></span> 🛍️ فواتير متعددة الأصناف (1-3 قطع)</div>
                 <div class="feature-chip"><span class="dot"></span> ↩️ مرتجعات بيع برقم الفاتورة الأصلية</div>
                 <div class="feature-chip"><span class="dot"></span> 📦 فواتير ومرتجعات شراء للموردين</div>
@@ -1074,7 +1167,9 @@
         <div class="financial-dashboard" id="financialDashboard">
             <div class="dash-header">
                 <span class="dash-title">📊 الملخص المالي التنفيذي للنسخة الاحتياطية المولدة:</span>
-                <span style="font-size: 0.82rem; color: #34d399; font-weight: bold; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); padding: 5px 12px; border-radius: 20px;">جاهزة للاستيراد الفوري ✓</span>
+                <span
+                    style="font-size: 0.82rem; color: #34d399; font-weight: bold; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); padding: 5px 12px; border-radius: 20px;">جاهزة
+                    للاستيراد الفوري ✓</span>
             </div>
 
             <div class="dash-grid">
@@ -1105,29 +1200,40 @@
             </div>
 
             <!-- بطاقة بيانات تسجيل الدخول بعد الاستعادة -->
-            <div class="credentials-card" style="background: rgba(15, 23, 42, 0.75); border: 1.5px solid rgba(56, 189, 248, 0.35); border-radius: 14px; padding: 14px 20px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);">
+            <div class="credentials-card"
+                style="background: rgba(15, 23, 42, 0.75); border: 1.5px solid rgba(56, 189, 248, 0.35); border-radius: 14px; padding: 14px 20px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);">
                 <div style="display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 42px; height: 42px; border-radius: 10px; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">🔑</div>
+                    <div
+                        style="width: 42px; height: 42px; border-radius: 10px; background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                        🔑</div>
                     <div>
-                        <div style="color: #94a3b8; font-size: 0.8rem; font-weight: bold; margin-bottom: 3px;">بيانات تسجيل الدخول للسيستم بعد الاستعادة:</div>
-                        <div style="color: #f8fafc; font-size: 1rem; font-weight: 800; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                        <div style="color: #94a3b8; font-size: 0.8rem; font-weight: bold; margin-bottom: 3px;">بيانات
+                            تسجيل الدخول للسيستم بعد الاستعادة:</div>
+                        <div
+                            style="color: #f8fafc; font-size: 1rem; font-weight: 800; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
                             <span>باسورد الأدمن (المدير العام):</span>
-                            <span style="color: #38bdf8; background: rgba(56, 189, 248, 0.18); border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 10px; border-radius: 6px; font-family: monospace; font-size: 1.15rem; font-weight: 900; letter-spacing: 1px;">1001</span>
+                            <span
+                                style="color: #38bdf8; background: rgba(56, 189, 248, 0.18); border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 10px; border-radius: 6px; font-family: monospace; font-size: 1.15rem; font-weight: 900; letter-spacing: 1px;">1001</span>
                             <span style="color: #64748b; margin: 0 4px;">|</span>
                             <span>الكاشيرات:</span>
-                            <span style="color: #34d399; background: rgba(52, 211, 153, 0.18); border: 1px solid rgba(52, 211, 153, 0.4); padding: 2px 10px; border-radius: 6px; font-family: monospace; font-size: 1.15rem; font-weight: 900; letter-spacing: 1px;">1002</span>
-                            <span style="font-size: 0.85rem; color: #a7f3d0; font-weight: 700;">فما فوق (1003، 1004...)</span>
+                            <span
+                                style="color: #34d399; background: rgba(52, 211, 153, 0.18); border: 1px solid rgba(52, 211, 153, 0.4); padding: 2px 10px; border-radius: 6px; font-family: monospace; font-size: 1.15rem; font-weight: 900; letter-spacing: 1px;">1002</span>
+                            <span style="font-size: 0.85rem; color: #a7f3d0; font-weight: 700;">فما فوق (1003،
+                                1004...)</span>
                         </div>
                     </div>
                 </div>
-                <div style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.28); color: #6ee7b7; padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 800; display: flex; align-items: center; gap: 6px;">
-                    <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #34d399;"></span>
+                <div
+                    style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.28); color: #6ee7b7; padding: 6px 14px; border-radius: 20px; font-size: 0.82rem; font-weight: 800; display: flex; align-items: center; gap: 6px;">
+                    <span
+                        style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #34d399;"></span>
                     جاهز لتسجيل الدخول فوراً
                 </div>
             </div>
 
             <div class="dash-download-bar">
-                <span style="font-size: 0.84rem; color: #94a3b8; font-weight: bold; margin-left: auto;">اختر صيغة التحميل المناسبة:</span>
+                <span style="font-size: 0.84rem; color: #94a3b8; font-weight: bold; margin-left: auto;">اختر صيغة
+                    التحميل المناسبة:</span>
                 <button type="button" class="dl-btn primary" onclick="downloadBackup('json')">
                     <span>💾 تحميل كملف JSON القياسي</span>
                 </button>
@@ -1142,12 +1248,17 @@
             <b>💡 كيف تستخدم هذا الملف في برنامج بَيَان؟</b>
             <ol>
                 <li>بمجرد اكتمال التوليد، سيظهر لك الملخص المالي بالأعلى وسيتم تنزيل الملف تلقائياً على جهازك.</li>
-                <li>افتح برنامج <b>بَيَان POS</b> واذهب إلى: <b>الإعدادات ⚙️ ⬅️ البيانات والنسخ الاحتياطي 💾 ⬅️ استعادة نسخة احتياطية</b>.</li>
-                <li>اختر الملف الذي تم تنزيله، وستجد كافة الأرقام في تقارير المبيعات والأرباح والخزينة وكشوف الحسابات مطابقة تماماً للملخص المالي بالأعلى بالقرش!</li>
+                <li>افتح برنامج <b>بَيَان POS</b> واذهب إلى: <b>الإعدادات ⚙️ ⬅️ البيانات والنسخ الاحتياطي 💾 ⬅️ استعادة
+                        نسخة احتياطية</b>.</li>
+                <li>اختر الملف الذي تم تنزيله، وستجد كافة الأرقام في تقارير المبيعات والأرباح والخزينة وكشوف الحسابات
+                    مطابقة تماماً للملخص المالي بالأعلى بالقرش!</li>
                 <li style="margin-top: 6px; color: #fde68a;">
-                    🔑 <b>بيانات تسجيل الدخول للبرنامج بعد الاسترجاع:</b> 
-                    باسورد الأدمن (المدير العام): <b style="color: #38bdf8; font-family: monospace; font-size: 1.05rem; background: rgba(56, 189, 248, 0.2); padding: 1px 6px; border-radius: 4px;">1001</b> 
-                    | الكاشيرات: <b style="color: #34d399; font-family: monospace; font-size: 1.05rem; background: rgba(52, 211, 153, 0.2); padding: 1px 6px; border-radius: 4px;">1002</b> فما فوق.
+                    🔑 <b>بيانات تسجيل الدخول للبرنامج بعد الاسترجاع:</b>
+                    باسورد الأدمن (المدير العام): <b
+                        style="color: #38bdf8; font-family: monospace; font-size: 1.05rem; background: rgba(56, 189, 248, 0.2); padding: 1px 6px; border-radius: 4px;">1001</b>
+                    | الكاشيرات: <b
+                        style="color: #34d399; font-family: monospace; font-size: 1.05rem; background: rgba(52, 211, 153, 0.2); padding: 1px 6px; border-radius: 4px;">1002</b>
+                    فما فوق.
                 </li>
             </ol>
         </div>
@@ -1163,7 +1274,7 @@
 
         const sizes = ['S', 'M', 'L', 'XL', '2XL', '3XL', '38', '40', '42', '44'];
         const colors = ['أسود', 'أبيض', 'كحلي', 'رمادي ملانج', 'بيج صحراوي', 'زيتي غامق', 'نبيتي شتوي', 'كشمير ناعم', 'أزرق بترولي', 'هافان جملي'];
-        
+
         // تم إلغاء التوليد التلقائي لأسماء الحسابات التجريبية نهائياً لحماية أجهزة وبيانات العملاء
         const partnerNames = [];
 
@@ -1310,7 +1421,7 @@
                 const isSupplier = (i % 6 === 0);
                 const accName = isSupplier ? `مورد عام (${i})` : `عميل نقدي (${i})`;
                 const initBal = (i % 4 === 0) ? (Math.floor(Math.random() * 15) * 100) : 0;
-                
+
                 const accObj = {
                     id: i,
                     name: accName,
@@ -1503,7 +1614,7 @@
                     paidAmount = 0;
                     remaining = 0;
                     method = 'تحويل داخلي';
-                    
+
                     multiItemsList = [{
                         productId: singleProd.id,
                         product: singleProd.name,
@@ -1749,4 +1860,5 @@
         })();
     </script>
 </body>
+
 </html>

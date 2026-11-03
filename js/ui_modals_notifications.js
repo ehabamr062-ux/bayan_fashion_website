@@ -1414,7 +1414,7 @@
                 let lineGross = qty * price;
                 rawSubTotal += lineGross;
 
-                let itemDisc = parseFloat(item.discount != null ? item.discount : (item.itemDiscount != null ? item.itemDiscount : 0)) || 0;
+                let itemDisc = parseFloat(item.itemDiscount != null ? item.itemDiscount : (item.discount != null && !item.distributedDiscount ? item.discount : 0)) || 0;
                 let itemDiscType = item.discountType || item.itemDiscountType || 'val';
                 let discAmount = (itemDiscType === 'perc' && itemDisc > 0) ? (lineGross * itemDisc / 100) : itemDisc;
                 

@@ -1137,6 +1137,31 @@
                                 color: ''
                             }];
 
+                        // تجريد كائن الرأس من أي حقول تخص البند الفردي لضمان استقلالية كل سطر
+                        const rawAdmin = { ...raw };
+                        delete rawAdmin.id;
+                        delete rawAdmin.product;
+                        delete rawAdmin.productName;
+                        delete rawAdmin.name;
+                        delete rawAdmin.price;
+                        delete rawAdmin.cost;
+                        delete rawAdmin.costPrice;
+                        delete rawAdmin.qty;
+                        delete rawAdmin.quantity;
+                        delete rawAdmin.size;
+                        delete rawAdmin.color;
+                        delete rawAdmin.total;
+                        delete rawAdmin.discount;
+                        delete rawAdmin.itemDiscount;
+                        delete rawAdmin.addition;
+                        delete rawAdmin.extra;
+                        delete rawAdmin.barcode;
+                        delete rawAdmin.code;
+                        delete rawAdmin.productId;
+                        delete rawAdmin.unit;
+                        delete rawAdmin.unitFactor;
+                        delete rawAdmin.items;
+
                         items.forEach((it, idx) => {
                             const isHead = (idx === 0);
                             const rowId = baseNumId + idx;
@@ -1144,7 +1169,18 @@
                             const itPrice = parseFloat(it.price || (it.total ? it.total / itQty : total));
                             const itTotal = parseFloat(it.total || (itPrice * itQty) || 0);
 
+                            const itemProdId = it.productId || it.id || null;
+                            const itemBarcode = it.barcode || it.code || '';
+                            const itemSize = it.selectedSize || it.size || '';
+                            const itemColor = it.selectedColor || it.color || '';
+                            const itemUnit = it.selectedUnit ? (typeof it.selectedUnit === 'object' ? it.selectedUnit.unitName : it.selectedUnit) : (it.unit || 'قطعة');
+                            const itemFactor = parseFloat(it.unitFactor) || 1;
+                            const itemCost = parseFloat(it.cost || it.costPrice || 0) || 0;
+                            const itemDiscount = parseFloat(it.discount || it.itemDiscount || 0) || 0;
+                            const itemProfit = it.profit !== undefined ? parseFloat(it.profit) : (itTotal - (itemCost * itQty * itemFactor));
+
                             const row = {
+                                ...rawAdmin,
                                 id: rowId,
                                 numericId: rowId,
                                 invoiceId: invId,
@@ -1157,14 +1193,20 @@
                                 type: actualType,
                                 voucherCategory: actualVoucherCat,
                                 method: method,
-                                product: it.name || raw.product || 'صنف',
-                                unit: it.unit || 'قطعة',
-                                size: it.size || '',
-                                color: it.color || '',
+                                productId: itemProdId,
+                                barcode: itemBarcode,
+                                code: itemBarcode,
+                                product: it.name || it.product || it.productName || (isHead ? (raw.product || 'صنف') : 'صنف'),
+                                unit: itemUnit,
+                                unitFactor: itemFactor,
+                                size: itemSize,
+                                color: itemColor,
                                 qty: itQty,
                                 price: itPrice,
+                                cost: itemCost,
+                                discount: itemDiscount.toFixed(2),
                                 total: itTotal.toFixed(2),
-                                profit: raw.profit || '0.00',
+                                profit: isNaN(itemProfit) ? '0.00' : itemProfit.toFixed(2),
                                 partner: partner,
                                 user: cashierName,
                                 warehouse: warehouse,
@@ -1174,9 +1216,12 @@
                                 remaining: isHead ? remaining : 0,
                                 deferred: isHead ? remaining : 0,
                                 isInvoiceHead: isHead,
+                                invoiceDiscount: isHead ? (parseFloat(raw.invoiceDiscount || 0) || 0) : 0,
+                                invoiceDiscountType: isHead ? (raw.invoiceDiscountType || 'val') : 'val',
+                                invoiceTax: isHead ? (parseFloat(raw.invoiceTax || 0) || 0) : 0,
+                                invoiceTaxType: isHead ? (raw.invoiceTaxType || 'val') : 'val',
                                 invoiceGrandTotal: isHead ? total : 0,
-                                raw_items: raw.items || [],
-                                ...raw
+                                raw_items: raw.items || []
                             };
 
                             localTx.unshift(row);
