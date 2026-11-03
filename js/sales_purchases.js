@@ -2037,6 +2037,11 @@ async function savePurchase(force = false, accountChecked = false) {
 
             // تسجيل الحركة في سجل المعاملات
 
+            const sPurBarcode = (item.selectedVariant && item.selectedVariant.barcode)
+                ? String(item.selectedVariant.barcode).trim()
+                : String(item.code || item.barcode || (p ? (p.barcode || p.code) : '') || '').trim();
+            const sPurProdId = p ? p.id : (item.productId || item.id || null);
+
             const newRow = {
 
                 date: safeDate,
@@ -2050,6 +2055,12 @@ async function savePurchase(force = false, accountChecked = false) {
                 method: selectedMethod,
 
                 invoiceId: purchaseId,
+
+                productId: sPurProdId,
+
+                barcode: sPurBarcode,
+
+                code: sPurBarcode,
 
                 product: p ? p.name : item.name,
 

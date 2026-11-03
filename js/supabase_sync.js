@@ -535,9 +535,15 @@
                     cost: parseFloat(r.cost || 0),
                     profit: parseFloat(r.profit || 0),
                     unit: r.unit || 'قطعة',
+                    unitFactor: parseFloat(r.unitFactor) || 1,
                     size: r.size || r.selectedSize || '',
                     color: r.color || r.selectedColor || '',
-                    barcode: r.barcode || '',
+                    barcode: r.barcode || r.code || '',
+                    code: r.code || r.barcode || '',
+                    discount: parseFloat(r.itemDiscount != null ? r.itemDiscount : (r.discount != null && !r.distributedDiscount ? r.discount : 0)) || 0,
+                    itemDiscount: parseFloat(r.itemDiscount != null ? r.itemDiscount : (r.discount != null && !r.distributedDiscount ? r.discount : 0)) || 0,
+                    distributedDiscount: parseFloat(r.distributedDiscount || 0) || 0,
+                    addition: parseFloat(r.addition != null ? r.addition : (r.extra != null ? r.extra : 0)) || 0,
                     notes: r.notes || ''
                 }));
 
@@ -692,9 +698,15 @@
                     cost: parseFloat(r.cost || 0),
                     profit: parseFloat(r.profit || 0),
                     unit: r.unit || 'قطعة',
+                    unitFactor: parseFloat(r.unitFactor) || 1,
                     size: r.size || r.selectedSize || '',
                     color: r.color || r.selectedColor || '',
-                    barcode: r.barcode || '',
+                    barcode: r.barcode || r.code || '',
+                    code: r.code || r.barcode || '',
+                    discount: parseFloat(r.itemDiscount != null ? r.itemDiscount : (r.discount != null && !r.distributedDiscount ? r.discount : 0)) || 0,
+                    itemDiscount: parseFloat(r.itemDiscount != null ? r.itemDiscount : (r.discount != null && !r.distributedDiscount ? r.discount : 0)) || 0,
+                    distributedDiscount: parseFloat(r.distributedDiscount || 0) || 0,
+                    addition: parseFloat(r.addition != null ? r.addition : (r.extra != null ? r.extra : 0)) || 0,
                     notes: r.notes || ''
                 }));
 

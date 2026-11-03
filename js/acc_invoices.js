@@ -2147,20 +2147,73 @@ window.editTransaction = async function (invId, type, optTxId = '') {
 
                 if (section === 'sales') {
 
-                    cart = invItems.filter(x => x.product).map(it => {
-                        const p = productsDB.find(x => x.name === it.product);
+                    cart = invItems.filter(x => (x.product || x.productName || x.name)).map(it => {
+                        const prodTitle = (it.product || it.productName || it.name || '').trim();
+                        const explicitProductId = (it.productId != null && it.productId !== '') ? String(it.productId) : null;
+                        const itBarcode = String(it.code || it.barcode || '').trim();
+                        const itSize = String(it.selectedSize || it.size || '').trim();
+                        const itColor = String(it.selectedColor || it.color || '').trim();
+
+                        let p = null;
+                        if (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
+                            if (explicitProductId) {
+                                p = productsDB.find(x => String(x.id) === explicitProductId);
+                            }
+                            if (!p && itBarcode) {
+                                p = productsDB.find(x => 
+                                    String(x.barcode || '').trim() === itBarcode ||
+                                    String(x.code || '').trim() === itBarcode ||
+                                    (x.variants && Array.isArray(x.variants) && x.variants.some(v => String(v.barcode || '').trim() === itBarcode))
+                                );
+                            }
+                            if (!p && prodTitle) {
+                                p = productsDB.find(x => x.name && x.name.trim() === prodTitle);
+                            }
+                        }
+
+                        let matchedVariant = null;
+                        if (p && p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
+                            if (itBarcode) {
+                                matchedVariant = p.variants.find(v => String(v.barcode || '').trim() === itBarcode) || null;
+                            }
+                            if (!matchedVariant && (itSize || itColor)) {
+                                matchedVariant = p.variants.find(v => 
+                                    (!itSize || String(v.size || '').trim() === itSize) &&
+                                    (!itColor || String(v.color || '').trim() === itColor)
+                                ) || null;
+                            }
+                        }
+
                         const u = (p && p.units) ? p.units.find(un => un.unitName === it.unit) : null;
+                        let effCost = 0;
+                        if (matchedVariant && matchedVariant.cost) {
+                            effCost = parseFloat(matchedVariant.cost) || 0;
+                        } else if (it.cost !== undefined && it.cost !== null && !isNaN(parseFloat(it.cost))) {
+                            effCost = parseFloat(it.cost) || 0;
+                        } else if (p) {
+                            effCost = parseFloat(p.avgBuyPrice) || parseFloat(p.cost) || parseFloat(p.buyPrice) || 0;
+                        }
+
+                        const unitFactor = parseFloat(it.unitFactor) || (u ? (parseFloat(u.factor) || 1) : 1);
+
                         return {
-                            id: p ? p.id : (Date.now() + Math.random()),
-                            code: it.code || (p ? p.code : ''),
-                            name: it.product,
+                            id: p ? p.id : (explicitProductId || (Date.now() + Math.random())),
+                            productId: p ? p.id : explicitProductId,
+                            code: (matchedVariant && matchedVariant.barcode) ? matchedVariant.barcode : (itBarcode || (p ? (p.barcode || p.code) : '')),
+                            barcode: (matchedVariant && matchedVariant.barcode) ? matchedVariant.barcode : (itBarcode || (p ? (p.barcode || p.code) : '')),
+                            name: p ? p.name : (prodTitle || 'صنف'),
+                            product: p ? p.name : (prodTitle || 'صنف'),
                             qty: parseFloat(it.qty || 1),
                             price: parseFloat(it.price || 0),
+                            cost: effCost,
                             unit: it.unit || 'قطعة',
-                            unitFactor: parseFloat(it.unitFactor) || (u ? (parseFloat(u.factor) || 1) : 1),
-                            selectedUnit: u,
-                            selectedSize: it.selectedSize || it.size || '',
-                            selectedColor: it.selectedColor || it.color || '',
+                            unitFactor: unitFactor,
+                            selectedUnit: u || it.unit || 'قطعة',
+                            selectedSize: itSize,
+                            selectedColor: itColor,
+                            size: itSize,
+                            color: itColor,
+                            selectedVariant: matchedVariant,
                             units: p ? (p.units || []) : []
                         };
                     });
@@ -2230,26 +2283,66 @@ window.editTransaction = async function (invId, type, optTxId = '') {
 
                 } else if (section === 'purchase') {
 
-                    purchaseCart = invItems.filter(x => x.product).map(it => {
-                        const p = productsDB.find(x => x.name === it.product);
+                    purchaseCart = invItems.filter(x => (x.product || x.productName || x.name)).map(it => {
+                        const prodTitle = (it.product || it.productName || it.name || '').trim();
+                        const explicitProductId = (it.productId != null && it.productId !== '') ? String(it.productId) : null;
+                        const itBarcode = String(it.code || it.barcode || '').trim();
+                        const itSize = String(it.selectedSize || it.size || '').trim();
+                        const itColor = String(it.selectedColor || it.color || '').trim();
+
+                        let p = null;
+                        if (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
+                            if (explicitProductId) {
+                                p = productsDB.find(x => String(x.id) === explicitProductId);
+                            }
+                            if (!p && itBarcode) {
+                                p = productsDB.find(x => 
+                                    String(x.barcode || '').trim() === itBarcode ||
+                                    String(x.code || '').trim() === itBarcode ||
+                                    (x.variants && Array.isArray(x.variants) && x.variants.some(v => String(v.barcode || '').trim() === itBarcode))
+                                );
+                            }
+                            if (!p && prodTitle) {
+                                p = productsDB.find(x => x.name && x.name.trim() === prodTitle);
+                            }
+                        }
+
+                        let matchedVariant = null;
+                        if (p && p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
+                            if (itBarcode) {
+                                matchedVariant = p.variants.find(v => String(v.barcode || '').trim() === itBarcode) || null;
+                            }
+                            if (!matchedVariant && (itSize || itColor)) {
+                                matchedVariant = p.variants.find(v => 
+                                    (!itSize || String(v.size || '').trim() === itSize) &&
+                                    (!itColor || String(v.color || '').trim() === itColor)
+                                ) || null;
+                            }
+                        }
+
                         const u = (p && p.units) ? p.units.find(un => un.unitName === it.unit) : null;
                         const defaultSale = u ? (parseFloat(u.price) || 0) : (p ? (parseFloat(p.price) || 0) : 0);
                         const defaultWholesale = u ? (parseFloat(u.wholesale) || 0) : (p ? (parseFloat(p.wholesale) || 0) : 0);
+
                         return {
-                            id: p ? p.id : (Date.now() + Math.random()),
-                            code: it.code || (p ? p.code : ''),
-                            name: it.product,
-                            selectedSize: it.selectedSize || it.size || '',
-                            selectedColor: it.selectedColor || it.color || '',
-                            size: it.selectedSize || it.size || '',
-                            color: it.selectedColor || it.color || '',
+                            id: p ? p.id : (explicitProductId || (Date.now() + Math.random())),
+                            productId: p ? p.id : explicitProductId,
+                            code: (matchedVariant && matchedVariant.barcode) ? matchedVariant.barcode : (itBarcode || (p ? (p.code || p.barcode) : '')),
+                            barcode: (matchedVariant && matchedVariant.barcode) ? matchedVariant.barcode : (itBarcode || (p ? (p.code || p.barcode) : '')),
+                            name: p ? p.name : (prodTitle || 'صنف'),
+                            product: p ? p.name : (prodTitle || 'صنف'),
+                            selectedSize: itSize,
+                            selectedColor: itColor,
+                            size: itSize,
+                            color: itColor,
+                            selectedVariant: matchedVariant,
                             qty: parseFloat(it.qty || 1),
                             price: parseFloat(it.price || 0),
                             salePrice: parseFloat(it.salePrice) > 0 ? parseFloat(it.salePrice) : defaultSale,
                             wholesalePrice: parseFloat(it.wholesalePrice) > 0 ? parseFloat(it.wholesalePrice) : defaultWholesale,
                             unit: it.unit || 'قطعة',
                             unitFactor: parseFloat(it.unitFactor) || (u ? (parseFloat(u.factor) || 1) : 1),
-                            selectedUnit: u,
+                            selectedUnit: u || it.unit || 'قطعة',
                             units: p ? (p.units || []) : []
                         };
                     });
