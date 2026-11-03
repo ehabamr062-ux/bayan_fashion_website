@@ -3901,6 +3901,32 @@
         }
 
         /**
+         * ⚡ جلب مجموعة أصناف دفعة واحدة بضربة SQL واحدة (Batch Fetching) لمنع مشكلة N+1 Query
+         */
+        getProductsByNames(names) {
+            if (!this.db || !Array.isArray(names) || names.length === 0) return [];
+            const cleanNames = Array.from(new Set(names.map(n => String(n || '').trim()).filter(Boolean)));
+            if (cleanNames.length === 0) return [];
+            try {
+                const placeholders = cleanNames.map(() => '?').join(',');
+                const sql = `SELECT * FROM products WHERE name IN (${placeholders});`;
+                let rows = [];
+                if (this.isNative && this.nativeDb) {
+                    rows = this.nativeDb.prepare(sql).all(...cleanNames);
+                } else {
+                    const stmt = this.db.prepare(sql);
+                    stmt.bind(cleanNames);
+                    while (stmt.step()) rows.push(stmt.getAsObject());
+                    stmt.free();
+                }
+                return (rows || []).map(r => this._reconstructRow(r)).filter(Boolean);
+            } catch (e) {
+                console.warn("[SQLite] getProductsByNames notice:", e.message);
+                return [];
+            }
+        }
+
+        /**
          * ⚡ جلب صنف بمعرفه id مباشرة
          */
         getProductById(productId) {

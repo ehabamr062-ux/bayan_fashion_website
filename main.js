@@ -59,7 +59,7 @@ function createWindow() {
             sandbox: false,
             devTools: true, // متاح في وضع التطوير والتجربة
             spellcheck: false, // تعطيل التدقيق الإملائي لتوفير الرامات والمعالج
-            backgroundThrottling: true // إراحة المعالج وكارت الشاشة عند تصغير البرنامج
+            backgroundThrottling: false // ضمان استمرار عمل دورات المزامنة السحابية ومؤقتات الشبكة بسلاسة تامة دون انقطاع عند تصغير البرنامج
         },
         icon: path.join(__dirname, 'media', 'logo.ico')
     });
@@ -328,7 +328,7 @@ ipcMain.handle('select-backup-file', async () => {
     try {
         const backupDir = path.join(app.getPath('appData'), 'Bayan POS', 'backups');
         if (!fs.existsSync(backupDir)) {
-            fs.mkdirSync(backupDir, { recursive: true });
+            await fs.promises.mkdir(backupDir, { recursive: true });
         }
         const result = await dialog.showOpenDialog({
             title: 'اختر ملف النسخة الاحتياطية',
@@ -343,12 +343,13 @@ ipcMain.handle('select-backup-file', async () => {
             return { canceled: true };
         }
         const chosenFile = result.filePaths[0];
-        const content = fs.readFileSync(chosenFile, 'utf8');
+        const content = await fs.promises.readFile(chosenFile, 'utf8');
+        const stat = await fs.promises.stat(chosenFile);
         return {
             canceled: false,
             filePath: chosenFile,
             fileName: path.basename(chosenFile),
-            fileSize: fs.statSync(chosenFile).size,
+            fileSize: stat.size,
             content: content
         };
     } catch (err) {
@@ -569,7 +570,7 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                 clearTimeout(timeoutTimer);
                 resolve(res);
 
-                // ⏱️ مهلة آمنة (8 ثوانٍ) في الخلفية قبل إغلاق نافذة الطباعة لمنح Windows Spooler الوقت الكافي لطباعة الفاتورة دون قطع مفاجئ
+                // ⏱️ مهلة ترشيد سريعة (1.5 ثانية) في الخلفية قبل إغلاق نافذة الطباعة لتحرير معالج الرسوميات والذاكرة فور إرسال الفاتورة لـ Windows Spooler دون تراكم العمليات
                 if (delayDestroy) {
                     _activePrintDestroyTimer = setTimeout(() => {
                         if (printWin && !printWin.isDestroyed()) {
@@ -579,7 +580,7 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                         if (tempReceiptFile) {
                             try { if (fs.existsSync(tempReceiptFile)) fs.unlinkSync(tempReceiptFile); } catch (e) { }
                         }
-                    }, 8000);
+                    }, 1500);
                 } else {
                     if (printWin && !printWin.isDestroyed()) {
                         try { printWin.destroy(); } catch (e) { }

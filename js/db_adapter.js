@@ -14,7 +14,7 @@
 
     // 📋 خريطة الأعمدة الحقيقية المعرفة في قاعدة بيانات SQLite للاستفادة القصوى من الفهارس
     const TABLE_COLUMNS = {
-        products: new Set(['id', 'name', 'barcode', 'category', 'unit', 'cost', 'price', 'wholesale', 'stock']),
+        products: new Set(['id', 'name', 'barcode', 'code', 'category', 'unit', 'cost', 'price', 'wholesale', 'stock']),
         transactions: new Set(['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'warehouse', 'status', 'isInvoiceHead']),
         transaction_items: new Set(['id', 'tx_id', 'invoiceId', 'dateISO', 'time', 'type', 'partner', 'barcode', 'productName', 'size', 'color', 'qty', 'price', 'cost', 'discount', 'addition', 'total', 'profit', 'warehouse']),
         accounts: new Set(['id', 'name', 'code', 'type', 'mobile', 'balance', 'address']),
