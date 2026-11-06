@@ -56,7 +56,7 @@ function handleHistorySearch(query, event) {
 
     historySearchActiveIndex = -1;
     resultsDiv.innerHTML = '';
-    window.historyRenderLimit = 500;
+    window.historyRenderLimit = 100;
 
     if (!query || !query.trim()) { 
         resultsDiv.style.display = 'none'; 
@@ -170,20 +170,23 @@ function applyHistoryColumnVisibility() {
 }
 
 // متغيرات نظام التصفح والتحميل الذكي لسجل الحركات
-window.historyRenderLimit = 500;
+window.historyRenderLimit = 100;
 
 window.loadMoreHistory = function(step) {
     if (step === 0) {
-        window.historyRenderLimit = 50000;
+        window.historyRenderLimit = 200;
+        if (typeof showToast === 'function') {
+            showToast('⚡ تم تحديد سقف العرض بـ 200 حركة لضمان سلاسة وسرعة الواجهة. يرجى استخدام فلاتر التاريخ والبحث السريع للوصول الفوري.', 'info');
+        }
     } else {
-        window.historyRenderLimit = (window.historyRenderLimit || 500) + step;
+        window.historyRenderLimit = Math.min(200, (window.historyRenderLimit || 100) + step);
     }
     renderHistoryTable();
 };
 
 // متخصص لفلترة الفترة في صفحة الحركة
 function applyHistoryPeriodFilter(period) {
-    window.historyRenderLimit = 500;
+    window.historyRenderLimit = 100;
 
     const fromInput = document.getElementById('historyDateFrom');
 

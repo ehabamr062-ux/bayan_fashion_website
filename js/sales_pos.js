@@ -1629,6 +1629,7 @@ function updateItemUnit(index, unitName, cartType = 'sales') {
 
 function removeFromCart(index) {
     if (isEditMode && !checkPermission('docs_edit')) return;
+    window._activeCartRow = null;
     const item = cart[index];
     cart.splice(index, 1);
     if (typeof markPosInvoiceModified === 'function') markPosInvoiceModified();
@@ -1801,6 +1802,7 @@ function updateCartPrice(index, newPrice) {
 }
 
 function resetBill() {
+    window._activeCartRow = null;
     window._lastSaveBillTimestamp = 0;
     cart = [];
     isEditMode = false;
@@ -2074,7 +2076,7 @@ window.onSalesPriceLevelChange = function() {
 // --- 2. رسم الجدول والحسابات ---
 
 function renderCart() {
-
+    window._activeCartRow = null;
     const tbody = document.getElementById('cartTableBody');
     if (!tbody) return;
 
@@ -2189,31 +2191,11 @@ function renderCart() {
         tr.onclick = (e) => {
             if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'SELECT' && e.target.tagName !== 'BUTTON' && !e.target.closest('button')) {
                 if (window._activeCartRow && window._activeCartRow !== tr) {
-                    window._activeCartRow.style.backgroundColor = '';
-                    window._activeCartRow.style.boxShadow = '';
+                    window._activeCartRow.classList.remove('active-cart-row');
                 }
                 window._activeCartRow = tr;
-                tr.style.backgroundColor = '#eff6ff';
-                tr.style.boxShadow = 'inset 4px 0 0 #2563eb';
+                tr.classList.add('active-cart-row');
                 updatePOSProductImagePreview(item.id, item.selectedVariant || item);
-            }
-        };
-        // عند مرور مؤشر الماوس على أي صنف في الفاتورة، تظهر صورته مع إطار محدد فوراً وبدون استعلام DOM ثقيل
-        tr.onmouseenter = () => {
-            if (window._activeCartRow && window._activeCartRow !== tr) {
-                window._activeCartRow.style.backgroundColor = '';
-                window._activeCartRow.style.boxShadow = '';
-            }
-            window._activeCartRow = tr;
-            tr.style.backgroundColor = '#eff6ff';
-            tr.style.boxShadow = 'inset 4px 0 0 #2563eb';
-            updatePOSProductImagePreview(item.id, item.selectedVariant || item);
-        };
-        tr.onmouseleave = () => {
-            if (window._activeCartRow === tr) {
-                tr.style.backgroundColor = '';
-                tr.style.boxShadow = '';
-                window._activeCartRow = null;
             }
         };
         tr.style.cursor = 'pointer';
@@ -3808,7 +3790,8 @@ function printBill() {
 
     const invoiceData = getSalesInvoicePrintData();
     if (typeof printInvoice === 'function') {
-        printInvoice(invoiceData);
+        const isAppEnv = typeof window !== 'undefined' && !!(window.require || (window.process && window.process.versions && window.process.versions.electron));
+        printInvoice(invoiceData, { silent: isAppEnv });
     } else {
         alert('خطأ: محرك الطباعة غير متوفر!');
     }

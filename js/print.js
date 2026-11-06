@@ -602,6 +602,9 @@ async function printInvoice(invoiceData, options = {}) {
                 window.focus();
                 window.print();
             }, 250);
+            window.onafterprint = function() {
+                try { window.close(); } catch (e) { }
+            };
         };
     </script>
     `}
@@ -646,14 +649,36 @@ async function printInvoice(invoiceData, options = {}) {
     }
 
     // 2. الطباعة العادية بنظام المعاينة (أو كبديل آمن في المتصفح)
-    const printWindow = window.open('', '_blank');
+    let printWindow = window.open('', '_blank');
     if (!printWindow) {
         alert('⚠️ يرجى السماح بفتح النوافذ المنبثقة لإتمام الطباعة');
         return false;
     }
 
-    printWindow.document.write(fullHtml);
-    printWindow.document.close();
+    try {
+        printWindow.document.write(fullHtml);
+        printWindow.document.close();
+    } catch (e) {
+        console.warn('[Print] Document write notice:', e);
+    }
+
+    // تنظيف المرجع وإغلاق النافذة لمنع تسريب الذاكرة للـ Detached HTMLDocument
+    if (printWindow) {
+        try {
+            printWindow.addEventListener('afterprint', () => {
+                try { printWindow.close(); } catch (e) { }
+                printWindow = null;
+            }, { once: true });
+        } catch (e) { }
+        setTimeout(() => {
+            try {
+                if (printWindow && !printWindow.closed) {
+                    printWindow.close();
+                }
+            } catch (e) { }
+            printWindow = null;
+        }, 15000);
+    }
     return true;
 }
 

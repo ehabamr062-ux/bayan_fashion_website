@@ -687,19 +687,14 @@ window.debouncedRenderInvoicesTable = function (delay = 240) {
 };
 
 window.loadMoreInvoices = function (step) {
+    const MAX_SAFE_CEILING = 250;
     if (step === 0) {
-        const MAX_SAFE_CEILING = 300;
-        const total = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions.length : 0;
-        if (total > MAX_SAFE_CEILING) {
-            window.invoicesRenderLimit = MAX_SAFE_CEILING;
-            if (typeof showToast === 'function') {
-                showToast(`⚡ تم عرض أول ${MAX_SAFE_CEILING} فاتورة لحماية سرعة جهازك. استخدم فلتر التاريخ أو البحث السريع للوصول الفوري.`, 'info');
-            }
-        } else {
-            window.invoicesRenderLimit = Infinity;
+        window.invoicesRenderLimit = MAX_SAFE_CEILING;
+        if (typeof showToast === 'function') {
+            showToast(`⚡ تم تحديد سقف العرض بـ ${MAX_SAFE_CEILING} فاتورة لحماية أداء جهازك. استخدم فلتر التاريخ أو البحث السريع للوصول الفوري.`, 'info');
         }
     } else {
-        window.invoicesRenderLimit = (window.invoicesRenderLimit || 100) + step;
+        window.invoicesRenderLimit = Math.min(MAX_SAFE_CEILING, (window.invoicesRenderLimit || 100) + step);
     }
     renderInvoicesTable(true);
 };

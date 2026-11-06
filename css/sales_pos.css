@@ -1,3 +1,15 @@
+        /* --- تسريع هوفر جدول السلة بنواة GPU وبدون أي استهلاك لمعالج الـ JS --- */
+        #cartTableBody tr {
+            transition: background-color 0.1s ease;
+        }
+        #cartTableBody tr:hover {
+            background-color: #eff6ff !important;
+        }
+        #cartTableBody tr.active-cart-row {
+            background-color: #eff6ff !important;
+            box-shadow: inset 4px 0 0 #2563eb !important;
+        }
+
         /* --- أنماط الأصناف السريعة المذهلة (VIP Quick Items Styles) --- */
         .quick-item-btn {
             background: linear-gradient(135deg, #ffffff, #f1f5f9);
