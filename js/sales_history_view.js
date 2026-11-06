@@ -271,17 +271,18 @@ function computeTransactionRunningBalances(targetWarehouse = 'all') {
         if (!t || !t.product) return;
         const isInvTx = ['بيع', 'شراء', 'مرتجع', 'تسوية', 'تحويل'].some(k => t.type && t.type.includes(k));
         if (!isInvTx) return;
-        if (t.type && t.type.includes('تحويل') && t.transferStatus === 'rejected') return;
+        // 🔒 تجاهل التحويلات المعلقة أو المرفوضة في حركة الرصيد
+        if (t.type && t.type.includes('تحويل') && (t.transferStatus === 'rejected' || t.transferStatus === 'pending')) return;
 
         // فلترة الحركات الخاصة بالمخزن عند تحديد مخزن معين
         if (isSpecificWh) {
             const isTransfer = t.type && t.type.includes('تحويل');
             if (isTransfer) {
-                const src = t.sourceWarehouse || t.fromWarehouse || t.warehouse;
-                const dst = t.toWarehouse || t.destWarehouse;
+                const src = String(t.sourceWarehouse || t.fromWarehouse || t.warehouse || '').trim();
+                const dst = String(t.toWarehouse || t.destWarehouse || '').trim();
                 if (src !== targetWarehouse && dst !== targetWarehouse) return;
             } else {
-                const tWh = t.warehouse || 'المخزن الرئيسي';
+                const tWh = String(t.warehouse || 'المخزن الرئيسي').trim();
                 if (tWh !== targetWarehouse) return;
             }
         }
@@ -289,13 +290,24 @@ function computeTransactionRunningBalances(targetWarehouse = 'all') {
         const pName = String(t.product || '').trim();
         const sSize = String(t.size || t.selectedSize || '').trim();
         const sColor = String(t.color || t.selectedColor || '').trim();
-        const key = `${pName}___${sSize}___${sColor}`;
+
+        // تطبيع نصوص المقاس واللون بالاعتماد على دوال التنظيف المعتمدة لتوحيد المطابقة
+        const normSize = (typeof window.cleanVariantAttr === 'function')
+            ? window.cleanVariantAttr(sSize)
+            : sSize.toLowerCase();
+        const normColor = (typeof window.cleanVariantAttr === 'function')
+            ? window.cleanVariantAttr(sColor)
+            : sColor.toLowerCase();
+
+        const key = `${pName}___${normSize}___${normColor}`;
 
         if (!productGroups[key]) {
             productGroups[key] = {
                 productName: pName,
-                size: sSize,
-                color: sColor,
+                rawSize: sSize,
+                rawColor: sColor,
+                normSize: normSize,
+                normColor: normColor,
                 txList: []
             };
         }
@@ -340,17 +352,45 @@ function computeTransactionRunningBalances(targetWarehouse = 'all') {
         }
     }
 
+    // دالة مساعدة لاستخراج مفتاح الترتيب الزمني الدقيق لأي حركة
+    const getTxChronologicalKey = (t) => {
+        if (!t) return '';
+        let iso = t.dateISO || '';
+        let time = t.timeISO || '';
+        if (!iso || !time) {
+            if (typeof window.extractIsoDateAndTimeString === 'function') {
+                const ext = window.extractIsoDateAndTimeString(t.date, t.dateISO, t.timeISO);
+                iso = iso || ext.iso;
+                time = time || ext.time;
+            } else {
+                iso = iso || (t.date ? String(t.date).slice(0, 10) : '1970-01-01');
+                time = time || '00:00';
+            }
+        }
+        const safeId = String(t.id || t.invoiceId || 0).padStart(12, '0');
+        return `${iso} ${time} ${safeId}`;
+    };
+
     Object.values(productGroups).forEach(grp => {
         const p = prodMap.get(grp.productName) || null;
 
         let currentStock = 0;
         if (p) {
-            if (grp.size || grp.color) {
-                const v = (p.variants && Array.isArray(p.variants))
-                    ? p.variants.find(x => 
-                        (!grp.size || String(x.size || '').trim() === grp.size) && 
-                        (!grp.color || String(x.color || '').trim() === grp.color)
-                    ) : null;
+            const hasVariantCriteria = !!(grp.normSize || grp.normColor);
+            if (hasVariantCriteria) {
+                let v = null;
+                if (typeof window.findMatchingVariant === 'function') {
+                    v = window.findMatchingVariant(p, { size: grp.rawSize, color: grp.rawColor });
+                } else if (p.variants && Array.isArray(p.variants)) {
+                    const cleanAttrFn = (typeof window.cleanVariantAttr === 'function')
+                        ? window.cleanVariantAttr
+                        : (s => String(s || '').trim().toLowerCase());
+                    v = p.variants.find(x =>
+                        (!grp.normSize || cleanAttrFn(x.size) === grp.normSize) &&
+                        (!grp.normColor || cleanAttrFn(x.color) === grp.normColor)
+                    );
+                }
+
                 if (v) {
                     if (isSpecificWh) {
                         currentStock = window.FashionStockEngine
@@ -360,13 +400,8 @@ function computeTransactionRunningBalances(targetWarehouse = 'all') {
                         currentStock = parseFloat(v.stock) || 0;
                     }
                 } else {
-                    if (isSpecificWh) {
-                        currentStock = window.FashionStockEngine
-                            ? window.FashionStockEngine.getProductStock(p, targetWarehouse)
-                            : (parseFloat(p.warehouseStocks?.[targetWarehouse]) || 0);
-                    } else {
-                        currentStock = parseFloat(p.stock) || 0;
-                    }
+                    // 🔒 منع اللجوء لرصيد الصنف العام كبديل عند غياب التشكيلة، وحصر الحساب برصيد التشكيلة الفعلي فقط (0)
+                    currentStock = 0;
                 }
             } else {
                 if (isSpecificWh) {
@@ -379,6 +414,16 @@ function computeTransactionRunningBalances(targetWarehouse = 'all') {
             }
         }
 
+        // فرز وترتيب حركات الصنف والتشكيلة زمنياً بصورة تصاعدية صارمة بحسب تاريخ ووقت المعاملة الحقيقي والمعرف
+        grp.txList.sort((a, b) => {
+            const keyA = getTxChronologicalKey(a.t);
+            const keyB = getTxChronologicalKey(b.t);
+            if (keyA < keyB) return -1;
+            if (keyA > keyB) return 1;
+            return (a.origIdx || 0) - (b.origIdx || 0);
+        });
+
+        // احتساب الرصيد التراكمي تنازلياً من أحدث حركة إلى أقدم حركة
         let running = currentStock;
         for (let i = grp.txList.length - 1; i >= 0; i--) {
             const item = grp.txList[i];
@@ -392,17 +437,18 @@ function computeTransactionRunningBalances(targetWarehouse = 'all') {
             if (type.includes('تحويل')) {
                 if (item.t.transferStatus === 'received') {
                     if (isSpecificWh) {
-                        const src = item.t.sourceWarehouse || item.t.fromWarehouse;
-                        const dst = item.t.toWarehouse || item.t.destWarehouse || (item.t.warehouse && item.t.warehouse !== src ? item.t.warehouse : '');
+                        const src = String(item.t.sourceWarehouse || item.t.fromWarehouse || '').trim();
+                        const dst = String(item.t.toWarehouse || item.t.destWarehouse || (item.t.warehouse && item.t.warehouse !== src ? item.t.warehouse : '')).trim();
                         if (dst === targetWarehouse) {
-                            delta = qty; // وارد للمخزن
+                            delta = qty; // وارد للمخزن المختار (+)
                         } else if (src === targetWarehouse) {
-                            delta = -qty; // صادر من المخزن
+                            delta = -qty; // صادر من المخزن المختار (-)
                         } else {
-                            delta = -qty;
+                            delta = 0;
                         }
                     } else {
-                        delta = -qty;
+                        // عند اختيار كافة المخازن (all): التحويل داخلي بين الفروع ولم يخرج من الشركة
+                        delta = 0;
                     }
                 } else {
                     delta = 0; // تحويل معلق أو مرفوض لا يؤثر على حركة الرصيد
@@ -424,6 +470,34 @@ function computeTransactionRunningBalances(targetWarehouse = 'all') {
     });
 
     return balanceMap;
+}
+
+// 📦 دالة تنسيق عرض الكمية والوحدة وتوضيح معادل القطع
+function formatHistoryQuantityDisplay(t) {
+    if (!t) return '0';
+    const rawQty = parseFloat(t.qty) || 0;
+    const factor = parseFloat(t.unitFactor) || 1;
+    const unitName = String(t.unit || t.unitName || '').trim();
+    const qtyStr = (rawQty % 1 === 0) ? rawQty : rawQty.toFixed(2);
+
+    if (factor > 1 && unitName && unitName !== 'قطعة' && unitName !== '-') {
+        const totalBasePieces = rawQty * factor;
+        const totalPiecesStr = (totalBasePieces % 1 === 0) ? totalBasePieces : totalBasePieces.toFixed(2);
+        return `
+            <div style="font-weight:900; color:#1e293b; line-height:1.2;">
+                ${qtyStr} <span style="font-size:0.75rem; color:#64748b; font-weight:700;">${unitName}</span>
+            </div>
+            <div style="font-size:0.72rem; color:#047857; font-weight:800; margin-top:2px;" title="المعادل الفعلي بالقطع المستنزفة من الرصيد">
+                (${totalPiecesStr} قطعة)
+            </div>
+        `;
+    } else {
+        const displayUnit = (unitName && unitName !== '-') ? unitName : 'قطعة';
+        return `
+            <span style="font-weight:900; color:#1e293b;">${qtyStr}</span>
+            <span style="font-size:0.75rem; color:#64748b; font-weight:700; margin-right:2px;">${displayUnit}</span>
+        `;
+    }
 }
 
 async function renderHistoryTable(filterName = null) {
@@ -496,14 +570,23 @@ async function renderHistoryTable(filterName = null) {
                     netCardEl.innerText = (netQty > 0 ? '+' : '') + (netQty % 1 === 0 ? netQty : netQty.toFixed(2));
                     netCardEl.style.color = netQty >= 0 ? '#1e40af' : '#dc2626';
                 }
-                if (amtCardEl) amtCardEl.innerHTML = `${totalAmountSum.toFixed(2)} <span style="font-size:0.75rem;">ج.م</span>`;
+                if (amtCardEl) {
+                    amtCardEl.innerHTML = `${totalAmountSum.toFixed(2)} <span style="font-size:0.75rem;">ج.م</span>`;
+                    const labelEl = amtCardEl.parentElement?.querySelector('div:first-child');
+                    if (labelEl) {
+                        labelEl.innerText = (typeFilter === 'بيع' ? '🛒 صافي المبيعات' : (typeFilter === 'شراء' ? '📦 صافي المشتريات' : (typeFilter === 'تحويل' ? '🚚 قيمة التحويلات' : '💰 صافي القيمة المالية')));
+                    }
+                }
 
                 tbody.innerHTML = '';
                 let rowsHtml = '';
                 const esc = (typeof escapeHtml === 'function') ? escapeHtml : (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 
                 displayedData.forEach((t, rowIdx) => {
-                    const isSelected = (selectedHistoryIndex === rowIdx);
+                    const txId = t.tx_id || t.id || '';
+                    const invId = t.invoiceId || '';
+                    const invType = t.type || '';
+                    const isSelected = (selectedHistoryIndex === rowIdx) || (window.selectedHistoryInvoiceId && String(window.selectedHistoryInvoiceId) === String(invId));
                     const sSize = t.size || '';
                     const sColor = t.color || '';
                     const whName = t.warehouse || '';
@@ -535,9 +618,9 @@ async function renderHistoryTable(filterName = null) {
                     const displayDate = t.dateFormatted || (t.dateISO ? (t.time ? `${t.dateISO} ${t.time}` : t.dateISO) : '-');
 
                     rowsHtml += `
-                        <tr data-orig-index="${rowIdx}" data-invoice-id="${esc(t.invoiceId || '')}" data-invoice-type="${esc(t.type || '')}" class="${isSelected ? 'selected-row' : ''}" onclick="selectHistoryRow(${rowIdx})">
+                        <tr data-orig-index="${rowIdx}" data-tx-id="${esc(txId)}" data-invoice-id="${esc(invId)}" data-invoice-type="${esc(invType)}" class="${isSelected ? 'selected-row' : ''}" onclick="selectHistoryRow(${rowIdx}, this, '${esc(invId)}', '${esc(invType)}', '${esc(txId)}')">
                             <td class="col-hist-0"><input type="radio" name="histRad" ${isSelected ? 'checked' : ''}></td>
-                            <td class="col-hist-1"><span style="background:#eee; padding:2px 6px; border-radius:4px; font-weight:bold;">${esc(t.invoiceId || '-')}</span></td>
+                            <td class="col-hist-1"><span style="background:#eee; padding:2px 6px; border-radius:4px; font-weight:bold;">${esc(invId || '-')}</span></td>
                             <td class="col-hist-2">${esc(displayDate)}</td>
                             <td class="col-hist-3" style="text-align: center;">
                                 <span class="stock-badge ${t.type.includes('بيع') ? (t.type.includes('مرتجع') ? 'badge-return-sale' : 'badge-sale') :
@@ -562,7 +645,7 @@ async function renderHistoryTable(filterName = null) {
                                 <div style="font-weight: 800; color: #1e293b;">${esc(t.product || '-')}</div>
                                 ${fashionBadges}
                             </td>
-                            <td class="col-hist-5" style="font-weight: bold;">${t.qty || 0}</td>
+                            <td class="col-hist-5" style="text-align: center;">${formatHistoryQuantityDisplay(t)}</td>
                             <td class="col-hist-6">${parseFloat(t.price || 0).toFixed(2)}</td>
                             <td class="col-hist-7" style="font-weight:bold; color:var(--main-blue);">${parseFloat(t.total || 0).toFixed(2)}</td>
                             <td class="col-hist-8">${esc(t.partner || '-')}</td>
@@ -852,15 +935,19 @@ async function renderHistoryTable(filterName = null) {
     // 📊 حساب إحصائيات الكروت العلوية من واقع الحركات المعروضة بناءً على المخزن المحدد
     let totalInQty = 0;
     let totalOutQty = 0;
-    let totalAmountSum = 0;
+    let netSalesAmount = 0;
+    let netPurchasesAmount = 0;
+    let netTransfersAmount = 0;
+    let netAdjustmentsAmount = 0;
+    let hasSales = false;
+    let hasPurchases = false;
 
     data.forEach(t => {
         const factor = parseFloat(t.unitFactor) || 1;
         const qty = (parseFloat(t.qty) || 0) * factor;
-        const total = parseFloat(t.total) || 0;
-        totalAmountSum += total;
-
+        const total = Math.abs(parseFloat(t.total) || (parseFloat(t.price || 0) * (parseFloat(t.qty) || 0)));
         const type = t.type || '';
+
         if (type.includes('تحويل')) {
             if (t.transferStatus === 'received' && whFilter && whFilter !== 'all') {
                 const src = t.sourceWarehouse || t.fromWarehouse || t.warehouse;
@@ -873,17 +960,67 @@ async function renderHistoryTable(filterName = null) {
                     if (qty >= 0) totalInQty += qty; else totalOutQty += Math.abs(qty);
                 }
             }
-        } else if ((type.includes('شراء') && !type.includes('مرتجع')) || type.includes('مرتجع بيع')) {
-            totalInQty += qty;
-        } else if ((type.includes('بيع') && !type.includes('مرتجع')) || type.includes('مرتجع شراء')) {
-            totalOutQty += qty;
+            netTransfersAmount += total;
+        } else if (type.includes('بيع')) {
+            hasSales = true;
+            if (type.includes('مرتجع')) {
+                totalInQty += qty;
+                netSalesAmount -= total;
+            } else {
+                totalOutQty += qty;
+                netSalesAmount += total;
+            }
+        } else if (type.includes('شراء')) {
+            hasPurchases = true;
+            if (type.includes('مرتجع')) {
+                totalOutQty += qty;
+                netPurchasesAmount -= total;
+            } else {
+                totalInQty += qty;
+                netPurchasesAmount += total;
+            }
         } else if (type.includes('تسوية')) {
-            if (qty >= 0) totalInQty += qty;
-            else totalOutQty += Math.abs(qty);
+            if (qty >= 0) {
+                totalInQty += qty;
+                netAdjustmentsAmount += total;
+            } else {
+                totalOutQty += Math.abs(qty);
+                netAdjustmentsAmount -= total;
+            }
         }
     });
 
     const netQty = totalInQty - totalOutQty;
+
+    let totalAmountSum = 0;
+    let amtCardLabel = '💰 صافي القيمة المالية';
+    if (typeFilter === 'بيع') {
+        totalAmountSum = netSalesAmount;
+        amtCardLabel = '🛒 صافي المبيعات';
+    } else if (typeFilter === 'شراء') {
+        totalAmountSum = netPurchasesAmount;
+        amtCardLabel = '📦 صافي المشتريات';
+    } else if (typeFilter === 'تحويل') {
+        totalAmountSum = netTransfersAmount;
+        amtCardLabel = '🚚 قيمة التحويلات';
+    } else if (typeFilter === 'تسوية') {
+        totalAmountSum = netAdjustmentsAmount;
+        amtCardLabel = '⚖️ صافي التسويات';
+    } else if (typeFilter === 'مرتجع') {
+        totalAmountSum = Math.abs(netSalesAmount) + Math.abs(netPurchasesAmount);
+        amtCardLabel = '↩️ إجمالي المرتجعات';
+    } else {
+        if (hasSales) {
+            totalAmountSum = netSalesAmount;
+            amtCardLabel = '🛒 صافي المبيعات';
+        } else if (hasPurchases) {
+            totalAmountSum = netPurchasesAmount;
+            amtCardLabel = '📦 صافي المشتريات';
+        } else {
+            totalAmountSum = netAdjustmentsAmount || netTransfersAmount || 0;
+            amtCardLabel = '💰 صافي القيمة المالية';
+        }
+    }
 
     // تحديث الكروت العلوية
     const inCardEl = document.getElementById('histCardInQty');
@@ -897,7 +1034,11 @@ async function renderHistoryTable(filterName = null) {
         netCardEl.innerText = (netQty > 0 ? '+' : '') + (netQty % 1 === 0 ? netQty : netQty.toFixed(2));
         netCardEl.style.color = netQty >= 0 ? '#1e40af' : '#dc2626';
     }
-    if (amtCardEl) amtCardEl.innerHTML = `${totalAmountSum.toFixed(2)} <span style="font-size:0.75rem;">ج.م</span>`;
+    if (amtCardEl) {
+        amtCardEl.innerHTML = `${totalAmountSum.toFixed(2)} <span style="font-size:0.75rem;">ج.م</span>`;
+        const labelEl = amtCardEl.parentElement?.querySelector('div:first-child');
+        if (labelEl) labelEl.innerText = amtCardLabel;
+    }
 
     const totalMatchingCount = data.length;
     const limit = window.historyRenderLimit || 500;
@@ -907,8 +1048,12 @@ async function renderHistoryTable(filterName = null) {
     let rowsHtml = '';
     const esc = (typeof escapeHtml === 'function') ? escapeHtml : (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 
-    displayedData.forEach(t => {
-        const isSelected = (selectedHistoryIndex === t.originalIndex);
+    displayedData.forEach((t, rowIdx) => {
+        const txId = t.id || t.tx_id || '';
+        const invId = t.invoiceId || '';
+        const invType = t.type || '';
+        const origIdx = (t.originalIndex !== undefined) ? t.originalIndex : rowIdx;
+        const isSelected = (selectedHistoryIndex === origIdx) || (window.selectedHistoryInvoiceId && String(window.selectedHistoryInvoiceId) === String(invId));
 
         const sSize = t.size || t.selectedSize || '';
         const sColor = t.color || t.selectedColor || '';
@@ -939,9 +1084,9 @@ async function renderHistoryTable(filterName = null) {
         }
 
         rowsHtml += `
-            <tr data-orig-index="${t.originalIndex}" data-invoice-id="${esc(t.invoiceId || '')}" data-invoice-type="${esc(t.type || '')}" class="${isSelected ? 'selected-row' : ''}" onclick="selectHistoryRow(${t.originalIndex})">
+            <tr data-orig-index="${origIdx}" data-tx-id="${esc(txId)}" data-invoice-id="${esc(invId)}" data-invoice-type="${esc(invType)}" class="${isSelected ? 'selected-row' : ''}" onclick="selectHistoryRow(${origIdx}, this, '${esc(invId)}', '${esc(invType)}', '${esc(txId)}')">
                 <td class="col-hist-0"><input type="radio" name="histRad" ${isSelected ? 'checked' : ''}></td>
-                <td class="col-hist-1"><span style="background:#eee; padding:2px 6px; border-radius:4px; font-weight:bold;">${esc(t.invoiceId || '-')}</span></td>
+                <td class="col-hist-1"><span style="background:#eee; padding:2px 6px; border-radius:4px; font-weight:bold;">${esc(invId || '-')}</span></td>
                 <td class="col-hist-2">${esc(t.date || '-')}</td>
                 <td class="col-hist-3" style="text-align: center;">
                     <span class="stock-badge ${t.type.includes('بيع') ? (t.type.includes('مرتجع') ? 'badge-return-sale' : 'badge-sale') :
@@ -966,7 +1111,7 @@ async function renderHistoryTable(filterName = null) {
                     <div style="font-weight: 800; color: #1e293b;">${esc(t.product || '-')}</div>
                     ${fashionBadges}
                 </td>
-                <td class="col-hist-5" style="font-weight: bold;">${t.qty || 0}</td>
+                <td class="col-hist-5" style="text-align: center;">${formatHistoryQuantityDisplay(t)}</td>
                 <td class="col-hist-6">${parseFloat(t.price || 0).toFixed(2)}</td>
                 <td class="col-hist-7" style="font-weight:bold; color:var(--main-blue);">${parseFloat(t.total || 0).toFixed(2)}</td>
                 <td class="col-hist-8">${esc(t.partner || '-')}</td>

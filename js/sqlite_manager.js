@@ -3612,7 +3612,13 @@
                                 ELSE 0 
                             END
                         ), 0) AS totalOut,
-                        COALESCE(SUM(ti.total), 0) AS totalAmount
+                        COALESCE(SUM(
+                            CASE
+                                WHEN ti.type LIKE '%تحويل%' THEN 0
+                                WHEN ti.type LIKE '%مرتجع%' THEN -ABS(ti.total)
+                                ELSE ABS(ti.total)
+                            END
+                        ), 0) AS totalAmount
                     FROM transaction_items ti
                     LEFT JOIN transactions t ON ti.tx_id = t.id
                     WHERE ${whereClause};
@@ -3723,7 +3729,7 @@
                                     if (matchedVar) {
                                         curStock = FashionStockEngine.getVariantStock(matchedVar, targetWh);
                                     } else {
-                                        curStock = FashionStockEngine.getProductStock(pObj, targetWh);
+                                        curStock = 0; // 🔒 منع اللجوء لرصيد الصنف العام عند غياب التشكيلة
                                     }
                                 } else {
                                     curStock = FashionStockEngine.getProductStock(pObj, targetWh);
@@ -3739,13 +3745,7 @@
                                         curStock = parseFloat(matchedVar.stock) || 0;
                                     }
                                 } else {
-                                    if (targetWh) {
-                                        curStock = (whStocks && whStocks[targetWh] !== undefined)
-                                            ? (parseFloat(whStocks[targetWh]) || 0)
-                                            : 0;
-                                    } else {
-                                        curStock = pStock;
-                                    }
+                                    curStock = 0; // 🔒 منع اللجوء لرصيد الصنف العام
                                 }
                             } else {
                                 if (targetWh) {
@@ -3769,7 +3769,9 @@
                     const pName = String(row.product || '').trim();
                     const sSize = String(row.size || '').trim();
                     const sColor = String(row.color || '').trim();
-                    const groupKey = `${pName}___${sSize}___${sColor}`;
+                    const normSize = (typeof window.cleanVariantAttr === 'function') ? window.cleanVariantAttr(sSize) : sSize.toLowerCase();
+                    const normColor = (typeof window.cleanVariantAttr === 'function') ? window.cleanVariantAttr(sColor) : sColor.toLowerCase();
+                    const groupKey = `${pName}___${normSize}___${normColor}`;
 
                     if (!runningTracker.has(groupKey)) {
                         runningTracker.set(groupKey, getProductLiveStock(pName, sSize, sColor));
@@ -3790,9 +3792,9 @@
                                 const dst = row.toWarehouse;
                                 if (dst === targetWh) delta = qty;
                                 else if (src === targetWh) delta = -qty;
-                                else delta = -qty;
+                                else delta = 0;
                             } else {
-                                delta = -qty;
+                                delta = 0; // تحويل داخلي لكافة المخازن لا ينقص رصيد المؤسسة الكلي
                             }
                         } else {
                             delta = 0;

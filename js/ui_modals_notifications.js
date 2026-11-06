@@ -3511,7 +3511,7 @@
             return window.renderCustomInvoiceModal(tx);
         };
 
-        function selectHistoryRow(idx) {
+        function selectHistoryRow(idx, rowEl, invId, invType, txId) {
             selectedHistoryIndex = idx;
             window.selectedHistoryIndex = idx;
             const tbody = document.getElementById('historyTableBody');
@@ -3521,21 +3521,32 @@
                 const rad = tr.querySelector('input[type="radio"]');
                 if (rad) rad.checked = false;
             });
-            const targetRow = tbody.querySelector(`tr[data-orig-index="${idx}"]`);
+
+            let targetRow = rowEl || (typeof event !== 'undefined' && event?.currentTarget ? event.currentTarget : null);
+            if (!targetRow && idx !== null && idx !== undefined) {
+                targetRow = tbody.querySelector(`tr[data-orig-index="${idx}"]`);
+            }
+
             if (targetRow) {
                 targetRow.classList.add('selected-row');
                 const rad = targetRow.querySelector('input[type="radio"]');
                 if (rad) rad.checked = true;
-                const invId = targetRow.getAttribute('data-invoice-id');
-                const invType = targetRow.getAttribute('data-invoice-type');
-                if (invId) {
-                    window.selectedHistoryInvoiceId = invId;
-                    window.selectedInvoiceId = invId;
-                }
-                if (invType) {
-                    window.selectedHistoryInvoiceType = invType;
-                    window.selectedInvoiceType = invType;
-                }
+                if (!invId) invId = targetRow.getAttribute('data-invoice-id');
+                if (!invType) invType = targetRow.getAttribute('data-invoice-type');
+                if (!txId) txId = targetRow.getAttribute('data-tx-id');
+            }
+
+            if (invId) {
+                window.selectedHistoryInvoiceId = invId;
+                window.selectedInvoiceId = invId;
+            }
+            if (invType) {
+                window.selectedHistoryInvoiceType = invType;
+                window.selectedInvoiceType = invType;
+            }
+            if (txId) {
+                window.selectedHistoryTxId = txId;
+                window.selectedTxId = txId;
             }
         }
 
@@ -3697,26 +3708,36 @@
 
         function viewSelectedInvoice() {
             const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
-            let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : null;
-            let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : null;
-            let txId = (isInv && window.selectedTxId) ? window.selectedTxId : null;
+            let invId = (isInv ? window.selectedInvoiceId : (window.selectedHistoryInvoiceId || window.selectedInvoiceId)) || null;
+            let invType = (isInv ? window.selectedInvoiceType : (window.selectedHistoryInvoiceType || window.selectedInvoiceType)) || null;
+            let txId = (isInv ? window.selectedTxId : (window.selectedHistoryTxId || window.selectedTxId)) || null;
 
-            if (isInv) {
-                const tr = document.querySelector('#invoicesTableBody tr.selected-row') ||
-                           document.querySelector('#invoicesTableBody tr input[name="invRad"]:checked')?.closest('tr');
-                if (tr) {
-                    if (!invId) invId = tr.getAttribute('data-invoice-id');
-                    if (!invType) invType = tr.getAttribute('data-invoice-type');
-                    if (!txId) txId = tr.getAttribute('data-tx-id');
-                }
+            const tbodySelector = isInv ? '#invoicesTableBody' : '#historyTableBody';
+            const tr = document.querySelector(`${tbodySelector} tr.selected-row`) ||
+                       document.querySelector(`${tbodySelector} tr input[type="radio"]:checked`)?.closest('tr');
+            if (tr) {
+                if (!invId) invId = tr.getAttribute('data-invoice-id');
+                if (!invType) invType = tr.getAttribute('data-invoice-type');
+                if (!txId) txId = tr.getAttribute('data-tx-id');
             }
 
             if (!invId) {
                 const activeIdx = (isInv ? selectedInvoiceIndex : selectedHistoryIndex);
-                if (activeIdx !== null && activeIdx !== undefined && transactions[activeIdx]) {
-                    invId = transactions[activeIdx].invoiceId || transactions[activeIdx].id || transactions[activeIdx].transferId || transactions[activeIdx].adjId;
-                    invType = transactions[activeIdx].type;
-                    txId = transactions[activeIdx].id;
+                if (activeIdx !== null && activeIdx !== undefined && activeIdx !== -1) {
+                    if (isInv && transactions[activeIdx]) {
+                        invId = transactions[activeIdx].invoiceId || transactions[activeIdx].id || transactions[activeIdx].transferId || transactions[activeIdx].adjId;
+                        invType = transactions[activeIdx].type;
+                        txId = transactions[activeIdx].id;
+                    } else if (!isInv && window._currentHistoryDisplayed && window._currentHistoryDisplayed[activeIdx]) {
+                        const item = window._currentHistoryDisplayed[activeIdx];
+                        invId = item.invoiceId || item.id || item.transferId || item.adjId;
+                        invType = item.type;
+                        txId = item.id || item.tx_id;
+                    } else if (transactions[activeIdx]) {
+                        invId = transactions[activeIdx].invoiceId || transactions[activeIdx].id;
+                        invType = transactions[activeIdx].type;
+                        txId = transactions[activeIdx].id;
+                    }
                 }
             }
 
@@ -3792,12 +3813,21 @@
 
         function editSelectedInvoice() {
             const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
-            let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : (window.selectedInvoiceId || window.selectedHistoryInvoiceId || null);
-            let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : (window.selectedInvoiceType || window.selectedHistoryInvoiceType || null);
-            let txId = (isInv && window.selectedTxId) ? window.selectedTxId : null;
+            let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : (window.selectedHistoryInvoiceId || window.selectedInvoiceId || null);
+            let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : (window.selectedHistoryInvoiceType || window.selectedInvoiceType || null);
+            let txId = (isInv && window.selectedTxId) ? window.selectedTxId : (window.selectedHistoryTxId || window.selectedTxId || null);
             let t = null;
 
-            if (isInv && txId) {
+            const tbodySelector = isInv ? '#invoicesTableBody' : '#historyTableBody';
+            const tr = document.querySelector(`${tbodySelector} tr.selected-row`) ||
+                       document.querySelector(`${tbodySelector} tr input[type="radio"]:checked`)?.closest('tr');
+            if (tr) {
+                if (!invId) invId = tr.getAttribute('data-invoice-id');
+                if (!invType) invType = tr.getAttribute('data-invoice-type');
+                if (!txId) txId = tr.getAttribute('data-tx-id');
+            }
+
+            if (txId) {
                 t = transactions.find(x => String(x.id) === String(txId));
             }
             if (!t && invId) {
@@ -3807,14 +3837,20 @@
 
             if (!t) {
                 const activeIdx = isInv ? selectedInvoiceIndex : selectedHistoryIndex;
-                if (activeIdx !== null && activeIdx !== undefined && activeIdx !== -1 && transactions[activeIdx]) {
-                    t = transactions[activeIdx];
-                    if (!invId) invId = t.invoiceId;
-                    if (!invType) invType = t.type;
-                } else if (!isInv && window._currentHistoryDisplayed && activeIdx !== null && window._currentHistoryDisplayed[activeIdx]) {
-                    t = window._currentHistoryDisplayed[activeIdx];
-                    if (!invId) invId = t.invoiceId;
-                    if (!invType) invType = t.type;
+                if (activeIdx !== null && activeIdx !== undefined && activeIdx !== -1) {
+                    if (isInv && transactions[activeIdx]) {
+                        t = transactions[activeIdx];
+                        if (!invId) invId = t.invoiceId;
+                        if (!invType) invType = t.type;
+                    } else if (!isInv && window._currentHistoryDisplayed && window._currentHistoryDisplayed[activeIdx]) {
+                        t = window._currentHistoryDisplayed[activeIdx];
+                        if (!invId) invId = t.invoiceId;
+                        if (!invType) invType = t.type;
+                    } else if (transactions[activeIdx]) {
+                        t = transactions[activeIdx];
+                        if (!invId) invId = t.invoiceId;
+                        if (!invType) invType = t.type;
+                    }
                 }
             }
 
@@ -3844,11 +3880,20 @@
 
         function deleteSelectedInvoice() {
             const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
-            let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : null;
-            let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : null;
-            let txId = (isInv && window.selectedTxId) ? window.selectedTxId : null;
+            let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : (window.selectedHistoryInvoiceId || window.selectedInvoiceId || null);
+            let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : (window.selectedHistoryInvoiceType || window.selectedInvoiceType || null);
+            let txId = (isInv && window.selectedTxId) ? window.selectedTxId : (window.selectedHistoryTxId || window.selectedTxId || null);
 
-            if (isInv && invId) {
+            const tbodySelector = isInv ? '#invoicesTableBody' : '#historyTableBody';
+            const tr = document.querySelector(`${tbodySelector} tr.selected-row`) ||
+                       document.querySelector(`${tbodySelector} tr input[type="radio"]:checked`)?.closest('tr');
+            if (tr) {
+                if (!invId) invId = tr.getAttribute('data-invoice-id');
+                if (!invType) invType = tr.getAttribute('data-invoice-type');
+                if (!txId) txId = tr.getAttribute('data-tx-id');
+            }
+
+            if (invId) {
                 if (typeof window.deleteInvoiceGlobal === 'function') {
                     return window.deleteInvoiceGlobal(invId, invType, txId);
                 }
