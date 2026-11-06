@@ -2974,9 +2974,9 @@ window.revertAndClearOldInvoice = async function (invId, type) {
         if (window.BayanSQLite && window.BayanSQLite.db) {
             try {
                 if (cleanType) {
-                    window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE (invoiceId = ? OR tx_id = ?) AND (type = ? OR type LIKE ?);", [String(invId), String(invId), cleanType, `%${cleanType}%`]);
+                    window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE invoiceId = ? AND (type = ? OR type LIKE ?);", [String(invId), cleanType, `%${cleanType}%`]);
                 } else {
-                    window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE invoiceId = ? OR tx_id = ?;", [String(invId), String(invId)]);
+                    window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE invoiceId = ?;", [String(invId)]);
                 }
                 window.BayanSQLite._isDirty = true;
             } catch (tiErr) { }
@@ -3316,9 +3316,9 @@ async function deleteTransaction(idx) {
                         try {
                             const tType = t && t.type ? String(t.type).replace(/📤|📥|↩️|⚖️/g, '').trim() : '';
                             if (tType) {
-                                window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE (invoiceId = ? OR tx_id = ?) AND (type = ? OR type LIKE ?);", [String(invId), String(invId), tType, `%${tType}%`]);
+                                window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE invoiceId = ? AND (type = ? OR type LIKE ?);", [String(invId), tType, `%${tType}%`]);
                             } else {
-                                window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE invoiceId = ? OR tx_id = ?;", [String(invId), String(invId)]);
+                                window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE invoiceId = ?;", [String(invId)]);
                             }
                             window.BayanSQLite._isDirty = true;
                         } catch (tiErr) { }

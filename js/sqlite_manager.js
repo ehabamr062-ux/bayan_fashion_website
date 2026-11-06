@@ -1821,10 +1821,6 @@
                 } else if (tableName === 'transactions') {
                     // 🔒 تغليف إدخال رأس الفاتورة وبنودها داخل Transaction ذرية موحدة لمنع الفواتير اليتيمة
                     this.runInTransaction(() => {
-                        // إذا كان السجل سطراً فرعياً لبند بضاعة مصطنع وليس رأس فاتورة، نتجاهل إدراجه في transactions لأن بنوده تُدار عبر transaction_items
-                        if (item.isInvoiceHead === false || (item.id && String(item.id).includes('_item_'))) {
-                            return;
-                        }
                         const cleanType = String(item.type || 'sale');
                         const prefix = this._getTypePrefix(cleanType);
                         let cleanId = (item.id != null && item.id !== '') ? String(item.id) : null;
@@ -2065,10 +2061,6 @@
                             for (let itemIdx = 0; itemIdx < items.length; itemIdx++) {
                                 const item = items[itemIdx];
                                 if (!item) continue;
-                                // إذا كان السجل سطراً فرعياً لبند بضاعة مصطنع، نتجاهل إدراجه في transactions لأن بنوده تُدار عبر transaction_items
-                                if (item.isInvoiceHead === false || (item.id && String(item.id).includes('_item_'))) {
-                                    continue;
-                                }
                                 const cleanType = String(item.type || 'sale');
                                 const prefix = this._getTypePrefix(cleanType);
                                 let cleanId = (item.id != null && item.id !== '') ? String(item.id) : null;
@@ -4696,8 +4688,8 @@
                 if (!sId && !sTxId) return [];
 
                 // 1. الاستعلام المباشر من جدول transaction_items كمصدر وحيد وأساسي للحقيقة
-                let sqlTi = "SELECT * FROM transaction_items WHERE (invoiceId = ? OR tx_id = ?)";
-                let tiParams = [sId || sTxId, sTxId || sId];
+                let sqlTi = "SELECT * FROM transaction_items WHERE invoiceId = ?";
+                let tiParams = [sId];
 
                 if (cleanType) {
                     if (cleanType.includes('مرتجع بيع') || cleanType.includes('مرتجع مبيعات') || cleanType === 'sale_return') {
@@ -4753,8 +4745,8 @@
                 }
 
                 // 2. خطة بديلة فقط في حال عدم العثور على بنود (للفواتير القديمة قبل التحديث عبر raw_json)
-                let sqlTx = "SELECT * FROM transactions WHERE (invoiceId = ? OR id = ?)";
-                let txParams = [sId || sTxId, sTxId || sId];
+                let sqlTx = "SELECT * FROM transactions WHERE invoiceId = ?";
+                let txParams = [sId];
 
                 if (cleanType) {
                     if (cleanType.includes('مرتجع بيع') || cleanType.includes('مرتجع مبيعات') || cleanType === 'sale_return') {
