@@ -1666,6 +1666,11 @@ async function loadData() {
         });
     }
 
+    // 🚚 فحص وانبثاق أذونات التحويل المخزني الواردة فور اكتمال تحميل البيانات والمعاملات والمخازن
+    if (typeof window.checkIncomingTransfersAlert === 'function') {
+        window.checkIncomingTransfersAlert(true);
+    }
+
 }
 
 window.deletedItemIds = {

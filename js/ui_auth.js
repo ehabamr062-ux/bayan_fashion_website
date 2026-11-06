@@ -75,6 +75,54 @@ function _setAuthenticatedSessionUser(user) {
 }
 window.setCurrentUserInternal = _setAuthenticatedSessionUser;
 
+// 🔒 دالة معتمدة رسمياً لتحديث مستودع الجلسة بأمان وإعادة تجميد كائن المستخدم دون المساس بالصلاحيات
+function updateCurrentUserWarehouse(newWarehouseName) {
+    if (!_sessionUser || !newWarehouseName) return;
+    const cleanWh = String(newWarehouseName).trim();
+    if (!cleanWh) return;
+
+    // إعادة بناء كائن الجلسة وتأمينه مع تحديث المستودع فقط دون كسر الدور أو الصلاحيات
+    const updatedUser = { ..._sessionUser, warehouseName: cleanWh };
+    _setAuthenticatedSessionUser(updatedUser);
+
+    // حفظ في التخزين الدائم للجلسة والمستودع الطرفي
+    try {
+        if (typeof setStore === 'function') {
+            setStore('bayan_terminal_warehouse', cleanWh);
+            setStore('pos_session_user', JSON.stringify({ userName: updatedUser.name, warehouseName: cleanWh }));
+        }
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('bayan_terminal_warehouse', cleanWh);
+        }
+    } catch (e) {
+        console.warn('updateCurrentUserWarehouse storage notice:', e);
+    }
+
+    // تحديث عناصر العرض في الواجهة والهيدر فوراً
+    const whDisplay = document.getElementById('currentWarehouseName');
+    if (whDisplay) whDisplay.innerText = `📦 ${cleanWh}`;
+
+    const sel = document.getElementById('headerActiveWarehouseSelect');
+    if (sel && sel.value !== cleanWh) {
+        sel.value = cleanWh;
+    }
+
+    const settingsSel = document.getElementById('settingsActiveWarehouseSelect');
+    if (settingsSel && settingsSel.value !== cleanWh) {
+        settingsSel.value = cleanWh;
+    }
+
+    if (typeof window.updateHeaderWarehouseSelect === 'function') {
+        window.updateHeaderWarehouseSelect();
+    }
+
+    // فحص التحويلات الواردة للمستودع الجديد فوراً
+    if (typeof window.checkIncomingTransfersAlert === 'function') {
+        window.checkIncomingTransfersAlert(true);
+    }
+}
+window.updateCurrentUserWarehouse = updateCurrentUserWarehouse;
+
 // 🔒 حماية كائن الجلسة العام window.currentUser من التلاعب عبر الـ Console
 try {
     Object.defineProperty(window, 'currentUser', {
@@ -675,7 +723,10 @@ async function attemptLogin() {
                 if (typeof updateDashboardPermissions === 'function') updateDashboardPermissions();
                 setTimeout(() => {
                     if (typeof updateNotifications === 'function') updateNotifications();
-                }, 800);
+                    if (typeof window.checkIncomingTransfersAlert === 'function') {
+                        window.checkIncomingTransfersAlert(true);
+                    }
+                }, 400);
             };
 
             // ⚡ انتقال فوري مباشر للواجهة الرئيسية أو نقطة البيع في أجزاء من الثانية (0ms)
@@ -1029,6 +1080,9 @@ function attemptNfcLogin(cardUid) {
     if (typeof applyPermissions === 'function') applyPermissions();
     if (typeof updateDashboardPermissions === 'function') updateDashboardPermissions();
     if (typeof updateNotifications === 'function') updateNotifications();
+    if (typeof window.checkIncomingTransfersAlert === 'function') {
+        window.checkIncomingTransfersAlert(true);
+    }
 
     if (typeof showToast === 'function') showToast(`💳 أهلاً بك: ${currentUser.name} (تم الدخول بكارت NFC ✨)`, 'success');
     if (typeof logAuditAction === 'function') logAuditAction('تسجيل دخول NFC', `الموظف: ${currentUser.name}, UID: ${uid}`);

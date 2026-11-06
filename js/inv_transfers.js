@@ -2170,28 +2170,14 @@ document.addEventListener('click', (event) => {
 // =========================================================================
 // 🚚 تنبيه فوري واستلام أذونات التحويل الواردة (Live Incoming Transfer Alerts)
 // =========================================================================
-function getAlertedTransfers() {
-    try {
-        const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'default').trim();
-        const raw = sessionStorage.getItem(`bayan_alerted_transfers_${activeWH}`);
-        return raw ? JSON.parse(raw) : [];
-    } catch (e) { return []; }
-}
-
-function markTransferAlerted(id) {
-    try {
-        const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'default').trim();
-        const list = getAlertedTransfers();
-        if (!list.includes(id)) {
-            list.push(id);
-            sessionStorage.setItem(`bayan_alerted_transfers_${activeWH}`, JSON.stringify(list));
-        }
-    } catch (e) { }
-}
-
-window.checkIncomingTransfersAlert = function () {
+window.checkIncomingTransfersAlert = function (forceModal = false) {
     if (typeof transactions === 'undefined' || !Array.isArray(transactions)) return;
     if (document.getElementById('incomingTransferApprovalModal')) return; // لا تكرار للنافذة إذا كانت مفتوحة
+
+    // لا يتم إظهار النافذة إذا كان المستخدم مسجل خروج أو شاشة الدخول مفتوحة
+    if (document.body && document.body.classList.contains('is-logged-out')) return;
+    const loginModal = document.getElementById('loginModal');
+    if (loginModal && !loginModal.classList.contains('hidden') && loginModal.style.display !== 'none') return;
 
     // تنظيف أي مفاتيح قديمة كانت متزامنة عبر الذاكرة وتمنع ظهور الإشعار في الأجهزة الأخرى
     try {
@@ -2200,32 +2186,78 @@ window.checkIncomingTransfersAlert = function () {
         }
     } catch (e) { }
 
-    const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
+    // قراءة المخزن النشط بدقة من الجلسة أو الهيدر أو التخزين الطرفي
+    const activeWH = (
+        (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName && currentUser.warehouseName.trim()) ||
+        (document.getElementById('headerActiveWarehouseSelect') && document.getElementById('headerActiveWarehouseSelect').value && document.getElementById('headerActiveWarehouseSelect').value.trim()) ||
+        (typeof getStore === 'function' && getStore('bayan_terminal_warehouse')) ||
+        'المخزن الرئيسي'
+    ).trim();
 
-    const pendingForThisWH = transactions.filter(t =>
-        t.type && t.type.includes('تحويل') &&
-        t.transferStatus === 'pending' &&
-        (String(t.warehouse || '').trim() === activeWH || String(t.toWarehouse || '').trim() === activeWH)
-    );
-
-    const alertedList = getAlertedTransfers();
     const grouped = {};
-    pendingForThisWH.forEach(t => {
-        const invId = t.invoiceId || 'TR-UNKNOWN';
-        if (!grouped[invId]) grouped[invId] = { id: invId, sourceWarehouse: t.sourceWarehouse, warehouse: t.warehouse, items: [] };
-        grouped[invId].items.push(t);
-    });
 
-    Object.values(grouped).forEach(tr => {
-        if (!alertedList.includes(tr.id)) {
-            markTransferAlerted(tr.id);
-            if (typeof BayanBarcode !== 'undefined' && BayanBarcode.playBeep) BayanBarcode.playBeep(true);
-            if (typeof showToast === 'function') {
-                showToast(`🚚 إذن تحويل وارد جديد #${tr.id} من [${tr.sourceWarehouse}]!`, 'info', 6000);
+    // 1. تجميع التحويلات المعلقة الموجهة للمخزن النشط من مصفوفة المعاملات
+    if (Array.isArray(transactions)) {
+        transactions.forEach(t => {
+            if (!t || !t.type || !t.type.includes('تحويل')) return;
+            if (t.transferStatus !== 'pending') return;
+            const destWh = String(t.warehouse || t.toWarehouse || t.destWarehouse || '').trim();
+            if (destWh === activeWH) {
+                const invId = t.invoiceId || t.id || 'TR-UNKNOWN';
+                if (!grouped[invId]) {
+                    grouped[invId] = {
+                        id: invId,
+                        sourceWarehouse: t.sourceWarehouse || t.fromWarehouse || 'المخزن الرئيسي',
+                        warehouse: destWh,
+                        items: []
+                    };
+                }
+                grouped[invId].items.push(t);
             }
-            window.showIncomingTransferApprovalModal(tr.id);
+        });
+    }
+
+    // 2. فحص كاش التحويلات عبر الشبكة إن وجد
+    if (Array.isArray(window.inTransitTransfersCache)) {
+        window.inTransitTransfersCache.forEach(tr => {
+            if (!tr || tr.transferStatus !== 'pending') return;
+            const destWh = String(tr.warehouse || tr.toWarehouse || tr.destWarehouse || '').trim();
+            if (destWh === activeWH) {
+                const invId = tr.invoiceId || tr.id || 'TR-UNKNOWN';
+                if (!grouped[invId]) {
+                    grouped[invId] = {
+                        id: invId,
+                        sourceWarehouse: tr.sourceWarehouse || tr.fromWarehouse || 'المخزن الرئيسي',
+                        warehouse: destWh,
+                        items: tr.items || []
+                    };
+                }
+            }
+        });
+    }
+
+    const pendingList = Object.values(grouped);
+    if (pendingList.length === 0) {
+        if (typeof updateNotifications === 'function') updateNotifications();
+        return;
+    }
+
+    if (forceModal) {
+        window._dismissedTransferModalId = null;
+    }
+
+    // البحث عن أول إذن لم يتم إغلاقه يدوياً في الجلسة الحالية أو فرضه فورياً
+    const targetTransfer = pendingList.find(tr => tr.id !== window._dismissedTransferModalId) || (forceModal ? pendingList[0] : null);
+
+    if (targetTransfer) {
+        if (typeof BayanBarcode !== 'undefined' && BayanBarcode.playBeep) {
+            try { BayanBarcode.playBeep(true); } catch (e) { }
         }
-    });
+        if (typeof showToast === 'function') {
+            showToast(`🚚 إذن تحويل وارد بانتظار التأكيد #${targetTransfer.id} من [${targetTransfer.sourceWarehouse}]!`, 'info', 6000);
+        }
+        window.showIncomingTransferApprovalModal(targetTransfer.id);
+    }
 
     if (typeof updateNotifications === 'function') updateNotifications();
 };
@@ -2280,7 +2312,7 @@ window.showIncomingTransferApprovalModal = function (invId) {
 
     modal.innerHTML = `
                 <div style="background:#ffffff; padding:28px 24px; border-radius:24px; width:560px; max-width:94%; text-align:center; box-shadow:0 25px 60px rgba(0,0,0,0.35); border:2.5px solid #059669; direction:rtl; font-family:inherit; position:relative;">
-                    <button onclick="document.getElementById('${modalId}').remove()" style="position:absolute; top:16px; left:16px; background:#f1f5f9; border:none; color:#64748b; width:32px; height:32px; border-radius:50%; font-size:1.2rem; cursor:pointer; font-weight:bold;">&times;</button>
+                    <button onclick="window._dismissedTransferModalId = '${invId}'; document.getElementById('${modalId}').remove()" style="position:absolute; top:16px; left:16px; background:#f1f5f9; border:none; color:#64748b; width:32px; height:32px; border-radius:50%; font-size:1.2rem; cursor:pointer; font-weight:bold;">&times;</button>
                     <div style="font-size:2.8rem; margin-bottom:6px;">🚚✨</div>
                     <h3 style="margin:0 0 6px 0; color:#064e3b; font-size:1.35rem; font-weight:900;">
                         إذن تحويل بضاعة وارد جديد #${invId}
@@ -2688,6 +2720,12 @@ window.acceptTransferFromNotify = async function (invId) {
         if (typeof showNotificationsModal === 'function') {
             showNotificationsModal('transfers');
         }
+        window._dismissedTransferModalId = null;
+        setTimeout(() => {
+            if (typeof window.checkIncomingTransfersAlert === 'function') {
+                window.checkIncomingTransfersAlert(true);
+            }
+        }, 400);
     } catch (err) {
         console.error("❌ [acceptTransferFromNotify] حدث خطأ أثناء تنفيذ التحويل الذري:", err);
         // 🔄 التراجع الفوري (Atomic Rollback) واستعادة المنتجات والحركات إلى حالتها السابقة تماماً
@@ -2858,6 +2896,12 @@ window.rejectTransferFromNotify = async function (invId) {
     if (typeof showNotificationsModal === 'function') {
         showNotificationsModal('transfers');
     }
+    window._dismissedTransferModalId = null;
+    setTimeout(() => {
+        if (typeof window.checkIncomingTransfersAlert === 'function') {
+            window.checkIncomingTransfersAlert(true);
+        }
+    }, 400);
 };
 
 window.refreshPendingTransfersUI = function () {

@@ -3178,11 +3178,15 @@ function applyWarehouseSwitchFromSettings() {
         if (isLocked) {
             return showToast("⛔ عذراً، خاصية تبديل المستودع مقفلة لهذا الحساب لمنع التلاعب بالمبيعات.", "error");
         }
-        currentUser.warehouseName = val;
-        setStore('pos_session_user', JSON.stringify({ userName: currentUser.name, warehouseName: val }));
-        const whHeader = document.getElementById('currentWarehouseName');
-        if (whHeader) whHeader.innerText = ` 📦 ${val}`;
-        if (typeof window.updateHeaderWarehouseSelect === 'function') window.updateHeaderWarehouseSelect();
+        if (typeof window.updateCurrentUserWarehouse === 'function') {
+            window.updateCurrentUserWarehouse(val);
+        } else {
+            currentUser.warehouseName = val;
+            setStore('pos_session_user', JSON.stringify({ userName: currentUser.name, warehouseName: val }));
+            const whHeader = document.getElementById('currentWarehouseName');
+            if (whHeader) whHeader.innerText = ` 📦 ${val}`;
+            if (typeof window.updateHeaderWarehouseSelect === 'function') window.updateHeaderWarehouseSelect();
+        }
         showToast(`تم تغيير المستودع النشط إلى: ${val}`, "success");
         updateWarehousesSummaryBoard();
         
@@ -3193,7 +3197,7 @@ function applyWarehouseSwitchFromSettings() {
         if (typeof renderPOSCart === 'function') renderPOSCart();
         if (typeof renderProductsGrid === 'function') renderProductsGrid();
         if (typeof updateNotifications === 'function') updateNotifications();
-        if (typeof window.checkIncomingTransfersAlert === 'function') window.checkIncomingTransfersAlert();
+        if (typeof window.checkIncomingTransfersAlert === 'function') window.checkIncomingTransfersAlert(true);
     }
 }
 
@@ -3221,8 +3225,10 @@ window.updateHeaderWarehouseSelect = function() {
                 ? currentUser.warehouseName.trim() 
                 : 'المخزن الرئيسي');
         
-        if (typeof currentUser !== 'undefined' && currentUser) {
-            currentUser.warehouseName = assignedWh;
+        if (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName !== assignedWh) {
+            if (typeof window.updateCurrentUserWarehouse === 'function') {
+                window.updateCurrentUserWarehouse(assignedWh);
+            }
         }
 
         // إدراج مخزن الموظف فقط في الخيارات لمنع أي اختيار لمخزن بديل
@@ -3309,9 +3315,13 @@ window.switchWarehouseFromHeader = function(val) {
     }
 
     if (typeof currentUser !== 'undefined' && currentUser) {
-        currentUser.warehouseName = val;
-        setStore('pos_session_user', JSON.stringify({ userName: currentUser.name, warehouseName: val }));
-        window.updateHeaderWarehouseSelect();
+        if (typeof window.updateCurrentUserWarehouse === 'function') {
+            window.updateCurrentUserWarehouse(val);
+        } else {
+            currentUser.warehouseName = val;
+            setStore('pos_session_user', JSON.stringify({ userName: currentUser.name, warehouseName: val }));
+            window.updateHeaderWarehouseSelect();
+        }
 
         const settingsSel = document.getElementById('settingsActiveWarehouseSelect');
         if (settingsSel) settingsSel.value = val;
@@ -3326,7 +3336,7 @@ window.switchWarehouseFromHeader = function(val) {
         if (typeof renderPOSCart === 'function') renderPOSCart();
         if (typeof renderProductsGrid === 'function') renderProductsGrid();
         if (typeof updateNotifications === 'function') updateNotifications();
-        if (typeof window.checkIncomingTransfersAlert === 'function') window.checkIncomingTransfersAlert();
+        if (typeof window.checkIncomingTransfersAlert === 'function') window.checkIncomingTransfersAlert(true);
     }
 };
 
@@ -3338,15 +3348,19 @@ window.filterInventoryByWarehouse = function(whName) {
     }
 
     if (typeof currentUser !== 'undefined' && currentUser) {
-        currentUser.warehouseName = whName;
-        if (typeof setStore === 'function') {
-            setStore('pos_session_user', JSON.stringify({ userName: currentUser.name, warehouseName: whName }));
+        if (typeof window.updateCurrentUserWarehouse === 'function') {
+            window.updateCurrentUserWarehouse(whName);
+        } else {
+            currentUser.warehouseName = whName;
+            if (typeof setStore === 'function') {
+                setStore('pos_session_user', JSON.stringify({ userName: currentUser.name, warehouseName: whName }));
+            }
         }
     }
     if (typeof renderInventoryTable === 'function') renderInventoryTable();
     if (typeof updateWarehousesSummaryBoard === 'function') updateWarehousesSummaryBoard();
     if (typeof updateNotifications === 'function') updateNotifications();
-    if (typeof window.checkIncomingTransfersAlert === 'function') window.checkIncomingTransfersAlert();
+    if (typeof window.checkIncomingTransfersAlert === 'function') window.checkIncomingTransfersAlert(true);
     if (typeof showToast === 'function') showToast(`🏬 تم تصفية العرض حسب: ${whName}`, "info");
 };
 
