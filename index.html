@@ -8620,7 +8620,7 @@
                                             <span style="font-size: 1.15rem;">📤</span> رفع ملف النسخة
                                         </button>
                                         <input type="file" id="restoreFile" style="display: none;"
-                                            accept=".json,.db,.sqlite" onchange="restoreData(this)">
+                                            accept=".json,.db,.sqlite,.bak" onchange="restoreData(this)">
                                     </div>
                                 </div>
                             </div>
@@ -11060,10 +11060,10 @@
             </div>
 
             <!-- 📥 كارت استرداد نسخة احتياطية مباشر من شاشة تسجيل الدخول -->
-            <input type="file" id="loginEmergencyRestoreInput" accept=".json" style="display: none;"
+            <input type="file" id="loginEmergencyRestoreInput" accept=".json,.db,.sqlite,.bak" style="display: none;"
                 onchange="executeLoginEmergencyRestore(this)">
             <div id="loginEmergencyRestoreCard" onclick="triggerLoginEmergencyRestore()"
-                title="اضغط هنا لاسترجاع وتثبيت نسخة احتياطية من ملف JSON على هذا الجهاز فوراً"
+                title="اضغط هنا لاسترجاع وتثبيت نسخة احتياطية من ملف (JSON أو قاعدة بيانات SQLite .db / .bak) على هذا الجهاز فوراً"
                 style="display: flex; align-items: center; justify-content: space-between; width: 100%; height: 46px; box-sizing: border-box; background: linear-gradient(135deg, rgba(88, 28, 135, 0.85), rgba(15, 23, 42, 0.95)); padding: 0 10px; border-radius: 14px; border: 1.5px solid rgba(168, 85, 247, 0.7); box-shadow: 0 6px 18px rgba(0,0,0,0.4), 0 0 12px rgba(168, 85, 247, 0.2); cursor: pointer; transition: all 0.25s ease; user-select: none;"
                 onmouseover="this.style.transform='translateY(-2px) scale(1.02)'; this.style.borderColor='#c084fc'; this.style.boxShadow='0 10px 24px rgba(0,0,0,0.5), 0 0 20px rgba(168, 85, 247, 0.35)';"
                 onmouseout="this.style.transform='translateY(0) scale(1)'; this.style.borderColor='rgba(168, 85, 247, 0.7)'; this.style.boxShadow='0 6px 18px rgba(0,0,0,0.4), 0 0 12px rgba(168, 85, 247, 0.2)';">

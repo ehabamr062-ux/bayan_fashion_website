@@ -59,7 +59,9 @@ function createWindow() {
             sandbox: false,
             devTools: true, // متاح في وضع التطوير والتجربة
             spellcheck: false, // تعطيل التدقيق الإملائي لتوفير الرامات والمعالج
-            backgroundThrottling: false // ضمان استمرار عمل دورات المزامنة السحابية ومؤقتات الشبكة بسلاسة تامة دون انقطاع عند تصغير البرنامج
+            backgroundThrottling: false, // ضمان استمرار عمل دورات المزامنة السحابية ومؤقتات الشبكة بسلاسة تامة دون انقطاع عند تصغير البرنامج
+            webSecurity: false, // إلغاء حظر CORS وقيود البروتوكولات على الملفات المحلية (file:///)
+            allowRunningInsecureContent: true
         },
         icon: path.join(__dirname, 'media', 'logo.ico')
     });
@@ -1055,18 +1057,37 @@ ipcMain.handle('save-sqlite-direct-backup', async (_e, payload) => {
     }
 });
 
-// ⚡ استرجاع فوري ومباشر لملف قاعدة البيانات SQLite (.db) في 0.1 ثانية
-ipcMain.handle('restore-sqlite-direct-backup', async (_e, srcFilePath) => {
+// ⚡ استرجاع فوري ومباشر لملف قاعدة البيانات SQLite (.db / .bak / .sqlite) سواء بمسار القرص أو Buffer
+ipcMain.handle('restore-sqlite-direct-backup', async (_e, src) => {
     try {
-        if (!srcFilePath || !fs.existsSync(srcFilePath)) {
-            return { success: false, error: 'ملف النسخة الاحتياطية غير موجود على القرص' };
-        }
         const os = require('os');
         const sqliteOriginalPath = path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db');
         const dir = path.dirname(sqliteOriginalPath);
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
         }
+
+        let hasData = false;
+        let isBuffer = false;
+        let buf = null;
+        let srcFilePath = null;
+
+        if (typeof src === 'string') {
+            srcFilePath = src;
+            hasData = fs.existsSync(srcFilePath);
+        } else if (src && src.buffer) {
+            buf = Buffer.from(src.buffer);
+            hasData = buf.length > 0;
+            isBuffer = true;
+        } else if (src && src.srcFilePath) {
+            srcFilePath = src.srcFilePath;
+            hasData = fs.existsSync(srcFilePath);
+        }
+
+        if (!hasData) {
+            return { success: false, error: 'ملف النسخة الاحتياطية غير موجود على القرص أو تعذر قراءته' };
+        }
+
         // حفظ نسخة طوارئ من الملف الحالي أولاً
         if (fs.existsSync(sqliteOriginalPath)) {
             try {
@@ -1080,8 +1101,14 @@ ipcMain.handle('restore-sqlite-direct-backup', async (_e, srcFilePath) => {
         try { if (fs.existsSync(walPath)) fs.unlinkSync(walPath); } catch (_) { }
         try { if (fs.existsSync(shmPath)) fs.unlinkSync(shmPath); } catch (_) { }
 
-        await fs.promises.copyFile(srcFilePath, sqliteOriginalPath);
-        console.log("⚡ [Direct SQLite Restore] تم استعادة ملف قاعدة البيانات بنجاح من:", srcFilePath);
+        if (isBuffer && buf) {
+            await fs.promises.writeFile(sqliteOriginalPath, buf);
+            console.log("⚡ [Direct SQLite Restore] تم استعادة ملف قاعدة البيانات بنجاح من الذاكرة (Buffer)");
+        } else if (srcFilePath) {
+            await fs.promises.copyFile(srcFilePath, sqliteOriginalPath);
+            console.log("⚡ [Direct SQLite Restore] تم استعادة ملف قاعدة البيانات بنجاح من:", srcFilePath);
+        }
+
         return { success: true };
     } catch (err) {
         console.error("restore-sqlite-direct-backup error:", err);

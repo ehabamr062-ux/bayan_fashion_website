@@ -10,23 +10,42 @@
 /* -------------------------------------------------------
    SECTION 0 — Layout Stability & Anti-Jitter Rules (Modern)
 ------------------------------------------------------- */
-html, body, .section-view, .table-container, .table-responsive, .table-wrapper, .modal-body, .panel-body, .stmt-table-wrapper, .stmt-main-content, .stmt-split-layout, .stmt-sidebar {
+html,
+body,
+.section-view,
+.table-container,
+.table-responsive,
+.table-wrapper,
+.modal-body,
+.panel-body,
+.stmt-table-wrapper,
+.stmt-main-content,
+.stmt-split-layout,
+.stmt-sidebar {
     box-sizing: border-box;
 }
 
-.table-container, .table-responsive, .table-wrapper, .stmt-table-wrapper {
+.table-container,
+.table-responsive,
+.table-wrapper,
+.stmt-table-wrapper {
     scrollbar-gutter: stable;
 }
 
 /* منع الـ Layout Shift الناتج عن hover أو تحرك العناصر داخل الجداول وحاويات التمرير لقسم كشف الحساب وكافة الجداول */
-.table-container, .table-responsive, .table-wrapper, .data-grid, .stmt-table-wrapper, .stmt-main-content {
+.table-container,
+.table-responsive,
+.table-wrapper,
+.data-grid,
+.stmt-table-wrapper,
+.stmt-main-content {
     contain: paint layout;
     max-width: 100%;
     box-sizing: border-box;
 }
 
-.table-container table tr, 
-.table-responsive table tr, 
+.table-container table tr,
+.table-responsive table tr,
 .table-wrapper table tr,
 .stmt-table-wrapper table tr,
 .stmt-table tr {
@@ -56,7 +75,8 @@ body.dark-mode * {
 /* تخصيص محرك WebKit / Electron */
 ::-webkit-scrollbar {
     width: 7px;
-    height: 0px !important; /* إلغاء ارتفاع السكرول الأفقي نهائياً */
+    height: 0px !important;
+    /* إلغاء ارتفاع السكرول الأفقي نهائياً */
 }
 
 ::-webkit-scrollbar:horizontal,
@@ -498,13 +518,19 @@ body.dark-mode .section-view::-webkit-scrollbar-corner {
 }
 
 /* تنعيم حواف وهوامش خلايا الجداول لمنع التمدد الأفقي على اللابتوب */
-#purchase-section th, #purchase-section td,
-#warehouse-report-section th, #warehouse-report-section td,
-#invoices-section th, #invoices-section td,
-#analysis-section th, #analysis-section td,
-#daily-report-section th, #daily-report-section td,
-#statement-section th, #statement-section td,
-#barcode-print-section th, #barcode-print-section td {
+#purchase-section th,
+#purchase-section td,
+#warehouse-report-section th,
+#warehouse-report-section td,
+#invoices-section th,
+#invoices-section td,
+#analysis-section th,
+#analysis-section td,
+#daily-report-section th,
+#daily-report-section td,
+#statement-section th,
+#statement-section td,
+#barcode-print-section th,
+#barcode-print-section td {
     box-sizing: border-box !important;
 }
-

@@ -24,8 +24,12 @@ function restoreData(input, isEmergencyBypass = false) {
         return;
     }
 
-    // ⚡ استرجاع مباشر وفوري لملفات قاعدة بيانات SQLite الأصلية (.db / .sqlite) في أجزاء من الثانية
-    const isDbFile = file.name && (file.name.toLowerCase().endsWith('.db') || file.name.toLowerCase().endsWith('.sqlite'));
+    // ⚡ استرجاع مباشر وفوري لملفات قاعدة بيانات SQLite الأصلية (.db / .sqlite / .bak) في أجزاء من الثانية
+    const isDbFile = file.name && (
+        file.name.toLowerCase().endsWith('.db') || 
+        file.name.toLowerCase().endsWith('.sqlite') || 
+        file.name.toLowerCase().endsWith('.bak')
+    );
     if (isDbFile) {
         let ipc = null;
         try {
@@ -34,7 +38,7 @@ function restoreData(input, isEmergencyBypass = false) {
         } catch(e) {}
 
         const filePath = file.path;
-        if (ipc && filePath) {
+        if (ipc) {
             const confirmMsg = "⚠️ هل أنت متأكد من استعادة ملف قاعدة البيانات SQLite هذا؟ سيتم استبدال البيانات الحالية بالكامل وإعادة تشغيل البرنامج.";
             const proceed = (typeof showCustomAlert === 'function') ? true : confirm(confirmMsg);
             if (proceed) {
@@ -45,21 +49,35 @@ function restoreData(input, isEmergencyBypass = false) {
                     }
                 } catch (_) {}
 
-                ipc.invoke('restore-sqlite-direct-backup', filePath).then(res => {
+                const doRestore = async () => {
+                    let restoreArg;
+                    if (filePath) {
+                        restoreArg = filePath;
+                    } else {
+                        const buffer = await file.arrayBuffer();
+                        restoreArg = { buffer, fileName: file.name };
+                    }
+                    return ipc.invoke('restore-sqlite-direct-backup', restoreArg);
+                };
+
+                doRestore().then(res => {
                     if (res && res.success) {
                         alert("✅ تم استرجاع قاعدة البيانات بنجاح! سيتم إعادة تحميل البرنامج الآن.");
                         window.location.reload();
                     } else {
                         alert("❌ فشل استرجاع ملف قاعدة البيانات: " + (res?.error || 'خطأ غير معروف'));
                         if (input) input.value = '';
+                        if (typeof window.resetLoginEmergencyRestoreCard === 'function') window.resetLoginEmergencyRestoreCard();
                     }
                 }).catch(err => {
                     alert("❌ خطأ أثناء الاسترجاع: " + err.message);
                     if (input) input.value = '';
+                    if (typeof window.resetLoginEmergencyRestoreCard === 'function') window.resetLoginEmergencyRestoreCard();
                 });
                 return;
             } else {
                 if (input) input.value = '';
+                if (typeof window.resetLoginEmergencyRestoreCard === 'function') window.resetLoginEmergencyRestoreCard();
                 return;
             }
         }
@@ -94,7 +112,43 @@ function restoreData(input, isEmergencyBypass = false) {
     };
 
     reader.onload = async function (e) {
-        await window.restoreDataFromContent(e.target.result, file ? file.name : '', isEmergencyBypass, input);
+        const content = e.target.result;
+        // 🛡️ فحص صريح: إذا كان محتوى الملف يبدأ بـ SQLite format 3 نوجهه لمسار استرجاع قاعدة البيانات فوراً
+        if (typeof content === 'string' && content.startsWith('SQLite format 3')) {
+            let ipc = null;
+            try {
+                if (typeof window !== 'undefined' && window.require) ipc = window.require('electron').ipcRenderer;
+                else if (typeof require !== 'undefined') ipc = require('electron').ipcRenderer;
+            } catch(e) {}
+            if (ipc) {
+                try {
+                    if (window.BayanSQLite && typeof window.BayanSQLite.close === 'function') {
+                        window.BayanSQLite.close();
+                    }
+                } catch (_) {}
+                let restoreArg = null;
+                if (file && file.path) {
+                    restoreArg = file.path;
+                } else if (file) {
+                    const buf = await file.arrayBuffer();
+                    restoreArg = { buffer: buf, fileName: file.name };
+                }
+                if (restoreArg) {
+                    const res = await ipc.invoke('restore-sqlite-direct-backup', restoreArg);
+                    if (res && res.success) {
+                        alert("✅ تم استرجاع قاعدة بيانات SQLite بنجاح! سيتم إعادة تحميل البرنامج الآن.");
+                        window.location.reload();
+                        return;
+                    } else {
+                        alert("❌ فشل استرجاع قاعدة البيانات: " + (res?.error || 'خطأ غير معروف'));
+                        if (input) input.value = '';
+                        if (typeof window.resetLoginEmergencyRestoreCard === 'function') window.resetLoginEmergencyRestoreCard();
+                        return;
+                    }
+                }
+            }
+        }
+        await window.restoreDataFromContent(content, file ? file.name : '', isEmergencyBypass, input);
     };
     reader.readAsText(file);
 }
@@ -113,6 +167,48 @@ window.restoreDataFromContent = async function (jsonContent, fileName = '', isEm
         subEl.innerHTML = `جاري تحليل الجداول والتحقق من سلامة البيانات...`;
     }
     await new Promise(r => setTimeout(r, 60));
+
+    // 🛡️ صمام أمان حاسم: منع كراش JSON.parse إذا تم تمرير ملف SQLite (.db / .bak)
+    if (typeof jsonContent === 'string' && jsonContent.startsWith('SQLite format 3')) {
+        let ipc = null;
+        try {
+            if (typeof window !== 'undefined' && window.require) ipc = window.require('electron').ipcRenderer;
+            else if (typeof require !== 'undefined') ipc = require('electron').ipcRenderer;
+        } catch(e) {}
+        if (ipc && input && input.files && input.files[0]) {
+            const f = input.files[0];
+            try {
+                if (window.BayanSQLite && typeof window.BayanSQLite.close === 'function') {
+                    window.BayanSQLite.close();
+                }
+            } catch (_) {}
+            let restoreArg = f.path;
+            if (!restoreArg) {
+                const buf = await f.arrayBuffer();
+                restoreArg = { buffer: buf, fileName: f.name };
+            }
+            const res = await ipc.invoke('restore-sqlite-direct-backup', restoreArg);
+            if (res && res.success) {
+                alert("✅ تم استرجاع قاعدة بيانات SQLite بنجاح! سيتم إعادة تحميل البرنامج الآن.");
+                window.location.reload();
+                return;
+            }
+        }
+        if (typeof window.resetLoginEmergencyRestoreCard === 'function') {
+            window.resetLoginEmergencyRestoreCard();
+        }
+        if (typeof showCustomAlert === 'function') {
+            showCustomAlert({
+                type: 'warning',
+                titleText: '⚠️ ملف قاعدة بيانات SQLite',
+                msg: 'هذا الملف هو ملف قاعدة بيانات SQLite مباشر (.db / .bak) وليس ملف JSON.'
+            });
+        } else {
+            alert("⚠️ هذا الملف هو ملف قاعدة بيانات SQLite مباشر (.db / .bak) وليس ملف JSON.");
+        }
+        if (input) input.value = '';
+        return;
+    }
 
     try {
         let data;
