@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, shell, Menu, dialog } = require('electron')
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const zlib = require('zlib');
 
 // 🎮 تفعيل تسريع كارت الشاشة (GPU Hardware Acceleration) للأداء الفائق وسلاسة 60 FPS
 // مع صمام أمان ذكي للأجهزة القديمة في حال تعثر معالج الرسوميات
@@ -337,7 +338,7 @@ ipcMain.handle('select-backup-file', async () => {
             defaultPath: backupDir,
             properties: ['openFile'],
             filters: [
-                { name: 'نسخ احتياطية لنظام بيان (*.json)', extensions: ['json'] },
+                { name: 'نسخ احتياطية لنظام بيان (*.bak, *.db, *.sqlite, *.json, *.bayan)', extensions: ['bak', 'db', 'sqlite', 'json', 'bayan'] },
                 { name: 'كافة الملفات (*.*)', extensions: ['*'] }
             ]
         });
@@ -345,8 +346,12 @@ ipcMain.handle('select-backup-file', async () => {
             return { canceled: true };
         }
         const chosenFile = result.filePaths[0];
-        const content = await fs.promises.readFile(chosenFile, 'utf8');
         const stat = await fs.promises.stat(chosenFile);
+        let content = '';
+        const ext = path.extname(chosenFile).toLowerCase();
+        if (ext === '.json') {
+            content = await fs.promises.readFile(chosenFile, 'utf8');
+        }
         return {
             canceled: false,
             filePath: chosenFile,
@@ -901,7 +906,7 @@ function autoMigrateLegacyBackups() {
             if (fs.existsSync(dir) && dir !== backupDir) {
                 const files = fs.readdirSync(dir);
                 files.forEach(file => {
-                    if ((file.startsWith('backup_pos_') || file.startsWith('backup_complete_')) && (file.endsWith('.json') || file.endsWith('.db'))) {
+                    if ((file.startsWith('backup_pos_') || file.startsWith('backup_complete_')) && (file.endsWith('.json') || file.endsWith('.db') || file.endsWith('.bak') || file.endsWith('.bayan'))) {
                         const src = path.join(dir, file);
                         const dest = path.join(backupDir, file);
                         if (!fs.existsSync(dest)) {
@@ -993,7 +998,7 @@ ipcMain.handle('save-backup-data', async (_e, payload) => {
     }
 });
 
-// ⚡ نسخ احتياطي فوري ومباشر لملف قاعدة البيانات SQLite (في 0.05 ثانية وبدون أي استهلاك للرام وبدون أقفال)
+// ⚡ نسخ احتياطي فوري ومباشر لملف قاعدة البيانات SQLite مع الضغط الفائق عبر Stream zlib
 ipcMain.handle('save-sqlite-direct-backup', async (_e, payload) => {
     try {
         if (!fs.existsSync(backupDir)) {
@@ -1003,35 +1008,50 @@ ipcMain.handle('save-sqlite-direct-backup', async (_e, payload) => {
         const d = new Date();
         const timestamp = `${d.getFullYear()}_${pad(d.getMonth() + 1)}_${pad(d.getDate())}__${pad(d.getHours())}_${pad(d.getMinutes())}_${pad(d.getSeconds())}`;
         const prefix = payload?.isManual ? 'backup_pos_manual_' : 'backup_pos_auto_';
-        const fileName = `${prefix}${timestamp}.db`;
+        const fileName = `${prefix}${timestamp}.bak`;
         const filePath = path.join(backupDir, fileName);
 
         const os = require('os');
         const sqliteOriginalPath = path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db');
         const sqliteBakPath = path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db.bak');
 
-        let copied = false;
-        // محاولة النسخ أولاً من ملف الداتابيز الرئيسي
+        const compressFile = (src, dest) => {
+            return new Promise((resolve, reject) => {
+                const readStream = fs.createReadStream(src);
+                const writeStream = fs.createWriteStream(dest);
+                const gzip = zlib.createGzip({ level: 9 });
+                readStream.on('error', reject);
+                gzip.on('error', reject);
+                writeStream.on('error', reject);
+                writeStream.on('finish', resolve);
+                readStream.pipe(gzip).pipe(writeStream);
+            });
+        };
+
+        let saved = false;
+        // محاولة الضغط أولاً من ملف الداتابيز الرئيسي
         if (fs.existsSync(sqliteOriginalPath)) {
             try {
-                await fs.promises.copyFile(sqliteOriginalPath, filePath);
-                copied = true;
+                await compressFile(sqliteOriginalPath, filePath);
+                saved = true;
             } catch (copyErr) {
-                console.warn("[save-sqlite-direct-backup] Primary db copy busy, attempting fallback to .bak:", copyErr.message);
+                console.warn("[save-sqlite-direct-backup] Primary db compress busy, attempting fallback to .bak:", copyErr.message);
+                try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (_) {}
             }
         }
 
-        // إذا كان الملف الرئيسي مشغولاً بنظام WAL أو القفل، ننسخ من ملف الطوارئ (.bak) المحدث بنجاح
-        if (!copied && fs.existsSync(sqliteBakPath)) {
+        // إذا كان الملف الرئيسي مشغولاً بنظام WAL أو القفل، نضغط من ملف الطوارئ (.bak) المحدث بنجاح
+        if (!saved && fs.existsSync(sqliteBakPath)) {
             try {
-                await fs.promises.copyFile(sqliteBakPath, filePath);
-                copied = true;
+                await compressFile(sqliteBakPath, filePath);
+                saved = true;
             } catch (bakErr) {
-                console.error("[save-sqlite-direct-backup] Fallback copy error:", bakErr.message);
+                console.error("[save-sqlite-direct-backup] Fallback compress error:", bakErr.message);
+                try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (_) {}
             }
         }
 
-        if (copied) {
+        if (saved) {
             // إذا كان النسخ يدوياً، ننسخ نسخة إضافية إلى سطح المكتب مباشرة من الملف الذي تم حفظه
             if (payload?.isManual) {
                 try {
@@ -1057,7 +1077,7 @@ ipcMain.handle('save-sqlite-direct-backup', async (_e, payload) => {
     }
 });
 
-// ⚡ استرجاع فوري ومباشر لملف قاعدة البيانات SQLite (.db / .bak / .sqlite) سواء بمسار القرص أو Buffer
+// ⚡ استرجاع فوري ومباشر لملف قاعدة البيانات SQLite (.db / .bak / .sqlite) سواء بمسار القرص أو Buffer مع فك الضغط التلقائي الشفاف
 ipcMain.handle('restore-sqlite-direct-backup', async (_e, src) => {
     try {
         const os = require('os');
@@ -1102,11 +1122,52 @@ ipcMain.handle('restore-sqlite-direct-backup', async (_e, src) => {
         try { if (fs.existsSync(shmPath)) fs.unlinkSync(shmPath); } catch (_) { }
 
         if (isBuffer && buf) {
-            await fs.promises.writeFile(sqliteOriginalPath, buf);
-            console.log("⚡ [Direct SQLite Restore] تم استعادة ملف قاعدة البيانات بنجاح من الذاكرة (Buffer)");
+            const isGzip = buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b;
+            if (isGzip) {
+                const decompressed = await new Promise((resolve, reject) => {
+                    zlib.gunzip(buf, (err, result) => {
+                        if (err) reject(err);
+                        else resolve(result);
+                    });
+                });
+                await fs.promises.writeFile(sqliteOriginalPath, decompressed);
+                console.log("⚡ [Direct SQLite Restore] تم فك ضغط واستعادة قاعدة البيانات بنجاح من الذاكرة (Buffer)");
+            } else {
+                await fs.promises.writeFile(sqliteOriginalPath, buf);
+                console.log("⚡ [Direct SQLite Restore] تم استعادة ملف قاعدة البيانات غير المضغوط بنجاح من الذاكرة (Buffer)");
+            }
         } else if (srcFilePath) {
-            await fs.promises.copyFile(srcFilePath, sqliteOriginalPath);
-            console.log("⚡ [Direct SQLite Restore] تم استعادة ملف قاعدة البيانات بنجاح من:", srcFilePath);
+            let isGzip = false;
+            let fd = null;
+            try {
+                fd = await fs.promises.open(srcFilePath, 'r');
+                const headerBuf = Buffer.alloc(2);
+                const { bytesRead } = await fd.read(headerBuf, 0, 2, 0);
+                if (bytesRead >= 2 && headerBuf[0] === 0x1f && headerBuf[1] === 0x8b) {
+                    isGzip = true;
+                }
+            } catch (headErr) {
+                console.warn("[restore-sqlite-direct-backup] Header check warning:", headErr.message);
+            } finally {
+                if (fd) await fd.close();
+            }
+
+            if (isGzip) {
+                await new Promise((resolve, reject) => {
+                    const readStream = fs.createReadStream(srcFilePath);
+                    const writeStream = fs.createWriteStream(sqliteOriginalPath);
+                    const gunzip = zlib.createGunzip();
+                    readStream.on('error', reject);
+                    gunzip.on('error', reject);
+                    writeStream.on('error', reject);
+                    writeStream.on('finish', resolve);
+                    readStream.pipe(gunzip).pipe(writeStream);
+                });
+                console.log("⚡ [Direct SQLite Restore] تم فك ضغط واستعادة قاعدة البيانات بنجاح عبر Stream من:", srcFilePath);
+            } else {
+                await fs.promises.copyFile(srcFilePath, sqliteOriginalPath);
+                console.log("⚡ [Direct SQLite Restore] تم استعادة ملف قاعدة البيانات غير المضغوط بنجاح من:", srcFilePath);
+            }
         }
 
         return { success: true };
@@ -1150,7 +1211,7 @@ ipcMain.handle('rotate-backups', async (event, maxKeep = 30) => {
         if (!fs.existsSync(backupDir)) return { success: true, count: 0 };
 
         const files = fs.readdirSync(backupDir)
-            .filter(f => f.startsWith('backup_pos_') && (f.endsWith('.json') || f.endsWith('.db')))
+            .filter(f => f.startsWith('backup_pos_') && (f.endsWith('.json') || f.endsWith('.db') || f.endsWith('.bak') || f.endsWith('.bayan')))
             .map(f => {
                 const fp = path.join(backupDir, f);
                 const stat = fs.statSync(fp);

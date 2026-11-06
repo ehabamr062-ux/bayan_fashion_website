@@ -887,6 +887,27 @@ window.triggerLoginEmergencyRestore = async function () {
                 return alert("❌ خطأ في فتح الملف: " + res.error);
             }
 
+            const ext = (res.fileName || '').toLowerCase();
+            if (ext.endsWith('.bak') || ext.endsWith('.db') || ext.endsWith('.sqlite') || ext.endsWith('.bayan')) {
+                try {
+                    if (window.BayanSQLite && typeof window.BayanSQLite.close === 'function') {
+                        window.BayanSQLite.close();
+                    }
+                } catch (_) {}
+                const restoreRes = await ipc.invoke('restore-sqlite-direct-backup', res.filePath);
+                if (restoreRes && restoreRes.success) {
+                    alert("✅ تم استرجاع قاعدة البيانات بنجاح! سيتم إعادة تحميل البرنامج الآن.");
+                    window.location.reload();
+                    return;
+                } else {
+                    alert("❌ فشل استرجاع ملف قاعدة البيانات: " + (restoreRes?.error || 'خطأ غير معروف'));
+                    if (typeof window.resetLoginEmergencyRestoreCard === 'function') {
+                        window.resetLoginEmergencyRestoreCard();
+                    }
+                    return;
+                }
+            }
+
             const sizeMb = res.fileSize ? (res.fileSize / (1024 * 1024)).toFixed(1) : '0';
             if (title) {
                 title.innerHTML = `<span>جاري قراءة النسخة (${sizeMb} MB)... ⏳</span>`;

@@ -24,11 +24,12 @@ function restoreData(input, isEmergencyBypass = false) {
         return;
     }
 
-    // ⚡ استرجاع مباشر وفوري لملفات قاعدة بيانات SQLite الأصلية (.db / .sqlite / .bak) في أجزاء من الثانية
+    // ⚡ استرجاع مباشر وفوري لملفات قاعدة بيانات SQLite الأصلية (.bak / .db / .sqlite / .bayan) في أجزاء من الثانية
     const isDbFile = file.name && (
+        file.name.toLowerCase().endsWith('.bak') || 
         file.name.toLowerCase().endsWith('.db') || 
         file.name.toLowerCase().endsWith('.sqlite') || 
-        file.name.toLowerCase().endsWith('.bak')
+        file.name.toLowerCase().endsWith('.bayan')
     );
     if (isDbFile) {
         let ipc = null;
@@ -952,6 +953,28 @@ window.triggerAppRestore = async function() {
             if (res.error) {
                 return alert("❌ خطأ في فتح الملف: " + res.error);
             }
+            const ext = (res.fileName || '').toLowerCase();
+            if (ext.endsWith('.bak') || ext.endsWith('.db') || ext.endsWith('.sqlite') || ext.endsWith('.bayan')) {
+                const confirmMsg = "⚠️ هل أنت متأكد من استعادة ملف قاعدة البيانات SQLite هذا؟ سيتم استبدال البيانات الحالية بالكامل وإعادة تشغيل البرنامج.";
+                const proceed = (typeof showCustomAlert === 'function') ? true : confirm(confirmMsg);
+                if (proceed) {
+                    try {
+                        if (window.BayanSQLite && typeof window.BayanSQLite.close === 'function') {
+                            window.BayanSQLite.close();
+                        }
+                    } catch (_) {}
+                    const restoreRes = await ipc.invoke('restore-sqlite-direct-backup', res.filePath);
+                    if (restoreRes && restoreRes.success) {
+                        alert("✅ تم استرجاع قاعدة البيانات بنجاح! سيتم إعادة تحميل البرنامج الآن.");
+                        window.location.reload();
+                        return;
+                    } else {
+                        alert("❌ فشل استرجاع ملف قاعدة البيانات: " + (restoreRes?.error || 'خطأ غير معروف'));
+                        return;
+                    }
+                }
+                return;
+            }
             return await window.restoreDataFromContent(res.content, res.fileName, false, null);
         } catch(e) {
             console.warn("Fallback to file input:", e);
@@ -1567,7 +1590,7 @@ window.executeAutoBackupToFile = async function(silent = false, isManual = false
                                                 📁 سطح المكتب (Desktop) ومجلد النسخ
                                             </div>
                                             <div style="font-size: 0.8rem; font-weight: 800; color: #475569; direction: ltr; text-align: left; font-family: monospace; word-break: break-all;">
-                                                📄 ${directRes.fileName || 'backup_pos.db'}
+                                                📄 ${directRes.fileName || 'backup_pos.bak'}
                                             </div>
                                         </div>
                                         <button onclick="window.openBackupFolder()" style="width: 100%; height: 45px; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: 900; font-size: 0.95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
