@@ -99,9 +99,9 @@
 
                 image: document.getElementById('accImagePreview')?.dataset?.base64 || '',
 
-                debit: document.getElementById('accDebit').value,
+                debit: parseFloat(document.getElementById('accDebit')?.value) || 0,
 
-                credit: document.getElementById('accCredit').value,
+                credit: parseFloat(document.getElementById('accCredit')?.value) || 0,
 
                 balanceDate: document.getElementById('accBalDate').value,
 
@@ -1971,7 +1971,7 @@
             let invoiceItems = [];
             if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function' && window.BayanSQLite.db) {
                 try {
-                    const sqItems = window.BayanSQLite.getInvoiceItems(invoiceId);
+                    const sqItems = window.BayanSQLite.getInvoiceItems(invoiceId, type);
                     if (sqItems && sqItems.length > 0) {
                         invoiceItems = sqItems.filter(t => matchesStmtType(t.type, type) && (t.product || t.productName || t.name));
                         if (invoiceItems.length === 0) {
