@@ -713,21 +713,22 @@ window.syncMaxSequencesFromDB = async function(preloadedTx = null) {
                 });
             }
 
-            // ب. استعلام SQLite الفوري: قراءة عمود invoiceId فقط لأحدث السجلات (LIMIT 10) مستفيداً من الفهرس idx_tx_type
+            // ب. استعلام SQLite الفوري: قراءة عمود invoiceId فقط لأحدث السجلات بالترتيب الرقمي الصريح
             let queriedFromDb = false;
             if (window.BayanSQLite && window.BayanSQLite.db) {
                 try {
                     let stmt = null;
+                    const orderClause = " ORDER BY CAST(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(invoiceId, 'T-', ''), 'S-', ''), 'P-', ''), 'R-', ''), 'INV-', '') AS INTEGER) DESC, dateISO DESC LIMIT 15;";
                     if (tp === 'بيع') {
-                        stmt = window.BayanSQLite.db.prepare("SELECT invoiceId FROM transactions WHERE type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' ORDER BY id DESC LIMIT 10;");
+                        stmt = window.BayanSQLite.db.prepare("SELECT invoiceId FROM transactions WHERE type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%'" + orderClause);
                     } else if (tp === 'شراء') {
-                        stmt = window.BayanSQLite.db.prepare("SELECT invoiceId FROM transactions WHERE type LIKE '%شراء%' AND type NOT LIKE '%مرتجع%' ORDER BY id DESC LIMIT 10;");
+                        stmt = window.BayanSQLite.db.prepare("SELECT invoiceId FROM transactions WHERE type LIKE '%شراء%' AND type NOT LIKE '%مرتجع%'" + orderClause);
                     } else if (tp === 'مرتجع بيع') {
-                        stmt = window.BayanSQLite.db.prepare("SELECT invoiceId FROM transactions WHERE type LIKE '%مرتجع%بيع%' ORDER BY id DESC LIMIT 10;");
+                        stmt = window.BayanSQLite.db.prepare("SELECT invoiceId FROM transactions WHERE type LIKE '%مرتجع%بيع%'" + orderClause);
                     } else if (tp === 'مرتجع شراء') {
-                        stmt = window.BayanSQLite.db.prepare("SELECT invoiceId FROM transactions WHERE type LIKE '%مرتجع%شراء%' ORDER BY id DESC LIMIT 10;");
+                        stmt = window.BayanSQLite.db.prepare("SELECT invoiceId FROM transactions WHERE type LIKE '%مرتجع%شراء%'" + orderClause);
                     } else {
-                        stmt = window.BayanSQLite.db.prepare("SELECT invoiceId FROM transactions WHERE type LIKE ? ORDER BY id DESC LIMIT 10;");
+                        stmt = window.BayanSQLite.db.prepare("SELECT invoiceId FROM transactions WHERE type LIKE ?" + orderClause);
                         stmt.bind([`%${tp}%`]);
                     }
 
@@ -1722,32 +1723,11 @@ function initEntitySignatures() {
     }
     if (Array.isArray(window.transactions)) {
         const txs = window.transactions;
-        const txLen = txs.length;
-        if (txLen <= 300) {
-            for (let i = 0; i < txLen; i++) {
-                const t = txs[i];
-                if (t && t.id != null) window._entitySignatures.transactions.set(t.id, getTransactionSignature(t));
-            }
-        } else {
-            // ⚡ معالجة هادئة تدريجية للفواتير في الخلفية لمنع أي إجهاد للمعالج عند الإقلاع
-            let txIdx = 0;
-            const TX_BATCH = 500;
-            const processTxBatch = () => {
-                const end = Math.min(txIdx + TX_BATCH, txLen);
-                for (let i = txIdx; i < end; i++) {
-                    const t = txs[i];
-                    if (t && t.id != null) window._entitySignatures.transactions.set(t.id, getTransactionSignature(t));
-                }
-                txIdx = end;
-                if (txIdx < txLen) {
-                    if (typeof requestIdleCallback === 'function') {
-                        requestIdleCallback(processTxBatch, { timeout: 100 });
-                    } else {
-                        setTimeout(processTxBatch, 10);
-                    }
-                }
-            };
-            processTxBatch();
+        // ⚡ قصر فحص التوقيعات على أحدث 200 فاتورة فقط لمنع استهلاك ذاكرة V8 بالفواتير القديمة
+        const txsToProcess = txs.length > 200 ? txs.slice(-200) : txs;
+        for (let i = 0; i < txsToProcess.length; i++) {
+            const t = txsToProcess[i];
+            if (t && t.id != null) window._entitySignatures.transactions.set(t.id, getTransactionSignature(t));
         }
     }
     if (Array.isArray(window.accounts)) {

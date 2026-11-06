@@ -4801,8 +4801,8 @@ async function posSearchSpecificInvoice() {
         if (rows1 && rows1.length > 0 && rows1[0].invoiceId) {
             foundInvoiceId = rows1[0].invoiceId;
         } else {
-            // بحث مرن LIKE
-            const sql2 = "SELECT invoiceId FROM transactions WHERE (invoiceId LIKE ? OR invoiceId LIKE ?) AND (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' ORDER BY id DESC LIMIT 1;";
+            // بحث مرن LIKE مع فرز رقمي وزمني صريح لمنع الفرز الأبجدي الخاطئ
+            const sql2 = "SELECT invoiceId FROM transactions WHERE (invoiceId LIKE ? OR invoiceId LIKE ?) AND (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' ORDER BY CAST(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(invoiceId, 'T-', ''), 'S-', ''), 'P-', ''), 'R-', ''), 'INV-', '') AS INTEGER) DESC, dateISO DESC LIMIT 1;";
             const rows2 = posQueryDirect(sql2, [`%${cleanVal}%`, `%${searchVal}%`]);
             if (rows2 && rows2.length > 0 && rows2[0].invoiceId) {
                 foundInvoiceId = rows2[0].invoiceId;

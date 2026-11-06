@@ -889,25 +889,13 @@
                         isInvoiceHead INTEGER DEFAULT NULL,
                         raw_json TEXT
                     );
-                    CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(dateISO);
-                    CREATE INDEX IF NOT EXISTS idx_tx_partner ON transactions(partner);
+                    -- الفهارس المركبة الذكية الستة الحاكمة لجدول transactions
                     CREATE INDEX IF NOT EXISTS idx_tx_invoiceId ON transactions(invoiceId);
-                    CREATE INDEX IF NOT EXISTS idx_tx_type ON transactions(type);
-                    CREATE INDEX IF NOT EXISTS idx_tx_status ON transactions(status);
-                    CREATE INDEX IF NOT EXISTS idx_tx_type_status ON transactions(type, status);
-                    CREATE INDEX IF NOT EXISTS idx_tx_date_type ON transactions(dateISO, type, status);
-                    CREATE INDEX IF NOT EXISTS idx_tx_date_method ON transactions(dateISO, method);
-                    CREATE INDEX IF NOT EXISTS idx_tx_date_wh ON transactions(dateISO, warehouse);
-                    CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);
-                    CREATE INDEX IF NOT EXISTS idx_tx_date_type_wh ON transactions(dateISO, type, warehouse);
+                    CREATE INDEX IF NOT EXISTS idx_tx_date_type_status ON transactions(dateISO, type, status);
                     CREATE INDEX IF NOT EXISTS idx_tx_partner_date ON transactions(partner, dateISO);
-                    CREATE INDEX IF NOT EXISTS idx_tx_partner_type ON transactions(partner, type);
-                    CREATE INDEX IF NOT EXISTS idx_tx_partner_status ON transactions(partner, status);
                     CREATE INDEX IF NOT EXISTS idx_tx_wh_date ON transactions(warehouse, dateISO);
-                    CREATE INDEX IF NOT EXISTS idx_tx_type_date ON transactions(type, dateISO);
-                    CREATE INDEX IF NOT EXISTS idx_tx_date_type_method ON transactions(dateISO, type, method);
+                    CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);
                     CREATE INDEX IF NOT EXISTS idx_tx_isHead ON transactions(isInvoiceHead);
-                    CREATE INDEX IF NOT EXISTS idx_tx_date_isHead ON transactions(dateISO, isInvoiceHead);
                 `);
             } catch (txErr) {
                 console.warn("[SQLite] transactions table schema notice:", txErr.message);
@@ -922,7 +910,6 @@
             // 🛡️ إنشاء فهارس isInvoiceHead
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_isHead ON transactions(isInvoiceHead);");
-                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_isHead ON transactions(dateISO, isInvoiceHead);");
             } catch (headMigErr) { }
 
             // 🛡️ فحص وترقية جدول transactions ليكون id TEXT PRIMARY KEY في قواعد البيانات القائمة
@@ -971,61 +958,44 @@
                         INSERT OR REPLACE INTO transactions_mig SELECT CAST(id AS TEXT), invoiceId, COALESCE(originalInvoiceId, ''), dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, COALESCE(status, ''), COALESCE(terminal, ''), raw_json FROM transactions;
                         DROP TABLE transactions;
                         ALTER TABLE transactions_mig RENAME TO transactions;
-                        CREATE INDEX IF NOT EXISTS idx_tx_date ON transactions(dateISO);
-                        CREATE INDEX IF NOT EXISTS idx_tx_partner ON transactions(partner);
                         CREATE INDEX IF NOT EXISTS idx_tx_invoiceId ON transactions(invoiceId);
-                        CREATE INDEX IF NOT EXISTS idx_tx_type ON transactions(type);
-                        CREATE INDEX IF NOT EXISTS idx_tx_status ON transactions(status);
-                        CREATE INDEX IF NOT EXISTS idx_tx_type_status ON transactions(type, status);
-                        CREATE INDEX IF NOT EXISTS idx_tx_date_type ON transactions(dateISO, type, status);
-                        CREATE INDEX IF NOT EXISTS idx_tx_date_method ON transactions(dateISO, method);
-                        CREATE INDEX IF NOT EXISTS idx_tx_date_wh ON transactions(dateISO, warehouse);
+                        CREATE INDEX IF NOT EXISTS idx_tx_date_type_status ON transactions(dateISO, type, status);
+                        CREATE INDEX IF NOT EXISTS idx_tx_partner_date ON transactions(partner, dateISO);
+                        CREATE INDEX IF NOT EXISTS idx_tx_wh_date ON transactions(warehouse, dateISO);
                         CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);
-                        CREATE INDEX IF NOT EXISTS idx_tx_date_type_wh ON transactions(dateISO, type, warehouse);
+                        CREATE INDEX IF NOT EXISTS idx_tx_isHead ON transactions(isInvoiceHead);
                     `);
                 }
             } catch (migErr) {
                 console.warn("[SQLite] transactions id migration notice:", migErr.message);
             }
+            // 🛡️ ترشيد وتنظيف الفهارس القديمة الفائضة لجدول transactions لرفع سرعة الحفظ والتقارير وتقليص حجم القاعدة
             try {
-                // ترقية الفهرس المركب للتاريخ والنوع والحالة للبحث التاريخي فائق السرعة
-                this.db.run("DROP INDEX IF EXISTS idx_tx_date_type;");
-            } catch (e) { }
+                const redundantIndexes = [
+                    'idx_tx_date', 'idx_tx_partner', 'idx_tx_type', 'idx_tx_status',
+                    'idx_tx_type_status', 'idx_tx_date_type', 'idx_tx_date_method',
+                    'idx_tx_date_wh', 'idx_tx_date_type_wh', 'idx_tx_partner_type',
+                    'idx_tx_partner_status', 'idx_tx_type_date', 'idx_tx_date_type_method',
+                    'idx_tx_date_isHead', 'idx_tx_origInvId'
+                ];
+                for (const idxName of redundantIndexes) {
+                    try { this.db.run(`DROP INDEX IF EXISTS ${idxName};`); } catch (dropErr) { }
+                }
+            } catch (cleanIdxErr) { }
+
             try {
-                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_type ON transactions(dateISO, type, status);");
-            } catch (e) { }
-            try {
-                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_status ON transactions(status);");
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_invoiceId ON transactions(invoiceId);");
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_type_status ON transactions(dateISO, type, status);");
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_partner_date ON transactions(partner, dateISO);");
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_wh_date ON transactions(warehouse, dateISO);");
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);");
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_isHead ON transactions(isInvoiceHead);");
             } catch (e) { }
             try {
                 this.db.run("ALTER TABLE accounts ADD COLUMN debit REAL DEFAULT 0;");
             } catch (e) { }
             try {
                 this.db.run("ALTER TABLE accounts ADD COLUMN credit REAL DEFAULT 0;");
-            } catch (e) { }
-            try {
-                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_origInvId ON transactions(originalInvoiceId);");
-            } catch (e) { }
-            try {
-                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_wh ON transactions(dateISO, warehouse);");
-            } catch (e) { }
-            try {
-                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);");
-            } catch (e) { }
-            try {
-                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_type_wh ON transactions(dateISO, type, warehouse);");
-            } catch (e) { }
-            try {
-                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_partner_status ON transactions(partner, status);");
-            } catch (e) { }
-            try {
-                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_wh_date ON transactions(warehouse, dateISO);");
-            } catch (e) { }
-            try {
-                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_type_date ON transactions(type, dateISO);");
-            } catch (e) { }
-            try {
-                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_type_status ON transactions(type, status);");
             } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_acc_type ON accounts(type);");
@@ -1851,14 +1821,16 @@
                 } else if (tableName === 'transactions') {
                     // 🔒 تغليف إدخال رأس الفاتورة وبنودها داخل Transaction ذرية موحدة لمنع الفواتير اليتيمة
                     this.runInTransaction(() => {
+                        // إذا كان السجل سطراً فرعياً لبند بضاعة مصطنع وليس رأس فاتورة، نتجاهل إدراجه في transactions لأن بنوده تُدار عبر transaction_items
+                        if (item.isInvoiceHead === false || (item.id && String(item.id).includes('_item_'))) {
+                            return;
+                        }
                         const cleanType = String(item.type || 'sale');
                         const prefix = this._getTypePrefix(cleanType);
                         let cleanId = (item.id != null && item.id !== '') ? String(item.id) : null;
                         if (!cleanId || cleanId === String(item.invoiceId) || /^\d+$/.test(cleanId)) {
-                            if (item.isInvoiceHead && item.invoiceId) {
+                            if (item.invoiceId) {
                                 cleanId = `${prefix}_${item.invoiceId}`;
-                            } else if (item.invoiceId) {
-                                cleanId = `${prefix}_${item.invoiceId}_item_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
                             } else {
                                 cleanId = `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
                             }
@@ -1868,11 +1840,11 @@
                         item.id = cleanId;
                         const cleanInvoiceId = String(item.invoiceId != null && item.invoiceId !== '' ? item.invoiceId : cleanId);
 
-                        // عند حفظ رأس فاتورة جديد، نحذف مسبقاً أي سطور فرعية قديمة (_item_) سابقة لنفس الفاتورة مع اشتراط تطابق النوع
+                        // عند حفظ رأس فاتورة جديد، نحذف مسبقاً أي سطور قديمة سابقة لنفس الفاتورة مع اشتراط تطابق النوع
                         if (item.isInvoiceHead && item.invoiceId) {
                             try {
                                 this.db.run("DELETE FROM transactions WHERE invoiceId = ? AND id != ? AND type = ?;", [cleanInvoiceId, cleanId, cleanType]);
-                                this.db.run("DELETE FROM transaction_items WHERE invoiceId = ? AND tx_id != ? AND type = ?;", [cleanInvoiceId, cleanId, cleanType]);
+                                this.db.run("DELETE FROM transaction_items WHERE (invoiceId = ? OR tx_id = ?) AND type = ?;", [cleanInvoiceId, cleanId, cleanType]);
                             } catch (cleanOldErr) { }
                         }
                         const cleanOrigInvId = (item.originalInvoiceId != null && item.originalInvoiceId !== '') ? String(item.originalInvoiceId) : null;
@@ -2093,14 +2065,16 @@
                             for (let itemIdx = 0; itemIdx < items.length; itemIdx++) {
                                 const item = items[itemIdx];
                                 if (!item) continue;
+                                // إذا كان السجل سطراً فرعياً لبند بضاعة مصطنع، نتجاهل إدراجه في transactions لأن بنوده تُدار عبر transaction_items
+                                if (item.isInvoiceHead === false || (item.id && String(item.id).includes('_item_'))) {
+                                    continue;
+                                }
                                 const cleanType = String(item.type || 'sale');
                                 const prefix = this._getTypePrefix(cleanType);
                                 let cleanId = (item.id != null && item.id !== '') ? String(item.id) : null;
                                 if (!cleanId || cleanId === String(item.invoiceId) || /^\d+$/.test(cleanId)) {
-                                    if (item.isInvoiceHead && item.invoiceId) {
+                                    if (item.invoiceId) {
                                         cleanId = `${prefix}_${item.invoiceId}`;
-                                    } else if (item.invoiceId) {
-                                        cleanId = `${prefix}_${item.invoiceId}_item_${itemIdx + 1}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
                                     } else {
                                         cleanId = `${prefix}_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
                                     }
@@ -2108,7 +2082,7 @@
                                     cleanId = `${prefix}_${item.invoiceId}`;
                                 }
                                 if (seenIdsInBatch.has(cleanId)) {
-                                    cleanId = `${cleanId}_item_${itemIdx + 1}_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`;
+                                    cleanId = `${cleanId}_${itemIdx + 1}`;
                                 }
                                 seenIdsInBatch.add(cleanId);
                                 item.id = cleanId;
@@ -2719,41 +2693,33 @@
                         COALESCE(SUM(total), 0) AS sumTotal,
                         COALESCE(SUM(
                             CASE 
-                                WHEN isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' THEN paidAmount 
-                                WHEN (isInvoiceHead = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 'false') THEN 0
+                                WHEN isInvoiceHead = 1 THEN paidAmount 
+                                WHEN isInvoiceHead = 0 THEN 0
                                 WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN COALESCE(paidAmount, total)
-                                WHEN isInvoiceHead IS NULL AND json_extract(raw_json, '$.isInvoiceHead') IS NULL THEN 
-                                    CASE WHEN paidAmount > 0 THEN paidAmount ELSE 0 END
-                                ELSE 0 
+                                ELSE CASE WHEN paidAmount > 0 THEN paidAmount ELSE 0 END
                             END
                         ), 0) AS sumPaid,
                         COALESCE(SUM(
                             CASE 
-                                WHEN isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' THEN remaining 
-                                WHEN (isInvoiceHead = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 'false') THEN 0
-                                WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN remaining
-                                WHEN isInvoiceHead IS NULL AND json_extract(raw_json, '$.isInvoiceHead') IS NULL THEN remaining
-                                ELSE 0 
+                                WHEN isInvoiceHead = 1 THEN remaining 
+                                WHEN isInvoiceHead = 0 THEN 0
+                                ELSE remaining
                             END
                         ), 0) AS sumRemaining,
                         COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND raw_json LIKE '%wholesale%' AND json_extract(raw_json, '$.priceLevel') = 'wholesale' THEN total ELSE 0 END), 0) AS wholesaleTotal,
                         COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND raw_json LIKE '%wholesale%' AND json_extract(raw_json, '$.priceLevel') = 'wholesale' THEN (
                             CASE 
-                                WHEN isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' THEN paidAmount 
-                                WHEN (isInvoiceHead = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 'false') THEN 0
+                                WHEN isInvoiceHead = 1 THEN paidAmount 
+                                WHEN isInvoiceHead = 0 THEN 0
                                 WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN COALESCE(paidAmount, total)
-                                WHEN isInvoiceHead IS NULL AND json_extract(raw_json, '$.isInvoiceHead') IS NULL THEN 
-                                    CASE WHEN paidAmount > 0 THEN paidAmount ELSE 0 END
-                                ELSE 0 
+                                ELSE CASE WHEN paidAmount > 0 THEN paidAmount ELSE 0 END
                             END
                         ) ELSE 0 END), 0) AS wholesalePaid,
                         COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND raw_json LIKE '%wholesale%' AND json_extract(raw_json, '$.priceLevel') = 'wholesale' THEN (
                             CASE 
-                                WHEN isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' THEN remaining 
-                                WHEN (isInvoiceHead = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 'false') THEN 0
-                                WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN remaining
-                                WHEN isInvoiceHead IS NULL AND json_extract(raw_json, '$.isInvoiceHead') IS NULL THEN remaining
-                                ELSE 0 
+                                WHEN isInvoiceHead = 1 THEN remaining 
+                                WHEN isInvoiceHead = 0 THEN 0
+                                ELSE remaining
                             END
                         ) ELSE 0 END), 0) AS wholesaleRemaining,
                         COUNT(DISTINCT CASE WHEN type LIKE '%بيع%' AND raw_json LIKE '%wholesale%' AND json_extract(raw_json, '$.priceLevel') = 'wholesale' THEN invoiceId END) AS wholesaleCount,
@@ -2792,7 +2758,7 @@
                         COALESCE(SUM(
                             CASE 
                                 WHEN type LIKE '%بيع%' 
-                                     AND (isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' OR invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---')
+                                     AND (isInvoiceHead = 1 OR isInvoiceHead IS NULL OR invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---')
                                      AND raw_json LIKE '%invoiceDiscount%' 
                                      AND json_extract(raw_json, '$.invoiceDiscount') > 0 
                                 THEN json_extract(raw_json, '$.invoiceDiscount') 
@@ -2803,7 +2769,7 @@
                         COALESCE(SUM(
                             CASE 
                                 WHEN type LIKE '%بيع%' 
-                                     AND (isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' OR invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---')
+                                     AND (isInvoiceHead = 1 OR isInvoiceHead IS NULL OR invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---')
                                      AND (raw_json LIKE '%invoiceExtra%' OR raw_json LIKE '%invoiceTax%') 
                                 THEN COALESCE(json_extract(raw_json, '$.invoiceExtra'), json_extract(raw_json, '$.invoiceTax'), 0) 
                                 ELSE 0 
@@ -4348,30 +4314,10 @@
                                 ELSE COALESCE(a.balance, 0)
                             END + COALESCE(SUM(
                                 CASE 
-                                    WHEN t.type LIKE '%بيع%' AND t.type NOT LIKE '%مرتجع%' THEN (
-                                        CASE 
-                                            WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) AND COALESCE(t.remaining, 0) = 0) THEN 0 
-                                            ELSE (t.total - COALESCE(t.paidAmount, 0)) 
-                                        END
-                                    )
-                                    WHEN t.type LIKE '%مرتجع بيع%' THEN -(
-                                        CASE 
-                                            WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) AND COALESCE(t.remaining, 0) = 0) THEN 0 
-                                            ELSE (t.total - COALESCE(t.paidAmount, 0)) 
-                                        END
-                                    )
-                                    WHEN t.type LIKE '%شراء%' AND t.type NOT LIKE '%مرتجع%' THEN -(
-                                        CASE 
-                                            WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) AND COALESCE(t.remaining, 0) = 0) THEN 0 
-                                            ELSE (t.total - COALESCE(t.paidAmount, 0)) 
-                                        END
-                                    )
-                                    WHEN t.type LIKE '%مرتجع شراء%' THEN (
-                                        CASE 
-                                            WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) AND COALESCE(t.remaining, 0) = 0) THEN 0 
-                                            ELSE (t.total - COALESCE(t.paidAmount, 0)) 
-                                        END
-                                    )
+                                    WHEN t.type LIKE '%بيع%' AND t.type NOT LIKE '%مرتجع%' THEN (t.total - COALESCE(t.paidAmount, 0))
+                                    WHEN t.type LIKE '%مرتجع بيع%' THEN -(t.total - COALESCE(t.paidAmount, 0))
+                                    WHEN t.type LIKE '%شراء%' AND t.type NOT LIKE '%مرتجع%' THEN -(t.total - COALESCE(t.paidAmount, 0))
+                                    WHEN t.type LIKE '%مرتجع شراء%' THEN (t.total - COALESCE(t.paidAmount, 0))
                                     WHEN t.type LIKE '%قبض%' THEN -t.total
                                     WHEN t.type LIKE '%صرف%' THEN t.total
                                     ELSE 0 
@@ -4387,7 +4333,7 @@
                         MAX(CASE WHEN t.type LIKE '%قبض%' THEN t.dateISO ELSE NULL END) AS lastReceiptDate,
                         MAX(t.dateISO) AS lastTxDate
                     FROM accounts a
-                    LEFT JOIN transactions t ON a.name = t.partner AND (t.status IS NULL OR t.status != 'void')
+                    LEFT JOIN transactions t ON a.name = t.partner AND (t.status IS NULL OR t.status != 'void') AND (t.isInvoiceHead IS NULL OR t.isInvoiceHead = 1 OR t.id NOT LIKE '%_item_%')
                 `;
 
                 const params = [];
@@ -4747,159 +4693,28 @@
                     }
                 }
 
-                if (!sId) return [];
+                if (!sId && !sTxId) return [];
 
-                // 1. الاستعلام من جدول transactions لجلب كافة بنود الفاتورة
-                let sqlTx = "SELECT * FROM transactions WHERE (invoiceId = ? OR id = ?)";
-                let params = [sId, sId];
+                // 1. الاستعلام المباشر من جدول transaction_items كمصدر وحيد وأساسي للحقيقة
+                let sqlTi = "SELECT * FROM transaction_items WHERE (invoiceId = ? OR tx_id = ?)";
+                let tiParams = [sId || sTxId, sTxId || sId];
 
                 if (cleanType) {
                     if (cleanType.includes('مرتجع بيع') || cleanType.includes('مرتجع مبيعات') || cleanType === 'sale_return') {
-                        sqlTx += " AND (type LIKE '%مرتجع بيع%' OR type LIKE '%مرتجع مبيعات%' OR type = 'sale_return')";
-                    } else if (cleanType.includes('مرتجع شراء') || cleanType.includes('مرتجع مشتريات') || cleanType === 'purchase_return') {
-                        sqlTx += " AND (type LIKE '%مرتجع شراء%' OR type LIKE '%مرتجع مشتريات%' OR type = 'purchase_return')";
-                    } else if (cleanType.includes('بيع') || cleanType.includes('مبيعات') || cleanType === 'sale') {
-                        sqlTx += " AND ((type LIKE '%بيع%' OR type LIKE '%مبيعات%' OR type = 'sale') AND type NOT LIKE '%مرتجع%')";
-                    } else if (cleanType.includes('شراء') || cleanType.includes('مشتريات') || cleanType === 'purchase') {
-                        sqlTx += " AND ((type LIKE '%شراء%' OR type LIKE '%مشتريات%' OR type = 'purchase') AND type NOT LIKE '%مرتجع%')";
-                    } else if (cleanType.includes('تحويل') || cleanType.includes('transfer')) {
-                        sqlTx += " AND (type LIKE '%تحويل%' OR type LIKE '%transfer%')";
-                    } else if (cleanType.includes('تسوية') || cleanType.includes('adjustment') || cleanType.includes('جرد')) {
-                        sqlTx += " AND (type LIKE '%تسوية%' OR type LIKE '%adjustment%' OR type LIKE '%جرد%')";
-                    } else {
-                        sqlTx += " AND type = ?";
-                        params.push(cleanType);
-                    }
-                }
-                sqlTx += " ORDER BY id ASC;";
-
-                let txRows = [];
-                if (this.isNative && this.nativeDb) {
-                    txRows = this.nativeDb.prepare(sqlTx).all(...params);
-                } else {
-                    const stmt = this.db.prepare(sqlTx);
-                    stmt.bind(params);
-                    while (stmt.step()) txRows.push(stmt.getAsObject());
-                    stmt.free();
-                }
-
-                const decodedTxRows = (txRows || []).map(r => this._reconstructRow(r)).filter(Boolean);
-
-                // استنتاج نوع العملية تلقائياً إذا لم يُمرر لمنع تداخل أصناف الفواتير ذات الأرقام المتماثلة
-                let effectiveType = cleanType;
-                if (!effectiveType && decodedTxRows.length > 0) {
-                    const headRow = decodedTxRows.find(r => r.isInvoiceHead) || decodedTxRows[0];
-                    if (headRow && headRow.type) {
-                        const ht = String(headRow.type);
-                        if (ht.includes('مرتجع بيع') || ht.includes('مرتجع مبيعات') || ht === 'sale_return') effectiveType = 'مرتجع بيع';
-                        else if (ht.includes('مرتجع شراء') || ht.includes('مرتجع مشتريات') || ht === 'purchase_return') effectiveType = 'مرتجع شراء';
-                        else if (ht.includes('بيع') || ht.includes('مبيعات') || ht === 'sale') effectiveType = 'بيع';
-                        else if (ht.includes('شراء') || ht.includes('مشتريات') || ht === 'purchase') effectiveType = 'شراء';
-                        else if (ht.includes('تحويل') || ht === 'transfer') effectiveType = 'تحويل';
-                        else if (ht.includes('تسوية') || ht === 'adjustment') effectiveType = 'تسوية';
-                    }
-                }
-
-                // فحص إذا كان هناك مصفوفة أصناف مدمجة داخل أحد الصفوف (items / products / cart)
-                let embeddedItems = [];
-                for (let i = 0; i < decodedTxRows.length; i++) {
-                    const r = decodedTxRows[i];
-                    if (Array.isArray(r.items) && r.items.length > embeddedItems.length) embeddedItems = r.items;
-                    if (Array.isArray(r.products) && r.products.length > embeddedItems.length) embeddedItems = r.products;
-                    if (Array.isArray(r.cart) && r.cart.length > embeddedItems.length) embeddedItems = r.cart;
-                }
-
-                // استخراج السطور التي تمثل أصنافاً فعلية من جدول transactions مع عزل الأنواع
-                let itemsFromTx = decodedTxRows.filter(r => (r.product || r.productName || r.name));
-                if (effectiveType) {
-                    if (effectiveType.includes('مرتجع بيع')) {
-                        itemsFromTx = itemsFromTx.filter(r => r.type && (r.type.includes('مرتجع بيع') || r.type.includes('مرتجع مبيعات') || r.type === 'sale_return'));
-                    } else if (effectiveType.includes('مرتجع شراء')) {
-                        itemsFromTx = itemsFromTx.filter(r => r.type && (r.type.includes('مرتجع شراء') || r.type.includes('مرتجع مشتريات') || r.type === 'purchase_return'));
-                    } else if (effectiveType.includes('بيع')) {
-                        itemsFromTx = itemsFromTx.filter(r => r.type && (r.type.includes('بيع') || r.type.includes('مبيعات') || r.type === 'sale') && !r.type.includes('مرتجع'));
-                    } else if (effectiveType.includes('شراء')) {
-                        itemsFromTx = itemsFromTx.filter(r => r.type && (r.type.includes('شراء') || r.type.includes('مشتريات') || r.type === 'purchase') && !r.type.includes('مرتجع'));
-                    }
-                }
-
-                // تحديد سطر الرأس الفعلي للعملية headRow لفلترة أي سطور يتيمة متبقية من عمليات قديمة
-                let headRow = null;
-                if (sTxId) {
-                    headRow = decodedTxRows.find(r => r && String(r.id) === sTxId);
-                }
-                if (!headRow) {
-                    const heads = decodedTxRows.filter(r => r && r.isInvoiceHead);
-                    headRow = heads.length > 0 ? heads[heads.length - 1] : decodedTxRows[decodedTxRows.length - 1];
-                }
-
-                if (headRow) {
-                    const headDate = headRow.dateISO || (headRow.date ? String(headRow.date).split(' ')[0] : '');
-                    const headPartner = String(headRow.partner || headRow.customer || '').trim();
-                    const headGrandTotal = parseFloat(headRow.invoiceGrandTotal || 0) || 0;
-                    const headTime = String(headRow.time || headRow.timeISO || '').trim();
-
-                    // 1. فلترة السطور لتقتصر على السطور التي تنتمي لنفس عملية headRow (نفس التاريخ والطرف)
-                    let matchedTx = itemsFromTx.filter(r => {
-                        if (!r) return false;
-                        if (String(r.id) === String(headRow.id)) return true;
-                        if (headDate) {
-                            const rDate = r.dateISO || (r.date ? String(r.date).split(' ')[0] : '');
-                            if (rDate && rDate !== headDate) return false;
-                        }
-                        if (headPartner && typeof window.isGenericCashPartner === 'function' && !window.isGenericCashPartner(headPartner)) {
-                            const rPartner = String(r.partner || r.customer || '').trim();
-                            if (rPartner && rPartner !== headPartner) return false;
-                        }
-                        return true;
-                    });
-
-                    // 2. إذا كان للرأس إجمالي رسمي invoiceGrandTotal وكان مجموع كل السطور أكبر منه:
-                    if (headGrandTotal > 0 && matchedTx.length > 1) {
-                        const sumMatched = matchedTx.reduce((sum, r) => sum + (parseFloat(r.total) || (parseFloat(r.qty || 0) * parseFloat(r.price || 0)) || 0), 0);
-                        if (sumMatched > headGrandTotal + 0.05) {
-                            // الاحتفاظ فقط بالسطور المطابقة لتوقيت الرأس (headTime)
-                            if (headTime) {
-                                const timeItems = matchedTx.filter(r => {
-                                    if (String(r.id) === String(headRow.id)) return true;
-                                    const rt = String(r.time || r.timeISO || '').trim();
-                                    return rt && rt === headTime;
-                                });
-                                if (timeItems.length > 0) {
-                                    matchedTx = timeItems;
-                                }
-                            }
-                            // إذا ظل المجموع أكبر، وكان سطر الرأس بمفرده يطابق الإجمالي بدقة:
-                            const headOnlyTotal = parseFloat(headRow.total) || (parseFloat(headRow.qty || 0) * parseFloat(headRow.price || 0)) || 0;
-                            if (Math.abs(headOnlyTotal - headGrandTotal) < 0.05) {
-                                matchedTx = [headRow];
-                            }
-                        }
-                    }
-
-                    itemsFromTx = matchedTx;
-                }
-
-                // 2. الاستعلام من جدول transaction_items المفهرس لجلب كافة بنود الفاتورة (مع استبعاد أي بنود يتيمة)
-                let sqlTi = "SELECT * FROM transaction_items WHERE (invoiceId = ? OR tx_id = ?) AND (tx_id IN (SELECT id FROM transactions) OR invoiceId IN (SELECT invoiceId FROM transactions))";
-                let tiParams = [sId, sId];
-
-                if (effectiveType) {
-                    if (effectiveType.includes('مرتجع بيع') || effectiveType.includes('مرتجع مبيعات') || effectiveType === 'sale_return') {
                         sqlTi += " AND (type LIKE 'مرتجع بيع%' OR type LIKE 'مرتجع مبيعات%' OR type = 'sale_return')";
-                    } else if (effectiveType.includes('مرتجع شراء') || effectiveType.includes('مرتجع مشتريات') || effectiveType === 'purchase_return') {
+                    } else if (cleanType.includes('مرتجع شراء') || cleanType.includes('مرتجع مشتريات') || cleanType === 'purchase_return') {
                         sqlTi += " AND (type LIKE 'مرتجع شراء%' OR type LIKE 'مرتجع مشتريات%' OR type = 'purchase_return')";
-                    } else if (effectiveType.includes('بيع') || effectiveType.includes('مبيعات') || effectiveType === 'sale') {
+                    } else if (cleanType.includes('بيع') || cleanType.includes('مبيعات') || cleanType === 'sale') {
                         sqlTi += " AND ((type LIKE 'بيع%' OR type LIKE 'فاتورة بيع%' OR type = 'sale' OR type IN ('بيع', 'بيع 📤', 'فاتورة بيع')) AND type NOT LIKE 'مرتجع%')";
-                    } else if (effectiveType.includes('شراء') || effectiveType.includes('مشتريات') || effectiveType === 'purchase') {
+                    } else if (cleanType.includes('شراء') || cleanType.includes('مشتريات') || cleanType === 'purchase') {
                         sqlTi += " AND ((type LIKE 'شراء%' OR type LIKE 'فاتورة شراء%' OR type = 'purchase' OR type IN ('شراء', 'شراء 📥', 'فاتورة شراء')) AND type NOT LIKE 'مرتجع%')";
-                    } else if (effectiveType.includes('تحويل') || effectiveType.includes('transfer')) {
+                    } else if (cleanType.includes('تحويل') || cleanType.includes('transfer')) {
                         sqlTi += " AND (type LIKE 'تحويل%' OR type LIKE 'transfer%')";
-                    } else if (effectiveType.includes('تسوية') || effectiveType.includes('adjustment') || effectiveType.includes('جرد')) {
+                    } else if (cleanType.includes('تسوية') || cleanType.includes('adjustment') || cleanType.includes('جرد')) {
                         sqlTi += " AND (type LIKE 'تسوية%' OR type LIKE 'adjustment%' OR type LIKE 'جرد%')";
                     } else {
                         sqlTi += " AND type = ?";
-                        tiParams.push(effectiveType);
+                        tiParams.push(cleanType);
                     }
                 }
                 sqlTi += " ORDER BY id ASC;";
@@ -4914,8 +4729,8 @@
                     stmt.free();
                 }
 
-                let uniqueTi = [];
                 if (tiRows && tiRows.length > 0) {
+                    const uniqueTi = [];
                     const seenTi = new Set();
                     for (const r of tiRows) {
                         if (!r) continue;
@@ -4932,19 +4747,58 @@
                             uniqueTi.push(rec);
                         }
                     }
+                    if (uniqueTi.length > 0) {
+                        return uniqueTi;
+                    }
                 }
 
-                // 3. المفاضلة الذكية لاختيار المصدر الحقيقي للبنود (Single Source of Truth)
-                // جدول transactions هو المصدر الأساسي الحاكم دائماً طالما يحتوي على أصناف
-                if (itemsFromTx.length > 0) {
-                    return itemsFromTx;
+                // 2. خطة بديلة فقط في حال عدم العثور على بنود (للفواتير القديمة قبل التحديث عبر raw_json)
+                let sqlTx = "SELECT * FROM transactions WHERE (invoiceId = ? OR id = ?)";
+                let txParams = [sId || sTxId, sTxId || sId];
+
+                if (cleanType) {
+                    if (cleanType.includes('مرتجع بيع') || cleanType.includes('مرتجع مبيعات') || cleanType === 'sale_return') {
+                        sqlTx += " AND (type LIKE '%مرتجع بيع%' OR type LIKE '%مرتجع مبيعات%' OR type = 'sale_return')";
+                    } else if (cleanType.includes('مرتجع شراء') || cleanType.includes('مرتجع مشتريات') || cleanType === 'purchase_return') {
+                        sqlTx += " AND (type LIKE '%مرتجع شراء%' OR type LIKE '%مرتجع مشتريات%' OR type = 'purchase_return')";
+                    } else if (cleanType.includes('بيع') || cleanType.includes('مبيعات') || cleanType === 'sale') {
+                        sqlTx += " AND ((type LIKE '%بيع%' OR type LIKE '%مبيعات%' OR type = 'sale') AND type NOT LIKE '%مرتجع%')";
+                    } else if (cleanType.includes('شراء') || cleanType.includes('مشتريات') || cleanType === 'purchase') {
+                        sqlTx += " AND ((type LIKE '%شراء%' OR type LIKE '%مشتريات%' OR type = 'purchase') AND type NOT LIKE '%مرتجع%')";
+                    } else if (cleanType.includes('تحويل') || cleanType.includes('transfer')) {
+                        sqlTx += " AND (type LIKE '%تحويل%' OR type LIKE '%transfer%')";
+                    } else if (cleanType.includes('تسوية') || cleanType.includes('adjustment') || cleanType.includes('جرد')) {
+                        sqlTx += " AND (type LIKE '%تسوية%' OR type LIKE '%adjustment%' OR type LIKE '%جرد%')";
+                    } else {
+                        sqlTx += " AND type = ?";
+                        txParams.push(cleanType);
+                    }
                 }
-                if (embeddedItems.length > 0) {
-                    return embeddedItems;
+                sqlTx += " ORDER BY id ASC;";
+
+                let txRows = [];
+                if (this.isNative && this.nativeDb) {
+                    txRows = this.nativeDb.prepare(sqlTx).all(...txParams);
+                } else {
+                    const stmt = this.db.prepare(sqlTx);
+                    stmt.bind(txParams);
+                    while (stmt.step()) txRows.push(stmt.getAsObject());
+                    stmt.free();
                 }
-                if (uniqueTi.length > 0) {
-                    return uniqueTi;
+
+                const decodedTxRows = (txRows || []).map(r => this._reconstructRow(r)).filter(Boolean);
+
+                // استخراج بنود الفاتورة المدمجة داخل raw_json (items / products / cart)
+                for (let i = 0; i < decodedTxRows.length; i++) {
+                    const r = decodedTxRows[i];
+                    if (Array.isArray(r.items) && r.items.length > 0) return r.items;
+                    if (Array.isArray(r.products) && r.products.length > 0) return r.products;
+                    if (Array.isArray(r.cart) && r.cart.length > 0) return r.cart;
                 }
+
+                // كحل أخير إذا كانت السطور مخزنة كسجلات فرعية قديمة في transactions
+                const itemsFromTx = decodedTxRows.filter(r => (r.product || r.productName || r.name));
+                if (itemsFromTx.length > 0) return itemsFromTx;
 
                 return decodedTxRows;
             } catch (err) {
