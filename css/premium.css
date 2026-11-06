@@ -1186,3 +1186,31 @@ body.dark-mode .glass-input::placeholder {
     opacity: 0.9 !important;
 }
 
+/* ============================================================
+ * 🖨️ إلغاء خلفيات الثيم والوضع الليلي وتدرجات الفضاء عند الطباعة
+ * ============================================================ */
+@media print {
+    html, body,
+    body.dark-mode,
+    body:not(.dark-mode),
+    body.has-wallpaper,
+    html.has-wallpaper {
+        background: #ffffff !important;
+        background-color: #ffffff !important;
+        background-image: none !important;
+        color: #000000 !important;
+    }
+
+    .dashboard-card,
+    .stat-card,
+    .invoice-panel,
+    .panel,
+    .sidebar,
+    .top-nav,
+    .app-header {
+        background: transparent !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+}
+

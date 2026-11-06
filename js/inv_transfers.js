@@ -738,17 +738,201 @@ function printTransferNote() {
 
             `;
 
-    const printArea = document.getElementById('receipt-area');
-
-    if (printArea) {
-        printArea.style.background = '#ffffff';
-        printArea.style.backgroundImage = 'none';
-        printArea.innerHTML = content;
-
-        window.print();
-
+    // 🖨️ عزل محتوى إذن التحويل وطباعته عبر إطار داخلي معزول ومستقل (Isolated Iframe) على صفحة A4 بيضاء نقية
+    let printIframe = document.getElementById('transfer-print-iframe');
+    if (printIframe) {
+        printIframe.remove();
     }
+    printIframe = document.createElement('iframe');
+    printIframe.id = 'transfer-print-iframe';
+    printIframe.style.cssText = 'position:fixed;right:100%;bottom:100%;width:0;height:0;border:none;visibility:hidden;';
+    document.body.appendChild(printIframe);
 
+    const doc = printIframe.contentWindow.document;
+    doc.open();
+    doc.write(`
+        <!DOCTYPE html>
+        <html dir="rtl" lang="ar">
+        <head>
+            <meta charset="utf-8">
+            <title>إذن تحويل مخزني - ${wFrom} إلى ${wTo}</title>
+            <style>
+                @page {
+                    size: A4 portrait;
+                    margin: 12mm 15mm 15mm 15mm;
+                }
+                * {
+                    box-sizing: border-box !important;
+                    -webkit-print-color-adjust: exact !important;
+                    print-color-adjust: exact !important;
+                }
+                html, body {
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    background: #ffffff !important;
+                    background-color: #ffffff !important;
+                    background-image: none !important;
+                    color: #000000 !important;
+                    font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif;
+                    direction: rtl;
+                }
+                .print-container {
+                    width: 100%;
+                    max-width: 100%;
+                    background: #ffffff !important;
+                    background-image: none !important;
+                    padding: 0;
+                    margin: 0;
+                }
+                .transfer-header {
+                    text-align: center;
+                    border-bottom: 2px solid #000000;
+                    padding-bottom: 10px;
+                    margin-bottom: 14px;
+                }
+                .transfer-header h1 {
+                    margin: 0 0 4px 0;
+                    font-size: 1.5rem;
+                    font-weight: 900;
+                    color: #000000;
+                }
+                .transfer-badge {
+                    margin: 6px 0;
+                    background: #000000 !important;
+                    color: #ffffff !important;
+                    display: inline-block;
+                    padding: 4px 20px;
+                    border-radius: 4px;
+                    font-size: 1.05rem;
+                    font-weight: 900;
+                }
+                .transfer-meta {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 16px;
+                    font-weight: 900;
+                    font-size: 0.95rem;
+                    border: 1.5px solid #000000;
+                    border-radius: 6px;
+                    padding: 8px 14px;
+                    background: #f8fafc;
+                }
+                table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    text-align: center;
+                    margin-bottom: 20px;
+                    page-break-inside: auto;
+                }
+                tr {
+                    page-break-inside: avoid;
+                    page-break-after: auto;
+                }
+                thead {
+                    display: table-header-group;
+                }
+                tfoot {
+                    display: table-footer-group;
+                }
+                th {
+                    padding: 8px 6px;
+                    border: 1.5px solid #000000;
+                    background: #f1f5f9 !important;
+                    color: #000000 !important;
+                    font-weight: 900;
+                    font-size: 0.9rem;
+                }
+                td {
+                    padding: 6px 6px;
+                    border: 1px solid #000000;
+                    font-size: 0.88rem;
+                    color: #000000;
+                }
+                .signatures {
+                    margin-top: 35px;
+                    display: flex;
+                    justify-content: space-between;
+                    font-weight: 900;
+                    page-break-inside: avoid;
+                }
+                .footer {
+                    text-align: center;
+                    margin-top: 25px;
+                    border-top: 1px dashed #000000;
+                    padding-top: 8px;
+                    font-size: 11px;
+                    font-weight: bold;
+                    page-break-inside: avoid;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="print-container">
+                <div class="transfer-header">
+                    <h1>${shopName}</h1>
+                    ${shopAddress ? `<div style="font-size:12px; color:#333; margin-top:2px;">${shopAddress}</div>` : ''}
+                    ${shopPhone ? `<div style="font-size:12px; color:#333; margin-top:2px;">هاتف: ${shopPhone}</div>` : ''}
+                    <div class="transfer-badge">إذن تحويل مخزني</div>
+                </div>
+
+                <div class="transfer-meta">
+                    <div>من مخزن: <span style="text-decoration:underline;">${wFrom}</span></div>
+                    <div>إلى مخزن: <span style="text-decoration:underline;">${wTo}</span></div>
+                    <div>التاريخ: ${new Date().toLocaleString('ar-EG')}</div>
+                </div>
+
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 40px;">م</th>
+                            <th style="text-align: right;">الصنف</th>
+                            <th style="width: 80px;">المقاس</th>
+                            <th style="width: 80px;">اللون</th>
+                            <th style="width: 85px;">الكمية</th>
+                            <th style="width: 100px;">${typeof window.getTransferPriceLabel === 'function' ? window.getTransferPriceLabel() : 'سعر التحويل'}</th>
+                            <th style="width: 110px;">الإجمالي</th>
+                        </tr>
+                    </thead>
+                    <tbody>${itemsHtml}</tbody>
+                    <tfoot>
+                        <tr style="font-weight: bold; background: #f1f5f9;">
+                            <td colspan="6" style="padding: 8px; border: 1.5px solid #000000; font-weight: 900;">إجمالي قيمة التحويل</td>
+                            <td style="padding: 8px; border: 1.5px solid #000000; font-weight: 900;">${totalValue.toFixed(2)}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+
+                <div class="signatures">
+                    <div style="text-align:center;">توقيع أمين المخزن (المصدر)<br><br>...........................</div>
+                    <div style="text-align:center;">توقيع المستلم (الوجهة)<br><br>...........................</div>
+                </div>
+
+                <div class="footer">
+                    <div>${footerMsg}</div>
+                    <div style="margin-top: 3px;">نظام بَيَان POS - إدارة نقاط البيع المتكاملة</div>
+                </div>
+            </div>
+        </body>
+        </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+        try {
+            printIframe.contentWindow.focus();
+            printIframe.contentWindow.print();
+        } catch (err) {
+            console.warn("[TransferPrint] Iframe print fallback:", err);
+            window.print();
+        } finally {
+            setTimeout(() => {
+                if (printIframe && printIframe.parentNode) {
+                    printIframe.parentNode.removeChild(printIframe);
+                }
+            }, 2500);
+        }
+    }, 350);
 }
 
 window.updateTransferTotals = function () {

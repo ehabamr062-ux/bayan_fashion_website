@@ -319,8 +319,32 @@
         }
 
         @media print {
-            .daily-help-btn {
+            .daily-help-btn,
+            .report-filter-bar,
+            .quick-filter-badge {
                 display: none !important;
+            }
+
+            html, body,
+            body.dark-mode,
+            body.has-wallpaper,
+            html.has-wallpaper {
+                background: #ffffff !important;
+                background-color: #ffffff !important;
+                background-image: none !important;
+                color: #000000 !important;
+            }
+
+            #receipt-area,
+            .print-container,
+            #daily-report-section {
+                position: static !important;
+                float: none !important;
+                width: 100% !important;
+                background: #ffffff !important;
+                background-color: #ffffff !important;
+                background-image: none !important;
+                page-break-inside: auto !important;
             }
         }
 

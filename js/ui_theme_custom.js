@@ -624,7 +624,7 @@ function applyWallpaperToDom(bgCssVal) {
         document.head.appendChild(s);
     }
     if (!bgCssVal || bgCssVal === 'none') {
-        s.textContent = 'html, body { background-image: none !important; background-color: #0f172a !important; }';
+        s.textContent = '@media screen { html, body { background-image: none !important; background-color: #0f172a !important; } } @media print { html, body { background: #ffffff !important; background-image: none !important; } }';
         document.body.style.setProperty('background-image', 'none', 'important');
         document.body.style.setProperty('background-color', '#0f172a', 'important');
         document.documentElement.style.setProperty('background-image', 'none', 'important');
@@ -632,7 +632,24 @@ function applyWallpaperToDom(bgCssVal) {
         document.body.classList.remove('has-wallpaper');
         document.documentElement.classList.remove('has-wallpaper');
     } else {
-        s.textContent = `html, body { background-image: ${bgCssVal} !important; background-size: cover !important; background-position: center !important; background-repeat: no-repeat !important; }`;
+        s.textContent = `
+            @media screen { 
+                html, body { 
+                    background-image: ${bgCssVal} !important; 
+                    background-size: cover !important; 
+                    background-position: center !important; 
+                    background-repeat: no-repeat !important; 
+                } 
+            }
+            @media print {
+                html, body, html.has-wallpaper, body.has-wallpaper, body.dark-mode {
+                    background: #ffffff !important;
+                    background-color: #ffffff !important;
+                    background-image: none !important;
+                    color: #000000 !important;
+                }
+            }
+        `;
         document.body.style.setProperty('background-image', bgCssVal, 'important');
         document.body.style.setProperty('background-size', 'cover', 'important');
         document.body.style.setProperty('background-position', 'center', 'important');
@@ -640,12 +657,25 @@ function applyWallpaperToDom(bgCssVal) {
         document.documentElement.style.setProperty('background-image', bgCssVal, 'important');
         document.documentElement.style.setProperty('background-size', 'cover', 'important');
         document.documentElement.style.setProperty('background-position', 'center', 'important');
-        document.documentElement.style.setProperty('background-position', 'center', 'important');
         document.body.classList.add('has-wallpaper');
         document.documentElement.classList.add('has-wallpaper');
     }
 }
 window.applyWallpaperToDom = applyWallpaperToDom;
+
+// 🖨️ حماية دورة حياة الطباعة لمنع تسريب خلفيات الثيم والوضع الليلي للورق المطبوع
+window.addEventListener('beforeprint', () => {
+    document.body.style.setProperty('background-image', 'none', 'important');
+    document.body.style.setProperty('background-color', '#ffffff', 'important');
+    document.documentElement.style.setProperty('background-image', 'none', 'important');
+    document.documentElement.style.setProperty('background-color', '#ffffff', 'important');
+});
+window.addEventListener('afterprint', () => {
+    const curWp = (typeof getStore === 'function') ? (getStore('pos_wallpaper') || 'deep_space.png') : 'none';
+    if (typeof applyWallpaperToDom === 'function') {
+        applyWallpaperToDom(curWp === 'none' ? 'none' : `url(media/wallpapers/${curWp})`);
+    }
+});
 
 async function changeWallpaper(url, isCustom = false) {
     let bgCssVal = 'none';

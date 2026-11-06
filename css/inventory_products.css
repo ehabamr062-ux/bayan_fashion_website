@@ -1147,14 +1147,14 @@
             #receipt-area {
                 display: block !important;
                 visibility: visible !important;
-                position: absolute !important;
-                right: 0 !important; /* التثبيت لليسار (بداية الـ RTL هو اليمين) */
-                top: 0 !important;
-                width: 95% !important; /* عرض أقل قليلاً لتجنب التآكل في الهوامش */
+                position: static !important;
+                width: 100% !important;
+                max-width: 100% !important;
                 background: #fff !important;
                 color: #000 !important;
-                padding-right: 15px !important; /* زحزحة النص من أقصى اليمين قليلاً */
+                padding-right: 0 !important;
                 box-sizing: border-box !important;
+                page-break-inside: auto !important;
             }
 
             /* تهيئة الحاوية للطباعة النظيفة */

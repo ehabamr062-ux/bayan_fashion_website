@@ -4966,21 +4966,68 @@ body.dark-mode #purchase-section {
 }
 
 /* ============================================================
- * 🖨️ منع طباعة خلفية البرنامج (Wallpaper) في إذن التحويل والطباعة
+ * 🖨️ القواعد العامة والموحدة للطباعة وتفادي تسريب الخلفيات والوضع الليلي
  * ============================================================ */
 @media print {
-    html, body, body.has-wallpaper {
-        background: #ffffff !important;
-        background-image: none !important;
+    *, *::before, *::after {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        text-shadow: none !important;
+        box-shadow: none !important;
     }
-    body > *:not(#receipt-area):not(.print-container) {
+
+    html, body,
+    html.has-wallpaper, body.has-wallpaper,
+    body.dark-mode, body.dark-mode.has-wallpaper,
+    body:not(.dark-mode) {
+        background: #ffffff !important;
+        background-color: #ffffff !important;
+        background-image: none !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: auto !important;
+        min-height: 0 !important;
+    }
+
+    body > *:not(#receipt-area):not(.print-container):not(iframe) {
         display: none !important;
     }
+
     #receipt-area,
     .print-container {
         display: block !important;
+        visibility: visible !important;
+        position: static !important;
+        left: auto !important;
+        top: auto !important;
+        right: auto !important;
+        bottom: auto !important;
+        float: none !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
         background: #ffffff !important;
+        background-color: #ffffff !important;
         background-image: none !important;
+        color: #000000 !important;
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+    }
+
+    #receipt-area table,
+    .print-container table {
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+        border-collapse: collapse !important;
+    }
+
+    #receipt-area tr,
+    .print-container tr {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
     }
 }
 

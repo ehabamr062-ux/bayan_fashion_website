@@ -268,16 +268,18 @@
 
             #receipt-area,
             .print-container {
-                position: absolute;
-                left: 0;
-                top: 0;
+                position: static !important;
+                left: auto;
+                top: auto;
                 width: 100%;
-                padding: 20px;
+                padding: 10px 0;
                 text-align: center;
                 direction: rtl;
                 display: block !important;
                 background: #ffffff !important;
+                background-color: #ffffff !important;
                 background-image: none !important;
+                page-break-inside: auto !important;
             }
 
             /* إخفاء الأزرار والواجهة عند الطباعة */
