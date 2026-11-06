@@ -4947,11 +4947,12 @@ body.dark-mode .floating-controls-box .dock-theme-capsule .active-bar {
 #sales-section,
 #purchase-section {
     background: #f8fafc !important;
-    width: 100vw !important;
-    max-width: 100vw !important;
-    min-width: 100vw !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
     height: calc(100vh - 55px) !important;
     margin: 0 !important;
+    overflow-x: hidden !important;
     box-sizing: border-box !important;
 }
 

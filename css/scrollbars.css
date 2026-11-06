@@ -34,76 +34,68 @@ html, body, .section-view, .table-container, .table-responsive, .table-wrapper, 
 }
 
 .stmt-table-wrapper {
-    overflow-x: auto !important;
+    overflow-x: hidden !important;
     overflow-y: auto !important;
     max-width: 100%;
     scrollbar-gutter: stable;
 }
 
 /* -------------------------------------------------------
-   SECTION 1 — Firefox / Standard CSS Scrollbar (Modern)
+   SECTION 1 — Modern Standard & WebKit Global Scrollbar Rules
 ------------------------------------------------------- */
+/* معيار المتصفحات الحديثة */
 * {
-    scrollbar-width: auto;
-    scrollbar-color: #64748b #e2e8f0;
+    scrollbar-width: thin;
+    scrollbar-color: #64748b transparent;
 }
 
 body.dark-mode * {
-    scrollbar-color: #475569 #1e293b;
+    scrollbar-color: #475569 transparent;
 }
 
-/* -------------------------------------------------------
-   SECTION 2 — Electron / WebKit / Chromium Global Rules
-   These rules apply to EVERY scrollable element
-------------------------------------------------------- */
-
-/* --- Scrollbar Track Size (16×16 px Fixed) --- */
+/* تخصيص محرك WebKit / Electron */
 ::-webkit-scrollbar {
-    width: 16px;
-    height: 16px;
+    width: 7px;
+    height: 0px !important; /* إلغاء ارتفاع السكرول الأفقي نهائياً */
 }
 
-/* --- Track Background (the rail) --- */
+::-webkit-scrollbar:horizontal,
+::-webkit-scrollbar-horizontal {
+    display: none !important;
+    height: 0px !important;
+    width: 0px !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
 ::-webkit-scrollbar-track {
-    background: #e2e8f0;
-    border-radius: 4px;
+    background: transparent;
 }
 
 body.dark-mode ::-webkit-scrollbar-track {
-    background: #1e293b;
+    background: transparent;
 }
 
-/* --- Thumb (the draggable handle) --- */
 ::-webkit-scrollbar-thumb {
-    background-color: #64748b;
-    border-radius: 5px;
-    border: 2px solid #e2e8f0;
-    min-height: 48px;
-    min-width: 48px;
-    transition: background-color 0.15s ease;
+    background-color: #94a3b8;
+    border-radius: 6px;
 }
 
 body.dark-mode ::-webkit-scrollbar-thumb {
-    background-color: #475569;
-    border: 2px solid #1e293b;
+    background-color: #64748b;
 }
 
-/* --- Hover State --- */
 ::-webkit-scrollbar-thumb:hover {
-    background-color: #334155;
+    background-color: #64748b;
 }
 
 body.dark-mode ::-webkit-scrollbar-thumb:hover {
     background-color: #94a3b8;
 }
 
-/* --- Active / Drag State --- */
-::-webkit-scrollbar-thumb:active {
-    background-color: #0f172a;
-}
-
-body.dark-mode ::-webkit-scrollbar-thumb:active {
-    background-color: #cbd5e1;
+::-webkit-scrollbar-corner {
+    background: transparent;
+    display: none;
 }
 
 /* -------------------------------------------------------
@@ -248,8 +240,8 @@ body.dark-mode ::-webkit-scrollbar-corner {
 [id$="Body"],
 [id$="Cart"],
 [id$="Grid"] {
-    scrollbar-width: auto;
-    scrollbar-color: #64748b #e2e8f0;
+    scrollbar-width: thin;
+    scrollbar-color: #64748b transparent;
 }
 
 body.dark-mode .table-container,
@@ -265,7 +257,7 @@ body.dark-mode .panel-body,
 body.dark-mode [id$="-section"],
 body.dark-mode [id$="TableBody"],
 body.dark-mode [id$="Table"] {
-    scrollbar-color: #475569 #1e293b;
+    scrollbar-color: #475569 transparent;
 }
 
 /* WebKit specifics for all table/grid containers */
@@ -282,8 +274,41 @@ body.dark-mode [id$="Table"] {
 .list-wrapper::-webkit-scrollbar,
 .items-grid::-webkit-scrollbar,
 .products-grid::-webkit-scrollbar {
-    width: 16px;
-    height: 16px;
+    width: 7px;
+    height: 0px !important;
+}
+
+.table-container::-webkit-scrollbar:horizontal,
+.table-container::-webkit-scrollbar-horizontal,
+.table-responsive::-webkit-scrollbar:horizontal,
+.table-responsive::-webkit-scrollbar-horizontal,
+.table-wrapper::-webkit-scrollbar:horizontal,
+.table-wrapper::-webkit-scrollbar-horizontal,
+.bayan-table-wrapper::-webkit-scrollbar:horizontal,
+.bayan-table-wrapper::-webkit-scrollbar-horizontal,
+.data-grid::-webkit-scrollbar:horizontal,
+.data-grid::-webkit-scrollbar-horizontal,
+.grid-wrapper::-webkit-scrollbar:horizontal,
+.grid-wrapper::-webkit-scrollbar-horizontal,
+.section-view::-webkit-scrollbar:horizontal,
+.section-view::-webkit-scrollbar-horizontal,
+.content-area::-webkit-scrollbar:horizontal,
+.content-area::-webkit-scrollbar-horizontal,
+.modal-body::-webkit-scrollbar:horizontal,
+.modal-body::-webkit-scrollbar-horizontal,
+.panel-body::-webkit-scrollbar:horizontal,
+.panel-body::-webkit-scrollbar-horizontal,
+.list-wrapper::-webkit-scrollbar:horizontal,
+.list-wrapper::-webkit-scrollbar-horizontal,
+.items-grid::-webkit-scrollbar:horizontal,
+.items-grid::-webkit-scrollbar-horizontal,
+.products-grid::-webkit-scrollbar:horizontal,
+.products-grid::-webkit-scrollbar-horizontal {
+    display: none !important;
+    height: 0px !important;
+    width: 0px !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
 }
 
 /* Track for table containers */
@@ -293,7 +318,7 @@ body.dark-mode [id$="Table"] {
 .data-grid::-webkit-scrollbar-track,
 .section-view::-webkit-scrollbar-track,
 .modal-body::-webkit-scrollbar-track {
-    background: #e8ecf0;
+    background: transparent;
     border-radius: 4px;
 }
 
@@ -303,10 +328,10 @@ body.dark-mode .bayan-table-wrapper::-webkit-scrollbar-track,
 body.dark-mode .data-grid::-webkit-scrollbar-track,
 body.dark-mode .section-view::-webkit-scrollbar-track,
 body.dark-mode .modal-body::-webkit-scrollbar-track {
-    background: #1e293b;
+    background: transparent;
 }
 
-/* Thumb for table containers — high contrast, easy grab */
+/* Thumb for table containers */
 .table-container::-webkit-scrollbar-thumb,
 .table-responsive::-webkit-scrollbar-thumb,
 .bayan-table-wrapper::-webkit-scrollbar-thumb,
@@ -318,11 +343,9 @@ body.dark-mode .modal-body::-webkit-scrollbar-track {
 .list-wrapper::-webkit-scrollbar-thumb,
 .items-grid::-webkit-scrollbar-thumb,
 .products-grid::-webkit-scrollbar-thumb {
-    background-color: #4b5563;
-    border-radius: 5px;
-    border: 2px solid #e8ecf0;
-    min-height: 48px;
-    min-width: 48px;
+    background-color: #94a3b8;
+    border-radius: 6px;
+    min-height: 24px;
 }
 
 body.dark-mode .table-container::-webkit-scrollbar-thumb,
@@ -331,8 +354,7 @@ body.dark-mode .bayan-table-wrapper::-webkit-scrollbar-thumb,
 body.dark-mode .data-grid::-webkit-scrollbar-thumb,
 body.dark-mode .section-view::-webkit-scrollbar-thumb,
 body.dark-mode .modal-body::-webkit-scrollbar-thumb {
-    background-color: #475569;
-    border: 2px solid #1e293b;
+    background-color: #64748b;
 }
 
 /* Hover for table container thumbs */
@@ -343,7 +365,7 @@ body.dark-mode .modal-body::-webkit-scrollbar-thumb {
 .section-view::-webkit-scrollbar-thumb:hover,
 .modal-body::-webkit-scrollbar-thumb:hover,
 .list-wrapper::-webkit-scrollbar-thumb:hover {
-    background-color: #1e293b;
+    background-color: #64748b;
 }
 
 body.dark-mode .table-container::-webkit-scrollbar-thumb:hover,
@@ -395,63 +417,94 @@ body.dark-mode .section-view::-webkit-scrollbar-corner {
 }
 
 /* ============================================================
-   إلغاء وإخفاء شريط التمرير الأفقي في قسم أرصدة المخازن والفواتير
+   إلغاء أشرطة التمرير الأفقية نهائياً وملاءمة الجداول لشاشات اللابتوب
+   (المشتريات، أرصدة المخازن، الفواتير، التحليل، تقرير اليومية، كشف الحساب، وطباعة الباركود)
 ============================================================ */
 
-/* 1. قسم أرصدة المخازن */
-#warehouse-report-section .table-container {
-    overflow-x: hidden !important;
-    overflow-y: auto !important;
-}
-
-#warehouse-report-section .table-container::-webkit-scrollbar:horizontal,
-#warehouse-report-section .table-container::-webkit-scrollbar-horizontal {
-    display: none !important;
-    height: 0 !important;
-    width: 0 !important;
-}
-
-#warehouse-report-section table,
-#warehouse-report-section .invoice-table,
-#warehouse-report-section #wrTableHead,
-#warehouse-report-section #wrTableBody {
+/* 1. الحاويات الرئيسية للأقسام */
+#purchase-section,
+#warehouse-report-section,
+#invoices-section,
+#analysis-section,
+#daily-report-section,
+#statement-section,
+#barcode-print-section {
     width: 100% !important;
     max-width: 100% !important;
-    table-layout: auto !important;
+    min-width: 0 !important;
+    overflow-x: hidden !important;
     box-sizing: border-box !important;
 }
 
-#warehouse-report-section th,
-#warehouse-report-section td {
-    padding: 8px 6px !important;
-    box-sizing: border-box !important;
-}
-
-/* 2. قسم الفواتير */
+/* 2. حاويات الجداول وقوائم البيانات داخل الأقسام */
+#purchase-section .table-container,
+#warehouse-report-section .table-container,
 #invoices-section #invoicesTableContainer,
-#invoices-section .table-container {
+#invoices-section .table-container,
+#analysis-section .table-container,
+#daily-report-section .table-container,
+#statement-section .stmt-table-wrapper,
+#barcode-print-section .bp-table-container {
+    width: 100% !important;
+    max-width: 100% !important;
     overflow-x: hidden !important;
     overflow-y: auto !important;
+    box-sizing: border-box !important;
 }
 
+/* 3. إخفاء وإلغاء شريط التمرير الأفقي تماماً في كافة محركات العرض */
+#purchase-section .table-container::-webkit-scrollbar:horizontal,
+#purchase-section .table-container::-webkit-scrollbar-horizontal,
+#warehouse-report-section .table-container::-webkit-scrollbar:horizontal,
+#warehouse-report-section .table-container::-webkit-scrollbar-horizontal,
 #invoices-section #invoicesTableContainer::-webkit-scrollbar-horizontal,
 #invoices-section #invoicesTableContainer::-webkit-scrollbar:horizontal,
 #invoices-section .table-container::-webkit-scrollbar-horizontal,
-#invoices-section .table-container::-webkit-scrollbar:horizontal {
+#invoices-section .table-container::-webkit-scrollbar:horizontal,
+#analysis-section .table-container::-webkit-scrollbar:horizontal,
+#analysis-section .table-container::-webkit-scrollbar-horizontal,
+#daily-report-section .table-container::-webkit-scrollbar:horizontal,
+#daily-report-section .table-container::-webkit-scrollbar-horizontal,
+#statement-section .stmt-table-wrapper::-webkit-scrollbar:horizontal,
+#statement-section .stmt-table-wrapper::-webkit-scrollbar-horizontal,
+#barcode-print-section .bp-table-container::-webkit-scrollbar:horizontal,
+#barcode-print-section .bp-table-container::-webkit-scrollbar-horizontal,
+#barcode-print-section::-webkit-scrollbar:horizontal,
+#barcode-print-section::-webkit-scrollbar-horizontal {
     display: none !important;
-    height: 0 !important;
-    width: 0 !important;
+    height: 0px !important;
+    width: 0px !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
 }
 
-#invoices-section #invoicesMainTable {
+/* 4. ملاءمة عرض الجداول وتوزيع الأعمدة على شاشات اللابتوب */
+#purchase-section table,
+#purchase-section .invoice-table,
+#warehouse-report-section table,
+#warehouse-report-section .invoice-table,
+#invoices-section table,
+#invoices-section #invoicesMainTable,
+#analysis-section table,
+#daily-report-section table,
+#statement-section table,
+#statement-section .stmt-table,
+#barcode-print-section table,
+#barcode-print-section .bp-queue-table {
     width: 100% !important;
     max-width: 100% !important;
     table-layout: auto !important;
+    box-sizing: border-box !important;
 }
 
-#invoices-section #invoicesMainTable th,
-#invoices-section #invoicesMainTable td {
-    padding: 6px 4px !important;
+/* تنعيم حواف وهوامش خلايا الجداول لمنع التمدد الأفقي على اللابتوب */
+#purchase-section th, #purchase-section td,
+#warehouse-report-section th, #warehouse-report-section td,
+#invoices-section th, #invoices-section td,
+#analysis-section th, #analysis-section td,
+#daily-report-section th, #daily-report-section td,
+#statement-section th, #statement-section td,
+#barcode-print-section th, #barcode-print-section td {
     box-sizing: border-box !important;
 }
 
