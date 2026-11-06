@@ -2034,7 +2034,7 @@
                 auditBadgeHtml = `<span id="opsRowAuditStatusBadge" style="background:rgba(255,255,255,0.18); color:#f8fafc; border:1px solid rgba(255,255,255,0.3); padding:2px 8px; border-radius:6px; font-size:0.75rem; font-weight:800;">⏳ بانتظار العد</span>`;
             } else {
                 const currentExpected = window.currentDrawerClosingState?.includePrevBalance ? (previousBalance + dailyTotal) : dailyTotal;
-                const diff = liveActual - Math.abs(currentExpected);
+                const diff = liveActual - Number(currentExpected || 0);
                 const absDiff = Math.abs(diff);
                 if (absDiff < 0.01) {
                     auditBadgeHtml = `<span id="opsRowAuditStatusBadge" style="background:#ecfdf5; color:#059669; border:1.5px solid #10b981; padding:2px 8px; border-radius:6px; font-size:0.75rem; font-weight:900;">✅ متطابق تماماً</span>`;
@@ -3704,7 +3704,9 @@
 
             const expEl = document.getElementById('auditCardExpectedCash');
             if (expEl) {
-                expEl.innerText = Math.abs(expected).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                const formattedExp = `${expected < 0 ? '-' : ''}${Math.abs(expected).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+                expEl.innerHTML = `${formattedExp}${expected < 0 ? ' <small style="font-size: 0.75rem; color: #dc2626; font-weight: 800;">(منصرف كاش)</small>' : ''}`;
+                expEl.style.color = expected < 0 ? '#dc2626' : '';
             }
 
             const vfEl = document.getElementById('auditCardVodafoneCash');
@@ -4192,7 +4194,7 @@
 
             const state = window.currentDrawerClosingState || {};
             const rawExpected = state.expectedCash !== undefined ? state.expectedCash : (state.netCashMovement || 0);
-            const expected = Math.abs(rawExpected || 0);
+            const expected = Number(rawExpected || 0);
             const actual = parseFloat(actualInput.value) || 0;
             const diff = actual - expected;
             const absDiff = Math.abs(diff);
@@ -4339,7 +4341,7 @@
                     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px;">
                         <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:14px; padding:12px 14px; text-align:center;">
                             <div style="font-size:0.82rem; font-weight:800; color:#64748b; margin-bottom:4px;">💰 المطلوب بالدرج (دفترياً)</div>
-                            <div style="font-size:1.35rem; font-weight:900; color:#0f172a; font-family:'Consolas', monospace;">${Math.abs(expected).toFixed(2)} <span style="font-size:0.85rem;">ج.م</span></div>
+                            <div style="font-size:1.35rem; font-weight:900; color:#0f172a; font-family:'Consolas', monospace;">${expected < 0 ? '-' : ''}${Math.abs(expected).toFixed(2)} <span style="font-size:0.85rem;">ج.م</span></div>
                         </div>
                         <div style="background:#fffbeb; border:2px solid #f59e0b; border-radius:14px; padding:12px 14px; text-align:center; box-shadow:0 4px 12px rgba(245,158,11,0.15);">
                             <div style="font-size:0.82rem; font-weight:900; color:#92400e; margin-bottom:4px;">💵 النقدية الفعلية (العد)</div>
@@ -4401,7 +4403,7 @@
             const state = payload.state || {};
             const repData = payload.repData || {};
             const rawExpected = payload.expected;
-            const expected = Math.abs(rawExpected || 0);
+            const expected = Number(rawExpected || 0);
             const actual = payload.actual;
             const diff = actual - expected;
             const absDiff = Math.abs(diff);
@@ -4587,9 +4589,9 @@
                 includePrevBalance: state.includePrevBalance || false,
                 previousBalance: state.previousBalance || 0,
                 netCashMovement: state.netCashMovement || 0,
-                expectedCash: Math.abs(state.expectedCash !== undefined ? state.expectedCash : (state.includePrevBalance ? state.finalCashBalance : state.netCashMovement)),
-                actualCash: (liveActual !== null) ? liveActual : (state.actualCash !== null ? state.actualCash : Math.abs(state.expectedCash !== undefined ? state.expectedCash : state.netCashMovement)),
-                difference: (liveActual !== null) ? (liveActual - Math.abs(state.expectedCash !== undefined ? state.expectedCash : state.netCashMovement)) : (state.difference || 0),
+                expectedCash: Number(state.expectedCash !== undefined ? state.expectedCash : (state.includePrevBalance ? state.finalCashBalance : state.netCashMovement)) || 0,
+                actualCash: (liveActual !== null) ? liveActual : (state.actualCash !== null ? state.actualCash : (Number(state.expectedCash !== undefined ? state.expectedCash : state.netCashMovement) || 0)),
+                difference: (liveActual !== null) ? (liveActual - Number(state.expectedCash !== undefined ? state.expectedCash : state.netCashMovement)) : (state.difference || 0),
                 status: state.status || 'balanced',
                 notes: state.notes || '',
                 denominations: state.denominations || null,
@@ -4632,15 +4634,8 @@
             const isIncludePrev = !!rec.includePrevBalance;
             const prevBal = Number(rec.previousBalance || 0);
             const rawExpected = Number(rec.expectedCash !== undefined ? rec.expectedCash : (isIncludePrev ? (prevBal + netCashDay) : netCashDay));
-            const expected = Math.abs(rawExpected || 0);
-
-            let actual = expected;
-            if (rec.actualCash !== undefined && rec.actualCash !== null && !isNaN(parseFloat(rec.actualCash))) {
-                actual = parseFloat(rec.actualCash);
-            } else if (liveActual !== null) {
-                actual = liveActual;
-            }
-
+            const expected = Number(rawExpected || 0);
+            const actual = (rec.actualCash !== undefined && rec.actualCash !== null) ? parseFloat(rec.actualCash) : (liveActual !== null ? liveActual : expected);
             const diff = actual - expected;
             const absDiff = Math.abs(diff);
 
@@ -4986,7 +4981,7 @@
                     ` : `
                     <tr style="border-top: 2px solid #000; border-bottom: 2px solid #000; font-size: 14px; background: #eee;">
                         <td style="padding: 5px 0;">💰 صافي المطلوب بالدرج (اليوم بيومه):</td>
-                        <td style="text-align: left; font-size: 14.5px;">${Math.abs(expected).toFixed(2)} ج.م</td>
+                        <td style="text-align: left; font-size: 14.5px;">${expected < 0 ? '-' : ''}${Math.abs(expected).toFixed(2)} ج.م</td>
                     </tr>
                     `}
 
@@ -5616,7 +5611,7 @@
 
             const rec = targetRecord;
             const rawExpected = Number(rec.expectedCash !== undefined ? rec.expectedCash : (rec.netCashMovement || 0));
-            const expected = Math.abs(rawExpected || 0);
+            const expected = Number(rawExpected || 0);
             const initialActual = Number(rec.actualCash !== undefined ? rec.actualCash : expected);
             const initialDiff = initialActual - expected;
             const initialAbsDiff = Math.abs(initialDiff);
@@ -5676,7 +5671,7 @@
                             </div>
                             <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px dashed #cbd5e1; padding-top: 6px; margin-top: 2px;">
                                 <span style="color: #1e293b; font-weight: 900;">💰 المطلوب دفترياً من حركة الدرج:</span>
-                                <span style="font-weight: 900; font-size: 1.15rem; color: #1d4ed8;">${expected.toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</span>
+                                <span style="font-weight: 900; font-size: 1.15rem; color: #1d4ed8;">${expected < 0 ? '-' : ''}${Math.abs(expected).toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</span>
                             </div>
                         </div>
 
@@ -5802,7 +5797,7 @@
 
             const rec = closures[idx];
             const rawExpected = Number(rec.expectedCash !== undefined ? rec.expectedCash : (rec.netCashMovement || 0));
-            const expected = Math.abs(rawExpected || 0);
+            const expected = Number(rawExpected || 0);
             const diff = newActual - expected;
             const absDiff = Math.abs(diff);
 
