@@ -460,13 +460,34 @@
                 }
             }
 
-            // ⚡ الحفاظ على جداول الـ DOM حية في الذاكرة للتبديل الفوري عبر CSS (0ms Instant Tab Switch)
-            // تم إلغاء تفريغ tbody.innerHTML لمنع إعادة بناء الجداول واستهلاك المعالج في كل نقرة تبويب
+            // ⚡ ترشيد وإدارة شجرة الـ DOM للجداول غير النشطة لمنع تخمة الذاكرة (Memory & DOM Pruning)
             try {
                 if (!window.inventoryRenderLimit) window.inventoryRenderLimit = 50;
                 if (!window.accountsRenderLimit) window.accountsRenderLimit = 50;
                 if (!window.invoicesRenderLimit) window.invoicesRenderLimit = 50;
                 if (!window.historyRenderLimit) window.historyRenderLimit = 100;
+
+                const heavyTableSections = [
+                    { type: 'inventory', bodyId: 'inventoryTableBody', flag: '_inventoryNeedsRefresh', renderLimit: 'inventoryRenderLimit', safeLimit: 50 },
+                    { type: 'invoices', bodyId: 'invoicesTableBody', flag: '_invoicesNeedsRefresh', renderLimit: 'invoicesRenderLimit', safeLimit: 50 },
+                    { type: 'accounts', bodyId: 'accountsTableBody', flag: '_accountsNeedsRefresh', renderLimit: 'accountsRenderLimit', safeLimit: 50 },
+                    { type: 'history', bodyId: 'historyTableBody', flag: '_historyNeedsRefresh', renderLimit: 'historyRenderLimit', safeLimit: 50 },
+                    { type: 'adjustment', bodyId: 'adjTableBody', flag: '_adjNeedsRefresh', renderLimit: null, safeLimit: 50 }
+                ];
+
+                heavyTableSections.forEach(cfg => {
+                    if (targetTab.type !== cfg.type) {
+                        const tBody = document.getElementById(cfg.bodyId);
+                        if (tBody && tBody.children.length > cfg.safeLimit) {
+                            while (tBody.children.length > cfg.safeLimit) {
+                                tBody.removeChild(tBody.lastChild);
+                            }
+                            window[cfg.flag] = true;
+                            if (cfg.renderLimit) window[cfg.renderLimit] = cfg.safeLimit;
+                        }
+                    }
+                });
+
                 // 🧠 تحفيز تنظيف الذاكرة التلقائي (GC) لتفريغ الذاكرة غير المستخدمة فور التنقل
                 if (typeof window.gc === 'function') {
                     window.gc();

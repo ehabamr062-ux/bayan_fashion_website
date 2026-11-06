@@ -3152,8 +3152,13 @@ function showInventoryColumnCustomizer() {
     });
     html += `</div>`;
 
+    // 🛡️ فحص وإزالة أي نافذة سابقة لمنع التكرار في الـ DOM
+    const oldModal = document.getElementById('invColumnCustomizerModal');
+    if (oldModal) oldModal.remove();
+
     const modal = document.createElement('div');
-    modal.className = 'modal-overlay';
+    modal.id = 'invColumnCustomizerModal';
+    modal.className = 'modal-overlay inv-col-customizer-modal';
     modal.style.cssText = 'position: fixed; inset: 0; background: rgba(15, 23, 42, 0.7); display: flex; align-items: center; justify-content: center; z-index: 99999; animation: fadeIn 0.2s ease-out;';
 
     modal.innerHTML = `
@@ -3164,7 +3169,7 @@ function showInventoryColumnCustomizer() {
                     <span style="font-size: 1.3rem;">⚙️</span>
                     <h3 style="margin: 0; color: #ffffff; font-size: 1.1rem; font-weight: 900;">تخصيص أعمدة جدول المخزن</h3>
                 </div>
-                <button onclick="this.closest('.modal-overlay').remove()" 
+                <button onclick="document.getElementById('invColumnCustomizerModal')?.remove()" 
                         style="background: rgba(255,255,255,0.15); border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 1.1rem; cursor: pointer; color: #ffffff; display: flex; align-items: center; justify-content: center; transition: 0.2s;"
                         onmouseover="this.style.background='rgba(239, 68, 68, 0.8)';"
                         onmouseout="this.style.background='rgba(255,255,255,0.15)';">&times;</button>
@@ -3193,7 +3198,7 @@ function showInventoryColumnCustomizer() {
                 <button style="width: 100%; height: 44px; background: linear-gradient(135deg, #7c3aed, #6d28d9); color: white; border: none; border-radius: 12px; font-weight: 900; font-size: 0.95rem; cursor: pointer; box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3); transition: all 0.2s;"
                         onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 16px rgba(124, 58, 237, 0.4)';"
                         onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 12px rgba(124, 58, 237, 0.3)';"
-                        onclick="this.closest('.modal-overlay').remove()">
+                        onclick="document.getElementById('invColumnCustomizerModal')?.remove()">
                     💾 حفظ التخصيص وإغلاق
                 </button>
             </div>

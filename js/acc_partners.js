@@ -338,30 +338,24 @@
 
             html += `</div>`;
 
+            // 🛡️ فحص وإزالة أي نافذة سابقة لمنع التكرار في الـ DOM
+            const oldModal = document.getElementById('statementColCustomizerModal');
+            if (oldModal) oldModal.remove();
+
             const modal = document.createElement('div');
-
+            modal.id = 'statementColCustomizerModal';
             modal.className = 'modal-overlay';
-
             modal.style.zIndex = '10005';
 
             modal.innerHTML = `
-
                 <div class="login-box" style="width: 400px; text-align: right; padding: 25px;">
-
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1.5px solid #3498db; padding-bottom:10px;">
-
                         <h3 style="margin:0; color:#2c3e50;">⚙️ تخصيص أعمدة كشف الحساب</h3>
-
-                        <button onclick="this.closest('.modal-overlay').remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#95a5a6;">&times;</button>
-
+                        <button onclick="document.getElementById('statementColCustomizerModal')?.remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#95a5a6;">&times;</button>
                     </div>
-
                     ${html}
-
-                    <button class="action-btn btn-save" style="width:100%; margin-top:15px; background:#2c3e50; color:white;" onclick="this.closest('.modal-overlay').remove()">✅ حفظ وإغلاق</button>
-
+                    <button class="action-btn btn-save" style="width:100%; margin-top:15px; background:#2c3e50; color:white;" onclick="document.getElementById('statementColCustomizerModal')?.remove()">✅ حفظ وإغلاق</button>
                 </div>
-
             `;
 
             document.body.appendChild(modal);
@@ -1181,14 +1175,15 @@
             const fromDate = document.getElementById('stmtDateFrom').value || '---';
             const toDate = document.getElementById('stmtDateTo').value || '---';
 
-            // إنشاء Iframe مخفي للطباعة
+            // إنشاء Iframe مخفي للطباعة مع تنظيف أي إطار سابق لمنع تسريب الـ DOM
             let iframe = document.getElementById('print-iframe');
-            if (!iframe) {
-                iframe = document.createElement('iframe');
-                iframe.id = 'print-iframe';
-                iframe.style.cssText = 'position:fixed;right:100%;bottom:100%;width:0;height:0;border:none;';
-                document.body.appendChild(iframe);
+            if (iframe) {
+                iframe.remove();
             }
+            iframe = document.createElement('iframe');
+            iframe.id = 'print-iframe';
+            iframe.style.cssText = 'position:fixed;right:100%;bottom:100%;width:0;height:0;border:none;';
+            document.body.appendChild(iframe);
             const doc = iframe.contentWindow.document;
             doc.open();
             doc.write(`
@@ -1272,8 +1267,18 @@
             `);
             doc.close();
             setTimeout(() => {
-                iframe.contentWindow.focus();
-                iframe.contentWindow.print();
+                try {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                } catch (e) {
+                    console.warn('[Print] Statement print notice:', e);
+                } finally {
+                    setTimeout(() => {
+                        if (iframe && iframe.parentNode) {
+                            iframe.parentNode.removeChild(iframe);
+                        }
+                    }, 2500);
+                }
             }, 600);
         };
 
@@ -2266,21 +2271,15 @@
 
                 : '';
 
-            // إنشاء Iframe مخفي للطباعة
-
+            // إنشاء Iframe مخفي للطباعة مع تنظيف أي إطار سابق لمنع تسريب الـ DOM
             let iframe = document.getElementById('print-iframe');
-
-            if (!iframe) {
-
-                iframe = document.createElement('iframe');
-
-                iframe.id = 'print-iframe';
-
-                iframe.style.cssText = 'position:fixed;right:100%;bottom:100%;width:0;height:0;border:none;';
-
-                document.body.appendChild(iframe);
-
+            if (iframe) {
+                iframe.remove();
             }
+            iframe = document.createElement('iframe');
+            iframe.id = 'print-iframe';
+            iframe.style.cssText = 'position:fixed;right:100%;bottom:100%;width:0;height:0;border:none;';
+            document.body.appendChild(iframe);
 
             const doc = iframe.contentWindow.document;
 
@@ -2395,11 +2394,18 @@
             doc.close();
 
             setTimeout(() => {
-
-                iframe.contentWindow.focus();
-
-                iframe.contentWindow.print();
-
+                try {
+                    iframe.contentWindow.focus();
+                    iframe.contentWindow.print();
+                } catch (e) {
+                    console.warn('[Print] Accounts table print notice:', e);
+                } finally {
+                    setTimeout(() => {
+                        if (iframe && iframe.parentNode) {
+                            iframe.parentNode.removeChild(iframe);
+                        }
+                    }, 2500);
+                }
             }, 600);
 
         }

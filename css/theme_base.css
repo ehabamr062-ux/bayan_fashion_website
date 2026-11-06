@@ -2279,7 +2279,10 @@ body.dark-mode .moon-icon {
 .section-view.hidden { content-visibility: hidden; }
 .section-view:not(.hidden) { content-visibility: auto; contain-intrinsic-size: 1px 1000px; }
 .modal, .search-results, .accounts-sidebar { will-change: transform, opacity; }
-.table-container { contain: content; }
+.table-container, .table-responsive, .table-wrapper, .stmt-table-wrapper {
+    contain: layout style paint;
+    content-visibility: auto;
+}
 
 
 /* ======================================================== */

@@ -2928,8 +2928,8 @@ window.priceAdjColumnsList = priceAdjColumnsList;
 
 function openPriceAdjColumnModal() {
     if (typeof checkColumnCustomizationPermission === 'function' && !checkColumnCustomizationPermission()) return;
-    // إغلاق أي نافذة سابقة لمنع التكرار
-    const oldModal = document.querySelector('.price-adj-col-modal-overlay');
+    // 🛡️ إغلاق وإزالة أي نافذة سابقة بالمعرف أو بالكلاس لمنع التكرار في الـ DOM
+    const oldModal = document.getElementById('priceAdjColModalOverlay') || document.querySelector('.price-adj-col-modal-overlay');
     if (oldModal) oldModal.remove();
 
     let saved = typeof getStore === 'function' ? getStore('priceAdjHiddenCols') : null;
@@ -2955,6 +2955,7 @@ function openPriceAdjColumnModal() {
     gridHtml += `</div>`;
 
     const modal = document.createElement('div');
+    modal.id = 'priceAdjColModalOverlay';
     modal.className = 'price-adj-col-modal-overlay modal-overlay';
     modal.style.cssText = 'position: fixed; inset: 0; background: rgba(15, 23, 42, 0.75); backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; z-index: 9999999; animation: fadeIn 0.2s ease-out; direction: rtl; font-family: Cairo, sans-serif;';
 
@@ -2969,7 +2970,7 @@ function openPriceAdjColumnModal() {
                         <small style="color: #94a3b8; font-size: 0.75rem; font-weight: 700;">تحكم في إظهار وإخفاء الأعمدة في جدول الأسعار المجمع</small>
                     </div>
                 </div>
-                <button type="button" onclick="this.closest('.price-adj-col-modal-overlay').remove()" 
+                <button type="button" onclick="document.getElementById('priceAdjColModalOverlay')?.remove()" 
                         style="background: rgba(255,255,255,0.1); border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 1.1rem; cursor: pointer; color: #ffffff; display: flex; align-items: center; justify-content: center; transition: 0.2s;"
                         onmouseover="this.style.background='rgba(239, 68, 68, 0.8)';"
                         onmouseout="this.style.background='rgba(255,255,255,0.1)';">&times;</button>
@@ -2998,7 +2999,7 @@ function openPriceAdjColumnModal() {
                 <button type="button" style="width: 100%; height: 42px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; border: none; border-radius: 10px; font-weight: 900; font-size: 0.95rem; cursor: pointer; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3); transition: all 0.2s;"
                         onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 18px rgba(37, 99, 235, 0.4)';"
                         onmouseout="this.style.transform='none'; this.style.boxShadow='0 4px 14px rgba(37, 99, 235, 0.3)';"
-                        onclick="this.closest('.price-adj-col-modal-overlay').remove()">
+                        onclick="document.getElementById('priceAdjColModalOverlay')?.remove()">
                     💾 حفظ التخصيص وإغلاق
                 </button>
             </div>

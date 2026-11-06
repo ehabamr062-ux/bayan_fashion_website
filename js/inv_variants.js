@@ -679,14 +679,16 @@ async function executePrinting(modeOrTargets, copies = 1) {
         printWindow.document.write(fullPrintHtml);
         printWindow.document.close();
     } else {
-        // بديل أمان فوري في حال حظر النوافذ المنبثقة بالمتصفح
+        // بديل أمان فوري في حال حظر النوافذ المنبثقة بالمتصفح مع تنظيف الـ DOM
         let printIframe = document.getElementById('bayan-barcode-print-iframe');
-        if (!printIframe) {
-            printIframe = document.createElement('iframe');
-            printIframe.id = 'bayan-barcode-print-iframe';
-            printIframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:999999;border:none;background:#ffffff;';
-            document.body.appendChild(printIframe);
+        if (printIframe) {
+            printIframe.remove();
         }
+        printIframe = document.createElement('iframe');
+        printIframe.id = 'bayan-barcode-print-iframe';
+        printIframe.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:999999;border:none;background:#ffffff;';
+        document.body.appendChild(printIframe);
+
         const pDoc = printIframe.contentWindow.document;
         pDoc.open();
         pDoc.write(fullPrintHtml);
@@ -697,6 +699,12 @@ async function executePrinting(modeOrTargets, copies = 1) {
                 printIframe.contentWindow.print();
             } catch (e) {
                 console.error("Iframe print error:", e);
+            } finally {
+                setTimeout(() => {
+                    if (printIframe && printIframe.parentNode) {
+                        printIframe.parentNode.removeChild(printIframe);
+                    }
+                }, 2500);
             }
         }, 400);
     }
@@ -1119,14 +1127,16 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
         printWindow.document.close();
     } else {
         let printIframe = document.getElementById('bayan-barcode-print-iframe');
-        if (!printIframe) {
-            printIframe = document.createElement('iframe');
-            printIframe.id = 'bayan-barcode-print-iframe';
-            printIframe.style.position = 'fixed';
-            printIframe.style.left = '-9999px';
-            printIframe.style.top = '-9999px';
-            document.body.appendChild(printIframe);
+        if (printIframe) {
+            printIframe.remove();
         }
+        printIframe = document.createElement('iframe');
+        printIframe.id = 'bayan-barcode-print-iframe';
+        printIframe.style.position = 'fixed';
+        printIframe.style.left = '-9999px';
+        printIframe.style.top = '-9999px';
+        document.body.appendChild(printIframe);
+
         const pDoc = printIframe.contentWindow ? printIframe.contentWindow.document : (printIframe.contentDocument || printIframe.document);
         pDoc.open();
         pDoc.write(fullPrintHtml);
@@ -1137,6 +1147,12 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                 printIframe.contentWindow.print();
             } catch (e) {
                 console.error("Iframe price tag print error:", e);
+            } finally {
+                setTimeout(() => {
+                    if (printIframe && printIframe.parentNode) {
+                        printIframe.parentNode.removeChild(printIframe);
+                    }
+                }, 2500);
             }
         }, 400);
     }
