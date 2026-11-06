@@ -2457,6 +2457,18 @@
             top: 20px;
         }
 
+        .acc-sidebar-group-title {
+            font-size: 0.85rem !important;
+            font-weight: 800 !important;
+            color: #e2e8f0 !important;
+            padding: 4px 8px !important;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
         .acc-premium-btn {
             width: 100%;
             padding: 10px 15px;

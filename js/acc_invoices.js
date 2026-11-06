@@ -1437,7 +1437,7 @@ async function viewInvoiceItems(invoiceId, type = '', autoPrint = false, optTxId
     tx.items = rawItems.map(i => {
         const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 0));
         const price = parseFloat(i.price != null ? i.price : (i.costPrice || i.purchasePrice || 0));
-        
+
         // 🛡️ حصر خصم البند على الخصم الفردي الخاص بالصنف فقط واستبعاد الخصم الموزع للفاتورة
         let disc = 0;
         if (i.itemDiscount != null && parseFloat(i.itemDiscount) > 0) {
@@ -2155,7 +2155,7 @@ window.editTransaction = async function (invId, type, optTxId = '') {
                                 p = productsDB.find(x => String(x.id) === explicitProductId);
                             }
                             if (!p && itBarcode) {
-                                p = productsDB.find(x => 
+                                p = productsDB.find(x =>
                                     String(x.barcode || '').trim() === itBarcode ||
                                     String(x.code || '').trim() === itBarcode ||
                                     (x.variants && Array.isArray(x.variants) && x.variants.some(v => String(v.barcode || '').trim() === itBarcode))
@@ -2172,7 +2172,7 @@ window.editTransaction = async function (invId, type, optTxId = '') {
                                 matchedVariant = p.variants.find(v => String(v.barcode || '').trim() === itBarcode) || null;
                             }
                             if (!matchedVariant && (itSize || itColor)) {
-                                matchedVariant = p.variants.find(v => 
+                                matchedVariant = p.variants.find(v =>
                                     (!itSize || String(v.size || '').trim() === itSize) &&
                                     (!itColor || String(v.color || '').trim() === itColor)
                                 ) || null;
@@ -2291,7 +2291,7 @@ window.editTransaction = async function (invId, type, optTxId = '') {
                                 p = productsDB.find(x => String(x.id) === explicitProductId);
                             }
                             if (!p && itBarcode) {
-                                p = productsDB.find(x => 
+                                p = productsDB.find(x =>
                                     String(x.barcode || '').trim() === itBarcode ||
                                     String(x.code || '').trim() === itBarcode ||
                                     (x.variants && Array.isArray(x.variants) && x.variants.some(v => String(v.barcode || '').trim() === itBarcode))
@@ -2308,7 +2308,7 @@ window.editTransaction = async function (invId, type, optTxId = '') {
                                 matchedVariant = p.variants.find(v => String(v.barcode || '').trim() === itBarcode) || null;
                             }
                             if (!matchedVariant && (itSize || itColor)) {
-                                matchedVariant = p.variants.find(v => 
+                                matchedVariant = p.variants.find(v =>
                                     (!itSize || String(v.size || '').trim() === itSize) &&
                                     (!itColor || String(v.color || '').trim() === itColor)
                                 ) || null;
