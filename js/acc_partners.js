@@ -1690,11 +1690,11 @@
 
             // ضبط وتأكيد سداد الفواتير النقدية والصريحة (كاش / بنك / شبكة) التي لم يسجل لها مدفوع صريح لتطابق قسم الحسابات تماماً
             groupedTrans.forEach(iv => {
-                if (iv.isInvoice && iv.paid === 0 && iv.total > 0) {
+                if (iv.isInvoice && iv.total > 0) {
                     const m = String(iv.method || '').trim();
                     const isCreditMethod = typeof window.isTransactionCredit === 'function'
                         ? window.isTransactionCredit(m, 0, 0, 0)
-                        : (m.includes('آجل') || m.includes('اجل') || m.includes('ذمم') || m.includes('credit'));
+                        : (m.includes('آجل') || m.includes('اجل') || m.includes('ذمم') || m.includes('تقسيط') || m.includes('حساب') || m.includes('credit'));
                     if (!isCreditMethod) {
                         iv.paid = iv.total;
                     }
@@ -1712,16 +1712,18 @@
                     beforeGrouped.forEach(t => {
                         let debit = 0; let credit = 0;
                         if (t.isInvoice) {
+                            const rawRem = (parseFloat(t.total) || 0) - (parseFloat(t.paid) || 0);
+                            const rem = Math.max(0, rawRem);
                             if (t.type.includes('بيع')) {
-                                if (t.type.includes('مرتجع')) { debit = t.paid; credit = t.total; }
-                                else { debit = t.total; credit = t.paid; }
+                                if (t.type.includes('مرتجع')) { debit = 0; credit = rem; }
+                                else { debit = rem; credit = 0; }
                             } else if (t.type.includes('شراء')) {
-                                if (t.type.includes('مرتجع')) { debit = t.total; credit = t.paid; }
-                                else { debit = t.paid; credit = t.total; }
+                                if (t.type.includes('مرتجع')) { debit = rem; credit = 0; }
+                                else { debit = 0; credit = rem; }
                             }
                         } else {
-                            if (t.type.includes('قبض') || t.type.includes('مرتجع بيع')) credit = t.total;
-                            else if (t.type.includes('صرف') || t.type.includes('بيع') || t.type.includes('مرتجع شراء')) debit = t.total;
+                            if (t.type.includes('قبض') || t.type.includes('مرتجع بيع')) credit = parseFloat(t.total) || parseFloat(t.price) || 0;
+                            else if (t.type.includes('صرف') || t.type.includes('بيع') || t.type.includes('مرتجع شراء')) debit = parseFloat(t.total) || parseFloat(t.price) || 0;
                         }
                         runningBalance += (debit - credit);
                     });
@@ -1782,47 +1784,31 @@
                 let debit = 0; let credit = 0;
 
                 if (t.isInvoice) {
-
+                    const rawRem = (parseFloat(t.total) || 0) - (parseFloat(t.paid) || 0);
+                    const rem = Math.max(0, rawRem);
                     if (t.type.includes('بيع')) {
-
                         if (t.type.includes('مرتجع')) {
-
-                            debit = t.paid;
-
-                            credit = t.total;
-
+                            debit = 0;
+                            credit = rem;
                         } else {
-
-                            debit = t.total;
-
-                            credit = t.paid;
-
+                            debit = rem;
+                            credit = 0;
                         }
-
                     } else if (t.type.includes('شراء')) {
-
                         if (t.type.includes('مرتجع')) {
-
-                            debit = t.total;
-
-                            credit = t.paid;
-
+                            debit = rem;
+                            credit = 0;
                         } else {
-
-                            debit = t.paid;
-
-                            credit = t.total;
-
+                            debit = 0;
+                            credit = rem;
                         }
-
                     }
-
                 } else {
-
-                    if (t.type.includes('قبض') || t.type.includes('مرتجع بيع')) credit = t.total;
-
-                    else if (t.type.includes('صرف') || t.type.includes('بيع') || t.type.includes('مرتجع شراء')) debit = t.total;
-
+                    if (t.type.includes('قبض') || t.type.includes('مرتجع بيع')) {
+                        credit = parseFloat(t.total) || parseFloat(t.price) || 0;
+                    } else if (t.type.includes('صرف') || t.type.includes('بيع') || t.type.includes('مرتجع شراء')) {
+                        debit = parseFloat(t.total) || parseFloat(t.price) || 0;
+                    }
                 }
 
                 runningBalance += (debit - credit);
