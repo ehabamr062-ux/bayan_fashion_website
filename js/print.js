@@ -1429,3 +1429,293 @@ function buildA5Modern(d) {
         </div>
     </div>`;
 }
+
+// ============================================================
+// 🌉 دالة الجسر الموحدة للطباعة المركزية (Unified Print Bridge)
+// تتيح طباعة أي فاتورة بواسطة معرّفها (ID) أو كائنها المكتمل عبر المحرك المركزي printInvoice
+// ============================================================
+async function printInvoiceById(invoiceIdOrTx, type = '', optTxId = '') {
+    try {
+        if (!invoiceIdOrTx) {
+            console.warn('⚠️ [printInvoiceById] لم يتم تمرير معرّف الفاتورة أو بياناتها.');
+            return false;
+        }
+
+        let tx = null;
+        let invoiceId = '';
+
+        // إذا تم تمرير كائن الفاتورة مسبقاً
+        if (typeof invoiceIdOrTx === 'object' && invoiceIdOrTx !== null) {
+            tx = { ...invoiceIdOrTx };
+            invoiceId = tx.invoiceId || tx.id || tx.invoiceNumber || '';
+        } else {
+            invoiceId = String(invoiceIdOrTx).trim();
+        }
+
+        const pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+
+        // إذا لم يكن لدينا كائن كامل بعد أو لم تكن بنود الأصناف مجمعة
+        if (!tx || !Array.isArray(tx.items) || tx.items.length === 0) {
+            let category = '';
+            const typeClean = String(type || (tx ? tx.type : '')).toLowerCase();
+            if (typeClean.includes('مرتجع بيع') || typeClean.includes('مرتجع مبيعات') || typeClean === 'sales-return' || typeClean === 'sale_return') category = 'return_sales';
+            else if (typeClean.includes('مرتجع شراء') || typeClean.includes('مرتجع مشتريات') || typeClean === 'purchase-return' || typeClean === 'purchase_return') category = 'return_purchase';
+            else if (typeClean.includes('شراء') || typeClean.includes('مشتريات') || typeClean === 'purchase') category = 'purchase';
+            else if (typeClean.includes('بيع') || typeClean.includes('مبيعات') || typeClean === 'sales') category = 'sales';
+
+            // 1. جلب بنود الفاتورة من SQLite إن وُجد
+            let rawInvoiceItems = [];
+            if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
+                try {
+                    rawInvoiceItems = window.BayanSQLite.getInvoiceItems(invoiceId, type, optTxId) || [];
+                } catch(e) {
+                    console.warn('⚠️ SQLite getInvoiceItems error:', e);
+                }
+            }
+
+            // 2. جلب بنود الفاتورة من مصفوفة الذاكرة
+            const memItems = pool.filter(t => {
+                if (!t) return false;
+                const matchInv = (t.invoiceId != null && t.invoiceId !== '') ? (String(t.invoiceId) === String(invoiceId)) : (String(t.id) === String(invoiceId));
+                if (!matchInv) return false;
+                if (category) {
+                    const tType = String(t.type || '');
+                    if (category === 'return_sales') return tType.includes('مرتجع بيع') || tType.includes('مرتجع مبيعات');
+                    if (category === 'return_purchase') return tType.includes('مرتجع شراء') || tType.includes('مرتجع مشتريات');
+                    if (category === 'sales') return (tType.includes('بيع') || tType.includes('مبيعات')) && !tType.includes('مرتجع');
+                    if (category === 'purchase') return (tType.includes('شراء') || tType.includes('مشتريات')) && !tType.includes('مرتجع');
+                }
+                return true;
+            });
+
+            if (memItems.length > 0 && (!rawInvoiceItems || rawInvoiceItems.length === 0 || rawInvoiceItems.length <= 1)) {
+                rawInvoiceItems = memItems;
+            }
+
+            // تصفية أسطر المقبوضات/المدفوعات من بنود الأصناف التجارية
+            let invoiceItems = (rawInvoiceItems || []).filter(t => {
+                if (!t) return false;
+                const tType = String(t.type || '');
+                return !tType.includes('قبض') && !tType.includes('صرف');
+            });
+
+            // سحب رأس الفاتورة
+            const head = (memItems.find(t => t && t.isInvoiceHead)) ||
+                         (invoiceItems.find(t => t && t.isInvoiceHead)) ||
+                         invoiceItems[0] ||
+                         pool.find(t => t && ((optTxId && String(t.id) === String(optTxId)) || (String(t.invoiceId) === String(invoiceId)))) ||
+                         (tx || {});
+
+            tx = { ...head, ...tx };
+            tx.id = head.id || optTxId || tx.id;
+            tx.invoiceId = invoiceId || head.invoiceId || tx.id;
+            tx.type = head.type || type || tx.type || 'بيع';
+            tx.warehouse = head.warehouse || tx.warehouse || 'المخزن الرئيسي';
+            tx.terminal = head.terminal || tx.terminal || 'الجهاز الرئيسي 💻';
+            tx.partner = head.partner || head.customer || tx.partner || tx.customer || 'عميل نقدي';
+            tx.customer = tx.partner;
+            tx.method = head.method || head.paymentMethod || tx.method || tx.paymentMethod || 'كاش (نقدي)';
+            tx.cashier = head.cashier || head.user || tx.cashier || tx.user || '';
+            tx.notes = head.notes || tx.notes || '';
+
+            // تجميع الأصناف
+            let rawItemsList = invoiceItems.filter(i => {
+                const pName = (i.product || i.productName || i.name || '').trim();
+                if (!pName || pName === 'صنف غير محدد') {
+                    return !invoiceItems.some(x => (x.product || x.productName || x.name || '').trim());
+                }
+                return true;
+            });
+
+            tx.items = rawItemsList.map(i => {
+                const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 1));
+                const price = parseFloat(i.price != null ? i.price : (i.costPrice || i.purchasePrice || 0));
+                let disc = parseFloat(i.itemDiscount != null ? i.itemDiscount : (i.discount || 0)) || 0;
+                let addition = parseFloat(i.addition != null ? i.addition : (i.extra || 0)) || 0;
+                const total = parseFloat(i.total != null ? i.total : (qty * price - disc + addition));
+                const unit = i.selectedUnit ? (typeof i.selectedUnit === 'object' ? i.selectedUnit.unitName : i.selectedUnit) : (i.unit || 'قطعة');
+                const size = i.size || i.selectedSize || (i.selectedVariant && i.selectedVariant.size) || '';
+                const color = i.color || i.selectedColor || (i.selectedVariant && i.selectedVariant.color) || '';
+
+                return {
+                    name: i.product || i.productName || i.name || 'صنف غير محدد',
+                    qty: qty,
+                    price: price,
+                    total: total,
+                    unit: unit,
+                    size: size,
+                    color: color,
+                    discount: disc,
+                    addition: addition
+                };
+            });
+
+            tx.invoiceDiscount = parseFloat(head.invoiceDiscount != null ? head.invoiceDiscount : (head.discountAmount || tx.discount || 0)) || 0;
+            tx.invoiceTax = parseFloat(head.invoiceTax != null ? head.invoiceTax : (head.invoiceExtra != null ? head.invoiceExtra : (tx.tax || 0))) || 0;
+            tx.invoiceGrandTotal = parseFloat(head.invoiceGrandTotal != null ? head.invoiceGrandTotal : (head.finalTotal != null ? head.finalTotal : (head.grandTotal || head.total || tx.totalAmount || 0))) || 0;
+            tx.paid = parseFloat(head.paidAmount != null ? head.paidAmount : (head.paid != null ? head.paid : (tx.paid || 0))) || 0;
+            tx.deferred = parseFloat(head.deferred != null ? head.deferred : (head.remaining != null ? head.remaining : (tx.deferred || 0))) || 0;
+        }
+
+        // تحديد نوع المستند التلقائي
+        const rawTypeStr = String(tx.type || tx.docType || tx.docTitle || type || '').toLowerCase();
+        const isReturn = tx.isReturn === true || 
+                         rawTypeStr.includes('مرتجع') || 
+                         rawTypeStr.includes('return') || 
+                         rawTypeStr.includes('ارتجاع');
+
+        const isPurchase = tx.isPurchase === true || 
+                           rawTypeStr.includes('شراء') || 
+                           rawTypeStr.includes('مشتريات') || 
+                           rawTypeStr.includes('purchase');
+
+        let docType = isReturn ? (isPurchase ? 'return_purchase' : 'return_sales') : (isPurchase ? 'purchase' : 'sales');
+        let docTitle = isReturn ? (isPurchase ? 'مرتجع مشتريات' : 'مرتجع مبيعات') : (isPurchase ? 'فاتورة شراء' : 'فاتورة مبيعات');
+
+        // تجهيز بنود الأصناف ومجموعها الفرعي
+        const rawItems = Array.isArray(tx.items) ? tx.items : [];
+        let calcSubTotal = 0;
+        let totalItemsDisc = 0;
+        let totalItemsTax = 0;
+
+        const preparedItems = rawItems.map(it => {
+            const qty = parseFloat(it.qty != null ? it.qty : (it.quantity || 1));
+            const price = parseFloat(it.price != null ? it.price : (it.costPrice || it.purchasePrice || 0));
+            const lineGross = qty * price;
+            calcSubTotal += lineGross;
+
+            let itDisc = parseFloat(it.itemDiscount != null ? it.itemDiscount : (it.discount || 0)) || 0;
+            let itTax = parseFloat(it.addition != null ? it.addition : (it.extra || 0)) || 0;
+            totalItemsDisc += itDisc;
+            totalItemsTax += itTax;
+
+            const total = parseFloat(it.total != null ? it.total : (lineGross - itDisc + itTax));
+            const unit = it.selectedUnit 
+                ? (typeof it.selectedUnit === 'object' ? it.selectedUnit.unitName : it.selectedUnit) 
+                : (it.unit || 'قطعة');
+            const size = it.size || it.selectedSize || (it.selectedVariant && it.selectedVariant.size) || '';
+            const color = it.color || it.selectedColor || (it.selectedVariant && it.selectedVariant.color) || '';
+
+            return {
+                name: it.name || it.product || it.productName || 'صنف غير محدد',
+                qty: qty,
+                price: price,
+                total: total,
+                unit: unit,
+                size: size,
+                color: color
+            };
+        });
+
+        // احتساب الخصم والضرائب والإجماليات بدقة تامة
+        const invDiscVal = parseFloat(tx.invoiceDiscount != null ? tx.invoiceDiscount : (tx.discount || tx.discountAmount || 0)) || 0;
+        const totalDiscount = (invDiscVal > 0.001) ? invDiscVal : totalItemsDisc;
+
+        const invTaxVal = parseFloat(tx.invoiceTax != null ? tx.invoiceTax : (tx.tax || tx.taxAmount || 0)) || 0;
+        const totalTax = (invTaxVal > 0.001) ? invTaxVal : totalItemsTax;
+
+        let finalTotalAmount = parseFloat(tx.invoiceGrandTotal != null ? tx.invoiceGrandTotal : (tx.finalTotal != null ? tx.finalTotal : (tx.totalAmount != null ? tx.totalAmount : (tx.grandTotal || tx.total || 0)))) || 0;
+        if (finalTotalAmount <= 0) {
+            finalTotalAmount = Math.max(0, calcSubTotal - totalDiscount + totalTax);
+        }
+
+        // استخراج المدفوع والآجل
+        let paidVal = parseFloat(tx.paidAmount != null ? tx.paidAmount : (tx.paid != null ? tx.paid : 0));
+        if (isNaN(paidVal)) paidVal = 0;
+
+        let deferredVal = parseFloat(tx.deferred != null ? tx.deferred : (tx.remaining != null ? tx.remaining : 0));
+        if (isNaN(deferredVal) || deferredVal < 0.001) deferredVal = 0;
+
+        const methodStr = String(tx.method || tx.paymentMethod || '').trim();
+        const isExplicitCredit = methodStr.includes('آجل') || methodStr.includes('أجل') || methodStr.includes('ذمم') || methodStr.includes('credit') || methodStr.includes('تقسيط');
+
+        if (deferredVal > 0.001 || isExplicitCredit) {
+            if (deferredVal <= 0.001) deferredVal = Math.max(0, finalTotalAmount - paidVal);
+        } else {
+            deferredVal = 0;
+            if (paidVal === 0 && finalTotalAmount > 0) paidVal = finalTotalAmount;
+        }
+
+        // استخراج الرصيد السابق للعميل / المورد
+        const partnerName = tx.customer || tx.partner || tx.supplier || tx.account || (isPurchase ? 'مورد نقدي' : 'عميل نقدي');
+        let prevBal = parseFloat(tx.prevBalance != null ? tx.prevBalance : 0) || 0;
+        if (prevBal === 0 && partnerName && !window.isGenericCashPartner(partnerName)) {
+            if (typeof getHistoricalPartnerBalance === 'function') {
+                prevBal = getHistoricalPartnerBalance(partnerName, invoiceId || tx.id);
+            } else if (typeof getAccountBalance === 'function') {
+                prevBal = getAccountBalance(partnerName, invoiceId || tx.id);
+            }
+        }
+
+        // استخراج التاريخ والوقت بدقة
+        let printDate = '';
+        let printTime = '';
+        if (tx.dateISO) {
+            printDate = tx.dateISO;
+            printTime = tx.timeISO || '';
+        } else if (tx.date) {
+            const rawD = String(tx.date).trim();
+            if (rawD.includes(' ')) {
+                const parts = rawD.split(' ');
+                printDate = parts[0];
+                printTime = parts[1] ? parts[1].substring(0, 5) : '';
+            } else if (rawD.includes('T')) {
+                const parts = rawD.split('T');
+                printDate = parts[0];
+                printTime = parts[1] ? parts[1].substring(0, 5) : '';
+            } else {
+                printDate = rawD;
+            }
+        }
+        if (!printDate) printDate = new Date().toLocaleDateString('en-CA');
+        if (!printTime && tx.time) printTime = String(tx.time).trim().substring(0, 5);
+
+        // تنظيف رقم الفاتورة للعرض
+        let cleanInvNum = String(invoiceId || tx.invoiceNumber || tx.id || '-').trim();
+        if (cleanInvNum.includes('_item_')) cleanInvNum = cleanInvNum.split('_item_')[0];
+
+        // بناء كائن الفاتورة المركزي الموحد
+        const invoiceData = {
+            invoiceNumber: cleanInvNum,
+            rawInvoiceNumber: tx.id || cleanInvNum,
+            invoiceType: (typeof window.formatPaymentMethodDisplay === 'function') ? window.formatPaymentMethodDisplay(tx) : (methodStr || 'نقدي'),
+            paymentMethod: methodStr || 'نقدي',
+            isReturn: isReturn,
+            isPurchase: isPurchase,
+            docTitle: docTitle,
+            docType: docType,
+            date: printDate,
+            time: printTime,
+            cashier: tx.cashier || tx.user || (typeof currentUser !== 'undefined' && currentUser ? currentUser.name : ''),
+            customer: partnerName,
+            warehouse: tx.warehouse || 'المخزن الرئيسي',
+            terminal: tx.terminal || 'الجهاز الرئيسي 💻',
+            items: preparedItems,
+            subTotal: calcSubTotal > 0 ? calcSubTotal : (finalTotalAmount + totalDiscount - totalTax),
+            discount: totalDiscount,
+            tax: totalTax,
+            taxLabel: tx.taxLabel || tx.invoiceTaxReason || 'إضافة',
+            globalTax: parseFloat(tx.globalTax || 0) || 0,
+            totalAmount: finalTotalAmount,
+            paid: paidVal,
+            deferred: deferredVal,
+            prevBalance: prevBal,
+            currentBalance: prevBal + deferredVal,
+            footerMsg: tx.footerMsg || ''
+        };
+
+        // استدعاء المحرك المركزي الموحد للطباعة
+        if (typeof window.printInvoice === 'function') {
+            const isAppEnv = typeof window !== 'undefined' && !!(window.require || (window.process && window.process.versions && window.process.versions.electron));
+            return window.printInvoice(invoiceData, { silent: isAppEnv });
+        } else {
+            alert('خطأ: محرك الطباعة المركزي غير متوفر!');
+            return false;
+        }
+    } catch(err) {
+        console.error('❌ [printInvoiceById] حدث خطأ أثناء تجهيز طباعة الفاتورة:', err);
+        if (typeof showToast === 'function') showToast('تعذر طباعة الفاتورة: ' + (err.message || ''), 'error');
+        return false;
+    }
+}
+window.printInvoiceById = printInvoiceById;

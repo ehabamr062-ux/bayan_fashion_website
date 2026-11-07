@@ -1206,70 +1206,14 @@
         }
 
         async function printBillFromData(invoiceId, type = '') {
-            if (typeof viewInvoiceItems === 'function') {
-                viewInvoiceItems(invoiceId, type, true);
-            } else if (typeof printInvoice === 'function') {
-                let items = transactions.filter(t => t.invoiceId == invoiceId);
-                if (type && items.length > 0) {
-                    const cleanT = String(type).trim();
-                    const filtered = items.filter(t => {
-                        const tt = String(t.type || '');
-                        if (cleanT.includes('مرتجع')) return tt.includes('مرتجع');
-                        if (cleanT.includes('بيع') || cleanT.includes('مبيعات')) return (tt.includes('بيع') || tt.includes('مبيعات')) && !tt.includes('مرتجع');
-                        if (cleanT.includes('شراء') || cleanT.includes('مشتريات')) return (tt.includes('شراء') || tt.includes('مشتريات')) && !tt.includes('مرتجع');
-                        return tt.includes(cleanT);
-                    });
-                    if (filtered.length > 0) items = filtered;
-                }
-                if (items.length === 0) return alert("لا تتوفر بيانات لهذه الفاتورة.");
-                const head = items[0];
-                let partnerName = head.partner || head.customer || '';
-                let prevBal = 0;
-                if (partnerName && !window.isGenericCashPartner(partnerName)) {
-                    if (typeof getHistoricalPartnerBalance === 'function') {
-                        prevBal = getHistoricalPartnerBalance(partnerName, head.invoiceId || head.id);
-                    } else if (typeof getAccountBalance === 'function') {
-                        prevBal = getAccountBalance(partnerName, head.invoiceId || head.id);
-                    }
-                }
-                const totalAmt = parseFloat(head.total || 0);
-                const paidAmt = parseFloat(head.paidAmount || head.paid || 0);
-                const deferredAmt = parseFloat(head.deferred !== undefined ? head.deferred : (totalAmt - paidAmt));
-                const hType = String(head.type || '');
-                const isRet = hType.includes('مرتجع') || hType.includes('return');
-                const isPur = hType.includes('شراء') || hType.includes('مشتريات') || hType.includes('purchase');
-                const pDocType = isRet ? (isPur ? 'return_purchase' : 'return_sales') : (isPur ? 'purchase' : 'sales');
-                const pDocTitle = isRet ? (isPur ? 'مرتجع مشتريات' : 'مرتجع مبيعات') : (isPur ? 'فاتورة شراء' : 'فاتورة مبيعات');
-
-                printInvoice({
-                    invoiceNumber: head.invoiceId || head.id,
-                    invoiceType: isRet ? (isPur ? 'مرتجع مشتريات' : 'مرتجع مبيعات') : (head.type || 'بيع'),
-                    paymentMethod: (typeof window.formatPaymentMethodDisplay === 'function') ? window.formatPaymentMethodDisplay(head) : (head.method || head.paymentMethod || 'نقدي'),
-                    isReturn: isRet,
-                    isPurchase: isPur,
-                    docTitle: pDocTitle,
-                    date: head.dateISO || head.date || '',
-                    time: head.timeISO || '',
-                    cashier: head.user || head.cashier || '',
-                    customer: partnerName || 'عميل نقدي',
-                    items: items.map(it => ({
-                        name: it.product || it.name,
-                        qty: parseFloat(it.qty || 1),
-                        price: parseFloat(it.price || 0),
-                        unit: it.unit || 'قطعة',
-                        size: it.size || it.selectedSize || '',
-                        color: it.color || it.selectedColor || ''
-                    })),
-                    totalAmount: totalAmt,
-                    paid: paidAmt,
-                    deferred: deferredAmt,
-                    prevBalance: prevBal,
-                    currentBalance: prevBal + deferredAmt,
-                    docType: pDocType
-                });
+            if (typeof window.printInvoiceById === 'function') {
+                await window.printInvoiceById(invoiceId, type);
+            } else if (typeof viewInvoiceItems === 'function') {
+                await viewInvoiceItems(invoiceId, type, true);
             }
             if (typeof closeCustomModal === 'function') closeCustomModal();
         }
+        window.printBillFromData = printBillFromData;
 
 
         // دالة كشف الحساب السريع من شاشة البيع بدون مغادرة الصفحة
@@ -2014,7 +1958,25 @@
                         return;
                     }
                 } else {
-                    if (typeof printInvoice === 'function') {
+                    if (typeof window.printInvoiceById === 'function') {
+                        // إثراء كائن الفاتورة بالبيانات والإجماليات الدقيقة المحسوبة في نافذة العرض
+                        tx.items = items;
+                        tx.subTotal = rawSubTotal;
+                        tx.discount = totalDiscountDisplay;
+                        tx.invoiceDiscount = totalDiscountDisplay;
+                        tx.tax = totalAdditionDisplay;
+                        tx.invoiceTax = totalAdditionDisplay;
+                        tx.totalAmount = invoiceFinalTotal;
+                        tx.invoiceGrandTotal = invoiceFinalTotal;
+                        tx.paid = paidVal;
+                        tx.deferred = isDeferred ? remainingVal : 0;
+                        tx.remaining = isDeferred ? remainingVal : 0;
+                        tx.prevBalance = (typeof prevBal !== 'undefined') ? prevBal : 0;
+                        tx.currentBalance = ((typeof prevBal !== 'undefined') ? prevBal : 0) + (isDeferred ? remainingVal : 0);
+                        tx.isReturn = isReturn;
+                        tx.isPurchase = isPurchase;
+                        return window.printInvoiceById(tx);
+                    } else if (typeof printInvoice === 'function') {
                         let printType = tx.type || 'بيع';
                         if (printType === 'sale') printType = 'بيع';
                         if (printType === 'purchase') printType = 'شراء';
@@ -3655,18 +3617,20 @@
             let txId = (isInv && window.selectedTxId) ? window.selectedTxId : null;
             let t = null;
 
+            const pool = (typeof transactions !== 'undefined' ? transactions : (window.transactions || []));
+
             if (isInv && txId) {
-                t = transactions.find(x => String(x.id) === String(txId));
+                t = pool.find(x => String(x.id) === String(txId));
             }
             if (!t && isInv && invId) {
-                t = transactions.find(x => String(x.invoiceId) === String(invId) && (!invType || (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(x.type, invType) : x.type === invType)));
-                if (!t) t = transactions.find(x => String(x.invoiceId) === String(invId));
+                t = pool.find(x => String(x.invoiceId) === String(invId) && (!invType || (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(x.type, invType) : x.type === invType)));
+                if (!t) t = pool.find(x => String(x.invoiceId) === String(invId));
             }
 
             if (!t) {
                 const activeIdx = (isInv ? selectedInvoiceIndex : selectedHistoryIndex);
-                if (activeIdx !== null && activeIdx !== undefined && transactions[activeIdx]) {
-                    t = transactions[activeIdx];
+                if (activeIdx !== null && activeIdx !== undefined && pool[activeIdx]) {
+                    t = pool[activeIdx];
                     if (!invId) invId = t.invoiceId;
                     if (!invType) invType = t.type;
                     if (!txId) txId = t.id;
@@ -3680,15 +3644,21 @@
                     msg: 'يرجى تحديد (الضغط على) العملية من الجدول أولاً لطباعتها.'
                 });
             }
-            
-            if (invId) {
+
+            try { toggleShareMenu('invoicesShareMenu'); } catch(e){}
+
+            // 🌉 توجيه موحد للمحرك المركزي للطباعة
+            if (typeof window.printInvoiceById === 'function') {
+                if (t && Array.isArray(t.items) && t.items.length > 0) {
+                    return window.printInvoiceById(t);
+                }
+                return window.printInvoiceById(invId || (t ? t.invoiceId : ''), invType || (t ? t.type : ''), txId || (t ? t.id : ''));
+            } else if (invId) {
                 if (typeof viewInvoiceItems === 'function') {
-                    // Pass autoPrint = true, and pass txId
-                    viewInvoiceItems(invId, invType || (t ? t.type : ''), true, txId || (t ? t.id : ''));
+                    return viewInvoiceItems(invId, invType || (t ? t.type : ''), true, txId || (t ? t.id : ''));
                 }
             } else if (t) {
-                // Single transaction (Receipt, Disbursement, etc.)
-                window.renderCustomInvoiceModal({
+                return window.renderCustomInvoiceModal({
                     ...t,
                     id: t.id || t.invoiceId || Math.floor(Math.random() * 10000),
                     items: [{
@@ -3702,9 +3672,8 @@
                     partner: t.partner || '-'
                 }, true);
             }
-            
-            try { toggleShareMenu('invoicesShareMenu'); } catch(e){}
         }
+        window.printSelectedInvoice = printSelectedInvoice;
 
         function viewSelectedInvoice() {
             const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
