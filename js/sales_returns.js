@@ -3099,7 +3099,7 @@ async function confirmSelectedInvoiceForReturn(invoiceId) {
     // ⚡ جلب أصناف الفاتورة الأصلية مباشرة من SQLite في 1 ميلي ثانية
     let originalInvoiceItems = [];
     if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
-        originalInvoiceItems = window.BayanSQLite.getInvoiceItems(invoiceId).filter(t => t && t.type && t.type.includes(targetType) && !t.type.includes('مرتجع'));
+        originalInvoiceItems = window.BayanSQLite.getInvoiceItems(invoiceId, targetType).filter(t => t && t.type && t.type.includes(targetType) && !t.type.includes('مرتجع'));
     }
     if (!originalInvoiceItems || originalInvoiceItems.length === 0) {
         originalInvoiceItems = transactions.filter(t => t.invoiceId == invoiceId && t.type.includes(targetType) && !t.type.includes('مرتجع'));
@@ -3107,6 +3107,13 @@ async function confirmSelectedInvoiceForReturn(invoiceId) {
     if (originalInvoiceItems.length === 0 && typeof window.ensureInvoiceLoaded === 'function') {
         await window.ensureInvoiceLoaded(invoiceId);
         originalInvoiceItems = (window.transactions || []).filter(t => t.invoiceId == invoiceId && t.type.includes(targetType) && !t.type.includes('مرتجع'));
+    }
+
+    if (originalInvoiceItems && originalInvoiceItems.length > 1) {
+        const subItemsOnly = originalInvoiceItems.filter(t => t && !t.isInvoiceHead);
+        if (subItemsOnly.length > 0) {
+            originalInvoiceItems = subItemsOnly;
+        }
     }
 
     if (originalInvoiceItems.length === 0) {
@@ -3170,7 +3177,16 @@ async function confirmSelectedInvoiceForReturn(invoiceId) {
                     const oPrice = parseFloat(originalItem.price) || 0;
                     const oTotal = parseFloat(originalItem.total) || 0;
                     const oQty = parseFloat(originalItem.qty) || 1;
-                    const netU = (oQty > 0 && oTotal > 0) ? (oTotal / oQty) : oPrice;
+                    let netU = oPrice;
+                    if (oQty > 0 && oTotal > 0) {
+                        const calculated = oTotal / oQty;
+                        // إذا كان السعر المحسوب أكبر من سعر الصنف الأصلي (ابتلع إجمالي الفاتورة)، نعتمد السعر الأصلي oPrice فوراً
+                        if (oPrice > 0 && calculated > (oPrice * 1.05)) {
+                            netU = oPrice;
+                        } else {
+                            netU = calculated;
+                        }
+                    }
                     return parseFloat(netU.toFixed(2));
                 })(),
                 qty: availableQty, // تنزيل كامل الكمية المتبقية تلقائياً
@@ -3296,7 +3312,7 @@ async function openSelectReturnItemsModal(invoiceId) {
 
     // ⚡ جلب أصناف الفاتورة الأصلية مباشرة من SQLite في 1 ميلي ثانية
     if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
-        currentReturnInvoiceItems = window.BayanSQLite.getInvoiceItems(invoiceId).filter(t => t && t.type && t.type.includes(targetType) && !t.type.includes('مرتجع'));
+        currentReturnInvoiceItems = window.BayanSQLite.getInvoiceItems(invoiceId, targetType).filter(t => t && t.type && t.type.includes(targetType) && !t.type.includes('مرتجع'));
     }
     if (!currentReturnInvoiceItems || currentReturnInvoiceItems.length === 0) {
         currentReturnInvoiceItems = transactions.filter(t => t.invoiceId == invoiceId && t.type.includes(targetType) && !t.type.includes('مرتجع'));
@@ -3304,6 +3320,13 @@ async function openSelectReturnItemsModal(invoiceId) {
     if (currentReturnInvoiceItems.length === 0 && typeof window.ensureInvoiceLoaded === 'function') {
         await window.ensureInvoiceLoaded(invoiceId);
         currentReturnInvoiceItems = (window.transactions || []).filter(t => t.invoiceId == invoiceId && t.type.includes(targetType) && !t.type.includes('مرتجع'));
+    }
+
+    if (currentReturnInvoiceItems && currentReturnInvoiceItems.length > 1) {
+        const subItemsOnly = currentReturnInvoiceItems.filter(t => t && !t.isInvoiceHead);
+        if (subItemsOnly.length > 0) {
+            currentReturnInvoiceItems = subItemsOnly;
+        }
     }
 
     if (currentReturnInvoiceItems.length === 0) {
@@ -3430,8 +3453,18 @@ async function openSelectReturnItemsModal(invoiceId) {
                             const oP = parseFloat(item.price) || 0;
                             const oT = parseFloat(item.total) || 0;
                             const oQ = parseFloat(item.qty) || 1;
-                            const nU = (oQ > 0 && oT > 0) ? (oT / oQ) : oP;
-                            const dispP = parseFloat(nU.toFixed(2));
+                            let netU = oP;
+                            if (oQ > 0 && oT > 0) {
+                                const calculated = oT / oQ;
+                                // إذا كان السعر المحسوب أكبر من سعر الصنف الأصلي (ابتلع إجمالي الفاتورة)، نعتمد السعر الأصلي oP فوراً
+                                if (oP > 0 && calculated > (oP * 1.05)) {
+                                    netU = oP;
+                                } else {
+                                    netU = calculated;
+                                }
+                            }
+                            netU = parseFloat(netU.toFixed(2));
+                            const dispP = netU;
                             const hasD = (oP - dispP) > 0.01;
                             return hasD 
                                 ? `<div style="font-weight:900; color:var(--main-blue); font-size:0.95rem;">${dispP.toFixed(2)}</div><div style="font-size:0.72rem; color:#dc2626; font-weight:bold;">(صافي بعد الخصم)</div>`
@@ -3491,8 +3524,15 @@ function calculateReturnModalTotal() {
                 const oP = parseFloat(itm.price) || 0;
                 const oT = parseFloat(itm.total) || 0;
                 const oQ = parseFloat(itm.qty) || 1;
-                const netPrice = (oQ > 0 && oT > 0) ? (oT / oQ) : oP;
-
+                let netPrice = oP;
+                if (oQ > 0 && oT > 0) {
+                    const calculated = oT / oQ;
+                    if (oP > 0 && calculated > (oP * 1.05)) {
+                        netPrice = oP;
+                    } else {
+                        netPrice = calculated;
+                    }
+                }
                 total += qty * netPrice;
 
             }
@@ -3625,7 +3665,16 @@ async function confirmReturnItemsSelection() {
                         const oPrice = parseFloat(originalItem.price) || 0;
                         const oTotal = parseFloat(originalItem.total) || 0;
                         const oQty = parseFloat(originalItem.qty) || 1;
-                        const netU = (oQty > 0 && oTotal > 0) ? (oTotal / oQty) : oPrice;
+                        let netU = oPrice;
+                        if (oQty > 0 && oTotal > 0) {
+                            const calculated = oTotal / oQty;
+                            // إذا كان السعر المحسوب أكبر من سعر الصنف الأصلي (ابتلع إجمالي الفاتورة)، نعتمد السعر الأصلي oPrice فوراً
+                            if (oPrice > 0 && calculated > (oPrice * 1.05)) {
+                                netU = oPrice;
+                            } else {
+                                netU = calculated;
+                            }
+                        }
                         return parseFloat(netU.toFixed(2));
                     })(),
 
