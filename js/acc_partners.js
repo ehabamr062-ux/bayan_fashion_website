@@ -2013,18 +2013,34 @@
                 return;
             }
 
-            // محاولة جلب الفاتورة الأساسية للحصول على الخصم والإضافة الإجمالية إن وجدت
+            // حساب المجموع الفرعي الإجمالي لكافة أصناف الفاتورة
+            const totalInvoiceSubtotal = invoiceItems.reduce((sum, item) => sum + (parseFloat(item.qty || 0) * parseFloat(item.price || 0)), 0);
+
+            // استخراج رأس الفاتورة (Invoice Head) بأمان من عناصر الفاتورة نفسها أو الذاكرة
             let parentDoc = null;
-            if (typeof invoicesDB !== 'undefined' && Array.isArray(invoicesDB)) {
+            if (invoiceItems && invoiceItems.length > 0) {
+                parentDoc = invoiceItems.find(it => it && (it.isInvoiceHead === 1 || it.isInvoiceHead === true || it.isInvoiceHead === 'true')) || invoiceItems[0];
+            }
+            if (!parentDoc && typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+                parentDoc = transactions.find(t => String(t.invoiceId) === String(invoiceId) && (t.isInvoiceHead === 1 || t.isInvoiceHead === true || t.isInvoiceHead === 'true'))
+                         || transactions.find(t => String(t.invoiceId) === String(invoiceId));
+            }
+            if (!parentDoc && typeof invoicesDB !== 'undefined' && Array.isArray(invoicesDB)) {
                 parentDoc = invoicesDB.find(inv => String(inv.id) === String(invoiceId) || String(inv.invoiceId) === String(invoiceId));
             }
-            if (!parentDoc && invoiceItems.length > 0) {
-                parentDoc = invoiceItems[0];
+
+            // فحص واستخراج الخصم والإضافة الإجمالية ونسبتها من parentDoc
+            let globalDiscount = 0;
+            let globalAddition = 0;
+            if (parentDoc) {
+                let rawDisc = parseFloat(parentDoc.invoiceDiscount != null ? parentDoc.invoiceDiscount : (parentDoc.discount != null ? parentDoc.discount : (parentDoc.discountAmount || 0))) || 0;
+                let discType = parentDoc.invoiceDiscountType || parentDoc.discountType || 'val';
+                globalDiscount = (discType === 'perc' && totalInvoiceSubtotal > 0) ? (totalInvoiceSubtotal * rawDisc / 100) : rawDisc;
+
+                let rawExtra = parseFloat(parentDoc.invoiceExtra != null ? parentDoc.invoiceExtra : (parentDoc.invoiceTax != null ? parentDoc.invoiceTax : (parentDoc.extra || parentDoc.tax || 0))) || 0;
+                let extraType = parentDoc.invoiceExtraType || parentDoc.invoiceTaxType || parentDoc.taxType || 'val';
+                globalAddition = (extraType === 'perc' && totalInvoiceSubtotal > 0) ? (totalInvoiceSubtotal * rawExtra / 100) : rawExtra;
             }
-            
-            const totalInvoiceSubtotal = invoiceItems.reduce((sum, item) => sum + (parseFloat(item.qty || 0) * parseFloat(item.price || 0)), 0);
-            const globalDiscount = parentDoc ? parseFloat(parentDoc.invoiceDiscount || parentDoc.discountAmount || 0) : 0;
-            const globalAddition = parentDoc ? parseFloat(parentDoc.invoiceTax || parentDoc.invoiceExtra || 0) : 0;
 
             // دالة التعقيم لمنع ثغرات XSS
             const esc = (txt) => {
@@ -2038,10 +2054,28 @@
                 const price = parseFloat(i.price || 0);
                 const subtotal = qty * price;
 
-                // قراءة الخصم والإضافة والإجمالي المسجل صراحة دون تخمين إجباري
-                let discount = parseFloat(i.discount || i.itemDiscount || 0);
-                let addition = parseFloat(i.addition || i.itemAddition || i.extra || 0);
-                let total = parseFloat(i.total != null ? i.total : (subtotal - discount + addition));
+                // 1. قراءة الخصم والإضافة المباشرة المسجلة
+                let discount = parseFloat(i.discount != null ? i.discount : (i.itemDiscount != null ? i.itemDiscount : (i.discountAmount || 0))) || 0;
+                let addition = parseFloat(i.addition != null ? i.addition : (i.itemAddition != null ? i.itemAddition : (i.extra != null ? i.extra : (i.tax || 0)))) || 0;
+                const itemRawTotal = (i.total != null && !isNaN(parseFloat(i.total))) ? parseFloat(i.total) : null;
+
+                // 2. صمام الأمان الرياضي الأول: الفارق الفعلي بين السعر × الكمية والإجمالي النهائي المسجل
+                if (discount <= 0 && itemRawTotal !== null && (subtotal - itemRawTotal) > 0.009 && addition <= 0) {
+                    discount = subtotal - itemRawTotal;
+                } else if (addition <= 0 && itemRawTotal !== null && (itemRawTotal - subtotal) > 0.009 && discount <= 0) {
+                    addition = itemRawTotal - subtotal;
+                }
+
+                // 3. صمام الأمان الرياضي الثاني: توزيع الخصم والإضافة العامة للفاتورة
+                if (discount <= 0 && globalDiscount > 0) {
+                    discount = (invoiceItems.length === 1) ? globalDiscount : ((totalInvoiceSubtotal > 0) ? (subtotal / totalInvoiceSubtotal) * globalDiscount : 0);
+                }
+                if (addition <= 0 && globalAddition > 0) {
+                    addition = (invoiceItems.length === 1) ? globalAddition : ((totalInvoiceSubtotal > 0) ? (subtotal / totalInvoiceSubtotal) * globalAddition : 0);
+                }
+
+                // 4. ضبط الإجمالي النهائي ليتوافق تماماً مع المعادلة الرياضية
+                let total = (itemRawTotal !== null && Math.abs(itemRawTotal - (subtotal - discount + addition)) < 0.05) ? itemRawTotal : (subtotal - discount + addition);
 
                 // محاولة جلب الصنف من قاعدة البيانات للحصول على التصنيف والملاحظات
                 const productDbInfo = (typeof productsDB !== 'undefined') ? productsDB.find(p => p.name === i.product) : null;
