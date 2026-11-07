@@ -7450,7 +7450,11 @@
 
             // 7. توجيه العرض حسب النمط الحالي
             if (currentAnalysisMode === 'returns') {
-                renderMostReturningCustomers(data);
+                try {
+                    renderMostReturningCustomers(data);
+                } catch (errReturns) {
+                    console.error("❌ [renderAnalysisTable] خطأ أثناء استدعاء renderMostReturningCustomers:", errReturns);
+                }
                 return;
             }
             if (currentAnalysisMode === 'customers') {
@@ -8470,195 +8474,244 @@
 
         // --- تقرير العملاء الأكثر إرجاعاً المطور والمحاذى بدقة ---
         async function renderMostReturningCustomers(dataPool = null) {
-            currentAnalysisMode = 'returns';
+            try {
+                currentAnalysisMode = 'returns';
 
-            const modeButtons = [
-                { id: 'summary', el: document.getElementById('anModeSummaryBtn') },
-                { id: 'detailed', el: document.getElementById('anModeDetailedBtn') },
-                { id: 'customers', el: document.getElementById('anModeCustomerBtn') },
-                { id: 'categories', el: document.getElementById('anModeCategoryBtn') },
-                { id: 'returns', el: document.getElementById('anModeReturnBtn') }
-            ];
-            modeButtons.forEach(m => {
-                if (m.el) {
-                    const isActive = (m.id === 'returns');
-                    m.el.className = isActive ? 'an-btn-mode active' : 'an-btn-mode';
-                    m.el.style.background = isActive ? 'linear-gradient(135deg, #6366f1, #4f46e5)' : '#f1f5f9';
-                    m.el.style.color = isActive ? '#ffffff' : '#475569';
-                    m.el.style.border = isActive ? 'none' : '1px solid #cbd5e1';
-                }
-            });
+                const tbody = document.getElementById('analysisTableBody');
+                if (!tbody) return;
 
-            const tbody = document.getElementById('analysisTableBody');
-            if (!tbody) return;
+                const modeButtons = [
+                    { id: 'summary', el: document.getElementById('anModeSummaryBtn') },
+                    { id: 'detailed', el: document.getElementById('anModeDetailedBtn') },
+                    { id: 'customers', el: document.getElementById('anModeCustomerBtn') },
+                    { id: 'categories', el: document.getElementById('anModeCategoryBtn') },
+                    { id: 'returns', el: document.getElementById('anModeReturnBtn') }
+                ];
+                modeButtons.forEach(m => {
+                    if (m.el) {
+                        const isActive = (m.id === 'returns');
+                        m.el.className = isActive ? 'an-btn-mode active' : 'an-btn-mode';
+                        m.el.style.background = isActive ? 'linear-gradient(135deg, #6366f1, #4f46e5)' : '#f1f5f9';
+                        m.el.style.color = isActive ? '#ffffff' : '#475569';
+                        m.el.style.border = isActive ? 'none' : '1px solid #cbd5e1';
+                    }
+                });
 
-            const fromDate = document.getElementById('anDateFrom')?.value;
-            const toDate = document.getElementById('anDateTo')?.value;
-            if (typeof window.loadTransactionsForDateRange === 'function' && (fromDate || toDate) && (!dataPool || dataPool.length === 0)) {
-                await window.loadTransactionsForDateRange(fromDate, toDate);
-            }
-            const searchQuery = (document.getElementById('anSearchInput')?.value || '').trim().toLowerCase();
+                // قراءة الفلاتر بأمان تام من واجهة المستخدم
+                const fromDate = document.getElementById('anDateFrom')?.value || '';
+                const toDate = document.getElementById('anDateTo')?.value || '';
+                const searchQuery = (document.getElementById('anSearchInput')?.value || '').trim().toLowerCase();
+                const accFilter = document.getElementById('anAccount')?.value || 'all';
+                const methodFilter = document.getElementById('anMethod')?.value || 'all';
+                const catFilter = document.getElementById('anCategory')?.value || 'all';
+                const whFilter = document.getElementById('anWarehouse')?.value || 'all';
+                const userFilter = document.getElementById('anUser')?.value || 'all';
 
-            // ⚡ فلترة مرتجعات البيع بتمريرة واحدة فائقة السرعة O(N)
-            const targetMethodRet = methodFilter !== 'all' ? methodFilter.toLowerCase() : null;
-            const sourcePool = (Array.isArray(dataPool) && dataPool.length > 0) ? dataPool : (window.transactions || []);
-            let returns = sourcePool.filter(t => {
-                if (!t || !t.type || !t.type.includes('مرتجع بيع')) return false;
+                let sourcePool = null;
 
-                const dt = t.dateISO || '';
-                if (fromDate && dt < fromDate) return false;
-                if (toDate && dt > toDate) return false;
-
-                if (accFilter !== 'all' && t.partner !== accFilter) return false;
-                if (whFilter !== 'all' && t.warehouse !== whFilter) return false;
-                if (userFilter !== 'all' && t.user !== userFilter) return false;
-
-                if (targetMethodRet) {
-                    const m = (t.method || '').toLowerCase();
-                    if (!m.includes(targetMethodRet) && !targetMethodRet.includes(m)) return false;
+                // 1. إذا كان dataPool يحتوي بالفعل على حركات مرتجعات
+                if (Array.isArray(dataPool) && dataPool.length > 0 && dataPool.some(t => t && t.type && String(t.type).includes('مرتجع'))) {
+                    sourcePool = dataPool;
                 }
 
-                if (catFilter !== 'all') {
-                    const prod = getReportsProductQuick(t.product) || getReportsProductQuick(t.productId) || getReportsProductQuick(t.barcode);
-                    if (!prod || prod.category !== catFilter) return false;
+                // 2. إذا لم يكن يحتوي على مرتجعات، نحاول جلبه من SQLite مباشرة
+                if (!sourcePool || sourcePool.length === 0) {
+                    try {
+                        if (typeof window.loadTransactionsForDateRange === 'function' && (fromDate || toDate)) {
+                            await window.loadTransactionsForDateRange(fromDate, toDate);
+                        }
+                        if (window.BayanSQLite && typeof window.BayanSQLite.getSalesAnalysisTransactions === 'function' && (fromDate || toDate)) {
+                            sourcePool = window.BayanSQLite.getSalesAnalysisTransactions(fromDate, toDate, whFilter, userFilter, null, {
+                                partner: accFilter,
+                                method: methodFilter
+                            });
+                        }
+                    } catch (eSql) {
+                        console.warn('⚠️ [renderMostReturningCustomers] تعثر الاستعلام المباشر من الداتابيز:', eSql);
+                    }
                 }
 
-                if (searchQuery) {
-                    const prod = (t.product || '').toLowerCase();
-                    const partner = (t.partner || '').toLowerCase();
-                    const invId = (t.invoiceId || '').toLowerCase();
-                    const matched = prod.includes(searchQuery) ||
-                                    partner.includes(searchQuery) ||
-                                    invId.includes(searchQuery);
-                    if (!matched) return false;
+                // 3. مسار بديل (Fallback) يقرأ من الذاكرة window.transactions في حال تعثر استعلام الداتابيز
+                if (!sourcePool || !Array.isArray(sourcePool) || sourcePool.length === 0) {
+                    sourcePool = (window.transactions && Array.isArray(window.transactions)) ? window.transactions : [];
                 }
 
-                return true;
-            });
+                // ⚡ فلترة مرتجعات البيع بتمريرة واحدة فائقة السرعة O(N)
+                const targetMethodRet = methodFilter !== 'all' ? methodFilter.toLowerCase() : null;
+                let returns = sourcePool.filter(t => {
+                    if (!t || !t.type || !String(t.type).includes('مرتجع بيع')) return false;
 
-            if (returns.length === 0) {
-                const salesCount = (window.transactions || []).filter(t => {
-                    const isRet = t.type && t.type.includes('مرتجع');
-                    if (isRet) return false;
-                    if (fromDate && (t.dateISO || '') < fromDate) return false;
-                    if (toDate && (t.dateISO || '') > toDate) return false;
+                    const dt = t.dateISO || '';
+                    if (fromDate && dt < fromDate) return false;
+                    if (toDate && dt > toDate) return false;
+
+                    if (accFilter !== 'all' && t.partner !== accFilter) return false;
+                    if (whFilter !== 'all' && t.warehouse !== whFilter) return false;
+                    if (userFilter !== 'all' && t.user !== userFilter) return false;
+
+                    if (targetMethodRet) {
+                        const m = String(t.method || '').toLowerCase();
+                        if (!m.includes(targetMethodRet) && !targetMethodRet.includes(m)) return false;
+                    }
+
+                    if (catFilter !== 'all') {
+                        const prod = (typeof getReportsProductQuick === 'function')
+                            ? (getReportsProductQuick(t.product) || getReportsProductQuick(t.productId) || getReportsProductQuick(t.barcode))
+                            : null;
+                        if (!prod || prod.category !== catFilter) return false;
+                    }
+
+                    if (searchQuery) {
+                        const prod = String(t.product || '').toLowerCase();
+                        const partner = String(t.partner || '').toLowerCase();
+                        const invId = String(t.invoiceId || '').toLowerCase();
+                        const matched = prod.includes(searchQuery) ||
+                                        partner.includes(searchQuery) ||
+                                        invId.includes(searchQuery);
+                        if (!matched) return false;
+                    }
+
                     return true;
-                }).length;
+                });
 
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="13" style="text-align:center; padding:45px 20px; color:#475569;">
-                            <div style="font-size:2.8rem; margin-bottom:10px;">🔄</div>
-                            <div style="font-size:1.15rem; font-weight:900; color:#1e293b; margin-bottom:6px;">لا توجد أي عمليات إرجاع مسجلة في هذه الفترة</div>
-                            <div style="font-size:0.85rem; color:#64748b; margin-bottom:18px;">سجل الفترة المحددة خالٍ تماماً من المرتجعات 👍</div>
-                            <button onclick="setAnalysisMode('detailed')" style="background:linear-gradient(135deg, #4f46e5, #4338ca); color:white; border:none; padding:11px 24px; border-radius:10px; font-weight:900; font-size:0.92rem; cursor:pointer; box-shadow:0 4px 15px rgba(79,70,229,0.35); display:inline-flex; align-items:center; gap:8px; transition:0.2s;">
-                                <span>📑</span> اضغط هنا للانتقال لعرض فواتير المبيعات (${salesCount} حركة بيع)
-                            </button>
-                        </td>
-                    </tr>
-                `;
-                applyAnalysisColumnVisibility();
+                if (returns.length === 0) {
+                    const salesCount = (window.transactions && Array.isArray(window.transactions)) ? window.transactions.filter(t => {
+                        if (!t || !t.type) return false;
+                        const isRet = String(t.type).includes('مرتجع');
+                        if (isRet) return false;
+                        if (fromDate && (t.dateISO || '') < fromDate) return false;
+                        if (toDate && (t.dateISO || '') > toDate) return false;
+                        return true;
+                    }).length : 0;
+
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="13" style="text-align:center; padding:45px 20px; color:#475569;">
+                                <div style="font-size:2.8rem; margin-bottom:10px;">🔄</div>
+                                <div style="font-size:1.15rem; font-weight:900; color:#1e293b; margin-bottom:6px;">لا توجد أي عمليات إرجاع مسجلة في هذه الفترة</div>
+                                <div style="font-size:0.85rem; color:#64748b; margin-bottom:18px;">سجل الفترة المحددة خالٍ تماماً من المرتجعات 👍</div>
+                                <button onclick="setAnalysisMode('detailed')" style="background:linear-gradient(135deg, #4f46e5, #4338ca); color:white; border:none; padding:11px 24px; border-radius:10px; font-weight:900; font-size:0.92rem; cursor:pointer; box-shadow:0 4px 15px rgba(79,70,229,0.35); display:inline-flex; align-items:center; gap:8px; transition:0.2s;">
+                                    <span>📑</span> اضغط هنا للانتقال لعرض فواتير المبيعات (${salesCount} حركة بيع)
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                    if (typeof applyAnalysisColumnVisibility === 'function') applyAnalysisColumnVisibility();
+                    setTimeout(() => {
+                        const tableContainer = document.getElementById('analysisTableContainer');
+                        if (tableContainer) {
+                            tableContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                        }
+                    }, 80);
+                    return;
+                }
+
+                const groups = {};
+                let totalAllReturnsAmount = 0;
+
+                returns.forEach(t => {
+                    if (!t) return;
+                    const partner = t.partner || 'عميل نقدي';
+                    const total = Math.abs(parseFloat(t.total) || 0);
+                    const qty = Math.abs(parseFloat(t.qty) || 0);
+                    const profitLost = (typeof getTransactionReliableProfit === 'function') ? getTransactionReliableProfit(t) : 0;
+
+                    totalAllReturnsAmount += total;
+
+                    if (!groups[partner]) {
+                        groups[partner] = {
+                            name: partner,
+                            count: 0,
+                            totalQty: 0,
+                            total: 0,
+                            profitLost: 0,
+                            products: new Set(),
+                            lastDate: t.dateISO || '-',
+                            latestInvoiceId: t.invoiceId || '',
+                            latestType: t.type || 'مرتجع بيع'
+                        };
+                    } else if (t.invoiceId) {
+                        groups[partner].latestInvoiceId = t.invoiceId;
+                        groups[partner].latestType = t.type || 'مرتجع بيع';
+                    }
+
+                    groups[partner].count++;
+                    groups[partner].totalQty += qty;
+                    groups[partner].total += total;
+                    groups[partner].profitLost += profitLost;
+                    if (t.product) groups[partner].products.add(t.product);
+                    if (t.dateISO) groups[partner].lastDate = t.dateISO;
+                });
+
+                const sorted = Object.values(groups).sort((a, b) => b.total - a.total);
+                const rowsHtml = [];
+
+                sorted.forEach((g, idx) => {
+                    const productList = Array.from(g.products);
+                    const displayProducts = productList.length > 2 
+                        ? productList.slice(0, 2).join(' + ') + ` (+${productList.length - 2} أصناف)`
+                        : (productList.join(' + ') || 'متنوع');
+
+                    const percentOfReturns = totalAllReturnsAmount > 0 ? ((g.total / totalAllReturnsAmount) * 100).toFixed(1) : '0.0';
+
+                    const isSelected = idx === 0;
+                    const safePartner = (g.name || '').replace(/'/g, "\\'");
+                    if (isSelected) {
+                        window.selectedAnalysisInvoice = {
+                            id: g.latestInvoiceId || null,
+                            type: g.latestType || 'مرتجع بيع',
+                            product: safePartner
+                        };
+                    }
+
+                    // 13 خلية مضبوطة تماماً تحت الـ 13 عمود في الترويسة
+                    rowsHtml.push(`
+                        <tr class="an-row return-row ${isSelected ? 'selected-row' : ''}" 
+                            style="background-color:#fef2f2; border-right:4px solid #ef4444;"
+                            data-invoice="${g.latestInvoiceId || ''}"
+                            data-type="${g.latestType || 'مرتجع بيع'}"
+                            data-product="${safePartner}"
+                            onclick="selectAnalysisRow(this, '${g.latestInvoiceId || ''}', '${g.latestType || 'مرتجع بيع'}', '${safePartner}')"
+                            ondblclick="viewSelectedAnalysisInvoice()">
+                            <td style="text-align:center;"><div class="an-radio-circle" title="تحديد"></div></td>
+                            <td style="font-weight:900; color:#64748b;">${idx + 1}</td>
+                            <td style="font-weight:bold; color:#1e293b;">${g.lastDate}</td>
+                            <td style="font-weight:800; color:#4f46e5;">${g.latestInvoiceId ? `<span style="background:#fee2e2; color:#b91c1c; padding:2px 6px; border-radius:4px; font-size:0.8rem;">#${g.latestInvoiceId}</span>` : '-'}</td>
+                            <td><span style="background:#fee2e2; color:#b91c1c; padding:3px 8px; border-radius:6px; font-weight:800; font-size:0.8rem;">🔄 مرتجع</span></td>
+                            <td style="font-weight:800; color:#1e293b;">👤 ${g.name}</td>
+                            <td style="font-weight:700; color:#4338ca;">${displayProducts}</td>
+                            <td style="text-align:center; font-weight:900; color:#ef4444;">${g.totalQty} قطعة</td>
+                            <td style="font-weight:800; color:#ef4444;">${g.total.toFixed(2)}</td>
+                            <td style="color:#64748b;">-</td>
+                            <td class="profit-col" style="color:#ef4444; font-weight:900;">-${g.profitLost.toFixed(2)}</td>
+                            <td class="profit-col" style="font-weight:800; color:#b91c1c;">${percentOfReturns}%</td>
+                            <td class="profit-col" style="font-weight:800; color:#475569;">${g.count} فواتير</td>
+                        </tr>
+                    `);
+                });
+
+                tbody.innerHTML = rowsHtml.join('');
+                if (typeof applyAnalysisColumnVisibility === 'function') applyAnalysisColumnVisibility();
+                if (typeof showToast === 'function') showToast("📊 تم عرض تقرير العملاء الأكثر إرجاعاً للفترة المحددة");
                 setTimeout(() => {
                     const tableContainer = document.getElementById('analysisTableContainer');
                     if (tableContainer) {
                         tableContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     }
                 }, 80);
-                return;
+            } catch (err) {
+                console.error("❌ [renderMostReturningCustomers] خطأ في عرض تقرير المرتجعات:", err);
+                const tbody = document.getElementById('analysisTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="13" style="text-align:center; padding:30px; color:#ef4444; font-weight:bold;">
+                                ⚠️ حدث خطأ أثناء تجهيز تقرير الأكثر إرجاعاً. يرجى المحاولة مرة أخرى أو اختيار فترة مختلفة.
+                            </td>
+                        </tr>
+                    `;
+                }
             }
-
-            const groups = {};
-            let totalAllReturnsAmount = 0;
-
-            returns.forEach(t => {
-                const partner = t.partner || 'عميل نقدي';
-                const total = Math.abs(parseFloat(t.total) || 0);
-                const qty = Math.abs(parseFloat(t.qty) || 0);
-                const profitLost = getTransactionReliableProfit(t);
-
-                totalAllReturnsAmount += total;
-
-                if (!groups[partner]) {
-                    groups[partner] = {
-                        name: partner,
-                        count: 0,
-                        totalQty: 0,
-                        total: 0,
-                        profitLost: 0,
-                        products: new Set(),
-                        lastDate: t.dateISO || '-',
-                        latestInvoiceId: t.invoiceId || '',
-                        latestType: t.type || 'مرتجع بيع'
-                    };
-                } else if (t.invoiceId) {
-                    groups[partner].latestInvoiceId = t.invoiceId;
-                    groups[partner].latestType = t.type || 'مرتجع بيع';
-                }
-
-                groups[partner].count++;
-                groups[partner].totalQty += qty;
-                groups[partner].total += total;
-                groups[partner].profitLost += profitLost;
-                if (t.product) groups[partner].products.add(t.product);
-                if (t.dateISO) groups[partner].lastDate = t.dateISO;
-            });
-
-            const sorted = Object.values(groups).sort((a, b) => b.total - a.total);
-            const rowsHtml = [];
-
-            sorted.forEach((g, idx) => {
-                const productList = Array.from(g.products);
-                const displayProducts = productList.length > 2 
-                    ? productList.slice(0, 2).join(' + ') + ` (+${productList.length - 2} أصناف)`
-                    : (productList.join(' + ') || 'متنوع');
-
-                const percentOfReturns = totalAllReturnsAmount > 0 ? ((g.total / totalAllReturnsAmount) * 100).toFixed(1) : '0.0';
-
-                const isSelected = idx === 0;
-                const safePartner = (g.name || '').replace(/'/g, "\\'");
-                if (isSelected) {
-                    window.selectedAnalysisInvoice = {
-                        id: g.latestInvoiceId || null,
-                        type: g.latestType || 'مرتجع بيع',
-                        product: safePartner
-                    };
-                }
-
-                // 13 خلية مضبوطة تماماً تحت الـ 13 عمود في الترويسة
-                rowsHtml.push(`
-                    <tr class="an-row return-row ${isSelected ? 'selected-row' : ''}" 
-                        style="background-color:#fef2f2; border-right:4px solid #ef4444;"
-                        data-invoice="${g.latestInvoiceId || ''}"
-                        data-type="${g.latestType || 'مرتجع بيع'}"
-                        data-product="${safePartner}"
-                        onclick="selectAnalysisRow(this, '${g.latestInvoiceId || ''}', '${g.latestType || 'مرتجع بيع'}', '${safePartner}')"
-                        ondblclick="viewSelectedAnalysisInvoice()">
-                        <td style="text-align:center;"><div class="an-radio-circle" title="تحديد"></div></td>
-                        <td style="font-weight:900; color:#64748b;">${idx + 1}</td>
-                        <td style="font-weight:bold; color:#1e293b;">${g.lastDate}</td>
-                        <td style="font-weight:800; color:#4f46e5;">${g.latestInvoiceId ? `<span style="background:#fee2e2; color:#b91c1c; padding:2px 6px; border-radius:4px; font-size:0.8rem;">#${g.latestInvoiceId}</span>` : '-'}</td>
-                        <td><span style="background:#fee2e2; color:#b91c1c; padding:3px 8px; border-radius:6px; font-weight:800; font-size:0.8rem;">🔄 مرتجع</span></td>
-                        <td style="font-weight:800; color:#1e293b;">👤 ${g.name}</td>
-                        <td style="font-weight:700; color:#4338ca;">${displayProducts}</td>
-                        <td style="text-align:center; font-weight:900; color:#ef4444;">${g.totalQty} قطعة</td>
-                        <td style="font-weight:800; color:#ef4444;">${g.total.toFixed(2)}</td>
-                        <td style="color:#64748b;">-</td>
-                        <td class="profit-col" style="color:#ef4444; font-weight:900;">-${g.profitLost.toFixed(2)}</td>
-                        <td class="profit-col" style="font-weight:800; color:#b91c1c;">${percentOfReturns}%</td>
-                        <td class="profit-col" style="font-weight:800; color:#475569;">${g.count} فواتير</td>
-                    </tr>
-                `);
-            });
-
-            tbody.innerHTML = rowsHtml.join('');
-            applyAnalysisColumnVisibility();
-            if (typeof showToast === 'function') showToast("📊 تم عرض تقرير العملاء الأكثر إرجاعاً للفترة المحددة");
-            setTimeout(() => {
-                const tableContainer = document.getElementById('analysisTableContainer');
-                if (tableContainer) {
-                    tableContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                }
-            }, 80);
         }
         window.renderMostReturningCustomers = renderMostReturningCustomers;
 
