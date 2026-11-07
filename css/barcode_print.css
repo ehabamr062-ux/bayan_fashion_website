@@ -12,9 +12,8 @@
     text-align: right;
     width: 100% !important;
     max-width: 100% !important;
-    height: 100% !important;
-    min-height: 0 !important;
-    flex: 1 1 0 !important;
+    height: calc(100vh - 55px) !important;
+    min-height: calc(100vh - 55px) !important;
     padding: 10px 14px !important;
     background: #f8fafc !important;
     color: #0f172a;
@@ -22,11 +21,20 @@
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     gap: 10px;
     overflow: hidden !important;
+    flex: 1;
 }
 
 body.dark-mode #barcode-print-section {
     background: #0f172a !important;
     color: #f8fafc !important;
+}
+
+@media (max-height: 620px) {
+    #barcode-print-section {
+        height: auto !important;
+        min-height: calc(100vh - 55px) !important;
+        overflow-y: auto !important;
+    }
 }
 
 #barcode-print-section.hidden {
