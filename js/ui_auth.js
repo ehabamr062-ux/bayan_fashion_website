@@ -1819,3 +1819,14 @@ window.emergencyResetAdminPinPrompt = async function () {
     }
 };
 
+// =========================================================================
+// 🧭 دعم وتأكيد تكامل صلاحيات التنقل والبحث (docs_navigate) مع محرك المستخدمين
+// =========================================================================
+if (typeof window.checkPermission !== 'function' && typeof checkPermission === 'function') {
+    window.checkPermission = checkPermission;
+}
+if (typeof window.hasPermission !== 'function' && typeof hasPermission === 'function') {
+    window.hasPermission = hasPermission;
+}
+
+

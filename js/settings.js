@@ -634,6 +634,13 @@ function applyPermissions() {
         dailyProfitCard.style.setProperty('display', canViewProfits ? '' : 'none', 'important');
     }
 
+    // 3.5 🔒 التحكم في ظهور وصلاحية أزرار شريط التنقل والبحث في فواتير البيع
+    const canNavigateDocs = (typeof hasPermission === 'function') ? hasPermission('docs_navigate') : true;
+    const navBarContainer = document.getElementById('posCustomActionsContainer');
+    if (navBarContainer) {
+        navBarContainer.style.setProperty('display', canNavigateDocs ? '' : 'none', 'important');
+    }
+
     // 3.2 🔒 التحكم في ظهور رصيد الدرج والرصيد السابق والنهائي بتقرير الحركة اليومية
     let hideDrawerBalance = (typeof hasPermission === 'function') ? (hasPermission('ui_hide_drawer_balance') || hasPermission('hide_drawer_balance')) : false;
     if (typeof currentUser !== 'undefined' && currentUser) {
@@ -1472,6 +1479,7 @@ async function addUser() {
     const permissions = {
         docs: {
             add: document.getElementById('perm_docs_add') ? document.getElementById('perm_docs_add').checked : true,
+            navigate: (role === 'admin') ? true : (document.getElementById('perm_docs_navigate') ? document.getElementById('perm_docs_navigate').checked : false),
             purchase: document.getElementById('perm_docs_purchase') ? document.getElementById('perm_docs_purchase').checked : false,
             return: document.getElementById('perm_docs_return') ? document.getElementById('perm_docs_return').checked : false,
             purchase_return: canPurReturn,
@@ -1685,6 +1693,9 @@ function editUser(idx) {
     const p = u.permissions || {};
     if (p.docs) {
         document.getElementById('perm_docs_add').checked = !!p.docs.add;
+        if (document.getElementById('perm_docs_navigate')) {
+            document.getElementById('perm_docs_navigate').checked = (u.role === 'admin') ? true : (p.docs.navigate !== undefined ? !!p.docs.navigate : false);
+        }
         if (document.getElementById('perm_docs_purchase')) document.getElementById('perm_docs_purchase').checked = !!p.docs.purchase;
         if (document.getElementById('perm_docs_return')) document.getElementById('perm_docs_return').checked = !!p.docs.return;
         if (document.getElementById('perm_sec_pur_return')) {
@@ -1698,6 +1709,7 @@ function editUser(idx) {
         if (document.getElementById('perm_docs_discount')) document.getElementById('perm_docs_discount').checked = (p.docs.discount !== undefined) ? !!p.docs.discount : true;
         if (document.getElementById('perm_docs_tax')) document.getElementById('perm_docs_tax').checked = (p.docs.tax !== undefined) ? !!p.docs.tax : true;
     } else {
+        if (document.getElementById('perm_docs_navigate')) document.getElementById('perm_docs_navigate').checked = (u.role === 'admin');
         if (document.getElementById('perm_docs_price_edit')) document.getElementById('perm_docs_price_edit').checked = false;
         if (document.getElementById('perm_docs_discount')) document.getElementById('perm_docs_discount').checked = true;
         if (document.getElementById('perm_docs_tax')) document.getElementById('perm_docs_tax').checked = true;
@@ -1984,6 +1996,7 @@ function applyPermissionPreset(presetKey, silent = false) {
         toggleAllUserSections(false, true);
         setChecked('perm_docs_add', true);
         setChecked('perm_docs_return', true);
+        setChecked('perm_docs_navigate', false);
         setChecked('perm_sec_receipt', true);
         setChecked('perm_docs_view', true);
         setChecked('perm_gen_reports', true);
@@ -2019,6 +2032,7 @@ function applyPermissionPreset(presetKey, silent = false) {
         setChecked('perm_docs_purchase', true);
         setChecked('perm_sec_pur_return', true);
         setChecked('perm_docs_view', true);
+        setChecked('perm_docs_navigate', false);
         setChecked('perm_docs_purchase_price', false);
         setChecked('perm_gen_profits', false);
         setChecked('perm_wh_lock_switching', true);
@@ -2041,6 +2055,7 @@ function applyPermissionPreset(presetKey, silent = false) {
         setChecked('perm_docs_view', true);
         setChecked('perm_docs_add', true);
         setChecked('perm_docs_return', true);
+        setChecked('perm_docs_navigate', true);
         setChecked('perm_docs_purchase', true);
         setChecked('perm_sec_warehouse_report', true);
         setChecked('perm_gen_reports', true);
@@ -2059,7 +2074,7 @@ window.applyPermissionPreset = applyPermissionPreset;
 
 function toggleAllUserSections(checked, silent = false) {
     const ids = [
-        'perm_docs_add', 'perm_docs_return', 'perm_docs_purchase', 'perm_sec_pur_return', 'perm_docs_view',
+        'perm_docs_add', 'perm_docs_return', 'perm_docs_navigate', 'perm_docs_purchase', 'perm_sec_pur_return', 'perm_docs_view',
         'perm_sec_receipt', 'perm_sec_disburse', 'perm_acc_view', 'perm_acc_add', 'perm_acc_statement', 'perm_sec_treasury',
         'perm_stock_view', 'perm_stock_add', 'perm_stock_edit', 'perm_stock_adjust', 'perm_stock_history',
         'perm_stock_transfer', 'perm_sec_warehouse_report', 'perm_stock_inquiry',
@@ -2393,6 +2408,9 @@ function resolvePermissionKey(action) {
     let act = String(action).toLowerCase().trim();
     
     // توحيد المرادفات
+    if (act === 'docs_navigate' || act === 'perm_docs_navigate' || act === 'navigate' || act === 'pos_navigate') {
+        return { module: 'docs', perm: 'navigate' };
+    }
     if (act === 'sec_receipt' || act === 'receipt') act = 'accounts_receipt';
     if (act === 'sec_disburse' || act === 'disburse' || act === 'disbursement') act = 'accounts_disbursement';
     if (act === 'sec_pur_return' || act === 'purchase-return' || act === 'purchase_return') act = 'docs_purchase_return';
@@ -2831,6 +2849,9 @@ function hasPermission(action) {
     }
     return false;
 }
+window.checkPermission = checkPermission;
+window.hasPermission = hasPermission;
+window.resolvePermissionKey = resolvePermissionKey;
 
 // --- 3. Warehouse Management Logic ---
 

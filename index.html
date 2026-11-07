@@ -1037,7 +1037,7 @@
                             </div>
 
                             <!-- أزرار التنقل والبحث الـ 4 في شاشة البيع (أيقونات فقط) -->
-                            <div id="posCustomActionsContainer" class="pos-custom-actions-bar">
+                            <div id="posCustomActionsContainer" class="pos-custom-actions-bar" data-perm="docs_navigate">
                                 <button type="button" id="posNavSearchInvoiceBtn" class="pos-nav-action-btn"
                                     onclick="posSearchSpecificInvoice()" title="بحث عن فاتورة محددة">
                                     <span class="pos-nav-icon">🔍</span>
@@ -18864,6 +18864,10 @@
                             <label class="usr-sec-check-item">
                                 <input type="checkbox" id="perm_sec_pur_return">
                                 <span>↩️ قسم مرتجع المشتريات</span>
+                            </label>
+                            <label class="usr-sec-check-item">
+                                <input type="checkbox" id="perm_docs_navigate">
+                                <span>🧭 التنقل والبحث في فواتير البيع</span>
                             </label>
                         </div>
                     </div>

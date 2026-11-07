@@ -1807,6 +1807,7 @@ function resetBill() {
     cart = [];
     isEditMode = false;
     window.isEditMode = false;
+    window._posInvoiceReadOnly = false;
     editingInvoiceId = null;
     window.editingInvoiceId = null;
     editingOriginalDate = null;
@@ -1839,11 +1840,12 @@ function resetBill() {
     const mainSaveBtn = document.querySelector('#sales-section .btn-save');
 
     if (mainSaveBtn) {
-
         mainSaveBtn.style.background = '';
-
+        mainSaveBtn.disabled = false;
+        mainSaveBtn.style.pointerEvents = 'auto';
+        mainSaveBtn.style.opacity = '1';
+        mainSaveBtn.style.cursor = 'pointer';
         mainSaveBtn.innerHTML = '<span>✅ حفظ الفاتورة</span><span class="shortcut">F9</span>';
-
     }
 
     currentTotal = 0;
@@ -2642,6 +2644,23 @@ async function saveBill(force = false, accountChecked = false, event = null) {
         if (typeof event.preventDefault === 'function') event.preventDefault();
         if (typeof event.stopPropagation === 'function') event.stopPropagation();
         if (typeof event.stopImmediatePropagation === 'function') event.stopImmediatePropagation();
+    }
+
+    if (window._posInvoiceReadOnly) {
+        if (typeof showCustomAlert === 'function') {
+            showCustomAlert({
+                type: 'warning',
+                titleText: '🔒 الفاتورة للقراءة فقط',
+                msg: 'عذراً، تم فتح هذه الفاتورة للعرض وإعادة الطباعة فقط وليس لديك صلاحية تعديل فواتير البيع.'
+            });
+        } else if (typeof showToast === 'function') {
+            showToast('🔒 لا يمكنك حفظ التغييرات، الفاتورة معروضة للقراءة فقط', 'warning');
+        }
+        return false;
+    }
+
+    if (isEditMode && typeof checkPermission === 'function' && !checkPermission('docs_edit')) {
+        return false;
     }
 
     if (!checkPermission('docs_add')) return false;
@@ -4676,40 +4695,73 @@ async function loadInvoiceToSalesPOS(targetInvoiceId) {
     // إعادة رسم السلة وحساب الإجماليات
     renderCart();
 
-    // تفعيل وضع التعديل (Edit Mode) للفاتورة المستعرضة بكافة بياناتها الأصلية
-    isEditMode = true;
-    window.isEditMode = true;
-    editingInvoiceId = cleanId;
-    window.editingInvoiceId = cleanId;
-    editingInvoiceType = 'بيع';
-    window.editingInvoiceType = 'بيع';
+    // فحص صلاحية تعديل فواتير البيع (docs_edit)
+    const canEditInvoice = (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin') 
+        || (typeof hasPermission === 'function' ? hasPermission('docs_edit') : false);
 
-    editingOriginalDate = {
-        full: head.date || `${dateVal} ${timeVal}`,
-        iso: dateVal,
-        time: timeVal
-    };
-    window.editingOriginalDate = editingOriginalDate;
-    editingOriginalPartner = partnerName;
-    window.editingOriginalPartner = partnerName;
-    editingOriginalMethod = paymentMethod;
-    window.editingOriginalMethod = paymentMethod;
-    editingOriginalUser = head.user || (rows[0] ? rows[0].user : '') || (window.currentUser ? window.currentUser.name : '-');
-    window.editingOriginalUser = editingOriginalUser;
+    if (!canEditInvoice) {
+        // وضع العرض فقط (Read-Only Mode)
+        isEditMode = false;
+        window.isEditMode = false;
+        window._posInvoiceReadOnly = true;
+        editingInvoiceId = null;
+        window.editingInvoiceId = null;
+        editingInvoiceType = null;
+        window.editingInvoiceType = null;
+        editingOriginalItems = [];
+        window.editingOriginalItems = [];
 
-    const originalInvoiceWarehouse = (head.warehouse || (rows[0] ? rows[0].warehouse : null) || (validItems[0] ? validItems[0].warehouse : null) || '').trim();
-    editingOriginalWarehouse = originalInvoiceWarehouse || null;
-    window.editingOriginalWarehouse = editingOriginalWarehouse;
+        // قفل زر الحفظ والتعديل
+        const mainSaveBtn = document.querySelector('#sales-section .btn-save');
+        if (mainSaveBtn) {
+            mainSaveBtn.style.setProperty('background', '#64748b', 'important');
+            mainSaveBtn.style.setProperty('cursor', 'not-allowed', 'important');
+            mainSaveBtn.style.setProperty('opacity', '0.7', 'important');
+            mainSaveBtn.style.setProperty('pointer-events', 'none', 'important');
+            mainSaveBtn.disabled = true;
+            mainSaveBtn.innerHTML = `<span>🔒 عرض فقط #${cleanId}</span><span class="shortcut">للقراءة</span>`;
+        }
+    } else {
+        // تفعيل وضع التعديل (Edit Mode) للفاتورة المستعرضة بكافة بياناتها الأصلية
+        isEditMode = true;
+        window.isEditMode = true;
+        window._posInvoiceReadOnly = false;
+        editingInvoiceId = cleanId;
+        window.editingInvoiceId = cleanId;
+        editingInvoiceType = 'بيع';
+        window.editingInvoiceType = 'بيع';
 
-    // حفظ نسخة من الأصناف الأصلية لحساب الفروق المخزنية والسماح بالحفظ دون منع البيع بالسالب
-    editingOriginalItems = JSON.parse(JSON.stringify(cart));
-    window.editingOriginalItems = editingOriginalItems;
+        editingOriginalDate = {
+            full: head.date || `${dateVal} ${timeVal}`,
+            iso: dateVal,
+            time: timeVal
+        };
+        window.editingOriginalDate = editingOriginalDate;
+        editingOriginalPartner = partnerName;
+        window.editingOriginalPartner = partnerName;
+        editingOriginalMethod = paymentMethod;
+        window.editingOriginalMethod = paymentMethod;
+        editingOriginalUser = head.user || (rows[0] ? rows[0].user : '') || (window.currentUser ? window.currentUser.name : '-');
+        window.editingOriginalUser = editingOriginalUser;
 
-    // تلوين وتحويل زر الحفظ إلى: ✏️ حفظ تعديل #X
-    const mainSaveBtn = document.querySelector('#sales-section .btn-save');
-    if (mainSaveBtn) {
-        mainSaveBtn.style.background = '#e67e22';
-        mainSaveBtn.innerHTML = `<span>✏️ حفظ تعديل #${cleanId}</span><span class="shortcut">F9</span>`;
+        const originalInvoiceWarehouse = (head.warehouse || (rows[0] ? rows[0].warehouse : null) || (validItems[0] ? validItems[0].warehouse : null) || '').trim();
+        editingOriginalWarehouse = originalInvoiceWarehouse || null;
+        window.editingOriginalWarehouse = editingOriginalWarehouse;
+
+        // حفظ نسخة من الأصناف الأصلية لحساب الفروق المخزنية والسماح بالحفظ دون منع البيع بالسالب
+        editingOriginalItems = JSON.parse(JSON.stringify(cart));
+        window.editingOriginalItems = editingOriginalItems;
+
+        // تلوين وتحويل زر الحفظ إلى: ✏️ حفظ تعديل #X
+        const mainSaveBtn = document.querySelector('#sales-section .btn-save');
+        if (mainSaveBtn) {
+            mainSaveBtn.disabled = false;
+            mainSaveBtn.style.setProperty('pointer-events', 'auto', 'important');
+            mainSaveBtn.style.setProperty('opacity', '1', 'important');
+            mainSaveBtn.style.setProperty('cursor', 'pointer', 'important');
+            mainSaveBtn.style.setProperty('background', '#e67e22', 'important');
+            mainSaveBtn.innerHTML = `<span>✏️ حفظ تعديل #${cleanId}</span><span class="shortcut">F9</span>`;
+        }
     }
 
     // تثبيت الحالة النشطة في شريط التنقل
@@ -4725,12 +4777,12 @@ async function loadInvoiceToSalesPOS(targetInvoiceId) {
         tabStates[activeTabId].viewingInvoiceId = cleanId;
         tabStates[activeTabId].posNavState = { ...window._posCurrentNavState };
         tabStates[activeTabId].invoiceModified = false;
-        tabStates[activeTabId].isEditMode = true;
-        tabStates[activeTabId].editingInvoiceId = cleanId;
-        tabStates[activeTabId].editingInvoiceType = 'بيع';
-        tabStates[activeTabId].editingOriginalWarehouse = editingOriginalWarehouse;
-        tabStates[activeTabId].editingOriginalItems = editingOriginalItems;
-        tabStates[activeTabId].editingOriginalDate = editingOriginalDate;
+        tabStates[activeTabId].isEditMode = canEditInvoice;
+        tabStates[activeTabId].editingInvoiceId = canEditInvoice ? cleanId : null;
+        tabStates[activeTabId].editingInvoiceType = canEditInvoice ? 'بيع' : null;
+        tabStates[activeTabId].editingOriginalWarehouse = canEditInvoice ? editingOriginalWarehouse : null;
+        tabStates[activeTabId].editingOriginalItems = canEditInvoice ? editingOriginalItems : [];
+        tabStates[activeTabId].editingOriginalDate = canEditInvoice ? editingOriginalDate : null;
         tabStates[activeTabId].editingOriginalPartner = partnerName;
         tabStates[activeTabId].badgeId = cleanId;
         tabStates[activeTabId].date = dateVal;
@@ -4744,7 +4796,7 @@ async function loadInvoiceToSalesPOS(targetInvoiceId) {
     }
 
     if (typeof updateActiveTabTitle === 'function') {
-        updateActiveTabTitle(partnerName, `تعديل #${cleanId}`);
+        updateActiveTabTitle(partnerName, canEditInvoice ? `تعديل #${cleanId}` : `عرض #${cleanId}`);
     }
 
     if (typeof initPosInvoiceModifiedListeners === 'function') {
@@ -4752,14 +4804,98 @@ async function loadInvoiceToSalesPOS(targetInvoiceId) {
     }
 
     if (typeof showToast === 'function') {
-        showToast(`📖 تم عرض الفاتورة #${cleanId} بنجاح`, 'info');
+        if (canEditInvoice) {
+            showToast(`📖 تم عرض الفاتورة #${cleanId} بنجاح`, 'info');
+        } else {
+            showToast(`📖 تم عرض الفاتورة #${cleanId} (للقراءة وإعادة الطباعة فقط - التعديل مقفل)`, 'info');
+        }
     }
+}
+
+/**
+ * 🔒 استخراج محددات وضوابط نطاق الفواتير (invoiceScope) الخاصة بالمستخدم
+ * إذا كان الحساب مقيداً بـ user_only أو hide_admin تقتصر نتائج التنقل والبحث على فواتيره الخاصة فقط ولتاريخ اليوم
+ */
+function getPosNavScopeConstraints() {
+    const cur = (typeof currentUser !== 'undefined') ? currentUser : null;
+    const isAdmin = cur && cur.role === 'admin';
+    if (!cur || isAdmin) {
+        return {
+            isScoped: false,
+            scope: 'all',
+            sqlClause: '',
+            sqlParams: [],
+            filterMemory: (t) => true
+        };
+    }
+
+    const scope = cur.invoiceScope || 'user_only';
+    if (scope === 'all') {
+        return {
+            isScoped: false,
+            scope: 'all',
+            sqlClause: '',
+            sqlParams: [],
+            filterMemory: (t) => true
+        };
+    }
+
+    const todayISO = new Date().toLocaleDateString('en-CA');
+    const myName = String(cur.name || '').trim().toLowerCase();
+    const adminNames = (typeof window.getAdminUserNames === 'function')
+        ? window.getAdminUserNames()
+        : new Set(['المدير', 'المدير العام', 'مدير النظام', 'admin']);
+
+    if (scope === 'user_only') {
+        return {
+            isScoped: true,
+            scope: 'user_only',
+            todayISO: todayISO,
+            sqlClause: " AND dateISO = ? AND LOWER(COALESCE(cashier, json_extract(raw_json, '$.user'), '')) = ?",
+            sqlParams: [todayISO, myName],
+            filterMemory: (t) => {
+                if (!t) return false;
+                const tDate = t.dateISO || (t.date ? t.date.split(' ')[0] : '');
+                if (tDate !== todayISO) return false;
+                const tUser = String(t.cashier || t.user || '').trim().toLowerCase();
+                return tUser === myName;
+            }
+        };
+    }
+
+    if (scope === 'hide_admin') {
+        return {
+            isScoped: true,
+            scope: 'hide_admin',
+            todayISO: todayISO,
+            sqlClause: " AND dateISO = ? AND LOWER(COALESCE(cashier, json_extract(raw_json, '$.user'), '')) NOT IN ('المدير', 'المدير العام', 'مدير النظام', 'admin')",
+            sqlParams: [todayISO],
+            filterMemory: (t) => {
+                if (!t) return false;
+                const tDate = t.dateISO || (t.date ? t.date.split(' ')[0] : '');
+                if (tDate !== todayISO) return false;
+                const tUser = String(t.cashier || t.user || '').trim().toLowerCase();
+                return !adminNames.has(tUser) && !tUser.includes('مدير') && !tUser.includes('admin');
+            }
+        };
+    }
+
+    return {
+        isScoped: false,
+        scope: scope,
+        sqlClause: '',
+        sqlParams: [],
+        filterMemory: (t) => true
+    };
 }
 
 /**
  * 1. 🔍 البحث عن فاتورة محددة
  */
 async function posSearchSpecificInvoice() {
+    if (typeof checkPermission === 'function' && !checkPermission('docs_navigate')) {
+        return;
+    }
     if (_posNavBusy) return;
 
     let searchVal = '';
@@ -4777,16 +4913,19 @@ async function posSearchSpecificInvoice() {
     try {
         let foundInvoiceId = null;
         const numVal = Number(cleanVal);
+        const constraints = getPosNavScopeConstraints();
 
-        // 1. بحث محدد وفوري برقم الفاتورة الصريح
-        const sql1 = "SELECT invoiceId FROM transactions WHERE (invoiceId = ? OR invoiceId = ? OR CAST(invoiceId AS TEXT) = ? OR CAST(invoiceId AS INTEGER) = ?) AND (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' LIMIT 1;";
-        const rows1 = posQueryDirect(sql1, [searchVal, cleanVal, cleanVal, isNaN(numVal) ? -1 : numVal]);
+        // 1. بحث محدد وفوري برقم الفاتورة الصريح ضمن النطاق
+        const sql1 = `SELECT invoiceId FROM transactions WHERE (invoiceId = ? OR invoiceId = ? OR CAST(invoiceId AS TEXT) = ? OR CAST(invoiceId AS INTEGER) = ?) AND (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' ${constraints.sqlClause} LIMIT 1;`;
+        const params1 = [searchVal, cleanVal, cleanVal, isNaN(numVal) ? -1 : numVal, ...constraints.sqlParams];
+        const rows1 = posQueryDirect(sql1, params1);
         if (rows1 && rows1.length > 0 && rows1[0].invoiceId) {
             foundInvoiceId = rows1[0].invoiceId;
         } else {
-            // بحث مرن LIKE مع فرز رقمي وزمني صريح لمنع الفرز الأبجدي الخاطئ
-            const sql2 = "SELECT invoiceId FROM transactions WHERE (invoiceId LIKE ? OR invoiceId LIKE ?) AND (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' ORDER BY CAST(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(invoiceId, 'T-', ''), 'S-', ''), 'P-', ''), 'R-', ''), 'INV-', '') AS INTEGER) DESC, dateISO DESC LIMIT 1;";
-            const rows2 = posQueryDirect(sql2, [`%${cleanVal}%`, `%${searchVal}%`]);
+            // بحث مرن LIKE مع فرز رقمي وزمني صريح لمنع الفرز الأبجدي الخاطئ ضمن النطاق
+            const sql2 = `SELECT invoiceId FROM transactions WHERE (invoiceId LIKE ? OR invoiceId LIKE ?) AND (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' ${constraints.sqlClause} ORDER BY CAST(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(invoiceId, 'T-', ''), 'S-', ''), 'P-', ''), 'R-', ''), 'INV-', '') AS INTEGER) DESC, dateISO DESC LIMIT 1;`;
+            const params2 = [`%${cleanVal}%`, `%${searchVal}%`, ...constraints.sqlParams];
+            const rows2 = posQueryDirect(sql2, params2);
             if (rows2 && rows2.length > 0 && rows2[0].invoiceId) {
                 foundInvoiceId = rows2[0].invoiceId;
             }
@@ -4796,6 +4935,7 @@ async function posSearchSpecificInvoice() {
         if (!foundInvoiceId && window.transactions && Array.isArray(window.transactions)) {
             const memMatch = window.transactions.find(t => {
                 if (!t) return false;
+                if (!constraints.filterMemory(t)) return false;
                 const invId = (t.invoiceId != null && t.invoiceId !== '' && t.invoiceId !== '---') ? String(t.invoiceId).trim() : '';
                 const tType = String(t.type || '');
                 if (!((tType.includes('بيع') || tType.includes('مبيعات')) && !tType.includes('مرتجع') && !tType.includes('قبض') && !tType.includes('صرف'))) return false;
@@ -4805,10 +4945,11 @@ async function posSearchSpecificInvoice() {
         }
 
         if (!foundInvoiceId) {
+            const scopeMsg = constraints.isScoped ? ' ضمن فواتيرك المصرح بها لليوم' : '';
             if (typeof showToast === 'function') {
-                showToast(`⚠️ لم يتم العثور على فاتورة بيع برقم: ${searchVal}`, 'warning');
+                showToast(`⚠️ لم يتم العثور على فاتورة بيع برقم: ${searchVal}${scopeMsg}`, 'warning');
             } else {
-                alert(`⚠️ لم يتم العثور على فاتورة بيع برقم: ${searchVal}`);
+                alert(`⚠️ لم يتم العثور على فاتورة بيع برقم: ${searchVal}${scopeMsg}`);
             }
             return;
         }
@@ -4823,14 +4964,18 @@ async function posSearchSpecificInvoice() {
  * 2. ⏮️ الانتقال إلى أول فاتورة مسجلة
  */
 async function posNavigateFirstInvoice() {
+    if (typeof checkPermission === 'function' && !checkPermission('docs_navigate')) {
+        return;
+    }
     if (_posNavBusy) return;
     _posNavBusy = true;
     try {
         let foundInvoiceId = null;
+        const constraints = getPosNavScopeConstraints();
 
-        // استعلام أقدم فاتورة بيع مباشرة من SQLite بحد أقصى سجل واحد
-        const sql = "SELECT invoiceId FROM transactions WHERE (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' AND invoiceId IS NOT NULL AND invoiceId != '' AND invoiceId != '---' ORDER BY dateISO ASC, id ASC LIMIT 1;";
-        const rows = posQueryDirect(sql);
+        // استعلام أقدم فاتورة بيع مباشرة من SQLite بحد أقصى سجل واحد ضمن النطاق
+        const sql = `SELECT invoiceId FROM transactions WHERE (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' AND invoiceId IS NOT NULL AND invoiceId != '' AND invoiceId != '---' ${constraints.sqlClause} ORDER BY dateISO ASC, id ASC LIMIT 1;`;
+        const rows = posQueryDirect(sql, constraints.sqlParams);
         if (rows && rows.length > 0 && rows[0].invoiceId) {
             foundInvoiceId = rows[0].invoiceId;
         }
@@ -4838,13 +4983,14 @@ async function posNavigateFirstInvoice() {
         // صمام أمان بديل من الذاكرة
         if (!foundInvoiceId && window.transactions && Array.isArray(window.transactions)) {
             const salesTxs = window.transactions
-                .filter(t => t && t.invoiceId && (String(t.type || '').includes('بيع') || String(t.type || '').includes('مبيعات')) && !String(t.type || '').includes('مرتجع') && !String(t.type || '').includes('قبض') && !String(t.type || '').includes('صرف'))
+                .filter(t => t && t.invoiceId && (String(t.type || '').includes('بيع') || String(t.type || '').includes('مبيعات')) && !String(t.type || '').includes('مرتجع') && !String(t.type || '').includes('قبض') && !String(t.type || '').includes('صرف') && constraints.filterMemory(t))
                 .sort((a, b) => (a.dateISO || '').localeCompare(b.dateISO || '') || (a.id || 0) - (b.id || 0));
             if (salesTxs.length > 0) foundInvoiceId = salesTxs[0].invoiceId;
         }
 
         if (!foundInvoiceId) {
-            if (typeof showToast === 'function') showToast('⚠️ لا توجد فواتير بيع مسجلة في النظام', 'warning');
+            const scopeMsg = constraints.isScoped ? ' لليوم الحالي' : '';
+            if (typeof showToast === 'function') showToast(`⚠️ لا توجد فواتير بيع مسجلة${scopeMsg}`, 'warning');
             return;
         }
 
@@ -4863,11 +5009,15 @@ async function posNavigateFirstInvoice() {
  * 3. ◀️ الانتقال إلى الفاتورة السابقة
  */
 async function posNavigatePrevInvoice() {
+    if (typeof checkPermission === 'function' && !checkPermission('docs_navigate')) {
+        return;
+    }
     if (_posNavBusy) return;
     _posNavBusy = true;
     try {
         let foundInvoiceId = null;
         const currentNav = window._posCurrentNavState;
+        const constraints = getPosNavScopeConstraints();
 
         if (currentNav && currentNav.invoiceId) {
             const cleanId = String(currentNav.invoiceId).trim().replace(/^[#\s]+/, '');
@@ -4881,16 +5031,17 @@ async function posNavigatePrevInvoice() {
                 if (metaRows[0].dateISO) currDateISO = metaRows[0].dateISO;
             }
 
-            // استعلام الفاتورة السابقة فورياً من SQLite مع LIMIT 1
-            const sql = "SELECT invoiceId FROM transactions WHERE (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' AND invoiceId IS NOT NULL AND invoiceId != '' AND invoiceId != '---' AND invoiceId != ? AND invoiceId != ? AND (dateISO < ? OR (dateISO = ? AND id < ?)) ORDER BY dateISO DESC, id DESC LIMIT 1;";
-            const rows = posQueryDirect(sql, [currentNav.invoiceId, cleanId, currDateISO, currDateISO, currMinId]);
+            // استعلام الفاتورة السابقة فورياً من SQLite مع LIMIT 1 ضمن النطاق
+            const sql = `SELECT invoiceId FROM transactions WHERE (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' AND invoiceId IS NOT NULL AND invoiceId != '' AND invoiceId != '---' AND invoiceId != ? AND invoiceId != ? AND (dateISO < ? OR (dateISO = ? AND id < ?)) ${constraints.sqlClause} ORDER BY dateISO DESC, id DESC LIMIT 1;`;
+            const params = [currentNav.invoiceId, cleanId, currDateISO, currDateISO, currMinId, ...constraints.sqlParams];
+            const rows = posQueryDirect(sql, params);
             if (rows && rows.length > 0 && rows[0].invoiceId) {
                 foundInvoiceId = rows[0].invoiceId;
             }
         } else {
-            // شاشة جديدة فارغة: الفاتورة السابقة تعني أحدث فاتورة مسجلة في النظام
-            const sql = "SELECT invoiceId FROM transactions WHERE (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' AND invoiceId IS NOT NULL AND invoiceId != '' AND invoiceId != '---' ORDER BY dateISO DESC, id DESC LIMIT 1;";
-            const rows = posQueryDirect(sql);
+            // شاشة جديدة فارغة: الفاتورة السابقة تعني أحدث فاتورة مسجلة ضمن النطاق
+            const sql = `SELECT invoiceId FROM transactions WHERE (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' AND invoiceId IS NOT NULL AND invoiceId != '' AND invoiceId != '---' ${constraints.sqlClause} ORDER BY dateISO DESC, id DESC LIMIT 1;`;
+            const rows = posQueryDirect(sql, constraints.sqlParams);
             if (rows && rows.length > 0 && rows[0].invoiceId) {
                 foundInvoiceId = rows[0].invoiceId;
             }
@@ -4900,7 +5051,7 @@ async function posNavigatePrevInvoice() {
         if (!foundInvoiceId && window.transactions && Array.isArray(window.transactions)) {
             const curId = currentNav ? String(currentNav.invoiceId).replace(/^[#\s]+/, '') : null;
             const salesTxs = window.transactions
-                .filter(t => t && t.invoiceId && (String(t.type || '').includes('بيع') || String(t.type || '').includes('مبيعات')) && !String(t.type || '').includes('مرتجع') && !String(t.type || '').includes('قبض') && !String(t.type || '').includes('صرف'))
+                .filter(t => t && t.invoiceId && (String(t.type || '').includes('بيع') || String(t.type || '').includes('مبيعات')) && !String(t.type || '').includes('مرتجع') && !String(t.type || '').includes('قبض') && !String(t.type || '').includes('صرف') && constraints.filterMemory(t))
                 .sort((a, b) => (b.dateISO || '').localeCompare(a.dateISO || '') || (b.id || 0) - (a.id || 0));
 
             // تجميع الفواتير الفريدة
@@ -4941,6 +5092,9 @@ async function posNavigatePrevInvoice() {
  * 4. ▶️ الانتقال إلى الفاتورة التالية
  */
 async function posNavigateNextInvoice() {
+    if (typeof checkPermission === 'function' && !checkPermission('docs_navigate')) {
+        return;
+    }
     if (_posNavBusy) return;
     _posNavBusy = true;
     try {
@@ -4954,6 +5108,7 @@ async function posNavigateNextInvoice() {
         const cleanId = String(currentNav.invoiceId).trim().replace(/^[#\s]+/, '');
         let currMaxId = currentNav.id;
         let currDateISO = currentNav.dateISO;
+        const constraints = getPosNavScopeConstraints();
 
         const metaSql = "SELECT MAX(id) as maxId, dateISO FROM transactions WHERE (invoiceId = ? OR invoiceId = ? OR CAST(invoiceId AS TEXT) = ?) AND (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%';";
         const metaRows = posQueryDirect(metaSql, [currentNav.invoiceId, cleanId, cleanId]);
@@ -4962,9 +5117,10 @@ async function posNavigateNextInvoice() {
             if (metaRows[0].dateISO) currDateISO = metaRows[0].dateISO;
         }
 
-        // استعلام الفاتورة التالية فورياً من SQLite مع LIMIT 1
-        const sql = "SELECT invoiceId FROM transactions WHERE (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' AND invoiceId IS NOT NULL AND invoiceId != '' AND invoiceId != '---' AND invoiceId != ? AND invoiceId != ? AND (dateISO > ? OR (dateISO = ? AND id > ?)) ORDER BY dateISO ASC, id ASC LIMIT 1;";
-        const rows = posQueryDirect(sql, [currentNav.invoiceId, cleanId, currDateISO, currDateISO, currMaxId]);
+        // استعلام الفاتورة التالية فورياً من SQLite مع LIMIT 1 ضمن النطاق
+        const sql = `SELECT invoiceId FROM transactions WHERE (type LIKE '%بيع%' OR type LIKE '%مبيعات%') AND type NOT LIKE '%مرتجع%' AND type NOT LIKE '%قبض%' AND type NOT LIKE '%صرف%' AND invoiceId IS NOT NULL AND invoiceId != '' AND invoiceId != '---' AND invoiceId != ? AND invoiceId != ? AND (dateISO > ? OR (dateISO = ? AND id > ?)) ${constraints.sqlClause} ORDER BY dateISO ASC, id ASC LIMIT 1;`;
+        const params = [currentNav.invoiceId, cleanId, currDateISO, currDateISO, currMaxId, ...constraints.sqlParams];
+        const rows = posQueryDirect(sql, params);
         if (rows && rows.length > 0 && rows[0].invoiceId) {
             foundInvoiceId = rows[0].invoiceId;
         }
@@ -4972,7 +5128,7 @@ async function posNavigateNextInvoice() {
         // صمام أمان بديل من الذاكرة
         if (!foundInvoiceId && window.transactions && Array.isArray(window.transactions)) {
             const salesTxs = window.transactions
-                .filter(t => t && t.invoiceId && (String(t.type || '').includes('بيع') || String(t.type || '').includes('مبيعات')) && !String(t.type || '').includes('مرتجع') && !String(t.type || '').includes('قبض') && !String(t.type || '').includes('صرف'))
+                .filter(t => t && t.invoiceId && (String(t.type || '').includes('بيع') || String(t.type || '').includes('مبيعات')) && !String(t.type || '').includes('مرتجع') && !String(t.type || '').includes('قبض') && !String(t.type || '').includes('صرف') && constraints.filterMemory(t))
                 .sort((a, b) => (a.dateISO || '').localeCompare(b.dateISO || '') || (a.id || 0) - (b.id || 0));
 
             // تجميع الفواتير الفريدة
