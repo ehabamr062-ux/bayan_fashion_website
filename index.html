@@ -1037,7 +1037,7 @@
                             </div>
 
                             <!-- أزرار التنقل والبحث الـ 4 في شاشة البيع (أيقونات فقط) -->
-                            <div id="posCustomActionsContainer" class="pos-custom-actions-bar" data-perm="docs_navigate">
+                            <div id="posCustomActionsContainer" class="pos-custom-actions-bar">
                                 <button type="button" id="posNavSearchInvoiceBtn" class="pos-nav-action-btn"
                                     onclick="posSearchSpecificInvoice()" title="بحث عن فاتورة محددة">
                                     <span class="pos-nav-icon">🔍</span>
@@ -18865,10 +18865,6 @@
                                 <input type="checkbox" id="perm_sec_pur_return">
                                 <span>↩️ قسم مرتجع المشتريات</span>
                             </label>
-                            <label class="usr-sec-check-item">
-                                <input type="checkbox" id="perm_docs_navigate">
-                                <span>🧭 التنقل والبحث في فواتير البيع</span>
-                            </label>
                         </div>
                     </div>
 
@@ -19157,6 +19153,15 @@
                         </label>
 
                         <label
+                            style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 0.86rem; color: #1e293b; cursor: pointer; margin: 0; background: #ffffff; padding: 6px 12px; border-radius: 10px; border: 1.5px solid #d97706; box-shadow: 0 1px 4px rgba(217,119,6,0.08);"
+                            title="حجب أزرار التنقل والبحث في فواتير البيع بشريط أدوات البيع للكاشير">
+                            <input type="checkbox" id="perm_ui_hide_pos_nav"
+                                style="width: 18px; height: 18px; accent-color: #d97706;"
+                                onchange="if(document.getElementById('perm_docs_navigate')) document.getElementById('perm_docs_navigate').checked = !this.checked;">
+                            <span>🧭 حجب أزرار التنقل والبحث في فواتير البيع</span>
+                        </label>
+
+                        <label
                             style="display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 0.86rem; color: #1e293b; cursor: pointer; margin: 0; background: #ffffff; padding: 6px 12px; border-radius: 10px; border: 1px solid #0284c7;">
                             <input type="checkbox" id="perm_ui_hide_new"
                                 style="width: 18px; height: 18px; accent-color: #0284c7;">
@@ -19194,6 +19199,7 @@
 
                         <!-- خانات عامة إضافية للتوافق البرمجي -->
                         <div style="display: none;">
+                            <input type="checkbox" id="perm_docs_navigate">
                             <input type="checkbox" id="perm_docs_discount" checked>
                             <input type="checkbox" id="perm_docs_tax" checked>
                             <input type="checkbox" id="perm_stock_delete">

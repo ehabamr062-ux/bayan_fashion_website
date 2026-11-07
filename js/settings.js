@@ -635,10 +635,43 @@ function applyPermissions() {
     }
 
     // 3.5 🔒 التحكم في ظهور وصلاحية أزرار شريط التنقل والبحث في فواتير البيع
-    const canNavigateDocs = (typeof hasPermission === 'function') ? hasPermission('docs_navigate') : true;
+    let canNavigateDocs = true;
+    if (typeof currentUser !== 'undefined' && currentUser) {
+        if (currentUser.role === 'admin') {
+            canNavigateDocs = true;
+        } else {
+            const uTarget = (typeof users !== 'undefined' && Array.isArray(users))
+                ? users.find(u => 
+                    (currentUser.id != null && u.id != null && String(u.id) === String(currentUser.id)) ||
+                    (u.pin != null && currentUser.pin != null && String(u.pin).trim() === String(currentUser.pin).trim()) ||
+                    (currentUser.name && u.name && u.name.trim() === currentUser.name.trim())
+                ) || currentUser
+                : currentUser;
+
+            if (uTarget && uTarget.permissions) {
+                if (uTarget.permissions.general && uTarget.permissions.general.hidePosNav !== undefined) {
+                    canNavigateDocs = !uTarget.permissions.general.hidePosNav;
+                } else if (uTarget.permissions.docs && uTarget.permissions.docs.navigate !== undefined) {
+                    canNavigateDocs = !!uTarget.permissions.docs.navigate;
+                } else {
+                    canNavigateDocs = (typeof hasPermission === 'function') ? hasPermission('docs_navigate') : true;
+                }
+            } else {
+                canNavigateDocs = (typeof hasPermission === 'function') ? hasPermission('docs_navigate') : true;
+            }
+        }
+    }
+
     const navBarContainer = document.getElementById('posCustomActionsContainer');
     if (navBarContainer) {
-        navBarContainer.style.setProperty('display', canNavigateDocs ? '' : 'none', 'important');
+        if (canNavigateDocs) {
+            navBarContainer.classList.remove('pos-nav-hidden');
+            navBarContainer.style.removeProperty('display');
+            navBarContainer.style.setProperty('display', 'flex', 'important');
+        } else {
+            navBarContainer.classList.add('pos-nav-hidden');
+            navBarContainer.style.setProperty('display', 'none', 'important');
+        }
     }
 
     // 3.2 🔒 التحكم في ظهور رصيد الدرج والرصيد السابق والنهائي بتقرير الحركة اليومية
@@ -1476,10 +1509,24 @@ async function addUser() {
         }
     }
 
+    // 🔒 ضبط حجب أزرار التنقل والبحث في فواتير البيع بدقة متناهية
+    let isHidePosNav = false;
+    if (role === 'admin') {
+        isHidePosNav = false;
+    } else {
+        const permUiNavEl = document.getElementById('perm_ui_hide_pos_nav');
+        const permDocNavEl = document.getElementById('perm_docs_navigate');
+        if (permUiNavEl) {
+            isHidePosNav = permUiNavEl.checked;
+        } else if (permDocNavEl) {
+            isHidePosNav = !permDocNavEl.checked;
+        }
+    }
+
     const permissions = {
         docs: {
             add: document.getElementById('perm_docs_add') ? document.getElementById('perm_docs_add').checked : true,
-            navigate: (role === 'admin') ? true : (document.getElementById('perm_docs_navigate') ? document.getElementById('perm_docs_navigate').checked : false),
+            navigate: (role === 'admin') ? true : !isHidePosNav,
             purchase: document.getElementById('perm_docs_purchase') ? document.getElementById('perm_docs_purchase').checked : false,
             return: document.getElementById('perm_docs_return') ? document.getElementById('perm_docs_return').checked : false,
             purchase_return: canPurReturn,
@@ -1525,6 +1572,7 @@ async function addUser() {
             lockDailyAmounts: (role === 'admin') ? false : (document.getElementById('perm_gen_lock_daily_amounts') ? document.getElementById('perm_gen_lock_daily_amounts').checked : true),
             hideShare: (role === 'admin' && document.getElementById('adminHideShare')) ? document.getElementById('adminHideShare').checked : (document.getElementById('perm_ui_hide_share') ? document.getElementById('perm_ui_hide_share').checked : false),
             hideNew: (role === 'admin' && document.getElementById('adminHideNew')) ? document.getElementById('adminHideNew').checked : (document.getElementById('perm_ui_hide_new') ? document.getElementById('perm_ui_hide_new').checked : false),
+            hidePosNav: isHidePosNav,
             settings: document.getElementById('perm_gen_settings') ? document.getElementById('perm_gen_settings').checked : false,
             shortcuts: document.getElementById('perm_gen_shortcuts') ? document.getElementById('perm_gen_shortcuts').checked : false,
             users: document.getElementById('perm_gen_users') ? document.getElementById('perm_gen_users').checked : false,
@@ -1803,6 +1851,18 @@ function editUser(idx) {
         permHideNewEl.checked = (p.general && p.general.hideNew !== undefined) ? !!p.general.hideNew : false;
     }
 
+    const isNavHidden = (p.general && p.general.hidePosNav !== undefined)
+        ? !!p.general.hidePosNav
+        : (p.docs && p.docs.navigate !== undefined ? !p.docs.navigate : false);
+
+    const permHideNavEl = document.getElementById('perm_ui_hide_pos_nav');
+    if (permHideNavEl) {
+        permHideNavEl.checked = (u.role === 'admin') ? false : isNavHidden;
+    }
+    if (document.getElementById('perm_docs_navigate')) {
+        document.getElementById('perm_docs_navigate').checked = (u.role === 'admin') ? true : !isNavHidden;
+    }
+
     const isDrawerBalanceHidden = (p.general && p.general.hideDrawerBalance !== undefined)
         ? !!p.general.hideDrawerBalance
         : ((p.general && p.general.drawerBalance !== undefined) ? !p.general.drawerBalance : false);
@@ -1913,6 +1973,8 @@ function resetUserForm() {
     if (document.getElementById('adminHideNew')) document.getElementById('adminHideNew').checked = false;
     if (document.getElementById('perm_ui_hide_share')) document.getElementById('perm_ui_hide_share').checked = false;
     if (document.getElementById('perm_ui_hide_new')) document.getElementById('perm_ui_hide_new').checked = false;
+    if (document.getElementById('perm_ui_hide_pos_nav')) document.getElementById('perm_ui_hide_pos_nav').checked = false;
+    if (document.getElementById('perm_docs_navigate')) document.getElementById('perm_docs_navigate').checked = true;
     if (document.getElementById('adminHideDrawerBalance')) document.getElementById('adminHideDrawerBalance').checked = false;
     if (document.getElementById('perm_ui_hide_drawer_balance')) document.getElementById('perm_ui_hide_drawer_balance').checked = false;
     if (document.getElementById('perm_gen_drawer_balance')) document.getElementById('perm_gen_drawer_balance').checked = true;
@@ -1997,6 +2059,7 @@ function applyPermissionPreset(presetKey, silent = false) {
         setChecked('perm_docs_add', true);
         setChecked('perm_docs_return', true);
         setChecked('perm_docs_navigate', false);
+        setChecked('perm_ui_hide_pos_nav', true);
         setChecked('perm_sec_receipt', true);
         setChecked('perm_docs_view', true);
         setChecked('perm_gen_reports', true);
@@ -2033,6 +2096,7 @@ function applyPermissionPreset(presetKey, silent = false) {
         setChecked('perm_sec_pur_return', true);
         setChecked('perm_docs_view', true);
         setChecked('perm_docs_navigate', false);
+        setChecked('perm_ui_hide_pos_nav', true);
         setChecked('perm_docs_purchase_price', false);
         setChecked('perm_gen_profits', false);
         setChecked('perm_wh_lock_switching', true);
@@ -2056,6 +2120,7 @@ function applyPermissionPreset(presetKey, silent = false) {
         setChecked('perm_docs_add', true);
         setChecked('perm_docs_return', true);
         setChecked('perm_docs_navigate', true);
+        setChecked('perm_ui_hide_pos_nav', false);
         setChecked('perm_docs_purchase', true);
         setChecked('perm_sec_warehouse_report', true);
         setChecked('perm_gen_reports', true);
@@ -2086,6 +2151,8 @@ function toggleAllUserSections(checked, silent = false) {
     });
     if (document.getElementById('perm_docs_discount')) document.getElementById('perm_docs_discount').checked = !!checked;
     if (document.getElementById('perm_docs_tax')) document.getElementById('perm_docs_tax').checked = !!checked;
+    if (document.getElementById('perm_ui_hide_pos_nav')) document.getElementById('perm_ui_hide_pos_nav').checked = !checked;
+    if (document.getElementById('perm_docs_navigate')) document.getElementById('perm_docs_navigate').checked = !!checked;
     if (!silent && typeof showToast === 'function') showToast(checked ? "✔️ تم تحديد كافة الأقسام للموظف" : "❌ تم إلغاء تحديد كافة الأقسام", "info");
 }
 window.toggleAllUserSections = toggleAllUserSections;
@@ -2411,6 +2478,9 @@ function resolvePermissionKey(action) {
     if (act === 'docs_navigate' || act === 'perm_docs_navigate' || act === 'navigate' || act === 'pos_navigate') {
         return { module: 'docs', perm: 'navigate' };
     }
+    if (act === 'ui_hide_pos_nav' || act === 'hide_pos_nav' || act === 'perm_ui_hide_pos_nav') {
+        return { module: 'general', perm: 'hidePosNav' };
+    }
     if (act === 'sec_receipt' || act === 'receipt') act = 'accounts_receipt';
     if (act === 'sec_disburse' || act === 'disburse' || act === 'disbursement') act = 'accounts_disbursement';
     if (act === 'sec_pur_return' || act === 'purchase-return' || act === 'purchase_return') act = 'docs_purchase_return';
@@ -2517,6 +2587,20 @@ function checkPermission(action) {
             return true;
         }
 
+        if (action === 'docs_navigate' || action === 'navigate' || action === 'pos_navigate') {
+            const isBlocked = (realUser.permissions?.general && realUser.permissions.general.hidePosNav === true) ||
+                              (realUser.permissions?.docs && realUser.permissions.docs.navigate === false);
+            if (isBlocked) {
+                showCustomAlert({
+                    type: 'error',
+                    titleText: '🚫 وصول مرفوض',
+                    msg: 'عذراً، تم حجب أزرار وصلاحية التنقل في فواتير البيع لهذا الحساب.'
+                });
+                return false;
+            }
+            return true;
+        }
+
         if (!realUser.permissions) {
             showCustomAlert({
                 type: 'error',
@@ -2589,6 +2673,20 @@ function checkPermission(action) {
                 type: 'error',
                 titleText: '🚫 وصول مرفوض',
                 msg: 'عذراً، تم تعطيل رؤية الأرباح لهذا الحساب.'
+            });
+            return false;
+        }
+        return true;
+    }
+
+    if (action === 'docs_navigate' || action === 'navigate' || action === 'pos_navigate') {
+        const isBlocked = (currentUser.permissions?.general && currentUser.permissions.general.hidePosNav === true) ||
+                          (currentUser.permissions?.docs && currentUser.permissions.docs.navigate === false);
+        if (isBlocked) {
+            showCustomAlert({
+                type: 'error',
+                titleText: '🚫 وصول مرفوض',
+                msg: 'عذراً، تم حجب أزرار وصلاحية التنقل في فواتير البيع لهذا الحساب.'
             });
             return false;
         }
@@ -2693,6 +2791,32 @@ function hasPermission(action) {
                 }
                 return true;
             }
+            if (action === 'ui_hide_pos_nav' || action === 'hide_pos_nav') {
+                return false;
+            }
+            if (action === 'docs_navigate' || action === 'navigate' || action === 'pos_navigate') {
+                return true;
+            }
+            return true;
+        }
+
+        if (action === 'ui_hide_pos_nav' || action === 'hide_pos_nav') {
+            if (realUser.permissions?.general && realUser.permissions.general.hidePosNav !== undefined) {
+                return !!realUser.permissions.general.hidePosNav;
+            }
+            if (realUser.permissions?.docs && realUser.permissions.docs.navigate !== undefined) {
+                return !realUser.permissions.docs.navigate;
+            }
+            return false;
+        }
+
+        if (action === 'docs_navigate' || action === 'navigate' || action === 'pos_navigate') {
+            if (realUser.permissions?.general && realUser.permissions.general.hidePosNav !== undefined) {
+                return !realUser.permissions.general.hidePosNav;
+            }
+            if (realUser.permissions?.docs && realUser.permissions.docs.navigate !== undefined) {
+                return !!realUser.permissions.docs.navigate;
+            }
             return true;
         }
 
@@ -2791,8 +2915,35 @@ function hasPermission(action) {
             }
             return true;
         }
+        if (action === 'ui_hide_pos_nav' || action === 'hide_pos_nav') {
+            return false;
+        }
+        if (action === 'docs_navigate' || action === 'navigate' || action === 'pos_navigate') {
+            return true;
+        }
         return true;
     }
+
+    if (action === 'ui_hide_pos_nav' || action === 'hide_pos_nav') {
+        if (currentUser.permissions?.general && currentUser.permissions.general.hidePosNav !== undefined) {
+            return !!currentUser.permissions.general.hidePosNav;
+        }
+        if (currentUser.permissions?.docs && currentUser.permissions.docs.navigate !== undefined) {
+            return !currentUser.permissions.docs.navigate;
+        }
+        return false;
+    }
+
+    if (action === 'docs_navigate' || action === 'navigate' || action === 'pos_navigate') {
+        if (currentUser.permissions?.general && currentUser.permissions.general.hidePosNav !== undefined) {
+            return !currentUser.permissions.general.hidePosNav;
+        }
+        if (currentUser.permissions?.docs && currentUser.permissions.docs.navigate !== undefined) {
+            return !!currentUser.permissions.docs.navigate;
+        }
+        return true;
+    }
+
     if (!currentUser.permissions) return false;
     const { module, perm } = resolvePermissionKey(action);
     const userPerms = currentUser.permissions[module];

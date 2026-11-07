@@ -1231,11 +1231,9 @@ async function performLogout() {
  * تحديث ظهور العناصر في لوحة التحكم بناءً على الصلاحيات
  */
 function updateDashboardPermissions() {
-    if (typeof applyPermissions === 'function') {
-        applyPermissions();
-    }
     const tiles = document.querySelectorAll('[data-perm]');
     tiles.forEach(tile => {
+        if (tile.id === 'posCustomActionsContainer') return;
         const perm = tile.getAttribute('data-perm');
         if (typeof hasPermission === 'function' && hasPermission(perm)) {
             tile.style.display = '';
@@ -1243,6 +1241,9 @@ function updateDashboardPermissions() {
             tile.style.display = 'none';
         }
     });
+    if (typeof applyPermissions === 'function') {
+        applyPermissions();
+    }
 }
 window.updateDashboardPermissions = updateDashboardPermissions;
 

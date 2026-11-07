@@ -5221,8 +5221,53 @@ function updateSalesBadgeUI(explicitSeq = null, explicitRawSeq = null) {
     }
 }
 
+/**
+ * 🧭 تطبيق ظهور أو إخفاء أزرار التنقل والبحث في فواتير البيع وفق صلاحيات المستخدم
+ */
+function applyPosNavVisibility() {
+    let canNavigate = true;
+    if (typeof currentUser !== 'undefined' && currentUser) {
+        if (currentUser.role === 'admin') {
+            canNavigate = true;
+        } else {
+            const u = (typeof users !== 'undefined' && Array.isArray(users))
+                ? users.find(x => 
+                    (currentUser.id != null && x.id != null && String(x.id) === String(currentUser.id)) ||
+                    (x.pin != null && currentUser.pin != null && String(x.pin).trim() === String(currentUser.pin).trim()) ||
+                    (currentUser.name && x.name && x.name.trim() === currentUser.name.trim())
+                ) || currentUser
+                : currentUser;
+
+            if (u && u.permissions) {
+                if (u.permissions.general && u.permissions.general.hidePosNav !== undefined) {
+                    canNavigate = !u.permissions.general.hidePosNav;
+                } else if (u.permissions.docs && u.permissions.docs.navigate !== undefined) {
+                    canNavigate = !!u.permissions.docs.navigate;
+                } else if (typeof hasPermission === 'function') {
+                    canNavigate = hasPermission('docs_navigate');
+                }
+            } else if (typeof hasPermission === 'function') {
+                canNavigate = hasPermission('docs_navigate');
+            }
+        }
+    }
+
+    const navBarContainer = document.getElementById('posCustomActionsContainer');
+    if (navBarContainer) {
+        if (canNavigate) {
+            navBarContainer.classList.remove('pos-nav-hidden');
+            navBarContainer.style.removeProperty('display');
+            navBarContainer.style.setProperty('display', 'flex', 'important');
+        } else {
+            navBarContainer.classList.add('pos-nav-hidden');
+            navBarContainer.style.setProperty('display', 'none', 'important');
+        }
+    }
+}
+
 // تصدير الدوال للنافذة العامة
 window.updateSalesBadgeUI = updateSalesBadgeUI;
+window.applyPosNavVisibility = applyPosNavVisibility;
 window.posSearchSpecificInvoice = posSearchSpecificInvoice;
 window.posNavigateFirstInvoice = posNavigateFirstInvoice;
 window.posNavigatePrevInvoice = posNavigatePrevInvoice;
@@ -5230,12 +5275,18 @@ window.posNavigateNextInvoice = posNavigateNextInvoice;
 window.loadInvoiceToSalesPOS = loadInvoiceToSalesPOS;
 window.updatePosNavUIState = updatePosNavUIState;
 
-// تشغيل التحديث فور اكتمال تحميل الصفحة لضمان جاهزية التلميح فوراً
+// تشغيل التحديث فور اكتمال تحميل الصفحة لضمان جاهزية التلميح وتطبيق الصلاحيات فوراً
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
-        setTimeout(updateSalesBadgeUI, 300);
+        setTimeout(() => {
+            updateSalesBadgeUI();
+            applyPosNavVisibility();
+        }, 300);
     });
 } else {
-    setTimeout(updateSalesBadgeUI, 300);
+    setTimeout(() => {
+        updateSalesBadgeUI();
+        applyPosNavVisibility();
+    }, 300);
 }
 

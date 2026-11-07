@@ -2718,12 +2718,16 @@
         /* 🧭 أزرار التنقل والبحث عن الفواتير في شريط أدوات البيع (POS Invoices Navigation) */
         /* ========================================================================= */
         .pos-custom-actions-bar {
-            display: flex !important;
+            display: flex;
             gap: 6px !important;
             align-items: center !important;
             flex: 1 !important;
             overflow-x: auto !important;
             scrollbar-width: none !important;
+        }
+
+        .pos-custom-actions-bar.pos-nav-hidden {
+            display: none !important;
         }
 
         .pos-custom-actions-bar::-webkit-scrollbar {

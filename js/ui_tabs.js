@@ -597,7 +597,11 @@
                 }
                 if (['sales', 'purchase', 'sales-return', 'purchase-return', 'receipt', 'disbursement', 'daily-report'].includes(targetTab.type)) {
                     if (typeof populatePaymentMethodSelects === 'function') populatePaymentMethodSelects();
-                    if (targetTab.type === 'sales' && typeof loadPinnedPriceLevel === 'function') loadPinnedPriceLevel();
+                    if (targetTab.type === 'sales') {
+                        if (typeof loadPinnedPriceLevel === 'function') loadPinnedPriceLevel();
+                        if (typeof applyPermissions === 'function') applyPermissions();
+                        if (typeof window.applyPosNavVisibility === 'function') window.applyPosNavVisibility();
+                    }
                 }
                 const instantFocusInput = (elemId) => {
                     const active = document.activeElement;
