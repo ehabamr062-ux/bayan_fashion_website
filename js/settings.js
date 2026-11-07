@@ -3783,17 +3783,7 @@ window.executeConfirmedFactoryReset = async function () {
             console.warn("Auto-backup before reset note:", backupErr);
         }
 
-        // 2. استخراج وحماية حساب المدير الحالي وهوية الجهاز والترخيص
-        let preservedAdmin = null;
-        if (typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || currentUser.id === 1)) {
-            preservedAdmin = JSON.parse(JSON.stringify(currentUser));
-        } else if (typeof db !== 'undefined' && db.users) {
-            try {
-                const allUsers = await db.users.toArray();
-                preservedAdmin = allUsers.find(u => u.role === 'admin' || u.id === 1) || allUsers[0];
-            } catch (e) { }
-        }
-
+        // 2. الحفاظ على هوية الجهاز والترخيص
         const preservedSettings = {};
         const preserveKeys = [
             'bayan_hwid', 'hwid', 'bayan_license', 'pos_license',
@@ -3817,11 +3807,29 @@ window.executeConfirmedFactoryReset = async function () {
             }
             if (db.users && typeof db.users.clear === 'function') {
                 await db.users.clear();
-                if (preservedAdmin) {
-                    await db.users.add(preservedAdmin);
-                }
             }
         }
+        if (window.BayanSQLite) {
+            try {
+                tables.forEach(t => {
+                    if (typeof window.BayanSQLite.clear === 'function') window.BayanSQLite.clear(t);
+                });
+                if (typeof window.BayanSQLite.clear === 'function') window.BayanSQLite.clear('users');
+            } catch (e) { }
+            if (window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+                try {
+                    window.BayanSQLite.nativeDb.prepare("DELETE FROM users;").run();
+                } catch (e) { }
+            }
+        }
+
+        // تصفير جلسة وهوية المستخدم النشط
+        localStorage.removeItem('bayan_active_user');
+        localStorage.removeItem('bayan_cached_users');
+        localStorage.removeItem('pos_session_user');
+        sessionStorage.clear();
+        window.currentUser = null;
+        window.users = [];
 
         // 4. تصفير الذاكرة الدائمة Store ومسح عدادات الفواتير
         if (typeof clearStore === 'function') {

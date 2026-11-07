@@ -175,11 +175,11 @@ function updateLoginUsersList() {
         (typeof localStorage !== 'undefined' && (localStorage.getItem('pos_settings') || localStorage.getItem('bayan_install_date') || localStorage.getItem('bayan_hwid') || localStorage.getItem('bayan_master_license') || localStorage.getItem('bayan_active') || localStorage.getItem('bayan_terminal_warehouse') || localStorage.getItem('bayan_cached_users')))
     );
 
-    if (currentUsers.length > 0 || hasSavedConfig) {
+    if (currentUsers.length > 0) {
         if (standardForm) standardForm.classList.remove('hidden');
         if (setupForm) setupForm.classList.add('hidden');
     } else {
-        // لا يوجد مستخدمين مسجلين ولا توجد أي إعدادات سابقة: إظهار شاشة إعداد المالك لأول مرة
+        // لا يوجد مستخدمين مسجلين: إظهار شاشة إعداد المالك لأول مرة
         if (standardForm) standardForm.classList.add('hidden');
         if (setupForm) setupForm.classList.remove('hidden');
         setTimeout(() => {
@@ -284,8 +284,8 @@ function initLogin() {
                         localStorage.setItem('bayan_cached_users', JSON.stringify(safeCache));
                     } catch (e) { }
                     updateLoginUsersList();
-                } else if (!hasSavedConfig) {
-                    // قاعدة بيانات جديدة تماماً ولا يوجد أي مستخدم ولا إعدادات: إظهار شاشة إعداد المالك فوراً
+                } else {
+                    // قاعدة بيانات جديدة أو بعد التصفير ولا يوجد أي مستخدم: إظهار شاشة إعداد المالك فوراً
                     if (standardForm) standardForm.classList.add('hidden');
                     if (setupForm) setupForm.classList.remove('hidden');
                     setTimeout(() => {
@@ -302,9 +302,9 @@ function initLogin() {
         } catch (e) { }
     }
 
-    const isFirstTime = (currentUsers.length === 0) && !hasSavedConfig;
+    const isFirstTime = (currentUsers.length === 0);
     if (isFirstTime) {
-        // شاشة إعداد المالك لأول مرة (للتثبيت الجديد تماماً وبدون أي إعدادات سابقة)
+        // شاشة إعداد المالك لأول مرة (للتثبيت الجديد أو بعد تصفير البيانات)
         if (standardForm) standardForm.classList.add('hidden');
         if (setupForm) setupForm.classList.remove('hidden');
         setTimeout(() => {
@@ -1490,6 +1490,11 @@ window.executeFirstTimeSetup = async function () {
         }
         if (window.BayanSQLite && typeof window.BayanSQLite.saveAllToSQLiteNow === 'function') {
             window.BayanSQLite.saveAllToSQLiteNow();
+        }
+        if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+            try {
+                window.BayanSQLite.nativeDb.prepare("INSERT OR REPLACE INTO users (id, name, pin, role, raw_json) VALUES (?, ?, ?, ?, ?);").run(dbUser.id, dbUser.name, dbUser.pin, dbUser.role, JSON.stringify(dbUser));
+            } catch (e) { }
         }
 
         // إتمام تسجيل الدخول للمستخدم الجديد
