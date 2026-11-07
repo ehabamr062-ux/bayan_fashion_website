@@ -1216,3 +1216,104 @@ body.dark-mode .glass-input::placeholder {
     }
 }
 
+
+/* ==========================================================================
+   🌙 Master Dark Mode Typography & Contrast Shield (حماية تباين الوضع الداكن)
+   - يعالج النصوص الداكنة الصريحة ومربعات المقاسات والباركود في كافة الأقسام
+   - محمي بشرط body.dark-mode لضمان عدم تأثر الوضع الفاتح بنسبة 100%
+   ========================================================================== */
+
+/* 1. إجبار كافة النصوص ذات الحبر الأسود الصريح على التحول للأبيض الساطع */
+body.dark-mode [style*="color: #0f172a"],
+body.dark-mode [style*="color:#0f172a"],
+body.dark-mode [style*="color: #090d16"],
+body.dark-mode [style*="color:#090d16"],
+body.dark-mode [style*="color: #000000"],
+body.dark-mode [style*="color:#000000"],
+body.dark-mode [style*="color: #000"],
+body.dark-mode [style*="color:#000"],
+body.dark-mode [style*="color: #1e1b4b"],
+body.dark-mode [style*="color:#1e1b4b"],
+body.dark-mode [style*="color: #1e293b"],
+body.dark-mode [style*="color:#1e293b"],
+body.dark-mode [style*="color: #334155"],
+body.dark-mode [style*="color:#334155"],
+body.dark-mode [style*="color: #111827"],
+body.dark-mode [style*="color:#111827"] {
+    color: #f8fafc !important;
+}
+
+/* 2. تصحيح نصوص جدول البيع وعمود اسم الصنف والمقاسات والأكواد */
+body.dark-mode #cartTableBody tr td,
+body.dark-mode .invoice-table tbody tr td,
+body.dark-mode .invoice-table tbody tr td * {
+    color: #f8fafc;
+}
+
+/* كبسولات المقاسات والباركود والرصيد تحت اسم الصنف في سلة البيع */
+body.dark-mode #cartTableBody .variant-badge-pill,
+body.dark-mode #cartTableBody .item-variant-box,
+body.dark-mode #cartTableBody [class*="variant"],
+body.dark-mode #cartTableBody [class*="badge"],
+body.dark-mode #cartTableBody [style*="background: #f"],
+body.dark-mode #cartTableBody [style*="background:#f"] {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+    color: #f8fafc !important;
+}
+
+/* تمييز باركود الصنف وكوده بلون مميز واضح */
+body.dark-mode .invoice-table td small,
+body.dark-mode .invoice-table td .sku-text,
+body.dark-mode .invoice-table td .barcode-text,
+body.dark-mode #cartTableBody small {
+    color: #38bdf8 !important;
+}
+
+/* 3. تصحيح قائمة البحث السريع ونتائج البحث المنبثقة */
+body.dark-mode .pos-search-panel,
+body.dark-mode .pos-search-panel-shared,
+body.dark-mode .search-results,
+body.dark-mode .pos-search-body {
+    background: #0f172a !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .pos-search-row,
+body.dark-mode .result-item {
+    border-bottom-color: #1e293b !important;
+    color: #f8fafc !important;
+}
+
+body.dark-mode .pos-search-row:not(:hover) div,
+body.dark-mode .pos-search-row:not(:hover) span,
+body.dark-mode .pos-search-row:not(:hover) b {
+    color: #f8fafc !important;
+}
+
+body.dark-mode .pos-search-row .bp-tag-barcode,
+body.dark-mode .pos-search-row [class*="barcode"] {
+    background: #1e293b !important;
+    color: #38bdf8 !important;
+    border-color: #0284c7 !important;
+}
+
+/* 4. كروت الأصناف السريعة وحقول الإدخال الجانبية */
+body.dark-mode .quick-item-btn {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .quick-item-btn .item-name {
+    color: #f8fafc !important;
+}
+
+body.dark-mode .pos-compact-tool-item {
+    background: #1e293b !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .pos-compact-tool-item input,
+body.dark-mode .pos-compact-tool-item select {
+    color: #f8fafc !important;
+}
