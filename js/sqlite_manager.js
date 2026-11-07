@@ -969,19 +969,6 @@
             } catch (migErr) {
                 console.warn("[SQLite] transactions id migration notice:", migErr.message);
             }
-            // 🛡️ ترشيد وتنظيف الفهارس القديمة الفائضة لجدول transactions لرفع سرعة الحفظ والتقارير وتقليص حجم القاعدة
-            try {
-                const redundantIndexes = [
-                    'idx_tx_date', 'idx_tx_partner', 'idx_tx_type', 'idx_tx_status',
-                    'idx_tx_type_status', 'idx_tx_date_type', 'idx_tx_date_method',
-                    'idx_tx_date_wh', 'idx_tx_date_type_wh', 'idx_tx_partner_type',
-                    'idx_tx_partner_status', 'idx_tx_type_date', 'idx_tx_date_type_method',
-                    'idx_tx_date_isHead', 'idx_tx_origInvId'
-                ];
-                for (const idxName of redundantIndexes) {
-                    try { this.db.run(`DROP INDEX IF EXISTS ${idxName};`); } catch (dropErr) { }
-                }
-            } catch (cleanIdxErr) { }
 
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_invoiceId ON transactions(invoiceId);");
@@ -1110,6 +1097,20 @@
                 try {
                     console.log("⚡ [SQLite] Executing one-time schema v3 upgrade migrations...");
                     this.db.run("BEGIN TRANSACTION;");
+
+                    // 🛡️ ترشيد وتنظيف الفهارس القديمة الفائضة لجدول transactions لمرة واحدة فقط عند الترقية
+                    try {
+                        const redundantIndexes = [
+                            'idx_tx_date', 'idx_tx_partner', 'idx_tx_type', 'idx_tx_status',
+                            'idx_tx_type_status', 'idx_tx_date_type', 'idx_tx_date_method',
+                            'idx_tx_date_wh', 'idx_tx_date_type_wh', 'idx_tx_partner_type',
+                            'idx_tx_partner_status', 'idx_tx_type_date', 'idx_tx_date_type_method',
+                            'idx_tx_date_isHead', 'idx_tx_origInvId'
+                        ];
+                        for (const idxName of redundantIndexes) {
+                            try { this.db.run(`DROP INDEX IF EXISTS ${idxName};`); } catch (dropErr) { }
+                        }
+                    } catch (cleanIdxErr) { }
                     try {
                         this.db.run(`
                             UPDATE products 
@@ -2280,9 +2281,9 @@
                 stmt.free();
                 if (safeTable === 'transactions') {
                     try {
-                        const delTi = this.db.prepare(`DELETE FROM transaction_items WHERE tx_id = ? OR invoiceId = ?;`);
+                        const delTi = this.db.prepare(`DELETE FROM transaction_items WHERE tx_id = ? OR invoiceId = ? OR tx_id LIKE (? || '_item_%');`);
                         const val = id != null ? String(id) : null;
-                        delTi.run([val, val]);
+                        delTi.run([val, val, val]);
                         delTi.free();
                     } catch (tiErr) { }
                 }
@@ -2318,11 +2319,11 @@
                     stmt.free();
                     if (safeTable === 'transactions') {
                         try {
-                            const delTi = this.db.prepare(`DELETE FROM transaction_items WHERE tx_id = ? OR invoiceId = ?;`);
+                            const delTi = this.db.prepare(`DELETE FROM transaction_items WHERE tx_id = ? OR invoiceId = ? OR tx_id LIKE (? || '_item_%');`);
                             for (const id of ids) {
                                 if (id !== undefined) {
                                     const val = id != null ? String(id) : null;
-                                    delTi.run([val, val]);
+                                    delTi.run([val, val, val]);
                                 }
                             }
                             delTi.free();
@@ -2443,14 +2444,6 @@
                 console.warn("[SQLite] getInvoice notice:", e.message);
             }
             return null;
-        }
-
-        /**
-         * ⚡ جلب كافة بنود الفاتورة مباشرة من جدول transaction_items أو transactions مع منع التكرار
-         * (محصن ضد تداخل المعرفات - يوجه للتنفيذ الموحد)
-         */
-        getInvoiceItemsLegacy(invoiceId, targetType = '', targetTxId = '') {
-            return this.getInvoiceItems(invoiceId, targetType, targetTxId);
         }
 
         /**
