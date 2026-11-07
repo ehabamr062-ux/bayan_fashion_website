@@ -1196,7 +1196,6 @@
             try {
                 this.db.run(`
                     INSERT OR IGNORE INTO warehouses (id, name, address) VALUES (1, 'المخزن الرئيسي', 'المقر الرئيسي');
-                    INSERT OR IGNORE INTO users (id, name, pin, role) VALUES (1, 'المدير', '1234', 'admin');
                 `);
             } catch (e) { }
         }
