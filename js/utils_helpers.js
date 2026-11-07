@@ -2273,18 +2273,28 @@
             }
         };
 
-        // مسح سجل الاستلام أو تصفيره (مع الحفاظ على سجلات التحويلات المخزنية المعتمدة)
+        // مسح سجل الاستلام والتدفق بالكامل وتصفير العدادات
         window.clearReceiptLog = function() {
-            if (!window.bayanReceiptLog || window.bayanReceiptLog.length === 0) return;
-            if (confirm("هل أنت متأكد من مسح بيانات سجل الاستلام المؤرشفة؟\n(تظل أذونات التحويل المخزني موثقة ومعتمدة للحفاظ على الأرصدة)")) {
-                window.bayanReceiptLog = (window.bayanReceiptLog || []).filter(x => x.type === 'transfer');
-                setStore('bayan_receipt_log', JSON.stringify(window.bayanReceiptLog));
+            if (!window.bayanReceiptLog || window.bayanReceiptLog.length === 0) {
+                showToast("ℹ️ سجل الاستلام فارغ بالفعل.");
+                return;
+            }
+            if (confirm("هل أنت متأكد من مسح كافة بيانات سجل الاستلام والتدفق نهائياً؟\n(ملاحظة: هذا الإجراء يمسح أرشيف التنبيهات فقط ولا يؤثر مطلقاً على حركة المخزون الفعلية)")) {
+                window.bayanReceiptLog = [];
+                setStore('bayan_receipt_log', JSON.stringify([]));
                 setStore('bayan_legacy_backfilled', 'true');
                 window._legacyReceiptLogBackfilled = true;
+                
+                // تحديث شارات وجرس الإشعارات وإحصائيات النظام فورياً
+                if (typeof updateNotifications === 'function') {
+                    updateNotifications();
+                }
+                
+                // إعادة عرض النافذة وهي فارغة
                 if (typeof showNotificationsModal === 'function') {
                     showNotificationsModal('archived');
                 }
-                showToast("🗑️ تم مسح سجل الاستلام بنجاح وبقيت أذونات التحويل موثقة.");
+                showToast("🗑️ تم مسح سجل الاستلام بالكامل بنجاح.");
             }
         };
 
