@@ -1355,19 +1355,31 @@
                 let qty = parseFloat(item.qty != null ? item.qty : (item.quantity || 0));
                 let unit = item.selectedUnit ? (typeof item.selectedUnit === 'object' ? item.selectedUnit.unitName : item.selectedUnit) : (item.unit || '');
                 let price = parseFloat(item.price != null ? item.price : (item.costPrice || item.purchasePrice || 0));
-                let lineGross = qty * price;
-                rawSubTotal += lineGross;
+                const subtotal = (parseFloat(qty) || 1) * (parseFloat(price) || 0);
+                const itemTotal = parseFloat(item.total != null ? item.total : subtotal);
 
-                let itemDisc = parseFloat(item.itemDiscount != null ? item.itemDiscount : (item.discount != null && !item.distributedDiscount ? item.discount : 0)) || 0;
+                let itemDisc = parseFloat(item.discount != null ? item.discount : (item.itemDiscount || 0)) || 0;
                 let itemDiscType = item.discountType || item.itemDiscountType || 'val';
-                let discAmount = (itemDiscType === 'perc' && itemDisc > 0) ? (lineGross * itemDisc / 100) : itemDisc;
-                
-                let itemAdd = parseFloat(item.addition != null ? item.addition : (item.extra != null ? item.extra : 0)) || 0;
-                
-                let total = parseFloat(item.total != null ? item.total : (lineGross - discAmount + itemAdd));
-                grandTotal += total;
-                totalItemsDiscount += discAmount;
-                totalItemsAddition += itemAdd;
+                let disc = (itemDiscType === 'perc' && itemDisc > 0) ? (subtotal * itemDisc / 100) : itemDisc;
+
+                let itemAdd = parseFloat(item.addition != null ? item.addition : (item.extra != null ? item.extra : (item.tax || 0))) || 0;
+                let itemAddType = item.additionType || item.taxType || 'val';
+                let extra = (itemAddType === 'perc' && itemAdd > 0) ? (subtotal * itemAdd / 100) : itemAdd;
+
+                // صمام الأمان الرياضي التلقائي
+                if (disc <= 0 && (subtotal - itemTotal) > 0.01) {
+                    disc = subtotal - itemTotal;
+                }
+                if (extra <= 0 && (itemTotal - subtotal) > 0.01) {
+                    extra = itemTotal - subtotal;
+                }
+
+                rawSubTotal += subtotal;
+                grandTotal += itemTotal;
+                totalItemsDiscount += disc;
+                totalItemsAddition += extra;
+
+                let total = itemTotal;
                 
                 let itemSize = item.size || item.selectedSize || '';
                 let itemColor = item.color || item.selectedColor || '';
@@ -1375,20 +1387,19 @@
                 let colorBadge = itemColor ? `<span style="background:#f1f5f9; color:#1e293b; border:1px solid #cbd5e1; padding:2px 8px; border-radius:6px; font-weight:800; font-size:0.78rem;">${itemColor}</span>` : `<span style="color:#cbd5e1;">-</span>`;
 
                 let discAddBadge = '';
-                if (discAmount > 0.001 && itemAdd > 0.001) {
+                if (disc > 0.001 && extra > 0.001) {
                     discAddBadge = `
                         <div style="display:flex; flex-direction:column; gap:2px; align-items:center;">
-                            <span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:1px 6px; border-radius:5px; font-weight:800; font-size:0.74rem;">خصم -${discAmount.toFixed(2)}</span>
-                            <span style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; padding:1px 6px; border-radius:5px; font-weight:800; font-size:0.74rem;">إضافة +${itemAdd.toFixed(2)}</span>
+                            <span style="color:#ef4444; font-weight:bold; font-size:0.85rem;">-${disc.toFixed(2)}</span>
+                            <span style="color:#2563eb; font-weight:bold; font-size:0.85rem;">+${extra.toFixed(2)}</span>
                         </div>
                     `;
-                } else if (discAmount > 0.001) {
-                    const percLabel = (itemDiscType === 'perc' && itemDisc > 0) ? ` (${itemDisc}%)` : '';
-                    discAddBadge = `<span style="background:#fee2e2; color:#b91c1c; border:1px solid #fca5a5; padding:2px 8px; border-radius:6px; font-weight:800; font-size:0.78rem; display:inline-block;" title="خصم على الصنف">-${discAmount.toFixed(2)}${percLabel}</span>`;
-                } else if (itemAdd > 0.001) {
-                    discAddBadge = `<span style="background:#ecfdf5; color:#047857; border:1px solid #a7f3d0; padding:2px 8px; border-radius:6px; font-weight:800; font-size:0.78rem; display:inline-block;" title="إضافة على الصنف">+${itemAdd.toFixed(2)} ج.م</span>`;
+                } else if (disc > 0.001) {
+                    discAddBadge = `<span style="color:#ef4444; font-weight:bold; font-size:0.88rem;">-${disc.toFixed(2)}</span>`;
+                } else if (extra > 0.001) {
+                    discAddBadge = `<span style="color:#2563eb; font-weight:bold; font-size:0.88rem;">+${extra.toFixed(2)}</span>`;
                 } else {
-                    discAddBadge = `<span style="color:#cbd5e1; font-weight:700;">-</span>`;
+                    discAddBadge = `<span style="color:#94a3b8; font-weight:bold;">-</span>`;
                 }
 
                 let method = tx.method || tx.paymentMethod || 'نقدي';
