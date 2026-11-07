@@ -5239,7 +5239,9 @@ function applyPosNavVisibility() {
                 : currentUser;
 
             if (u && u.permissions) {
-                if (u.permissions.general && u.permissions.general.hidePosNav !== undefined) {
+                if (u.permissions.general && u.permissions.general.showPosNav !== undefined) {
+                    canNavigate = !!u.permissions.general.showPosNav;
+                } else if (u.permissions.general && u.permissions.general.hidePosNav !== undefined) {
                     canNavigate = !u.permissions.general.hidePosNav;
                 } else if (u.permissions.docs && u.permissions.docs.navigate !== undefined) {
                     canNavigate = !!u.permissions.docs.navigate;

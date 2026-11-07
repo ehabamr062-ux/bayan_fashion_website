@@ -25,7 +25,7 @@ function addToTrash(type, data, desc) {
 
 async function saveSettings() {
     const currentSettings = JSON.parse(getStore('pos_settings') || '{}');
-    
+
     // 1. Phone Validation Logic
     const p1 = document.getElementById('shopPhone1').value.trim();
     const p2 = document.getElementById('shopPhone2').value.trim();
@@ -125,13 +125,13 @@ function setAllDashboardSectionsVisibility(visible = true) {
     document.querySelectorAll('.dash-sec-toggle').forEach(chk => {
         chk.checked = visible;
     });
-    
+
     // جمع وتطبيق الحالة مباشرة وحفظها في pos_settings
     const sectionsMap = getDashboardSectionsVisibilityState();
     let settings = {};
     try {
         settings = JSON.parse(getStore('pos_settings') || '{}');
-    } catch(e) {}
+    } catch (e) { }
     settings.visibleDashboardSections = sectionsMap;
     setStore('pos_settings', JSON.stringify(settings));
 
@@ -153,7 +153,7 @@ function applyStaffPresetVisibility() {
     let settings = {};
     try {
         settings = JSON.parse(getStore('pos_settings') || '{}');
-    } catch(e) {}
+    } catch (e) { }
     settings.visibleDashboardSections = sectionsMap;
     setStore('pos_settings', JSON.stringify(settings));
 
@@ -254,7 +254,7 @@ function onBusinessTypeChange(type) {
     let settings = {};
     try {
         settings = JSON.parse(getStore('pos_settings') || '{}');
-    } catch(e) {}
+    } catch (e) { }
     settings.businessType = rawType;
     if (variantsCheck) settings.enableVariantsMatrix = variantsCheck.checked;
     setStore('pos_settings', JSON.stringify(settings));
@@ -275,7 +275,7 @@ function applyBusinessTypeUI() {
     let settings = {};
     try {
         settings = JSON.parse(getStore('pos_settings') || '{}');
-    } catch(e) {}
+    } catch (e) { }
 
     const rawBType = (document.getElementById('appBusinessTypeSelect') ? document.getElementById('appBusinessTypeSelect').value : null)
         || (document.getElementById('appBusinessType') ? document.getElementById('appBusinessType').value : null)
@@ -313,7 +313,7 @@ function applyBusinessTypeUI() {
         sectionsMap.analysis = true;
         settings._hasMigratedAnalysisSec = true;
         settings.visibleDashboardSections = sectionsMap;
-        try { setStore('pos_settings', JSON.stringify(settings)); } catch(e) {}
+        try { setStore('pos_settings', JSON.stringify(settings)); } catch (e) { }
     }
 
     allKnownSections.forEach(secKey => {
@@ -393,7 +393,7 @@ try {
 
 function loadSettings() {
     const settings = JSON.parse(getStore('pos_settings') || '{}');
-    
+
     if (settings.name) {
         document.getElementById('shopName').value = settings.name;
         const titleEl = document.getElementById('appTitle');
@@ -436,7 +436,7 @@ function loadSettings() {
     const autoBackupEl = document.getElementById('autoBackupSetting');
     if (autoBackupEl) {
         autoBackupEl.checked = (settings.autoBackup === true || settings.autoBackup === 'true');
-        autoBackupEl.onchange = function() {
+        autoBackupEl.onchange = function () {
             const cur = JSON.parse(getStore('pos_settings') || '{}');
             cur.autoBackup = this.checked;
             setStore('pos_settings', JSON.stringify(cur));
@@ -448,7 +448,7 @@ function loadSettings() {
     const autoIntervalEl = document.getElementById('autoBackupInterval');
     if (autoIntervalEl) {
         if (settings.autoBackupInterval !== undefined) autoIntervalEl.value = settings.autoBackupInterval;
-        autoIntervalEl.onchange = function() {
+        autoIntervalEl.onchange = function () {
             const cur = JSON.parse(getStore('pos_settings') || '{}');
             cur.autoBackupInterval = this.value;
             setStore('pos_settings', JSON.stringify(cur));
@@ -501,7 +501,7 @@ function loadSettings() {
         try {
             const m = typeof window.AppStore['main'] === 'string' ? JSON.parse(window.AppStore['main']) : window.AppStore['main'];
             if (m && m.businessType) bType = m.businessType;
-        } catch(e) {}
+        } catch (e) { }
     }
     bType = bType || 'clothing';
     selectBusinessType(bType);
@@ -641,7 +641,7 @@ function applyPermissions() {
             canNavigateDocs = true;
         } else {
             const uTarget = (typeof users !== 'undefined' && Array.isArray(users))
-                ? users.find(u => 
+                ? users.find(u =>
                     (currentUser.id != null && u.id != null && String(u.id) === String(currentUser.id)) ||
                     (u.pin != null && currentUser.pin != null && String(u.pin).trim() === String(currentUser.pin).trim()) ||
                     (currentUser.name && u.name && u.name.trim() === currentUser.name.trim())
@@ -707,7 +707,7 @@ function applyPermissions() {
                 if (uTarget.lockPriceEdit !== undefined) currentUser.lockPriceEdit = !!uTarget.lockPriceEdit;
                 if (uTarget.maxDiscountPercent !== undefined) currentUser.maxDiscountPercent = uTarget.maxDiscountPercent;
                 if (uTarget.maxAdditionPercent !== undefined) currentUser.maxAdditionPercent = uTarget.maxAdditionPercent;
-            } catch (e) {}
+            } catch (e) { }
         }
         if (uTarget && uTarget.permissions && uTarget.permissions.general) {
             if (uTarget.permissions.general.hideShare !== undefined) hideShare = !!uTarget.permissions.general.hideShare;
@@ -781,7 +781,7 @@ function applyPermissions() {
 
     // 4. 🔒 تحديث ضوابط الخصم والتسعير في شاشة المبيعات فور تسجيل الدخول
     const isPriceLocked = (typeof currentUser !== 'undefined' && currentUser && currentUser.lockPriceEdit);
-    const canEditPrice = !isPriceLocked && ((typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin') 
+    const canEditPrice = !isPriceLocked && ((typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin')
         || (typeof hasPermission === 'function' && hasPermission('docs_price_edit')));
     const headerPriceEl = document.getElementById('headerPrice');
     if (headerPriceEl) {
@@ -990,7 +990,7 @@ function renderUsersTable() {
     users.forEach((u, idx) => {
         const isSuperAdmin = (u.id === 1);
         const isFrozen = !!u.isFrozen;
-        const nfcBadge = u.nfcUid 
+        const nfcBadge = u.nfcUid
             ? `<span style="background: #eff6ff; color: #1d4ed8; border: 2px solid #93c5fd; padding: 5px 12px; border-radius: 8px; font-size: 0.92rem; font-weight: 900; display: inline-flex; align-items: center; gap: 5px;">💳 ${u.nfcUid}</span>`
             : `<span style="color: #000000; font-size: 0.92rem; font-weight: 900; background: #f1f5f9; padding: 5px 12px; border-radius: 8px; border: 2px solid #cbd5e1;">غير مربوط</span>`;
 
@@ -1357,7 +1357,7 @@ async function saveUsersDirectlyToDb() {
                         const sRaw = typeof rawJson === 'object' ? JSON.stringify(rawJson) : String(rawJson || '{}');
                         window.BayanSQLite.nativeDb.prepare("INSERT OR REPLACE INTO users (id, name, pin, role, raw_json) VALUES (?, ?, ?, ?, ?);").run(u.id, u.name || '', u.pin || '', u.role || '', sRaw);
                     }
-                } catch(ne) {}
+                } catch (ne) { }
             }
             if (window.BayanSQLite && typeof window.BayanSQLite.schedulePersist === 'function') {
                 window.BayanSQLite.schedulePersist(100);
@@ -1382,7 +1382,7 @@ async function saveUsersDirectlyToDb() {
             });
             setStore('bayan_pos_users_secure_cache', JSON.stringify(secureUsersCache));
         }
-    } catch (ce) {}
+    } catch (ce) { }
 }
 window.saveUsersDirectlyToDb = saveUsersDirectlyToDb;
 
@@ -1509,24 +1509,27 @@ async function addUser() {
         }
     }
 
-    // 🔒 ضبط حجب أزرار التنقل والبحث في فواتير البيع بدقة متناهية
-    let isHidePosNav = false;
+    // 🔒 ضبط إظهار أزرار التنقل والبحث في فواتير البيع بدقة متناهية (صح = إظهار)
+    let isShowPosNav = false;
     if (role === 'admin') {
-        isHidePosNav = false;
+        isShowPosNav = true;
     } else {
-        const permUiNavEl = document.getElementById('perm_ui_hide_pos_nav');
+        const permUiShowEl = document.getElementById('perm_ui_show_pos_nav');
+        const permUiHideEl = document.getElementById('perm_ui_hide_pos_nav');
         const permDocNavEl = document.getElementById('perm_docs_navigate');
-        if (permUiNavEl) {
-            isHidePosNav = permUiNavEl.checked;
+        if (permUiShowEl) {
+            isShowPosNav = permUiShowEl.checked;
+        } else if (permUiHideEl) {
+            isShowPosNav = !permUiHideEl.checked;
         } else if (permDocNavEl) {
-            isHidePosNav = !permDocNavEl.checked;
+            isShowPosNav = permDocNavEl.checked;
         }
     }
 
     const permissions = {
         docs: {
             add: document.getElementById('perm_docs_add') ? document.getElementById('perm_docs_add').checked : true,
-            navigate: (role === 'admin') ? true : !isHidePosNav,
+            navigate: (role === 'admin') ? true : isShowPosNav,
             purchase: document.getElementById('perm_docs_purchase') ? document.getElementById('perm_docs_purchase').checked : false,
             return: document.getElementById('perm_docs_return') ? document.getElementById('perm_docs_return').checked : false,
             purchase_return: canPurReturn,
@@ -1572,7 +1575,8 @@ async function addUser() {
             lockDailyAmounts: (role === 'admin') ? false : (document.getElementById('perm_gen_lock_daily_amounts') ? document.getElementById('perm_gen_lock_daily_amounts').checked : true),
             hideShare: (role === 'admin' && document.getElementById('adminHideShare')) ? document.getElementById('adminHideShare').checked : (document.getElementById('perm_ui_hide_share') ? document.getElementById('perm_ui_hide_share').checked : false),
             hideNew: (role === 'admin' && document.getElementById('adminHideNew')) ? document.getElementById('adminHideNew').checked : (document.getElementById('perm_ui_hide_new') ? document.getElementById('perm_ui_hide_new').checked : false),
-            hidePosNav: isHidePosNav,
+            showPosNav: isShowPosNav,
+            hidePosNav: !isShowPosNav,
             settings: document.getElementById('perm_gen_settings') ? document.getElementById('perm_gen_settings').checked : false,
             shortcuts: document.getElementById('perm_gen_shortcuts') ? document.getElementById('perm_gen_shortcuts').checked : false,
             users: document.getElementById('perm_gen_users') ? document.getElementById('perm_gen_users').checked : false,
@@ -1595,11 +1599,11 @@ async function addUser() {
             : 100;
         lockPriceEdit = document.getElementById('adminLockPriceEdit') ? document.getElementById('adminLockPriceEdit').checked : false;
     } else {
-        maxDiscountPercent = document.getElementById('newUserMaxDiscount') 
-            ? Math.max(0, Math.min(100, parseFloat(document.getElementById('newUserMaxDiscount').value) || 0)) 
+        maxDiscountPercent = document.getElementById('newUserMaxDiscount')
+            ? Math.max(0, Math.min(100, parseFloat(document.getElementById('newUserMaxDiscount').value) || 0))
             : 5;
-        maxAdditionPercent = document.getElementById('newUserMaxAddition') 
-            ? Math.max(0, Math.min(100, parseFloat(document.getElementById('newUserMaxAddition').value) || 0)) 
+        maxAdditionPercent = document.getElementById('newUserMaxAddition')
+            ? Math.max(0, Math.min(100, parseFloat(document.getElementById('newUserMaxAddition').value) || 0))
             : 15;
         lockPriceEdit = document.getElementById('perm_docs_price_edit') ? !document.getElementById('perm_docs_price_edit').checked : true;
     }
@@ -1612,11 +1616,11 @@ async function addUser() {
         ? window.BayanSecurity.encryptPin(finalPin)
         : finalPin;
 
-    const newUser = { 
-        id: window.editingUserId || Date.now(), 
-        name, 
-        pin: securePin, 
-        role, 
+    const newUser = {
+        id: window.editingUserId || Date.now(),
+        name,
+        pin: securePin,
+        role,
         nfcUid: nfcUid || '',
         isFrozen: isFrozen,
         warehouseScope,
@@ -1626,7 +1630,7 @@ async function addUser() {
         maxDiscountPercent,
         maxAdditionPercent,
         lockPriceEdit,
-        permissions 
+        permissions
     };
 
     const isUpdating = !!window.editingUserId;
@@ -1661,7 +1665,7 @@ async function addUser() {
     hideUserFormCard();
     if (typeof applyPermissions === 'function') applyPermissions();
     if (typeof updateLoginUsersList === 'function') updateLoginUsersList();
-    
+
     showToast(isUpdating ? "✅ تم تحديث وتثبيت بيانات وصلاحيات الموظف في قاعدة البيانات بنجاح" : "✅ تم إضافة الموظف الجديد وتثبيته في قاعدة البيانات بنجاح", "success");
 
     if (typeof logAuditAction === 'function') logAuditAction(isUpdating ? 'تحديث موظف' : 'إضافة موظف جديد', `الاسم: ${newUser.name}, الدور: ${newUser.role}, المخزن: ${warehouseScope === 'specific' ? assignedWarehouse : (warehouseScope === 'main' ? 'الرئيسي فقط' : 'كافة المخازن')}`);
@@ -1673,7 +1677,7 @@ function toggleAdminPermsUI(role) {
     const msg = document.getElementById('adminFullAccessMsg');
     const adminNotice = document.getElementById('adminNotice');
     const restrictionsBox = document.getElementById('userCashierRestrictionsBox');
-    
+
     if (role === 'admin') {
         if (container) container.style.display = 'none';
         if (msg) msg.style.display = 'block';
@@ -1822,8 +1826,8 @@ function editUser(idx) {
         document.getElementById('perm_gen_users').checked = !!p.general.users;
     }
 
-    const isProfitsHidden = (p.general && p.general.hideProfits !== undefined) 
-        ? !!p.general.hideProfits 
+    const isProfitsHidden = (p.general && p.general.hideProfits !== undefined)
+        ? !!p.general.hideProfits
         : ((p.general && p.general.profits !== undefined) ? !p.general.profits : false);
 
     const adminHideProfitsEl = document.getElementById('adminHideProfits');
@@ -1851,16 +1855,22 @@ function editUser(idx) {
         permHideNewEl.checked = (p.general && p.general.hideNew !== undefined) ? !!p.general.hideNew : false;
     }
 
-    const isNavHidden = (p.general && p.general.hidePosNav !== undefined)
-        ? !!p.general.hidePosNav
-        : (p.docs && p.docs.navigate !== undefined ? !p.docs.navigate : false);
+    const isNavAllowed = (p.general && p.general.showPosNav !== undefined)
+        ? !!p.general.showPosNav
+        : (p.general && p.general.hidePosNav !== undefined
+            ? !p.general.hidePosNav
+            : (p.docs && p.docs.navigate !== undefined ? !!p.docs.navigate : (u.role === 'admin')));
 
+    const permShowNavEl = document.getElementById('perm_ui_show_pos_nav');
+    if (permShowNavEl) {
+        permShowNavEl.checked = (u.role === 'admin') ? true : isNavAllowed;
+    }
     const permHideNavEl = document.getElementById('perm_ui_hide_pos_nav');
     if (permHideNavEl) {
-        permHideNavEl.checked = (u.role === 'admin') ? false : isNavHidden;
+        permHideNavEl.checked = (u.role === 'admin') ? false : !isNavAllowed;
     }
     if (document.getElementById('perm_docs_navigate')) {
-        document.getElementById('perm_docs_navigate').checked = (u.role === 'admin') ? true : !isNavHidden;
+        document.getElementById('perm_docs_navigate').checked = (u.role === 'admin') ? true : isNavAllowed;
     }
 
     const isDrawerBalanceHidden = (p.general && p.general.hideDrawerBalance !== undefined)
@@ -1906,11 +1916,11 @@ function editUser(idx) {
             whLockEl.checked = (u.role !== 'admin');
         }
     }
-    
+
     const formCard = document.getElementById('userFormCard');
     const titleEl = document.getElementById('userFormCardTitle');
     if (titleEl) titleEl.innerHTML = '✏️ تعديل بيانات وصلاحيات الموظف: <span style="color:#38bdf8; margin-right: 6px;">' + u.name + '</span>';
-    
+
     if (typeof switchPermCategory === 'function') switchPermCategory('sales');
 
     if (formCard) {
@@ -1973,8 +1983,9 @@ function resetUserForm() {
     if (document.getElementById('adminHideNew')) document.getElementById('adminHideNew').checked = false;
     if (document.getElementById('perm_ui_hide_share')) document.getElementById('perm_ui_hide_share').checked = false;
     if (document.getElementById('perm_ui_hide_new')) document.getElementById('perm_ui_hide_new').checked = false;
-    if (document.getElementById('perm_ui_hide_pos_nav')) document.getElementById('perm_ui_hide_pos_nav').checked = false;
-    if (document.getElementById('perm_docs_navigate')) document.getElementById('perm_docs_navigate').checked = true;
+    if (document.getElementById('perm_ui_show_pos_nav')) document.getElementById('perm_ui_show_pos_nav').checked = false;
+    if (document.getElementById('perm_ui_hide_pos_nav')) document.getElementById('perm_ui_hide_pos_nav').checked = true;
+    if (document.getElementById('perm_docs_navigate')) document.getElementById('perm_docs_navigate').checked = false;
     if (document.getElementById('adminHideDrawerBalance')) document.getElementById('adminHideDrawerBalance').checked = false;
     if (document.getElementById('perm_ui_hide_drawer_balance')) document.getElementById('perm_ui_hide_drawer_balance').checked = false;
     if (document.getElementById('perm_gen_drawer_balance')) document.getElementById('perm_gen_drawer_balance').checked = true;
@@ -2059,6 +2070,7 @@ function applyPermissionPreset(presetKey, silent = false) {
         setChecked('perm_docs_add', true);
         setChecked('perm_docs_return', true);
         setChecked('perm_docs_navigate', false);
+        setChecked('perm_ui_show_pos_nav', false);
         setChecked('perm_ui_hide_pos_nav', true);
         setChecked('perm_sec_receipt', true);
         setChecked('perm_docs_view', true);
@@ -2096,6 +2108,7 @@ function applyPermissionPreset(presetKey, silent = false) {
         setChecked('perm_sec_pur_return', true);
         setChecked('perm_docs_view', true);
         setChecked('perm_docs_navigate', false);
+        setChecked('perm_ui_show_pos_nav', false);
         setChecked('perm_ui_hide_pos_nav', true);
         setChecked('perm_docs_purchase_price', false);
         setChecked('perm_gen_profits', false);
@@ -2120,6 +2133,7 @@ function applyPermissionPreset(presetKey, silent = false) {
         setChecked('perm_docs_add', true);
         setChecked('perm_docs_return', true);
         setChecked('perm_docs_navigate', true);
+        setChecked('perm_ui_show_pos_nav', true);
         setChecked('perm_ui_hide_pos_nav', false);
         setChecked('perm_docs_purchase', true);
         setChecked('perm_sec_warehouse_report', true);
@@ -2151,6 +2165,7 @@ function toggleAllUserSections(checked, silent = false) {
     });
     if (document.getElementById('perm_docs_discount')) document.getElementById('perm_docs_discount').checked = !!checked;
     if (document.getElementById('perm_docs_tax')) document.getElementById('perm_docs_tax').checked = !!checked;
+    if (document.getElementById('perm_ui_show_pos_nav')) document.getElementById('perm_ui_show_pos_nav').checked = !!checked;
     if (document.getElementById('perm_ui_hide_pos_nav')) document.getElementById('perm_ui_hide_pos_nav').checked = !checked;
     if (document.getElementById('perm_docs_navigate')) document.getElementById('perm_docs_navigate').checked = !!checked;
     if (!silent && typeof showToast === 'function') showToast(checked ? "✔️ تم تحديد كافة الأقسام للموظف" : "❌ تم إلغاء تحديد كافة الأقسام", "info");
@@ -2221,7 +2236,7 @@ function showAddUserFormCard() {
     const formCard = document.getElementById('userFormCard');
     const titleEl = document.getElementById('userFormCardTitle');
     if (titleEl) titleEl.innerHTML = '➕ إضافة موظف جديد وتحديد الأقسام المصرّح بها';
-    
+
     if (typeof switchPermCategory === 'function') switchPermCategory('sales');
 
     if (formCard) {
@@ -2376,7 +2391,7 @@ if (typeof document !== 'undefined') {
     }
 }
 
-document.addEventListener('keydown', function(e) {
+document.addEventListener('keydown', function (e) {
     if (e.key === 'Escape') {
         const modal = document.getElementById('userFormCard');
         if (modal && (!modal.classList.contains('hidden') || modal.style.display !== 'none')) {
@@ -2450,7 +2465,7 @@ function switchPermTab(panelId, btn) {
         t.style.color = '#64748b';
         t.style.boxShadow = 'none';
     });
-    
+
     // تحديث الألواح
     document.querySelectorAll('.perm-panel').forEach(p => {
         p.style.display = 'none';
@@ -2463,7 +2478,7 @@ function switchPermTab(panelId, btn) {
         btn.style.color = '#1e293b';
         btn.style.boxShadow = '0 4px 10px rgba(0,0,0,0.05)';
     }
-    
+
     const target = document.getElementById('perm-panel-' + panelId);
     if (target) {
         target.style.display = 'grid';
@@ -2473,10 +2488,13 @@ function switchPermTab(panelId, btn) {
 function resolvePermissionKey(action) {
     if (!action) return { module: '', perm: '' };
     let act = String(action).toLowerCase().trim();
-    
+
     // توحيد المرادفات
     if (act === 'docs_navigate' || act === 'perm_docs_navigate' || act === 'navigate' || act === 'pos_navigate') {
         return { module: 'docs', perm: 'navigate' };
+    }
+    if (act === 'ui_show_pos_nav' || act === 'show_pos_nav' || act === 'perm_ui_show_pos_nav') {
+        return { module: 'general', perm: 'showPosNav' };
     }
     if (act === 'ui_hide_pos_nav' || act === 'hide_pos_nav' || act === 'perm_ui_hide_pos_nav') {
         return { module: 'general', perm: 'hidePosNav' };
@@ -2515,7 +2533,7 @@ function checkPermission(action) {
     // إعادة التحقق من المستخدم مقابل مصفوفة users الحقيقية من SQLite بمرونة وأمان
     if (typeof users !== 'undefined' && Array.isArray(users) && users.length > 0) {
         const pin = currentUser.pin;
-        const realUser = users.find(u => 
+        const realUser = users.find(u =>
             (currentUser.id != null && u.id != null && String(u.id) === String(currentUser.id)) ||
             (u.pin != null && pin != null && String(u.pin).trim() === String(pin).trim()) ||
             (currentUser.name && u.name && u.name.trim() === currentUser.name.trim())
@@ -2588,8 +2606,9 @@ function checkPermission(action) {
         }
 
         if (action === 'docs_navigate' || action === 'navigate' || action === 'pos_navigate') {
-            const isBlocked = (realUser.permissions?.general && realUser.permissions.general.hidePosNav === true) ||
-                              (realUser.permissions?.docs && realUser.permissions.docs.navigate === false);
+            const isBlocked = (realUser.permissions?.general && realUser.permissions.general.showPosNav === false) ||
+                (realUser.permissions?.general && realUser.permissions.general.hidePosNav === true) ||
+                (realUser.permissions?.docs && realUser.permissions.docs.navigate === false);
             if (isBlocked) {
                 showCustomAlert({
                     type: 'error',
@@ -2680,8 +2699,9 @@ function checkPermission(action) {
     }
 
     if (action === 'docs_navigate' || action === 'navigate' || action === 'pos_navigate') {
-        const isBlocked = (currentUser.permissions?.general && currentUser.permissions.general.hidePosNav === true) ||
-                          (currentUser.permissions?.docs && currentUser.permissions.docs.navigate === false);
+        const isBlocked = (currentUser.permissions?.general && currentUser.permissions.general.showPosNav === false) ||
+            (currentUser.permissions?.general && currentUser.permissions.general.hidePosNav === true) ||
+            (currentUser.permissions?.docs && currentUser.permissions.docs.navigate === false);
         if (isBlocked) {
             showCustomAlert({
                 type: 'error',
@@ -2760,7 +2780,7 @@ function hasPermission(action) {
     if (!currentUser) return false;
     // ✅ أمان: التحقق من المستخدم مقابل مصفوفة users من SQLite بمرونة وأمان
     if (typeof users !== 'undefined' && Array.isArray(users) && users.length > 0) {
-        const realUser = users.find(u => 
+        const realUser = users.find(u =>
             (currentUser.id != null && u.id != null && String(u.id) === String(currentUser.id)) ||
             (u.pin != null && currentUser.pin != null && String(u.pin).trim() === String(currentUser.pin).trim()) ||
             (currentUser.name && u.name && u.name.trim() === currentUser.name.trim())
@@ -2791,6 +2811,9 @@ function hasPermission(action) {
                 }
                 return true;
             }
+            if (action === 'ui_show_pos_nav' || action === 'show_pos_nav') {
+                return true;
+            }
             if (action === 'ui_hide_pos_nav' || action === 'hide_pos_nav') {
                 return false;
             }
@@ -2800,24 +2823,43 @@ function hasPermission(action) {
             return true;
         }
 
-        if (action === 'ui_hide_pos_nav' || action === 'hide_pos_nav') {
-            if (realUser.permissions?.general && realUser.permissions.general.hidePosNav !== undefined) {
-                return !!realUser.permissions.general.hidePosNav;
+        if (action === 'ui_show_pos_nav' || action === 'show_pos_nav') {
+            if (realUser.permissions?.general && realUser.permissions.general.showPosNav !== undefined) {
+                return !!realUser.permissions.general.showPosNav;
             }
-            if (realUser.permissions?.docs && realUser.permissions.docs.navigate !== undefined) {
-                return !realUser.permissions.docs.navigate;
-            }
-            return false;
-        }
-
-        if (action === 'docs_navigate' || action === 'navigate' || action === 'pos_navigate') {
             if (realUser.permissions?.general && realUser.permissions.general.hidePosNav !== undefined) {
                 return !realUser.permissions.general.hidePosNav;
             }
             if (realUser.permissions?.docs && realUser.permissions.docs.navigate !== undefined) {
                 return !!realUser.permissions.docs.navigate;
             }
+            return false;
+        }
+
+        if (action === 'ui_hide_pos_nav' || action === 'hide_pos_nav') {
+            if (realUser.permissions?.general && realUser.permissions.general.showPosNav !== undefined) {
+                return !realUser.permissions.general.showPosNav;
+            }
+            if (realUser.permissions?.general && realUser.permissions.general.hidePosNav !== undefined) {
+                return !!realUser.permissions.general.hidePosNav;
+            }
+            if (realUser.permissions?.docs && realUser.permissions.docs.navigate !== undefined) {
+                return !realUser.permissions.docs.navigate;
+            }
             return true;
+        }
+
+        if (action === 'docs_navigate' || action === 'navigate' || action === 'pos_navigate') {
+            if (realUser.permissions?.general && realUser.permissions.general.showPosNav !== undefined) {
+                return !!realUser.permissions.general.showPosNav;
+            }
+            if (realUser.permissions?.general && realUser.permissions.general.hidePosNav !== undefined) {
+                return !realUser.permissions.general.hidePosNav;
+            }
+            if (realUser.permissions?.docs && realUser.permissions.docs.navigate !== undefined) {
+                return !!realUser.permissions.docs.navigate;
+            }
+            return false;
         }
 
         // 🔒 خاصية تخصيص الأعمدة محصورة لمدير النظام فقط
@@ -2915,6 +2957,9 @@ function hasPermission(action) {
             }
             return true;
         }
+        if (action === 'ui_show_pos_nav' || action === 'show_pos_nav') {
+            return true;
+        }
         if (action === 'ui_hide_pos_nav' || action === 'hide_pos_nav') {
             return false;
         }
@@ -2924,24 +2969,43 @@ function hasPermission(action) {
         return true;
     }
 
-    if (action === 'ui_hide_pos_nav' || action === 'hide_pos_nav') {
-        if (currentUser.permissions?.general && currentUser.permissions.general.hidePosNav !== undefined) {
-            return !!currentUser.permissions.general.hidePosNav;
+    if (action === 'ui_show_pos_nav' || action === 'show_pos_nav') {
+        if (currentUser.permissions?.general && currentUser.permissions.general.showPosNav !== undefined) {
+            return !!currentUser.permissions.general.showPosNav;
         }
-        if (currentUser.permissions?.docs && currentUser.permissions.docs.navigate !== undefined) {
-            return !currentUser.permissions.docs.navigate;
-        }
-        return false;
-    }
-
-    if (action === 'docs_navigate' || action === 'navigate' || action === 'pos_navigate') {
         if (currentUser.permissions?.general && currentUser.permissions.general.hidePosNav !== undefined) {
             return !currentUser.permissions.general.hidePosNav;
         }
         if (currentUser.permissions?.docs && currentUser.permissions.docs.navigate !== undefined) {
             return !!currentUser.permissions.docs.navigate;
         }
+        return false;
+    }
+
+    if (action === 'ui_hide_pos_nav' || action === 'hide_pos_nav') {
+        if (currentUser.permissions?.general && currentUser.permissions.general.showPosNav !== undefined) {
+            return !currentUser.permissions.general.showPosNav;
+        }
+        if (currentUser.permissions?.general && currentUser.permissions.general.hidePosNav !== undefined) {
+            return !!currentUser.permissions.general.hidePosNav;
+        }
+        if (currentUser.permissions?.docs && currentUser.permissions.docs.navigate !== undefined) {
+            return !currentUser.permissions.docs.navigate;
+        }
         return true;
+    }
+
+    if (action === 'docs_navigate' || action === 'navigate' || action === 'pos_navigate') {
+        if (currentUser.permissions?.general && currentUser.permissions.general.showPosNav !== undefined) {
+            return !!currentUser.permissions.general.showPosNav;
+        }
+        if (currentUser.permissions?.general && currentUser.permissions.general.hidePosNav !== undefined) {
+            return !currentUser.permissions.general.hidePosNav;
+        }
+        if (currentUser.permissions?.docs && currentUser.permissions.docs.navigate !== undefined) {
+            return !!currentUser.permissions.docs.navigate;
+        }
+        return false;
     }
 
     if (!currentUser.permissions) return false;
@@ -3137,7 +3201,7 @@ function saveWarehouse() {
         const w = warehouses[idx];
         if (w) {
             const oldName = w.name;
-            w.name = name; 
+            w.name = name;
             w.address = address;
 
             if (currentUser && currentUser.warehouseName === oldName) {
@@ -3255,7 +3319,7 @@ function updateSettingsWarehouseSelect() {
     select.value = currentWH;
 }
 
-window.initTransferPriceTypeSetting = function() {
+window.initTransferPriceTypeSetting = function () {
     const sel = document.getElementById('settingsTransferPriceType');
     if (!sel) return;
     const current = (typeof window.getTransferPriceType === 'function')
@@ -3264,7 +3328,7 @@ window.initTransferPriceTypeSetting = function() {
     sel.value = current;
 };
 
-window.saveTransferPriceTypeSetting = async function(val) {
+window.saveTransferPriceTypeSetting = async function (val) {
     if (!val) val = 'cost';
     if (typeof setStore === 'function') {
         setStore('transferPriceType', val);
@@ -3274,7 +3338,7 @@ window.saveTransferPriceTypeSetting = async function(val) {
         const settingsObj = JSON.parse((typeof getStore === 'function' ? getStore('pos_settings') : null) || '{}');
         settingsObj.transferPriceType = val;
         if (typeof setStore === 'function') setStore('pos_settings', JSON.stringify(settingsObj));
-    } catch(e) {}
+    } catch (e) { }
 
     if (typeof window.saveSettingsDirect === 'function') {
         await window.saveSettingsDirect();
@@ -3291,7 +3355,7 @@ window.saveTransferPriceTypeSetting = async function(val) {
     }
 };
 
-window.initAdjustmentPriceTypeSetting = function() {
+window.initAdjustmentPriceTypeSetting = function () {
     const sel = document.getElementById('settingsAdjustmentPriceType');
     if (!sel) return;
     const current = (typeof window.getAdjustmentPriceType === 'function')
@@ -3300,7 +3364,7 @@ window.initAdjustmentPriceTypeSetting = function() {
     sel.value = current;
 };
 
-window.saveAdjustmentPriceTypeSetting = async function(val) {
+window.saveAdjustmentPriceTypeSetting = async function (val) {
     if (!val) val = 'retail';
     if (typeof setStore === 'function') {
         setStore('adjustmentPriceType', val);
@@ -3310,7 +3374,7 @@ window.saveAdjustmentPriceTypeSetting = async function(val) {
         const settingsObj = JSON.parse((typeof getStore === 'function' ? getStore('pos_settings') : null) || '{}');
         settingsObj.adjustmentPriceType = val;
         if (typeof setStore === 'function') setStore('pos_settings', JSON.stringify(settingsObj));
-    } catch(e) {}
+    } catch (e) { }
 
     if (typeof window.saveSettingsDirect === 'function') {
         await window.saveSettingsDirect();
@@ -3361,7 +3425,7 @@ function applyWarehouseSwitchFromSettings() {
         }
         showToast(`تم تغيير المستودع النشط إلى: ${val}`, "success");
         updateWarehousesSummaryBoard();
-        
+
         // تحديث كافة الجداول لعرض بيانات المخزن الجديد فوراً
         if (typeof renderInventoryTable === 'function') renderInventoryTable();
         if (typeof renderInvoicesTable === 'function') renderInvoicesTable();
@@ -3373,7 +3437,7 @@ function applyWarehouseSwitchFromSettings() {
     }
 }
 
-window.updateHeaderWarehouseSelect = function() {
+window.updateHeaderWarehouseSelect = function () {
     const sel = document.getElementById('headerActiveWarehouseSelect');
     const lockBadge = document.getElementById('warehouseLockBadge');
     const container = document.getElementById('connectionStatus');
@@ -3393,10 +3457,10 @@ window.updateHeaderWarehouseSelect = function() {
         // 🔒 أمان صارم: الكاشير أو الموظف مقيد ومقفل تماماً بمخزنه المخصص، ولا يُعرض له أي مخزن آخر مع ظهور علامة الفاي 🚫
         const assignedWh = (typeof currentUser !== 'undefined' && currentUser && currentUser.assignedWarehouse && currentUser.assignedWarehouse.trim())
             ? currentUser.assignedWarehouse.trim()
-            : ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName && currentUser.warehouseName.trim()) 
-                ? currentUser.warehouseName.trim() 
+            : ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName && currentUser.warehouseName.trim())
+                ? currentUser.warehouseName.trim()
                 : 'المخزن الرئيسي');
-        
+
         if (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName !== assignedWh) {
             if (typeof window.updateCurrentUserWarehouse === 'function') {
                 window.updateCurrentUserWarehouse(assignedWh);
@@ -3465,7 +3529,7 @@ window.updateHeaderWarehouseSelect = function() {
     }
 };
 
-window.onHeaderWarehouseBoxClick = function(e) {
+window.onHeaderWarehouseBoxClick = function (e) {
     const isLocked = isWarehouseSwitchLocked(currentUser);
     if (isLocked) {
         if (e) {
@@ -3478,7 +3542,7 @@ window.onHeaderWarehouseBoxClick = function(e) {
     }
 };
 
-window.switchWarehouseFromHeader = function(val) {
+window.switchWarehouseFromHeader = function (val) {
     if (!val) return;
     const isLocked = isWarehouseSwitchLocked(currentUser);
     if (isLocked) {
@@ -3512,7 +3576,7 @@ window.switchWarehouseFromHeader = function(val) {
     }
 };
 
-window.filterInventoryByWarehouse = function(whName) {
+window.filterInventoryByWarehouse = function (whName) {
     if (!whName) return;
     const isAdmin = typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || currentUser.isAdmin === true);
     if (!isAdmin) {
@@ -3638,7 +3702,7 @@ function confirmFullReset() {
     window.openFactoryResetModal();
 }
 
-window.openFactoryResetModal = function() {
+window.openFactoryResetModal = function () {
     const modal = document.getElementById('factoryResetModal');
     if (!modal) return;
     const pin1 = document.getElementById('factoryResetPin1');
@@ -3660,14 +3724,14 @@ window.openFactoryResetModal = function() {
     setTimeout(() => { if (pin1) pin1.focus(); }, 120);
 };
 
-window.closeFactoryResetModal = function() {
+window.closeFactoryResetModal = function () {
     const modal = document.getElementById('factoryResetModal');
     if (!modal) return;
     modal.classList.add('hidden');
     modal.style.display = 'none';
 };
 
-window.executeConfirmedFactoryReset = async function() {
+window.executeConfirmedFactoryReset = async function () {
     const pin1 = (document.getElementById('factoryResetPin1')?.value || '').trim();
     const pin2 = (document.getElementById('factoryResetPin2')?.value || '').trim();
     const errEl = document.getElementById('factoryResetErrorMsg');
@@ -3690,7 +3754,7 @@ window.executeConfirmedFactoryReset = async function() {
     let isPinValid = false;
     if (window.BayanSecurity && typeof window.BayanSecurity.verifyPin === 'function') {
         isPinValid = (typeof currentUser !== 'undefined' && currentUser && window.BayanSecurity.verifyPin(pin1, currentUser.pin)) ||
-                     (await window.BayanSecurity.verifyAdminPin(pin1));
+            (await window.BayanSecurity.verifyAdminPin(pin1));
     } else if (typeof currentUser !== 'undefined' && currentUser) {
         isPinValid = (currentUser.pin === pin1);
     }
@@ -3727,7 +3791,7 @@ window.executeConfirmedFactoryReset = async function() {
             try {
                 const allUsers = await db.users.toArray();
                 preservedAdmin = allUsers.find(u => u.role === 'admin' || u.id === 1) || allUsers[0];
-            } catch (e) {}
+            } catch (e) { }
         }
 
         const preservedSettings = {};
@@ -3777,7 +3841,7 @@ window.executeConfirmedFactoryReset = async function() {
                     localStorage.removeItem(key);
                 }
             }
-        } catch (e) {}
+        } catch (e) { }
 
         if (typeof showToast === 'function') {
             showToast("✅ تم تصفير كافة البيانات وبدء عداد الفواتير من رقم 1 بنجاح!", "success");
@@ -3840,17 +3904,17 @@ function initAdminEmergencyPinSection() {
         if (typeof getStore === 'function') {
             encPin = getStore('bayan_admin_emergency_pin');
         }
-    } catch(e) {}
+    } catch (e) { }
     if (!encPin) {
         try {
             encPin = localStorage.getItem('bayan_admin_emergency_pin');
-        } catch(e) {}
+        } catch (e) { }
     }
     if (!encPin && window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
         try {
             const row = window.BayanSQLite.nativeDb.prepare("SELECT value FROM settings WHERE id = 'bayan_admin_emergency_pin' LIMIT 1;").get();
             if (row && row.value) encPin = row.value;
-        } catch(e) {}
+        } catch (e) { }
     }
 
     const inputEl = document.getElementById('adminEmergencyPinInput');
@@ -3942,7 +4006,7 @@ function _fallbackCopyEmergencyPin(val, callback) {
     try {
         document.execCommand('copy');
         if (callback) callback();
-    } catch(e) {
+    } catch (e) {
         prompt("انسخ كود الطوارئ يدوياً:", val);
     }
     ta.remove();
@@ -3980,13 +4044,13 @@ async function saveAdminEmergencyPin() {
     }
     try {
         localStorage.setItem('bayan_admin_emergency_pin', encPin);
-    } catch(e) {}
+    } catch (e) { }
 
     // 3. حفظ في جدول settings في SQLite
     if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
         try {
             window.BayanSQLite.nativeDb.prepare("INSERT OR REPLACE INTO settings (id, value) VALUES ('bayan_admin_emergency_pin', ?);").run(encPin);
-        } catch(e) {
+        } catch (e) {
             console.warn("SQLite emergency pin save warning:", e);
         }
     }
@@ -3995,9 +4059,9 @@ async function saveAdminEmergencyPin() {
     try {
         const targetDb = window.db || window.bayanDB;
         if (targetDb && targetDb.settings) {
-            await targetDb.settings.put({ id: 'bayan_admin_emergency_pin', value: encPin }).catch(() => {});
+            await targetDb.settings.put({ id: 'bayan_admin_emergency_pin', value: encPin }).catch(() => { });
         }
-    } catch(e) {}
+    } catch (e) { }
 
     if (typeof showToast === 'function') {
         showToast("🛡️ تم تعيين وتأمين كود الطوارئ لمدير النظام بنجاح!", "success");
@@ -4017,7 +4081,7 @@ async function generateAndDownloadEmergencyQr() {
             try {
                 const row = window.BayanSQLite.nativeDb.prepare("SELECT value FROM settings WHERE id = 'bayan_admin_emergency_pin' LIMIT 1;").get();
                 if (row && row.value) encPin = row.value;
-            } catch(e) {}
+            } catch (e) { }
         }
         if (encPin) {
             pin = (window.BayanSecurity && typeof window.BayanSecurity.decryptPin === 'function')
@@ -4049,7 +4113,7 @@ async function generateAndDownloadEmergencyQr() {
         if (settingsObj.name && settingsObj.name.trim()) {
             shopName = settingsObj.name.trim();
         }
-    } catch(e) {}
+    } catch (e) { }
 
     const qrDiv = document.createElement('div');
     qrDiv.style.position = 'absolute';
@@ -4179,7 +4243,7 @@ async function generateAndDownloadEmergencyQr() {
         if (typeof showToast === 'function') {
             showToast("📱 تم تنزيل بطاقة QR Code لكود الطوارئ بنجاح!", "success");
         }
-    } catch(err) {
+    } catch (err) {
         console.error("QR card generation error:", err);
         if (typeof showToast === 'function') {
             showToast("❌ حدث خطأ أثناء إنشاء بطاقة الـ QR Code", "error");
