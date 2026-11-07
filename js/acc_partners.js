@@ -1394,7 +1394,13 @@
                     div.innerHTML = `<span>${acc.name}</span><div style="display:flex; gap:6px; align-items:center;">${codeBadge}${phoneText}</div>`;
                     div.onmouseover = () => div.style.background = '#f1f5f9';
                     div.onmouseout = () => div.style.background = 'transparent';
+                    div.onmousedown = (ev) => {
+                        ev.preventDefault();
+                        ev.stopPropagation();
+                        window.selectStmtAccount(acc.id);
+                    };
                     div.onclick = (ev) => {
+                        ev.preventDefault();
                         ev.stopPropagation();
                         window.selectStmtAccount(acc.id);
                     };
@@ -1438,21 +1444,23 @@
                 .replace(/\s+/g, ' ');
             const valClean = cleanAr(val);
 
-            // مطابقة ذكية: بالاسم الدقيق، أو الكود، أو الاسم بعد تنظيف الهمزات
+            // مطابقة تامة فقط: بالاسم الدقيق، أو الكود، أو الاسم بعد تنظيف الهمزات (بدون مطابقة جزئية includes لمنع إجبار الخيار الأول)
             let acc = accounts.find(a => a.name === val || String(a.code || '').trim() === val);
             if (!acc) {
                 acc = accounts.find(a => cleanAr(a.name) === valClean);
-            }
-            if (!acc) {
-                acc = accounts.find(a => cleanAr(a.name).includes(valClean) || String(a.code || '').includes(val));
             }
 
             if (acc) {
                 window.selectStmtAccount(acc.id);
             } else {
-                selectedAccountID = null;
-                window.selectedAccountID = null;
-                generateAccountStatement(null);
+                // إذا كان هناك حساب محدد مسبقاً واسم الحقل يطابقه تماماً، يظل كما هو
+                if (typeof selectedAccountID !== 'undefined' && selectedAccountID) {
+                    const cur = accounts.find(a => a.id === selectedAccountID);
+                    if (cur && (cur.name === val || cleanAr(cur.name) === valClean)) {
+                        return;
+                    }
+                }
+                // إذا كُتب نص ناقص غير متطابق تماماً، لا يتم فرض أي حساب عشوائي ولا يتم تصفير الشاشة إلا عند مسح الحقل بالكامل
             }
         };
 
