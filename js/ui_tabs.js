@@ -639,6 +639,9 @@
                     }
                     instantFocusInput('invSearchInput');
                 }
+                if (targetTab.type === 'warehouse-report') {
+                    instantFocusInput('wrSearchInput');
+                }
                 if (targetTab.type === 'accounts') {
                     const accBody = document.getElementById('accountsTableBody');
                     if (!accBody || accBody.children.length === 0 || window._accountsNeedsRefresh) {
@@ -809,6 +812,13 @@
                         else renderWarehouseReportTable();
                         window._wrNeedsRefresh = false;
                     }
+                    setTimeout(() => {
+                        const stockSearchInput = document.getElementById('warehouseProductSearch') || document.getElementById('wrSearchInput') || document.getElementById('stockSearchInput');
+                        if (stockSearchInput) {
+                            stockSearchInput.focus();
+                            try { stockSearchInput.select(); } catch(e) {}
+                        }
+                    }, 50);
                 }
                 if (targetTab.type === 'history') {
                     if (typeof populateWarehouseDropdowns === 'function') populateWarehouseDropdowns();

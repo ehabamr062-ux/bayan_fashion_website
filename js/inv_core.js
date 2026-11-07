@@ -1645,6 +1645,19 @@ async function renderWarehouseReportTable(isSearchTrigger = false) {
         if (showLoader && typeof window.hideSectionLoader === 'function') {
             window.hideSectionLoader();
         }
+        if (!isSearchTrigger) {
+            const wrSec = document.getElementById('warehouse-report-section');
+            if (wrSec && !wrSec.classList.contains('hidden')) {
+                const stockSearchInput = document.getElementById('warehouseProductSearch') || document.getElementById('wrSearchInput') || document.getElementById('stockSearchInput');
+                if (stockSearchInput && document.activeElement !== stockSearchInput) {
+                    const active = document.activeElement;
+                    if (!active || (active.tagName !== 'INPUT' && active.tagName !== 'TEXTAREA' && active.tagName !== 'SELECT')) {
+                        stockSearchInput.focus();
+                        try { stockSearchInput.select(); } catch(e) {}
+                    }
+                }
+            }
+        }
     }
 }
 
