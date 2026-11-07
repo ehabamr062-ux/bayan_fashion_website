@@ -621,7 +621,10 @@ input, textarea, [contenteditable="true"] {
 
         /* الحاوية الرئيسية */
         .main-container {
-            flex: 1;
+            flex: 1 1 0 !important;
+            height: 100% !important;
+            min-height: 0 !important;
+            overflow: hidden !important;
             /* Take remaining space */
             position: relative;
             z-index: 1;
@@ -637,12 +640,13 @@ input, textarea, [contenteditable="true"] {
             display: flex;
             gap: 6px; /* تم تصغير الفراغ من 10px */
             width: 100%;
-            flex: 1; /* Stretch to fill all available space */
-            min-height: 100%; /* Ensure it takes full height of container */
+            flex: 1 1 0 !important; /* Stretch to fill all available space */
+            height: 100% !important;
+            min-height: 0 !important; /* Ensure it takes full height of container */
             position: relative;
             z-index: 1;
             margin: 0; /* Remove negative margin that causes top gap */
-            align-items: flex-start;
+            align-items: stretch !important;
             overflow: visible !important; /* السماح للقوائم بالخروج من إطار القسم */
         }
 
@@ -4950,7 +4954,10 @@ body.dark-mode .floating-controls-box .dock-theme-capsule .active-bar {
     width: 100% !important;
     max-width: 100% !important;
     min-width: 0 !important;
-    height: calc(100vh - 55px) !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    flex: 1 1 0 !important;
+    max-height: 100% !important;
     margin: 0 !important;
     overflow-x: hidden !important;
     box-sizing: border-box !important;

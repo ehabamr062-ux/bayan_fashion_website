@@ -922,7 +922,7 @@
         .inv-container {
             display: flex;
             gap: 15px;
-            height: calc(100vh - 105px); /* ملء المساحة السفلية بالكامل */
+            height: 100% !important;
             align-items: stretch;
         }
 
@@ -1594,7 +1594,10 @@ body.dark-mode #historySummaryStatsCards > div:nth-child(4) #histCardTotalAmount
 /* ================= تخصيصات شاشة المخزن لملء المساحة بالكامل ================= */
 #inventory-section {
     align-items: stretch !important;
-    height: calc(100vh - 45px) !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    flex: 1 1 0 !important;
+    max-height: 100% !important;
     overflow: hidden !important;
     padding-bottom: 0px !important;
 }
@@ -1624,7 +1627,7 @@ body.dark-mode #historySummaryStatsCards > div:nth-child(4) #histCardTotalAmount
 #inventory-section .inventory-scroll-wrapper {
     flex: 1 !important;
     height: 100% !important;
-    max-height: calc(100vh - 120px) !important;
+    max-height: none !important;
     min-height: 0 !important;
     overflow-y: auto !important;
     overflow-x: auto !important;
