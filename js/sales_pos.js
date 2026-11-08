@@ -4468,15 +4468,19 @@ async function loadInvoiceToSalesPOS(targetInvoiceId) {
         detectedDiscType = head.discountType || head.invoiceDiscountType || 'val';
     }
 
-    // أولوية 4: فحص مجموع خصومات السطور إذا كانت موزعة على الأصناف
-    if (!detectedDisc && sumLinesDiscount > 0.001) {
+    // فحص ما إذا كانت السطور تمتلك خصومات صريحة مسجلة مسبقاً
+    const hasExplicitLineDiscounts = rows.some(r => (r.itemDiscount != null && parseFloat(r.itemDiscount) > 0) || (r.discount != null && parseFloat(r.discount) > 0 && !r.distributedDiscount));
+
+    // أولوية 4: فحص مجموع خصومات السطور إذا كانت موزعة على الأصناف (فقط إذا لم تكن هناك خصومات فردية صريحة للبنود)
+    if (!detectedDisc && !hasExplicitLineDiscounts && sumLinesDiscount > 0.001) {
         detectedDisc = Number(sumLinesDiscount.toFixed(2));
         detectedDiscType = 'val';
     }
 
-    // أولوية 5: فرق الحساب المنطقي (مجموع الأصناف - الإجمالي الفعلي للفاتورة)
-    if (!detectedDisc && rawItemsSubTotal > 0 && recordedGrandTotal > 0 && (rawItemsSubTotal - recordedGrandTotal) > 0.005) {
-        detectedDisc = Number((rawItemsSubTotal - recordedGrandTotal).toFixed(2));
+    // أولوية 5: فرق الحساب المنطقي (مجموع الأصناف - الإجمالي الفعلي للفاتورة) مع استبعاد مجموع الخصومات الفردية لمنع الازدواجية
+    const effectiveDiff = rawItemsSubTotal - recordedGrandTotal - (hasExplicitLineDiscounts ? sumLinesDiscount : 0);
+    if (!detectedDisc && rawItemsSubTotal > 0 && recordedGrandTotal > 0 && effectiveDiff > 0.005) {
+        detectedDisc = Number(effectiveDiff.toFixed(2));
         detectedDiscType = 'val';
     }
 
@@ -4635,7 +4639,10 @@ async function loadInvoiceToSalesPOS(targetInvoiceId) {
             selectedVariant: matchedVariant,
             warehouse: it.warehouse || head.warehouse || activeWH,
             type: it.type || head.type || 'بيع 📤',
-            units: p ? (p.units || []) : []
+            units: p ? (p.units || []) : [],
+            discount: (it.discount !== undefined && it.discount !== null) ? (parseFloat(it.discount) || 0) : ((it.itemDiscount !== undefined && it.itemDiscount !== null) ? (parseFloat(it.itemDiscount) || 0) : 0),
+            itemDiscount: (it.itemDiscount !== undefined && it.itemDiscount !== null) ? (parseFloat(it.itemDiscount) || 0) : ((it.discount !== undefined && it.discount !== null) ? (parseFloat(it.discount) || 0) : 0),
+            distributedDiscount: (it.distributedDiscount !== undefined && it.distributedDiscount !== null) ? (parseFloat(it.distributedDiscount) || 0) : 0
         };
     });
 

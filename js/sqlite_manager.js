@@ -1486,12 +1486,12 @@
                 const partner = String(item.partner || item.customer || item.client || '');
                 const warehouse = String(item.warehouse || '');
 
-                // قائمة الحقول المخزنة كأعمدة لتجريدها من raw_json
+                // قائمة الحقول المخزنة كأعمدة صريحة لتجريدها من raw_json (مع الحفاظ على distributedDiscount بالـ raw_json)
                 const itemColKeys = [
                     'id', 'tx_id', 'invoiceId', 'dateISO', 'time', 'type', 'partner',
                     'barcode', 'code', 'productId', 'product', 'productName', 'name', 'size', 'selectedSize',
                     'color', 'selectedColor', 'qty', 'quantity', 'price', 'cost', 'costPrice',
-                    'discount', 'itemDiscount', 'distributedDiscount', 'addition', 'extra', 'total', 'profit', 'warehouse'
+                    'discount', 'itemDiscount', 'addition', 'extra', 'total', 'profit', 'warehouse'
                 ];
 
                 // الحالة 1: السجل يحتوي على مصفوفة أصناف داخلية (items)
@@ -4781,9 +4781,9 @@
                     if (Array.isArray(r.cart) && r.cart.length > 0) return r.cart;
                 }
 
-                // كحل أخير إذا كانت السطور مخزنة كسجلات فرعية في transactions
-                // إذا وُجدت سطور أصناف فرعية مخصصة (غير رأس الفاتورة)، نستبعد سطر الرأس حتى لا يتكرر الصنف الأول بإجمالي الفاتورة الكامل
-                const subItems = decodedTxRows.filter(r => !r.isInvoiceHead && (r.product || r.productName || r.name));
+                // كحل أخير إذا كانت السطور مخزنة كسجلات في transactions
+                // نحتسب رأس الفاتورة والسطور الفرعية كأصناف طالما أنها تحتوي على بيانات منتج حقيقية
+                const subItems = decodedTxRows.filter(r => (r.product || r.productName || r.name || r.barcode));
                 if (subItems.length > 0) return subItems;
 
                 const itemsFromTx = decodedTxRows.filter(r => (r.product || r.productName || r.name));

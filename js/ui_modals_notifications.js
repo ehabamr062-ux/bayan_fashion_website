@@ -1366,8 +1366,11 @@
                 let itemAddType = item.additionType || item.taxType || 'val';
                 let extra = (itemAddType === 'perc' && itemAdd > 0) ? (subtotal * itemAdd / 100) : itemAdd;
 
-                // صمام الأمان الرياضي التلقائي
-                if (disc <= 0 && (subtotal - itemTotal) > 0.01) {
+                // صمام الأمان الرياضي التلقائي: حماية من مضاعفة الخصم إذا كان البند يمتلك خصماً صريحاً أو كانت الفاتورة تحمل خصماً عاماً
+                const hasExplicitItemDisc = (item.discount !== undefined && item.discount !== null) || (item.itemDiscount !== undefined && item.itemDiscount !== null);
+                const hasGeneralInvoiceDisc = (tx.invoiceDiscount != null && parseFloat(tx.invoiceDiscount) > 0) || (tx.discountAmount != null && parseFloat(tx.discountAmount) > 0) || (item.distributedDiscount != null && parseFloat(item.distributedDiscount) > 0);
+
+                if (!hasExplicitItemDisc && !hasGeneralInvoiceDisc && disc <= 0 && (subtotal - itemTotal) > 0.01) {
                     disc = subtotal - itemTotal;
                 }
                 if (extra <= 0 && (itemTotal - subtotal) > 0.01) {
@@ -3407,24 +3410,8 @@
                 return true;
             });
 
-            // إذا كان المجموع يتجاوز الإجمالي الرسمي:
-            if (saleHeadGrandTotal > 0 && uniqueSaleMatches.length > 1) {
-                const curSum = uniqueSaleMatches.reduce((s, it) => s + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
-                if (curSum > saleHeadGrandTotal + 0.05) {
-                    if (headTimeVal) {
-                        const byTime = uniqueSaleMatches.filter(it => {
-                            if (String(it.id) === String(head.id)) return true;
-                            const itTime = String(it.time || it.timeISO || '').trim();
-                            return itTime && itTime === headTimeVal;
-                        });
-                        if (byTime.length > 0) uniqueSaleMatches = byTime;
-                    }
-                    const headLineTotal = parseFloat(head.total) || (parseFloat(head.qty || 0) * parseFloat(head.price || 0)) || 0;
-                    if (Math.abs(headLineTotal - saleHeadGrandTotal) < 0.05) {
-                        uniqueSaleMatches = [head];
-                    }
-                }
-            }
+            // 🛡️ صيانة بنود الفاتورة: الحفاظ على كافة البنود كاملة ومستقلة وعدم اختزالها في بند الرأس نهائياً
+            // اختلاف مجموع أسعار البنود عن الإجمالي الرسمي أمر طبيعي ومشروع بسبب وجود الخصم العام للفاتورة
 
             // إذا كانت البنود المستخرجة بنداً واحداً أو أقل بينما رأس الفاتورة أو SQLite يحتوي على قائمة أصناف أكبر وأشمل:
             const headTypeStr = String(head.type || '').toLowerCase();
