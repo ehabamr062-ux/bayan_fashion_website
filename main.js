@@ -134,8 +134,8 @@ function createWindow() {
             return;
         }
 
-        // 🛠️ فتح وإغلاق أدوات المطورين والكونسول (DevTools & Console) عبر F12 أو Ctrl+Shift+I لتشخيص أي أخطاء
-        if (input.key === 'F12' || (input.control && input.shift && (key === 'i' || key === 'j'))) {
+        // 🛠️ فتح وإغلاق أدوات المطورين والكونسول (DevTools & Console) حصرياً عبر Ctrl+Shift+I أو Ctrl+Shift+J لتشخيص أي أخطاء
+        if (input.control && input.shift && (key === 'i' || key === 'j')) {
             event.preventDefault();
             win.webContents.toggleDevTools();
             return;
