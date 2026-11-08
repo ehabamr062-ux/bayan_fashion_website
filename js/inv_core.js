@@ -1613,6 +1613,17 @@ async function renderWarehouseReportTable(isSearchTrigger = false) {
             </div>
         `;
 
+        if (canViewCost) {
+            const stockCostVal = (totalGlobalValue - totalGlobalProfitRT > 0) ? (totalGlobalValue - totalGlobalProfitRT) : totalGlobalValue;
+            cardsHTML += `
+                <div class="summary-card-cost-wh" style="min-width: 170px; padding: 12px 16px; background: linear-gradient(135deg, #312e81 0%, #1e1b4b 100%); color: #ffffff; border-radius: 14px; box-shadow: 0 6px 20px rgba(49,46,129,0.35); border: 1.5px solid rgba(129,140,248,0.5); border-right: 5px solid #818cf8; display: flex; flex-direction: column; justify-content: center; transition: 0.3s;">
+                    <div style="font-size: 0.85rem; font-weight: 900; color: #a5b4fc !important; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">💰 إجمالي تكلفة المخزن (رأس المال)</div>
+                    <div style="font-size: 1.4rem; font-weight: 900; color: #ffffff !important; text-shadow: 0 1px 3px rgba(0,0,0,0.6);">${stockCostVal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size: 0.8rem; color: #ffffff !important; font-weight: 800;">ج.م</span></div>
+                    <div style="font-size: 0.75rem; margin-top: 4px; color: #c7d2fe !important; font-weight: 800;">(تقييم رأس المال الفعلي المربوط)</div>
+                </div>
+            `;
+        }
+
         if (canViewProfits) {
             cardsHTML += `
                 <div class="summary-card-profit-wh" style="min-width: 170px; padding: 12px 16px; background: linear-gradient(135deg, #064e3b 0%, #052e16 100%); color: #ffffff; border-radius: 14px; box-shadow: 0 6px 20px rgba(6,78,59,0.35); border: 1.5px solid rgba(16,185,129,0.5); border-right: 5px solid #10b981; display: flex; flex-direction: column; justify-content: center; transition: 0.3s;">
@@ -1723,6 +1734,8 @@ function printWarehouseReport() {
     let printGlobalProfitWH = 0;
     let printGlobalProfitRT = 0;
     const whTotals = visibleWhs.map(() => 0);
+    const whValues = visibleWhs.map(() => 0);
+    const whItems = visibleWhs.map(() => 0);
 
     let rowsHtml = '';
     filtered.forEach((p, idx) => {
@@ -1734,13 +1747,17 @@ function printWarehouseReport() {
 
         if (typeof warehouses !== 'undefined') {
             warehouses.forEach(w => {
-                const st = getWarehouseStock(p.name, w.name, sDate, eDate);
+                const st = getWarehouseStock(p, w.name, sDate, eDate);
                 rowQty += st;
                 const colClass = getSafeWhClass(w.name);
                 if (settings[colClass] !== false) {
                     const wIdx = visibleWhs.indexOf(w);
-                    if (wIdx !== -1) whTotals[wIdx] += st;
-                    whTds += `<td>${st}</td>`;
+                    if (wIdx !== -1) {
+                        whTotals[wIdx] += st;
+                        whValues[wIdx] += (st * cost);
+                        if (st !== 0) whItems[wIdx]++;
+                    }
+                    whTds += `<td>${st.toLocaleString('en-US')}</td>`;
                 }
             });
         }
@@ -1767,39 +1784,81 @@ function printWarehouseReport() {
             </td>
             ${settings['col-wr-cost'] !== false ? `<td>${cost.toFixed(2)}</td>` : ''}
             ${whTds}
-            <td style="font-weight:bold;">${rowQty}</td>
-            ${settings['col-wr-total-val'] !== false ? `<td>${rowVal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>` : ''}
-            ${settings['col-wr-profit-wh'] !== false ? `<td>${rowProfitWH.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>` : ''}
-            ${settings['col-wr-profit-rt'] !== false ? `<td>${rowProfitRT.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>` : ''}
+            <td style="font-weight:bold;">${rowQty.toLocaleString('en-US')}</td>
+            ${settings['col-wr-total-val'] !== false ? `<td>${rowVal.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>` : ''}
+            ${settings['col-wr-profit-wh'] !== false ? `<td>${rowProfitWH.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>` : ''}
+            ${settings['col-wr-profit-rt'] !== false ? `<td>${rowProfitRT.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})}</td>` : ''}
         </tr>`;
     });
 
     let footerTds = '';
     visibleWhs.forEach((w, wIdx) => {
-        footerTds += `<td>${whTotals[wIdx].toLocaleString()}</td>`;
+        footerTds += `<td>${whTotals[wIdx].toLocaleString('en-US')}</td>`;
     });
 
     const footerHtml = `
         <tr style="background:#eee; font-weight:900;">
             <td colspan="${settings['col-wr-cost'] !== false ? 4 : 3}">الإجمالي العام</td>
             ${footerTds}
-            <td>${printGlobalQty.toLocaleString()}</td>
-            ${settings['col-wr-total-val'] !== false ? `<td>${printGlobalVal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} ج.م</td>` : ''}
-            ${settings['col-wr-profit-wh'] !== false ? `<td>${printGlobalProfitWH.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} ج.م</td>` : ''}
-            ${settings['col-wr-profit-rt'] !== false ? `<td>${printGlobalProfitRT.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} ج.م</td>` : ''}
+            <td>${printGlobalQty.toLocaleString('en-US')}</td>
+            ${settings['col-wr-total-val'] !== false ? `<td>${printGlobalVal.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} ج.م</td>` : ''}
+            ${settings['col-wr-profit-wh'] !== false ? `<td>${printGlobalProfitWH.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} ج.م</td>` : ''}
+            ${settings['col-wr-profit-rt'] !== false ? `<td>${printGlobalProfitRT.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} ج.م</td>` : ''}
         </tr>
     `;
 
-    const summaryCards = document.querySelectorAll('#wrSummaryCards > div');
-    let summaryHtml = '<div style="margin-bottom:15px; border:1px solid #000; padding:10px; display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:10px;">';
-    summaryCards.forEach(card => {
-        const title = card.querySelector('div:first-child')?.innerText.replace(/📊|💵|💎|🏬|⚙️/g, '').trim() || '';
-        const val = card.querySelector('div:nth-child(2)')?.innerText || '0';
-        summaryHtml += `<div style="border:1px solid #ddd; padding:6px 10px; border-radius:4px; font-size:12px;">
-            <div style="font-weight:bold; color:#444;">${title}</div>
-            <div style="font-size:14px; font-weight:900; margin-top:2px;">${val}</div>
-        </div>`;
+    // 📊 حساب إجمالي تكلفة المخزن (تقييم المخزون برأس المال: إجمالي القيمة - ربح التجزئة)
+    const stockCostVal = (printGlobalVal - printGlobalProfitRT > 0) ? (printGlobalVal - printGlobalProfitRT) : printGlobalVal;
+
+    let summaryHtml = `
+        <div style="margin-bottom:18px; border:2px solid #334155; padding:12px; border-radius:10px; background:#f8fafc; display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+            <!-- 1. كارت إجمالي المخزون (بكل الفروع) -->
+            <div style="border:1.5px solid #0284c7; background:#ffffff; padding:10px 12px; border-radius:8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <div style="font-weight:900; color:#0369a1; font-size:12px; margin-bottom:4px;">📊 إجمالي المخزون (بكل الفروع)</div>
+                <div style="font-size:16px; font-weight:900; color:#0f172a;">${printGlobalQty.toLocaleString('en-US')} <span style="font-size:11px; font-weight:700;">قطعة</span></div>
+                ${canViewCost ? `<div style="font-size:13px; font-weight:900; color:#15803d; margin-top:4px; border-top:1px dashed #cbd5e1; padding-top:4px;">${printGlobalVal.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} ج.م</div>` : ''}
+            </div>
+
+            <!-- 2. كارت إجمالي تكلفة المخزن (تقييم المخزون برأس المال) -->
+            ${canViewCost ? `
+            <div style="border:1.5px solid #4338ca; background:#ffffff; padding:10px 12px; border-radius:8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <div style="font-weight:900; color:#4338ca; font-size:12px; margin-bottom:4px;">💰 إجمالي تكلفة المخزن (رأس المال)</div>
+                <div style="font-size:16px; font-weight:900; color:#312e81;">${stockCostVal.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size:11px; font-weight:700;">ج.م</span></div>
+                <div style="font-size:10px; font-weight:800; color:#64748b; margin-top:4px; border-top:1px dashed #cbd5e1; padding-top:4px;">(تقييم رأس المال الفعلي المربوط)</div>
+            </div>
+            ` : ''}
+
+            <!-- 3. كروت الأرباح (إن وُجدت الصلاحية) -->
+            ${canViewProfits ? `
+            <div style="border:1.5px solid #059669; background:#ffffff; padding:10px 12px; border-radius:8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <div style="font-weight:900; color:#047857; font-size:12px; margin-bottom:4px;">💵 إجمالي ربح الجملة</div>
+                <div style="font-size:16px; font-weight:900; color:#064e3b; margin-top:2px;">${printGlobalProfitWH.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size:11px; font-weight:700;">ج.م</span></div>
+                <div style="font-size:10px; font-weight:700; color:#64748b; margin-top:4px; border-top:1px dashed #cbd5e1; padding-top:4px;">(بناءً على الأرصدة الحالية)</div>
+            </div>
+
+            <div style="border:1.5px solid #2563eb; background:#ffffff; padding:10px 12px; border-radius:8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <div style="font-weight:900; color:#1d4ed8; font-size:12px; margin-bottom:4px;">💎 إجمالي ربح التجزئة</div>
+                <div style="font-size:16px; font-weight:900; color:#1e3a8a; margin-top:2px;">${printGlobalProfitRT.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size:11px; font-weight:700;">ج.م</span></div>
+                <div style="font-size:10px; font-weight:700; color:#64748b; margin-top:4px; border-top:1px dashed #cbd5e1; padding-top:4px;">(بناءً على الأرصدة الحالية)</div>
+            </div>
+            ` : ''}
+    `;
+
+    // 4. كروت المخازن الفرعية التفصيلية مع الكمية والمبلغ المالي
+    visibleWhs.forEach((w, wIdx) => {
+        const whQty = whTotals[wIdx] || 0;
+        const whVal = whValues[wIdx] || 0;
+        const whItm = whItems[wIdx] || 0;
+        summaryHtml += `
+            <div style="border:1.5px solid #d97706; background:#ffffff; padding:10px 12px; border-radius:8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <div style="font-weight:900; color:#b45309; font-size:12px; margin-bottom:4px;">🏬 كمية ${w.name}</div>
+                <div style="font-size:16px; font-weight:900; color:#0f172a;">${whQty.toLocaleString('en-US')} <span style="font-size:11px; font-weight:700;">قطعة</span></div>
+                ${canViewCost ? `<div style="font-size:13px; font-weight:900; color:#15803d; margin-top:4px; border-top:1px dashed #cbd5e1; padding-top:4px;">${whVal.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} ج.م</div>` : ''}
+                <div style="font-size:10px; font-weight:700; color:#64748b; margin-top:4px;">(${whItm.toLocaleString('en-US')} صنف نشط)</div>
+            </div>
+        `;
     });
+
     summaryHtml += '</div>';
 
     let dateText = '';
@@ -1840,9 +1899,10 @@ function printWarehouseReport() {
             <head>
                 <title>طباعة تقرير المخزون</title>
                 <style>
-                    @page { margin: 10mm; size: auto; }
-                    body { margin: 0; padding: 0; direction: rtl; }
-                    table th, table td { padding: 6px; border: 1px solid #000 !important; color: #000 !important; }
+                    @page { margin: 8mm; size: auto; }
+                    body { margin: 0; padding: 0; direction: rtl; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, Arial; color: #000; }
+                    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
+                    table th, table td { padding: 6px 8px; border: 1px solid #000 !important; color: #000 !important; }
                     th { background: #eee !important; font-weight: 900; }
                     tr:nth-child(even) { background: #f9f9f9; }
                 </style>
