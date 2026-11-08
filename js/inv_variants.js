@@ -986,35 +986,35 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                     max-height: ${printHeight}mm;
                     padding: 0 !important;
                     margin: 0 auto !important;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
                     page-break-after: always;
                     break-after: page;
                     page-break-inside: avoid;
                     break-inside: avoid;
-                    overflow: hidden;
+                    overflow: hidden !important;
                     box-sizing: border-box;
                     text-align: center;
                     background: #ffffff;
-                    position: relative;
+                    position: relative !important;
                 }
                 .price-tag-label.vertical .pt-vertical-rotator {
-                    width: ${printHeight}mm; /* 25mm */
-                    height: ${printWidth}mm; /* 50mm */
-                    display: flex;
-                    flex-direction: column;
-                    align-items: center;
-                    justify-content: center;
-                    transform: rotate(-90deg);
-                    transform-origin: center center;
+                    position: absolute !important;
+                    top: 50% !important;
+                    left: 50% !important;
+                    width: ${printHeight}mm !important;
+                    height: ${printWidth}mm !important;
+                    transform: translate(-50%, -50%) rotate(-90deg) !important;
+                    transform-origin: center center !important;
+                    display: flex !important;
+                    flex-direction: column !important;
+                    align-items: center !important;
+                    justify-content: center !important;
                     box-sizing: border-box;
                     padding: 1.5mm 1mm;
                     text-align: center;
                     gap: 1.5mm;
                 }
                 body.rot-flipped .price-tag-label.vertical .pt-vertical-rotator {
-                    transform: rotate(90deg) !important;
+                    transform: translate(-50%, -50%) rotate(90deg) !important;
                 }
                 .price-tag-label.vertical .pt-currency-badge-vert {
                     font-size: ${isSmall ? '14pt' : '18pt'};
@@ -1074,22 +1074,23 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                         page-break-inside: avoid !important;
                         break-inside: avoid !important;
                         overflow: hidden !important;
-                        display: flex !important;
-                        align-items: center !important;
-                        justify-content: center !important;
+                        position: relative !important;
                     }
                     .price-tag-label.vertical .pt-vertical-rotator {
+                        position: absolute !important;
+                        top: 50% !important;
+                        left: 50% !important;
                         width: ${printHeight}mm !important;
                         height: ${printWidth}mm !important;
                         display: flex !important;
                         flex-direction: column !important;
                         align-items: center !important;
                         justify-content: center !important;
-                        transform: rotate(-90deg) !important;
+                        transform: translate(-50%, -50%) rotate(-90deg) !important;
                         transform-origin: center center !important;
                     }
                     body.rot-flipped .price-tag-label.vertical .pt-vertical-rotator {
-                        transform: rotate(90deg) !important;
+                        transform: translate(-50%, -50%) rotate(90deg) !important;
                     }
                 }
             </style>
