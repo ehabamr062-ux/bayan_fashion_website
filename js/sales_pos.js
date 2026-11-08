@@ -549,6 +549,7 @@ const setupProductSearchKeydown = () => {
                 if (resultsDiv && resultsDiv.style.display !== 'none') {
                     e.preventDefault();
                     e.stopPropagation();
+                    if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
                     resultsDiv.style.display = 'none';
                 }
             }

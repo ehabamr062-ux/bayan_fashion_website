@@ -1277,7 +1277,7 @@ window.addEventListener('keydown', function (event) {
             'unitSelectionModal', 'invoiceShareMenu', 'stmtShareMenu',
             'salesInvoiceShareMenu', 'salesShareMenu', 'purShareMenu', 'invoiceItemsModal',
             'trashModal', 'backupModal', 'settingsModal', 'expenseModal', 'revenueModal',
-            'userFormCard'
+            'userFormCard', 'bayanFastInquiryModal'
         ];
 
         let modalClosed = false;
@@ -1312,6 +1312,13 @@ window.addEventListener('keydown', function (event) {
                             el.style.setProperty('display', 'none', 'important');
                         }
                     }
+                    else if (modalId === 'bayanFastInquiryModal') {
+                        if (typeof window.closeFastItemInquiryModal === 'function') window.closeFastItemInquiryModal();
+                        else {
+                            el.style.display = 'none';
+                            el.classList.add('hidden');
+                        }
+                    }
                     else el.classList.add('hidden');
 
                     modalClosed = true;
@@ -1322,7 +1329,42 @@ window.addEventListener('keydown', function (event) {
 
         if (modalClosed) return;
 
-        // إذا لم يكن هناك مودال مفتوح، نقوم بإغلاق التبويب النشط (القسم الحالي)
+        // 🛡️ حماية: فحص وإغلاق القوائم المنسدلة وصناديق اقتراحات البحث أولاً لمنع إغلاق التبويب النشط
+        const dropdownIds = [
+            'searchResults', 'customerSearchResults', 'bpSearchResultsDropdown',
+            'purchaseSearchResults', 'adjSearchResults', 'transferSearchResults',
+            'returnSearchResults', 'purReturnSearchResults', 'receiptSearchResults',
+            'disburseSearchResults', 'inquiryColDropdown'
+        ];
+
+        let dropdownClosed = false;
+        for (const dropId of dropdownIds) {
+            const el = document.getElementById(dropId);
+            if (el && (el.offsetWidth > 0 || el.offsetHeight > 0 || el.classList.contains('active') || el.classList.contains('show'))) {
+                if (!el.classList.contains('hidden') && getComputedStyle(el).display !== 'none' && getComputedStyle(el).visibility !== 'hidden') {
+                    el.style.display = 'none';
+                    el.classList.remove('active', 'show');
+                    el.classList.add('hidden');
+                    dropdownClosed = true;
+                }
+            }
+        }
+
+        const activeDropdowns = document.querySelectorAll('.search-dropdown.active, .dropdown-menu.active, .dropdown-menu.show');
+        if (activeDropdowns.length > 0) {
+            activeDropdowns.forEach(d => {
+                d.classList.remove('active', 'show');
+                d.style.display = 'none';
+            });
+            dropdownClosed = true;
+        }
+
+        if (dropdownClosed) {
+            event.preventDefault();
+            return;
+        }
+
+        // إذا لم يكن هناك مودال أو قائمة منسدلة مفتوحة، نقوم بإغلاق التبويب النشط (القسم الحالي)
         if (typeof activeTabId !== 'undefined' && activeTabId && activeTabId !== 'dashboard') {
             if (typeof closeTab === 'function') {
                 closeTab(activeTabId);
@@ -1382,7 +1424,13 @@ window.addEventListener('keydown', function (event) {
     } else if (event.key === 'F7') {
         event.preventDefault();
         if (typeof toggleCalculator === 'function') toggleCalculator();
-    } else if (event.key === 'F9') {
+    } else if (event.key === 'F8') {
+        event.preventDefault();
+        const modal = document.getElementById('bayanFastInquiryModal');
+        if (!modal || modal.style.display !== 'flex') {
+            if (typeof window.openFastItemInquiryModal === 'function') window.openFastItemInquiryModal();
+        }
+    } else if (event.key === 'F9' || event.key === 'F12') {
         event.preventDefault();
         const isAccountModal = !document.getElementById('newAccountModal')?.classList.contains('hidden');
         const isItemModal = !document.getElementById('newItemModal')?.classList.contains('hidden');
@@ -1421,8 +1469,14 @@ window.addEventListener('keydown', function (event) {
             if (typeof closeNewItemModal === 'function') closeNewItemModal();
             else document.getElementById('newItemModal').classList.add('hidden');
         } else if (activeSectionId === 'sales-section') {
+            if (typeof cart !== 'undefined' && Array.isArray(cart) && cart.length > 0) {
+                if (!confirm("⚠️ هل أنت متأكد من تصفير الفاتورة الحالية وبدء فاتورة جديدة؟")) return;
+            }
             if (typeof resetBill === 'function') resetBill();
         } else if (activeSectionId === 'purchase-section') {
+            if (typeof purchaseCart !== 'undefined' && Array.isArray(purchaseCart) && purchaseCart.length > 0) {
+                if (!confirm("⚠️ هل أنت متأكد من تصفير فاتورة المشتريات الحالية؟")) return;
+            }
             if (typeof resetPurchase === 'function') resetPurchase();
         } else if (activeSectionId === 'sales-return-section') {
             if (typeof resetReturn === 'function') resetReturn();
@@ -1432,15 +1486,6 @@ window.addEventListener('keydown', function (event) {
             if (typeof resetReceipt === 'function') resetReceipt();
         } else if (activeSectionId === 'disbursement-section') {
             if (typeof resetDisbursement === 'function') resetDisbursement();
-        }
-    } else if (event.key === 'F12') {
-        event.preventDefault();
-        if (activeSectionId === 'receipt-section') {
-            if (typeof saveReceipt === 'function') saveReceipt(true);
-        } else if (activeSectionId === 'disbursement-section') {
-            if (typeof saveDisbursement === 'function') saveDisbursement(true);
-        } else if (activeSectionId === 'adjustment-section') {
-            if (typeof saveAdjustment === 'function') saveAdjustment();
         }
     }
 });

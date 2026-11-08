@@ -2543,9 +2543,9 @@
         }, 50);
     };
 
-    // ⌨️ الاستماع لاختصارات الكيبورد (F2 لفتح الاستعلام و Escape للإغلاق)
+    // ⌨️ الاستماع لاختصارات الكيبورد (F8 لفتح الاستعلام و Escape للإغلاق)
     window.addEventListener('keydown', function (e) {
-        if (e.key === 'F2') {
+        if (e.key === 'F8') {
             // 🛡️ فحص ومنع تداخل النوافذ إذا كانت شاشة الدفع أو أي نافذة منبثقة نشطة
             const payModal = document.getElementById('checkoutModal') || document.getElementById('quickPaymentModal') || document.getElementById('paymentModal');
             const discountModal = document.getElementById('discountModal') || document.getElementById('invoiceDiscountModal');

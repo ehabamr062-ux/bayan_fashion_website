@@ -1433,11 +1433,7 @@
                 const sec = document.getElementById('barcode-print-section');
                 if (!sec || sec.classList.contains('hidden')) return;
 
-                if (e.key === 'F2') {
-                    e.preventDefault();
-                    const el = document.getElementById('bpSearchInput');
-                    if (el) { el.focus(); el.select(); }
-                } else if (e.key === 'Escape') {
+                if (e.key === 'Escape') {
                     const modal = document.getElementById('bpVariantModal');
                     if (modal && !modal.classList.contains('hidden')) {
                         closeBpVariantModal();

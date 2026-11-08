@@ -1437,11 +1437,11 @@
             // 🛑 استبعاد سندات الصرف والقبض والمصروفات المالية من جدول بنود البضاعة لمنع تلوث حركة وأرباح الأصناف
             const txType = String(item.type || '').trim();
             if (txType && (
-                txType.includes('صرف') || 
-                txType.includes('قبض') || 
-                txType.includes('سند') || 
-                txType === 'expense' || 
-                txType === 'receipt' || 
+                txType.includes('صرف') ||
+                txType.includes('قبض') ||
+                txType.includes('سند') ||
+                txType === 'expense' ||
+                txType === 'receipt' ||
                 txType === 'disbursement' ||
                 txType === 'payment'
             )) {
@@ -1455,7 +1455,7 @@
                         delStmt.run([sTxId]);
                         delStmt.free();
                     }
-                } catch (_) {}
+                } catch (_) { }
                 return;
             }
 
