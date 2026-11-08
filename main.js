@@ -1019,7 +1019,7 @@ ipcMain.handle('save-sqlite-direct-backup', async (_e, payload) => {
             return new Promise((resolve, reject) => {
                 const readStream = fs.createReadStream(src);
                 const writeStream = fs.createWriteStream(dest);
-                const gzip = zlib.createGzip({ level: 9 });
+                const gzip = zlib.createGzip({ level: 1 }); // ضغط فائق السرعة وخفيف لتفادي خنق المعالج (CPU Starvation)
                 readStream.on('error', reject);
                 gzip.on('error', reject);
                 writeStream.on('error', reject);

@@ -1887,7 +1887,6 @@ body.has-wallpaper .login-overlay {
     50% {
         transform: translateY(3px);
         opacity: 1;
-        filter: drop-shadow(0 0 5px #38bdf8);
     }
 }
 
@@ -1921,9 +1920,8 @@ body.has-wallpaper .login-overlay {
         opacity: 0.85;
     }
     50% {
-        transform: scale(1.2) rotate(180deg);
+        transform: scale(1.1) rotate(180deg);
         opacity: 1;
-        filter: drop-shadow(0 0 6px #c084fc);
     }
 }
 
@@ -1940,45 +1938,23 @@ body.has-wallpaper .login-overlay {
 .login-glass-card {
     position: relative;
     width: 100%;
-    /* خلفية كحلية داكنة ملكية فائقة النقاء Cosmic Dark Glass */
-    background: linear-gradient(160deg, #091428, #050b16);
-    border-radius: 26px;
+    /* خلفية كحلية داكنة ملكية فائقة النقاء وخفيفة على كارت الشاشة والمعالج */
+    background: linear-gradient(160deg, #0a1628, #050d1a);
+    border-radius: 24px;
     padding: 26px 32px 22px;
     overflow: hidden;
     z-index: 10;
-    box-shadow: 0 25px 65px rgba(0, 0, 0, 0.85), 0 0 35px rgba(0, 242, 254, 0.28);
+    border: 1.5px solid rgba(0, 242, 254, 0.4);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), 0 0 18px rgba(0, 242, 254, 0.15);
     display: flex;
     flex-direction: column;
-    animation: loginFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-    border: 2px solid transparent;
+    animation: loginFadeIn 0.35s ease-out;
 }
 
-/* تأثير الإطار المتلألئ النيون المتدرج سيان وبنفسجي خفيف كما في الصورة */
-.login-glass-card::before {
-    content: '';
-    position: absolute;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    background: conic-gradient(from 0deg, #00f2fe, #38bdf8, #818cf8, #c084fc, #38bdf8, #00f2fe); 
-    animation: rotateBorder 6s linear infinite;
-    will-change: transform;
-    z-index: -1;
-}
-
+/* إيقاف دوران التدرج المخروطي العنيف نهائياً لتفادي استهلاك 20 ثانية في الرسم والطبقات */
+.login-glass-card::before,
 .login-glass-card::after {
-    content: '';
-    position: absolute;
-    inset: 3px; /* سمك الإطار النيون المتوهج الأنيق */
-    background: linear-gradient(160deg, #0a1628, #050d1a);
-    border-radius: 23px;
-    z-index: -1;
-}
-
-@keyframes rotateBorder {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    display: none !important;
 }
 
 @keyframes loginFadeIn {

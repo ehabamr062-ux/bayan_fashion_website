@@ -1553,12 +1553,12 @@ window.executeAutoBackupToFile = async function(silent = false, isManual = false
         // دون الحاجة لتسلسل 50 ألف صنف ومئات آلاف الحركات في الرام عبر JSON وتفادي أخطاء الذاكرة نهائياً
         if (ipc && typeof ipc.invoke === 'function' && window.BayanSQLite) {
             try {
-                // 🛡️ دمج وتفريغ كافة حركات الـ WAL المعلقة إلى ملف قاعدة البيانات الرئيسي bayan.db قبل نسخه
+                // 🛡️ دمج وتفريغ حركات الـ WAL بشكل خفيف وغير حاجب (Non-blocking PASSIVE Checkpoint)
                 try {
                     if (window.BayanSQLite.nativeDb && typeof window.BayanSQLite.nativeDb.pragma === 'function') {
-                        window.BayanSQLite.nativeDb.pragma('wal_checkpoint(TRUNCATE)');
+                        window.BayanSQLite.nativeDb.pragma('wal_checkpoint(PASSIVE)');
                     } else if (window.BayanSQLite.db && typeof window.BayanSQLite.db.run === 'function') {
-                        window.BayanSQLite.db.run('PRAGMA wal_checkpoint(TRUNCATE);');
+                        window.BayanSQLite.db.run('PRAGMA wal_checkpoint(PASSIVE);');
                     }
                 } catch (walErr) {
                     console.warn("[Backup] wal_checkpoint notice:", walErr.message);
@@ -1770,7 +1770,7 @@ window.checkAndRunPeriodicBackup = function() {
 
 // ⚡ ترشيد الأداء: تشغيل فحص النسخ الدوري كل 10 دقائق (كافي ودقيق جداً للنسخ الساعي ويوفر الرام والمعالج)
 setInterval(window.checkAndRunPeriodicBackup, 10 * 60 * 1000);
-setTimeout(window.checkAndRunPeriodicBackup, 6000); // تشغيل أولي بعد 6 ثواني من الإقلاع
+setTimeout(window.checkAndRunPeriodicBackup, 60000); // تشغيل أولي هادئ بعد 60 ثانية من الإقلاع لمنع التجميد أثناء الدخول
 
 // 🔒 دالة فحص وجود بيانات غير محفوظة في كافة التبويبات المفتوحة قبل الخروج
 window.checkUnsavedDataInAllTabs = function() {
