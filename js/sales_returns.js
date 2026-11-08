@@ -3287,16 +3287,6 @@ let currentReturnInvoiceItems = [];
 
 async function openSelectReturnItemsModal(invoiceId) {
 
-    const modal = document.getElementById('selectReturnItemsModal');
-
-    if (modal && typeof makeElementDraggable === 'function') {
-
-        const content = modal.querySelector('.modal-content');
-
-        if (content) makeElementDraggable(content);
-
-    }
-
     const currentTab = typeof openTabs !== 'undefined' ? openTabs.find(t => t.id === activeTabId) : null;
 
     const isSalesReturn = document.getElementById('sales-return-section') && !document.getElementById('sales-return-section').classList.contains('hidden');
