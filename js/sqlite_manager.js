@@ -2394,6 +2394,29 @@
         }
 
         /**
+         * ⚡ تفريغ نظيف وتصدير فوري لقاعدة البيانات خالية من الـ Freelist والـ WAL في ملف جديد مباشرة (VACUUM INTO)
+         */
+        vacuumInto(destPath) {
+            if (!destPath) return false;
+            try {
+                const safeDest = destPath.replace(/\\/g, '/');
+                if (this.isNative && this.nativeDb) {
+                    this.nativeDb.exec(`VACUUM INTO '${safeDest}';`);
+                    console.log("🧹 [SQLite Native] VACUUM INTO completed at:", destPath);
+                    return true;
+                } else if (this.db && typeof this.db.run === 'function') {
+                    this.db.run(`VACUUM INTO '${safeDest}';`);
+                    console.log("🧹 [SQLite WASM] VACUUM INTO completed at:", destPath);
+                    return true;
+                }
+            } catch (e) {
+                console.warn("[SQLite] VACUUM INTO error:", e.message);
+                return false;
+            }
+            return false;
+        }
+
+        /**
          * ⚡ جلب فاتورة واحدة برقمها الفوري من SQLite مع تمييز نوع العملية لمنع تداخل المعرفات
          */
         getInvoice(invoiceId, targetType = null) {
