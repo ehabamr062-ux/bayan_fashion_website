@@ -4020,8 +4020,37 @@ function updateReturnInvoiceCard(invoiceId, type) {
     // 🎯 الضبط التلقائي لطريقة رد المبلغ لتطابق الفاتورة الأصلية
     const selectId = isSales ? 'sales-return-sectionPaymentMethodSelect' : 'purchase-return-sectionPaymentMethodSelect';
     const selectEl = document.getElementById(selectId);
-    if (selectEl) {
+    if (selectEl && selectEl.options && selectEl.options.length > 0) {
+        // محاولة التعيين المباشر أولاً
         selectEl.value = targetSelectVal;
+        
+        // إذا لم تتطابق القيمة وأصبح المربع فارغاً، نطابق بذكاء عبر نصوص وقيم الخيارات
+        if (selectEl.selectedIndex === -1 || !selectEl.value) {
+            const rawTarget = String(targetSelectVal || rawMethod || '').toLowerCase().replace(/[أإآ]/g, 'ا');
+            const matchedOpt = Array.from(selectEl.options).find(opt => {
+                const v = String(opt.value || '').toLowerCase().replace(/[أإآ]/g, 'ا');
+                const t = String(opt.text || '').toLowerCase().replace(/[أإآ]/g, 'ا');
+                if (rawTarget.includes('كاش') || rawTarget.includes('نقدي') || !rawTarget) {
+                    return v.includes('كاش') || v.includes('نقدي') || t.includes('كاش') || t.includes('نقدي');
+                }
+                if (rawTarget.includes('فيزا')) return v.includes('فيزا') || t.includes('فيزا');
+                if (rawTarget.includes('فودافون')) return v.includes('فودافون') || t.includes('فودافون');
+                if (rawTarget.includes('بنك') || rawTarget.includes('انستا')) return v.includes('بنك') || t.includes('بنك') || v.includes('تحويل');
+                if (rawTarget.includes('اجل') || rawTarget.includes('خصم') || rawTarget.includes('حساب')) {
+                    return v.includes('خصم') || v.includes('اجل') || v.includes('حساب');
+                }
+                return v === rawTarget || t === rawTarget;
+            });
+
+            if (matchedOpt) {
+                selectEl.value = matchedOpt.value;
+            } else {
+                // كخيار افتراضي آمن: نختار أول خيار نقدي بالقائمة أو أول عنصر
+                const cashOpt = Array.from(selectEl.options).find(o => o.value.includes('نقدي') || o.value.includes('كاش') || o.text.includes('نقدي'));
+                selectEl.value = cashOpt ? cashOpt.value : selectEl.options[0].value;
+            }
+        }
+
         if (typeof selectMethod === 'function') {
             try { selectMethod(selectEl); } catch(e){}
         }
