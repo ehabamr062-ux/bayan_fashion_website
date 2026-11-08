@@ -60,7 +60,6 @@ function handleHistorySearch(query, event) {
 
     if (!query || !query.trim()) { 
         resultsDiv.style.display = 'none'; 
-        renderHistoryTable(); 
         return; 
     }
 

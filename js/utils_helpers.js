@@ -401,7 +401,11 @@
         const debouncedHandleCustomerSearch = debounce((val) => { if (typeof handleCustomerSearch === 'function') handleCustomerSearch(val); }, 180);
         const debouncedRenderInventoryTable = debounce(() => { if (typeof renderInventoryTable === 'function') renderInventoryTable(); }, 250);
         const debouncedHandlePriceAdjSearch = debounce(() => { if (typeof handlePriceAdjSearch === 'function') handlePriceAdjSearch(); }, 220);
-        const debouncedHandleSupplierSearch = debounce((val) => { if (typeof handleSupplierSearch === 'function') handleSupplierSearch(val); }, 180);
+        const debouncedHandleSupplierSearch = debounce((val) => { if (typeof handleSupplierSearch === 'function') handleSupplierSearch(val); }, 250);
+        const debouncedUpdateHeaderPartnerInfo = debounce(() => { if (typeof updateHeaderPartnerInfo === 'function') updateHeaderPartnerInfo(); if (typeof calculateChange === 'function') calculateChange(); }, 300);
+        const debouncedHandleAccountSearchInput = debounce((el) => { if (typeof handleAccountSearchInput === 'function') handleAccountSearchInput(el); }, 250);
+        const debouncedHandleTransferProductSearch = debounce((val) => { if (typeof handleTransferProductSearch === 'function') handleTransferProductSearch(val); }, 250);
+        const debouncedHandleAdjSearch = debounce((val) => { if (typeof handleAdjSearch === 'function') handleAdjSearch(val); }, 250);
         const debouncedHandlePurchaseSearch = debounce((val) => { if (typeof handlePurchaseSearch === 'function') handlePurchaseSearch(val); }, 240);
 
         window.debouncedHandleSearch = debouncedHandleSearch;
@@ -411,6 +415,10 @@
         window.debouncedHandlePriceAdjSearch = debouncedHandlePriceAdjSearch;
         window.debouncedHandleSupplierSearch = debouncedHandleSupplierSearch;
         window.debouncedHandlePurchaseSearch = debouncedHandlePurchaseSearch;
+        window.debouncedUpdateHeaderPartnerInfo = debouncedUpdateHeaderPartnerInfo;
+        window.debouncedHandleAccountSearchInput = debouncedHandleAccountSearchInput;
+        window.debouncedHandleTransferProductSearch = debouncedHandleTransferProductSearch;
+        window.debouncedHandleAdjSearch = debouncedHandleAdjSearch;
 
         // ============================================================
         // 🛡️ حماية وضمان تركيز الكيبورد للقسم النشط في الواجهة (Focus Guard)

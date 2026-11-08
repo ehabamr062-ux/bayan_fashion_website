@@ -856,9 +856,9 @@
                             style="width: 100%; height: 40px; padding: 0 10px; font-size: 0.9rem; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 8px; color: #0f172a; font-weight: 900; transition: 0.2s;"
                             placeholder="👤 اختر عميل..."
                             onfocus="this.style.borderColor='#3b82f6'; this.style.background='#ffffff';"
-                            onblur="this.style.borderColor='#cbd5e1'; this.style.background='#ffffff';"
-                            oninput="debouncedHandleCustomerSearch(this.value); updateHeaderPartnerInfo(); calculateChange(); updateActiveTabTitle(this.value, 'بيع');"
-                            onchange="if (typeof checkAccountFrozenAndAlert === 'function') checkAccountFrozenAndAlert(this.value);"
+                            onblur="this.style.borderColor='#cbd5e1'; this.style.background='#ffffff'; updateHeaderPartnerInfo();"
+                            oninput="debouncedHandleCustomerSearch(this.value); updateActiveTabTitle(this.value, 'بيع'); if(typeof debouncedUpdateHeaderPartnerInfo === 'function') debouncedUpdateHeaderPartnerInfo();"
+                            onchange="updateHeaderPartnerInfo(); if (typeof checkAccountFrozenAndAlert === 'function') checkAccountFrozenAndAlert(this.value);"
                             autocomplete="off">
                         <div id="customerSearchResults" class="search-results" style="top: 66px;"></div>
                     </div>
@@ -2858,9 +2858,9 @@
                             style="flex: 1; height: 40px; border: 1.5px solid #cbd5e1; border-radius: 8px; background: #f8fafc; color: #0f172a; padding: 0 10px; font-size: 0.88rem; font-weight: 800; min-width: 0; transition: 0.2s;"
                             placeholder="المورد..."
                             onfocus="this.style.borderColor='#3b82f6'; this.style.background='#ffffff';"
-                            onblur="this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc';"
-                            oninput="handleSupplierSearch(this.value); updateHeaderPartnerInfo();"
-                            onchange="if (typeof checkAccountFrozenAndAlert === 'function') checkAccountFrozenAndAlert(this.value);"
+                            onblur="this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc'; updateHeaderPartnerInfo();"
+                            oninput="if(typeof debouncedHandleSupplierSearch==='function') debouncedHandleSupplierSearch(this.value); else handleSupplierSearch(this.value); if(typeof debouncedUpdateHeaderPartnerInfo==='function') debouncedUpdateHeaderPartnerInfo();"
+                            onchange="updateHeaderPartnerInfo(); if (typeof checkAccountFrozenAndAlert === 'function') checkAccountFrozenAndAlert(this.value);"
                             autocomplete="off">
                         <button
                             onclick="openNewAccountModal(); const supRadio = document.getElementById('accTypeSupplier') || document.querySelector('input[name=\'accType\'][value=\'supplier\']'); if(supRadio) supRadio.checked=true;"
@@ -5171,7 +5171,7 @@
                                 <input type="text" id="adjSearch" class="search-input"
                                     placeholder="ادخل اسم الصنف أو الباركود..."
                                     style="padding-right: 12px; padding-left: 32px; height: 40px; border-radius: 9px; border: 1.5px solid #cbd5e1; font-weight: 700; color: #0f172a; background: #f8fafc;"
-                                    oninput="handleAdjSearch(this.value)"
+                                    oninput="if(typeof debouncedHandleAdjSearch==='function') debouncedHandleAdjSearch(this.value); else handleAdjSearch(this.value);"
                                     onfocus="this.style.borderColor='#2563eb'; this.style.background='#ffffff'; this.style.boxShadow='0 0 0 3px rgba(37,99,235,0.12)';"
                                     onblur="this.style.borderColor='#cbd5e1'; this.style.background='#f8fafc'; this.style.boxShadow='none';"
                                     onkeydown="if(event.key === 'Enter') { event.preventDefault(); if(this.value && this.value.trim() !== '' && typeof handleAdjSearchEnter === 'function') { handleAdjSearchEnter(this.value, event); } else { document.getElementById('adjQty').focus(); } }"
@@ -5509,7 +5509,7 @@
                     <div style="display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap;">
                         <div style="flex: 2; min-width: 260px; position: relative; display: flex; align-items: center;">
                             <input type="text" id="accSearchName" placeholder="🔍 بحث بالاسم أو الكود..."
-                                oninput="handleAccountSearchInput(this)"
+                                oninput="if(typeof debouncedHandleAccountSearchInput==='function') debouncedHandleAccountSearchInput(this); else handleAccountSearchInput(this);"
                                 onkeydown="if(event.key==='Escape'){clearAccountsSearch();}"
                                 style="width: 100%; height: 42px; border-radius: 10px; border: 1.5px solid #cbd5e1; padding: 0 15px 0 42px; font-size: 0.88rem; font-weight: 700; color: #0f172a; background: #f8fafc; outline: none; transition: 0.2s;"
                                 onfocus="this.style.borderColor='#3b82f6'; this.style.background='#ffffff'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.12)';"
@@ -14504,7 +14504,7 @@
                                 style="width: 100%; height: 42px; border-radius: 10px; border: 1.5px solid #cbd5e1; background: #ffffff; color: #0f172a; font-weight: 800; font-size: 0.92rem; padding: 0 12px; text-align: right; box-sizing: border-box; transition: 0.2s;"
                                 onfocus="this.style.borderColor='#2563eb'; handleTransferProductSearch(this.value);"
                                 onblur="this.style.borderColor='#cbd5e1';"
-                                oninput="handleTransferProductSearch(this.value)">
+                                oninput="if(typeof debouncedHandleTransferProductSearch==='function') debouncedHandleTransferProductSearch(this.value); else handleTransferProductSearch(this.value);">
                             <div id="transferSearchResults" class="search-results hidden"
                                 style="position: absolute; top: calc(100% + 4px); right: 0; background: #ffffff; z-index: 10010; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 8px; max-height: 350px; overflow-y: auto; overflow-x: hidden; box-shadow: 0 25px 60px rgba(15, 23, 42, 0.25); width: 620px; max-width: 85vw; box-sizing: border-box;">
                             </div>

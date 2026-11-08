@@ -886,8 +886,14 @@ const BayanBarcode = (function () {
     function onGlobalKeyDown(e) {
         if (!e || typeof e.key !== 'string') return;
 
-        // 🛡️ صمام أمان حاسم: إذا كان المستخدم يكتب في حقل كلمة سر أو داخل نافذة منبثقة/حوار، نتجاهل مستمع الباركود تماماً
+        // ⚡ تحرير فوري لخيط المعالجة: تجاوز المستمع بالكامل إذا كان المستخدم يكتب في حقل نصي عادي
         const activeElem = document.activeElement;
+        const isTextInput = activeElem && (activeElem.tagName === 'INPUT' || activeElem.tagName === 'TEXTAREA') && !activeElem.readOnly;
+        if (isTextInput && e.key !== 'Enter' && e.key !== 'Tab' && e.key !== 'Escape') {
+            return;
+        }
+
+        // 🛡️ صمام أمان حاسم: إذا كان المستخدم يكتب في حقل كلمة سر أو داخل نافذة منبثقة/حوار، نتجاهل مستمع الباركود تماماً
         const isPasswordInput = activeElem && activeElem.tagName === 'INPUT' && activeElem.type === 'password';
         const isInsideModal = activeElem && !!activeElem.closest('.confirm-modal-overlay, .modal-overlay, #customPromptModal, #alertModal, #confirmModal, #loginModal, #userFormCard');
         const hasOpenPromptModal = !!document.querySelector('#customPromptModal:not(.hidden):not([style*="display: none"]), #alertModal:not(.hidden):not([style*="display: none"]), #confirmModal:not(.hidden):not([style*="display: none"]), #loginModal:not(.hidden):not([style*="display: none"])');

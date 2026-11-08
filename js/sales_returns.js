@@ -2322,6 +2322,13 @@ function filterPurReturnCartItems(query) {
 document.addEventListener('keydown', (e) => {
     if (!e || typeof e.key !== 'string') return;
 
+    // ⚡ خروج مبكر وفوري: لا نعترض الكيبورد إذا كان المستخدم يكتب بالفعل داخل أي حقل نصي
+    const activeEl = document.activeElement;
+    const isInput = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'SELECT') && !activeEl.readOnly;
+    if (isInput && e.key !== 'Enter' && e.key !== 'Escape') {
+        return;
+    }
+
     // 🛡️ صمام أمان حاسم: منع خطف التركيز نهائياً إذا كانت هناك أي نافذة منبثقة أو مربع حوار مفتوح
     const hasActiveModal = !!document.querySelector(
         '.confirm-modal-overlay:not(.hidden), .modal-overlay:not(.hidden), .calc-modal.visible, #customPromptModal:not(.hidden), #alertModal:not(.hidden), #confirmModal:not(.hidden), #bayanFastInquiryModal[style*="display: flex"], #userFormCard:not(.hidden)'
@@ -2347,8 +2354,6 @@ document.addEventListener('keydown', (e) => {
     const targetId = searchMap[currentTab.type] || null;
     if (!targetId) return;
 
-    const active = document.activeElement;
-    const isInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT') && !active.readOnly;
     const isChar = e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey;
 
     if (!isInput && isChar) {

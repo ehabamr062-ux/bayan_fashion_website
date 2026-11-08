@@ -1458,8 +1458,8 @@ async function viewInvoiceItems(invoiceId, type = '', autoPrint = false, optTxId
         const total = parseFloat(i.total != null ? i.total : (qty * price - disc + addition));
         const lineExpected = qty * price;
         // إذا كان الإجمالي المسجل أكبر بوضوح من حاصل الضرب بسبب خطأ حفظ الفاتورة القديمة، نعتمد الحسبة الطبيعية
-        const calculatedTotal = (total > lineExpected + 0.05 && disc === 0 && addition === 0) 
-            ? lineExpected 
+        const calculatedTotal = (total > lineExpected + 0.05 && disc === 0 && addition === 0)
+            ? lineExpected
             : total;
 
         return {
@@ -1582,14 +1582,6 @@ window.openAdvancedEditModal = async function (invId = null) {
 
     const head = displayItems[0] || items[0];
 
-    let productOptions = '';
-
-    if (typeof productsDB !== 'undefined') {
-
-        productsDB.forEach(p => { productOptions += `<option value="${p.name}">`; });
-
-    }
-
     let rowsHtml = '';
 
     displayItems.forEach((it, idx) => {
@@ -1605,7 +1597,7 @@ window.openAdvancedEditModal = async function (invId = null) {
                 <tr class="edit-row" data-id="${it.invoiceId}" data-tx-id="${it.id || ''}" data-product="${it.product}" data-size="${itSize}" data-color="${itColor}">
 
                     <td style="padding:10px; border:1px solid #ddd; background:#f9f9f9;">
-                        <input type="text" class="edit-name-input" list="editItemsList" value="${it.product}" oninput="window.updateEditPrice(this)" style="width:100%; border:1px solid #ccc; padding:5px; border-radius:4px; font-weight:bold;">
+                        <input type="text" class="edit-name-input" value="${it.product}" oninput="window.updateEditPrice(this)" style="width:100%; border:1px solid #ccc; padding:5px; border-radius:4px; font-weight:bold;">
                         ${variantBadge}
                     </td>
 
@@ -1625,8 +1617,6 @@ window.openAdvancedEditModal = async function (invId = null) {
     const content = `
 
             <div style="direction:rtl; text-align:right;">
-
-                <datalist id="editItemsList">${productOptions}</datalist>
 
                 <div style="background:var(--main-purple); color:white; padding:15px; border-radius:10px 10px 0 0; margin:-20px -20px 20px -20px; display:flex; justify-content:space-between; align-items:center;">
 

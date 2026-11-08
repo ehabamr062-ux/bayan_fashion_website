@@ -29,9 +29,9 @@ function handleGeneralAccountSearch(query, inputId, resultsId) {
 
     }
 
-    // البحث بالاسم أو الكود
+    // البحث بالاسم أو الكود بحد أقصى 30 نتيجة لمنع تضخم الـ DOM
     const queryLower = query.toLowerCase();
-    const filtered = accounts.filter(a => (a.name && a.name.toLowerCase().includes(queryLower)) || (a.code && a.code.toString().includes(query)));
+    const matchedAccounts = accounts.filter(a => (a.name && a.name.toLowerCase().includes(queryLower)) || (a.code && a.code.toString().includes(query))).slice(0, 30);
 
     // إذا تم كتابة اسم حساب مطابق تماماً، يتم حديث الرصيد فوراً
     const exactMatch = accounts.find(a => a.name.trim().toLowerCase() === query.trim().toLowerCase());
@@ -48,11 +48,11 @@ function handleGeneralAccountSearch(query, inputId, resultsId) {
         if (balEl) balEl.innerText = formattedBal;
     }
 
-    if (filtered.length > 0) {
+    if (matchedAccounts.length > 0) {
 
         resultsDiv.style.display = 'block';
 
-        filtered.forEach(a => {
+        matchedAccounts.forEach(a => {
 
             const div = document.createElement('div');
 
@@ -589,9 +589,9 @@ window.addEventListener('keydown', function (e) {
     if (e.ctrlKey || e.altKey || e.metaKey) return;
     if (e.key.length !== 1) return; // التقاط الحروف والأرقام والرموز فقط (تجاهل Enter, Tab, Shift, F1-F12...)
 
-    // 2. التحقق من أن شاشة البيع (sales-section) هي المعروضة والنشطة حالياً
+    // 2. التحقق من أن شاشة البيع (sales-section) هي المعروضة والنشطة حالياً بدون استدعاء getComputedStyle لمنع Forced Reflow
     const salesSection = document.getElementById('sales-section');
-    if (!salesSection || salesSection.classList.contains('hidden') || getComputedStyle(salesSection).display === 'none') {
+    if (!salesSection || salesSection.classList.contains('hidden') || salesSection.offsetParent === null) {
         return;
     }
 
