@@ -1448,7 +1448,19 @@ async function viewInvoiceItems(invoiceId, type = '', autoPrint = false, optTxId
         }
         const discType = i.discountType || i.itemDiscountType || 'val';
         let addition = parseFloat(i.addition != null ? i.addition : (i.extra != null ? i.extra : 0)) || 0;
+
+        // 🛡️ تصفير أي إضافة أو ضريبة تلقائياً للبند إذا لم تكن الفاتورة محدد بها إضافة/ضريبة صريحة في رأس الفاتورة
+        const hasExplicitHeadExtra = (head.invoiceTax != null && parseFloat(head.invoiceTax) > 0) || (head.invoiceExtra != null && parseFloat(head.invoiceExtra) > 0);
+        if (!hasExplicitHeadExtra) {
+            addition = 0;
+        }
+
         const total = parseFloat(i.total != null ? i.total : (qty * price - disc + addition));
+        const lineExpected = qty * price;
+        // إذا كان الإجمالي المسجل أكبر بوضوح من حاصل الضرب بسبب خطأ حفظ الفاتورة القديمة، نعتمد الحسبة الطبيعية
+        const calculatedTotal = (total > lineExpected + 0.05 && disc === 0 && addition === 0) 
+            ? lineExpected 
+            : total;
 
         return {
             productId: i.productId || null,
@@ -1464,7 +1476,7 @@ async function viewInvoiceItems(invoiceId, type = '', autoPrint = false, optTxId
             discountType: discType,
             addition: addition,
             extra: addition,
-            total: total
+            total: calculatedTotal
         };
     });
 
