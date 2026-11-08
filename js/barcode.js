@@ -920,7 +920,7 @@ const BayanBarcode = (function () {
                 return;
             }
 
-            if (buffer.length >= 2) {
+            if (buffer.length >= 1) {
                 // حساب متوسط الفارق الزمني بين الحروف
                 const avgInterval = keyIntervals.length > 0
                     ? (keyIntervals.reduce((a, b) => a + b, 0) / keyIntervals.length)
@@ -931,7 +931,7 @@ const BayanBarcode = (function () {
                     ? (avgInterval < SCAN_THRESHOLD_MS && buffer.length >= 4)
                     : (avgInterval < SCAN_THRESHOLD_MS || buffer.length >= 8);
 
-                const scanned = buffer;
+                const scanned = buffer.trim();
                 buffer = '';
                 keyIntervals = [];
 
@@ -941,6 +941,43 @@ const BayanBarcode = (function () {
                     lastSuccessfulScanTime = performance.now();
                     handleScan(scanned, 'hardware_scanner');
                     return;
+                } else if (!isStandardInput && scanned.length >= 1) {
+                    // 🎯 حماية الأرقام والأكواد اليدوية (Numpad & Manual Codes like 72, 110, 2442)
+                    // إذا لم يكن المستخدم داخل حقل إدخال وضغط Enter ومعه أرقام أو كود في البافر:
+                    // نوجهه للشاشة النشطة (البيع أو الشراء) بدلاً من ابتلاعه وحذفه!
+                    const target = getActiveScanTarget();
+                    if (target === 'sales') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const pSearch = document.getElementById('productSearch');
+                        if (pSearch) {
+                            pSearch.value = scanned;
+                            pSearch.focus();
+                            if (typeof handleSearchEnter === 'function') {
+                                handleSearchEnter(scanned, e);
+                            }
+                        } else {
+                            handleScan(scanned, 'manual_keyboard');
+                        }
+                        return;
+                    } else if (target === 'purchase') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const pSearch = document.getElementById('purchaseSearch');
+                        if (pSearch) {
+                            pSearch.value = scanned;
+                            pSearch.focus();
+                            if (typeof handlePurchaseSearchEnter === 'function') {
+                                handlePurchaseSearchEnter(scanned, e);
+                            }
+                        } else {
+                            handleScan(scanned, 'manual_keyboard');
+                        }
+                        return;
+                    } else if (target) {
+                        handleScan(scanned, 'manual_keyboard');
+                        return;
+                    }
                 }
             }
             buffer = '';

@@ -3282,30 +3282,30 @@
             if (removeBtn) removeBtn.classList.add('hidden');
 
             // إعادة تعيين حالة القفل والحماية للأرصدة
-            window.isVariantsStockLocked = true;
-            window.isMainStockLocked = true;
+            window.isVariantsStockLocked = false;
+            window.isMainStockLocked = false;
             const vBtn = document.getElementById('btnToggleVariantsLock');
             const vIcon = document.getElementById('variantsLockIcon');
             const vText = document.getElementById('variantsLockText');
-            if (vIcon) vIcon.innerText = '🔒';
-            if (vText) vText.innerText = 'الكميات مقفلة (محمية)';
+            if (vIcon) vIcon.innerText = '🔓';
+            if (vText) vText.innerText = 'تعديل الكميات متاح';
             if (vBtn) {
-                vBtn.style.background = '#fffbeb';
-                vBtn.style.borderColor = '#f59e0b';
-                vBtn.style.color = '#b45309';
+                vBtn.style.background = '#ecfdf5';
+                vBtn.style.borderColor = '#10b981';
+                vBtn.style.color = '#047857';
             }
             const mBtn = document.getElementById('toggleMainStockLockBtn');
             const mInp = document.getElementById('newItemStock');
             if (mBtn) {
-                mBtn.innerHTML = '🔒 مقفل';
-                mBtn.style.background = '#fffbeb';
-                mBtn.style.color = '#b45309';
-                mBtn.style.borderColor = '#f59e0b';
+                mBtn.innerHTML = '🔓 متاح للتعديل';
+                mBtn.style.background = '#ecfdf5';
+                mBtn.style.color = '#047857';
+                mBtn.style.borderColor = '#10b981';
             }
             if (mInp) {
-                mInp.setAttribute('readonly', 'true');
-                mInp.style.background = '#f8fafc';
-                mInp.style.cursor = 'not-allowed';
+                mInp.removeAttribute('readonly');
+                mInp.style.background = '#ffffff';
+                mInp.style.cursor = 'text';
             }
 
             if (product && typeof product === 'object') {

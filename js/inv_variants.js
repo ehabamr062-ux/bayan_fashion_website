@@ -1221,7 +1221,7 @@ function addVariantRow(size = '', color = '', barcode = '', stock = 1, price = n
     const defaultCost = cost !== null ? cost : (parseFloat(document.getElementById('newItemCost')?.value) || 0);
     const autoBarcode = barcode || generateVariantBarcode(size, color, rowIdx);
     const effectiveStock = (stock !== undefined && stock !== null && stock !== '') ? stock : 1;
-    const isLocked = (typeof window.isVariantsStockLocked !== 'undefined') ? window.isVariantsStockLocked : true;
+    const isLocked = (typeof window.isVariantsStockLocked !== 'undefined') ? window.isVariantsStockLocked : false;
 
     const tr = document.createElement('tr');
     tr.dataset.origStock = effectiveStock;
@@ -1255,9 +1255,8 @@ function addVariantRow(size = '', color = '', barcode = '', stock = 1, price = n
         </td>
         <td>
             <input type="number" class="search-input var-stock-input" value="${effectiveStock}" min="0" data-orig-stock="${effectiveStock}"
-                ${isLocked ? 'readonly' : ''}
-                onfocus="if(window.isVariantsStockLocked) { this.blur(); if(typeof showToast==='function') showToast('🔒 الكميات مقفلة ومحمية. انقر على زر القفل 🔓 في الأعلى للتعديل', 'warning'); } else { this.select(); }"
-                style="height: 32px; font-weight: bold; text-align: center; border: 1px solid #cbd5e1; border-radius: 6px; background: ${isLocked ? '#f8fafc' : '#ffffff'}; cursor: ${isLocked ? 'not-allowed' : 'text'};">
+                onfocus="this.select()"
+                style="height: 32px; font-weight: bold; text-align: center; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff; cursor: text;">
         </td>
         <td>
             <input type="number" class="search-input var-price-input" value="${defaultPrice}" data-orig-price="${defaultPrice}"
@@ -1564,9 +1563,9 @@ function toggleVariantsViewMode(mode = 'matrix') {
     }
 }
 
-// متغيرات حالة القفل والحماية للأرصدة
-window.isVariantsStockLocked = true;
-window.isMainStockLocked = true;
+// متغيرات حالة القفل والحماية للأرصدة (مفتوحة افتراضياً للتعديل المباشر)
+window.isVariantsStockLocked = false;
+window.isMainStockLocked = false;
 
 function renderSmartMatrixView() {
     const wrapper = document.getElementById('smartMatrixWrapper');
@@ -1614,7 +1613,7 @@ function renderSmartMatrixView() {
 
     const sizes = Array.from(sizeSet);
     const colors = Array.from(colorSet);
-    const isLocked = (typeof window.isVariantsStockLocked !== 'undefined') ? window.isVariantsStockLocked : true;
+    const isLocked = (typeof window.isVariantsStockLocked !== 'undefined') ? window.isVariantsStockLocked : false;
 
     // حساب إجماليات المقاسات (الأعمدة)
     const colTotals = {};
@@ -1669,8 +1668,8 @@ function renderSmartMatrixView() {
                             <input type="number" value="${stockVal}" min="0" data-row-indices="${item.rowIndices ? item.rowIndices.join(',') : item.rowIndex}" data-orig-stock="${origVal}" data-size="${sz}" data-color="${col}"
                                 ${isLocked ? 'readonly' : ''}
                                 onchange="syncMatrixInputToDetailedRow(${rIdxParam}, this.value)"
-                                onfocus="if(window.isVariantsStockLocked) { this.blur(); if(typeof showToast==='function') showToast('🔒 الكميات مقفلة ومحمية. انقر على زر القفل 🔓 في الأعلى للتعديل', 'warning'); } else { this.select(); }"
-                                style="width: 70px; height: 36px; font-size: 1.1rem; font-weight: 900; text-align: center; border: 2px solid ${isChanged ? '#f59e0b' : (isLocked ? '#94a3b8' : '#2563eb')}; border-radius: 8px; color: ${stockVal > 0 ? '#047857' : '#64748b'}; background: ${isLocked ? (stockVal > 0 ? '#f0fdf4' : '#ffffff') : '#eff6ff'}; cursor: ${isLocked ? 'not-allowed' : 'text'}; transition: 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.06);"
+                                onfocus="this.select()"
+                                style="width: 70px; height: 36px; font-size: 1.1rem; font-weight: 900; text-align: center; border: 2px solid ${isChanged ? '#f59e0b' : '#2563eb'}; border-radius: 8px; color: ${stockVal > 0 ? '#047857' : '#64748b'}; background: ${stockVal > 0 ? '#eff6ff' : '#ffffff'}; cursor: text; transition: 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.06);"
                                 title="المقاس: ${sz} | اللون: ${col}${isChanged ? ` (الأصل: ${origVal})` : ''}">
                         </div>
                     </td>

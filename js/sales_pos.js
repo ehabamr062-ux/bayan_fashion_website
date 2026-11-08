@@ -583,6 +583,58 @@ document.addEventListener('click', function (e) {
     }
 });
 
+// ⌨️ التوجيه التلقائي الذكي لضغطات الكيبورد والـ Numpad إلى خانة البحث في شاشة البيع
+window.addEventListener('keydown', function (e) {
+    // 1. استثناء مفاتيح التحكم والأوامر الخاصة (Ctrl, Alt, Meta, F-keys, Escape, Tab, Arrows, etc.)
+    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    if (e.key.length !== 1) return; // التقاط الحروف والأرقام والرموز فقط (تجاهل Enter, Tab, Shift, F1-F12...)
+
+    // 2. التحقق من أن شاشة البيع (sales-section) هي المعروضة والنشطة حالياً
+    const salesSection = document.getElementById('sales-section');
+    if (!salesSection || salesSection.classList.contains('hidden') || getComputedStyle(salesSection).display === 'none') {
+        return;
+    }
+
+    // 3. 🛡️ استثناء حاسم وصارم: لا نخطف المؤشر إذا كان المستخدم يكتب بالفعل في أي حقل إدخال نشط
+    const active = document.activeElement;
+    if (active) {
+        const tag = active.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || active.isContentEditable) {
+            return; // المستخدم يكتب بالفعل داخل حقل نشط (مثل customerName، discountInput، taxInput، salesNotes، headerQty...)
+        }
+    }
+
+    // 4. لا يتم خطف المؤشر إذا كانت هناك أي نافذة منبثقة أو مودال مفتوح
+    const openModal = document.querySelector(
+        '.confirm-modal-overlay:not(.hidden):not([style*="display: none"]), ' +
+        '.modal-overlay:not(.hidden):not([style*="display: none"]), ' +
+        '#customPromptModal:not(.hidden):not([style*="display: none"]), ' +
+        '#alertModal:not(.hidden):not([style*="display: none"]), ' +
+        '#confirmModal:not(.hidden):not([style*="display: none"]), ' +
+        '#loginModal:not(.hidden):not([style*="display: none"]), ' +
+        '#newItemModal:not(.hidden):not([style*="display: none"]), ' +
+        '#searchInvoiceModal:not(.hidden):not([style*="display: none"]), ' +
+        '#bayanVariantPickerOverlay, ' +
+        '#unitSelectionModal:not(.hidden):not([style*="display: none"]), ' +
+        '#royalCalculator.visible'
+    );
+    if (openModal) return;
+
+    // 5. توجيه الضغطة فوراً وبسلاسة إلى خانة #productSearch
+    const pSearch = document.getElementById('productSearch');
+    if (pSearch) {
+        e.preventDefault();
+        pSearch.focus();
+        pSearch.value = (pSearch.value || '') + e.key;
+        pSearch.selectionStart = pSearch.selectionEnd = pSearch.value.length;
+        if (typeof debouncedHandleSearch === 'function') {
+            debouncedHandleSearch(pSearch.value);
+        } else {
+            pSearch.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    }
+});
+
 function updateSearchSelection(items) {
     items.forEach((item, index) => {
         if (index === searchSelectedIndex) {
