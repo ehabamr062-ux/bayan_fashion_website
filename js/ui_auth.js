@@ -893,7 +893,7 @@ window.triggerLoginEmergencyRestore = async function () {
                     if (window.BayanSQLite && typeof window.BayanSQLite.close === 'function') {
                         window.BayanSQLite.close();
                     }
-                } catch (_) {}
+                } catch (_) { }
                 const restoreRes = await ipc.invoke('restore-sqlite-direct-backup', res.filePath);
                 if (restoreRes && restoreRes.success) {
                     alert("✅ تم استرجاع قاعدة البيانات بنجاح! سيتم إعادة تحميل البرنامج الآن.");

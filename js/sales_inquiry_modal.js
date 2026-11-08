@@ -46,7 +46,7 @@
                     return Object.assign({}, defaultInquiryCols, parsed);
                 }
             }
-        } catch (e) {}
+        } catch (e) { }
         return Object.assign({}, defaultInquiryCols);
     }
 
@@ -59,7 +59,7 @@
             if (typeof setStore === 'function') {
                 setStore('pos_inquiry_variants_cols', raw);
             }
-        } catch (e) {}
+        } catch (e) { }
     }
 
     let inquirySearchResults = [];
@@ -414,7 +414,7 @@
             try {
                 const storedWh = JSON.parse(getStore('pos_warehouses'));
                 if (Array.isArray(storedWh)) whList = storedWh.map(w => w.name);
-            } catch(e) {}
+            } catch (e) { }
         }
         if (whList.length === 0) {
             if (p.warehouseStocks) Object.keys(p.warehouseStocks).forEach(k => { if (!whList.includes(k)) whList.push(k); });
@@ -431,7 +431,7 @@
         // تصفية التشكيلات حسب المقاس واللون المختار (مرفوعة لتشمل أرصدة الفروع والجدول التفصيلي)
         let matchedVars = variants || [];
         if (hasVariants) {
-            matchedVars = variants.filter(v => 
+            matchedVars = variants.filter(v =>
                 (selectedInquirySize === 'all' || String(v.size || '').trim() === selectedInquirySize) &&
                 (selectedInquiryColor === 'all' || String(v.color || '').trim() === selectedInquiryColor)
             );
@@ -504,9 +504,9 @@
                         </span>
                     </td>
                     <td style="padding: 10px 12px; text-align: center; font-weight: 900;">
-                        ${hasReserved 
-                            ? `<span style="background: #fef08a; color: #000000; border: 2px solid #ca8a04; padding: 3px 10px; border-radius: 8px; font-weight: 900; display: inline-block; font-size: 0.95rem;">🛒 ${row.reservedQty.toFixed(2).replace(/\.00$/, '')}</span>` 
-                            : `<span style="color: #000000; font-weight: 900; font-size: 0.95rem;">0</span>`}
+                        ${hasReserved
+                    ? `<span style="background: #fef08a; color: #000000; border: 2px solid #ca8a04; padding: 3px 10px; border-radius: 8px; font-weight: 900; display: inline-block; font-size: 0.95rem;">🛒 ${row.reservedQty.toFixed(2).replace(/\.00$/, '')}</span>`
+                    : `<span style="color: #000000; font-weight: 900; font-size: 0.95rem;">0</span>`}
                     </td>
                 </tr>
             `;
@@ -677,7 +677,7 @@
                     let totalStock = 0;
                     let branchesCells = '';
                     let selectedWhStock = 0;
-                    
+
                     mainStock = window.FashionStockEngine
                         ? window.FashionStockEngine.getVariantStock(v, mainStoreName)
                         : (parseFloat(v.warehouseStocks?.[mainStoreName]) || 0);
@@ -722,7 +722,7 @@
                     const vInCartBadge = (vInCart > 0 && isWhMatchCart)
                         ? `<div style="font-size: 0.76rem; color: #000000; font-weight: 900; margin-top: 2px;">(بالسلة: ${vInCart})</div>`
                         : '';
-                    
+
                     // أسعار وباركود التشكيلة
                     const vRetail = parseFloat(v.price !== undefined ? v.price : retailPrice) || 0;
                     const vWs = parseFloat(v.wholesale !== undefined ? v.wholesale : wholesalePrice) || 0;
@@ -1464,7 +1464,7 @@
             if (typeof setStore === 'function') {
                 setStore('pos_inquiry_view_mode', mode);
             }
-        } catch (e) {}
+        } catch (e) { }
         renderInquiryModal();
     };
 
@@ -1584,260 +1584,239 @@
 
         try {
             const normalizeDigits = (str) => String(str || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d));
-        const qNorm = normalizeDigits(raw).toLowerCase();
-        const qClean = cleanArabic(qNorm);
+            const qNorm = normalizeDigits(raw).toLowerCase();
+            const qClean = cleanArabic(qNorm);
 
-        // 🧠 استخراج ذكي للبادئات في حالة كتابة: "مقاس 38"، "كود 38"، "سايز 38"، "نمرة 38"، "لون أحمر"
-        let explicitMode = null; // 'size' | 'code' | 'barcode' | 'color'
-        let extractedQuery = qClean;
+            // 🧠 استخراج ذكي للبادئات في حالة كتابة: "مقاس 38"، "كود 38"، "سايز 38"، "نمرة 38"، "لون أحمر"
+            let explicitMode = null; // 'size' | 'code' | 'barcode' | 'color'
+            let extractedQuery = qClean;
 
-        const sizePrefixRegex = /^(?:مقاس|سايز|نمرة|نمره|م|size)\s*[:=\-]?\s*(.+)$/i;
-        const codePrefixRegex = /^(?:كود|ك|رمز|رقم|موديل|code|model)\s*[:=\-]?\s*(.+)$/i;
-        const barcodePrefixRegex = /^(?:باركود|بار|سكانر|barcode)\s*[:=\-]?\s*(.+)$/i;
-        const colorPrefixRegex = /^(?:لون|color)\s*[:=\-]?\s*(.+)$/i;
+            const sizePrefixRegex = /^(?:مقاس|سايز|نمرة|نمره|م|size)\s*[:=\-]?\s*(.+)$/i;
+            const codePrefixRegex = /^(?:كود|ك|رمز|رقم|موديل|code|model)\s*[:=\-]?\s*(.+)$/i;
+            const barcodePrefixRegex = /^(?:باركود|بار|سكانر|barcode)\s*[:=\-]?\s*(.+)$/i;
+            const colorPrefixRegex = /^(?:لون|color)\s*[:=\-]?\s*(.+)$/i;
 
-        if (sizePrefixRegex.test(qClean)) {
-            explicitMode = 'size';
-            extractedQuery = qClean.match(sizePrefixRegex)[1].trim();
-        } else if (codePrefixRegex.test(qClean)) {
-            explicitMode = 'code';
-            extractedQuery = qClean.match(codePrefixRegex)[1].trim();
-        } else if (barcodePrefixRegex.test(qClean)) {
-            explicitMode = 'barcode';
-            extractedQuery = qClean.match(barcodePrefixRegex)[1].trim();
-        } else if (colorPrefixRegex.test(qClean)) {
-            explicitMode = 'color';
-            extractedQuery = qClean.match(colorPrefixRegex)[1].trim();
-        }
+            if (sizePrefixRegex.test(qClean)) {
+                explicitMode = 'size';
+                extractedQuery = qClean.match(sizePrefixRegex)[1].trim();
+            } else if (codePrefixRegex.test(qClean)) {
+                explicitMode = 'code';
+                extractedQuery = qClean.match(codePrefixRegex)[1].trim();
+            } else if (barcodePrefixRegex.test(qClean)) {
+                explicitMode = 'barcode';
+                extractedQuery = qClean.match(barcodePrefixRegex)[1].trim();
+            } else if (colorPrefixRegex.test(qClean)) {
+                explicitMode = 'color';
+                extractedQuery = qClean.match(colorPrefixRegex)[1].trim();
+            }
 
-        const effectiveQuery = extractedQuery || qClean;
-        const effectiveNorm = normalizeDigits(effectiveQuery).trim().toLowerCase();
-        // 🛡️ تعريف مصفوفة الكلمات (tokens) لمنع خطأ ReferenceError وفك تجميد المربع فوراً
-        const tokens = effectiveQuery ? effectiveQuery.split(/\s+/).filter(t => t.length > 0) : [];
-        const results = [];
-        const barcodeMap = (typeof window.getBarcodeToProductMap === 'function') ? window.getBarcodeToProductMap() : null;
-        const codeMap = (typeof window.getCodeToProductMap === 'function') ? window.getCodeToProductMap() : null;
-        const directFound = new Set();
+            const effectiveQuery = extractedQuery || qClean;
+            const effectiveNorm = normalizeDigits(effectiveQuery).trim().toLowerCase();
+            // 🛡️ تعريف مصفوفة الكلمات (tokens) لمنع خطأ ReferenceError وفك تجميد المربع فوراً
+            const tokens = effectiveQuery ? effectiveQuery.split(/\s+/).filter(t => t.length > 0) : [];
+            const results = [];
+            const barcodeMap = (typeof window.getBarcodeToProductMap === 'function') ? window.getBarcodeToProductMap() : null;
+            const codeMap = (typeof window.getCodeToProductMap === 'function') ? window.getCodeToProductMap() : null;
+            const directFound = new Set();
 
-        // ⚡ فحص فوري فائق السرعة O(1) بالباركود أو الكود الدقيق قبل بدء الحلقة (0ms)
-        if (effectiveNorm) {
-            if (barcodeMap && barcodeMap.has(effectiveNorm)) {
-                const p = barcodeMap.get(effectiveNorm);
-                if (p && !p.isDeleted) {
-                    directFound.add(p.id);
-                    results.push({
-                        product: p,
-                        matchType: 'barcode',
-                        matchedDetail: (String(p.barcode || '').trim() === effectiveNorm ? `باركود مطابق: ${p.barcode}` : `باركود مطابق: ${effectiveNorm}`),
-                        matchedBarcode: effectiveNorm,
-                        matchedSize: '',
-                        matchedColor: '',
-                        isExactName: false,
-                        isExactCode: false,
-                        isExactBarcode: true,
-                        isExactSize: false,
-                        isExactColor: false,
-                        isNameStartsWith: false,
-                        isNameWordMatch: false,
-                        isNameContains: false,
-                        isCodeStartsWith: false,
-                        isCodeContains: false,
-                        isBarcodeStartsWith: true,
-                        isBarcodeContains: true,
-                        isSizeContains: false,
-                        isColorContains: false,
-                        isCompoundMatch: false
-                    });
+            // ⚡ فحص فوري فائق السرعة O(1) بالباركود أو الكود الدقيق قبل بدء الحلقة (0ms)
+            if (effectiveNorm) {
+                if (barcodeMap && barcodeMap.has(effectiveNorm)) {
+                    const p = barcodeMap.get(effectiveNorm);
+                    if (p && !p.isDeleted) {
+                        directFound.add(p.id);
+                        results.push({
+                            product: p,
+                            matchType: 'barcode',
+                            matchedDetail: (String(p.barcode || '').trim() === effectiveNorm ? `باركود مطابق: ${p.barcode}` : `باركود مطابق: ${effectiveNorm}`),
+                            matchedBarcode: effectiveNorm,
+                            matchedSize: '',
+                            matchedColor: '',
+                            isExactName: false,
+                            isExactCode: false,
+                            isExactBarcode: true,
+                            isExactSize: false,
+                            isExactColor: false,
+                            isNameStartsWith: false,
+                            isNameWordMatch: false,
+                            isNameContains: false,
+                            isCodeStartsWith: false,
+                            isCodeContains: false,
+                            isBarcodeStartsWith: true,
+                            isBarcodeContains: true,
+                            isSizeContains: false,
+                            isColorContains: false,
+                            isCompoundMatch: false
+                        });
+                    }
                 }
-            }
-            if (codeMap && codeMap.has(effectiveNorm)) {
-                const p = codeMap.get(effectiveNorm);
-                if (p && !p.isDeleted && !directFound.has(p.id)) {
-                    directFound.add(p.id);
-                    results.push({
-                        product: p,
-                        matchType: 'code',
-                        matchedDetail: `كود مطابق: ${p.code || p.id}`,
-                        matchedBarcode: p.barcode || '',
-                        matchedSize: '',
-                        matchedColor: '',
-                        isExactName: false,
-                        isExactCode: true,
-                        isExactBarcode: false,
-                        isExactSize: false,
-                        isExactColor: false,
-                        isNameStartsWith: false,
-                        isNameWordMatch: false,
-                        isNameContains: false,
-                        isCodeStartsWith: true,
-                        isCodeContains: true,
-                        isBarcodeStartsWith: false,
-                        isBarcodeContains: false,
-                        isSizeContains: false,
-                        isColorContains: false,
-                        isCompoundMatch: false
-                    });
-                }
-            }
-        }
-
-        let searchCandidates = productsDB;
-        if (effectiveQuery && productsDB.length > 2500 && window.BayanSQLite && typeof window.BayanSQLite.searchProducts === 'function') {
-            const dbMatches = window.BayanSQLite.searchProducts(effectiveQuery, 150);
-            if (dbMatches && dbMatches.length > 0) {
-                const candidateMap = new Map();
-                for (const item of dbMatches) {
-                    if (item && item.id) candidateMap.set(item.id, item);
-                }
-                searchCandidates = Array.from(candidateMap.values());
-            }
-        }
-
-        for (const p of searchCandidates) {
-            if (!p) continue;
-            if (p.isDeleted) continue;
-            if (directFound.has(p.id)) continue;
-
-            // ⚡ تخزين مؤقت للخصائص المطبّعة لتجنب تكرار 500,000 عملية ريجكس مع كل حرف
-            let c = p._inqCache;
-            const currentVer = p.updatedAt || p.editDate || p.price;
-            if (!c || c._v !== currentVer) {
-                const pRawName = String(p.name || '').trim();
-                const pName = cleanArabic(pRawName);
-                const pNormName = normalizeDigits(pName).toLowerCase();
-                const pCode = normalizeDigits(String(p.code || '')).trim().toLowerCase();
-                const pSysCode = normalizeDigits(String(p.sysCode || '')).trim().toLowerCase();
-                const pId = normalizeDigits(String(p.id || '')).trim().toLowerCase();
-                const pScale = normalizeDigits(String(p.scalePlu || '')).trim().toLowerCase();
-                const pBarcode = normalizeDigits(String(p.barcode || '')).trim().toLowerCase();
-                c = { pName, pNormName, pCode, pSysCode, pId, pScale, pBarcode, _v: currentVer };
-                p._inqCache = c;
-            }
-            const pName = c.pName;
-            const pNormName = c.pNormName;
-            const pCode = c.pCode;
-            const pSysCode = c.pSysCode;
-            const pId = c.pId;
-            const pScale = c.pScale;
-            const pBarcode = c.pBarcode;
-
-            // 1. فحص تطابق الاسم
-            const isExactName = (pName === effectiveQuery || pName === qClean || pNormName === effectiveNorm || pNormName === qNorm);
-            const isNameStartsWith = (pName.startsWith(effectiveQuery) || pNormName.startsWith(effectiveNorm));
-            const cleanEffective = effectiveNorm.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').trim();
-            const cleanQueryWord = effectiveQuery.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').trim();
-            const nameWords = pNormName.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').split(/\s+/).filter(Boolean);
-            const isNameWordMatch = nameWords.includes(effectiveNorm) || (cleanEffective && nameWords.includes(cleanEffective)) ||
-                                    pName.split(/\s+/).includes(effectiveQuery) || (cleanQueryWord && nameWords.includes(cleanQueryWord));
-            const isNameWordStartsWith = nameWords.some(w => w.startsWith(effectiveNorm) || (cleanEffective && w.startsWith(cleanEffective)));
-            const isNameContains = (tokens.length > 0 && tokens.every(t => pName.includes(t) || pNormName.includes(normalizeDigits(t).toLowerCase())));
-
-            // 2. فحص تطابق الكود / كود الموديل / كود النظام / رقم الصنف / الميزان
-            const isExactCode = (pCode && (pCode === effectiveNorm || pCode === qNorm)) ||
-                                (pSysCode && (pSysCode === effectiveNorm || pSysCode === qNorm)) ||
-                                (pId && (pId === effectiveNorm || pId === qNorm)) ||
-                                (pScale && pScale === effectiveNorm);
-            const isCodeStartsWith = (pCode && pCode.startsWith(effectiveNorm)) || (pSysCode && pSysCode.startsWith(effectiveNorm));
-            const isCodeContains = (pCode && pCode.includes(effectiveNorm)) || (pSysCode && pSysCode.includes(effectiveNorm));
-
-            // 3. فحص الباركود الأساسي
-            const isExactBarcode = (pBarcode && (pBarcode === effectiveNorm || pBarcode === qNorm));
-            const isBarcodeStartsWith = (pBarcode && pBarcode.startsWith(effectiveNorm));
-            const isBarcodeContains = (pBarcode && effectiveNorm.length >= 4 && pBarcode.includes(effectiveNorm));
-
-            // 4. فحص باركود الوحدات
-            let isExactUnitBarcode = false;
-            let isUnitBarcodeContains = false;
-            let matchedUnitBarcode = '';
-            let matchedUnitDetail = '';
-            if (p.units && Array.isArray(p.units)) {
-                for (const u of p.units) {
-                    if (!u || !u.unitBarcode) continue;
-                    const uBar = normalizeDigits(String(u.unitBarcode)).trim().toLowerCase();
-                    if (uBar === effectiveNorm || uBar === qNorm) {
-                        isExactUnitBarcode = true;
-                        matchedUnitBarcode = u.unitBarcode;
-                        matchedUnitDetail = `وحدة (${u.unitName || ''}): ${u.unitBarcode}`;
-                        break;
-                    } else if (effectiveNorm.length >= 4 && uBar.includes(effectiveNorm)) {
-                        isUnitBarcodeContains = true;
-                        if (!matchedUnitBarcode) {
-                            matchedUnitBarcode = u.unitBarcode;
-                            matchedUnitDetail = `وحدة (${u.unitName || ''}): ${u.unitBarcode}`;
-                        }
+                if (codeMap && codeMap.has(effectiveNorm)) {
+                    const p = codeMap.get(effectiveNorm);
+                    if (p && !p.isDeleted && !directFound.has(p.id)) {
+                        directFound.add(p.id);
+                        results.push({
+                            product: p,
+                            matchType: 'code',
+                            matchedDetail: `كود مطابق: ${p.code || p.id}`,
+                            matchedBarcode: p.barcode || '',
+                            matchedSize: '',
+                            matchedColor: '',
+                            isExactName: false,
+                            isExactCode: true,
+                            isExactBarcode: false,
+                            isExactSize: false,
+                            isExactColor: false,
+                            isNameStartsWith: false,
+                            isNameWordMatch: false,
+                            isNameContains: false,
+                            isCodeStartsWith: true,
+                            isCodeContains: true,
+                            isBarcodeStartsWith: false,
+                            isBarcodeContains: false,
+                            isSizeContains: false,
+                            isColorContains: false,
+                            isCompoundMatch: false
+                        });
                     }
                 }
             }
 
-            // 5. فحص التشكيلات (المقاسات والألوان وباركود المقاسات)
-            const variants = (p.variants && Array.isArray(p.variants)) ? p.variants : [];
-            let isExactVariantBarcode = false;
-            let isVariantBarcodeContains = false;
-            let matchedVBarcode = '';
-            let matchedVSize = '';
-            let matchedVColor = '';
+            let searchCandidates = productsDB;
+            if (effectiveQuery && productsDB.length > 2500 && window.BayanSQLite && typeof window.BayanSQLite.searchProducts === 'function') {
+                const dbMatches = window.BayanSQLite.searchProducts(effectiveQuery, 150);
+                if (dbMatches && dbMatches.length > 0) {
+                    const candidateMap = new Map();
+                    for (const item of dbMatches) {
+                        if (item && item.id) candidateMap.set(item.id, item);
+                    }
+                    searchCandidates = Array.from(candidateMap.values());
+                }
+            }
 
-            let isExactSize = false;
-            let isSizeContains = false;
-            let matchedSizeDetail = '';
+            for (const p of searchCandidates) {
+                if (!p) continue;
+                if (p.isDeleted) continue;
+                if (directFound.has(p.id)) continue;
 
-            let isExactColor = false;
-            let isColorContains = false;
-            let matchedColorDetail = '';
+                // ⚡ تخزين مؤقت للخصائص المطبّعة لتجنب تكرار 500,000 عملية ريجكس مع كل حرف
+                let c = p._inqCache;
+                const currentVer = p.updatedAt || p.editDate || p.price;
+                if (!c || c._v !== currentVer) {
+                    const pRawName = String(p.name || '').trim();
+                    const pName = cleanArabic(pRawName);
+                    const pNormName = normalizeDigits(pName).toLowerCase();
+                    const pCode = normalizeDigits(String(p.code || '')).trim().toLowerCase();
+                    const pSysCode = normalizeDigits(String(p.sysCode || '')).trim().toLowerCase();
+                    const pId = normalizeDigits(String(p.id || '')).trim().toLowerCase();
+                    const pScale = normalizeDigits(String(p.scalePlu || '')).trim().toLowerCase();
+                    const pBarcode = normalizeDigits(String(p.barcode || '')).trim().toLowerCase();
+                    c = { pName, pNormName, pCode, pSysCode, pId, pScale, pBarcode, _v: currentVer };
+                    p._inqCache = c;
+                }
+                const pName = c.pName;
+                const pNormName = c.pNormName;
+                const pCode = c.pCode;
+                const pSysCode = c.pSysCode;
+                const pId = c.pId;
+                const pScale = c.pScale;
+                const pBarcode = c.pBarcode;
 
-            if (variants.length > 0) {
-                // باركود التشكيلة
-                for (const v of variants) {
-                    if (!v || !v.barcode) continue;
-                    const vBar = normalizeDigits(String(v.barcode)).trim().toLowerCase();
-                    if (vBar === effectiveNorm || vBar === qNorm) {
-                        isExactVariantBarcode = true;
-                        matchedVBarcode = v.barcode;
-                        matchedVSize = v.size || '';
-                        matchedVColor = v.color || '';
-                        break;
-                    } else if (effectiveNorm.length >= 4 && vBar.includes(effectiveNorm)) {
-                        isVariantBarcodeContains = true;
-                        if (!matchedVBarcode) {
+                // 1. فحص تطابق الاسم
+                const isExactName = (pName === effectiveQuery || pName === qClean || pNormName === effectiveNorm || pNormName === qNorm);
+                const isNameStartsWith = (pName.startsWith(effectiveQuery) || pNormName.startsWith(effectiveNorm));
+                const cleanEffective = effectiveNorm.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').trim();
+                const cleanQueryWord = effectiveQuery.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').trim();
+                const nameWords = pNormName.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').split(/\s+/).filter(Boolean);
+                const isNameWordMatch = nameWords.includes(effectiveNorm) || (cleanEffective && nameWords.includes(cleanEffective)) ||
+                    pName.split(/\s+/).includes(effectiveQuery) || (cleanQueryWord && nameWords.includes(cleanQueryWord));
+                const isNameWordStartsWith = nameWords.some(w => w.startsWith(effectiveNorm) || (cleanEffective && w.startsWith(cleanEffective)));
+                const isNameContains = (tokens.length > 0 && tokens.every(t => pName.includes(t) || pNormName.includes(normalizeDigits(t).toLowerCase())));
+
+                // 2. فحص تطابق الكود / كود الموديل / كود النظام / رقم الصنف / الميزان
+                const isExactCode = (pCode && (pCode === effectiveNorm || pCode === qNorm)) ||
+                    (pSysCode && (pSysCode === effectiveNorm || pSysCode === qNorm)) ||
+                    (pId && (pId === effectiveNorm || pId === qNorm)) ||
+                    (pScale && pScale === effectiveNorm);
+                const isCodeStartsWith = (pCode && pCode.startsWith(effectiveNorm)) || (pSysCode && pSysCode.startsWith(effectiveNorm));
+                const isCodeContains = (pCode && pCode.includes(effectiveNorm)) || (pSysCode && pSysCode.includes(effectiveNorm));
+
+                // 3. فحص الباركود الأساسي
+                const isExactBarcode = (pBarcode && (pBarcode === effectiveNorm || pBarcode === qNorm));
+                const isBarcodeStartsWith = (pBarcode && pBarcode.startsWith(effectiveNorm));
+                const isBarcodeContains = (pBarcode && effectiveNorm.length >= 4 && pBarcode.includes(effectiveNorm));
+
+                // 4. فحص باركود الوحدات
+                let isExactUnitBarcode = false;
+                let isUnitBarcodeContains = false;
+                let matchedUnitBarcode = '';
+                let matchedUnitDetail = '';
+                if (p.units && Array.isArray(p.units)) {
+                    for (const u of p.units) {
+                        if (!u || !u.unitBarcode) continue;
+                        const uBar = normalizeDigits(String(u.unitBarcode)).trim().toLowerCase();
+                        if (uBar === effectiveNorm || uBar === qNorm) {
+                            isExactUnitBarcode = true;
+                            matchedUnitBarcode = u.unitBarcode;
+                            matchedUnitDetail = `وحدة (${u.unitName || ''}): ${u.unitBarcode}`;
+                            break;
+                        } else if (effectiveNorm.length >= 4 && uBar.includes(effectiveNorm)) {
+                            isUnitBarcodeContains = true;
+                            if (!matchedUnitBarcode) {
+                                matchedUnitBarcode = u.unitBarcode;
+                                matchedUnitDetail = `وحدة (${u.unitName || ''}): ${u.unitBarcode}`;
+                            }
+                        }
+                    }
+                }
+
+                // 5. فحص التشكيلات (المقاسات والألوان وباركود المقاسات)
+                const variants = (p.variants && Array.isArray(p.variants)) ? p.variants : [];
+                let isExactVariantBarcode = false;
+                let isVariantBarcodeContains = false;
+                let matchedVBarcode = '';
+                let matchedVSize = '';
+                let matchedVColor = '';
+
+                let isExactSize = false;
+                let isSizeContains = false;
+                let matchedSizeDetail = '';
+
+                let isExactColor = false;
+                let isColorContains = false;
+                let matchedColorDetail = '';
+
+                if (variants.length > 0) {
+                    // باركود التشكيلة
+                    for (const v of variants) {
+                        if (!v || !v.barcode) continue;
+                        const vBar = normalizeDigits(String(v.barcode)).trim().toLowerCase();
+                        if (vBar === effectiveNorm || vBar === qNorm) {
+                            isExactVariantBarcode = true;
                             matchedVBarcode = v.barcode;
                             matchedVSize = v.size || '';
                             matchedVColor = v.color || '';
+                            break;
+                        } else if (effectiveNorm.length >= 4 && vBar.includes(effectiveNorm)) {
+                            isVariantBarcodeContains = true;
+                            if (!matchedVBarcode) {
+                                matchedVBarcode = v.barcode;
+                                matchedVSize = v.size || '';
+                                matchedVColor = v.color || '';
+                            }
                         }
                     }
-                }
 
-                // المقاس
-                const vExactSizeObj = variants.find(v => {
-                    const vs = normalizeDigits(String(v.size || '')).trim().toLowerCase();
-                    return vs && (vs === effectiveNorm || cleanArabic(vs) === effectiveQuery);
-                });
-
-                if (vExactSizeObj) {
-                    isExactSize = true;
-                    matchedVSize = vExactSizeObj.size;
-                    const availColors = [...new Set(variants.filter(v => v.size === matchedVSize).map(v => v.color).filter(c => c && c !== '-'))];
-                    const totalStockForSize = variants.filter(v => v.size === matchedVSize).reduce((sum, v) => {
-                        let st = 0;
-                        if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && Object.keys(v.warehouseStocks).length > 0) {
-                            st = Object.values(v.warehouseStocks).reduce((sAcc, val) => sAcc + (parseFloat(val) || 0), 0);
-                        } else {
-                            st = parseFloat(v.stock) || 0;
-                        }
-                        return sum + st;
-                    }, 0);
-                    matchedSizeDetail = `المقاس: ${matchedVSize}` + (availColors.length > 0 ? ` (ألوان: ${availColors.join('، ')})` : '') + ` - الرصيد: ${totalStockForSize}`;
-                    if (!matchedVBarcode) matchedVBarcode = vExactSizeObj.barcode || '';
-                    if (!matchedVColor && availColors.length === 1) matchedVColor = availColors[0];
-                } else {
-                    const vSizeMatches = variants.filter(v => {
+                    // المقاس
+                    const vExactSizeObj = variants.find(v => {
                         const vs = normalizeDigits(String(v.size || '')).trim().toLowerCase();
-                        return vs && vs.includes(effectiveNorm);
+                        return vs && (vs === effectiveNorm || cleanArabic(vs) === effectiveQuery);
                     });
-                    if (vSizeMatches.length > 0) {
-                        isSizeContains = true;
-                        matchedVSize = vSizeMatches[0].size;
-                        const availColors = [...new Set(vSizeMatches.map(v => v.color).filter(c => c && c !== '-'))];
-                        const totalStockForSize = vSizeMatches.reduce((sum, v) => {
+
+                    if (vExactSizeObj) {
+                        isExactSize = true;
+                        matchedVSize = vExactSizeObj.size;
+                        const availColors = [...new Set(variants.filter(v => v.size === matchedVSize).map(v => v.color).filter(c => c && c !== '-'))];
+                        const totalStockForSize = variants.filter(v => v.size === matchedVSize).reduce((sum, v) => {
                             let st = 0;
                             if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && Object.keys(v.warehouseStocks).length > 0) {
                                 st = Object.values(v.warehouseStocks).reduce((sAcc, val) => sAcc + (parseFloat(val) || 0), 0);
@@ -1847,327 +1826,348 @@
                             return sum + st;
                         }, 0);
                         matchedSizeDetail = `المقاس: ${matchedVSize}` + (availColors.length > 0 ? ` (ألوان: ${availColors.join('، ')})` : '') + ` - الرصيد: ${totalStockForSize}`;
-                        if (!matchedVBarcode) matchedVBarcode = vSizeMatches[0].barcode || '';
+                        if (!matchedVBarcode) matchedVBarcode = vExactSizeObj.barcode || '';
                         if (!matchedVColor && availColors.length === 1) matchedVColor = availColors[0];
+                    } else {
+                        const vSizeMatches = variants.filter(v => {
+                            const vs = normalizeDigits(String(v.size || '')).trim().toLowerCase();
+                            return vs && vs.includes(effectiveNorm);
+                        });
+                        if (vSizeMatches.length > 0) {
+                            isSizeContains = true;
+                            matchedVSize = vSizeMatches[0].size;
+                            const availColors = [...new Set(vSizeMatches.map(v => v.color).filter(c => c && c !== '-'))];
+                            const totalStockForSize = vSizeMatches.reduce((sum, v) => {
+                                let st = 0;
+                                if (v.warehouseStocks && typeof v.warehouseStocks === 'object' && Object.keys(v.warehouseStocks).length > 0) {
+                                    st = Object.values(v.warehouseStocks).reduce((sAcc, val) => sAcc + (parseFloat(val) || 0), 0);
+                                } else {
+                                    st = parseFloat(v.stock) || 0;
+                                }
+                                return sum + st;
+                            }, 0);
+                            matchedSizeDetail = `المقاس: ${matchedVSize}` + (availColors.length > 0 ? ` (ألوان: ${availColors.join('، ')})` : '') + ` - الرصيد: ${totalStockForSize}`;
+                            if (!matchedVBarcode) matchedVBarcode = vSizeMatches[0].barcode || '';
+                            if (!matchedVColor && availColors.length === 1) matchedVColor = availColors[0];
+                        }
                     }
-                }
 
-                // اللون
-                const vColorExact = variants.find(v => {
-                    const vc = cleanArabic(v.color);
-                    return vc && vc === effectiveQuery;
-                });
-                if (vColorExact) {
-                    isExactColor = true;
-                    matchedVColor = vColorExact.color;
-                    const availSizes = [...new Set(variants.filter(v => cleanArabic(v.color) === effectiveQuery).map(v => v.size).filter(s => s && s !== '-'))];
-                    matchedColorDetail = `اللون: ${matchedVColor}` + (availSizes.length > 0 ? ` (مقاسات: ${availSizes.join('، ')})` : '');
-                    if (!matchedVBarcode) matchedVBarcode = vColorExact.barcode || '';
-                    if (!matchedVSize && availSizes.length === 1) matchedVSize = availSizes[0];
-                } else {
-                    const vColorContainsObj = variants.find(v => {
+                    // اللون
+                    const vColorExact = variants.find(v => {
                         const vc = cleanArabic(v.color);
-                        return vc && vc.includes(effectiveQuery);
+                        return vc && vc === effectiveQuery;
                     });
-                    if (vColorContainsObj) {
-                        isColorContains = true;
-                        matchedVColor = vColorContainsObj.color;
-                        const availSizes = [...new Set(variants.filter(v => cleanArabic(v.color).includes(effectiveQuery)).map(v => v.size).filter(s => s && s !== '-'))];
+                    if (vColorExact) {
+                        isExactColor = true;
+                        matchedVColor = vColorExact.color;
+                        const availSizes = [...new Set(variants.filter(v => cleanArabic(v.color) === effectiveQuery).map(v => v.size).filter(s => s && s !== '-'))];
                         matchedColorDetail = `اللون: ${matchedVColor}` + (availSizes.length > 0 ? ` (مقاسات: ${availSizes.join('، ')})` : '');
-                        if (!matchedVBarcode) matchedVBarcode = vColorContainsObj.barcode || '';
+                        if (!matchedVBarcode) matchedVBarcode = vColorExact.barcode || '';
                         if (!matchedVSize && availSizes.length === 1) matchedVSize = availSizes[0];
+                    } else {
+                        const vColorContainsObj = variants.find(v => {
+                            const vc = cleanArabic(v.color);
+                            return vc && vc.includes(effectiveQuery);
+                        });
+                        if (vColorContainsObj) {
+                            isColorContains = true;
+                            matchedVColor = vColorContainsObj.color;
+                            const availSizes = [...new Set(variants.filter(v => cleanArabic(v.color).includes(effectiveQuery)).map(v => v.size).filter(s => s && s !== '-'))];
+                            matchedColorDetail = `اللون: ${matchedVColor}` + (availSizes.length > 0 ? ` (مقاسات: ${availSizes.join('، ')})` : '');
+                            if (!matchedVBarcode) matchedVBarcode = vColorContainsObj.barcode || '';
+                            if (!matchedVSize && availSizes.length === 1) matchedVSize = availSizes[0];
+                        }
                     }
+                }
+
+                // 6. بحث مركب فائق (اسم + كود / اسم + مقاس / اسم + لون)
+                let isCompoundMatch = false;
+                let compoundDetail = '';
+                if (tokens.length > 1) {
+                    const nameMatchedTokens = tokens.filter(t => pName.includes(t) || pNormName.includes(normalizeDigits(t).toLowerCase()));
+                    const otherTokens = tokens.filter(t => !pName.includes(t) && !pNormName.includes(normalizeDigits(t).toLowerCase()));
+
+                    if (nameMatchedTokens.length > 0 && otherTokens.length > 0) {
+                        const subQuery = otherTokens.join(' ');
+                        const subNorm = normalizeDigits(subQuery).trim().toLowerCase();
+                        const codeMatches = (pCode && (pCode === subNorm || pCode.includes(subNorm))) ||
+                            (pSysCode && (pSysCode === subNorm || pSysCode.includes(subNorm)));
+
+                        const sizeMatchV = variants.find(v => {
+                            const vs = normalizeDigits(String(v.size || '')).trim().toLowerCase();
+                            return vs && (vs === subNorm || cleanArabic(vs) === cleanArabic(subQuery));
+                        });
+
+                        const colorMatchV = variants.find(v => {
+                            const vc = cleanArabic(v.color);
+                            return vc && (vc === cleanArabic(subQuery) || vc.includes(cleanArabic(subQuery)));
+                        });
+
+                        if (codeMatches) {
+                            isCompoundMatch = true;
+                            compoundDetail = `اسم: ${p.name} + كود: ${p.code || p.sysCode}`;
+                        } else if (sizeMatchV) {
+                            isCompoundMatch = true;
+                            matchedVSize = sizeMatchV.size;
+                            matchedVBarcode = sizeMatchV.barcode || matchedVBarcode;
+                            compoundDetail = `اسم: ${p.name} + مقاس: ${matchedVSize}`;
+                        } else if (colorMatchV) {
+                            isCompoundMatch = true;
+                            matchedVColor = colorMatchV.color;
+                            matchedVBarcode = colorMatchV.barcode || matchedVBarcode;
+                            compoundDetail = `اسم: ${p.name} + لون: ${matchedVColor}`;
+                        }
+                    }
+                }
+
+                // التحقق من وجود أي نوع من التطابق
+                const hasAnyMatch = isExactName || isNameStartsWith || isNameWordMatch || isNameWordStartsWith || isNameContains ||
+                    isExactCode || isCodeStartsWith || isCodeContains ||
+                    isExactBarcode || isBarcodeStartsWith || isBarcodeContains ||
+                    isExactUnitBarcode || isUnitBarcodeContains ||
+                    isExactVariantBarcode || isVariantBarcodeContains ||
+                    isExactSize || isSizeContains ||
+                    isExactColor || isColorContains ||
+                    isCompoundMatch;
+
+                if (!hasAnyMatch) continue;
+
+                // تحديد النوع والتفاصيل الأبرز للعرض
+                let matchType = 'name';
+                let matchedDetail = 'تطابق بالاسم';
+                let matchedBarcode = matchedVBarcode || matchedUnitBarcode || (isExactBarcode ? p.barcode : '');
+                let matchedSize = matchedVSize || '';
+                let matchedColor = matchedVColor || '';
+
+                if (isCompoundMatch) {
+                    matchType = 'code';
+                    matchedDetail = compoundDetail;
+                } else if (explicitMode === 'size' && (isExactSize || isSizeContains)) {
+                    matchType = 'size';
+                    matchedDetail = matchedSizeDetail;
+                } else if (explicitMode === 'color' && (isExactColor || isColorContains)) {
+                    matchType = 'color';
+                    matchedDetail = matchedColorDetail;
+                } else if (explicitMode === 'code' && (isExactCode || isCodeStartsWith || isCodeContains)) {
+                    matchType = 'code';
+                    matchedDetail = isExactCode ? (pCode === effectiveNorm ? `كود الموديل: ${p.code}` : `كود: ${p.sysCode || p.code}`) : `كود: ${p.code || p.sysCode}`;
+                } else if (explicitMode === 'barcode' && (isExactBarcode || isExactVariantBarcode || isExactUnitBarcode || isBarcodeStartsWith || isBarcodeContains)) {
+                    matchType = 'barcode';
+                    matchedDetail = matchedBarcode || p.barcode;
+                } else if (isExactName) {
+                    matchType = 'name';
+                    matchedDetail = 'تطابق تام بالاسم';
+                } else if (isExactCode) {
+                    matchType = 'code';
+                    matchedDetail = pCode === effectiveNorm ? `كود الموديل: ${p.code}` : (pSysCode === effectiveNorm ? `كود النظام: ${p.sysCode}` : `كود: ${p.code || p.id}`);
+                } else if (isExactBarcode || isExactVariantBarcode || isExactUnitBarcode) {
+                    matchType = 'barcode';
+                    matchedDetail = matchedBarcode || p.barcode;
+                } else if (isExactSize) {
+                    matchType = 'size';
+                    matchedDetail = matchedSizeDetail;
+                } else if (isNameWordMatch) {
+                    matchType = 'name';
+                    matchedDetail = 'تطابق اسم / موديل';
+                } else if (isNameWordStartsWith) {
+                    matchType = 'name';
+                    matchedDetail = 'بداية اسم / موديل';
+                } else if (isNameStartsWith) {
+                    matchType = 'name';
+                    matchedDetail = 'تطابق بالاسم';
+                } else if (isCodeStartsWith) {
+                    matchType = 'code';
+                    matchedDetail = `كود: ${p.code || p.sysCode}`;
+                } else if (isBarcodeStartsWith) {
+                    matchType = 'barcode';
+                    matchedDetail = matchedBarcode || p.barcode;
+                } else if (isExactColor) {
+                    matchType = 'color';
+                    matchedDetail = matchedColorDetail;
+                } else if (isNameContains) {
+                    matchType = 'name';
+                    matchedDetail = 'تطابق بالاسم';
+                } else if (isCodeContains) {
+                    matchType = 'code';
+                    matchedDetail = `كود: ${p.code || p.sysCode}`;
+                } else if (isSizeContains) {
+                    matchType = 'size';
+                    matchedDetail = matchedSizeDetail;
+                } else if (isColorContains) {
+                    matchType = 'color';
+                    matchedDetail = matchedColorDetail;
+                } else if (isBarcodeContains || isVariantBarcodeContains || isUnitBarcodeContains) {
+                    matchType = 'barcode';
+                    matchedDetail = matchedBarcode || p.barcode;
+                }
+
+                results.push({
+                    product: p,
+                    matchType,
+                    matchedDetail,
+                    matchedBarcode,
+                    matchedSize,
+                    matchedColor,
+                    isExactName,
+                    isExactCode,
+                    isExactBarcode: isExactBarcode || isExactVariantBarcode || isExactUnitBarcode,
+                    isExactSize,
+                    isExactColor,
+                    isNameStartsWith,
+                    isNameWordMatch,
+                    isNameWordStartsWith,
+                    isNameContains,
+                    isCodeStartsWith,
+                    isCodeContains,
+                    isBarcodeStartsWith,
+                    isBarcodeContains: isBarcodeContains || isVariantBarcodeContains || isUnitBarcodeContains,
+                    isSizeContains,
+                    isColorContains,
+                    isCompoundMatch
+                });
+
+                // ⚡ تجميع حتى 100 نتيجة مرشحة لضمان عدم إفلات أي تطابق تام ثم فرزها وقصها لأفضل 30
+                if (results.length >= 100) {
+                    break;
                 }
             }
 
-            // 6. بحث مركب فائق (اسم + كود / اسم + مقاس / اسم + لون)
-            let isCompoundMatch = false;
-            let compoundDetail = '';
-            if (tokens.length > 1) {
-                const nameMatchedTokens = tokens.filter(t => pName.includes(t) || pNormName.includes(normalizeDigits(t).toLowerCase()));
-                const otherTokens = tokens.filter(t => !pName.includes(t) && !pNormName.includes(normalizeDigits(t).toLowerCase()));
-
-                if (nameMatchedTokens.length > 0 && otherTokens.length > 0) {
-                    const subQuery = otherTokens.join(' ');
-                    const subNorm = normalizeDigits(subQuery).trim().toLowerCase();
-                    const codeMatches = (pCode && (pCode === subNorm || pCode.includes(subNorm))) || 
-                                        (pSysCode && (pSysCode === subNorm || pSysCode.includes(subNorm)));
-                    
-                    const sizeMatchV = variants.find(v => {
-                        const vs = normalizeDigits(String(v.size || '')).trim().toLowerCase();
-                        return vs && (vs === subNorm || cleanArabic(vs) === cleanArabic(subQuery));
-                    });
-
-                    const colorMatchV = variants.find(v => {
-                        const vc = cleanArabic(v.color);
-                        return vc && (vc === cleanArabic(subQuery) || vc.includes(cleanArabic(subQuery)));
-                    });
-
-                    if (codeMatches) {
-                        isCompoundMatch = true;
-                        compoundDetail = `اسم: ${p.name} + كود: ${p.code || p.sysCode}`;
-                    } else if (sizeMatchV) {
-                        isCompoundMatch = true;
-                        matchedVSize = sizeMatchV.size;
-                        matchedVBarcode = sizeMatchV.barcode || matchedVBarcode;
-                        compoundDetail = `اسم: ${p.name} + مقاس: ${matchedVSize}`;
-                    } else if (colorMatchV) {
-                        isCompoundMatch = true;
-                        matchedVColor = colorMatchV.color;
-                        matchedVBarcode = colorMatchV.barcode || matchedVBarcode;
-                        compoundDetail = `اسم: ${p.name} + لون: ${matchedVColor}`;
+            // 🥇 الترتيب الذكي الصارم: التطابق التام بالباركود أو الكود يأتي أولاً بلا منازع (Rank #1)
+            results.sort((a, b) => {
+                const getScore = item => {
+                    // 1. الفئة الذهبية الأولى (Tier 1 - التطابق التام الكامل - أولوية مطلقة)
+                    if (explicitMode === 'size') {
+                        if (item.isExactSize) return 5;
+                        if (item.isExactBarcode) return 6;
+                        if (item.isExactCode) return 7;
+                        if (item.isExactName) return 8;
+                        if (item.isNameWordMatch) return 9;
+                    } else if (explicitMode === 'code') {
+                        if (item.isExactCode) return 5;
+                        if (item.isExactBarcode) return 6;
+                        if (item.isExactName) return 7;
+                        if (item.isNameWordMatch) return 8;
+                        if (item.isExactSize) return 9;
+                    } else if (explicitMode === 'barcode') {
+                        if (item.isExactBarcode) return 5;
+                        if (item.isExactCode) return 6;
+                        if (item.isExactName) return 7;
+                        if (item.isNameWordMatch) return 8;
+                    } else {
+                        // البحث المباشر العام (مثل كتابة كود الصنف أو الباركود "50" أو الموديل)
+                        if (item.isExactBarcode) return 5;
+                        if (item.isExactCode) return 6;
+                        if (item.isExactName) return 7;
+                        if (item.isNameWordMatch) return 8; // ⭐ تطابق كلمة الصنف أو رقم الموديل مثل #1001 أو #100 مباشرة بعد التطابق التام
+                        if (item.isCompoundMatch) return 13;
+                        if (item.isExactSize) return 14;
                     }
+
+                    // 2. الفئة الفضية (Tier 2 - بداية النص أو بداية الكلمة Starts With)
+                    if (item.isNameWordStartsWith) return 18; // ⭐ بداية كلمة داخل الاسم مثل 1001 أو 1005 عند البحث عن 100
+                    if (item.isCodeStartsWith) return 20;
+                    if (item.isBarcodeStartsWith) return 22;
+                    if (item.isNameStartsWith) return 25;
+
+                    // 4. تطابق صريح باللون
+                    if (item.isExactColor) return 40;
+
+                    // 6. تطابق جميع كلمات البحث في الاسم
+                    if (item.isNameContains) return 50;
+
+                    // 7. كود الصنف يحتوي على نص البحث
+                    if (item.isCodeContains) return 60;
+
+                    // 8. المقاس يحتوي على نص البحث
+                    if (item.isSizeContains) return 70;
+
+                    // 9. اللون يحتوي على نص البحث
+                    if (item.isColorContains) return 80;
+
+                    // 10. الباركود يحتوي على نص البحث كـ Substring جزئي (أدنى أولوية لمنع التشويش)
+                    if (item.isBarcodeContains) return 90;
+
+                    return 100;
+                };
+
+                const scoreA = getScore(a);
+                const scoreB = getScore(b);
+
+                if (scoreA !== scoreB) {
+                    return scoreA - scoreB;
                 }
-            }
 
-            // التحقق من وجود أي نوع من التطابق
-            const hasAnyMatch = isExactName || isNameStartsWith || isNameWordMatch || isNameWordStartsWith || isNameContains ||
-                               isExactCode || isCodeStartsWith || isCodeContains ||
-                               isExactBarcode || isBarcodeStartsWith || isBarcodeContains ||
-                               isExactUnitBarcode || isUnitBarcodeContains ||
-                               isExactVariantBarcode || isVariantBarcodeContains ||
-                               isExactSize || isSizeContains ||
-                               isExactColor || isColorContains ||
-                               isCompoundMatch;
+                // معيار تفضيلي دقيق: الأصناف ذات الأسماء الأقصر والأقرب للمدخل تتقدم في الترتيب
+                const lenA = String(a.product.name || '').trim().length;
+                const lenB = String(b.product.name || '').trim().length;
+                if (lenA !== lenB) {
+                    return lenA - lenB;
+                }
 
-            if (!hasAnyMatch) continue;
-
-            // تحديد النوع والتفاصيل الأبرز للعرض
-            let matchType = 'name';
-            let matchedDetail = 'تطابق بالاسم';
-            let matchedBarcode = matchedVBarcode || matchedUnitBarcode || (isExactBarcode ? p.barcode : '');
-            let matchedSize = matchedVSize || '';
-            let matchedColor = matchedVColor || '';
-
-            if (isCompoundMatch) {
-                matchType = 'code';
-                matchedDetail = compoundDetail;
-            } else if (explicitMode === 'size' && (isExactSize || isSizeContains)) {
-                matchType = 'size';
-                matchedDetail = matchedSizeDetail;
-            } else if (explicitMode === 'color' && (isExactColor || isColorContains)) {
-                matchType = 'color';
-                matchedDetail = matchedColorDetail;
-            } else if (explicitMode === 'code' && (isExactCode || isCodeStartsWith || isCodeContains)) {
-                matchType = 'code';
-                matchedDetail = isExactCode ? (pCode === effectiveNorm ? `كود الموديل: ${p.code}` : `كود: ${p.sysCode || p.code}`) : `كود: ${p.code || p.sysCode}`;
-            } else if (explicitMode === 'barcode' && (isExactBarcode || isExactVariantBarcode || isExactUnitBarcode || isBarcodeStartsWith || isBarcodeContains)) {
-                matchType = 'barcode';
-                matchedDetail = matchedBarcode || p.barcode;
-            } else if (isExactName) {
-                matchType = 'name';
-                matchedDetail = 'تطابق تام بالاسم';
-            } else if (isExactCode) {
-                matchType = 'code';
-                matchedDetail = pCode === effectiveNorm ? `كود الموديل: ${p.code}` : (pSysCode === effectiveNorm ? `كود النظام: ${p.sysCode}` : `كود: ${p.code || p.id}`);
-            } else if (isExactBarcode || isExactVariantBarcode || isExactUnitBarcode) {
-                matchType = 'barcode';
-                matchedDetail = matchedBarcode || p.barcode;
-            } else if (isExactSize) {
-                matchType = 'size';
-                matchedDetail = matchedSizeDetail;
-            } else if (isNameWordMatch) {
-                matchType = 'name';
-                matchedDetail = 'تطابق اسم / موديل';
-            } else if (isNameWordStartsWith) {
-                matchType = 'name';
-                matchedDetail = 'بداية اسم / موديل';
-            } else if (isNameStartsWith) {
-                matchType = 'name';
-                matchedDetail = 'تطابق بالاسم';
-            } else if (isCodeStartsWith) {
-                matchType = 'code';
-                matchedDetail = `كود: ${p.code || p.sysCode}`;
-            } else if (isBarcodeStartsWith) {
-                matchType = 'barcode';
-                matchedDetail = matchedBarcode || p.barcode;
-            } else if (isExactColor) {
-                matchType = 'color';
-                matchedDetail = matchedColorDetail;
-            } else if (isNameContains) {
-                matchType = 'name';
-                matchedDetail = 'تطابق بالاسم';
-            } else if (isCodeContains) {
-                matchType = 'code';
-                matchedDetail = `كود: ${p.code || p.sysCode}`;
-            } else if (isSizeContains) {
-                matchType = 'size';
-                matchedDetail = matchedSizeDetail;
-            } else if (isColorContains) {
-                matchType = 'color';
-                matchedDetail = matchedColorDetail;
-            } else if (isBarcodeContains || isVariantBarcodeContains || isUnitBarcodeContains) {
-                matchType = 'barcode';
-                matchedDetail = matchedBarcode || p.barcode;
-            }
-
-            results.push({
-                product: p,
-                matchType,
-                matchedDetail,
-                matchedBarcode,
-                matchedSize,
-                matchedColor,
-                isExactName,
-                isExactCode,
-                isExactBarcode: isExactBarcode || isExactVariantBarcode || isExactUnitBarcode,
-                isExactSize,
-                isExactColor,
-                isNameStartsWith,
-                isNameWordMatch,
-                isNameWordStartsWith,
-                isNameContains,
-                isCodeStartsWith,
-                isCodeContains,
-                isBarcodeStartsWith,
-                isBarcodeContains: isBarcodeContains || isVariantBarcodeContains || isUnitBarcodeContains,
-                isSizeContains,
-                isColorContains,
-                isCompoundMatch
+                // في حال التساوي، الأحدث برقم المعرف
+                return (Number(b.product.id) || 0) - (Number(a.product.id) || 0);
             });
 
-            // ⚡ تجميع حتى 100 نتيجة مرشحة لضمان عدم إفلات أي تطابق تام ثم فرزها وقصها لأفضل 30
-            if (results.length >= 100) {
-                break;
-            }
-        }
+            inquirySearchResults = results.slice(0, 30);
+            inquirySearchActiveIndex = -1;
 
-        // 🥇 الترتيب الذكي الصارم: التطابق التام بالباركود أو الكود يأتي أولاً بلا منازع (Rank #1)
-        results.sort((a, b) => {
-            const getScore = item => {
-                // 1. الفئة الذهبية الأولى (Tier 1 - التطابق التام الكامل - أولوية مطلقة)
-                if (explicitMode === 'size') {
-                    if (item.isExactSize) return 5;
-                    if (item.isExactBarcode) return 6;
-                    if (item.isExactCode) return 7;
-                    if (item.isExactName) return 8;
-                    if (item.isNameWordMatch) return 9;
-                } else if (explicitMode === 'code') {
-                    if (item.isExactCode) return 5;
-                    if (item.isExactBarcode) return 6;
-                    if (item.isExactName) return 7;
-                    if (item.isNameWordMatch) return 8;
-                    if (item.isExactSize) return 9;
-                } else if (explicitMode === 'barcode') {
-                    if (item.isExactBarcode) return 5;
-                    if (item.isExactCode) return 6;
-                    if (item.isExactName) return 7;
-                    if (item.isNameWordMatch) return 8;
-                } else {
-                    // البحث المباشر العام (مثل كتابة كود الصنف أو الباركود "50" أو الموديل)
-                    if (item.isExactBarcode) return 5;
-                    if (item.isExactCode) return 6;
-                    if (item.isExactName) return 7;
-                    if (item.isNameWordMatch) return 8; // ⭐ تطابق كلمة الصنف أو رقم الموديل مثل #1001 أو #100 مباشرة بعد التطابق التام
-                    if (item.isCompoundMatch) return 13;
-                    if (item.isExactSize) return 14;
-                }
-
-                // 2. الفئة الفضية (Tier 2 - بداية النص أو بداية الكلمة Starts With)
-                if (item.isNameWordStartsWith) return 18; // ⭐ بداية كلمة داخل الاسم مثل 1001 أو 1005 عند البحث عن 100
-                if (item.isCodeStartsWith) return 20;
-                if (item.isBarcodeStartsWith) return 22;
-                if (item.isNameStartsWith) return 25;
-
-                // 4. تطابق صريح باللون
-                if (item.isExactColor) return 40;
-
-                // 6. تطابق جميع كلمات البحث في الاسم
-                if (item.isNameContains) return 50;
-
-                // 7. كود الصنف يحتوي على نص البحث
-                if (item.isCodeContains) return 60;
-
-                // 8. المقاس يحتوي على نص البحث
-                if (item.isSizeContains) return 70;
-
-                // 9. اللون يحتوي على نص البحث
-                if (item.isColorContains) return 80;
-
-                // 10. الباركود يحتوي على نص البحث كـ Substring جزئي (أدنى أولوية لمنع التشويش)
-                if (item.isBarcodeContains) return 90;
-
-                return 100;
-            };
-
-            const scoreA = getScore(a);
-            const scoreB = getScore(b);
-
-            if (scoreA !== scoreB) {
-                return scoreA - scoreB;
+            if (inquirySearchResults.length === 0) {
+                dropdown.style.display = 'block';
+                const safeRaw = (window.escapeHtml ? window.escapeHtml(raw) : raw);
+                dropdown.innerHTML = `<div style="padding: 16px; color: #000000; text-align: center; font-size: 0.95rem; font-weight: 900;">لا توجد أصناف أو مقاسات مطابقة لـ "${safeRaw}"</div>`;
+                return;
             }
 
-            // معيار تفضيلي دقيق: الأصناف ذات الأسماء الأقصر والأقرب للمدخل تتقدم في الترتيب
-            const lenA = String(a.product.name || '').trim().length;
-            const lenB = String(b.product.name || '').trim().length;
-            if (lenA !== lenB) {
-                return lenA - lenB;
-            }
-
-            // في حال التساوي، الأحدث برقم المعرف
-            return (Number(b.product.id) || 0) - (Number(a.product.id) || 0);
-        });
-
-        inquirySearchResults = results.slice(0, 30);
-        inquirySearchActiveIndex = -1;
-
-        if (inquirySearchResults.length === 0) {
-            dropdown.style.display = 'block';
-            const safeRaw = (window.escapeHtml ? window.escapeHtml(raw) : raw);
-            dropdown.innerHTML = `<div style="padding: 16px; color: #000000; text-align: center; font-size: 0.95rem; font-weight: 900;">لا توجد أصناف أو مقاسات مطابقة لـ "${safeRaw}"</div>`;
-            return;
-        }
-
-        dropdown.innerHTML = `
+            dropdown.innerHTML = `
             <div>
                 ${inquirySearchResults.map((res, idx) => {
-                    const p = res.product;
-                    const variants = (p.variants && Array.isArray(p.variants)) ? p.variants : [];
+                const p = res.product;
+                const variants = (p.variants && Array.isArray(p.variants)) ? p.variants : [];
 
-                    // استخراج كل المقاسات المتوفرة وتجميعها
-                    const distinctSizes = [...new Set(variants.map(v => String(v.size || '').trim()).filter(s => s && s !== '-'))];
-                    distinctSizes.sort((a, b) => getInquirySizeWeight(a) - getInquirySizeWeight(b));
+                // استخراج كل المقاسات المتوفرة وتجميعها
+                const distinctSizes = [...new Set(variants.map(v => String(v.size || '').trim()).filter(s => s && s !== '-'))];
+                distinctSizes.sort((a, b) => getInquirySizeWeight(a) - getInquirySizeWeight(b));
 
-                    const safeDetail = (window.escapeHtml ? window.escapeHtml(res.matchedDetail || '') : (res.matchedDetail || ''));
-                    let badgeHtml = '';
-                    if (res.isExactName) {
-                        badgeHtml = `<span style="background: #dcfce7; color: #000000; border: 2px solid #059669; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 900;">⭐ اسم مطابق</span>`;
-                    } else if (res.matchType === 'code') {
-                        badgeHtml = `<span style="background: #dbeafe; color: #000000; border: 2px solid #1d4ed8; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 900;">🔢 ${safeDetail}</span>`;
-                    } else if (res.matchType === 'size') {
-                        badgeHtml = `<span style="background: #dcfce7; color: #000000; border: 2px solid #047857; padding: 2px 9px; border-radius: 6px; font-size: 0.76rem; font-weight: 900; box-shadow: 0 1px 4px rgba(16,185,129,0.25);">📏 ${safeDetail} 👈</span>`;
-                    } else if (res.matchType === 'color') {
-                        badgeHtml = `<span style="background: #fae8ff; color: #000000; border: 2px solid #c026d3; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 900;">🎨 ${safeDetail}</span>`;
-                    } else if (res.matchType === 'barcode') {
-                        badgeHtml = `<span style="background: #fef3c7; color: #000000; border: 2px solid #b45309; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 900;">⚡ باركود: ${safeDetail}</span>`;
-                    } else {
-                        badgeHtml = `<span style="background: #f0fdf4; color: #000000; border: 2px solid #059669; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 900;">🏷️ صنف</span>`;
-                    }
+                const safeDetail = (window.escapeHtml ? window.escapeHtml(res.matchedDetail || '') : (res.matchedDetail || ''));
+                let badgeHtml = '';
+                if (res.isExactName) {
+                    badgeHtml = `<span style="background: #dcfce7; color: #000000; border: 2px solid #059669; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 900;">⭐ اسم مطابق</span>`;
+                } else if (res.matchType === 'code') {
+                    badgeHtml = `<span style="background: #dbeafe; color: #000000; border: 2px solid #1d4ed8; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 900;">🔢 ${safeDetail}</span>`;
+                } else if (res.matchType === 'size') {
+                    badgeHtml = `<span style="background: #dcfce7; color: #000000; border: 2px solid #047857; padding: 2px 9px; border-radius: 6px; font-size: 0.76rem; font-weight: 900; box-shadow: 0 1px 4px rgba(16,185,129,0.25);">📏 ${safeDetail} 👈</span>`;
+                } else if (res.matchType === 'color') {
+                    badgeHtml = `<span style="background: #fae8ff; color: #000000; border: 2px solid #c026d3; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 900;">🎨 ${safeDetail}</span>`;
+                } else if (res.matchType === 'barcode') {
+                    badgeHtml = `<span style="background: #fef3c7; color: #000000; border: 2px solid #b45309; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 900;">⚡ باركود: ${safeDetail}</span>`;
+                } else {
+                    badgeHtml = `<span style="background: #f0fdf4; color: #000000; border: 2px solid #059669; padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 900;">🏷️ صنف</span>`;
+                }
 
-                    let totalStock = 0;
-                    if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
-                        totalStock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
-                    } else if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && Object.keys(p.warehouseStocks).length > 0) {
-                        const whSum = Object.values(p.warehouseStocks).reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
-                        totalStock = whSum > 0 ? whSum : (parseFloat(p.stock) || 0);
-                    } else {
-                        totalStock = parseFloat(p.stock) || 0;
-                    }
-                    totalStock = Number(totalStock.toFixed(2));
+                let totalStock = 0;
+                if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
+                    totalStock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
+                } else if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && Object.keys(p.warehouseStocks).length > 0) {
+                    const whSum = Object.values(p.warehouseStocks).reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
+                    totalStock = whSum > 0 ? whSum : (parseFloat(p.stock) || 0);
+                } else {
+                    totalStock = parseFloat(p.stock) || 0;
+                }
+                totalStock = Number(totalStock.toFixed(2));
 
-                    const safeBarcode = String(res.matchedBarcode || '').replace(/'/g, "\\'");
-                    const safeSize = String(res.matchedSize || '').replace(/'/g, "\\'");
-                    const safeColor = String(res.matchedColor || '').replace(/'/g, "\\'");
+                const safeBarcode = String(res.matchedBarcode || '').replace(/'/g, "\\'");
+                const safeSize = String(res.matchedSize || '').replace(/'/g, "\\'");
+                const safeColor = String(res.matchedColor || '').replace(/'/g, "\\'");
 
-                    // تجميع شريط أزرار المقاسات المتوفرة (كاملة بدون قص بأسلوب شريط كبسولات ممتد)
-                    let sizeChipsHtml = '';
-                    if (distinctSizes.length > 0) {
-                        sizeChipsHtml = `
+                // تجميع شريط أزرار المقاسات المتوفرة (كاملة بدون قص بأسلوب شريط كبسولات ممتد)
+                let sizeChipsHtml = '';
+                if (distinctSizes.length > 0) {
+                    sizeChipsHtml = `
                             <div style="display: flex; align-items: center; gap: 5px; margin-top: 6px; overflow-x: auto; max-width: 100%; padding: 2px 0;" class="fast-scrollbar" onclick="event.stopPropagation();">
                                 <span style="font-size: 0.76rem; font-weight: 900; color: #000000; flex-shrink: 0;">المقاسات (${distinctSizes.length}):</span>
                                 ${distinctSizes.map(s => {
-                                    const isSelected = (res.matchedSize && String(res.matchedSize).trim().toLowerCase() === String(s).toLowerCase());
-                                    return `
+                        const isSelected = (res.matchedSize && String(res.matchedSize).trim().toLowerCase() === String(s).toLowerCase());
+                        return `
                                         <button type="button" 
                                             onclick="event.stopPropagation(); window.selectInquiryProduct(${p.id}, '', '${s.replace(/'/g, "\\'")}', '');"
                                             style="flex-shrink: 0; padding: 2px 9px; border-radius: 6px; font-size: 0.76rem; font-weight: 900; cursor: pointer; transition: 0.15s; ${isSelected ? 'border: 2px solid #059669; background: #dcfce7; color: #000000; box-shadow: 0 0 6px rgba(5,150,105,0.4); transform: scale(1.05);' : 'border: 1.5px solid #000000; background: #ffffff; color: #000000;'}"
@@ -2175,12 +2175,12 @@
                                             ${isSelected ? '✓ ' : ''}${s}
                                         </button>
                                     `;
-                                }).join('')}
+                    }).join('')}
                             </div>
                         `;
-                    }
+                }
 
-                    return `
+                return `
                     <div id="inquirySearchRow_${idx}"
                         onclick="window.selectInquiryProduct(${p.id}, '${safeBarcode}', '${safeSize}', '${safeColor}')"
                         style="padding: 10px 14px; border-bottom: 1px solid #cbd5e1; cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: 0.15s; background: #ffffff;"
@@ -2208,18 +2208,18 @@
                         </div>
                     </div>
                     `;
-                }).join('')}
+            }).join('')}
             </div>
             <div style="padding: 8px 14px; background: #f1f5f9; color: #000000; font-size: 0.82rem; font-weight: 900; text-align: center; border-top: 2px solid #cbd5e1; position: sticky; bottom: 0; z-index: 5;">
                 🔍 تم العثور على (${inquirySearchResults.length}) صنف | يمكنك التمرير بالماوس أو التنقل بالأسهم ⬇️ ⬆️ أو PgDn/PgUp والضغط على Enter
             </div>
         `;
 
-        dropdown.style.display = 'block';
-    } catch (err) {
-        console.error("⚠️ [InquiryLiveSearch] Error:", err);
-    }
-};
+            dropdown.style.display = 'block';
+        } catch (err) {
+            console.error("⚠️ [InquiryLiveSearch] Error:", err);
+        }
+    };
 
     /**
      * تلوين وتحديد الصف النشط عند التنقل بالأسهم أو الماوس
@@ -2468,7 +2468,7 @@
 
         // إذا كان الصنف يحتاج فتح نافذة اختيار مقاس أو وحدة، نغلق الاستعلام لإتاحة نافذة الاختيار
         const willOpenSelectionModal = (!effVariant && currentInquiryProduct.variants && currentInquiryProduct.variants.length > 0) ||
-                                       (currentInquiryProduct.units && currentInquiryProduct.units.length > 1);
+            (currentInquiryProduct.units && currentInquiryProduct.units.length > 1);
 
         if (willOpenSelectionModal) {
             window.closeFastItemInquiryModal();
@@ -2532,9 +2532,9 @@
             if (typeof window.restoreActiveSectionFocus === 'function') {
                 window.restoreActiveSectionFocus();
             } else {
-                const searchInput = document.getElementById('productSearch') || 
-                                    document.getElementById('purchaseSearch') ||
-                                    document.getElementById('barcodeInput');
+                const searchInput = document.getElementById('productSearch') ||
+                    document.getElementById('purchaseSearch') ||
+                    document.getElementById('barcodeInput');
                 if (searchInput && searchInput.offsetParent !== null) {
                     searchInput.focus();
                     if (typeof searchInput.select === 'function') searchInput.select();
@@ -2550,7 +2550,7 @@
             const payModal = document.getElementById('checkoutModal') || document.getElementById('quickPaymentModal') || document.getElementById('paymentModal');
             const discountModal = document.getElementById('discountModal') || document.getElementById('invoiceDiscountModal');
             const otherActiveModal = document.querySelector('.confirm-modal-overlay:not(#bayanFastInquiryModal)');
-            
+
             const isPayActive = payModal && !payModal.classList.contains('hidden') && payModal.style.display !== 'none';
             const isDiscActive = discountModal && !discountModal.classList.contains('hidden') && discountModal.style.display !== 'none';
             const isOtherActive = otherActiveModal && !otherActiveModal.classList.contains('hidden') && otherActiveModal.style.display !== 'none';
@@ -2591,14 +2591,14 @@
     /**
      * إضافة مقاس ولون محدد من جدول التشكيلات (متوافق وذكي)
      */
-    window.addInquiryVariantToCart = function(size, color) {
+    window.addInquiryVariantToCart = function (size, color) {
         if (!currentInquiryProduct || !currentInquiryProduct.variants) {
             window.addInquiryProductToCart();
             return;
         }
         const cleanSize = (size === 'قياسي' || size === 'all') ? '' : String(size || '').trim();
         const cleanColor = (color === 'موحد' || color === 'all') ? '' : String(color || '').trim();
-        
+
         const matched = currentInquiryProduct.variants.find(v => {
             const vSize = String(v.size || '').trim();
             const vColor = String(v.color || '').trim();
