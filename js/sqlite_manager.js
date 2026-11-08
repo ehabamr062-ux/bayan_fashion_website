@@ -4279,6 +4279,7 @@
         /**
          * ⚡ استعلام SQL موحد وفائق السرعة (< 3ms) لحل مشكلة (N+1 Query)
          * جلب قائمة الحسابات مدمجاً بها: الرصيد الحالي (currentBalance)، إجمالي المبيعات (totalSales)، وتاريخ آخر سند قبض وحركة بضربة واحدة
+         * 🛡️ متطابق 100% مع كشف الحساب ويدعم الأصناف المتعددة، سندات الصرف والقبض، ويفك فخ (0 IS NOT NULL)
          */
         getAllAccountsWithBalances(typeFilter = null) {
             if (!this.db) return [];
@@ -4294,17 +4295,42 @@
                         a.raw_json,
                         ROUND(
                             CASE 
-                                WHEN (a.debit IS NOT NULL OR a.credit IS NOT NULL OR json_extract(a.raw_json, '$.debit') IS NOT NULL OR json_extract(a.raw_json, '$.credit') IS NOT NULL)
+                                WHEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) != 0 
+                                   OR COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0) != 0)
                                 THEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0))
-                                ELSE COALESCE(a.balance, 0)
+                                ELSE COALESCE(a.balance, CAST(json_extract(a.raw_json, '$.balance') AS REAL), 0)
                             END + COALESCE(SUM(
                                 CASE 
-                                    WHEN t.type LIKE '%بيع%' AND t.type NOT LIKE '%مرتجع%' THEN (t.total - COALESCE(t.paidAmount, 0))
-                                    WHEN t.type LIKE '%مرتجع بيع%' THEN -(t.total - COALESCE(t.paidAmount, 0))
-                                    WHEN t.type LIKE '%شراء%' AND t.type NOT LIKE '%مرتجع%' THEN -(t.total - COALESCE(t.paidAmount, 0))
-                                    WHEN t.type LIKE '%مرتجع شراء%' THEN (t.total - COALESCE(t.paidAmount, 0))
-                                    WHEN t.type LIKE '%قبض%' THEN -t.total
-                                    WHEN t.type LIKE '%صرف%' THEN t.total
+                                    WHEN t.type LIKE '%بيع%' AND t.type NOT LIKE '%مرتجع%' THEN (
+                                        CASE 
+                                            WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) 
+                                                  AND (COALESCE(t.remaining, 0) = 0 OR COALESCE(t.paidAmount, 0) >= t.total)) THEN 0 
+                                            ELSE (t.total - COALESCE(t.paidAmount, 0)) 
+                                        END
+                                    )
+                                    WHEN t.type LIKE '%مرتجع بيع%' THEN -(
+                                        CASE 
+                                            WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) 
+                                                  AND (COALESCE(t.remaining, 0) = 0 OR COALESCE(t.paidAmount, 0) >= t.total)) THEN 0 
+                                            ELSE (t.total - COALESCE(t.paidAmount, 0)) 
+                                        END
+                                    )
+                                    WHEN t.type LIKE '%شراء%' AND t.type NOT LIKE '%مرتجع%' THEN -(
+                                        CASE 
+                                            WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) 
+                                                  AND (COALESCE(t.remaining, 0) = 0 OR COALESCE(t.paidAmount, 0) >= t.total)) THEN 0 
+                                            ELSE (t.total - COALESCE(t.paidAmount, 0)) 
+                                        END
+                                    )
+                                    WHEN t.type LIKE '%مرتجع شراء%' THEN (
+                                        CASE 
+                                            WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) 
+                                                  AND (COALESCE(t.remaining, 0) = 0 OR COALESCE(t.paidAmount, 0) >= t.total)) THEN 0 
+                                            ELSE (t.total - COALESCE(t.paidAmount, 0)) 
+                                        END
+                                    )
+                                    WHEN (t.type LIKE '%قبض%' OR t.type LIKE '%توريد%') THEN -t.total
+                                    WHEN (t.type LIKE '%صرف%' OR t.type LIKE '%مصروف%' OR t.type LIKE '%مسحوبات%' OR t.type LIKE '%دفع%') THEN t.total
                                     ELSE 0 
                                 END
                             ), 0)
@@ -4315,10 +4341,15 @@
                                 ELSE 0 
                             END
                         ), 0), 2) AS totalSales,
-                        MAX(CASE WHEN t.type LIKE '%قبض%' THEN t.dateISO ELSE NULL END) AS lastReceiptDate,
+                        MAX(CASE WHEN (t.type LIKE '%قبض%' OR t.type LIKE '%توريد%') THEN t.dateISO ELSE NULL END) AS lastReceiptDate,
                         MAX(t.dateISO) AS lastTxDate
                     FROM accounts a
-                    LEFT JOIN transactions t ON a.name = t.partner AND (t.status IS NULL OR t.status != 'void') AND (t.isInvoiceHead IS NULL OR t.isInvoiceHead = 1 OR t.id NOT LIKE '%_item_%')
+                    LEFT JOIN transactions t ON (
+                        a.name = t.partner 
+                        OR (a.code IS NOT NULL AND a.code != '' AND a.code = t.partner)
+                        OR (a.code IS NOT NULL AND a.code != '' AND json_extract(t.raw_json, '$.partnerCode') = a.code)
+                        OR (a.code IS NOT NULL AND a.code != '' AND json_extract(t.raw_json, '$.accountCode') = a.code)
+                    ) AND (t.status IS NULL OR t.status != 'void')
                 `;
 
                 const params = [];
@@ -4423,9 +4454,10 @@
                 const sql = `
                     SELECT ROUND(
                         CASE 
-                            WHEN (a.debit IS NOT NULL OR a.credit IS NOT NULL OR json_extract(a.raw_json, '$.debit') IS NOT NULL OR json_extract(a.raw_json, '$.credit') IS NOT NULL)
+                            WHEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) != 0 
+                               OR COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0) != 0)
                             THEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0))
-                            ELSE COALESCE(a.balance, 0)
+                            ELSE COALESCE(a.balance, CAST(json_extract(a.raw_json, '$.balance') AS REAL), 0)
                         END + COALESCE(SUM(
                             CASE 
                                 WHEN t.type LIKE '%بيع%' AND t.type NOT LIKE '%مرتجع%' THEN (
@@ -4452,14 +4484,19 @@
                                         ELSE (t.total - COALESCE(t.paidAmount, 0)) 
                                     END
                                 )
-                                WHEN t.type LIKE '%قبض%' THEN -t.total
-                                WHEN t.type LIKE '%صرف%' THEN t.total
+                                WHEN (t.type LIKE '%قبض%' OR t.type LIKE '%توريد%') THEN -t.total
+                                WHEN (t.type LIKE '%صرف%' OR t.type LIKE '%مصروف%' OR t.type LIKE '%مسحوبات%' OR t.type LIKE '%دفع%') THEN t.total
                                 ELSE 0 
                             END
                         ), 0)
                     , 2) AS balance
                     FROM accounts a
-                    LEFT JOIN transactions t ON a.name = t.partner AND (t.status IS NULL OR t.status != 'void') ${excludeCondition}
+                    LEFT JOIN transactions t ON (
+                        a.name = t.partner 
+                        OR (a.code IS NOT NULL AND a.code != '' AND a.code = t.partner)
+                        OR (a.code IS NOT NULL AND a.code != '' AND json_extract(t.raw_json, '$.partnerCode') = a.code)
+                        OR (a.code IS NOT NULL AND a.code != '' AND json_extract(t.raw_json, '$.accountCode') = a.code)
+                    ) AND (t.status IS NULL OR t.status != 'void') ${excludeCondition}
                     WHERE a.name = ?;
                 `;
 
@@ -4496,19 +4533,20 @@
                     const openSql = `
                         SELECT ROUND(
                             CASE 
-                                WHEN (a.debit IS NOT NULL OR a.credit IS NOT NULL OR json_extract(a.raw_json, '$.debit') IS NOT NULL OR json_extract(a.raw_json, '$.credit') IS NOT NULL)
+                                WHEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) != 0 
+                                   OR COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0) != 0)
                                 THEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0))
-                                ELSE COALESCE(a.balance, 0)
+                                ELSE COALESCE(a.balance, CAST(json_extract(a.raw_json, '$.balance') AS REAL), 0)
                             END
                         , 2) AS priorBalance
-                        FROM accounts a WHERE a.name = ? LIMIT 1;
+                        FROM accounts a WHERE (a.name = ? OR (a.code IS NOT NULL AND a.code != '' AND a.code = ?)) LIMIT 1;
                     `;
                     if (this.isNative && this.nativeDb) {
-                        const r = this.nativeDb.prepare(openSql).get(p);
+                        const r = this.nativeDb.prepare(openSql).get(p, p);
                         return r ? (parseFloat(r.priorBalance) || 0) : 0;
                     }
                     const stmt = this.db.prepare(openSql);
-                    stmt.bind([p]);
+                    stmt.bind([p, p]);
                     let openBal = 0;
                     if (stmt.step()) {
                         openBal = parseFloat(stmt.getAsObject().priorBalance) || 0;
@@ -4520,9 +4558,10 @@
                 const sql = `
                     SELECT ROUND(
                         CASE 
-                            WHEN (a.debit IS NOT NULL OR a.credit IS NOT NULL OR json_extract(a.raw_json, '$.debit') IS NOT NULL OR json_extract(a.raw_json, '$.credit') IS NOT NULL)
+                            WHEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) != 0 
+                               OR COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0) != 0)
                             THEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0))
-                            ELSE COALESCE(a.balance, 0)
+                            ELSE COALESCE(a.balance, CAST(json_extract(a.raw_json, '$.balance') AS REAL), 0)
                         END + COALESCE(SUM(
                             CASE 
                                 WHEN t.type LIKE '%بيع%' AND t.type NOT LIKE '%مرتجع%' THEN (
@@ -4549,26 +4588,31 @@
                                         ELSE (t.total - COALESCE(t.paidAmount, 0)) 
                                     END
                                 )
-                                WHEN t.type LIKE '%قبض%' THEN -t.total
-                                WHEN t.type LIKE '%صرف%' THEN t.total
+                                WHEN (t.type LIKE '%قبض%' OR t.type LIKE '%توريد%') THEN -t.total
+                                WHEN (t.type LIKE '%صرف%' OR t.type LIKE '%مصروف%' OR t.type LIKE '%مسحوبات%' OR t.type LIKE '%دفع%') THEN t.total
                                 ELSE 0 
                             END
                         ), 0)
                     , 2) AS priorBalance
                     FROM accounts a
-                    LEFT JOIN transactions t ON a.name = t.partner 
+                    LEFT JOIN transactions t ON (
+                        a.name = t.partner 
+                        OR (a.code IS NOT NULL AND a.code != '' AND a.code = t.partner)
+                        OR (a.code IS NOT NULL AND a.code != '' AND json_extract(t.raw_json, '$.partnerCode') = a.code)
+                        OR (a.code IS NOT NULL AND a.code != '' AND json_extract(t.raw_json, '$.accountCode') = a.code)
+                    )
                         AND t.dateISO < ? 
                         AND (t.status IS NULL OR t.status != 'void')
-                    WHERE a.name = ?;
+                    WHERE (a.name = ? OR (a.code IS NOT NULL AND a.code != '' AND a.code = ?));
                 `;
 
                 if (this.isNative && this.nativeDb) {
-                    const row = this.nativeDb.prepare(sql).get(beforeDateISO, p);
+                    const row = this.nativeDb.prepare(sql).get(beforeDateISO, p, p);
                     return row ? (parseFloat(row.priorBalance) || 0) : 0;
                 }
 
                 const stmt = this.db.prepare(sql);
-                stmt.bind([beforeDateISO, p]);
+                stmt.bind([beforeDateISO, p, p]);
                 let prior = 0;
                 if (stmt.step()) {
                     const res = stmt.getAsObject();
