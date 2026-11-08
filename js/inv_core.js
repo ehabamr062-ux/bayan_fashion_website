@@ -1811,9 +1811,9 @@ function printWarehouseReport() {
     const stockCostVal = (printGlobalVal - printGlobalProfitRT > 0) ? (printGlobalVal - printGlobalProfitRT) : printGlobalVal;
 
     let summaryHtml = `
-        <div style="margin-bottom:18px; border:2px solid #334155; padding:12px; border-radius:10px; background:#f8fafc; display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+        <div style="margin-bottom:18px; border:2px solid #334155; padding:12px; border-radius:10px; background:#f8fafc; display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px; page-break-inside:avoid; break-inside:avoid; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
             <!-- 1. كارت إجمالي المخزون (بكل الفروع) -->
-            <div style="border:1.5px solid #0284c7; background:#ffffff; padding:10px 12px; border-radius:8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="border:1.5px solid #0284c7; background:#ffffff; padding:10px 12px; border-radius:8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.05); page-break-inside:avoid;">
                 <div style="font-weight:900; color:#0369a1; font-size:12px; margin-bottom:4px;">📊 إجمالي المخزون (بكل الفروع)</div>
                 <div style="font-size:16px; font-weight:900; color:#0f172a;">${printGlobalQty.toLocaleString('en-US')} <span style="font-size:11px; font-weight:700;">قطعة</span></div>
                 ${canViewCost ? `<div style="font-size:13px; font-weight:900; color:#15803d; margin-top:4px; border-top:1px dashed #cbd5e1; padding-top:4px;">${printGlobalVal.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} ج.م</div>` : ''}
@@ -1821,7 +1821,7 @@ function printWarehouseReport() {
 
             <!-- 2. كارت إجمالي تكلفة المخزن (تقييم المخزون برأس المال) -->
             ${canViewCost ? `
-            <div style="border:1.5px solid #4338ca; background:#ffffff; padding:10px 12px; border-radius:8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="border:1.5px solid #4338ca; background:#ffffff; padding:10px 12px; border-radius:8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.05); page-break-inside:avoid;">
                 <div style="font-weight:900; color:#4338ca; font-size:12px; margin-bottom:4px;">💰 إجمالي تكلفة المخزن (رأس المال)</div>
                 <div style="font-size:16px; font-weight:900; color:#312e81;">${stockCostVal.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size:11px; font-weight:700;">ج.م</span></div>
                 <div style="font-size:10px; font-weight:800; color:#64748b; margin-top:4px; border-top:1px dashed #cbd5e1; padding-top:4px;">(تقييم رأس المال الفعلي المربوط)</div>
@@ -1830,13 +1830,13 @@ function printWarehouseReport() {
 
             <!-- 3. كروت الأرباح (إن وُجدت الصلاحية) -->
             ${canViewProfits ? `
-            <div style="border:1.5px solid #059669; background:#ffffff; padding:10px 12px; border-radius:8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="border:1.5px solid #059669; background:#ffffff; padding:10px 12px; border-radius:8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.05); page-break-inside:avoid;">
                 <div style="font-weight:900; color:#047857; font-size:12px; margin-bottom:4px;">💵 إجمالي ربح الجملة</div>
                 <div style="font-size:16px; font-weight:900; color:#064e3b; margin-top:2px;">${printGlobalProfitWH.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size:11px; font-weight:700;">ج.م</span></div>
                 <div style="font-size:10px; font-weight:700; color:#64748b; margin-top:4px; border-top:1px dashed #cbd5e1; padding-top:4px;">(بناءً على الأرصدة الحالية)</div>
             </div>
 
-            <div style="border:1.5px solid #2563eb; background:#ffffff; padding:10px 12px; border-radius:8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="border:1.5px solid #2563eb; background:#ffffff; padding:10px 12px; border-radius:8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.05); page-break-inside:avoid;">
                 <div style="font-weight:900; color:#1d4ed8; font-size:12px; margin-bottom:4px;">💎 إجمالي ربح التجزئة</div>
                 <div style="font-size:16px; font-weight:900; color:#1e3a8a; margin-top:2px;">${printGlobalProfitRT.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size:11px; font-weight:700;">ج.م</span></div>
                 <div style="font-size:10px; font-weight:700; color:#64748b; margin-top:4px; border-top:1px dashed #cbd5e1; padding-top:4px;">(بناءً على الأرصدة الحالية)</div>
@@ -1850,7 +1850,7 @@ function printWarehouseReport() {
         const whVal = whValues[wIdx] || 0;
         const whItm = whItems[wIdx] || 0;
         summaryHtml += `
-            <div style="border:1.5px solid #d97706; background:#ffffff; padding:10px 12px; border-radius:8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="border:1.5px solid #d97706; background:#ffffff; padding:10px 12px; border-radius:8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.05); page-break-inside:avoid;">
                 <div style="font-weight:900; color:#b45309; font-size:12px; margin-bottom:4px;">🏬 كمية ${w.name}</div>
                 <div style="font-size:16px; font-weight:900; color:#0f172a;">${whQty.toLocaleString('en-US')} <span style="font-size:11px; font-weight:700;">قطعة</span></div>
                 ${canViewCost ? `<div style="font-size:13px; font-weight:900; color:#15803d; margin-top:4px; border-top:1px dashed #cbd5e1; padding-top:4px;">${whVal.toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2})} ج.م</div>` : ''}
@@ -1867,27 +1867,27 @@ function printWarehouseReport() {
     else dateText = `الرصيد الفعلي الحالي بتاريخ: ${new Date().toLocaleString('ar-EG')}`;
 
     const content = `
-        <div style="direction:rtl; font-family:'Arial', sans-serif; padding:15px; color:#000; width:100%; box-sizing:border-box;">
-            <div style="text-align:center; border-bottom:3px solid #000; padding-bottom:15px; margin-bottom:20px;">
+        <div class="report-container" style="direction:rtl; font-family:'Segoe UI', Tahoma, Geneva, Verdana, Arial, sans-serif; padding:10px 15px; color:#000; width:100%; height:auto !important; overflow:visible !important; box-sizing:border-box;">
+            <div style="text-align:center; border-bottom:3px solid #000; padding-bottom:12px; margin-bottom:15px; page-break-inside:avoid;">
                 <h1 style="margin:0; font-size:22px; font-weight:900;">${shopName}</h1>
-                <h2 style="margin:10px 0; font-size:18px; font-weight:bold; border:2px solid #000; display:inline-block; padding:5px 20px; border-radius:8px;">تقرير أرصدة المخازن التفصيلي</h2>
-                <div style="font-size:12px; margin-top:5px; font-weight:bold;">${dateText}</div>
-                <div style="font-size:11px; color:#555; margin-top:3px;">عدد الأصناف المشمولة: ${filtered.length} صنف</div>
+                <h2 style="margin:8px 0; font-size:17px; font-weight:bold; border:2px solid #000; display:inline-block; padding:4px 18px; border-radius:8px;">تقرير أرصدة المخازن التفصيلي</h2>
+                <div style="font-size:12px; margin-top:4px; font-weight:bold;">${dateText}</div>
+                <div style="font-size:11px; color:#555; margin-top:2px;">عدد الأصناف المشمولة: ${filtered.length} صنف</div>
             </div>
 
             ${summaryHtml}
 
-            <table style="width:100%; border-collapse:collapse; font-size:11px; border:2px solid #000; table-layout: auto;">
-                <thead>
-                    <tr style="background: #f1f5f9; -webkit-print-color-adjust: exact;">
-                        ${headers.map(h => `<th style="padding:8px; border:1px solid #000; text-align:center;">${h}</th>`).join('')}
+            <table class="table-responsive" style="width:100%; border-collapse:collapse; font-size:11px; border:2px solid #000; table-layout:auto; page-break-inside:auto; height:auto; overflow:visible;">
+                <thead style="display:table-header-group;">
+                    <tr style="background: #f1f5f9; -webkit-print-color-adjust: exact; page-break-inside:avoid;">
+                        ${headers.map(h => `<th style="padding:6px 8px; border:1px solid #000; text-align:center;">${h}</th>`).join('')}
                     </tr>
                 </thead>
                 <tbody style="text-align:center;">${rowsHtml}</tbody>
-                <tfoot>${footerHtml}</tfoot>
+                <tfoot style="display:table-footer-group;">${footerHtml}</tfoot>
             </table>
 
-            <div style="margin-top:30px; text-align:center; font-size:11px; border-top:1px dashed #000; padding-top:15px;">
+            <div style="margin-top:25px; text-align:center; font-size:11px; border-top:1px dashed #000; padding-top:10px; page-break-inside:avoid;">
                 <div style="font-weight:bold;">تم استخراج التقرير بواسطة نظام بيان POS</div>
             </div>
         </div>
@@ -1895,24 +1895,103 @@ function printWarehouseReport() {
 
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
-        <html>
+        <!DOCTYPE html>
+        <html dir="rtl" lang="ar">
             <head>
-                <title>طباعة تقرير المخزون</title>
+                <meta charset="utf-8">
+                <title>طباعة تقرير أرصدة المخازن</title>
                 <style>
-                    @page { margin: 8mm; size: auto; }
-                    body { margin: 0; padding: 0; direction: rtl; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, Arial; color: #000; }
-                    * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; box-sizing: border-box; }
-                    table th, table td { padding: 6px 8px; border: 1px solid #000 !important; color: #000 !important; }
-                    th { background: #eee !important; font-weight: 900; }
-                    tr:nth-child(even) { background: #f9f9f9; }
+                    @page {
+                        margin: 8mm 6mm;
+                        size: auto;
+                    }
+                    *, *::before, *::after {
+                        -webkit-print-color-adjust: exact !important;
+                        print-color-adjust: exact !important;
+                        box-sizing: border-box;
+                    }
+                    html, body {
+                        height: auto !important;
+                        min-height: auto !important;
+                        overflow: visible !important;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        direction: rtl;
+                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif, Arial;
+                        color: #000 !important;
+                        background: #ffffff !important;
+                    }
+                    .report-container, .table-responsive {
+                        overflow: visible !important;
+                        height: auto !important;
+                        max-height: none !important;
+                        width: 100% !important;
+                    }
+                    table {
+                        page-break-inside: auto !important;
+                        break-inside: auto !important;
+                        width: 100% !important;
+                        border-collapse: collapse !important;
+                    }
+                    tr {
+                        page-break-inside: avoid !important;
+                        break-inside: avoid !important;
+                        page-break-after: auto !important;
+                        break-after: auto !important;
+                    }
+                    thead {
+                        display: table-header-group !important; /* لتكرار رأس الجدول في كل صفحة */
+                    }
+                    tfoot {
+                        display: table-footer-group !important; /* لظهور الإجمالي أسفل الجدول */
+                    }
+                    table th, table td {
+                        padding: 5px 6px;
+                        border: 1px solid #000 !important;
+                        color: #000 !important;
+                    }
+                    th {
+                        background: #eee !important;
+                        font-weight: 900;
+                    }
+                    tr:nth-child(even) {
+                        background: #f9f9f9 !important;
+                    }
+                    @media print {
+                        html, body {
+                            height: auto !important;
+                            overflow: visible !important;
+                        }
+                        .report-container, .table-responsive {
+                            overflow: visible !important;
+                            height: auto !important;
+                            max-height: none !important;
+                        }
+                        table {
+                            page-break-inside: auto !important;
+                            break-inside: auto !important;
+                        }
+                        tr {
+                            page-break-inside: avoid !important;
+                            break-inside: avoid !important;
+                        }
+                        thead {
+                            display: table-header-group !important;
+                        }
+                        tfoot {
+                            display: table-footer-group !important;
+                        }
+                    }
                 </style>
             </head>
             <body>
                 ${content}
                 <script>
                     window.onload = function() {
-                        window.print();
-                        setTimeout(function() { window.close(); }, 500);
+                        setTimeout(function() {
+                            window.print();
+                            setTimeout(function() { window.close(); }, 750);
+                        }, 250);
                     };
                 <\/script>
             </body>
