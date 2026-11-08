@@ -3109,13 +3109,6 @@ async function confirmSelectedInvoiceForReturn(invoiceId) {
         originalInvoiceItems = (window.transactions || []).filter(t => t.invoiceId == invoiceId && t.type.includes(targetType) && !t.type.includes('مرتجع'));
     }
 
-    if (originalInvoiceItems && originalInvoiceItems.length > 1) {
-        const subItemsOnly = originalInvoiceItems.filter(t => t && !t.isInvoiceHead);
-        if (subItemsOnly.length > 0) {
-            originalInvoiceItems = subItemsOnly;
-        }
-    }
-
     if (originalInvoiceItems.length === 0) {
         alert("تعذر العثور على أصناف لهذه الفاتورة!");
         return;
@@ -3322,13 +3315,6 @@ async function openSelectReturnItemsModal(invoiceId) {
         currentReturnInvoiceItems = (window.transactions || []).filter(t => t.invoiceId == invoiceId && t.type.includes(targetType) && !t.type.includes('مرتجع'));
     }
 
-    if (currentReturnInvoiceItems && currentReturnInvoiceItems.length > 1) {
-        const subItemsOnly = currentReturnInvoiceItems.filter(t => t && !t.isInvoiceHead);
-        if (subItemsOnly.length > 0) {
-            currentReturnInvoiceItems = subItemsOnly;
-        }
-    }
-
     if (currentReturnInvoiceItems.length === 0) {
         alert("تعذر العثور على أصناف لهذه الفاتورة!");
         return;
@@ -3365,7 +3351,12 @@ async function openSelectReturnItemsModal(invoiceId) {
 
     document.getElementById('returnItemsRemainingTotal').innerText = remainingTotalVal.toFixed(2);
 
-    document.getElementById('returnItemsCount').innerText = currentReturnInvoiceItems.length;
+    if (document.getElementById('returnItemsCountFooter')) {
+        document.getElementById('returnItemsCountFooter').innerText = currentReturnInvoiceItems.length;
+    }
+    if (document.getElementById('returnItemsCount')) {
+        document.getElementById('returnItemsCount').innerText = currentReturnInvoiceItems.length;
+    }
 
     // تصفير خانة البحث عند فتح المودال
 
@@ -3575,7 +3566,7 @@ function filterReturnItems(query) {
 
     // تحديث العداد بالنتائج الظاهرة
 
-    const countEl = document.getElementById('returnItemsCount');
+    const countEl = document.getElementById('returnItemsCountFooter') || document.getElementById('returnItemsCount');
 
     if (countEl) countEl.innerText = visibleCount + ' من ' + currentReturnInvoiceItems.length;
 
