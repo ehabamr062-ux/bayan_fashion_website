@@ -4,6 +4,13 @@ const fs = require('fs');
 const crypto = require('crypto');
 const zlib = require('zlib');
 
+let betterSqlite3 = null;
+try {
+    betterSqlite3 = require('better-sqlite3');
+} catch (e) {
+    console.warn("[main.js] better-sqlite3 not directly loaded in main:", e.message);
+}
+
 // 🎮 تفعيل تسريع كارت الشاشة (GPU Hardware Acceleration) للأداء الفائق وسلاسة 60 FPS
 // مع صمام أمان ذكي للأجهزة القديمة في حال تعثر معالج الرسوميات
 app.on('gpu-process-crashed', (event, killed) => {
@@ -362,6 +369,34 @@ ipcMain.handle('select-backup-file', async () => {
     } catch (err) {
         console.error("select-backup-file error:", err);
         return { error: err.message };
+    }
+});
+
+// 💬 نافذة حوار حفظ ملف النسخة الاحتياطية الرسمية في ويندوز (Save Dialog)
+ipcMain.handle('show-save-backup-dialog', async (_e, opts = {}) => {
+    try {
+        const defaultName = opts.defaultFileName || `backup_pos_${new Date().toISOString().slice(0, 10)}.bak`;
+        let defaultPath = '';
+        try { defaultPath = path.join(app.getPath('desktop'), defaultName); } catch (e) {
+            defaultPath = path.join(require('os').homedir(), 'Desktop', defaultName);
+        }
+        const win = BrowserWindow.getFocusedWindow() || (mainWindow && !mainWindow.isDestroyed() ? mainWindow : null);
+        const result = await dialog.showSaveDialog(win, {
+            title: 'حفظ النسخة الاحتياطية لنظام بَيَان',
+            defaultPath: defaultPath,
+            filters: [
+                { name: 'ملفات النسخ الاحتياطي لنظام بيان (*.bak)', extensions: ['bak'] },
+                { name: 'قاعدة بيانات SQLite (*.db)', extensions: ['db'] },
+                { name: 'كافة الملفات (*.*)', extensions: ['*'] }
+            ]
+        });
+        if (result.canceled || !result.filePath) {
+            return { canceled: true };
+        }
+        return { canceled: false, filePath: result.filePath };
+    } catch (err) {
+        console.error("show-save-backup-dialog error:", err);
+        return { canceled: true, error: err.message };
     }
 });
 
@@ -998,8 +1033,9 @@ ipcMain.handle('save-backup-data', async (_e, payload) => {
     }
 });
 
-// ⚡ نسخ احتياطي فوري ومباشر لملف قاعدة البيانات SQLite مع الضغط الفائق عبر Stream zlib
+// ⚡ نسخ احتياطي فوري ومباشر لملف قاعدة البيانات SQLite مع التفريغ النظيف (VACUUM INTO) والضغط الفائق (zlib level: 6)
 ipcMain.handle('save-sqlite-direct-backup', async (_e, payload) => {
+    let tempCleanPath = null;
     try {
         if (!fs.existsSync(backupDir)) {
             fs.mkdirSync(backupDir, { recursive: true });
@@ -1009,17 +1045,56 @@ ipcMain.handle('save-sqlite-direct-backup', async (_e, payload) => {
         const timestamp = `${d.getFullYear()}_${pad(d.getMonth() + 1)}_${pad(d.getDate())}__${pad(d.getHours())}_${pad(d.getMinutes())}_${pad(d.getSeconds())}`;
         const prefix = payload?.isManual ? 'backup_pos_manual_' : 'backup_pos_auto_';
         const fileName = `${prefix}${timestamp}.bak`;
-        const filePath = path.join(backupDir, fileName);
+        const defaultFilePath = path.join(backupDir, fileName);
 
         const os = require('os');
         const sqliteOriginalPath = path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db');
         const sqliteBakPath = path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db.bak');
 
+        // 🧹 1. تطبيق تقنية التفريغ النظيف VACUUM INTO لتقليص الحجم من 184MB إلى ~6MB والتخلص من الـ Freelist والـ WAL فوراً
+        let srcToCompress = null;
+        if (payload?.cleanDbPath && fs.existsSync(payload.cleanDbPath)) {
+            srcToCompress = payload.cleanDbPath;
+            tempCleanPath = payload.cleanDbPath;
+        } else {
+            // محاولة إنشاء التفريغ النظيف عبر better-sqlite3 في main process إن لم يكن قد تم تمريره
+            try {
+                if (fs.existsSync(sqliteOriginalPath)) {
+                    tempCleanPath = path.join(os.tmpdir(), `bayan_clean_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.db`);
+                    if (fs.existsSync(tempCleanPath)) try { fs.unlinkSync(tempCleanPath); } catch (_) { }
+                    if (betterSqlite3) {
+                        const dbInstance = new betterSqlite3(sqliteOriginalPath);
+                        dbInstance.exec(`VACUUM INTO '${tempCleanPath.replace(/\\/g, '/')}';`);
+                        dbInstance.close();
+                        if (fs.existsSync(tempCleanPath) && fs.statSync(tempCleanPath).size > 0) {
+                            srcToCompress = tempCleanPath;
+                            console.log(`🧹 [VACUUM INTO] تم التفريغ النظيف لقاعدة البيانات بنجاح: ${(fs.statSync(tempCleanPath).size / (1024 * 1024)).toFixed(2)} MB`);
+                        }
+                    }
+                }
+            } catch (vacErr) {
+                console.warn("[save-sqlite-direct-backup] VACUUM INTO in main process fallback:", vacErr.message);
+                if (tempCleanPath && fs.existsSync(tempCleanPath)) try { fs.unlinkSync(tempCleanPath); } catch (_) { }
+                tempCleanPath = null;
+            }
+        }
+
+        // في حال تعذر VACUUM INTO نستخدم الملف الأصلي أو ملف الطوارئ
+        if (!srcToCompress || !fs.existsSync(srcToCompress)) {
+            if (fs.existsSync(sqliteOriginalPath)) srcToCompress = sqliteOriginalPath;
+            else if (fs.existsSync(sqliteBakPath)) srcToCompress = sqliteBakPath;
+        }
+
+        if (!srcToCompress || !fs.existsSync(srcToCompress)) {
+            return { success: false, error: 'SQLite database file not found or inaccessible' };
+        }
+
+        // ⚡ 2. دالة الضغط السريع المتوازن بـ gzip level: 6 (أسرع بـ 5 أضعاف من 9)
         const compressFile = (src, dest) => {
             return new Promise((resolve, reject) => {
                 const readStream = fs.createReadStream(src);
                 const writeStream = fs.createWriteStream(dest);
-                const gzip = zlib.createGzip({ level: 9 });
+                const gzip = zlib.createGzip({ level: 6 });
                 readStream.on('error', reject);
                 gzip.on('error', reject);
                 writeStream.on('error', reject);
@@ -1028,51 +1103,66 @@ ipcMain.handle('save-sqlite-direct-backup', async (_e, payload) => {
             });
         };
 
-        let saved = false;
-        // محاولة الضغط أولاً من ملف الداتابيز الرئيسي
-        if (fs.existsSync(sqliteOriginalPath)) {
-            try {
-                await compressFile(sqliteOriginalPath, filePath);
-                saved = true;
-            } catch (copyErr) {
-                console.warn("[save-sqlite-direct-backup] Primary db compress busy, attempting fallback to .bak:", copyErr.message);
-                try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (_) {}
-            }
+        // ضغط الملف وحفظه دائماً في مجلد الأرشيف AppData
+        await compressFile(srcToCompress, defaultFilePath);
+
+        // تنظيف الملف المؤقت الناتج عن VACUUM INTO فوراً بعد اكتمال الضغط
+        if (tempCleanPath && fs.existsSync(tempCleanPath)) {
+            try { fs.unlinkSync(tempCleanPath); } catch (_) { }
         }
 
-        // إذا كان الملف الرئيسي مشغولاً بنظام WAL أو القفل، نضغط من ملف الطوارئ (.bak) المحدث بنجاح
-        if (!saved && fs.existsSync(sqliteBakPath)) {
-            try {
-                await compressFile(sqliteBakPath, filePath);
-                saved = true;
-            } catch (bakErr) {
-                console.error("[save-sqlite-direct-backup] Fallback compress error:", bakErr.message);
-                try { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); } catch (_) {}
-            }
-        }
+        let userChosenPath = payload?.targetPath || null;
+        let finalPath = defaultFilePath;
 
-        if (saved) {
-            // إذا كان النسخ يدوياً، ننسخ نسخة إضافية إلى سطح المكتب مباشرة من الملف الذي تم حفظه
-            if (payload?.isManual) {
-                try {
-                    let desktopDir = '';
-                    try { desktopDir = app.getPath('desktop'); } catch (e) { }
-                    if (!desktopDir || !fs.existsSync(desktopDir)) {
-                        desktopDir = path.join(os.homedir(), 'Desktop');
-                    }
-                    if (fs.existsSync(desktopDir)) {
-                        const desktopFilePath = path.join(desktopDir, fileName);
-                        await fs.promises.copyFile(filePath, desktopFilePath);
-                    }
-                } catch (dErr) {
-                    console.warn("[save-sqlite-direct-backup] Desktop copy notice:", dErr.message);
+        // إذا اختار المستخدم مساراً محدداً عبر حوار الحفظ (Save Dialog)
+        if (userChosenPath) {
+            try {
+                await fs.promises.copyFile(defaultFilePath, userChosenPath);
+                finalPath = userChosenPath;
+            } catch (cErr) {
+                console.warn("[save-sqlite-direct-backup] Copy to user target path warning:", cErr.message);
+            }
+        } else if (payload?.isManual) {
+            // إذا كان النسخ يدوياً ولم يحدد المستخدم مساراً خاصاً، ننسخ نسخة إضافية إلى سطح المكتب
+            try {
+                let desktopDir = '';
+                try { desktopDir = app.getPath('desktop'); } catch (e) { }
+                if (!desktopDir || !fs.existsSync(desktopDir)) {
+                    desktopDir = path.join(os.homedir(), 'Desktop');
                 }
+                if (fs.existsSync(desktopDir)) {
+                    const desktopFilePath = path.join(desktopDir, fileName);
+                    await fs.promises.copyFile(defaultFilePath, desktopFilePath);
+                    finalPath = desktopFilePath;
+                }
+            } catch (dErr) {
+                console.warn("[save-sqlite-direct-backup] Desktop copy notice:", dErr.message);
             }
-            return { success: true, filePath, fileName, backupDir };
         }
-        return { success: false, error: 'SQLite database file not found or inaccessible' };
+
+        // 📂 3. إبراز الملف للمستخدم في مستكشف الويندوز تلقائياً (Explorer Reveal)
+        if (payload?.isManual && finalPath && fs.existsSync(finalPath)) {
+            try {
+                shell.showItemInFolder(finalPath);
+            } catch (revealErr) {
+                console.warn("[save-sqlite-direct-backup] Explorer reveal notice:", revealErr.message);
+            }
+        }
+
+        const finalStats = fs.statSync(finalPath);
+        return {
+            success: true,
+            filePath: finalPath,
+            fileName: path.basename(finalPath),
+            backupDir,
+            fileSizeBytes: finalStats.size,
+            fileSizeFormatted: (finalStats.size / (1024 * 1024)).toFixed(2) + ' MB'
+        };
     } catch (err) {
         console.error("save-sqlite-direct-backup error:", err);
+        if (tempCleanPath && fs.existsSync(tempCleanPath)) {
+            try { fs.unlinkSync(tempCleanPath); } catch (_) { }
+        }
         return { success: false, error: err.message };
     }
 });
@@ -1115,11 +1205,22 @@ ipcMain.handle('restore-sqlite-direct-backup', async (_e, src) => {
             } catch (bakErr) { }
         }
 
-        // 🛡️ صمام أمان حاسم: تنظيف ملفات الـ WAL و SHM القديمة لمنع تضارب أو تلف قاعدة البيانات المسترجعة
+        // 🛡️ صمام أمان حاسم: انتظار 150ms لتفريغ أقفال الملفات في ويندوز وتنظيف ملفات WAL/SHM بأمان
+        await new Promise(resolve => setTimeout(resolve, 150));
         const walPath = sqliteOriginalPath + '-wal';
         const shmPath = sqliteOriginalPath + '-shm';
-        try { if (fs.existsSync(walPath)) fs.unlinkSync(walPath); } catch (_) { }
-        try { if (fs.existsSync(shmPath)) fs.unlinkSync(shmPath); } catch (_) { }
+        const safeUnlink = async (filePath) => {
+            for (let i = 0; i < 3; i++) {
+                try {
+                    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                    return;
+                } catch (e) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+            }
+        };
+        await safeUnlink(walPath);
+        await safeUnlink(shmPath);
 
         if (isBuffer && buf) {
             const isGzip = buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b;
