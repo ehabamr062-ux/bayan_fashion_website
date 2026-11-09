@@ -579,12 +579,26 @@ async function printInvoice(invoiceData, options = {}) {
             box-sizing: border-box !important;
             font-weight: 900 !important;
         }
+        .receipt-container, #thermalReceipt {
+            box-sizing: border-box !important;
+            padding-right: 4mm !important;
+            padding-left: 3mm !important;
+            max-width: ${pageWidth === '57mm' ? '54mm' : (pageWidth === 'A4' || pageWidth === '210mm' || pageWidth === 'A5' || pageWidth === '148mm' ? '100%' : '72mm')} !important;
+            margin: 0 auto !important;
+        }
         @media print {
             .no-print { display: none !important; }
             html, body {
                 padding: 0 !important;
                 margin: 0 !important;
                 width: 100% !important;
+            }
+            .receipt-container, #thermalReceipt {
+                box-sizing: border-box !important;
+                padding-right: 4mm !important;
+                padding-left: 3mm !important;
+                max-width: ${pageWidth === '57mm' ? '54mm' : (pageWidth === 'A4' || pageWidth === '210mm' || pageWidth === 'A5' || pageWidth === '148mm' ? '100%' : '72mm')} !important;
+                margin: 0 auto !important;
             }
         }
     </style>
@@ -949,7 +963,7 @@ function build80mmStandard(d) {
     }
 
     return `
-    <div style="width:100%; max-width:78mm; margin:0 auto; font-family:'Arial','Tahoma','Segoe UI',sans-serif; direction:rtl; padding:2mm 3mm; color:#000000; box-sizing:border-box; line-height:1.35; font-weight:900;">
+    <div class="receipt-container" id="thermalReceipt" style="width:100%; max-width:72mm; margin:0 auto; font-family:'Arial','Tahoma','Segoe UI',sans-serif; direction:rtl; padding:2mm 3mm; padding-right:4mm !important; padding-left:3mm !important; color:#000000; box-sizing:border-box !important; line-height:1.35; font-weight:900;">
         <div style="text-align:center; border-bottom:3px solid #000000; padding-bottom:6px; margin-bottom:6px;">
             <div style="font-size:24px; font-weight:900; line-height:1.2; letter-spacing:normal;">${d.shopName}</div>
             ${d.shopAddress ? `<div style="font-size:13px; font-weight:900; margin-top:2px;">${d.shopAddress}</div>` : ''}
@@ -1087,7 +1101,7 @@ function build80mmCompact(d) {
     }
 
     return `
-    <div style="width:100%; max-width:78mm; margin:0 auto; font-family:'Arial','Tahoma','Segoe UI',sans-serif; direction:rtl; padding:2mm 3mm; color:#000000; font-size:13.5px; font-weight:900; box-sizing:border-box;">
+    <div class="receipt-container" id="thermalReceipt" style="width:100%; max-width:72mm; margin:0 auto; font-family:'Arial','Tahoma','Segoe UI',sans-serif; direction:rtl; padding:2mm 3mm; padding-right:4mm !important; padding-left:3mm !important; color:#000000; font-size:13.5px; font-weight:900; box-sizing:border-box !important;">
         <div style="text-align:center; border-bottom:3px solid #000000; padding-bottom:6px; margin-bottom:6px;">
             <div style="font-size:24px; font-weight:900; line-height:1.2; letter-spacing:normal;">${d.shopName}</div>
             ${d.shopAddress ? `<div style="font-size:13px; font-weight:900; margin-top:2px;">${d.shopAddress}</div>` : ''}
@@ -1197,7 +1211,7 @@ function build57mm(d) {
     }
 
     return `
-    <div style="width:100%; max-width:57mm; margin:0 auto; font-family:'Arial','Tahoma',sans-serif; direction:rtl; padding:2mm; color:#000000; font-size:12px; font-weight:900; box-sizing:border-box;">
+    <div class="receipt-container" id="thermalReceipt" style="width:100%; max-width:54mm; margin:0 auto; font-family:'Arial','Tahoma',sans-serif; direction:rtl; padding:2mm; padding-right:3mm !important; padding-left:2mm !important; color:#000000; font-size:12px; font-weight:900; box-sizing:border-box !important;">
         <div style="text-align:center; border-bottom:2.5px solid #000; padding-bottom:5px; margin-bottom:5px;">
             <strong style="font-size:16px;">${d.shopName}</strong><br>
             <span style="font-size:13px; font-weight:900;">${d.docTitle}</span>

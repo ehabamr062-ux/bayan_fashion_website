@@ -5009,6 +5009,15 @@ body.dark-mode #purchase-section {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
     }
+
+    .receipt-container,
+    #thermalReceipt {
+        box-sizing: border-box !important;
+        padding-right: 4mm !important;
+        padding-left: 3mm !important;
+        max-width: 72mm !important;
+        margin: 0 auto !important;
+    }
 }
 
 /* ============================================================
