@@ -1651,7 +1651,7 @@ ipcMain.handle('quit-and-install-update', async () => {
 
 try { ipcMain.removeHandler('get-app-version'); } catch (e) { }
 ipcMain.handle('get-app-version', () => {
-    return app.getVersion() || '5.1.0';
+    return app.getVersion() || '5.1.1';
 });
 
 // =========================================================================
