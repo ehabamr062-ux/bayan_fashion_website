@@ -72,7 +72,14 @@
 
         function closeConfirmModal() {
             const modal = document.getElementById('confirmModal');
-            if (modal) modal.classList.add('hidden');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+                modal.style.pointerEvents = 'none';
+            }
+            if (typeof window.restorePosFocusAfterModal === 'function') {
+                window.restorePosFocusAfterModal();
+            }
             const yesBtn = document.getElementById('confirmYesBtn');
             const noBtn = document.getElementById('confirmNoBtn');
             const backBtn = document.getElementById('confirmBackBtn');
@@ -135,6 +142,8 @@
                     if (noBtn) noBtn.innerText = '🗑️ إغلاق وتجاهل';
                     if (backBtn) backBtn.innerText = '↩️ تراجع';
                 }
+                modal.style.display = 'flex';
+                modal.style.pointerEvents = 'auto';
                 modal.classList.remove('hidden');
             }
         }
@@ -508,6 +517,8 @@
                     const mEl = document.getElementById(mId);
                     if (mEl && !mEl.classList.contains('hidden')) {
                         mEl.classList.add('hidden');
+                        mEl.style.display = 'none';
+                        mEl.style.pointerEvents = 'none';
                     }
                 });
 

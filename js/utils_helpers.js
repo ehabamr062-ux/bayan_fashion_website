@@ -3405,6 +3405,7 @@
                 modal.style.zIndex = '2147483647';
                 modal.classList.remove('hidden');
                 modal.style.display = 'flex';
+                modal.style.pointerEvents = 'auto';
 
                 // تركيز فوري ونظيف متوافق تماماً مع نواة إلكترون وويندوز
                 setTimeout(() => {
@@ -3417,12 +3418,14 @@
                 function cleanup() {
                     modal.classList.add('hidden');
                     modal.style.display = 'none';
+                    modal.style.pointerEvents = 'none';
                     modal.onclick = null;
                     confirmBtn.onclick = null;
                     cancelBtn.onclick = null;
                     input.onkeydown = null;
                     input.type = 'text';
                     input.value = '';
+                    if (typeof restorePosFocusAfterModal === 'function') restorePosFocusAfterModal();
                 }
                 
                 confirmBtn.onclick = () => {
@@ -3626,17 +3629,14 @@
                 }
                 modal.classList.add('hidden');
                 modal.style.display = 'none';
+                modal.style.pointerEvents = 'none';
                 resetModalCardStyle();
                 try {
                     await onConfirm();
                 } catch(err) {
                     console.error("Alert onConfirm error:", err);
                 }
-                const activeSec = document.querySelector('.section-view:not(.hidden)');
-                if (activeSec && activeSec.id === 'sales-section') {
-                    const ps = document.getElementById('productSearch');
-                    if (ps) setTimeout(() => { try { ps.focus(); } catch (e) {} }, 60);
-                }
+                restorePosFocusAfterModal();
             };
             cancelBtn.onclick = async () => {
                 if (activeAlertTimeout) {
@@ -3645,16 +3645,19 @@
                 }
                 modal.classList.add('hidden');
                 modal.style.display = 'none';
+                modal.style.pointerEvents = 'none';
                 resetModalCardStyle();
                 try {
                     await onCancel();
                 } catch(err) {
                     console.error("Alert onCancel error:", err);
                 }
+                restorePosFocusAfterModal();
             };
 
             modal.style.setProperty('z-index', '2147483647', 'important');
             modal.style.display = 'flex';
+            modal.style.pointerEvents = 'auto';
             modal.classList.remove('hidden');
 
             setTimeout(() => {
@@ -3677,6 +3680,25 @@
         }
         window.showCustomAlert = showCustomAlert;
 
+        function restorePosFocusAfterModal() {
+            setTimeout(() => {
+                const barcodeInput = document.getElementById('barcodeInput') || 
+                                     document.getElementById('posBarcodeSearch') || 
+                                     document.getElementById('productSearch') ||
+                                     document.querySelector('.barcode-input') ||
+                                     document.querySelector('#productSearchInput') ||
+                                     document.getElementById('purchaseSearch') ||
+                                     document.getElementById('returnSearchInput');
+                if (barcodeInput && !barcodeInput.disabled && !barcodeInput.readOnly) {
+                    try {
+                        barcodeInput.focus();
+                        if (typeof barcodeInput.select === 'function') barcodeInput.select();
+                    } catch (e) {}
+                }
+            }, 50);
+        }
+        window.restorePosFocusAfterModal = restorePosFocusAfterModal;
+
         function closeCustomAlert() {
             if (activeAlertTimeout) {
                 clearTimeout(activeAlertTimeout);
@@ -3686,6 +3708,7 @@
             if (modal) {
                 modal.classList.add('hidden');
                 modal.style.display = 'none';
+                modal.style.pointerEvents = 'none';
                 const card = modal.querySelector('.alert-card');
                 if (card) {
                     card.style.width = '400px';
@@ -3695,13 +3718,10 @@
                 const icon = document.getElementById('alertIcon');
                 if (icon) icon.style.display = 'block';
             }
-            const activeSec = document.querySelector('.section-view:not(.hidden)');
-            if (activeSec && activeSec.id === 'sales-section') {
-                const ps = document.getElementById('productSearch');
-                if (ps) setTimeout(() => { try { ps.focus(); } catch (e) {} }, 60);
-            }
+            restorePosFocusAfterModal();
         }
         window.closeCustomAlert = closeCustomAlert;
+        window.closeAlertModal = closeCustomAlert;
 
         function contactDeveloper() {
             let modal = document.getElementById('bayanHelpModal');

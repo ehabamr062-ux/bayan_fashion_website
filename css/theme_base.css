@@ -1,6 +1,21 @@
 
 .hidden { display: none !important; }
 
+/* 🛡️ عزل تام لطبقات المودال المحجوبة ومنع اعتراض مؤشر الماوس */
+.modal-overlay.hidden,
+.modal-backdrop.hidden,
+.confirm-modal-overlay.hidden,
+#alertModal.hidden,
+#confirmModal.hidden,
+#customPromptModal.hidden,
+#detailsOverlay.hidden {
+    display: none !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+    z-index: -1 !important;
+    opacity: 0 !important;
+}
+
 /* 🔒 منع التحديد بالماوس في كامل واجهة البرنامج لتجربة تطبيق سطح مكتب وكاشير احترافية */
 *, *::before, *::after {
     user-select: none !important;

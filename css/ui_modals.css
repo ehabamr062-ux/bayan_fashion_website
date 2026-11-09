@@ -648,6 +648,20 @@
             z-index: 20000;
         }
 
+        .modal-overlay.hidden,
+        .modal-backdrop.hidden,
+        .confirm-modal-overlay.hidden,
+        #alertModal.hidden,
+        #confirmModal.hidden,
+        #customPromptModal.hidden,
+        #detailsOverlay.hidden {
+            display: none !important;
+            pointer-events: none !important;
+            visibility: hidden !important;
+            z-index: -1 !important;
+            opacity: 0 !important;
+        }
+
         #alertModal, #confirmModal, #customPromptModal {
             z-index: 2147483647 !important;
         }

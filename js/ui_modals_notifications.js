@@ -3911,3 +3911,33 @@
         }
 
         let loginClockInterval = null;
+
+        // =========================================================================
+        // 🎯 إغلاق نوافذ التنبيه واستعادة الفوكس والتحكم بالماوس فورياً
+        // =========================================================================
+        function closeAlertModal() {
+            if (typeof window.closeCustomAlert === 'function') {
+                window.closeCustomAlert();
+                return;
+            }
+            const modal = document.getElementById('alertModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.style.display = 'none';
+                modal.style.pointerEvents = 'none';
+            }
+            setTimeout(() => {
+                const barcodeInput = document.getElementById('barcodeInput') || 
+                                     document.getElementById('posBarcodeSearch') || 
+                                     document.getElementById('productSearch') ||
+                                     document.querySelector('.barcode-input') ||
+                                     document.querySelector('#productSearchInput');
+                if (barcodeInput && !barcodeInput.disabled && !barcodeInput.readOnly) {
+                    try {
+                        barcodeInput.focus();
+                        if (typeof barcodeInput.select === 'function') barcodeInput.select();
+                    } catch (e) {}
+                }
+            }, 50);
+        }
+        window.closeAlertModal = closeAlertModal;
