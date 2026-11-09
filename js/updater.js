@@ -372,7 +372,96 @@
     };
 
     // =========================================================================
-    // إجراءات زر التحديث والإغلاق
+    // 🛡️ درع الأمان: نظام النسخ الاحتياطي الإجباري المزدوج قبل أي تحديث في إلكترون
+    // (Mandatory Pre-Update Dual-Backup Shield)
+    // =========================================================================
+    async function executeDualPreUpdateBackupShield(buttonEl) {
+        const lbl = document.getElementById('upd-lbl');
+        const speedEl = document.getElementById('upd-speed');
+        const prog = document.getElementById('upd-prog');
+
+        if (prog) prog.classList.add('vis');
+        if (lbl) {
+            lbl.textContent = '🛡️ تأمين البيانات قبل التحديث...';
+            lbl.style.color = '#38bdf8';
+        }
+        if (speedEl) {
+            speedEl.innerHTML = `<span style="color:#38bdf8; font-weight:800;">جاري تأمين بياناتك وإنشاء نسختين احتياطيتين على سطح المكتب والنظام قبل التحديث... برجاء الانتظار.</span>`;
+        }
+        if (buttonEl) {
+            buttonEl.disabled = true;
+            buttonEl.textContent = '🛡️ جاري تأمين البيانات...';
+        }
+
+        if (typeof showToast === 'function') {
+            showToast('جاري تأمين بياناتك وإنشاء نسختين احتياطيتين على سطح المكتب والنظام قبل التحديث... برجاء الانتظار.', 'info');
+        }
+
+        if (ipcRenderer) {
+            try {
+                const res = await ipcRenderer.invoke('create-pre-update-dual-backup');
+                if (!res || !res.success) {
+                    throw new Error(res && res.error ? res.error : 'فشل مجهول أثناء إنشاء النسخ الاحتياطية');
+                }
+                console.log('[Updater] 🛡️ Dual pre-update backup created and verified:', res);
+            } catch (err) {
+                console.error('[Updater] ❌ Pre-update mandatory backup failed:', err);
+
+                // صمام الأمان (Fail-Safe): إيقاف عملية التحديث فوراً وعدم إغلاق البرنامج
+                if (buttonEl) {
+                    buttonEl.disabled = false;
+                    buttonEl.textContent = '🔄 إعادة المحاولة';
+                }
+                if (lbl) {
+                    lbl.textContent = '⚠️ فشل النسخ الاحتياطي - تم إلغاء التحديث';
+                    lbl.style.color = '#ef4444';
+                }
+                if (speedEl) {
+                    speedEl.innerHTML = `<span style="color:#ef4444; font-weight:800;">فشل إنشاء النسخة الاحتياطية! تم إلغاء التحديث لحماية بياناتك من الفقد.</span>`;
+                }
+
+                const alertMsg = 'فشل إنشاء النسخة الاحتياطية! تم إلغاء التحديث لحماية بياناتك من الفقد.\n' + (err.message || '');
+                if (typeof showCustomAlert === 'function') {
+                    showCustomAlert({
+                        titleText: '⚠️ إلغاء التحديث لحماية البيانات',
+                        msg: alertMsg,
+                        type: 'error'
+                    });
+                } else if (typeof showToast === 'function') {
+                    showToast('فشل إنشاء النسخة الاحتياطية! تم إلغاء التحديث لحماية بياناتك من الفقد.', 'error');
+                } else {
+                    alert(alertMsg);
+                }
+                return false;
+            }
+        } else {
+            // Web Fallback
+            try {
+                if (typeof window.executeAutoBackupToFile === 'function') {
+                    await window.executeAutoBackupToFile(true, false);
+                }
+            } catch (e) {
+                console.warn('[Updater] Web backup warning:', e);
+            }
+        }
+
+        // إذا نجح النسخ: إظهار إشعار سريع
+        if (lbl) {
+            lbl.textContent = '✅ تم تأمين بياناتك بنجاح بنسختين';
+            lbl.style.color = '#34d399';
+        }
+        if (speedEl) {
+            speedEl.innerHTML = `<span style="color:#34d399; font-weight:800;">تم تأمين بياناتك بنجاح بنسختين. جاري التحديث الآن...</span>`;
+        }
+        if (typeof showToast === 'function') {
+            showToast('تم تأمين بياناتك بنجاح بنسختين. جاري التحديث الآن...', 'success');
+        }
+
+        // مهلة بصرية قصيرة جداً ليرى المستخدم إشعار التأكيد الأخضر
+        await new Promise(r => setTimeout(r, 600));
+        return true;
+    }
+
     // =========================================================================
     // إجراءات زر التحديث والإغلاق
     // =========================================================================
@@ -380,12 +469,19 @@
 
     window.__bayanUpdDownload = async function () {
         if (state.isDownloading) return;
-        state.isDownloading = true;
-        console.log('[Updater] Download started by user interaction.');
 
         const btnNow   = document.getElementById('upd-btn-now');
         const btnLater = document.getElementById('upd-btn-later');
         const prog     = document.getElementById('upd-prog');
+
+        // 🛡️ درع الأمان الإجباري: التحقق من إنشاء النسخ المزدوجة أولاً قبل التحديث
+        const backupOk = await executeDualPreUpdateBackupShield(btnNow);
+        if (!backupOk) {
+            return; // إلغاء التحديث فوراً
+        }
+
+        state.isDownloading = true;
+        console.log('[Updater] Download started by user interaction.');
 
         if (btnNow)   { btnNow.disabled = true; btnNow.textContent = '⏳ جاري بدء التحميل بالخلفية...'; }
         if (btnLater) {
@@ -464,10 +560,17 @@
 
     window.__bayanUpdInstall = async function () {
         console.log('[Updater] User clicked Restart and Install update.');
-        const btnSuccess = document.querySelector('.upd-btn-success');
+        const btnSuccess = document.querySelector('.upd-btn-success') || document.getElementById('upd-btn-now');
+
+        // 🛡️ درع الأمان الإجباري: منع الإغلاق والتحقق من النسخ المزدوج فوراً
+        const backupOk = await executeDualPreUpdateBackupShield(btnSuccess);
+        if (!backupOk) {
+            return; // إلغاء التحديث فوراً وعدم إغلاق البرنامج
+        }
+
         if (btnSuccess) {
             btnSuccess.disabled = true;
-            btnSuccess.textContent = '🔄 جاري إنشاء نسخة احتياطية إجبارية وتجهيز التثبيت...';
+            btnSuccess.textContent = '🔄 جاري التثبيت وإعادة التشغيل...';
         }
 
         // إنشاء نسخة احتياطية شاملة وفورية لكافة البيانات قبل إغلاق وتحديث البرنامج
@@ -482,10 +585,23 @@
 
         if (ipcRenderer) {
             try {
-                await ipcRenderer.invoke('quit-and-install-update');
+                const installRes = await ipcRenderer.invoke('quit-and-install-update');
+                if (installRes && installRes.success === false) {
+                    throw new Error(installRes.error || 'فشل أمر تثبيت التحديث');
+                }
                 return;
             } catch (e) {
                 console.error('[Updater] Install update failed:', e);
+                if (btnSuccess) {
+                    btnSuccess.disabled = false;
+                    btnSuccess.textContent = '🔄 إعادة المحاولة';
+                }
+                const errMsg = 'تعذر إغلاق وتثبيت التحديث: ' + (e.message || e);
+                if (typeof showCustomAlert === 'function') {
+                    showCustomAlert({ titleText: '⚠️ تعذر تثبيت التحديث', msg: errMsg, type: 'error' });
+                } else if (typeof showToast === 'function') {
+                    showToast(errMsg, 'error');
+                }
             }
         }
     };
@@ -823,6 +939,22 @@
                 acts.innerHTML = `
                     <button class="upd-btn upd-btn-success" onclick="window.__bayanUpdInstall()">🔄 إعادة التشغيل والتثبيت الآن</button>
                     <button class="upd-btn upd-btn-secondary" onclick="window.__bayanUpdLater()">لاحقًا</button>`;
+            }
+        });
+
+        ipcRenderer.on('pre-update-backup-failed', (_e, errorMsg) => {
+            console.error('[Updater] Backend pre-update backup failed:', errorMsg);
+            const alertMsg = 'فشل إنشاء النسخة الاحتياطية! تم إلغاء التحديث لحماية بياناتك من الفقد.\n' + (errorMsg || '');
+            if (typeof showCustomAlert === 'function') {
+                showCustomAlert({
+                    titleText: '⚠️ إلغاء التحديث لحماية البيانات',
+                    msg: alertMsg,
+                    type: 'error'
+                });
+            } else if (typeof showToast === 'function') {
+                showToast('فشل إنشاء النسخة الاحتياطية! تم إلغاء التحديث لحماية بياناتك من الفقد.', 'error');
+            } else {
+                alert(alertMsg);
             }
         });
     }

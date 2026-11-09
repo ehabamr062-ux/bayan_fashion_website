@@ -1448,9 +1448,131 @@ try {
         }
     });
 
+    autoUpdater.on('before-quit-for-update', () => {
+        console.log('[Updater] 🛡️ before-quit-for-update event fired: Enforcing mandatory dual pre-update backup shield...');
+        try {
+            createPreUpdateDualBackup();
+        } catch (e) {
+            console.error('[Updater] before-quit-for-update backup error:', e);
+        }
+    });
+
 } catch (e) {
     console.warn('[Updater] electron-updater not loaded:', e.message);
 }
+
+// =========================================================================
+// 🛡️ درع الأمان: نظام النسخ الاحتياطي الإجباري المزدوج قبل أي تحديث في إلكترون
+// (Mandatory Pre-Update Dual-Backup Shield)
+// =========================================================================
+async function createPreUpdateDualBackup() {
+    try {
+        console.log('[Pre-Update Shield] 🛡️ Starting mandatory dual pre-update backup...');
+        const os = require('os');
+
+        // أ) تحديد مسار ملف قاعدة البيانات الفعلي المستخدم في إلكترون
+        const candidateDbPaths = [
+            path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db'),
+            path.join(app.getPath('userData'), 'bayan_pos.db'),
+            path.join(process.cwd(), 'bayan_pos.db')
+        ];
+        let dbPath = candidateDbPaths.find(p => fs.existsSync(p));
+
+        if (!dbPath) {
+            throw new Error('لم يتم العثور على ملف قاعدة بيانات SQLite الرئيسي (.bayan_pos/bayan_pos.db) لتأمينه!');
+        }
+
+        // تفريغ سجلات WAL لضمان اكتمال كافة العمليات داخل الملف الرئيسي قبل نسخه
+        if (betterSqlite3) {
+            try {
+                const dbInstance = new betterSqlite3(dbPath, { timeout: 5000 });
+                dbInstance.pragma('wal_checkpoint(TRUNCATE)');
+                dbInstance.close();
+                console.log('[Pre-Update Shield] ✅ WAL checkpoint completed.');
+            } catch (walErr) {
+                console.warn('[Pre-Update Shield] WAL checkpoint notice (continuing):', walErr.message);
+            }
+        }
+
+        // ب) تحديد المسار الأول (سطح المكتب): مجلد نسخ_احتياطية_بيان_POS
+        const desktopDir = path.join(app.getPath('desktop'), 'نسخ_احتياطية_بيان_POS');
+        if (!fs.existsSync(desktopDir)) {
+            fs.mkdirSync(desktopDir, { recursive: true });
+        }
+
+        // ج) تحديد المسار الثاني (مجلد النظام المحمي في userData): مجلد pre_update_backups
+        const sysBackupDir = path.join(app.getPath('userData'), 'pre_update_backups');
+        if (!fs.existsSync(sysBackupDir)) {
+            fs.mkdirSync(sysBackupDir, { recursive: true });
+        }
+
+        // د) توليد اسم الملف بالطابع الزمني الدقيق
+        const fileName = `نسخة_أمان_قبل_تحديث_${new Date().toISOString().slice(0, 10)}_${Date.now()}.db`;
+        const desktopPath = path.join(desktopDir, fileName);
+        const sysPath = path.join(sysBackupDir, fileName);
+
+        // هـ) نسخ قاعدة البيانات متزامناً إلى المسارين (سطح المكتب + مجلد النظام)
+        fs.copyFileSync(dbPath, desktopPath);
+        fs.copyFileSync(dbPath, sysPath);
+
+        // نسخ ملفات wal و shm المرافقة إن وُجدت لضمان تكامل قاعدة البيانات 100%
+        const walPath = dbPath + '-wal';
+        const shmPath = dbPath + '-shm';
+        if (fs.existsSync(walPath) && fs.statSync(walPath).size > 0) {
+            try {
+                fs.copyFileSync(walPath, desktopPath + '-wal');
+                fs.copyFileSync(walPath, sysPath + '-wal');
+            } catch (walCopyErr) {
+                console.warn('[Pre-Update Shield] WAL copy notice:', walCopyErr.message);
+            }
+        }
+        if (fs.existsSync(shmPath) && fs.statSync(shmPath).size > 0) {
+            try {
+                fs.copyFileSync(shmPath, desktopPath + '-shm');
+                fs.copyFileSync(shmPath, sysPath + '-shm');
+            } catch (shmCopyErr) {
+                console.warn('[Pre-Update Shield] SHM copy notice:', shmCopyErr.message);
+            }
+        }
+
+        // و) التحقق الصارم من سلامة النسخ (Strict Verification)
+        if (!fs.existsSync(desktopPath) || !fs.existsSync(sysPath)) {
+            throw new Error('فشل التحقق: ملفات النسخ الاحتياطي غير موجودة بعد محاولة النسخ.');
+        }
+
+        const deskSize = fs.statSync(desktopPath).size;
+        const sysSize = fs.statSync(sysPath).size;
+
+        if (deskSize === 0 || sysSize === 0) {
+            throw new Error(`فشل التحقق: ملف النسخة الاحتياطية فارغ بحجم 0 بايت (سطح المكتب: ${deskSize} بايت، النظام: ${sysSize} بايت).`);
+        }
+
+        console.log(`[Pre-Update Shield] ✅ تم بنجاح إنشاء نسختين احتياطيتين سليمتين:\n  1️⃣ سطح المكتب: ${desktopPath} (${(deskSize / 1024).toFixed(1)} KB)\n  2️⃣ النظام الآمن: ${sysPath} (${(sysSize / 1024).toFixed(1)} KB)`);
+
+        return {
+            success: true,
+            desktopPath,
+            sysPath,
+            size: deskSize,
+            fileName
+        };
+    } catch (err) {
+        console.error('[Pre-Update Shield Error] ❌ Mandatory backup failed:', err);
+        return {
+            success: false,
+            error: err.message || String(err)
+        };
+    }
+}
+
+try { ipcMain.removeHandler('create-pre-update-dual-backup'); } catch (e) { }
+ipcMain.handle('create-pre-update-dual-backup', async () => {
+    const result = await createPreUpdateDualBackup();
+    if (!result.success) {
+        throw new Error(result.error || 'فشل غير معروف في إنشاء النسخة الاحتياطية المزدوجة');
+    }
+    return result;
+});
 
 ipcMain.handle('get-auto-updates-policy', () => {
     return { frozen: isAutoUpdatesFrozenOnDisk() };
@@ -1502,17 +1624,29 @@ ipcMain.handle('start-download-update', async () => {
     }
 });
 
-ipcMain.handle('quit-and-install-update', () => {
+ipcMain.handle('quit-and-install-update', async () => {
     console.log('[Updater] quit-and-install-update requested via IPC.');
     if (autoUpdater) {
-        if (mainWindow) {
+        // 🛡️ صمام أمان إجباري قبل الإغلاق: التأكد من إتمام النسخ المزدوج أولاً
+        const backupRes = await createPreUpdateDualBackup();
+        if (!backupRes || !backupRes.success) {
+            console.error('[Updater] ⛔ Update aborted! Pre-update backup failed:', backupRes ? backupRes.error : 'Unknown');
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('pre-update-backup-failed', backupRes ? backupRes.error : 'فشل النسخ الاحتياطي');
+            }
+            return { success: false, error: backupRes ? backupRes.error : 'فشل إنشاء النسخة الاحتياطية! تم إلغاء التحديث لحماية بياناتك من الفقد.' };
+        }
+
+        if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('trigger-auto-backup-before-update');
         }
         setTimeout(() => {
             isQuitting = true;
             autoUpdater.quitAndInstall(false, true);
         }, 800);
+        return { success: true };
     }
+    return { success: false, error: 'AutoUpdater not ready' };
 });
 
 try { ipcMain.removeHandler('get-app-version'); } catch (e) { }
