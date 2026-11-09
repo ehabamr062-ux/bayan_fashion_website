@@ -811,6 +811,8 @@ if (getStore('bayan_inventory_categories')) {
 // 🧹 منظومة التطهير التلقائي الذكية للحسابات التجريبية (Demo Accounts Auto-Purge)
 // =========================================================================
 const DEMO_PARTNER_BASE_NAMES = [
+    'عميل نقدي',
+    'مورد عام',
     'أحمد محمود الشناوي',
     'محمد عبد الله خليل',
     'إسلام فتحي حسن',
@@ -851,15 +853,20 @@ window.isDemoAccount = function (rawName, rawCode = '') {
     const cName = cleanAr(rawName);
     const cCode = String(rawCode || '').trim().toUpperCase();
 
-    // 1. فحص كود الحساب A0001 - A0055 أو A001 - A055
-    const codeMatch = cCode.match(/^A0*([1-9]|[1-4][0-9]|5[0-5])$/);
+    // استثناء صريح للحساب الافتراضي "عميل نقدي" أو "عميل نقدي عام" بدون ترقيم إذا لم يكن يحمل كوداً تجريبياً
+    if ((cName === cleanAr('عميل نقدي') || cName === cleanAr('عميل نقدي عام')) && !cCode.startsWith('A0')) {
+        return false;
+    }
+
+    // 1. فحص كود الحساب A0001 - A0999 أو A001 - A099 أو A01 - A09
+    const codeMatch = cCode.match(/^A0*([1-9][0-9]{0,2})$/);
     const isDemoCode = Boolean(codeMatch);
 
-    // 2. فحص الرقم المتسلسل (#1) إلى (#55) في نهاية الاسم
+    // 2. فحص الرقم المتسلسل (#1) إلى (#999) في نهاية الاسم
     const hashMatch = rawName.match(/[\(（]#?(\d+)[\)）]$/);
     if (hashMatch) {
         const num = parseInt(hashMatch[1], 10);
-        if (num >= 1 && num <= 55) {
+        if (num >= 1 && num <= 999) {
             const baseOnly = cleanAr(rawName.replace(/[\(（]#?\d+[\)）]$/, ''));
             const matchesBase = DEMO_PARTNER_BASE_NAMES.some(b => {
                 const cb = cleanAr(b);
@@ -869,18 +876,22 @@ window.isDemoAccount = function (rawName, rawCode = '') {
         }
     }
 
-    // 3. إذا كان الكود A0001 - A0055 والاسم يحتوي على أي من الأسماء التجريبية
+    // 3. إذا كان الكود A0001 - A0999 والاسم يحتوي على أي من الأسماء التجريبية
     if (isDemoCode) {
         if (DEMO_PARTNER_BASE_NAMES.some(b => cleanAr(b) === cName || cName.includes(cleanAr(b)))) {
             return true;
         }
+        return true;
     }
 
     // 4. مطابقة صريحة للأسماء التجريبية مع الترقيم
-    for (let i = 1; i <= 55; i++) {
-        for (const b of DEMO_PARTNER_BASE_NAMES) {
-            if (cName === cleanAr(`${b} (#${i})`) || cName === cleanAr(`${b} (${i})`)) {
-                return true;
+    if (hashMatch) {
+        const num = parseInt(hashMatch[1], 10);
+        if (num >= 1 && num <= 999) {
+            for (const b of DEMO_PARTNER_BASE_NAMES) {
+                if (cName === cleanAr(`${b} (#${num})`) || cName === cleanAr(`${b} (${num})`)) {
+                    return true;
+                }
             }
         }
     }

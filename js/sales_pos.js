@@ -29,12 +29,22 @@ function handleGeneralAccountSearch(query, inputId, resultsId) {
 
     }
 
-    // البحث بالاسم أو الكود بحد أقصى 30 نتيجة لمنع تضخم الـ DOM
-    const queryLower = query.toLowerCase();
-    const matchedAccounts = accounts.filter(a => (a.name && a.name.toLowerCase().includes(queryLower)) || (a.code && a.code.toString().includes(query))).slice(0, 30);
+    // البحث بالاسم أو الكود بحد أقصى 30 نتيجة لمنع تضخم الـ DOM واستبعاد المحذوف أو التجريبي
+    const accList = (typeof accounts !== 'undefined' && Array.isArray(accounts))
+        ? accounts
+        : ((window.accounts && Array.isArray(window.accounts)) ? window.accounts : []);
 
-    // إذا تم كتابة اسم حساب مطابق تماماً، يتم حديث الرصيد فوراً
-    const exactMatch = accounts.find(a => a.name.trim().toLowerCase() === query.trim().toLowerCase());
+    const queryLower = query.toLowerCase();
+    const matchedAccounts = accList.filter(a => {
+        if (!a || !a.name) return false;
+        if (a.isDeleted || a.deleted || a.status === 'deleted') return false;
+        if (typeof window.isDemoAccount === 'function' && window.isDemoAccount(a.name, a.code)) return false;
+        const qLower = queryLower;
+        return (a.name && a.name.toLowerCase().includes(qLower)) || (a.code && a.code.toString().includes(query));
+    }).slice(0, 30);
+
+    // إذا تم كتابة اسم حساب مطابق تماماً، يتم تحديث الرصيد فوراً
+    const exactMatch = accList.find(a => a && a.name && !a.isDeleted && !a.deleted && a.status !== 'deleted' && (typeof window.isDemoAccount !== 'function' || !window.isDemoAccount(a.name, a.code)) && a.name.trim().toLowerCase() === query.trim().toLowerCase());
     if (exactMatch && (inputId === 'receiptCustomer' || inputId === 'disbursePayee')) {
         const bal = typeof getAccountBalance === 'function' ? getAccountBalance(exactMatch.name) : (exactMatch.balance || 0);
         let formattedBal = '0.00 ج.م (خالص)';
