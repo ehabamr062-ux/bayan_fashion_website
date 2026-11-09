@@ -2330,9 +2330,8 @@ document.addEventListener('keydown', (e) => {
     }
 
     // 🛡️ صمام أمان حاسم: منع خطف التركيز نهائياً إذا كانت هناك أي نافذة منبثقة أو مربع حوار مفتوح
-    const hasActiveModal = !!document.querySelector(
-        '.confirm-modal-overlay:not(.hidden), .modal-overlay:not(.hidden), .calc-modal.visible, #customPromptModal:not(.hidden), #alertModal:not(.hidden), #confirmModal:not(.hidden), #bayanFastInquiryModal[style*="display: flex"], #userFormCard:not(.hidden)'
-    );
+    const modalSel = '.confirm-modal-overlay, .modal-overlay, .calc-modal.visible, #customPromptModal, #alertModal, #confirmModal, #bayanFastInquiryModal, #userFormCard, #customViewModalOverlay, #financialVoucherModalOverlay, #notifyModal, #unitSelectionModal, #bayanVariantPickerOverlay';
+    const hasActiveModal = Array.from(document.querySelectorAll(modalSel)).some(el => el && !el.classList.contains('hidden') && el.offsetParent !== null);
     if (hasActiveModal) return;
 
     // التأكد من أن المستخدم ليس في صفحة الإعدادات أو التقارير
@@ -2367,17 +2366,24 @@ document.addEventListener('keydown', (e) => {
     // ميزة الحذف السريع بـ Delete لصنف الفاتورة الأخير
 
     if (!isInput && e.key === 'Delete' && activeTabId === 'sales') {
-
         if (cart.length > 0) {
-
-            if (confirm(`🗑️ هل تريد حذف ( ${cart[cart.length - 1].name} ) من الفاتورة؟`)) {
-
+            const itemToDelete = cart[cart.length - 1];
+            if (typeof showCustomAlert === 'function') {
+                showCustomAlert({
+                    type: 'question',
+                    titleText: 'تأكيد حذف الصنف',
+                    msg: `هل تريد حذف ( <b>${typeof escapeHtml === 'function' ? escapeHtml(itemToDelete.name) : itemToDelete.name}</b> ) من الفاتورة؟`,
+                    confirmText: 'نعم، حذف',
+                    cancelText: 'تراجع',
+                    showCancel: true,
+                    onConfirm: () => {
+                        removeFromCart(cart.length - 1);
+                    }
+                });
+            } else if (confirm(`🗑️ هل تريد حذف ( ${itemToDelete.name} ) من الفاتورة؟`)) {
                 removeFromCart(cart.length - 1);
-
             }
-
         }
-
     }
 
 });

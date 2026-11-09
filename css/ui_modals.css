@@ -651,10 +651,18 @@
         .modal-overlay.hidden,
         .modal-backdrop.hidden,
         .confirm-modal-overlay.hidden,
+        .bp-modal-overlay.hidden,
         #alertModal.hidden,
         #confirmModal.hidden,
         #customPromptModal.hidden,
-        #detailsOverlay.hidden {
+        #detailsOverlay.hidden,
+        #customViewModalOverlay.hidden,
+        #financialVoucherModalOverlay.hidden,
+        #unitSelectionModal.hidden,
+        #bayanVariantPickerOverlay.hidden,
+        #priceAdjustmentModal.hidden,
+        #transferModal.hidden,
+        #userFormCard.hidden {
             display: none !important;
             pointer-events: none !important;
             visibility: hidden !important;

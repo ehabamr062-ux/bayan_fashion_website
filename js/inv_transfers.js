@@ -1990,9 +1990,12 @@ window.processBatchTransfer = async function () {
                     if (sUrl || window.location.protocol.startsWith('http')) {
                         try {
                             const ep = sUrl ? `${sUrl}/api/transfers/create` : '/api/transfers/create';
+                            const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+                            const toId = ctrl ? setTimeout(() => ctrl.abort(), 3000) : null;
                             fetch(ep, {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
+                                signal: ctrl ? ctrl.signal : undefined,
                                 body: JSON.stringify({
                                     id: transId,
                                     invoiceId: transId,
@@ -2007,7 +2010,7 @@ window.processBatchTransfer = async function () {
                                     totalValue: totalTransferValue,
                                     user: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.name : '-'
                                 })
-                            }).catch(() => { });
+                            }).then(() => { if (toId) clearTimeout(toId); }).catch(() => { });
                         } catch (e) { }
                     }
 
@@ -2684,11 +2687,14 @@ window.acceptTransferFromNotify = async function (invId) {
         // إشعار السيرفر المحلي
         if (window.BayanNetworkHub && window.BayanNetworkHub.serverUrl) {
             try {
+                const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+                const toId = ctrl ? setTimeout(() => ctrl.abort(), 3000) : null;
                 fetch(`${window.BayanNetworkHub.serverUrl}/api/transfers/accept`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    signal: ctrl ? ctrl.signal : undefined,
                     body: JSON.stringify({ transferId: invId, receiverName: receiverUser })
-                }).catch(() => { });
+                }).then(() => { if (toId) clearTimeout(toId); }).catch(() => { });
             } catch (e) { }
         }
 
@@ -2859,11 +2865,14 @@ window.rejectTransferFromNotify = async function (invId) {
     if (sUrl || window.location.protocol.startsWith('http')) {
         try {
             const ep = sUrl ? `${sUrl}/api/transfers/reject` : '/api/transfers/reject';
+            const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+            const toId = ctrl ? setTimeout(() => ctrl.abort(), 3000) : null;
             fetch(ep, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                signal: ctrl ? ctrl.signal : undefined,
                 body: JSON.stringify({ transferId: invId, rejectorName: rejectorUser })
-            }).catch(() => { });
+            }).then(() => { if (toId) clearTimeout(toId); }).catch(() => { });
         } catch (e) { }
     }
 

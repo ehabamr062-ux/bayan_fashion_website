@@ -68,7 +68,7 @@
         },
 
         // 🛡️ دالة اتصال آمنة وذكية مزودة بـ AbortController ومهلة زمنية لمنع تجميد أو رمي أخطاء حمراء بالكونسول
-        _safeFetch: async function (url, options = {}, timeoutMs = 8000) {
+        _safeFetch: async function (url, options = {}, timeoutMs = 3000) {
             if (!navigator.onLine) {
                 return {
                     ok: false,
@@ -191,44 +191,86 @@
                 navigator.clipboard.writeText(id).then(() => {
                     if (typeof showToast === 'function') {
                         showToast(`📋 تم نسخ كود المحل السحابي (${id}) بنجاح!`, 'success');
+                    } else if (typeof showCustomAlert === 'function') {
+                        showCustomAlert({ title: 'نسخ كود المحل', message: `📋 تم نسخ كود المحل السحابي:\n${id}` });
                     } else {
                         alert(`📋 تم نسخ كود المحل السحابي:\n${id}`);
                     }
                 }).catch(() => {
-                    prompt('انسخ كود المحل السحابي الخاص بهذا الجهاز:', id);
+                    if (typeof showCustomPrompt === 'function') {
+                        showCustomPrompt({ title: 'كود المحل السحابي', message: 'انسخ كود المحل السحابي الخاص بهذا الجهاز:', defaultValue: id });
+                    } else {
+                        prompt('انسخ كود المحل السحابي الخاص بهذا الجهاز:', id);
+                    }
                 });
             } else {
-                prompt('انسخ كود المحل السحابي الخاص بهذا الجهاز:', id);
+                if (typeof showCustomPrompt === 'function') {
+                    showCustomPrompt({ title: 'كود المحل السحابي', message: 'انسخ كود المحل السحابي الخاص بهذا الجهاز:', defaultValue: id });
+                } else {
+                    prompt('انسخ كود المحل السحابي الخاص بهذا الجهاز:', id);
+                }
             }
         },
 
         // 🔗 نافذة تفاعلية لإدخال كود محل وربط هذا الجهاز بجهاز رئيسي آخر فوراً
         promptLinkShopId: async function () {
             const current = this.getShopId();
-            const input = prompt(
-                `🔗 ربط هذا الجهاز بجهاز آخر كمرآة سحابية موحدة:\n\nأدخل كود المحل السحابي (Shop ID) الخاص بالجهاز الرئيسي:\n(يبدأ بـ SHOP_):`,
-                current
-            );
-            if (!input || !input.trim()) return;
-            const clean = input.trim();
-            if (clean === current) {
-                if (typeof showToast === 'function') showToast('ℹ️ هذا الجهاز مرتبط بالفعل بهذا الكود.', 'info');
-                return;
-            }
-            if (clean.length < 5) {
-                alert('⚠️ كود المحل غير صالح. يرجى التأكد من كتابة الكود بشكل صحيح.');
-                return;
-            }
-            const confirmed = confirm(
-                `هل أنت متأكد من ربط هذا الجهاز بكود المحل (${clean})؟\n\nسيتم توحيد قاعدة البيانات السحابية وسحب كافة أصناف وحسابات وفواتير المحل المرتبط فوراً.`
-            );
-            if (!confirmed) return;
+            const self = this;
+            const handleInput = async (input) => {
+                if (!input || !input.trim()) return;
+                const clean = input.trim();
+                if (clean === current) {
+                    if (typeof showToast === 'function') showToast('ℹ️ هذا الجهاز مرتبط بالفعل بهذا الكود.', 'info');
+                    return;
+                }
+                if (clean.length < 5) {
+                    if (typeof showCustomAlert === 'function') {
+                        showCustomAlert({ title: 'تنبيه', message: '⚠️ كود المحل غير صالح. يرجى التأكد من كتابة الكود بشكل صحيح.' });
+                    } else {
+                        alert('⚠️ كود المحل غير صالح. يرجى التأكد من كتابة الكود بشكل صحيح.');
+                    }
+                    return;
+                }
+                const doLink = async () => {
+                    self.setShopId(clean);
+                    if (typeof showToast === 'function') {
+                        showToast(`🔗 تم ربط الجهاز بكود المحل (${clean}) بنجاح! جاري سحب البيانات كمرآة سحابية...`, 'success', 6000);
+                    }
+                    await self.runFullSync(true);
+                };
 
-            this.setShopId(clean);
-            if (typeof showToast === 'function') {
-                showToast(`🔗 تم ربط الجهاز بكود المحل (${clean}) بنجاح! جاري سحب البيانات كمرآة سحابية...`, 'success', 6000);
+                if (typeof showCustomAlert === 'function') {
+                    showCustomAlert({
+                        title: 'تأكيد الربط السحابي',
+                        message: `هل أنت متأكد من ربط هذا الجهاز بكود المحل (${clean})؟\n\nسيتم توحيد قاعدة البيانات السحابية وسحب كافة أصناف وحسابات وفواتير المحل المرتبط فوراً.`,
+                        type: 'question',
+                        showCancel: true,
+                        confirmText: 'نعم، اربط الآن',
+                        cancelText: 'إلغاء',
+                        onConfirm: doLink
+                    });
+                } else {
+                    const confirmed = confirm(
+                        `هل أنت متأكد من ربط هذا الجهاز بكود المحل (${clean})؟\n\nسيتم توحيد قاعدة البيانات السحابية وسحب كافة أصناف وحسابات وفواتير المحل المرتبط فوراً.`
+                    );
+                    if (confirmed) await doLink();
+                }
+            };
+
+            if (typeof showCustomPrompt === 'function') {
+                showCustomPrompt({
+                    title: 'ربط الجهاز سحابياً',
+                    message: `🔗 ربط هذا الجهاز بجهاز آخر كمرآة سحابية موحدة:\n\nأدخل كود المحل السحابي (Shop ID) الخاص بالجهاز الرئيسي:\n(يبدأ بـ SHOP_):`,
+                    defaultValue: current,
+                    onConfirm: handleInput
+                });
+            } else {
+                const input = prompt(
+                    `🔗 ربط هذا الجهاز بجهاز آخر كمرآة سحابية موحدة:\n\nأدخل كود المحل السحابي (Shop ID) الخاص بالجهاز الرئيسي:\n(يبدأ بـ SHOP_):`,
+                    current
+                );
+                await handleInput(input);
             }
-            await this.runFullSync(true);
         },
 
         // 🔐 استرجاع أو توليد رمز الاقتران PIN الفريد لهذا المحل (منع الـ 2026 الافتراضية وحفظه في SQLite)
@@ -1700,7 +1742,9 @@
                     } else {
                         alertMsg += 'باقتك الحالية ترخيص محلي (أوفلاين). للترقية إلى باقات المزامنة السحابية وربط التابلت والفروع، تفضل بزيارة نافذة الاشتراكات.';
                     }
-                    if (typeof showToast === 'function') {
+                    if (typeof showCustomAlert === 'function') {
+                        showCustomAlert({ title: 'المزامنة السحابية', message: alertMsg });
+                    } else if (typeof showToast === 'function') {
                         showToast(alertMsg.replace(/\n\n/g, ' - '), 'warning');
                     } else {
                         alert(alertMsg);

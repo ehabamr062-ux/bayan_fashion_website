@@ -512,12 +512,13 @@
                     'newItemModal', 'newAccountModal', 'searchInvoiceModal',
                     'customAlertModal', 'bayanCustomModal', 'editInvoiceModal', 'unitManagerModal',
                     'drawerAuditClosingModal', 'transferOrderModal',
-                    'notifyModal', 'unitSelectionModal', 'customPromptModal'
+                    'notifyModal', 'unitSelectionModal', 'customPromptModal',
+                    'customViewModalOverlay', 'financialVoucherModalOverlay', 'bayanVariantPickerOverlay'
                 ];
                 openModalsToClose.forEach(mId => {
                     const mEl = document.getElementById(mId);
                     if (mEl) {
-                        if (mId === 'notifyModal') {
+                        if (['notifyModal', 'customViewModalOverlay', 'financialVoucherModalOverlay', 'bayanVariantPickerOverlay'].includes(mId)) {
                             try { mEl.remove(); } catch(e) {}
                         } else if (!mEl.classList.contains('hidden')) {
                             mEl.classList.add('hidden');
@@ -526,10 +527,12 @@
                         }
                     }
                 });
-                const orphanNotifyModal = document.getElementById('notifyModal');
-                if (orphanNotifyModal) {
-                    try { orphanNotifyModal.remove(); } catch(e) {}
-                }
+                ['notifyModal', 'customViewModalOverlay', 'financialVoucherModalOverlay', 'bayanVariantPickerOverlay'].forEach(dynId => {
+                    const dynEl = document.getElementById(dynId);
+                    if (dynEl) {
+                        try { dynEl.remove(); } catch(e) {}
+                    }
+                });
 
                 // إظهار أو إخفاء الشاشات الخاصة بنظام التبويبات (إدارة الأسعار وتحويل المخزون)
                 const pModal = document.getElementById('priceAdjustmentModal');

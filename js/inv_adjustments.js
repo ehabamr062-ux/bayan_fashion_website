@@ -1156,7 +1156,7 @@ function openPriceAdjustmentModal() {
             window._priceAdjUndoKeyAttached = true;
             document.addEventListener('keydown', (e) => {
                 const modal = document.getElementById('priceAdjustmentModal');
-                if (!modal || modal.classList.contains('hidden') || modal.style.display === 'none') return;
+                if (!modal || modal.classList.contains('hidden') || modal.offsetParent === null) return;
                 if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
                     const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
                     if (activeTag === 'input' || activeTag === 'textarea') return;

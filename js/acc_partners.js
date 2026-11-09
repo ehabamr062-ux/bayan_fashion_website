@@ -1119,17 +1119,22 @@
             const actualBal = typeof getAccountBalance === 'function' ? getAccountBalance(acc.name) : ((parseFloat(acc.debit) || 0) - (parseFloat(acc.credit) || 0));
             const bal = Math.abs(actualBal);
             if (bal > 0.01) {
-                if (typeof showToast === 'function') showToast(`⚠️ لا يمكن حذف الحساب "${acc.name}" لأنه يحتوي على رصيد قائم (${bal.toFixed(2)} ج.م)! يرجى تسوية الحساب أولاً.`, "warning");
-                else alert(`لا يمكن حذف الحساب "${acc.name}" لأنه يحتوي على رصيد قائم!`);
+                const msgErr = `⚠️ لا يمكن حذف الحساب "${acc.name}" لأنه يحتوي على رصيد قائم (${bal.toFixed(2)} ج.م)! يرجى تسوية الحساب أولاً.`;
+                if (typeof showCustomAlert === 'function') {
+                    showCustomAlert({
+                        type: 'error',
+                        titleText: 'رصيد قائم على الحساب',
+                        msg: msgErr
+                    });
+                } else if (typeof showToast === 'function') {
+                    showToast(msgErr, "warning");
+                } else {
+                    alert(msgErr);
+                }
                 return;
             }
 
-            if (confirm(`🚨 هل أنت متأكد من حذف الحساب "${acc.name}" ونقله لسلة المحذوفات؟`)) {
-                const hasTrans = transactions.some(t => t.partner === acc.name);
-                if (hasTrans) {
-                    if (!confirm("⚠️ هذا الحساب له حركات (فواتير/سندات) مسجلة. حذفه قد يؤدي لتضارب في التقارير. هل تريد الاستمرار؟")) return;
-                }
-
+            const executeAccountDelete = async () => {
                 if (typeof trashManager !== 'undefined' && trashManager.moveToTrash) {
                     await trashManager.moveToTrash(acc, 'account', `حساب: ${acc.name}`);
                 } else if (typeof addToTrash === 'function') {
@@ -1152,6 +1157,44 @@
                 selectedAccountID = null;
                 renderAccountsTable();
                 showToast("✅ تم نقل الحساب إلى سلة المحذوفات");
+                if (typeof window.forceElectronWebContentsFocus === 'function') {
+                    window.forceElectronWebContentsFocus();
+                }
+            };
+
+            const confirmFinalDelete = () => {
+                const hasTrans = transactions.some(t => t.partner === acc.name);
+                if (hasTrans) {
+                    if (typeof showCustomAlert === 'function') {
+                        showCustomAlert({
+                            type: 'warning',
+                            titleText: '⚠️ تنبيه: توجد معاملات مسجلة',
+                            msg: `هذا الحساب (${typeof escapeHtml === 'function' ? escapeHtml(acc.name) : acc.name}) له حركات (فواتير/سندات) مسجلة.<br>حذفه قد يؤدي لتضارب في كشوفات الحسابات والتقارير. هل تريد الاستمرار؟`,
+                            confirmText: 'نعم، استمر بالحذف',
+                            cancelText: 'تراجع وإلغاء',
+                            showCancel: true,
+                            onConfirm: executeAccountDelete
+                        });
+                    } else if (confirm("⚠️ هذا الحساب له حركات (فواتير/سندات) مسجلة. حذفه قد يؤدي لتضارب في التقارير. هل تريد الاستمرار؟")) {
+                        executeAccountDelete();
+                    }
+                } else {
+                    executeAccountDelete();
+                }
+            };
+
+            if (typeof showCustomAlert === 'function') {
+                showCustomAlert({
+                    type: 'question',
+                    titleText: 'تأكيد حذف الحساب',
+                    msg: `هل أنت متأكد من حذف الحساب <b>"${typeof escapeHtml === 'function' ? escapeHtml(acc.name) : acc.name}"</b> ونقله لسلة المحذوفات؟`,
+                    confirmText: 'نعم، حذف الحساب',
+                    cancelText: 'تراجع',
+                    showCancel: true,
+                    onConfirm: confirmFinalDelete
+                });
+            } else if (confirm(`🚨 هل أنت متأكد من حذف الحساب "${acc.name}" ونقله لسلة المحذوفات؟`)) {
+                confirmFinalDelete();
             }
         }
 

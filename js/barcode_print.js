@@ -872,7 +872,7 @@
         let valStr = null;
         if (typeof window.showCustomPrompt === 'function') {
             valStr = await window.showCustomPrompt("🏷️ أدخل عدد الملصقات الموحد لكافة الأصناف المجهزة للطباعة:", "1", "number");
-        } else {
+        } else if (typeof prompt === 'function') {
             valStr = prompt("🏷️ أدخل عدد الملصقات الموحد لكافة الأصناف المجهزة للطباعة:", "1");
         }
         if (!valStr) return;
@@ -933,6 +933,11 @@
                     bpQueue = [];
                     updateBpQueueUI();
                     if (typeof showToast === 'function') showToast("🗑️ تم تفريغ قائمة الطباعة بنجاح", "info");
+                    if (typeof window.forceElectronWebContentsFocus === 'function') {
+                        window.forceElectronWebContentsFocus();
+                    } else if (typeof restorePosFocusAfterModal === 'function') {
+                        restorePosFocusAfterModal();
+                    }
                 }
             });
         } else {
@@ -940,6 +945,11 @@
                 bpQueue = [];
                 updateBpQueueUI();
                 if (typeof showToast === 'function') showToast("🗑️ تم تفريغ قائمة الطباعة بنجاح", "info");
+                if (typeof window.forceElectronWebContentsFocus === 'function') {
+                    window.forceElectronWebContentsFocus();
+                } else if (typeof restorePosFocusAfterModal === 'function') {
+                    restorePosFocusAfterModal();
+                }
             }
         }
     }
@@ -1339,65 +1349,82 @@
             return;
         }
 
-        if (!confirm(`هل تريد إضافة كافة أصناف المخزن المتوفرة برصيد متاح (${prods.length} صنف بمقاساتهم) إلى قائمة طباعة الباركود؟`)) {
-            return;
-        }
-
-        const itemsToAdd = [];
-        let zeroSkipped = 0;
-        prods.forEach(p => {
-            if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
-                p.variants.forEach((v, idx) => {
-                    const vPrice = (v.price !== undefined && v.price !== null && v.price !== '') ? parseFloat(v.price) : (parseFloat(p.price) || 0);
-                    const vStock = getBpVariantStock(v);
-                    if (vStock <= 0) {
+        const doAddAll = () => {
+            const itemsToAdd = [];
+            let zeroSkipped = 0;
+            prods.forEach(p => {
+                if (p.variants && Array.isArray(p.variants) && p.variants.length > 0) {
+                    p.variants.forEach((v, idx) => {
+                        const vPrice = (v.price !== undefined && v.price !== null && v.price !== '') ? parseFloat(v.price) : (parseFloat(p.price) || 0);
+                        const vStock = getBpVariantStock(v);
+                        if (vStock <= 0) {
+                            zeroSkipped++;
+                            return;
+                        }
+                        const vBarcode = String(v.barcode || `${p.barcode || '1000'}-${idx + 1}`).trim();
+                        itemsToAdd.push({
+                            productId: p.id,
+                            name: p.name,
+                            variantId: idx,
+                            size: v.size || '',
+                            color: v.color || '',
+                            barcode: vBarcode,
+                            price: vPrice,
+                            stock: vStock,
+                            copies: vStock,
+                            isMaster: false
+                        });
+                    });
+                } else {
+                    const pStock = getBpProductStock(p);
+                    if (pStock <= 0) {
                         zeroSkipped++;
                         return;
                     }
-                    const vBarcode = String(v.barcode || `${p.barcode || '1000'}-${idx + 1}`).trim();
                     itemsToAdd.push({
                         productId: p.id,
                         name: p.name,
-                        variantId: idx,
-                        size: v.size || '',
-                        color: v.color || '',
-                        barcode: vBarcode,
-                        price: vPrice,
-                        stock: vStock,
-                        copies: vStock,
-                        isMaster: false
+                        variantId: null,
+                        size: p.size || '',
+                        color: p.color || '',
+                        barcode: String(p.barcode || p.code || generateFallbackBarcode()).trim(),
+                        price: parseFloat(p.price) || 0,
+                        stock: pStock,
+                        copies: pStock,
+                        isMaster: true
                     });
-                });
-            } else {
-                const pStock = getBpProductStock(p);
-                if (pStock <= 0) {
-                    zeroSkipped++;
-                    return;
                 }
-                itemsToAdd.push({
-                    productId: p.id,
-                    name: p.name,
-                    variantId: null,
-                    size: p.size || '',
-                    color: p.color || '',
-                    barcode: String(p.barcode || p.code || generateFallbackBarcode()).trim(),
-                    price: parseFloat(p.price) || 0,
-                    stock: pStock,
-                    copies: pStock,
-                    isMaster: true
-                });
+            });
+
+            if (itemsToAdd.length === 0) {
+                if (typeof showToast === 'function') showToast("⚠️ لا توجد أي أصناف أو مقاسات برصيد أكبر من صفر في المخزن!", "warning");
+                return;
             }
-        });
 
-        if (itemsToAdd.length === 0) {
-            if (typeof showToast === 'function') showToast("⚠️ لا توجد أي أصناف أو مقاسات برصيد أكبر من صفر في المخزن!", "warning");
-            return;
-        }
+            addBulkItemsToQueue(itemsToAdd);
+            if (typeof showToast === 'function') {
+                const skipNote = zeroSkipped > 0 ? ` (تم تخطي ${zeroSkipped} عنصر بدون رصيد)` : '';
+                showToast(`✅ تمت إضافة (${itemsToAdd.length}) ملصق للأصناف المتوفرة برصيد${skipNote}`, "success");
+            }
+            if (typeof window.forceElectronWebContentsFocus === 'function') {
+                window.forceElectronWebContentsFocus();
+            } else if (typeof restorePosFocusAfterModal === 'function') {
+                restorePosFocusAfterModal();
+            }
+        };
 
-        addBulkItemsToQueue(itemsToAdd);
-        if (typeof showToast === 'function') {
-            const skipNote = zeroSkipped > 0 ? ` (تم تخطي ${zeroSkipped} عنصر بدون رصيد)` : '';
-            showToast(`✅ تمت إضافة (${itemsToAdd.length}) ملصق للأصناف المتوفرة برصيد${skipNote}`, "success");
+        if (typeof showCustomAlert === 'function') {
+            showCustomAlert({
+                type: 'question',
+                titleText: 'طباعة باركود لكافة أصناف المخزن',
+                msg: `هل تريد إضافة كافة أصناف المخزن المتوفرة برصيد متاح (<b>${prods.length}</b> صنف بمقاساتهم) إلى قائمة طباعة الباركود؟`,
+                confirmText: 'نعم، إضافة الكل',
+                cancelText: 'تراجع',
+                showCancel: true,
+                onConfirm: doAddAll
+            });
+        } else if (confirm(`هل تريد إضافة كافة أصناف المخزن المتوفرة برصيد متاح (${prods.length} صنف بمقاساتهم) إلى قائمة طباعة الباركود؟`)) {
+            doAddAll();
         }
     }
 

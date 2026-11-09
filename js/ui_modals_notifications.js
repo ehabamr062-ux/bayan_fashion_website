@@ -1,134 +1,156 @@
 // ============================================================
 //  النوافذ المنبثقة، الإشعارات، ومعاينة الفواتير (Modals & Notifications)
 // ============================================================
-        window.acknowledgeCloudFromNotify = function(cloudId) {
-            if (!cloudId) return;
-            const cloudHistory = (window.cloudAnnouncementsHistory && Array.isArray(window.cloudAnnouncementsHistory))
-                ? window.cloudAnnouncementsHistory
-                : [];
-            const item = cloudHistory.find(c => String(c.id) === String(cloudId)) || {};
-            const title = item.title || 'إشعار سحابي';
-            const cleanDetails = String(item.message || '').replace(/\r?\n/g, ' ').slice(0, 100);
-            if (typeof window.acknowledgeNotification === 'function') {
-                window.acknowledgeNotification('cloud', String(cloudId), {
-                    name: title,
-                    details: cleanDetails,
-                    typeLabel: 'إشعار سحابي'
-                }, 'cloud');
-            }
-        };
+window.acknowledgeCloudFromNotify = function (cloudId) {
+    if (!cloudId) return;
+    const cloudHistory = (window.cloudAnnouncementsHistory && Array.isArray(window.cloudAnnouncementsHistory))
+        ? window.cloudAnnouncementsHistory
+        : [];
+    const item = cloudHistory.find(c => String(c.id) === String(cloudId)) || {};
+    const title = item.title || 'إشعار سحابي';
+    const cleanDetails = String(item.message || '').replace(/\r?\n/g, ' ').slice(0, 100);
+    if (typeof window.acknowledgeNotification === 'function') {
+        window.acknowledgeNotification('cloud', String(cloudId), {
+            name: title,
+            details: cleanDetails,
+            typeLabel: 'إشعار سحابي'
+        }, 'cloud');
+    }
+};
 
-        // 🎯 إغلاق مركز التنبيهات مع إنعاش تركيز نافذة و webContents Electron فورياً
-        window.closeNotifyModal = function() {
-            const notifyModal = document.getElementById('notifyModal');
-            if (notifyModal) {
-                try {
-                    notifyModal.remove();
-                } catch (e) {
-                    notifyModal.style.display = 'none';
-                }
-            }
-            if (typeof window.forceElectronWebContentsFocus === 'function') {
-                window.forceElectronWebContentsFocus();
-            }
-        };
+// 🎯 إغلاق مركز التنبيهات مع إنعاش تركيز نافذة و webContents Electron فورياً
+window.closeNotifyModal = function () {
+    const notifyModal = document.getElementById('notifyModal');
+    if (notifyModal) {
+        try {
+            notifyModal.remove();
+        } catch (e) {
+            notifyModal.style.display = 'none';
+        }
+    }
+    if (typeof window.forceElectronWebContentsFocus === 'function') {
+        window.forceElectronWebContentsFocus();
+    }
+};
 
-        // 🛡️ تأكيد رفض إذن التحويل المخزني عبر المودال الاحترافي دون إفقاد التركيز
-        window.confirmRejectTransferFromNotify = function(trId) {
-            if (!trId) return;
-            const msg = `هل أنت متأكد من رفض إذن التحويل #${trId}؟<br><small style="color:#64748b;">(ملاحظة: تظل البضاعة مسجلة بالكامل برصيد المخزن المصدر)</small>`;
-            if (typeof showCustomAlert === 'function') {
-                showCustomAlert({
-                    type: 'question',
-                    titleText: 'تأكيد رفض التحويل',
-                    msg: msg,
-                    confirmText: 'نعم، رفض التحويل',
-                    cancelText: 'تراجع',
-                    showCancel: true,
-                    onConfirm: () => {
-                        if (typeof window.rejectTransferFromNotify === 'function') {
-                            window.rejectTransferFromNotify(trId);
-                        }
-                    }
-                });
-            } else if (confirm(`هل أنت متأكد من رفض إذن التحويل #${trId}؟ تظل البضاعة مسجلة بالكامل برصيد المخزن المصدر.`)) {
+// 🎯 إغلاق نافذة عرض تفاصيل الفاتورة مع إنعاش الفوكس فوراً
+window.closeCustomViewModal = function () {
+    const el = document.getElementById('customViewModalOverlay');
+    if (el) {
+        try { el.remove(); } catch(e) { el.style.display = 'none'; }
+    }
+    if (typeof window.forceElectronWebContentsFocus === 'function') {
+        window.forceElectronWebContentsFocus();
+    }
+};
+
+// 🎯 إغلاق نافذة عرض السند المالي مع إنعاش الفوكس فوراً
+window.closeFinancialVoucherModal = function () {
+    const el = document.getElementById('financialVoucherModalOverlay');
+    if (el) {
+        try { el.remove(); } catch(e) { el.style.display = 'none'; }
+    }
+    if (typeof window.forceElectronWebContentsFocus === 'function') {
+        window.forceElectronWebContentsFocus();
+    }
+};
+
+// 🛡️ تأكيد رفض إذن التحويل المخزني عبر المودال الاحترافي دون إفقاد التركيز
+window.confirmRejectTransferFromNotify = function (trId) {
+    if (!trId) return;
+    const msg = `هل أنت متأكد من رفض إذن التحويل #${trId}؟<br><small style="color:#64748b;">(ملاحظة: تظل البضاعة مسجلة بالكامل برصيد المخزن المصدر)</small>`;
+    if (typeof showCustomAlert === 'function') {
+        showCustomAlert({
+            type: 'question',
+            titleText: 'تأكيد رفض التحويل',
+            msg: msg,
+            confirmText: 'نعم، رفض التحويل',
+            cancelText: 'تراجع',
+            showCancel: true,
+            onConfirm: () => {
                 if (typeof window.rejectTransferFromNotify === 'function') {
                     window.rejectTransferFromNotify(trId);
                 }
             }
+        });
+    } else if (confirm(`هل أنت متأكد من رفض إذن التحويل #${trId}؟ تظل البضاعة مسجلة بالكامل برصيد المخزن المصدر.`)) {
+        if (typeof window.rejectTransferFromNotify === 'function') {
+            window.rejectTransferFromNotify(trId);
+        }
+    }
+};
+
+window.showNotificationsModal = function (activeTab = null) {
+    // 1. استدعاء الإحصائيات الشاملة من المصدر الموحد للحقيقة (Single Source of Truth)
+    const stats = (typeof window.getSystemNotificationsStats === 'function')
+        ? window.getSystemNotificationsStats()
+        : {
+            allLowStock: [], activeLowStock: [], archivedLowStock: [],
+            allExpiring: [], activeExpiring: [], archivedExpiring: [],
+            allDebtAccounts: [], activeDebt: [], archivedDebt: [],
+            allDelayed: [], activeDelayed: [], archivedDelayed: [],
+            pendingTransfersList: [], activeTransfers: [], activeTransfersCount: 0,
+            cloudHistory: [], activeCloud: [], activeCloudCount: 0,
+            activeProductsTotal: 0, activeAccountsTotal: 0,
+            totalActiveCount: 0, totalReceiptCount: 0,
+            activeWH: 'المخزن الرئيسي'
         };
 
-        window.showNotificationsModal = function(activeTab = null) {
-            // 1. استدعاء الإحصائيات الشاملة من المصدر الموحد للحقيقة (Single Source of Truth)
-            const stats = (typeof window.getSystemNotificationsStats === 'function') 
-                ? window.getSystemNotificationsStats() 
-                : {
-                    allLowStock: [], activeLowStock: [], archivedLowStock: [],
-                    allExpiring: [], activeExpiring: [], archivedExpiring: [],
-                    allDebtAccounts: [], activeDebt: [], archivedDebt: [],
-                    allDelayed: [], activeDelayed: [], archivedDelayed: [],
-                    pendingTransfersList: [], activeTransfers: [], activeTransfersCount: 0,
-                    cloudHistory: [], activeCloud: [], activeCloudCount: 0,
-                    activeProductsTotal: 0, activeAccountsTotal: 0,
-                    totalActiveCount: 0, totalReceiptCount: 0,
-                    activeWH: 'المخزن الرئيسي'
-                };
+    const {
+        activeLowStock, archivedLowStock,
+        activeExpiring, archivedExpiring,
+        activeDebt, archivedDebt,
+        activeDelayed, archivedDelayed,
+        pendingTransfersList = [], receivedTransfersList = [], allTransfersList = [], activeTransfers = [], activeTransfersCount = 0,
+        cloudHistory = [], activeCloud = [], activeCloudCount = 0,
+        activeProductsTotal = 0, activeAccountsTotal = 0,
+        totalActiveCount = 0, activeWH = 'المخزن الرئيسي', canViewAccounts = true
+    } = stats;
 
-            const {
-                activeLowStock, archivedLowStock,
-                activeExpiring, archivedExpiring,
-                activeDebt, archivedDebt,
-                activeDelayed, archivedDelayed,
-                pendingTransfersList = [], receivedTransfersList = [], allTransfersList = [], activeTransfers = [], activeTransfersCount = 0,
-                cloudHistory = [], activeCloud = [], activeCloudCount = 0,
-                activeProductsTotal = 0, activeAccountsTotal = 0,
-                totalActiveCount = 0, activeWH = 'المخزن الرئيسي', canViewAccounts = true
-            } = stats;
+    const receiptLog = (window.bayanReceiptLog && Array.isArray(window.bayanReceiptLog)) ? window.bayanReceiptLog : [];
+    const totalReceiptCount = receiptLog.length;
 
-            const receiptLog = (window.bayanReceiptLog && Array.isArray(window.bayanReceiptLog)) ? window.bayanReceiptLog : [];
-            const totalReceiptCount = receiptLog.length;
+    // 2. التحديد الذكي للتبويب الافتراضي مع احترام الصلاحيات
+    if (!activeTab) {
+        if (activeTransfersCount > 0) activeTab = 'transfers';
+        else if (activeProductsTotal > 0) activeTab = 'products';
+        else if (canViewAccounts && activeAccountsTotal > 0) activeTab = 'accounts';
+        else if (activeCloudCount > 0) activeTab = 'cloud';
+        else activeTab = 'products';
+    }
+    if (activeTab === 'accounts' && !canViewAccounts) {
+        activeTab = 'products';
+    }
 
-            // 2. التحديد الذكي للتبويب الافتراضي مع احترام الصلاحيات
-            if (!activeTab) {
-                if (activeTransfersCount > 0) activeTab = 'transfers';
-                else if (activeProductsTotal > 0) activeTab = 'products';
-                else if (canViewAccounts && activeAccountsTotal > 0) activeTab = 'accounts';
-                else if (activeCloudCount > 0) activeTab = 'cloud';
-                else activeTab = 'products';
-            }
-            if (activeTab === 'accounts' && !canViewAccounts) {
-                activeTab = 'products';
-            }
+    // 3. تحديث شارة الجرس في الهيدر فوراً وبدقة تامة لمنع أي التباس في الأرقام
+    const topBell = document.getElementById('bellBadge') || document.getElementById('notificationsBadge');
+    const bellContainer = document.querySelector('.notification-bell');
+    if (topBell) {
+        topBell.innerText = totalActiveCount > 99 ? '99+' : totalActiveCount;
+        topBell.style.display = totalActiveCount > 0 ? 'flex' : 'none';
+    }
+    if (bellContainer) {
+        if (totalActiveCount > 0) bellContainer.classList.add('has-active-notifications');
+        else bellContainer.classList.remove('has-active-notifications');
+    }
 
-            // 3. تحديث شارة الجرس في الهيدر فوراً وبدقة تامة لمنع أي التباس في الأرقام
-            const topBell = document.getElementById('bellBadge') || document.getElementById('notificationsBadge');
-            const bellContainer = document.querySelector('.notification-bell');
-            if (topBell) {
-                topBell.innerText = totalActiveCount > 99 ? '99+' : totalActiveCount;
-                topBell.style.display = totalActiveCount > 0 ? 'flex' : 'none';
-            }
-            if (bellContainer) {
-                if (totalActiveCount > 0) bellContainer.classList.add('has-active-notifications');
-                else bellContainer.classList.remove('has-active-notifications');
-            }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
+    // دوال مساعدة لإنشاء صفوف الجداول بتصميم حديث وفخم وحماية تامة ضد أخطاء الرموز والأسطر
+    const escapeStr = (str) => String(str || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '&quot;')
+        .replace(/\r?\n/g, ' ');
+    const escapeHtml = (str) => String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 
-            // دوال مساعدة لإنشاء صفوف الجداول بتصميم حديث وفخم وحماية تامة ضد أخطاء الرموز والأسطر
-            const escapeStr = (str) => String(str || '')
-                .replace(/\\/g, '\\\\')
-                .replace(/'/g, "\\'")
-                .replace(/"/g, '&quot;')
-                .replace(/\r?\n/g, ' ');
-            const escapeHtml = (str) => String(str || '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
-
-            const modalContent = `
+    const modalContent = `
                 <div class="glass-card-premium" style="background: #ffffff; border: 1px solid #cbd5e1; padding: 0; border-radius: 24px; width: 1080px; max-width: 96vw; height: 86vh; max-height: 860px; overflow: hidden; box-shadow: 0 16px 36px rgba(15, 23, 42, 0.22); display: flex; flex-direction: column; direction: rtl; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;">
 
                     <!-- Header بتدرج كحلي ملكي فخم وعالي التباين مع ملخص ذكي -->
@@ -386,10 +408,10 @@
                                             </div>
                                             <div style="display:flex; flex-direction:column; gap:16px;">
                                                 ${receivedTransfersList.map(tr => {
-                                                    const isRejected = tr.status === 'rejected';
-                                                    const borderColor = isRejected ? '#fca5a5' : '#86efac';
-                                                    const bgCard = isRejected ? '#fffaf0' : '#f0fdf4';
-                                                    return `
+        const isRejected = tr.status === 'rejected';
+        const borderColor = isRejected ? '#fca5a5' : '#86efac';
+        const bgCard = isRejected ? '#fffaf0' : '#f0fdf4';
+        return `
                                                     <div style="background:${bgCard}; border:2px solid ${borderColor}; border-radius:18px; padding:18px 22px; box-shadow:0 4px 18px rgba(0,0,0,0.03);">
                                                         <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px dashed ${borderColor}; padding-bottom:12px; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
                                                             <div>
@@ -466,7 +488,7 @@
                                                         ${tr.notes ? `<div style="font-size:0.85rem; color:#475569; margin-top:12px; background:#ffffff; padding:8px 14px; border-radius:10px; border:1px solid #e2e8f0; font-weight:bold;">📝 ملاحظات المرسل: ${escapeStr(tr.notes)}</div>` : ''}
                                                     </div>
                                                     `;
-                                                }).join('')}
+    }).join('')}
                                             </div>
                                         </div>
                                     ` : ''}
@@ -529,23 +551,23 @@
                                         <tbody>
                                             <!-- أصناف النواقص مع دعم مقاسات وألوان الفاشون والرصيد الكلي العام -->
                                             ${(() => {
-                                                const maxDisplay = 120;
-                                                const displayedItems = activeLowStock.slice(0, maxDisplay);
-                                                return displayedItems.map(p => {
-                                                    const curStock = parseFloat(p.stock) || 0;
-                                                    const minStock = parseFloat(p.minStock) || 5;
-                                                    const isZero = curStock <= 0;
-                                                    const isVar = Boolean(p.isVariant);
-                                                    
-                                                    const pDetailsAck = isVar
-                                                        ? `المقاس: ${escapeStr(p.size)} | اللون: ${escapeStr(p.color)} | رصيد المقاس: ${curStock} | إجمالي الموديل: ${p.totalStock}`
-                                                        : `الرصيد: ${curStock} (حد الأمان: ${minStock})`;
-                                                    const pNameAck = isVar 
-                                                        ? `${escapeStr(p.name)} [${escapeStr(p.size)} - ${escapeStr(p.color)}]` 
-                                                        : escapeStr(p.name);
-                                                    const pTypeLabel = isVar ? 'نواقص مقاس/لون' : 'نواقص بضاعة';
+                const maxDisplay = 120;
+                const displayedItems = activeLowStock.slice(0, maxDisplay);
+                return displayedItems.map(p => {
+                    const curStock = parseFloat(p.stock) || 0;
+                    const minStock = parseFloat(p.minStock) || 5;
+                    const isZero = curStock <= 0;
+                    const isVar = Boolean(p.isVariant);
 
-                                                    return `
+                    const pDetailsAck = isVar
+                        ? `المقاس: ${escapeStr(p.size)} | اللون: ${escapeStr(p.color)} | رصيد المقاس: ${curStock} | إجمالي الموديل: ${p.totalStock}`
+                        : `الرصيد: ${curStock} (حد الأمان: ${minStock})`;
+                    const pNameAck = isVar
+                        ? `${escapeStr(p.name)} [${escapeStr(p.size)} - ${escapeStr(p.color)}]`
+                        : escapeStr(p.name);
+                    const pTypeLabel = isVar ? 'نواقص مقاس/لون' : 'نواقص بضاعة';
+
+                    return `
                                                     <tr style="border-bottom: 1px solid #f1f5f9; transition: 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                                                         <td style="padding: 12px 16px;">
                                                             <div style="display:flex; align-items:flex-start; gap:12px;">
@@ -607,23 +629,23 @@
                                                             </button>
                                                         </td>
                                                     </tr>`;
-                                                }).join('') + (activeLowStock.length > maxDisplay ? `
+                }).join('') + (activeLowStock.length > maxDisplay ? `
                                                     <tr>
                                                         <td colspan="4" style="text-align:center; padding:12px; background:#f8fafc; color:#64748b; font-weight:800; font-size:0.82rem;">
                                                             ⚡ يتم عرض أول ${maxDisplay} مقاس وصنف من إجمالي (${activeLowStock.length}) لتسريع الأداء والاستجابة الفورية.
                                                         </td>
                                                     </tr>
                                                 ` : '');
-                                            })()}
+            })()}
 
                                             <!-- أصناف الصلاحية -->
                                             ${activeExpiring.map(p => {
-                                                const exp = new Date(p.expiry);
-                                                exp.setHours(0, 0, 0, 0);
-                                                const diffDays = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
-                                                const isExpired = diffDays <= 0;
-                                                const pDetails = isExpired ? `منتهي بتاريخ ${p.expiry} (منذ ${Math.abs(diffDays)} يوم)` : `ينتهي في ${diffDays} يوم (${p.expiry})`;
-                                                return `
+                const exp = new Date(p.expiry);
+                exp.setHours(0, 0, 0, 0);
+                const diffDays = Math.ceil((exp - today) / (1000 * 60 * 60 * 24));
+                const isExpired = diffDays <= 0;
+                const pDetails = isExpired ? `منتهي بتاريخ ${p.expiry} (منذ ${Math.abs(diffDays)} يوم)` : `ينتهي في ${diffDays} يوم (${p.expiry})`;
+                return `
                                                 <tr style="border-bottom: 1px solid #f1f5f9; transition: 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                                                     <td style="padding: 12px 16px;">
                                                         <div style="display:flex; align-items:center; gap:10px;">
@@ -656,7 +678,7 @@
                                                         </button>
                                                     </td>
                                                 </tr>`;
-                                            }).join('')}
+            }).join('')}
                                         </tbody>
                                     </table>
                                 </div>
@@ -692,11 +714,11 @@
                                         <tbody>
                                             <!-- ديون العملاء -->
                                             ${activeDebt.map(a => {
-                                                const debit = parseFloat(a.debit) || 0;
-                                                const credit = parseFloat(a.credit) || 0;
-                                                const balance = debit - credit;
-                                                const detailsText = `المبلغ المستحق: ${balance.toLocaleString('en-US', { minimumFractionDigits: 2 })} ج.م`;
-                                                return `
+                const debit = parseFloat(a.debit) || 0;
+                const credit = parseFloat(a.credit) || 0;
+                const balance = debit - credit;
+                const detailsText = `المبلغ المستحق: ${balance.toLocaleString('en-US', { minimumFractionDigits: 2 })} ج.م`;
+                return `
                                                 <tr style="border-bottom: 1px solid #f1f5f9; transition: 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                                                     <td style="padding: 12px 16px;">
                                                         <div style="display:flex; align-items:center; gap:10px;">
@@ -726,24 +748,24 @@
                                                         </div>
                                                     </td>
                                                 </tr>`;
-                                            }).join('')}
+            }).join('')}
 
                                             <!-- العملاء المتأخرين عن السداد -->
                                             ${activeDelayed.map(a => {
-                                                const debit = parseFloat(a.debit) || 0;
-                                                const credit = parseFloat(a.credit) || 0;
-                                                const balance = debit - credit;
-                                                const lastTrans = (typeof transactions !== 'undefined' && Array.isArray(transactions))
-                                                    ? transactions.filter(t => t.partnerId === a.id || t.account === a.name || t.partner === a.name).sort((x, y) => new Date(y.date || y.timestamp) - new Date(x.date || x.timestamp))[0]
-                                                    : null;
-                                                let delayNote = "متأخر عن السداد (لا توجد دفعات مسجلة)";
-                                                if (lastTrans) {
-                                                    const lastDate = new Date(lastTrans.date || lastTrans.timestamp);
-                                                    const diffDays = Math.ceil((today - lastDate) / (1000 * 60 * 60 * 24));
-                                                    delayNote = `متأخر منذ ${diffDays} يوم (آخر حركة: ${lastTrans.date || ''})`;
-                                                }
-                                                const detailsText = `المبلغ: ${balance.toLocaleString('en-US', { minimumFractionDigits: 2 })} ج.م (${delayNote})`;
-                                                return `
+                const debit = parseFloat(a.debit) || 0;
+                const credit = parseFloat(a.credit) || 0;
+                const balance = debit - credit;
+                const lastTrans = (typeof transactions !== 'undefined' && Array.isArray(transactions))
+                    ? transactions.filter(t => t.partnerId === a.id || t.account === a.name || t.partner === a.name).sort((x, y) => new Date(y.date || y.timestamp) - new Date(x.date || x.timestamp))[0]
+                    : null;
+                let delayNote = "متأخر عن السداد (لا توجد دفعات مسجلة)";
+                if (lastTrans) {
+                    const lastDate = new Date(lastTrans.date || lastTrans.timestamp);
+                    const diffDays = Math.ceil((today - lastDate) / (1000 * 60 * 60 * 24));
+                    delayNote = `متأخر منذ ${diffDays} يوم (آخر حركة: ${lastTrans.date || ''})`;
+                }
+                const detailsText = `المبلغ: ${balance.toLocaleString('en-US', { minimumFractionDigits: 2 })} ج.م (${delayNote})`;
+                return `
                                                 <tr style="border-bottom: 1px solid #f1f5f9; transition: 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                                                     <td style="padding: 12px 16px;">
                                                         <div style="display:flex; align-items:center; gap:10px;">
@@ -773,7 +795,7 @@
                                                         </div>
                                                     </td>
                                                 </tr>`;
-                                            }).join('')}
+            }).join('')}
                                         </tbody>
                                     </table>
                                 </div>
@@ -820,29 +842,29 @@
                                             </thead>
                                             <tbody>
                                                 ${(() => {
-                                                    const maxDisplay = 100;
-                                                    const displayedLog = receiptLog.slice(0, maxDisplay);
-                                                    return displayedLog.map((log) => {
-                                                        const isTransferRejected = log.type === 'transfer' && (log.isRejected || log.status === 'rejected');
-                                                        const badgeColor = (log.type === 'low-stock') ? '#ef4444' 
-                                                            : (log.type === 'expiry' ? '#d97706' 
-                                                            : (log.type === 'debt' ? '#2563eb' 
-                                                            : (log.type === 'delayed' ? '#b45309' 
-                                                            : (log.type === 'transfer' ? (isTransferRejected ? '#dc2626' : '#059669') : '#8b5cf6'))));
-                                                        
-                                                        const badgeBg = (log.type === 'low-stock') ? '#fee2e2' 
-                                                            : (log.type === 'expiry' ? '#fef3c7' 
-                                                            : (log.type === 'debt' ? '#eff6ff' 
-                                                            : (log.type === 'delayed' ? '#fffbeb' 
-                                                            : (log.type === 'transfer' ? (isTransferRejected ? '#fee2e2' : '#ecfdf5') : '#f5f3ff'))));
+                const maxDisplay = 100;
+                const displayedLog = receiptLog.slice(0, maxDisplay);
+                return displayedLog.map((log) => {
+                    const isTransferRejected = log.type === 'transfer' && (log.isRejected || log.status === 'rejected');
+                    const badgeColor = (log.type === 'low-stock') ? '#ef4444'
+                        : (log.type === 'expiry' ? '#d97706'
+                            : (log.type === 'debt' ? '#2563eb'
+                                : (log.type === 'delayed' ? '#b45309'
+                                    : (log.type === 'transfer' ? (isTransferRejected ? '#dc2626' : '#059669') : '#8b5cf6'))));
 
-                                                        const icon = (log.type === 'low-stock') ? '📦' 
-                                                            : (log.type === 'expiry' ? '📅' 
-                                                            : (log.type === 'debt' ? '💳' 
-                                                            : (log.type === 'delayed' ? '⚠️' 
-                                                            : (log.type === 'transfer' ? (isTransferRejected ? '❌' : '🚚') : '☁️'))));
+                    const badgeBg = (log.type === 'low-stock') ? '#fee2e2'
+                        : (log.type === 'expiry' ? '#fef3c7'
+                            : (log.type === 'debt' ? '#eff6ff'
+                                : (log.type === 'delayed' ? '#fffbeb'
+                                    : (log.type === 'transfer' ? (isTransferRejected ? '#fee2e2' : '#ecfdf5') : '#f5f3ff'))));
 
-                                                        return `
+                    const icon = (log.type === 'low-stock') ? '📦'
+                        : (log.type === 'expiry' ? '📅'
+                            : (log.type === 'debt' ? '💳'
+                                : (log.type === 'delayed' ? '⚠️'
+                                    : (log.type === 'transfer' ? (isTransferRejected ? '❌' : '🚚') : '☁️'))));
+
+                    return `
                                                         <tr style="border-bottom: 1px solid #f1f5f9; transition: 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                                                             <td style="padding: 10px 12px; text-align:center;">
                                                                 <span style="background:${badgeBg}; color:${badgeColor}; font-weight:900; font-size:0.75rem; padding:4px 9px; border-radius:14px; display:inline-flex; align-items:center; gap:4px; border:1px solid ${badgeColor}33;">
@@ -881,14 +903,14 @@
                                                                 `}
                                                             </td>
                                                         </tr>`;
-                                                    }).join('') + (receiptLog.length > maxDisplay ? `
+                }).join('') + (receiptLog.length > maxDisplay ? `
                                                         <tr>
                                                             <td colspan="7" style="text-align:center; padding:12px; background:#f8fafc; color:#64748b; font-weight:800; font-size:0.82rem;">
                                                                 ⚡ يتم عرض أحدث ${maxDisplay} حركة استلام من إجمالي (${receiptLog.length}) لسلاسة التصفح وتوفير الذاكرة.
                                                             </td>
                                                         </tr>
                                                     ` : '');
-                                                })()}
+            })()}
                                             </tbody>
                                         </table>
                                     </div>
@@ -915,12 +937,12 @@
                                         </div>
                                     </div>
                                     ${(() => {
-                                        const ackCloudSet = new Set((window.acknowledgedCloud || []).map(String));
-                                        return window.cloudAnnouncementsHistory.map((item, idx) => {
-                                            const annNumber = item.id ? item.id : (idx + 1);
-                                            const dateFormatted = item.receivedAt ? new Date(item.receivedAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
-                                            const isAcknowledged = ackCloudSet.has(String(item.id));
-                                            return `
+                const ackCloudSet = new Set((window.acknowledgedCloud || []).map(String));
+                return window.cloudAnnouncementsHistory.map((item, idx) => {
+                    const annNumber = item.id ? item.id : (idx + 1);
+                    const dateFormatted = item.receivedAt ? new Date(item.receivedAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
+                    const isAcknowledged = ackCloudSet.has(String(item.id));
+                    return `
                                             <div style="background: linear-gradient(135deg, #1e113a, #0f172a); border: 2px solid ${isAcknowledged ? 'rgba(255, 255, 255, 0.15)' : 'rgba(212, 175, 55, 0.7)'}; border-radius: 20px; padding: 22px 25px; color: white; box-shadow: 0 10px 25px rgba(0,0,0,0.25); position:relative;">
                                                 <div style="position:absolute; top:18px; left:20px; display:flex; gap:8px; align-items:center;">
                                                     <span style="background: rgba(255,255,255,0.15); color: #fde047; font-size: 0.75rem; font-weight: 900; padding: 3px 10px; border-radius: 20px; border: 1px solid rgba(253, 224, 71, 0.4);">
@@ -973,8 +995,8 @@
                                                     </div>
                                                 </div>
                                             </div>`;
-                                        }).join('');
-                                    })()}
+                }).join('');
+            })()}
                                 ` : `
                                     <div style="text-align: center; padding: 50px 20px; color: #64748b;">
                                         <div style="font-size: 3.5rem; margin-bottom: 12px;">☁️</div>
@@ -1020,105 +1042,105 @@
                 </div> <!-- closes glass-card-premium -->
             `;
 
-            const existingModal = document.getElementById('notifyModal');
-            if (existingModal) {
-                existingModal.innerHTML = modalContent;
-            } else {
-                const fullModal = `<div id="notifyModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.75); display:flex; align-items:center; justify-content:center; z-index:99999; animation: fadeIn 0.2s ease;">${modalContent}</div>`;
-                document.body.insertAdjacentHTML('beforeend', fullModal);
-            }
-        };
+    const existingModal = document.getElementById('notifyModal');
+    if (existingModal) {
+        existingModal.innerHTML = modalContent;
+    } else {
+        const fullModal = `<div id="notifyModal" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.75); display:flex; align-items:center; justify-content:center; z-index:99999; animation: fadeIn 0.2s ease;">${modalContent}</div>`;
+        document.body.insertAdjacentHTML('beforeend', fullModal);
+    }
+};
 
-        window.openStatementFromNotify = function(accountId) {
-            const canView = (typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || (typeof hasPermission === 'function' && (hasPermission('accounts_statement') || hasPermission('accounts_view')))));
-            if (!canView) {
-                if (typeof showToast === 'function') showToast('⛔ عذراً، لا تمتلك صلاحية لعرض كشف حساب العملاء', 'error');
-                return;
-            }
+window.openStatementFromNotify = function (accountId) {
+    const canView = (typeof currentUser !== 'undefined' && currentUser && (currentUser.role === 'admin' || (typeof hasPermission === 'function' && (hasPermission('accounts_statement') || hasPermission('accounts_view')))));
+    if (!canView) {
+        if (typeof showToast === 'function') showToast('⛔ عذراً، لا تمتلك صلاحية لعرض كشف حساب العملاء', 'error');
+        return;
+    }
 
-            if (typeof window.closeNotifyModal === 'function') {
-                window.closeNotifyModal();
-            } else {
-                const notifyModal = document.getElementById('notifyModal');
-                if (notifyModal) notifyModal.remove();
-            }
+    if (typeof window.closeNotifyModal === 'function') {
+        window.closeNotifyModal();
+    } else {
+        const notifyModal = document.getElementById('notifyModal');
+        if (notifyModal) notifyModal.remove();
+    }
 
-            if (typeof switchSection === 'function') {
-                switchSection('accounts');
-            }
+    if (typeof switchSection === 'function') {
+        switchSection('accounts');
+    }
 
-            window.selectedAccountID = accountId;
-            if (typeof renderAccountsTable === 'function') {
-                renderAccountsTable();
-            }
-            if (typeof generateAccountStatement === 'function') {
-                generateAccountStatement();
-            }
-        };
+    window.selectedAccountID = accountId;
+    if (typeof renderAccountsTable === 'function') {
+        renderAccountsTable();
+    }
+    if (typeof generateAccountStatement === 'function') {
+        generateAccountStatement();
+    }
+};
 
-        function adjustInvoiceFont(part, val) {
-            const preview = document.getElementById('invoiceLivePreview');
-            if (!preview) return;
+function adjustInvoiceFont(part, val) {
+    const preview = document.getElementById('invoiceLivePreview');
+    if (!preview) return;
 
-            if (part === 'header') {
-                const header = preview.querySelector('div[style*="font-weight: 900"]');
-                if (header) header.style.fontSize = (val/10) + 'rem';
-            } else if (part === 'table') {
-                const table = preview.querySelector('table');
-                if (table) table.style.fontSize = (val/16) + 'rem';
-            }
+    if (part === 'header') {
+        const header = preview.querySelector('div[style*="font-weight: 900"]');
+        if (header) header.style.fontSize = (val / 10) + 'rem';
+    } else if (part === 'table') {
+        const table = preview.querySelector('table');
+        if (table) table.style.fontSize = (val / 16) + 'rem';
+    }
+}
+
+function loadPrintTemplateChoice() {
+    const saved = getStore('bayan_print_template_choice');
+    if (saved) {
+        const s = JSON.parse(saved);
+        currentSelectedTemplateType = s.type || 'فاتورة المبيعات';
+        currentSelectedTemplateId = s.template || '0010 - 80mm';
+    }
+    // تمييز العناصر المختارة في القوائم
+    document.querySelectorAll('.template-type-item').forEach(item => {
+        if (item.innerText === currentSelectedTemplateType) {
+            item.classList.add('active');
+            item.style.background = '#3498db';
+            item.style.color = 'white';
+        } else {
+            item.classList.remove('active');
+            item.style.background = 'transparent';
+            item.style.color = 'inherit';
         }
-
-        function loadPrintTemplateChoice() {
-            const saved = getStore('bayan_print_template_choice');
-            if (saved) {
-                const s = JSON.parse(saved);
-                currentSelectedTemplateType = s.type || 'فاتورة المبيعات';
-                currentSelectedTemplateId = s.template || '0010 - 80mm';
-            }
-            // تمييز العناصر المختارة في القوائم
-            document.querySelectorAll('.template-type-item').forEach(item => {
-                if (item.innerText === currentSelectedTemplateType) {
-                    item.classList.add('active');
-                    item.style.background = '#3498db';
-                    item.style.color = 'white';
-                } else {
-                    item.classList.remove('active');
-                    item.style.background = 'transparent';
-                    item.style.color = 'inherit';
-                }
-            });
-            document.querySelectorAll('.template-item').forEach(item => {
-                const onclickAttr = item.getAttribute('onclick') || '';
-                if (onclickAttr.includes("'" + currentSelectedTemplateId + "'")) {
-                    item.classList.add('active');
-                    item.style.background = '#3498db';
-                    item.style.color = 'white';
-                } else {
-                    item.classList.remove('active');
-                    item.style.background = 'transparent';
-                    item.style.color = 'inherit';
-                }
-            });
-            refreshPinnedVisuals();
-            updatePrintPreview();
+    });
+    document.querySelectorAll('.template-item').forEach(item => {
+        const onclickAttr = item.getAttribute('onclick') || '';
+        if (onclickAttr.includes("'" + currentSelectedTemplateId + "'")) {
+            item.classList.add('active');
+            item.style.background = '#3498db';
+            item.style.color = 'white';
+        } else {
+            item.classList.remove('active');
+            item.style.background = 'transparent';
+            item.style.color = 'inherit';
         }
-        // تكرار الحماية السحابية (تم النقل للأعلى للتوحيد)
-        function showLockScreen(message) {
-            let lockOverlay = document.getElementById('bayanLockScreen');
-            if (!lockOverlay) {
-                lockOverlay = document.createElement('div');
-                lockOverlay.id = 'bayanLockScreen';
-                lockOverlay.style.cssText = `
+    });
+    refreshPinnedVisuals();
+    updatePrintPreview();
+}
+// تكرار الحماية السحابية (تم النقل للأعلى للتوحيد)
+function showLockScreen(message) {
+    let lockOverlay = document.getElementById('bayanLockScreen');
+    if (!lockOverlay) {
+        lockOverlay = document.createElement('div');
+        lockOverlay.id = 'bayanLockScreen';
+        lockOverlay.style.cssText = `
                     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
                     background: rgba(0,0,0,0.9); 
                     display: flex; flex-direction: column; align-items: center; justify-content: center;
                     z-index: 1000000; color: white; text-align: center; font-family: 'Cairo', sans-serif;
                 `;
-                document.body.appendChild(lockOverlay);
-            }
+        document.body.appendChild(lockOverlay);
+    }
 
-            lockOverlay.innerHTML = `
+    lockOverlay.innerHTML = `
                 <div style="background: white; color: #333; padding: 40px; border-radius: 20px; box-shadow: 0 0 50px rgba(0,0,0,0.5); border-top: 5px solid #c0392b;">
                     <div style="font-size: 5rem; margin-bottom: 20px;">🛡️</div>
                     <h2 style="margin-bottom: 20px; font-weight: 900;">بَيَان - حماية النظام</h2>
@@ -1127,171 +1149,171 @@
                     <div style="margin-top: 20px; font-size: 0.8rem; color: #888;">Hardware ID: <span id="lock-hwid">---</span></div>
                 </div>
             `;
-            getUniqueHWID().then(id => {
-                const idEl = document.getElementById('lock-hwid');
-                if (idEl) idEl.innerText = id;
-            });
-        }
+    getUniqueHWID().then(id => {
+        const idEl = document.getElementById('lock-hwid');
+        if (idEl) idEl.innerText = id;
+    });
+}
 
-        function checkLocalAccess() {
-            const isSubscribed = window.activeLicense && window.activeLicense.isValid && window.activeLicense.plan !== 'باقة نسخة المجانية';
-            const trialBanner = document.getElementById('trialBanner');
-            const subModal = document.getElementById('subscriptionModal');
-            const closeBtn = document.getElementById('closeSubBtn');
+function checkLocalAccess() {
+    const isSubscribed = window.activeLicense && window.activeLicense.isValid && window.activeLicense.plan !== 'باقة نسخة المجانية';
+    const trialBanner = document.getElementById('trialBanner');
+    const subModal = document.getElementById('subscriptionModal');
+    const closeBtn = document.getElementById('closeSubBtn');
 
-            if (isSubscribed) {
-                if (trialBanner) trialBanner.classList.add('hidden');
-                if (subModal) subModal.classList.add('hidden');
-                return true;
-            }
+    if (isSubscribed) {
+        if (trialBanner) trialBanner.classList.add('hidden');
+        if (subModal) subModal.classList.add('hidden');
+        return true;
+    }
 
-            const installDateStr = getStore('bayan_install_date');
-            if (!installDateStr) {
-                setStore('bayan_install_date', new Date().toISOString());
-                return true;
-            }
+    const installDateStr = getStore('bayan_install_date');
+    if (!installDateStr) {
+        setStore('bayan_install_date', new Date().toISOString());
+        return true;
+    }
 
-            const diffDays = Math.floor((new Date() - new Date(installDateStr)) / (1000 * 60 * 60 * 24));
-            const timeExpired = diffDays >= 30;
+    const diffDays = Math.floor((new Date() - new Date(installDateStr)) / (1000 * 60 * 60 * 24));
+    const timeExpired = diffDays >= 30;
 
-            if (timeExpired) {
-                showLockScreen("انتهت الفترة التجريبية.. تواصل مع عمرو إيهاب 01006825905");
-                return false;
-            } else {
-                if (trialBanner) {
-                    trialBanner.classList.remove('hidden');
-                    const label = document.getElementById('trialDaysLeft');
-                    if (label) {
-                        label.innerHTML = `⏳ باقي لك <strong style="color:var(--accent-gold);">${Math.max(0, 30 - diffDays)}</strong> يوم في الفترة التجريبية المجانية.`;
-                    }
-                }
-                return true;
+    if (timeExpired) {
+        showLockScreen("انتهت الفترة التجريبية.. تواصل مع عمرو إيهاب 01006825905");
+        return false;
+    } else {
+        if (trialBanner) {
+            trialBanner.classList.remove('hidden');
+            const label = document.getElementById('trialDaysLeft');
+            if (label) {
+                label.innerHTML = `⏳ باقي لك <strong style="color:var(--accent-gold);">${Math.max(0, 30 - diffDays)}</strong> يوم في الفترة التجريبية المجانية.`;
             }
         }
+        return true;
+    }
+}
 
 
-        // تم حذف الدوال المكررة لضمان عمل النسخة الذهبية الجديدة
+// تم حذف الدوال المكررة لضمان عمل النسخة الذهبية الجديدة
 
-        // --- دالة جلب التاريخ والوقت للعملية ---
-        function showProfessionalModal(content, maxWidth = '950px') {
-            let modal = document.getElementById('detailsOverlay');
-            if (!modal) {
-                modal = document.createElement('div');
-                modal.id = 'detailsOverlay';
-                modal.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:12000; display:flex; align-items:center; justify-content:center;";
-                document.body.appendChild(modal);
-            }
-            modal.innerHTML = `
+// --- دالة جلب التاريخ والوقت للعملية ---
+function showProfessionalModal(content, maxWidth = '950px') {
+    let modal = document.getElementById('detailsOverlay');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'detailsOverlay';
+        modal.style = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:12000; display:flex; align-items:center; justify-content:center;";
+        document.body.appendChild(modal);
+    }
+    modal.innerHTML = `
                 <div class="modal-draggable-content" style="background:white; width:95%; max-width:${maxWidth}; border-radius:15px; overflow:hidden; box-shadow:0 15px 50px rgba(0,0,0,0.3); animation: slideUp 0.3s ease-out; position: relative;">
                     ${content}
                 </div>
             `;
-            modal.classList.remove('hidden');
+    modal.classList.remove('hidden');
 
-            // تفعيل السحب للنافذة الجديدة
-            const contentDiv = modal.querySelector('.modal-draggable-content');
-            if (contentDiv) makeElementDraggable(contentDiv);
+    // تفعيل السحب للنافذة الجديدة
+    const contentDiv = modal.querySelector('.modal-draggable-content');
+    if (contentDiv) makeElementDraggable(contentDiv);
+}
+
+function makeElementDraggable(el) {
+    let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
+    // البحث عن الهيدر (أول ديف داخلي غالباً يكون هو الهيدر الملون)
+    const header = el.querySelector('div[style*="background"]');
+    if (header) {
+        header.style.cursor = 'move';
+        header.onmousedown = dragMouseDown;
+    } else {
+        el.onmousedown = dragMouseDown;
+    }
+
+    function dragMouseDown(e) {
+        e = e || window.event;
+        if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+        e.preventDefault();
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        document.onmouseup = closeDragElement;
+        document.onmousemove = elementDrag;
+
+        const parent = el.parentElement;
+        if (parent && parent.style.display === 'flex') {
+            parent.style.display = 'block';
+            el.style.position = 'absolute';
+            const rect = el.getBoundingClientRect();
+            el.style.top = rect.top + 'px';
+            el.style.left = rect.left + 'px';
+            el.style.transform = 'none';
+            el.style.margin = '0';
         }
+    }
 
-        function makeElementDraggable(el) {
-            let pos1 = 0, pos2 = 0, pos3 = 0, pos4 = 0;
-            // البحث عن الهيدر (أول ديف داخلي غالباً يكون هو الهيدر الملون)
-            const header = el.querySelector('div[style*="background"]');
-            if (header) {
-                header.style.cursor = 'move';
-                header.onmousedown = dragMouseDown;
-            } else {
-                el.onmousedown = dragMouseDown;
-            }
+    function elementDrag(e) {
+        e = e || window.event;
+        e.preventDefault();
+        pos1 = pos3 - e.clientX;
+        pos2 = pos4 - e.clientY;
+        pos3 = e.clientX;
+        pos4 = e.clientY;
+        el.style.top = (el.offsetTop - pos2) + "px";
+        el.style.left = (el.offsetLeft - pos1) + "px";
+    }
 
-            function dragMouseDown(e) {
-                e = e || window.event;
-                if (e.target.tagName === 'BUTTON' || e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    function closeDragElement() {
+        document.onmouseup = null;
+        document.onmousemove = null;
+    }
+}
+window.makeElementDraggable = makeElementDraggable;
 
-                e.preventDefault();
-                pos3 = e.clientX;
-                pos4 = e.clientY;
-                document.onmouseup = closeDragElement;
-                document.onmousemove = elementDrag;
+function closeCustomModal() {
+    const modal = document.getElementById('detailsOverlay');
+    if (modal) modal.classList.add('hidden');
+}
 
-                const parent = el.parentElement;
-                if (parent && parent.style.display === 'flex') {
-                    parent.style.display = 'block';
-                    el.style.position = 'absolute';
-                    const rect = el.getBoundingClientRect();
-                    el.style.top = rect.top + 'px';
-                    el.style.left = rect.left + 'px';
-                    el.style.transform = 'none';
-                    el.style.margin = '0';
-                }
-            }
+async function printBillFromData(invoiceId, type = '') {
+    if (typeof window.printInvoiceById === 'function') {
+        await window.printInvoiceById(invoiceId, type);
+    } else if (typeof viewInvoiceItems === 'function') {
+        await viewInvoiceItems(invoiceId, type, true);
+    }
+    if (typeof closeCustomModal === 'function') closeCustomModal();
+}
+window.printBillFromData = printBillFromData;
 
-            function elementDrag(e) {
-                e = e || window.event;
-                e.preventDefault();
-                pos1 = pos3 - e.clientX;
-                pos2 = pos4 - e.clientY;
-                pos3 = e.clientX;
-                pos4 = e.clientY;
-                el.style.top = (el.offsetTop - pos2) + "px";
-                el.style.left = (el.offsetLeft - pos1) + "px";
-            }
 
-            function closeDragElement() {
-                document.onmouseup = null;
-                document.onmousemove = null;
-            }
+// دالة كشف الحساب السريع من شاشة البيع بدون مغادرة الصفحة
+async function openQuickCustomerInfo() {
+    const customerNameInput = document.getElementById('customerName');
+    const name = customerNameInput ? customerNameInput.value.trim() : '';
+
+    if (!name || name === '---' || name === 'عميل نقدي') {
+        return showCustomAlert({
+            type: 'warning',
+            titleText: '⚠️ تنبيه',
+            msg: 'يرجى اختيار عميل أولاً لعرض كشف الحساب السريع.'
+        });
+    }
+
+    const acc = accounts.find(a => a.name === name);
+    if (!acc) {
+        if (typeof showCustomAlert === 'function') {
+            return showCustomAlert({
+                type: 'error',
+                titleText: 'خطأ',
+                msg: 'العميل غير موجود في سجل الحسابات.'
+            });
+        } else if (typeof showToast === 'function') {
+            return showToast('⚠️ العميل غير موجود في سجل الحسابات.', 'warning');
+        } else {
+            return alert("العميل غير موجود في سجل الحسابات.");
         }
-        window.makeElementDraggable = makeElementDraggable;
+    }
 
-        function closeCustomModal() {
-            const modal = document.getElementById('detailsOverlay');
-            if (modal) modal.classList.add('hidden');
-        }
+    const bal = getAccountBalance(name);
+    const lastTrans = transactions.filter(t => t.partner === name).reverse().slice(0, 5);
 
-        async function printBillFromData(invoiceId, type = '') {
-            if (typeof window.printInvoiceById === 'function') {
-                await window.printInvoiceById(invoiceId, type);
-            } else if (typeof viewInvoiceItems === 'function') {
-                await viewInvoiceItems(invoiceId, type, true);
-            }
-            if (typeof closeCustomModal === 'function') closeCustomModal();
-        }
-        window.printBillFromData = printBillFromData;
-
-
-        // دالة كشف الحساب السريع من شاشة البيع بدون مغادرة الصفحة
-        async function openQuickCustomerInfo() {
-            const customerNameInput = document.getElementById('customerName');
-            const name = customerNameInput ? customerNameInput.value.trim() : '';
-
-            if (!name || name === '---' || name === 'عميل نقدي') {
-                return showCustomAlert({
-                    type: 'warning',
-                    titleText: '⚠️ تنبيه',
-                    msg: 'يرجى اختيار عميل أولاً لعرض كشف الحساب السريع.'
-                });
-            }
-
-            const acc = accounts.find(a => a.name === name);
-            if (!acc) {
-                if (typeof showCustomAlert === 'function') {
-                    return showCustomAlert({
-                        type: 'error',
-                        titleText: 'خطأ',
-                        msg: 'العميل غير موجود في سجل الحسابات.'
-                    });
-                } else if (typeof showToast === 'function') {
-                    return showToast('⚠️ العميل غير موجود في سجل الحسابات.', 'warning');
-                } else {
-                    return alert("العميل غير موجود في سجل الحسابات.");
-                }
-            }
-
-            const bal = getAccountBalance(name);
-            const lastTrans = transactions.filter(t => t.partner === name).reverse().slice(0, 5);
-
-            let transRows = lastTrans.map(t => `
+    let transRows = lastTrans.map(t => `
                 <tr style="font-size: 0.85rem;">
                     <td>${t.date}</td>
                     <td>${t.type}</td>
@@ -1300,15 +1322,15 @@
                 </tr>
             `).join('');
 
-            if (transRows === '') transRows = '<tr><td colspan="4" style="text-align:center; padding:10px;">لا توجد حركات سابقة</td></tr>';
+    if (transRows === '') transRows = '<tr><td colspan="4" style="text-align:center; padding:10px;">لا توجد حركات سابقة</td></tr>';
 
-            // معالجة العناوين والهواتف المتعددة (إذا وجد فاصل | أو ,)
-            const addresses = acc.address ? acc.address.split(/[|,]/).map(s => s.trim()).filter(s => s) : [];
-            const mobiles = acc.mobile ? acc.mobile.split(/[|,]/).map(s => s.trim()).filter(s => s) : [];
+    // معالجة العناوين والهواتف المتعددة (إذا وجد فاصل | أو ,)
+    const addresses = acc.address ? acc.address.split(/[|,]/).map(s => s.trim()).filter(s => s) : [];
+    const mobiles = acc.mobile ? acc.mobile.split(/[|,]/).map(s => s.trim()).filter(s => s) : [];
 
-            let multiInfo = '';
-            if (addresses.length > 1 || mobiles.length > 1) {
-                multiInfo = `
+    let multiInfo = '';
+    if (addresses.length > 1 || mobiles.length > 1) {
+        multiInfo = `
                 <div style="background:#fff3e0; padding:10px; border-radius:8px; margin-bottom:15px; border:1px solid #ffe0b2;">
                     <label style="font-size:0.8rem; font-weight:bold; color:#e67e22;">📍 اختر العنوان/الهاتف للطباعة:</label>
                     <select id="selectedAddress" onchange="currentSessionSelectedAddress = this.value" style="width:100%; margin-top:5px; padding:5px; border:1px solid #ddd; border-radius:4px;">
@@ -1317,9 +1339,9 @@
                         ${mobiles.map(m => `<option value="${m}" ${currentSessionSelectedAddress === m ? 'selected' : ''}>هاتف: ${m}</option>`).join('')}
                     </select>
                 </div>`;
-            }
+    }
 
-            const content = `
+    const content = `
                 <div style="direction:rtl; text-align:right; padding:15px; font-family:sans-serif;">
                     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid var(--main-blue); padding-bottom:10px; margin-bottom:15px;">
                         <h2 style="margin:0; color:var(--main-blue);">👤 ملف العميل السريع</h2>
@@ -1344,127 +1366,127 @@
                 </div>
             `;
 
-            showProfessionalModal(content);
+    showProfessionalModal(content);
+}
+
+window.renderCustomInvoiceModal = function (tx, autoPrint = false) {
+    let typeName = 'فاتورة مبيعات';
+    let typeColor = '#27ae60';
+    let isTransfer = false, isReturn = false, isPurchase = false, isAdjustment = false;
+    let isReceipt = false, isDisburse = false;
+
+    let tType = String(tx.type || '').toLowerCase();
+    if (tType === 'sale_return' || tType.includes('مرتجع بيع') || tType.includes('مرتجع مبيعات')) {
+        typeName = 'مرتجع مبيعات'; typeColor = '#e67e22'; isReturn = true;
+    } else if (tType === 'purchase_return' || tType.includes('مرتجع شراء') || tType.includes('مرتجع مشتريات')) {
+        typeName = 'مرتجع مشتريات'; typeColor = '#d35400'; isReturn = true; isPurchase = true;
+    } else if (tType === 'sale' || tType === 'بيع' || (tType.includes('بيع') && !tType.includes('مرتجع'))) {
+        typeName = 'فاتورة مبيعات'; typeColor = '#27ae60';
+    } else if (tType === 'purchase' || tType === 'شراء' || (tType.includes('شراء') && !tType.includes('مرتجع')) || (tType.includes('مشتريات') && !tType.includes('مرتجع'))) {
+        typeName = 'فاتورة مشتريات'; typeColor = '#2980b9'; isPurchase = true;
+    } else if (tType.includes('transfer') || tType.includes('تحويل') || tType === 'stock') {
+        if (tx.transferStatus === 'rejected') {
+            typeName = 'إذن تحويل مخزني (❌ ملغي ومرفوض)';
+            typeColor = '#dc2626';
+        } else if (tx.transferStatus === 'pending') {
+            typeName = 'إذن تحويل مخزني (⏳ معلق بانتظار الاستلام)';
+            typeColor = '#d97706';
+        } else {
+            typeName = 'إذن تحويل مخزني';
+            typeColor = '#16a085';
+        }
+        isTransfer = true;
+    } else if (tType.includes('adjustment') || tType.includes('تسوية') || tType.includes('جرد')) {
+        typeName = 'محضر تسوية مخزنية'; typeColor = '#d97706'; isAdjustment = true;
+    } else if (tType === 'receipt' || tType.includes('قبض')) {
+        typeName = 'سند استلام نقدية (قبض)'; typeColor = '#8e44ad'; isReceipt = true;
+    } else if (tType === 'payment' || tType === 'disburse' || tType.includes('صرف') || tType.includes('دفع')) {
+        typeName = 'سند صرف نقدية'; typeColor = '#c0392b'; isDisburse = true;
+    }
+
+    let isFinancial = isReceipt || isDisburse;
+    let items = tx.items || tx.products || tx.cart || tx.details || [];
+
+    // تصفية أسطر الهيدر المالي الوهمية الخالية من أسماء الأصناف
+    if (Array.isArray(items) && items.length > 1) {
+        items = items.filter(i => {
+            const n = (i.name || i.product || i.productName || '').trim();
+            const q = parseFloat(i.qty || i.quantity || 0);
+            if ((!n || n === 'صنف غير محدد') && q === 0) return false;
+            return true;
+        });
+    }
+
+    const hasVariants = !isFinancial && !(typeof document !== 'undefined' && document.body.classList.contains('bayan-variants-disabled')) && (
+        items.some(i => (i.size || i.selectedSize || i.color || i.selectedColor)) ||
+        (typeof document !== 'undefined' && document.body.classList.contains('bayan-variants-enabled'))
+    );
+
+    let itemsHtml = '';
+    let rawSubTotal = 0;
+    let grandTotal = 0;
+    let totalItemsDiscount = 0;
+    let totalItemsAddition = 0;
+
+    items.forEach(item => {
+        let name = item.name || item.product || item.productName || 'صنف غير محدد';
+        let qty = parseFloat(item.qty != null ? item.qty : (item.quantity || 0));
+        let unit = item.selectedUnit ? (typeof item.selectedUnit === 'object' ? item.selectedUnit.unitName : item.selectedUnit) : (item.unit || '');
+        let price = parseFloat(item.price != null ? item.price : (item.costPrice || item.purchasePrice || 0));
+        const subtotal = (parseFloat(qty) || 1) * (parseFloat(price) || 0);
+        const itemTotal = parseFloat(item.total != null ? item.total : subtotal);
+
+        let itemDisc = parseFloat(item.discount != null ? item.discount : (item.itemDiscount || 0)) || 0;
+        let itemDiscType = item.discountType || item.itemDiscountType || 'val';
+        let disc = (itemDiscType === 'perc' && itemDisc > 0) ? (subtotal * itemDisc / 100) : itemDisc;
+
+        let itemAdd = parseFloat(item.addition != null ? item.addition : (item.extra != null ? item.extra : (item.tax || 0))) || 0;
+        let itemAddType = item.additionType || item.taxType || 'val';
+        let extra = (itemAddType === 'perc' && itemAdd > 0) ? (subtotal * itemAdd / 100) : itemAdd;
+
+        // صمام الأمان الرياضي التلقائي: حماية من مضاعفة الخصم إذا كان البند يمتلك خصماً صريحاً أو كانت الفاتورة تحمل خصماً عاماً
+        const hasExplicitItemDisc = (item.discount !== undefined && item.discount !== null) || (item.itemDiscount !== undefined && item.itemDiscount !== null);
+        const hasGeneralInvoiceDisc = (tx.invoiceDiscount != null && parseFloat(tx.invoiceDiscount) > 0) || (tx.discountAmount != null && parseFloat(tx.discountAmount) > 0) || (item.distributedDiscount != null && parseFloat(item.distributedDiscount) > 0);
+
+        if (!hasExplicitItemDisc && !hasGeneralInvoiceDisc && disc <= 0 && (subtotal - itemTotal) > 0.01) {
+            disc = subtotal - itemTotal;
+        }
+        if (extra <= 0 && (itemTotal - subtotal) > 0.01) {
+            extra = itemTotal - subtotal;
         }
 
-        window.renderCustomInvoiceModal = function(tx, autoPrint = false) {
-            let typeName = 'فاتورة مبيعات';
-            let typeColor = '#27ae60';
-            let isTransfer = false, isReturn = false, isPurchase = false, isAdjustment = false;
-            let isReceipt = false, isDisburse = false;
-            
-            let tType = String(tx.type || '').toLowerCase();
-            if (tType === 'sale_return' || tType.includes('مرتجع بيع') || tType.includes('مرتجع مبيعات')) {
-                typeName = 'مرتجع مبيعات'; typeColor = '#e67e22'; isReturn = true;
-            } else if (tType === 'purchase_return' || tType.includes('مرتجع شراء') || tType.includes('مرتجع مشتريات')) {
-                typeName = 'مرتجع مشتريات'; typeColor = '#d35400'; isReturn = true; isPurchase = true;
-            } else if (tType === 'sale' || tType === 'بيع' || (tType.includes('بيع') && !tType.includes('مرتجع'))) {
-                typeName = 'فاتورة مبيعات'; typeColor = '#27ae60';
-            } else if (tType === 'purchase' || tType === 'شراء' || (tType.includes('شراء') && !tType.includes('مرتجع')) || (tType.includes('مشتريات') && !tType.includes('مرتجع'))) {
-                typeName = 'فاتورة مشتريات'; typeColor = '#2980b9'; isPurchase = true;
-            } else if (tType.includes('transfer') || tType.includes('تحويل') || tType === 'stock') {
-                if (tx.transferStatus === 'rejected') {
-                    typeName = 'إذن تحويل مخزني (❌ ملغي ومرفوض)';
-                    typeColor = '#dc2626';
-                } else if (tx.transferStatus === 'pending') {
-                    typeName = 'إذن تحويل مخزني (⏳ معلق بانتظار الاستلام)';
-                    typeColor = '#d97706';
-                } else {
-                    typeName = 'إذن تحويل مخزني';
-                    typeColor = '#16a085';
-                }
-                isTransfer = true;
-            } else if (tType.includes('adjustment') || tType.includes('تسوية') || tType.includes('جرد')) {
-                typeName = 'محضر تسوية مخزنية'; typeColor = '#d97706'; isAdjustment = true;
-            } else if (tType === 'receipt' || tType.includes('قبض')) {
-                typeName = 'سند استلام نقدية (قبض)'; typeColor = '#8e44ad'; isReceipt = true;
-            } else if (tType === 'payment' || tType === 'disburse' || tType.includes('صرف') || tType.includes('دفع')) {
-                typeName = 'سند صرف نقدية'; typeColor = '#c0392b'; isDisburse = true;
-            }
-            
-            let isFinancial = isReceipt || isDisburse;
-            let items = tx.items || tx.products || tx.cart || tx.details || [];
+        rawSubTotal += subtotal;
+        grandTotal += itemTotal;
+        totalItemsDiscount += disc;
+        totalItemsAddition += extra;
 
-            // تصفية أسطر الهيدر المالي الوهمية الخالية من أسماء الأصناف
-            if (Array.isArray(items) && items.length > 1) {
-                items = items.filter(i => {
-                    const n = (i.name || i.product || i.productName || '').trim();
-                    const q = parseFloat(i.qty || i.quantity || 0);
-                    if ((!n || n === 'صنف غير محدد') && q === 0) return false;
-                    return true;
-                });
-            }
+        let total = itemTotal;
 
-            const hasVariants = !isFinancial && !(typeof document !== 'undefined' && document.body.classList.contains('bayan-variants-disabled')) && (
-                items.some(i => (i.size || i.selectedSize || i.color || i.selectedColor)) ||
-                (typeof document !== 'undefined' && document.body.classList.contains('bayan-variants-enabled'))
-            );
+        let itemSize = item.size || item.selectedSize || '';
+        let itemColor = item.color || item.selectedColor || '';
+        let sizeBadge = itemSize ? `<span style="background:#e0e7ff; color:#3730a3; border:1px solid #c7d2fe; padding:2px 8px; border-radius:6px; font-weight:800; font-size:0.78rem;">${itemSize}</span>` : `<span style="color:#cbd5e1;">-</span>`;
+        let colorBadge = itemColor ? `<span style="background:#f1f5f9; color:#1e293b; border:1px solid #cbd5e1; padding:2px 8px; border-radius:6px; font-weight:800; font-size:0.78rem;">${itemColor}</span>` : `<span style="color:#cbd5e1;">-</span>`;
 
-            let itemsHtml = '';
-            let rawSubTotal = 0;
-            let grandTotal = 0;
-            let totalItemsDiscount = 0;
-            let totalItemsAddition = 0;
-            
-            items.forEach(item => {
-                let name = item.name || item.product || item.productName || 'صنف غير محدد';
-                let qty = parseFloat(item.qty != null ? item.qty : (item.quantity || 0));
-                let unit = item.selectedUnit ? (typeof item.selectedUnit === 'object' ? item.selectedUnit.unitName : item.selectedUnit) : (item.unit || '');
-                let price = parseFloat(item.price != null ? item.price : (item.costPrice || item.purchasePrice || 0));
-                const subtotal = (parseFloat(qty) || 1) * (parseFloat(price) || 0);
-                const itemTotal = parseFloat(item.total != null ? item.total : subtotal);
-
-                let itemDisc = parseFloat(item.discount != null ? item.discount : (item.itemDiscount || 0)) || 0;
-                let itemDiscType = item.discountType || item.itemDiscountType || 'val';
-                let disc = (itemDiscType === 'perc' && itemDisc > 0) ? (subtotal * itemDisc / 100) : itemDisc;
-
-                let itemAdd = parseFloat(item.addition != null ? item.addition : (item.extra != null ? item.extra : (item.tax || 0))) || 0;
-                let itemAddType = item.additionType || item.taxType || 'val';
-                let extra = (itemAddType === 'perc' && itemAdd > 0) ? (subtotal * itemAdd / 100) : itemAdd;
-
-                // صمام الأمان الرياضي التلقائي: حماية من مضاعفة الخصم إذا كان البند يمتلك خصماً صريحاً أو كانت الفاتورة تحمل خصماً عاماً
-                const hasExplicitItemDisc = (item.discount !== undefined && item.discount !== null) || (item.itemDiscount !== undefined && item.itemDiscount !== null);
-                const hasGeneralInvoiceDisc = (tx.invoiceDiscount != null && parseFloat(tx.invoiceDiscount) > 0) || (tx.discountAmount != null && parseFloat(tx.discountAmount) > 0) || (item.distributedDiscount != null && parseFloat(item.distributedDiscount) > 0);
-
-                if (!hasExplicitItemDisc && !hasGeneralInvoiceDisc && disc <= 0 && (subtotal - itemTotal) > 0.01) {
-                    disc = subtotal - itemTotal;
-                }
-                if (extra <= 0 && (itemTotal - subtotal) > 0.01) {
-                    extra = itemTotal - subtotal;
-                }
-
-                rawSubTotal += subtotal;
-                grandTotal += itemTotal;
-                totalItemsDiscount += disc;
-                totalItemsAddition += extra;
-
-                let total = itemTotal;
-                
-                let itemSize = item.size || item.selectedSize || '';
-                let itemColor = item.color || item.selectedColor || '';
-                let sizeBadge = itemSize ? `<span style="background:#e0e7ff; color:#3730a3; border:1px solid #c7d2fe; padding:2px 8px; border-radius:6px; font-weight:800; font-size:0.78rem;">${itemSize}</span>` : `<span style="color:#cbd5e1;">-</span>`;
-                let colorBadge = itemColor ? `<span style="background:#f1f5f9; color:#1e293b; border:1px solid #cbd5e1; padding:2px 8px; border-radius:6px; font-weight:800; font-size:0.78rem;">${itemColor}</span>` : `<span style="color:#cbd5e1;">-</span>`;
-
-                let discAddBadge = '';
-                if (disc > 0.001 && extra > 0.001) {
-                    discAddBadge = `
+        let discAddBadge = '';
+        if (disc > 0.001 && extra > 0.001) {
+            discAddBadge = `
                         <div style="display:flex; flex-direction:column; gap:2px; align-items:center;">
                             <span style="color:#ef4444; font-weight:bold; font-size:0.85rem;">-${disc.toFixed(2)}</span>
                             <span style="color:#2563eb; font-weight:bold; font-size:0.85rem;">+${extra.toFixed(2)}</span>
                         </div>
                     `;
-                } else if (disc > 0.001) {
-                    discAddBadge = `<span style="color:#ef4444; font-weight:bold; font-size:0.88rem;">-${disc.toFixed(2)}</span>`;
-                } else if (extra > 0.001) {
-                    discAddBadge = `<span style="color:#2563eb; font-weight:bold; font-size:0.88rem;">+${extra.toFixed(2)}</span>`;
-                } else {
-                    discAddBadge = `<span style="color:#94a3b8; font-weight:bold;">-</span>`;
-                }
+        } else if (disc > 0.001) {
+            discAddBadge = `<span style="color:#ef4444; font-weight:bold; font-size:0.88rem;">-${disc.toFixed(2)}</span>`;
+        } else if (extra > 0.001) {
+            discAddBadge = `<span style="color:#2563eb; font-weight:bold; font-size:0.88rem;">+${extra.toFixed(2)}</span>`;
+        } else {
+            discAddBadge = `<span style="color:#94a3b8; font-weight:bold;">-</span>`;
+        }
 
-                let method = tx.method || tx.paymentMethod || 'نقدي';
-                let cashier = tx.user || tx.cashier || '-';
-                
-                itemsHtml += `
+        let method = tx.method || tx.paymentMethod || 'نقدي';
+        let cashier = tx.user || tx.cashier || '-';
+
+        itemsHtml += `
                     <tr style="border-bottom:1px solid #f1f5f9; transition: 0.15s;" onmouseover="this.style.background='#f8fafc';" onmouseout="this.style.background='#ffffff';">
                         <td style="padding:11px 14px; text-align:right; font-weight:800; color:#0f172a; font-size:0.91rem;">${name}</td>
                         ${!isFinancial ? `
@@ -1482,157 +1504,157 @@
                         <td style="padding:11px 14px; text-align:center; font-weight:900; color:#0f172a; font-size:0.96rem;">${total.toFixed(2)} <span style="font-size:0.74rem; color:#94a3b8;">ج.م</span></td>
                     </tr>
                 `;
-            });
-            
-            let existing = document.getElementById('customViewModalOverlay');
-            if (existing) existing.remove();
-            let existingVoucher = document.getElementById('financialVoucherModalOverlay');
-            if (existingVoucher) existingVoucher.remove();
-            
-            let modal = document.createElement('div');
-            modal.id = 'customViewModalOverlay';
-            modal.style.cssText = `
+    });
+
+    let existing = document.getElementById('customViewModalOverlay');
+    if (existing) existing.remove();
+    let existingVoucher = document.getElementById('financialVoucherModalOverlay');
+    if (existingVoucher) existingVoucher.remove();
+
+    let modal = document.createElement('div');
+    modal.id = 'customViewModalOverlay';
+    modal.style.cssText = `
                 position: fixed; top: 0; left: 0; width: 100%; height: 100%;
                 background: rgba(15, 23, 42, 0.6); 
                 z-index: 12500; display: flex; align-items: center; justify-content: center;
                 direction: rtl; font-family: 'Cairo', sans-serif;
             `;
 
-            // خصم وإضافة الفاتورة العامة الصريحة فقط دون تسريب من بنود الأصناف
-            let invDiscountVal = parseFloat(tx.invoiceDiscount != null ? tx.invoiceDiscount : (tx.discountAmount || 0)) || 0;
-            let invDiscountType = tx.invoiceDiscountType || 'val';
-            let invDiscountAmount = (invDiscountType === 'perc' && invDiscountVal > 0) ? (rawSubTotal * invDiscountVal / 100) : invDiscountVal;
+    // خصم وإضافة الفاتورة العامة الصريحة فقط دون تسريب من بنود الأصناف
+    let invDiscountVal = parseFloat(tx.invoiceDiscount != null ? tx.invoiceDiscount : (tx.discountAmount || 0)) || 0;
+    let invDiscountType = tx.invoiceDiscountType || 'val';
+    let invDiscountAmount = (invDiscountType === 'perc' && invDiscountVal > 0) ? (rawSubTotal * invDiscountVal / 100) : invDiscountVal;
 
-            let invTaxVal = parseFloat(tx.invoiceTax != null ? tx.invoiceTax : 0) || 0;
-            let invTaxType = tx.invoiceTaxType || 'val';
-            let invTaxAmount = (invTaxType === 'perc' && invTaxVal > 0) ? (rawSubTotal * invTaxVal / 100) : invTaxVal;
+    let invTaxVal = parseFloat(tx.invoiceTax != null ? tx.invoiceTax : 0) || 0;
+    let invTaxType = tx.invoiceTaxType || 'val';
+    let invTaxAmount = (invTaxType === 'perc' && invTaxVal > 0) ? (rawSubTotal * invTaxVal / 100) : invTaxVal;
 
-            // حساب الخصم والإضافة الإجمالية بدقة لمنع التكرار (Double Counting)
-            let totalDiscountDisplay = 0;
-            if (invDiscountAmount > 0.001 && totalItemsDiscount > 0.001) {
-                if (Math.abs(totalItemsDiscount - invDiscountAmount) < 0.05) {
-                    totalDiscountDisplay = invDiscountAmount;
-                } else {
-                    totalDiscountDisplay = totalItemsDiscount + invDiscountAmount;
-                }
-            } else {
-                totalDiscountDisplay = totalItemsDiscount > 0 ? totalItemsDiscount : invDiscountAmount;
-            }
+    // حساب الخصم والإضافة الإجمالية بدقة لمنع التكرار (Double Counting)
+    let totalDiscountDisplay = 0;
+    if (invDiscountAmount > 0.001 && totalItemsDiscount > 0.001) {
+        if (Math.abs(totalItemsDiscount - invDiscountAmount) < 0.05) {
+            totalDiscountDisplay = invDiscountAmount;
+        } else {
+            totalDiscountDisplay = totalItemsDiscount + invDiscountAmount;
+        }
+    } else {
+        totalDiscountDisplay = totalItemsDiscount > 0 ? totalItemsDiscount : invDiscountAmount;
+    }
 
-            let totalAdditionDisplay = 0;
-            if (invTaxAmount > 0.001 && totalItemsAddition > 0.001) {
-                if (Math.abs(totalItemsAddition - invTaxAmount) < 0.05) {
-                    totalAdditionDisplay = invTaxAmount;
-                } else {
-                    totalAdditionDisplay = totalItemsAddition + invTaxAmount;
-                }
-            } else {
-                totalAdditionDisplay = totalItemsAddition > 0 ? totalItemsAddition : invTaxAmount;
-            }
+    let totalAdditionDisplay = 0;
+    if (invTaxAmount > 0.001 && totalItemsAddition > 0.001) {
+        if (Math.abs(totalItemsAddition - invTaxAmount) < 0.05) {
+            totalAdditionDisplay = invTaxAmount;
+        } else {
+            totalAdditionDisplay = totalItemsAddition + invTaxAmount;
+        }
+    } else {
+        totalAdditionDisplay = totalItemsAddition > 0 ? totalItemsAddition : invTaxAmount;
+    }
 
-            let invoiceFinalTotal = 0;
-            if (tx.invoiceGrandTotal && parseFloat(tx.invoiceGrandTotal) > 0) {
-                invoiceFinalTotal = parseFloat(tx.invoiceGrandTotal);
-            } else if (tx.finalTotal && parseFloat(tx.finalTotal) > 0) {
-                invoiceFinalTotal = parseFloat(tx.finalTotal);
-            } else if (tx.grandTotal && parseFloat(tx.grandTotal) > 0) {
-                invoiceFinalTotal = parseFloat(tx.grandTotal);
-            } else {
-                invoiceFinalTotal = Math.max(0, rawSubTotal - totalDiscountDisplay + totalAdditionDisplay);
-            }
-            if (invoiceFinalTotal <= 0 && grandTotal > 0) {
-                invoiceFinalTotal = grandTotal;
-            }
-            
-            let methodVal = String(tx.method || tx.paymentMethod || '').trim();
-            let paidVal = parseFloat(tx.paidAmount != null ? tx.paidAmount : (tx.paid != null ? tx.paid : 0));
-            if (isNaN(paidVal)) paidVal = 0;
-            
-            // التحقق من الآجل: فقط إذا كانت طريقة الدفع تنص صراحة على الآجل أو مسجل متبقي حقيقي في بيانات الفاتورة
-            let isExplicitDeferred = methodVal.includes('آجل') || methodVal.includes('أجل') || methodVal.includes('ذمم') || methodVal.includes('deferred') || methodVal.includes('credit') || methodVal.includes('تقسيط');
-            let recordedRemaining = parseFloat(tx.deferred != null ? tx.deferred : (tx.remaining != null ? tx.remaining : 0));
-            if (isNaN(recordedRemaining) || recordedRemaining < 0.001) recordedRemaining = 0;
+    let invoiceFinalTotal = 0;
+    if (tx.invoiceGrandTotal && parseFloat(tx.invoiceGrandTotal) > 0) {
+        invoiceFinalTotal = parseFloat(tx.invoiceGrandTotal);
+    } else if (tx.finalTotal && parseFloat(tx.finalTotal) > 0) {
+        invoiceFinalTotal = parseFloat(tx.finalTotal);
+    } else if (tx.grandTotal && parseFloat(tx.grandTotal) > 0) {
+        invoiceFinalTotal = parseFloat(tx.grandTotal);
+    } else {
+        invoiceFinalTotal = Math.max(0, rawSubTotal - totalDiscountDisplay + totalAdditionDisplay);
+    }
+    if (invoiceFinalTotal <= 0 && grandTotal > 0) {
+        invoiceFinalTotal = grandTotal;
+    }
 
-            let isDeferred = isExplicitDeferred || (recordedRemaining > 0.001);
-            let remainingVal = 0;
+    let methodVal = String(tx.method || tx.paymentMethod || '').trim();
+    let paidVal = parseFloat(tx.paidAmount != null ? tx.paidAmount : (tx.paid != null ? tx.paid : 0));
+    if (isNaN(paidVal)) paidVal = 0;
 
-            if (isDeferred) {
-                if (recordedRemaining > 0.001) {
-                    remainingVal = recordedRemaining;
-                } else {
-                    remainingVal = Math.max(0, invoiceFinalTotal - paidVal);
-                }
-                if (isNaN(remainingVal) || remainingVal < 0) remainingVal = Math.max(0, invoiceFinalTotal - paidVal);
-            } else {
-                remainingVal = 0;
-                paidVal = invoiceFinalTotal; // نقدي خالص ومسدد
-            }
+    // التحقق من الآجل: فقط إذا كانت طريقة الدفع تنص صراحة على الآجل أو مسجل متبقي حقيقي في بيانات الفاتورة
+    let isExplicitDeferred = methodVal.includes('آجل') || methodVal.includes('أجل') || methodVal.includes('ذمم') || methodVal.includes('deferred') || methodVal.includes('credit') || methodVal.includes('تقسيط');
+    let recordedRemaining = parseFloat(tx.deferred != null ? tx.deferred : (tx.remaining != null ? tx.remaining : 0));
+    if (isNaN(recordedRemaining) || recordedRemaining < 0.001) recordedRemaining = 0;
 
-            let displayMethod = (typeof window.formatPaymentMethodDisplay === 'function')
-                ? window.formatPaymentMethodDisplay(tx, { paidVal, remainingVal, isDeferred })
-                : (isDeferred ? '⏳ آجل (ذمم)' : (methodVal || '💵 نقدي (كاش)'));
-            
-            let modalWidth = hasVariants ? '920px' : '820px';
+    let isDeferred = isExplicitDeferred || (recordedRemaining > 0.001);
+    let remainingVal = 0;
 
-            let typeIcon = '🧾';
-            if (isReturn) typeIcon = '↩️';
-            else if (isPurchase) typeIcon = '📦';
-            else if (isTransfer) typeIcon = '🚚';
-            else if (isAdjustment) typeIcon = '⚖️';
-            else if (isReceipt) typeIcon = '💰';
-            else if (isDisburse) typeIcon = '💸';
+    if (isDeferred) {
+        if (recordedRemaining > 0.001) {
+            remainingVal = recordedRemaining;
+        } else {
+            remainingVal = Math.max(0, invoiceFinalTotal - paidVal);
+        }
+        if (isNaN(remainingVal) || remainingVal < 0) remainingVal = Math.max(0, invoiceFinalTotal - paidVal);
+    } else {
+        remainingVal = 0;
+        paidVal = invoiceFinalTotal; // نقدي خالص ومسدد
+    }
 
-            // استخراج وتنسيق التاريخ والوقت بدقة وبشكل واضح ومقروء
-            let displayDate = '';
-            let displayTime = '';
-            
-            // 1. استخراج التاريخ بدقة
-            if (tx.dateISO) {
-                displayDate = tx.dateISO;
-            } else if (tx.date) {
-                const rawDateStr = String(tx.date).trim();
-                displayDate = rawDateStr.includes('T') ? rawDateStr.split('T')[0] : (rawDateStr.includes(' ') ? rawDateStr.split(' ')[0] : rawDateStr);
-            } else if (tx.timestamp) {
-                const d = new Date(tx.timestamp);
-                displayDate = !isNaN(d.getTime()) ? (d.toLocaleDateString('ar-EG') || d.toISOString().slice(0, 10)) : String(tx.timestamp);
-            }
-            if (!displayDate) displayDate = '-';
+    let displayMethod = (typeof window.formatPaymentMethodDisplay === 'function')
+        ? window.formatPaymentMethodDisplay(tx, { paidVal, remainingVal, isDeferred })
+        : (isDeferred ? '⏳ آجل (ذمم)' : (methodVal || '💵 نقدي (كاش)'));
 
-            // 2. استخراج الوقت بدقة من كافة المصادر الممكنة
-            if (tx.timeISO) {
-                displayTime = tx.timeISO;
-            } else if (tx.time) {
-                displayTime = tx.time;
-            } else if (tx.date && String(tx.date).includes(' ')) {
-                displayTime = String(tx.date).trim().split(' ').slice(1).join(' ');
-            } else if (tx.date && String(tx.date).includes('T')) {
-                displayTime = (String(tx.date).split('T')[1] || '').split('.')[0].slice(0, 8);
-            } else if (tx.dateISO && String(tx.dateISO).includes('T')) {
-                displayTime = (String(tx.dateISO).split('T')[1] || '').split('.')[0].slice(0, 8);
-            } else if (tx.timestamp) {
-                const d = new Date(tx.timestamp);
-                if (!isNaN(d.getTime())) {
-                    displayTime = d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
-                }
-            }
+    let modalWidth = hasVariants ? '920px' : '820px';
 
-            // 3. تنظيف وتوحيد رقم الفاتورة المعروض وتجنب أرقام المعرفات الطويلة
-            let displayInvoiceId = String(tx.invoiceId != null && tx.invoiceId !== '' ? tx.invoiceId : (tx.invoiceNumber || tx.id || '-')).trim();
-            if (displayInvoiceId.includes('_item_')) {
-                displayInvoiceId = displayInvoiceId.split('_item_')[0];
-            }
-            if (displayInvoiceId.startsWith('TX_') || (displayInvoiceId.length >= 11 && /^\d+$/.test(displayInvoiceId))) {
-                if (tx.invoiceId && String(tx.invoiceId) !== displayInvoiceId && !String(tx.invoiceId).startsWith('TX_') && String(tx.invoiceId).length < 11) {
-                    displayInvoiceId = String(tx.invoiceId);
-                } else if (tx.taxInvoiceSeq || tx.dailySeq) {
-                    displayInvoiceId = String(tx.taxInvoiceSeq || tx.dailySeq);
-                } else if (typeof window.extractNumericInvoiceId === 'function') {
-                    const num = window.extractNumericInvoiceId(displayInvoiceId);
-                    if (num > 0 && num < 100000000) displayInvoiceId = String(num);
-                }
-            }
+    let typeIcon = '🧾';
+    if (isReturn) typeIcon = '↩️';
+    else if (isPurchase) typeIcon = '📦';
+    else if (isTransfer) typeIcon = '🚚';
+    else if (isAdjustment) typeIcon = '⚖️';
+    else if (isReceipt) typeIcon = '💰';
+    else if (isDisburse) typeIcon = '💸';
 
-            let modalContent = `
+    // استخراج وتنسيق التاريخ والوقت بدقة وبشكل واضح ومقروء
+    let displayDate = '';
+    let displayTime = '';
+
+    // 1. استخراج التاريخ بدقة
+    if (tx.dateISO) {
+        displayDate = tx.dateISO;
+    } else if (tx.date) {
+        const rawDateStr = String(tx.date).trim();
+        displayDate = rawDateStr.includes('T') ? rawDateStr.split('T')[0] : (rawDateStr.includes(' ') ? rawDateStr.split(' ')[0] : rawDateStr);
+    } else if (tx.timestamp) {
+        const d = new Date(tx.timestamp);
+        displayDate = !isNaN(d.getTime()) ? (d.toLocaleDateString('ar-EG') || d.toISOString().slice(0, 10)) : String(tx.timestamp);
+    }
+    if (!displayDate) displayDate = '-';
+
+    // 2. استخراج الوقت بدقة من كافة المصادر الممكنة
+    if (tx.timeISO) {
+        displayTime = tx.timeISO;
+    } else if (tx.time) {
+        displayTime = tx.time;
+    } else if (tx.date && String(tx.date).includes(' ')) {
+        displayTime = String(tx.date).trim().split(' ').slice(1).join(' ');
+    } else if (tx.date && String(tx.date).includes('T')) {
+        displayTime = (String(tx.date).split('T')[1] || '').split('.')[0].slice(0, 8);
+    } else if (tx.dateISO && String(tx.dateISO).includes('T')) {
+        displayTime = (String(tx.dateISO).split('T')[1] || '').split('.')[0].slice(0, 8);
+    } else if (tx.timestamp) {
+        const d = new Date(tx.timestamp);
+        if (!isNaN(d.getTime())) {
+            displayTime = d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+        }
+    }
+
+    // 3. تنظيف وتوحيد رقم الفاتورة المعروض وتجنب أرقام المعرفات الطويلة
+    let displayInvoiceId = String(tx.invoiceId != null && tx.invoiceId !== '' ? tx.invoiceId : (tx.invoiceNumber || tx.id || '-')).trim();
+    if (displayInvoiceId.includes('_item_')) {
+        displayInvoiceId = displayInvoiceId.split('_item_')[0];
+    }
+    if (displayInvoiceId.startsWith('TX_') || (displayInvoiceId.length >= 11 && /^\d+$/.test(displayInvoiceId))) {
+        if (tx.invoiceId && String(tx.invoiceId) !== displayInvoiceId && !String(tx.invoiceId).startsWith('TX_') && String(tx.invoiceId).length < 11) {
+            displayInvoiceId = String(tx.invoiceId);
+        } else if (tx.taxInvoiceSeq || tx.dailySeq) {
+            displayInvoiceId = String(tx.taxInvoiceSeq || tx.dailySeq);
+        } else if (typeof window.extractNumericInvoiceId === 'function') {
+            const num = window.extractNumericInvoiceId(displayInvoiceId);
+            if (num > 0 && num < 100000000) displayInvoiceId = String(num);
+        }
+    }
+
+    let modalContent = `
                 <div style="background: #ffffff; width: ${modalWidth}; max-width: 96vw; max-height: 92vh; border-radius: 24px; box-shadow: 0 20px 50px rgba(15, 23, 42, 0.28), 0 4px 12px rgba(0,0,0,0.06); display: flex; flex-direction: column; overflow: hidden; border: 1.5px solid #cbd5e1; direction: rtl; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;">
                     
                     <!-- 1. Header بتدرج بنفسجي غامق ملكي فاخر مع هوية نوع العملية ووضوح التاريخ والوقت -->
@@ -1662,7 +1684,7 @@
                                 </div>
                             </div>
                         </div>
-                        <button onclick="document.getElementById('customViewModalOverlay').remove()" 
+                        <button onclick="window.closeCustomViewModal()" 
                             style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.25); color: #ffffff; font-size: 1.35rem; cursor: pointer; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s;"
                             onmouseover="this.style.background='rgba(239,68,68,0.4)'; this.style.borderColor='#ef4444';"
                             onmouseout="this.style.background='rgba(255,255,255,0.15)'; this.style.borderColor='rgba(255,255,255,0.25)';">
@@ -1758,22 +1780,22 @@
                         <!-- شريط الملخص المالي المحاسبي الشامل -->
                         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; padding: 13px 16px; border-top: 1.5px solid #e2e8f0; background: #f8fafc; border-radius: 15px;">
                             ${(() => {
-                                let pName = tx.customer || tx.partner || tx.account || tx.supplier || '';
-                                if (pName && !window.isGenericCashPartner(pName) && typeof getAccountBalance === 'function') {
-                                    const curBal = getAccountBalance(pName);
-                                    const balColor = curBal > 0.01 ? '#dc2626' : (curBal < -0.01 ? '#059669' : '#475569');
-                                    const balBg = curBal > 0.01 ? '#fef2f2' : (curBal < -0.01 ? '#ecfdf5' : '#ffffff');
-                                    const balBorder = curBal > 0.01 ? '#fca5a5' : (curBal < -0.01 ? '#a7f3d0' : '#cbd5e1');
-                                    const balLabel = curBal > 0.01 ? `مديونية عليه (${curBal.toFixed(2)} ج.م)` : (curBal < -0.01 ? `رصيد له (${Math.abs(curBal).toFixed(2)} ج.م)` : 'خالص (0.00 ج.م)');
-                                    return `
+            let pName = tx.customer || tx.partner || tx.account || tx.supplier || '';
+            if (pName && !window.isGenericCashPartner(pName) && typeof getAccountBalance === 'function') {
+                const curBal = getAccountBalance(pName);
+                const balColor = curBal > 0.01 ? '#dc2626' : (curBal < -0.01 ? '#059669' : '#475569');
+                const balBg = curBal > 0.01 ? '#fef2f2' : (curBal < -0.01 ? '#ecfdf5' : '#ffffff');
+                const balBorder = curBal > 0.01 ? '#fca5a5' : (curBal < -0.01 ? '#a7f3d0' : '#cbd5e1');
+                const balLabel = curBal > 0.01 ? `مديونية عليه (${curBal.toFixed(2)} ج.م)` : (curBal < -0.01 ? `رصيد له (${Math.abs(curBal).toFixed(2)} ج.م)` : 'خالص (0.00 ج.م)');
+                return `
                                         <div style="background: ${balBg}; border: 1.5px solid ${balBorder}; padding: 7px 14px; border-radius: 11px; display: flex; flex-direction: column;">
                                             <span style="font-size: 0.72rem; color: #64748b; font-weight: 800;">👤 رصيد الحساب الإجمالي:</span>
                                             <div style="font-size: 0.98rem; font-weight: 900; color: ${balColor};">${balLabel}</div>
                                         </div>
                                     `;
-                                }
-                                return '<div></div>';
-                            })()}
+            }
+            return '<div></div>';
+        })()}
                             <div style="display: flex; justify-content: flex-end; gap: 10px; align-items: center; flex-wrap: wrap;">
                                 ${(totalDiscountDisplay > 0.001 || totalAdditionDisplay > 0.001) ? `
                                     <div style="background: #ffffff; border: 1px solid #e2e8f0; padding: 6px 12px; border-radius: 10px; text-align: center;">
@@ -1815,7 +1837,7 @@
                     
                     <!-- 3. شريط الأزرار والإجراءات السفلي -->
                     <div style="padding: 15px 24px; background: #f8fafc; border-top: 1.5px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
-                        <button onclick="document.getElementById('customViewModalOverlay').remove()" 
+                        <button onclick="window.closeCustomViewModal()" 
                             style="padding: 9px 22px; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 11px; font-weight: 800; color: #475569; font-size: 0.88rem; cursor: pointer; transition: 0.2s;"
                             onmouseover="this.style.background='#f1f5f9'; this.style.borderColor='#94a3b8';"
                             onmouseout="this.style.background='#ffffff'; this.style.borderColor='#cbd5e1';">
@@ -1833,46 +1855,46 @@
                     </div>
                 </div>
             `;
-            
-            const executePrint = function() {
-                if (isTransfer) {
-                    const shopName    = document.getElementById('shopName')?.value || 'بـيـان POS';
-                    const shopAddress = document.getElementById('shopAddress')?.value || '';
-                    const shopPhone   = document.getElementById('shopPhone1')?.value || '';
-                    const footerMsg   = document.getElementById('printFooterMsg')?.value || 'شكراً لزيارتكم!';
-                    
-                    let wFrom = 'المخزن الرئيسي';
-                    let wTo = 'مخزن فرعي';
-                    if (tx.partner && tx.partner.includes('->')) {
-                        const parts = tx.partner.split('->');
-                        wFrom = parts[0].trim();
-                        wTo = parts[1].trim();
+
+    const executePrint = function () {
+        if (isTransfer) {
+            const shopName = document.getElementById('shopName')?.value || 'بـيـان POS';
+            const shopAddress = document.getElementById('shopAddress')?.value || '';
+            const shopPhone = document.getElementById('shopPhone1')?.value || '';
+            const footerMsg = document.getElementById('printFooterMsg')?.value || 'شكراً لزيارتكم!';
+
+            let wFrom = 'المخزن الرئيسي';
+            let wTo = 'مخزن فرعي';
+            if (tx.partner && tx.partner.includes('->')) {
+                const parts = tx.partner.split('->');
+                wFrom = parts[0].trim();
+                wTo = parts[1].trim();
+            }
+
+            let date = tx.dateISO ? (tx.dateISO + ' ' + (tx.timeISO || '')) : (tx.date || '-');
+
+            let rowsHtml = '';
+            let totalValue = 0;
+            items.forEach((item, idx) => {
+                const qty = parseFloat(item.qty || item.quantity || 0);
+                const price = parseFloat(item.price || item.costPrice || item.purchasePrice || 0);
+                const total = qty * price;
+                totalValue += total;
+                let sSize = item.size || item.selectedSize || '';
+                let sColor = item.color || item.selectedColor || '';
+
+                if (!sSize && item.name) {
+                    const pInfo = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB.find(p => p.id === item.id || p.name === item.name) : null;
+                    if (pInfo && pInfo.variants && pInfo.variants.length > 0) {
+                        sSize = pInfo.variants[0].size || '';
+                        sColor = pInfo.variants[0].color || '';
                     }
-                    
-                    let date = tx.dateISO ? (tx.dateISO + ' ' + (tx.timeISO || '')) : (tx.date || '-');
-                    
-                    let rowsHtml = '';
-                    let totalValue = 0;
-                    items.forEach((item, idx) => {
-                        const qty = parseFloat(item.qty || item.quantity || 0);
-                        const price = parseFloat(item.price || item.costPrice || item.purchasePrice || 0);
-                        const total = qty * price;
-                        totalValue += total;
-                        let sSize = item.size || item.selectedSize || '';
-                        let sColor = item.color || item.selectedColor || '';
+                }
 
-                        if (!sSize && item.name) {
-                            const pInfo = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB.find(p => p.id === item.id || p.name === item.name) : null;
-                            if (pInfo && pInfo.variants && pInfo.variants.length > 0) {
-                                sSize = pInfo.variants[0].size || '';
-                                sColor = pInfo.variants[0].color || '';
-                            }
-                        }
+                const displaySize = (sSize && sSize !== '-') ? sSize : 'عام';
+                const displayColor = (sColor && sColor !== '-') ? sColor : 'عام';
 
-                        const displaySize = (sSize && sSize !== '-') ? sSize : 'عام';
-                        const displayColor = (sColor && sColor !== '-') ? sColor : 'عام';
-
-                        rowsHtml += `
+                rowsHtml += `
                             <tr>
                                 <td style="padding: 6px 8px; border: 1px solid #000;">${idx + 1}</td>
                                 <td style="text-align:right; padding: 6px 10px; border: 1px solid #000; font-weight:bold;">${item.name}</td>
@@ -1883,9 +1905,9 @@
                                 <td style="padding: 6px 8px; border: 1px solid #000; font-weight:bold;">${total.toFixed(2)}</td>
                             </tr>
                         `;
-                    });
+            });
 
-                    const content = `
+            const content = `
                         <div class="print-container" style="direction:rtl; font-family:Cairo, sans-serif; padding: 20px;">
                             <div style="text-align:center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
                                 <h1 style="margin:0;">${shopName}</h1>
@@ -1928,35 +1950,35 @@
                             </div>
                         </div>
                     `;
-                    
-                    let receiptArea = document.getElementById('receipt-area');
-                    if (!receiptArea) {
-                        receiptArea = document.createElement('div');
-                        receiptArea.id = 'receipt-area';
-                        document.body.appendChild(receiptArea);
-                    }
-                    receiptArea.innerHTML = content;
-                    window.print();
-                } else if (isAdjustment) {
-                    const shopName    = document.getElementById('shopName')?.value || 'بـيـان POS';
-                    const shopAddress = document.getElementById('shopAddress')?.value || '';
-                    const shopPhone   = document.getElementById('shopPhone1')?.value || '';
-                    const footerMsg   = document.getElementById('printFooterMsg')?.value || 'شكراً لزيارتكم!';
-                    
-                    let date = tx.dateISO ? (tx.dateISO + ' ' + (tx.timeISO || '')) : (tx.date || '-');
-                    
-                    let rowsHtml = '';
-                    let totalQty = 0;
-                    let totalValue = 0;
-                    items.forEach((item, idx) => {
-                        const qty = parseFloat(item.qty || item.quantity || 0);
-                        const price = parseFloat(item.price || item.costPrice || item.purchasePrice || 0);
-                        const total = qty * price;
-                        totalQty += qty;
-                        totalValue += total;
-                        const sSize = item.size || item.selectedSize || '-';
-                        const sColor = item.color || item.selectedColor || '-';
-                        rowsHtml += `
+
+            let receiptArea = document.getElementById('receipt-area');
+            if (!receiptArea) {
+                receiptArea = document.createElement('div');
+                receiptArea.id = 'receipt-area';
+                document.body.appendChild(receiptArea);
+            }
+            receiptArea.innerHTML = content;
+            window.print();
+        } else if (isAdjustment) {
+            const shopName = document.getElementById('shopName')?.value || 'بـيـان POS';
+            const shopAddress = document.getElementById('shopAddress')?.value || '';
+            const shopPhone = document.getElementById('shopPhone1')?.value || '';
+            const footerMsg = document.getElementById('printFooterMsg')?.value || 'شكراً لزيارتكم!';
+
+            let date = tx.dateISO ? (tx.dateISO + ' ' + (tx.timeISO || '')) : (tx.date || '-');
+
+            let rowsHtml = '';
+            let totalQty = 0;
+            let totalValue = 0;
+            items.forEach((item, idx) => {
+                const qty = parseFloat(item.qty || item.quantity || 0);
+                const price = parseFloat(item.price || item.costPrice || item.purchasePrice || 0);
+                const total = qty * price;
+                totalQty += qty;
+                totalValue += total;
+                const sSize = item.size || item.selectedSize || '-';
+                const sColor = item.color || item.selectedColor || '-';
+                rowsHtml += `
                             <tr>
                                 <td style="padding: 6px 8px; border: 1px solid #000;">${idx + 1}</td>
                                 <td style="text-align:right; padding: 6px 10px; border: 1px solid #000; font-weight:bold;">${item.name}</td>
@@ -1967,9 +1989,9 @@
                                 <td style="padding: 6px 8px; border: 1px solid #000; font-weight:bold;">${total.toFixed(2)}</td>
                             </tr>
                         `;
-                    });
+            });
 
-                    const content = `
+            const content = `
                         <div class="print-container" style="direction:rtl; font-family:Cairo, sans-serif; padding: 20px;">
                             <div style="text-align:center; border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
                                 <h1 style="margin:0;">${shopName}</h1>
@@ -2013,279 +2035,289 @@
                             </div>
                         </div>
                     `;
-                    
-                    let receiptArea = document.getElementById('receipt-area');
-                    if (!receiptArea) {
-                        receiptArea = document.createElement('div');
-                        receiptArea.id = 'receipt-area';
-                        document.body.appendChild(receiptArea);
-                    }
-                    receiptArea.innerHTML = content;
-                    window.print();
-                } else if (tx.type.includes('قبض') || tx.type.includes('صرف')) {
-                    if (typeof window.printFinancialVoucher === 'function') {
-                        window.printFinancialVoucher(tx);
-                        return;
-                    }
-                } else {
-                    if (typeof window.printInvoiceById === 'function') {
-                        // إثراء كائن الفاتورة بالبيانات والإجماليات الدقيقة المحسوبة في نافذة العرض
-                        tx.items = items;
-                        tx.subTotal = rawSubTotal;
-                        tx.discount = totalDiscountDisplay;
-                        tx.invoiceDiscount = totalDiscountDisplay;
-                        tx.tax = totalAdditionDisplay;
-                        tx.invoiceTax = totalAdditionDisplay;
-                        tx.totalAmount = invoiceFinalTotal;
-                        tx.invoiceGrandTotal = invoiceFinalTotal;
-                        tx.paid = paidVal;
-                        tx.deferred = isDeferred ? remainingVal : 0;
-                        tx.remaining = isDeferred ? remainingVal : 0;
-                        tx.prevBalance = (typeof prevBal !== 'undefined') ? prevBal : 0;
-                        tx.currentBalance = ((typeof prevBal !== 'undefined') ? prevBal : 0) + (isDeferred ? remainingVal : 0);
-                        tx.isReturn = isReturn;
-                        tx.isPurchase = isPurchase;
-                        return window.printInvoiceById(tx);
-                    } else if (typeof printInvoice === 'function') {
-                        let printType = tx.type || 'بيع';
-                        if (printType === 'sale') printType = 'بيع';
-                        if (printType === 'purchase') printType = 'شراء';
-                        
-                        let printDocType = isPurchase ? 'purchase' : 'sales';
-                        if (isReturn) {
-                            printDocType = isPurchase ? 'return_purchase' : 'return_sales';
-                            printType = isPurchase ? 'مرتجع مشتريات' : 'مرتجع مبيعات';
-                        }
-                        const printDocTitle = isReturn ? (isPurchase ? 'مرتجع مشتريات' : 'مرتجع مبيعات') : (isPurchase ? 'فاتورة مشتريات' : 'فاتورة مبيعات');
 
-                        // فصل التاريخ والوقت بدقة وبصيغة سليمة
-                        let printDate = '';
-                        let printTime = '';
-                        if (tx.dateISO) {
-                            printDate = tx.dateISO;
-                            printTime = tx.timeISO || '';
-                        } else if (tx.date) {
-                            if (tx.date.includes(' ')) {
-                                const parts = tx.date.split(' ');
-                                printDate = parts[0];
-                                printTime = parts[1] ? parts[1].substring(0, 5) : '';
-                            } else {
-                                printDate = tx.date;
-                            }
-                        }
-
-                        let prevBal = 0;
-                        let partnerName = tx.customer || tx.partner || '';
-                        if (partnerName && !window.isGenericCashPartner(partnerName)) {
-                            if (typeof getHistoricalPartnerBalance === 'function') {
-                                prevBal = getHistoricalPartnerBalance(partnerName, tx.invoiceId || tx.invoiceNumber || tx.id);
-                            } else if (typeof getAccountBalance === 'function') {
-                                prevBal = getAccountBalance(partnerName, tx.invoiceId || tx.invoiceNumber || tx.id);
-                            }
-                        }
-
-                        printInvoice({
-                            invoiceNumber: tx.invoiceId || tx.invoiceNumber || tx.id,
-                            invoiceType: isReturn ? (isPurchase ? 'مرتجع مشتريات' : 'مرتجع مبيعات') : printType,
-                            paymentMethod: (typeof window.formatPaymentMethodDisplay === 'function') ? window.formatPaymentMethodDisplay(tx) : (tx.method || tx.paymentMethod || 'نقدي'),
-                            isReturn: isReturn,
-                            isPurchase: isPurchase,
-                            docTitle: printDocTitle,
-                            date: printDate,
-                            time: printTime,
-                            cashier: tx.cashier || tx.user || '',
-                            customer: tx.customer || tx.partner || 'عميل نقدي',
-                            items: items,
-                            totalAmount: invoiceFinalTotal,
-                            paid: paidVal,
-                            deferred: isDeferred ? remainingVal : 0,
-                            prevBalance: prevBal,
-                            currentBalance: prevBal + (invoiceFinalTotal - paidVal),
-                            docType: printDocType
-                        });
-                    } else {
-                        alert('خطأ: محرك الطباعة غير متوفر!');
-                    }
-                }
-            };
-
-            if (autoPrint) {
-                executePrint();
+            let receiptArea = document.getElementById('receipt-area');
+            if (!receiptArea) {
+                receiptArea = document.createElement('div');
+                receiptArea.id = 'receipt-area';
+                document.body.appendChild(receiptArea);
+            }
+            receiptArea.innerHTML = content;
+            window.print();
+        } else if (tx.type.includes('قبض') || tx.type.includes('صرف')) {
+            if (typeof window.printFinancialVoucher === 'function') {
+                window.printFinancialVoucher(tx);
                 return;
             }
+        } else {
+            if (typeof window.printInvoiceById === 'function') {
+                // إثراء كائن الفاتورة بالبيانات والإجماليات الدقيقة المحسوبة في نافذة العرض
+                tx.items = items;
+                tx.subTotal = rawSubTotal;
+                tx.discount = totalDiscountDisplay;
+                tx.invoiceDiscount = totalDiscountDisplay;
+                tx.tax = totalAdditionDisplay;
+                tx.invoiceTax = totalAdditionDisplay;
+                tx.totalAmount = invoiceFinalTotal;
+                tx.invoiceGrandTotal = invoiceFinalTotal;
+                tx.paid = paidVal;
+                tx.deferred = isDeferred ? remainingVal : 0;
+                tx.remaining = isDeferred ? remainingVal : 0;
+                tx.prevBalance = (typeof prevBal !== 'undefined') ? prevBal : 0;
+                tx.currentBalance = ((typeof prevBal !== 'undefined') ? prevBal : 0) + (isDeferred ? remainingVal : 0);
+                tx.isReturn = isReturn;
+                tx.isPurchase = isPurchase;
+                return window.printInvoiceById(tx);
+            } else if (typeof printInvoice === 'function') {
+                let printType = tx.type || 'بيع';
+                if (printType === 'sale') printType = 'بيع';
+                if (printType === 'purchase') printType = 'شراء';
 
-            existing = document.getElementById('customViewModalOverlay');
-            if (existing) existing.remove();
-            
-            modal = document.createElement('div');
-            modal.id = 'customViewModalOverlay';
-            modal.style.cssText = `
+                let printDocType = isPurchase ? 'purchase' : 'sales';
+                if (isReturn) {
+                    printDocType = isPurchase ? 'return_purchase' : 'return_sales';
+                    printType = isPurchase ? 'مرتجع مشتريات' : 'مرتجع مبيعات';
+                }
+                const printDocTitle = isReturn ? (isPurchase ? 'مرتجع مشتريات' : 'مرتجع مبيعات') : (isPurchase ? 'فاتورة مشتريات' : 'فاتورة مبيعات');
+
+                // فصل التاريخ والوقت بدقة وبصيغة سليمة
+                let printDate = '';
+                let printTime = '';
+                if (tx.dateISO) {
+                    printDate = tx.dateISO;
+                    printTime = tx.timeISO || '';
+                } else if (tx.date) {
+                    if (tx.date.includes(' ')) {
+                        const parts = tx.date.split(' ');
+                        printDate = parts[0];
+                        printTime = parts[1] ? parts[1].substring(0, 5) : '';
+                    } else {
+                        printDate = tx.date;
+                    }
+                }
+
+                let prevBal = 0;
+                let partnerName = tx.customer || tx.partner || '';
+                if (partnerName && !window.isGenericCashPartner(partnerName)) {
+                    if (typeof getHistoricalPartnerBalance === 'function') {
+                        prevBal = getHistoricalPartnerBalance(partnerName, tx.invoiceId || tx.invoiceNumber || tx.id);
+                    } else if (typeof getAccountBalance === 'function') {
+                        prevBal = getAccountBalance(partnerName, tx.invoiceId || tx.invoiceNumber || tx.id);
+                    }
+                }
+
+                printInvoice({
+                    invoiceNumber: tx.invoiceId || tx.invoiceNumber || tx.id,
+                    invoiceType: isReturn ? (isPurchase ? 'مرتجع مشتريات' : 'مرتجع مبيعات') : printType,
+                    paymentMethod: (typeof window.formatPaymentMethodDisplay === 'function') ? window.formatPaymentMethodDisplay(tx) : (tx.method || tx.paymentMethod || 'نقدي'),
+                    isReturn: isReturn,
+                    isPurchase: isPurchase,
+                    docTitle: printDocTitle,
+                    date: printDate,
+                    time: printTime,
+                    cashier: tx.cashier || tx.user || '',
+                    customer: tx.customer || tx.partner || 'عميل نقدي',
+                    items: items,
+                    totalAmount: invoiceFinalTotal,
+                    paid: paidVal,
+                    deferred: isDeferred ? remainingVal : 0,
+                    prevBalance: prevBal,
+                    currentBalance: prevBal + (invoiceFinalTotal - paidVal),
+                    docType: printDocType
+                });
+            } else {
+                if (typeof showCustomAlert === 'function') {
+                    showCustomAlert({
+                        type: 'error',
+                        titleText: 'خطأ',
+                        msg: 'محرك الطباعة غير متوفر!'
+                    });
+                } else if (typeof showToast === 'function') {
+                    showToast('خطأ: محرك الطباعة غير متوفر!', 'error');
+                } else {
+                    alert('خطأ: محرك الطباعة غير متوفر!');
+                }
+            }
+        }
+    };
+
+    if (autoPrint) {
+        executePrint();
+        return;
+    }
+
+    existing = document.getElementById('customViewModalOverlay');
+    if (existing) existing.remove();
+
+    modal = document.createElement('div');
+    modal.id = 'customViewModalOverlay';
+    modal.style.cssText = `
                 position: fixed; top: 0; left: 0; width: 100%; height: 100%;
                 background: rgba(15, 23, 42, 0.72); 
                 z-index: 11000; display: flex; align-items: center; justify-content: center;
                 animation: fadeIn 0.2s ease;
             `;
-            
-            modal.innerHTML = modalContent;
-            document.body.appendChild(modal);
-            
-            document.getElementById('customPrintBtn').onclick = executePrint;
-        };
 
-        // ====================================================================
-        // 🌟 دالة التفقيط بالعربية المعتمدة (Arabic Number to Words / Tafqeet)
-        // ====================================================================
-        function tafqeetArabic(num) {
-            if (num === null || num === undefined || isNaN(num)) return 'صفر جنيه مصري لا غير';
-            num = parseFloat(num);
-            if (num === 0) return 'صفر جنيه مصري لا غير';
+    modal.innerHTML = modalContent;
+    document.body.appendChild(modal);
 
-            const isNeg = num < 0;
-            num = Math.abs(num);
+    document.getElementById('customPrintBtn').onclick = executePrint;
+};
 
-            const intPart = Math.floor(num);
-            const decPart = Math.round((num - intPart) * 100);
+// ====================================================================
+// 🌟 دالة التفقيط بالعربية المعتمدة (Arabic Number to Words / Tafqeet)
+// ====================================================================
+function tafqeetArabic(num) {
+    if (num === null || num === undefined || isNaN(num)) return 'صفر جنيه مصري لا غير';
+    num = parseFloat(num);
+    if (num === 0) return 'صفر جنيه مصري لا غير';
 
-            const ones = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'];
-            const tens = ['', 'عشرة', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون', 'سبعون', 'ثمانون', 'تسعون'];
-            const teens = ['عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر', 'ستة عشر', 'سبعة عشر', 'ثمانية عشر', 'تسعة عشر'];
-            const hundreds = ['', 'مائة', 'مئتان', 'ثلاثمائة', 'أربعمائة', 'خمسمائة', 'ستمائة', 'سبعمائة', 'ثمانمائة', 'تسعمائة'];
+    const isNeg = num < 0;
+    num = Math.abs(num);
 
-            function convertGroup(n) {
-                let str = '';
-                const h = Math.floor(n / 100);
-                const rem = n % 100;
-                const t = Math.floor(rem / 10);
-                const o = rem % 10;
+    const intPart = Math.floor(num);
+    const decPart = Math.round((num - intPart) * 100);
 
-                if (h > 0) {
-                    str += hundreds[h];
-                }
+    const ones = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'];
+    const tens = ['', 'عشرة', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون', 'سبعون', 'ثمانون', 'تسعون'];
+    const teens = ['عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر', 'ستة عشر', 'سبعة عشر', 'ثمانية عشر', 'تسعة عشر'];
+    const hundreds = ['', 'مائة', 'مئتان', 'ثلاثمائة', 'أربعمائة', 'خمسمائة', 'ستمائة', 'سبعمائة', 'ثمانمائة', 'تسعمائة'];
 
-                if (rem > 0) {
-                    if (str !== '') str += ' و';
-                    if (rem < 10) {
-                        str += ones[rem];
-                    } else if (rem >= 10 && rem < 20) {
-                        str += teens[rem - 10];
-                    } else {
-                        if (o > 0) {
-                            str += ones[o] + ' و';
-                        }
-                        str += tens[t];
-                    }
-                }
-                return str;
-            }
+    function convertGroup(n) {
+        let str = '';
+        const h = Math.floor(n / 100);
+        const rem = n % 100;
+        const t = Math.floor(rem / 10);
+        const o = rem % 10;
 
-            let result = '';
-            const millions = Math.floor(intPart / 1000000);
-            const thousands = Math.floor((intPart % 1000000) / 1000);
-            const remainder = intPart % 1000;
-
-            if (millions > 0) {
-                if (millions === 1) result += 'مليون';
-                else if (millions === 2) result += 'مليونان';
-                else if (millions >= 3 && millions <= 10) result += convertGroup(millions) + ' ملايين';
-                else result += convertGroup(millions) + ' مليوناً';
-            }
-
-            if (thousands > 0) {
-                if (result !== '') result += ' و';
-                if (thousands === 1) result += 'ألف';
-                else if (thousands === 2) result += 'ألفان';
-                else if (thousands >= 3 && thousands <= 10) result += convertGroup(thousands) + ' آلاف';
-                else result += convertGroup(thousands) + ' ألفاً';
-            }
-
-            if (remainder > 0) {
-                if (result !== '') result += ' و';
-                result += convertGroup(remainder);
-            }
-
-            let pounds = '';
-            if (intPart === 0) {
-                pounds = '';
-            } else if (intPart === 1) {
-                pounds = 'جنيه مصري واحد';
-            } else if (intPart === 2) {
-                pounds = 'جنيهان مصريان';
-            } else if (intPart >= 3 && intPart <= 10) {
-                pounds = result + ' جنيهات مصرية';
-            } else {
-                pounds = result + ' جنيهاً مصرياً';
-            }
-
-            let piastres = '';
-            if (decPart > 0) {
-                const decText = convertGroup(decPart);
-                if (decPart === 1) piastres = 'قرش واحد';
-                else if (decPart === 2) piastres = 'قرشان';
-                else if (decPart >= 3 && decPart <= 10) piastres = decText + ' قروش';
-                else piastres = decText + ' قرشاً';
-            }
-
-            let finalTafqeet = 'فقط ';
-            if (intPart > 0 && decPart > 0) {
-                finalTafqeet += pounds + ' و' + piastres;
-            } else if (intPart > 0) {
-                finalTafqeet += pounds;
-            } else if (decPart > 0) {
-                finalTafqeet += piastres;
-            } else {
-                finalTafqeet += 'صفر جنيه مصري';
-            }
-
-            finalTafqeet += ' لا غير';
-            if (isNeg) finalTafqeet = 'سالب ' + finalTafqeet;
-            return finalTafqeet;
+        if (h > 0) {
+            str += hundreds[h];
         }
-        window.tafqeetArabic = tafqeetArabic;
 
-        // ====================================================================
-        // 💵 نافذة السند المالي المخصصة مع التفقيط (Financial Voucher Modal)
-        // ====================================================================
-        window.renderFinancialVoucherModal = function(tx, autoPrint = false) {
-            if (!tx) return;
+        if (rem > 0) {
+            if (str !== '') str += ' و';
+            if (rem < 10) {
+                str += ones[rem];
+            } else if (rem >= 10 && rem < 20) {
+                str += teens[rem - 10];
+            } else {
+                if (o > 0) {
+                    str += ones[o] + ' و';
+                }
+                str += tens[t];
+            }
+        }
+        return str;
+    }
 
-            let existing = document.getElementById('financialVoucherModalOverlay');
-            if (existing) existing.remove();
-            let existingCustom = document.getElementById('customViewModalOverlay');
-            if (existingCustom) existingCustom.remove();
+    let result = '';
+    const millions = Math.floor(intPart / 1000000);
+    const thousands = Math.floor((intPart % 1000000) / 1000);
+    const remainder = intPart % 1000;
 
-            const tType = String(tx.type || '').toLowerCase();
-            const isReceipt = tType.includes('قبض') || tType === 'receipt';
-            const voucherTitle = isReceipt ? 'سند استلام نقدية (قبض)' : 'سند صرف نقدية';
-            const voucherIcon = isReceipt ? '📥' : '📤';
-            const themeGradient = isReceipt
-                ? 'linear-gradient(135deg, #064e3b 0%, #047857 50%, #059669 100%)'
-                : 'linear-gradient(135deg, #7f1d1d 0%, #b91c1c 50%, #dc2626 100%)';
-            const themeColor = isReceipt ? '#059669' : '#dc2626';
-            const partnerLabel = isReceipt ? 'استلمنا من السيد / الطرف:' : 'صرفنا إلى السيد / الطرف:';
+    if (millions > 0) {
+        if (millions === 1) result += 'مليون';
+        else if (millions === 2) result += 'مليونان';
+        else if (millions >= 3 && millions <= 10) result += convertGroup(millions) + ' ملايين';
+        else result += convertGroup(millions) + ' مليوناً';
+    }
 
-            const amountNum = parseFloat(tx.total || tx.price || 0) || 0;
-            const tafqeetText = typeof window.tafqeetArabic === 'function' ? window.tafqeetArabic(amountNum) : `${amountNum.toFixed(2)} ج.م`;
+    if (thousands > 0) {
+        if (result !== '') result += ' و';
+        if (thousands === 1) result += 'ألف';
+        else if (thousands === 2) result += 'ألفان';
+        else if (thousands >= 3 && thousands <= 10) result += convertGroup(thousands) + ' آلاف';
+        else result += convertGroup(thousands) + ' ألفاً';
+    }
 
-            const docId = tx.invoiceId || tx.id || '-';
-            const dateStr = tx.dateISO || (tx.date ? String(tx.date).split(' ')[0] : '-');
-            const timeStr = tx.timeISO || tx.time || (tx.date && String(tx.date).includes(' ') ? String(tx.date).split(' ')[1] : '');
-            const partnerName = tx.partner || tx.customer || tx.payee || tx.account || 'طرف نقدي';
-            const paymentMethod = (typeof window.formatPaymentMethodDisplay === 'function' ? window.formatPaymentMethodDisplay(tx) : tx.method) || 'كاش (نقدي)';
-            const notes = tx.product || tx.notes || tx.desc || 'سند مالي';
-            const cashier = tx.user || tx.cashier || '-';
-            const warehouse = tx.warehouse || 'المخزن الرئيسي';
-            const terminal = tx.terminal || 'الجهاز الرئيسي 💻';
+    if (remainder > 0) {
+        if (result !== '') result += ' و';
+        result += convertGroup(remainder);
+    }
 
-            const overlay = document.createElement('div');
-            overlay.id = 'financialVoucherModalOverlay';
-            overlay.style.cssText = `
+    let pounds = '';
+    if (intPart === 0) {
+        pounds = '';
+    } else if (intPart === 1) {
+        pounds = 'جنيه مصري واحد';
+    } else if (intPart === 2) {
+        pounds = 'جنيهان مصريان';
+    } else if (intPart >= 3 && intPart <= 10) {
+        pounds = result + ' جنيهات مصرية';
+    } else {
+        pounds = result + ' جنيهاً مصرياً';
+    }
+
+    let piastres = '';
+    if (decPart > 0) {
+        const decText = convertGroup(decPart);
+        if (decPart === 1) piastres = 'قرش واحد';
+        else if (decPart === 2) piastres = 'قرشان';
+        else if (decPart >= 3 && decPart <= 10) piastres = decText + ' قروش';
+        else piastres = decText + ' قرشاً';
+    }
+
+    let finalTafqeet = 'فقط ';
+    if (intPart > 0 && decPart > 0) {
+        finalTafqeet += pounds + ' و' + piastres;
+    } else if (intPart > 0) {
+        finalTafqeet += pounds;
+    } else if (decPart > 0) {
+        finalTafqeet += piastres;
+    } else {
+        finalTafqeet += 'صفر جنيه مصري';
+    }
+
+    finalTafqeet += ' لا غير';
+    if (isNeg) finalTafqeet = 'سالب ' + finalTafqeet;
+    return finalTafqeet;
+}
+window.tafqeetArabic = tafqeetArabic;
+
+// ====================================================================
+// 💵 نافذة السند المالي المخصصة مع التفقيط (Financial Voucher Modal)
+// ====================================================================
+window.renderFinancialVoucherModal = function (tx, autoPrint = false) {
+    if (!tx) return;
+
+    let existing = document.getElementById('financialVoucherModalOverlay');
+    if (existing) existing.remove();
+    let existingCustom = document.getElementById('customViewModalOverlay');
+    if (existingCustom) existingCustom.remove();
+
+    const tType = String(tx.type || '').toLowerCase();
+    const isReceipt = tType.includes('قبض') || tType === 'receipt';
+    const voucherTitle = isReceipt ? 'سند استلام نقدية (قبض)' : 'سند صرف نقدية';
+    const voucherIcon = isReceipt ? '📥' : '📤';
+    const themeGradient = isReceipt
+        ? 'linear-gradient(135deg, #064e3b 0%, #047857 50%, #059669 100%)'
+        : 'linear-gradient(135deg, #7f1d1d 0%, #b91c1c 50%, #dc2626 100%)';
+    const themeColor = isReceipt ? '#059669' : '#dc2626';
+    const partnerLabel = isReceipt ? 'استلمنا من السيد / الطرف:' : 'صرفنا إلى السيد / الطرف:';
+
+    const amountNum = parseFloat(tx.total || tx.price || 0) || 0;
+    const tafqeetText = typeof window.tafqeetArabic === 'function' ? window.tafqeetArabic(amountNum) : `${amountNum.toFixed(2)} ج.م`;
+
+    const docId = tx.invoiceId || tx.id || '-';
+    const dateStr = tx.dateISO || (tx.date ? String(tx.date).split(' ')[0] : '-');
+    const timeStr = tx.timeISO || tx.time || (tx.date && String(tx.date).includes(' ') ? String(tx.date).split(' ')[1] : '');
+    const partnerName = tx.partner || tx.customer || tx.payee || tx.account || 'طرف نقدي';
+    const paymentMethod = (typeof window.formatPaymentMethodDisplay === 'function' ? window.formatPaymentMethodDisplay(tx) : tx.method) || 'كاش (نقدي)';
+    const notes = tx.product || tx.notes || tx.desc || 'سند مالي';
+    const cashier = tx.user || tx.cashier || '-';
+    const warehouse = tx.warehouse || 'المخزن الرئيسي';
+    const terminal = tx.terminal || 'الجهاز الرئيسي 💻';
+
+    const overlay = document.createElement('div');
+    overlay.id = 'financialVoucherModalOverlay';
+    overlay.style.cssText = `
                 position: fixed; top: 0; left: 0; width: 100%; height: 100%;
                 background: rgba(15, 23, 42, 0.65); backdrop-filter: blur(4px);
                 z-index: 12600; display: flex; align-items: center; justify-content: center;
                 direction: rtl; font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
             `;
 
-            overlay.innerHTML = `
+    overlay.innerHTML = `
                 <div style="background: #ffffff; width: 680px; max-width: 95vw; max-height: 92vh; border-radius: 20px; box-shadow: 0 25px 60px rgba(0,0,0,0.3); display: flex; flex-direction: column; overflow: hidden; border: 1.5px solid #cbd5e1;">
                     
                     <!-- Header -->
@@ -2305,7 +2337,7 @@
                                 </div>
                             </div>
                         </div>
-                        <button type="button" onclick="document.getElementById('financialVoucherModalOverlay').remove()" 
+                        <button type="button" onclick="window.closeFinancialVoucherModal()" 
                             style="background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: #ffffff; font-size: 1.3rem; cursor: pointer; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: 0.2s;"
                             onmouseover="this.style.background='rgba(239,68,68,0.5)';"
                             onmouseout="this.style.background='rgba(255,255,255,0.15)';">
@@ -2360,7 +2392,7 @@
 
                     <!-- Footer Buttons -->
                     <div style="padding: 14px 24px; background: #ffffff; border-top: 1.5px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
-                        <button type="button" onclick="document.getElementById('financialVoucherModalOverlay').remove()" 
+                        <button type="button" onclick="window.closeFinancialVoucherModal()" 
                             style="padding: 9px 20px; border-radius: 10px; border: 1.5px solid #cbd5e1; background: #ffffff; color: #475569; font-weight: 800; font-size: 0.88rem; cursor: pointer; transition: 0.2s;"
                             onmouseover="this.style.background='#f1f5f9';"
                             onmouseout="this.style.background='#ffffff';">
@@ -2382,154 +2414,154 @@
                 </div>
             `;
 
-            window._activeFinancialVoucherTx = tx;
-            document.body.appendChild(overlay);
+    window._activeFinancialVoucherTx = tx;
+    document.body.appendChild(overlay);
 
-            if (autoPrint && typeof window.printFinancialVoucher === 'function') {
-                setTimeout(() => window.printFinancialVoucher(tx, tx.type, tx.id), 300);
-            }
-        };
+    if (autoPrint && typeof window.printFinancialVoucher === 'function') {
+        setTimeout(() => window.printFinancialVoucher(tx, tx.type, tx.id), 300);
+    }
+};
 
-        window.shareFinancialVoucherWhatsApp = function(docIdOrTx) {
-            if (!docIdOrTx) return;
-            let t = (typeof docIdOrTx === 'object' && docIdOrTx !== null) ? docIdOrTx : null;
-            if (!t) {
-                const sId = String(docIdOrTx).trim();
-                const pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
-                t = pool.find(x => x && (String(x.invoiceId) === sId || String(x.id) === sId) && (String(x.type || '').includes('قبض') || String(x.type || '').includes('صرف')));
-                if (!t && window.BayanSQLite && typeof window.BayanSQLite.getInvoiceFullDetails === 'function') {
-                    t = window.BayanSQLite.getInvoiceFullDetails(sId, 'سند');
-                }
-            }
-            if (!t) return;
-            const docId = t.invoiceId || t.id || '-';
-            const amount = parseFloat(t.total || t.price || 0).toFixed(2);
-            const isReceipt = String(t.type || '').includes('قبض');
-            const title = isReceipt ? 'سند استلام نقدية (قبض)' : 'سند صرف نقدية';
-            const tafqeet = typeof window.tafqeetArabic === 'function' ? window.tafqeetArabic(amount) : '';
-            
-            const text = `📄 ${title}\n🔢 رقم السند: #${docId}\n📅 التاريخ: ${t.date || t.dateISO || '-'}\n👤 الطرف: ${t.partner || t.customer || t.payee || '-'}\n💰 المبلغ: ${amount} ج.م\n✍️ التفقيط: ${tafqeet}\n💳 طريقة الدفع: ${t.method || 'نقدي'}\n📝 البيان: ${t.product || t.notes || '-'}\n\nتم الإرسال عبر تطبيق بيان POS ✨`;
+window.shareFinancialVoucherWhatsApp = function (docIdOrTx) {
+    if (!docIdOrTx) return;
+    let t = (typeof docIdOrTx === 'object' && docIdOrTx !== null) ? docIdOrTx : null;
+    if (!t) {
+        const sId = String(docIdOrTx).trim();
+        const pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+        t = pool.find(x => x && (String(x.invoiceId) === sId || String(x.id) === sId) && (String(x.type || '').includes('قبض') || String(x.type || '').includes('صرف')));
+        if (!t && window.BayanSQLite && typeof window.BayanSQLite.getInvoiceFullDetails === 'function') {
+            t = window.BayanSQLite.getInvoiceFullDetails(sId, 'سند');
+        }
+    }
+    if (!t) return;
+    const docId = t.invoiceId || t.id || '-';
+    const amount = parseFloat(t.total || t.price || 0).toFixed(2);
+    const isReceipt = String(t.type || '').includes('قبض');
+    const title = isReceipt ? 'سند استلام نقدية (قبض)' : 'سند صرف نقدية';
+    const tafqeet = typeof window.tafqeetArabic === 'function' ? window.tafqeetArabic(amount) : '';
 
-            let cleanPhone = '';
-            if (typeof getPartnerPhone === 'function' && typeof formatPhoneForWhatsApp === 'function') {
-                cleanPhone = formatPhoneForWhatsApp(getPartnerPhone(t.partner || t.customer || t.payee));
-            }
-            const url = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
-            window.open(url, '_blank');
-        };
+    const text = `📄 ${title}\n🔢 رقم السند: #${docId}\n📅 التاريخ: ${t.date || t.dateISO || '-'}\n👤 الطرف: ${t.partner || t.customer || t.payee || '-'}\n💰 المبلغ: ${amount} ج.م\n✍️ التفقيط: ${tafqeet}\n💳 طريقة الدفع: ${t.method || 'نقدي'}\n📝 البيان: ${t.product || t.notes || '-'}\n\nتم الإرسال عبر تطبيق بيان POS ✨`;
 
-        // ====================================================================
-        // 🖨️ المحرك الموحد المتقدم لطباعة السندات المالية (Receipt & Disburse Engine)
-        // ====================================================================
-        window.printFinancialVoucher = function(txOrId, optType = '', optTxId = '') {
-            if (!txOrId && txOrId !== 0) return;
-            let t = null;
-            if (typeof txOrId === 'object' && txOrId !== null) {
-                t = txOrId;
-            } else {
-                const sDocId = String(txOrId).trim();
-                const sTxId = String(optTxId || '').trim();
-                const cleanType = String(optType || '').trim().toLowerCase();
-                const isReceiptOnly = cleanType.includes('قبض') || cleanType === 'receipt';
-                const isDisburseOnly = cleanType.includes('صرف') || cleanType.includes('دفع') || cleanType === 'payment' || cleanType === 'disburse';
-                const pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+    let cleanPhone = '';
+    if (typeof getPartnerPhone === 'function' && typeof formatPhoneForWhatsApp === 'function') {
+        cleanPhone = formatPhoneForWhatsApp(getPartnerPhone(t.partner || t.customer || t.payee));
+    }
+    const url = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank');
+};
 
-                t = pool.find(x => {
-                    if (!x) return false;
-                    const xType = String(x.type || '').toLowerCase();
-                    if (isReceiptOnly && !xType.includes('قبض') && xType !== 'receipt') return false;
-                    if (isDisburseOnly && !xType.includes('صرف') && !xType.includes('دفع') && xType !== 'payment' && xType !== 'disburse') return false;
-                    if (sTxId && String(x.id) === sTxId) return true;
-                    return (x.invoiceId != null && String(x.invoiceId) === sDocId) ||
-                           (x.id != null && String(x.id) === sDocId);
-                });
+// ====================================================================
+// 🖨️ المحرك الموحد المتقدم لطباعة السندات المالية (Receipt & Disburse Engine)
+// ====================================================================
+window.printFinancialVoucher = function (txOrId, optType = '', optTxId = '') {
+    if (!txOrId && txOrId !== 0) return;
+    let t = null;
+    if (typeof txOrId === 'object' && txOrId !== null) {
+        t = txOrId;
+    } else {
+        const sDocId = String(txOrId).trim();
+        const sTxId = String(optTxId || '').trim();
+        const cleanType = String(optType || '').trim().toLowerCase();
+        const isReceiptOnly = cleanType.includes('قبض') || cleanType === 'receipt';
+        const isDisburseOnly = cleanType.includes('صرف') || cleanType.includes('دفع') || cleanType === 'payment' || cleanType === 'disburse';
+        const pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
 
-                if (!t && window.BayanSQLite && typeof window.BayanSQLite.getInvoiceFullDetails === 'function') {
-                    t = window.BayanSQLite.getInvoiceFullDetails(sDocId, optType || (isReceiptOnly ? 'سند قبض' : (isDisburseOnly ? 'سند صرف' : '')), sTxId);
-                }
+        t = pool.find(x => {
+            if (!x) return false;
+            const xType = String(x.type || '').toLowerCase();
+            if (isReceiptOnly && !xType.includes('قبض') && xType !== 'receipt') return false;
+            if (isDisburseOnly && !xType.includes('صرف') && !xType.includes('دفع') && xType !== 'payment' && xType !== 'disburse') return false;
+            if (sTxId && String(x.id) === sTxId) return true;
+            return (x.invoiceId != null && String(x.invoiceId) === sDocId) ||
+                (x.id != null && String(x.id) === sDocId);
+        });
 
-                if (!t) {
-                    t = pool.find(x => x && (String(x.invoiceId) === sDocId || String(x.id) === sDocId) && (String(x.type || '').includes('قبض') || String(x.type || '').includes('صرف')));
-                }
-            }
+        if (!t && window.BayanSQLite && typeof window.BayanSQLite.getInvoiceFullDetails === 'function') {
+            t = window.BayanSQLite.getInvoiceFullDetails(sDocId, optType || (isReceiptOnly ? 'سند قبض' : (isDisburseOnly ? 'سند صرف' : '')), sTxId);
+        }
 
-            if (!t) {
-                if (typeof showCustomAlert === 'function') {
-                    showCustomAlert({
-                        type: 'warning',
-                        titleText: '⚠️ تنبيه',
-                        msg: 'لم يتم العثور على بيانات السند المالي المحدد للطباعة.'
-                    });
-                }
-                return;
-            }
+        if (!t) {
+            t = pool.find(x => x && (String(x.invoiceId) === sDocId || String(x.id) === sDocId) && (String(x.type || '').includes('قبض') || String(x.type || '').includes('صرف')));
+        }
+    }
 
-            const tType = String(t.type || '');
-            const isReceipt = tType.includes('قبض') || tType.toLowerCase() === 'receipt';
-            let savedPosSettings = {};
-            try { savedPosSettings = JSON.parse(getStore('pos_settings') || '{}'); } catch(e) {}
-            const shopName = savedPosSettings.name || (document.getElementById('shopName') ? document.getElementById('shopName').value : 'بـيـان POS');
-            const shopAddress = savedPosSettings.address || (document.getElementById('shopAddress') ? document.getElementById('shopAddress').value : '');
-            const shopPhone = savedPosSettings.phone || (document.getElementById('shopPhone1') ? document.getElementById('shopPhone1').value : '');
-            const footerMsg = savedPosSettings.printFooterMsg || (document.getElementById('printFooterMsg') ? document.getElementById('printFooterMsg').value : 'شكراً لتعاملكم معنا!');
+    if (!t) {
+        if (typeof showCustomAlert === 'function') {
+            showCustomAlert({
+                type: 'warning',
+                titleText: '⚠️ تنبيه',
+                msg: 'لم يتم العثور على بيانات السند المالي المحدد للطباعة.'
+            });
+        }
+        return;
+    }
 
-            const id = t.invoiceId || t.id || '-';
-            const date = t.dateISO || (t.date ? String(t.date).split(' ')[0] : new Date().toLocaleDateString('en-CA'));
-            const time = t.timeISO || (t.date && String(t.date).includes(' ') ? String(t.date).split(' ')[1] : '') || (t.time || '');
-            const partnerName = t.partner || t.customer || t.payee || t.account || 'طرف نقدي';
-            const amount = parseFloat(t.total || t.paidAmount || t.price || 0) || 0;
-            const method = (typeof window.formatPaymentMethodDisplay === 'function' ? window.formatPaymentMethodDisplay(t) : t.method) || 'كاش (نقدي)';
-            const cashier = t.user || t.cashier || (window.currentUser ? window.currentUser.name : '-');
-            const warehouse = t.warehouse || 'المخزن الرئيسي';
-            const notes = t.product || t.notes || '';
-            const tafqeet = typeof window.tafqeetArabic === 'function' ? window.tafqeetArabic(amount) : `${amount.toFixed(2)} ج.م`;
+    const tType = String(t.type || '');
+    const isReceipt = tType.includes('قبض') || tType.toLowerCase() === 'receipt';
+    let savedPosSettings = {};
+    try { savedPosSettings = JSON.parse(getStore('pos_settings') || '{}'); } catch (e) { }
+    const shopName = savedPosSettings.name || (document.getElementById('shopName') ? document.getElementById('shopName').value : 'بـيـان POS');
+    const shopAddress = savedPosSettings.address || (document.getElementById('shopAddress') ? document.getElementById('shopAddress').value : '');
+    const shopPhone = savedPosSettings.phone || (document.getElementById('shopPhone1') ? document.getElementById('shopPhone1').value : '');
+    const footerMsg = savedPosSettings.printFooterMsg || (document.getElementById('printFooterMsg') ? document.getElementById('printFooterMsg').value : 'شكراً لتعاملكم معنا!');
 
-            let hasPartnerBalance = false;
-            let balBefore = 0, balAfter = 0;
-            let balBeforeLabel = '0.00', balAfterLabel = '0.00';
+    const id = t.invoiceId || t.id || '-';
+    const date = t.dateISO || (t.date ? String(t.date).split(' ')[0] : new Date().toLocaleDateString('en-CA'));
+    const time = t.timeISO || (t.date && String(t.date).includes(' ') ? String(t.date).split(' ')[1] : '') || (t.time || '');
+    const partnerName = t.partner || t.customer || t.payee || t.account || 'طرف نقدي';
+    const amount = parseFloat(t.total || t.paidAmount || t.price || 0) || 0;
+    const method = (typeof window.formatPaymentMethodDisplay === 'function' ? window.formatPaymentMethodDisplay(t) : t.method) || 'كاش (نقدي)';
+    const cashier = t.user || t.cashier || (window.currentUser ? window.currentUser.name : '-');
+    const warehouse = t.warehouse || 'المخزن الرئيسي';
+    const notes = t.product || t.notes || '';
+    const tafqeet = typeof window.tafqeetArabic === 'function' ? window.tafqeetArabic(amount) : `${amount.toFixed(2)} ج.م`;
 
-            if (partnerName && partnerName !== 'غير محدد' && typeof window.isGenericCashPartner === 'function' && !window.isGenericCashPartner(partnerName) && typeof window.getAccountBalance === 'function') {
-                hasPartnerBalance = true;
-                const curBal = window.getAccountBalance(partnerName);
-                balAfter = curBal;
-                if (isReceipt) {
-                    balBefore = curBal + amount;
-                } else {
-                    balBefore = curBal - amount;
-                }
+    let hasPartnerBalance = false;
+    let balBefore = 0, balAfter = 0;
+    let balBeforeLabel = '0.00', balAfterLabel = '0.00';
 
-                if (isReceipt) {
-                    balBeforeLabel = balBefore > 0.01 
-                        ? `${balBefore.toFixed(2)} (عليه)` 
-                        : (balBefore < -0.01 ? `${Math.abs(balBefore).toFixed(2)} (له)` : '0.00 (خالص)');
-                    balAfterLabel = balAfter > 0.01 
-                        ? `${balAfter.toFixed(2)} (متبقي عليه)` 
-                        : (balAfter < -0.01 ? `${Math.abs(balAfter).toFixed(2)} (رصيد له)` : '0.00 (خالص)');
-                } else {
-                    balBeforeLabel = balBefore < -0.01 
-                        ? `${Math.abs(balBefore).toFixed(2)} (كان له)` 
-                        : (balBefore > 0.01 ? `${balBefore.toFixed(2)} (كان عليه)` : '0.00 (خالص)');
-                    balAfterLabel = balAfter < -0.01 
-                        ? `${Math.abs(balAfter).toFixed(2)} (متبقي له)` 
-                        : (balAfter > 0.01 ? `${balAfter.toFixed(2)} (متبقي عليه)` : '0.00 (خالص)');
-                }
-            }
+    if (partnerName && partnerName !== 'غير محدد' && typeof window.isGenericCashPartner === 'function' && !window.isGenericCashPartner(partnerName) && typeof window.getAccountBalance === 'function') {
+        hasPartnerBalance = true;
+        const curBal = window.getAccountBalance(partnerName);
+        balAfter = curBal;
+        if (isReceipt) {
+            balBefore = curBal + amount;
+        } else {
+            balBefore = curBal - amount;
+        }
 
-            const title = isReceipt ? 'سند قبض نقدية' : 'سند صرف نقدية';
-            const actionLabel = isReceipt ? 'وصلنا من السيد:' : 'صرف للسيد:';
-            const amountLabel = isReceipt ? 'المبلغ المقبوض:' : 'المبلغ المنصرف:';
-            const col1Title = isReceipt ? 'الرصيد السابق' : 'كان له';
-            const col2Title = isReceipt ? 'المبلغ المقبوض' : 'المنصرف';
-            const col3Title = isReceipt ? 'الرصيد بعد السند' : 'المتبقي له';
-            const sign2Label = isReceipt ? 'الختم والاعتماد' : 'المدير المالي';
+        if (isReceipt) {
+            balBeforeLabel = balBefore > 0.01
+                ? `${balBefore.toFixed(2)} (عليه)`
+                : (balBefore < -0.01 ? `${Math.abs(balBefore).toFixed(2)} (له)` : '0.00 (خالص)');
+            balAfterLabel = balAfter > 0.01
+                ? `${balAfter.toFixed(2)} (متبقي عليه)`
+                : (balAfter < -0.01 ? `${Math.abs(balAfter).toFixed(2)} (رصيد له)` : '0.00 (خالص)');
+        } else {
+            balBeforeLabel = balBefore < -0.01
+                ? `${Math.abs(balBefore).toFixed(2)} (كان له)`
+                : (balBefore > 0.01 ? `${balBefore.toFixed(2)} (كان عليه)` : '0.00 (خالص)');
+            balAfterLabel = balAfter < -0.01
+                ? `${Math.abs(balAfter).toFixed(2)} (متبقي له)`
+                : (balAfter > 0.01 ? `${balAfter.toFixed(2)} (متبقي عليه)` : '0.00 (خالص)');
+        }
+    }
 
-            const formatMoney = (num) => {
-                const isNeg = num < 0;
-                const formatted = Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-                return isNeg ? `-${formatted}` : formatted;
-            };
+    const title = isReceipt ? 'سند قبض نقدية' : 'سند صرف نقدية';
+    const actionLabel = isReceipt ? 'وصلنا من السيد:' : 'صرف للسيد:';
+    const amountLabel = isReceipt ? 'المبلغ المقبوض:' : 'المبلغ المنصرف:';
+    const col1Title = isReceipt ? 'الرصيد السابق' : 'كان له';
+    const col2Title = isReceipt ? 'المبلغ المقبوض' : 'المنصرف';
+    const col3Title = isReceipt ? 'الرصيد بعد السند' : 'المتبقي له';
+    const sign2Label = isReceipt ? 'الختم والاعتماد' : 'المدير المالي';
 
-            const htmlContent = `
+    const formatMoney = (num) => {
+        const isNeg = num < 0;
+        const formatted = Math.abs(num).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return isNeg ? `-${formatted}` : formatted;
+    };
+
+    const htmlContent = `
                 <html dir="rtl" lang="ar">
                 <head>
                     <meta charset="utf-8">
@@ -2765,1245 +2797,1245 @@
                 </html>
             `;
 
-            const printWindow = window.open('', '_blank');
-            if (printWindow) {
-                printWindow.document.write(htmlContent);
-                printWindow.document.close();
-            } else {
-                let receiptArea = document.getElementById('receipt-area');
-                if (!receiptArea) {
-                    receiptArea = document.createElement('div');
-                    receiptArea.id = 'receipt-area';
-                    document.body.appendChild(receiptArea);
-                }
-                receiptArea.innerHTML = htmlContent;
-                window.print();
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+    } else {
+        let receiptArea = document.getElementById('receipt-area');
+        if (!receiptArea) {
+            receiptArea = document.createElement('div');
+            receiptArea.id = 'receipt-area';
+            document.body.appendChild(receiptArea);
+        }
+        receiptArea.innerHTML = htmlContent;
+        window.print();
+    }
+};
+
+window.printFinancialVoucherById = function (docId, type = '', txId = '') {
+    return window.printFinancialVoucher(docId, type, txId);
+};
+
+// ====================================================================
+// 🚀 دالة توجيه المستندات المركزية الموحدة (Master Document Router)
+// ====================================================================
+window.viewAnyDocumentUnified = async function (targetId, targetType = '', optTxId = '') {
+    if (typeof checkPermission === 'function' && !checkPermission('docs_view')) return;
+
+    if (!targetId && targetId !== 0) {
+        targetId = window.selectedInvoiceId || selectedInvoiceIndex;
+        targetType = targetType || window.selectedInvoiceType || '';
+        optTxId = optTxId || window.selectedTxId || '';
+    }
+
+    if (!targetId && targetId !== 0 && !optTxId) {
+        return showCustomAlert({
+            type: 'warning',
+            titleText: '⚠️ تنبيه',
+            msg: 'يرجى تحديد مستند أو عملية من الجدول أولاً لعرض تفاصيلها.'
+        });
+    }
+
+    const sId = String(targetId || '').trim();
+    const sTxId = String(optTxId || '').trim();
+    let pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+
+    // ⚡ التأكد أولاً من تحميل الفاتورة/المستند بكافة بنوده من محرك SQLite إذا لم تكن موجودة أو كانت مقتصرة على سطر الرأس
+    if (typeof window.ensureInvoiceLoaded === 'function' && sId) {
+        const sampleInPool = pool.find(t => t && ((sTxId && String(t.id) === sTxId) ||
+            (t.invoiceId != null && String(t.invoiceId) === sId) ||
+            (t.id != null && String(t.id) === sId) ||
+            (t.transferId != null && String(t.transferId) === sId) ||
+            (t.adjId != null && String(t.adjId) === sId)));
+        const hasItemsInPool = pool.some(t => t && ((sTxId && String(t.id) === sTxId) ||
+            (t.invoiceId != null && String(t.invoiceId) === sId) ||
+            (t.id != null && String(t.id) === sId)) &&
+            (t.product || t.productName || t.name));
+        if (!sampleInPool || !hasItemsInPool) {
+            try {
+                await window.ensureInvoiceLoaded(sId);
+                pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+            } catch (e) { }
+        }
+    }
+
+    // 🎯 الخطوة 0: تحديد نوع العملية أولاً بدقة فائقة
+    let cleanType = String(targetType || '').trim().toLowerCase();
+    if (!cleanType && sTxId) {
+        const txFound = pool.find(t => t && String(t.id) === sTxId);
+        if (txFound && txFound.type) cleanType = String(txFound.type).trim().toLowerCase();
+    }
+    if (!cleanType) {
+        // محاولة استخراج النوع مباشرة من الصف المحدد في الجدول إن وجد
+        const selectedTr = (typeof document !== 'undefined') ? (
+            document.querySelector('#invoicesTableBody tr.selected-row') ||
+            (sTxId ? document.querySelector(`#invoicesTableBody tr[data-tx-id="${sTxId}"]`) : null) ||
+            (sId ? document.querySelector(`#invoicesTableBody tr[data-invoice-id="${sId}"]`) : null)
+        ) : null;
+        if (selectedTr && selectedTr.getAttribute('data-invoice-type')) {
+            cleanType = selectedTr.getAttribute('data-invoice-type').trim().toLowerCase();
+        }
+    }
+    if (!cleanType) {
+        if (window.selectedInvoiceType) {
+            cleanType = String(window.selectedInvoiceType).trim().toLowerCase();
+        } else {
+            const foundSample = pool.find(t => t && (sTxId ? String(t.id) === sTxId : (sId && String(t.invoiceId) === sId)));
+            if (foundSample && foundSample.type) {
+                cleanType = String(foundSample.type).trim().toLowerCase();
+            } else if (sId && !isNaN(Number(sId)) && pool[Number(sId)] && pool[Number(sId)].type) {
+                cleanType = String(pool[Number(sId)].type).trim().toLowerCase();
             }
-        };
+        }
+    }
 
-        window.printFinancialVoucherById = function(docId, type = '', txId = '') {
-            return window.printFinancialVoucher(docId, type, txId);
-        };
+    const isFinancial = cleanType.includes('قبض') || cleanType === 'receipt' ||
+        cleanType.includes('صرف') || cleanType.includes('دفع') ||
+        cleanType === 'payment' || cleanType === 'disburse';
+    const isTransfer = cleanType.includes('تحويل') || cleanType.includes('transfer');
+    const isAdjustment = cleanType.includes('تسوية') || cleanType.includes('adjustment') ||
+        cleanType.includes('جرد') || cleanType.includes('عجز') || cleanType.includes('زيادة');
+    const isPurchase = (cleanType.includes('شراء') || cleanType.includes('مشتريات') || cleanType.includes('purchase'));
+    const isReturn = cleanType.includes('مرتجع');
 
-        // ====================================================================
-        // 🚀 دالة توجيه المستندات المركزية الموحدة (Master Document Router)
-        // ====================================================================
-        window.viewAnyDocumentUnified = async function(targetId, targetType = '', optTxId = '') {
-            if (typeof checkPermission === 'function' && !checkPermission('docs_view')) return;
+    // ====================================================================
+    // 1️⃣ الحالة الأولى: سند مالي (قبض 📥 أو صرف 📤)
+    // ⛔ ممنوع نهائياً الذهاب لـ SQLite أو البحث عن أصناف بضاعة
+    // ====================================================================
+    if (isFinancial) {
+        const isReceiptOnly = cleanType.includes('قبض') || cleanType === 'receipt';
+        const isDisburseOnly = cleanType.includes('صرف') || cleanType.includes('دفع') || cleanType === 'payment' || cleanType === 'disburse';
 
-            if (!targetId && targetId !== 0) {
-                targetId = window.selectedInvoiceId || selectedInvoiceIndex;
-                targetType = targetType || window.selectedInvoiceType || '';
-                optTxId = optTxId || window.selectedTxId || '';
+        let voucherTx = pool.find(t => {
+            if (!t) return false;
+            const tType = String(t.type || '').toLowerCase();
+            if (isReceiptOnly && !tType.includes('قبض') && tType !== 'receipt') return false;
+            if (isDisburseOnly && !tType.includes('صرف') && !tType.includes('دفع') && tType !== 'payment' && tType !== 'disburse') return false;
+            if (sTxId && String(t.id) === sTxId) return true;
+            return (t.invoiceId != null && String(t.invoiceId) === sId) ||
+                (t.id != null && String(t.id) === sId);
+        });
+
+        if (!voucherTx && window.BayanSQLite && typeof window.BayanSQLite.getInvoiceFullDetails === 'function') {
+            voucherTx = window.BayanSQLite.getInvoiceFullDetails(sId, isReceiptOnly ? 'سند قبض' : 'سند صرف', sTxId);
+        }
+
+        if (!voucherTx && sId && !isNaN(Number(sId)) && pool[Number(sId)]) {
+            const fallbackTx = pool[Number(sId)];
+            const fType = String(fallbackTx.type || '').toLowerCase();
+            if (isReceiptOnly && (fType.includes('قبض') || fType === 'receipt')) {
+                voucherTx = fallbackTx;
+            } else if (isDisburseOnly && (fType.includes('صرف') || fType.includes('دفع') || fType === 'payment' || fType === 'disburse')) {
+                voucherTx = fallbackTx;
             }
+        }
 
-            if (!targetId && targetId !== 0 && !optTxId) {
-                return showCustomAlert({
-                    type: 'warning',
-                    titleText: '⚠️ تنبيه',
-                    msg: 'يرجى تحديد مستند أو عملية من الجدول أولاً لعرض تفاصيلها.'
-                });
+        if (voucherTx) {
+            return window.renderFinancialVoucherModal(voucherTx);
+        } else {
+            return showCustomAlert({
+                type: 'error',
+                titleText: '❌ غير موجود',
+                msg: `لم يتم العثور على بيانات السند المالي رقم (#${sId || sTxId}).`
+            });
+        }
+    }
+
+    // ====================================================================
+    // 2️⃣ الحالة الثانية: تسوية مخزنية (جرد / عجز / زيادة)
+    // ⛔ تبحث فقط وحصرياً في حركات التسوية المخزنية
+    // ====================================================================
+    if (isAdjustment) {
+        let adjMatches = pool.filter(t => {
+            if (!t) return false;
+            const tType = String(t.type || '').toLowerCase();
+            const isAdjType = tType.includes('تسوية') || tType.includes('adjustment') || tType.includes('جرد') || tType.includes('عجز') || tType.includes('زيادة');
+            if (!isAdjType) return false;
+            return (t.invoiceId != null && String(t.invoiceId) === sId) ||
+                (t.adjId != null && String(t.adjId) === sId) ||
+                (t.id != null && String(t.id) === sId);
+        });
+
+        if (adjMatches.length === 0 && !isNaN(Number(sId)) && pool[Number(sId)]) {
+            const fallbackTx = pool[Number(sId)];
+            const fType = String(fallbackTx.type || '').toLowerCase();
+            if (fType.includes('تسوية') || fType.includes('جرد')) {
+                adjMatches = [fallbackTx];
             }
+        }
 
-            const sId = String(targetId || '').trim();
-            const sTxId = String(optTxId || '').trim();
-            let pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
-
-            // ⚡ التأكد أولاً من تحميل الفاتورة/المستند بكافة بنوده من محرك SQLite إذا لم تكن موجودة أو كانت مقتصرة على سطر الرأس
-            if (typeof window.ensureInvoiceLoaded === 'function' && sId) {
-                const sampleInPool = pool.find(t => t && ((sTxId && String(t.id) === sTxId) ||
-                                                        (t.invoiceId != null && String(t.invoiceId) === sId) ||
-                                                        (t.id != null && String(t.id) === sId) ||
-                                                        (t.transferId != null && String(t.transferId) === sId) ||
-                                                        (t.adjId != null && String(t.adjId) === sId)));
-                const hasItemsInPool = pool.some(t => t && ((sTxId && String(t.id) === sTxId) ||
-                                                           (t.invoiceId != null && String(t.invoiceId) === sId) ||
-                                                           (t.id != null && String(t.id) === sId)) &&
-                                                           (t.product || t.productName || t.name));
-                if (!sampleInPool || !hasItemsInPool) {
-                    try {
-                        await window.ensureInvoiceLoaded(sId);
-                        pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
-                    } catch(e) {}
-                }
-            }
-
-            // 🎯 الخطوة 0: تحديد نوع العملية أولاً بدقة فائقة
-            let cleanType = String(targetType || '').trim().toLowerCase();
-            if (!cleanType && sTxId) {
-                const txFound = pool.find(t => t && String(t.id) === sTxId);
-                if (txFound && txFound.type) cleanType = String(txFound.type).trim().toLowerCase();
-            }
-            if (!cleanType) {
-                // محاولة استخراج النوع مباشرة من الصف المحدد في الجدول إن وجد
-                const selectedTr = (typeof document !== 'undefined') ? (
-                    document.querySelector('#invoicesTableBody tr.selected-row') ||
-                    (sTxId ? document.querySelector(`#invoicesTableBody tr[data-tx-id="${sTxId}"]`) : null) ||
-                    (sId ? document.querySelector(`#invoicesTableBody tr[data-invoice-id="${sId}"]`) : null)
-                ) : null;
-                if (selectedTr && selectedTr.getAttribute('data-invoice-type')) {
-                    cleanType = selectedTr.getAttribute('data-invoice-type').trim().toLowerCase();
-                }
-            }
-            if (!cleanType) {
-                if (window.selectedInvoiceType) {
-                    cleanType = String(window.selectedInvoiceType).trim().toLowerCase();
-                } else {
-                    const foundSample = pool.find(t => t && (sTxId ? String(t.id) === sTxId : (sId && String(t.invoiceId) === sId)));
-                    if (foundSample && foundSample.type) {
-                        cleanType = String(foundSample.type).trim().toLowerCase();
-                    } else if (sId && !isNaN(Number(sId)) && pool[Number(sId)] && pool[Number(sId)].type) {
-                        cleanType = String(pool[Number(sId)].type).trim().toLowerCase();
-                    }
-                }
-            }
-
-            const isFinancial = cleanType.includes('قبض') || cleanType === 'receipt' ||
-                                cleanType.includes('صرف') || cleanType.includes('دفع') ||
-                                cleanType === 'payment' || cleanType === 'disburse';
-            const isTransfer = cleanType.includes('تحويل') || cleanType.includes('transfer');
-            const isAdjustment = cleanType.includes('تسوية') || cleanType.includes('adjustment') ||
-                                 cleanType.includes('جرد') || cleanType.includes('عجز') || cleanType.includes('زيادة');
-            const isPurchase = (cleanType.includes('شراء') || cleanType.includes('مشتريات') || cleanType.includes('purchase'));
-            const isReturn = cleanType.includes('مرتجع');
-
-            // ====================================================================
-            // 1️⃣ الحالة الأولى: سند مالي (قبض 📥 أو صرف 📤)
-            // ⛔ ممنوع نهائياً الذهاب لـ SQLite أو البحث عن أصناف بضاعة
-            // ====================================================================
-            if (isFinancial) {
-                const isReceiptOnly = cleanType.includes('قبض') || cleanType === 'receipt';
-                const isDisburseOnly = cleanType.includes('صرف') || cleanType.includes('دفع') || cleanType === 'payment' || cleanType === 'disburse';
-
-                let voucherTx = pool.find(t => {
-                    if (!t) return false;
-                    const tType = String(t.type || '').toLowerCase();
-                    if (isReceiptOnly && !tType.includes('قبض') && tType !== 'receipt') return false;
-                    if (isDisburseOnly && !tType.includes('صرف') && !tType.includes('دفع') && tType !== 'payment' && tType !== 'disburse') return false;
-                    if (sTxId && String(t.id) === sTxId) return true;
-                    return (t.invoiceId != null && String(t.invoiceId) === sId) ||
-                           (t.id != null && String(t.id) === sId);
-                });
-
-                if (!voucherTx && window.BayanSQLite && typeof window.BayanSQLite.getInvoiceFullDetails === 'function') {
-                    voucherTx = window.BayanSQLite.getInvoiceFullDetails(sId, isReceiptOnly ? 'سند قبض' : 'سند صرف', sTxId);
-                }
-
-                if (!voucherTx && sId && !isNaN(Number(sId)) && pool[Number(sId)]) {
-                    const fallbackTx = pool[Number(sId)];
-                    const fType = String(fallbackTx.type || '').toLowerCase();
-                    if (isReceiptOnly && (fType.includes('قبض') || fType === 'receipt')) {
-                        voucherTx = fallbackTx;
-                    } else if (isDisburseOnly && (fType.includes('صرف') || fType.includes('دفع') || fType === 'payment' || fType === 'disburse')) {
-                        voucherTx = fallbackTx;
-                    }
-                }
-
-                if (voucherTx) {
-                    return window.renderFinancialVoucherModal(voucherTx);
-                } else {
-                    return showCustomAlert({
-                        type: 'error',
-                        titleText: '❌ غير موجود',
-                        msg: `لم يتم العثور على بيانات السند المالي رقم (#${sId || sTxId}).`
-                    });
-                }
-            }
-
-            // ====================================================================
-            // 2️⃣ الحالة الثانية: تسوية مخزنية (جرد / عجز / زيادة)
-            // ⛔ تبحث فقط وحصرياً في حركات التسوية المخزنية
-            // ====================================================================
-            if (isAdjustment) {
-                let adjMatches = pool.filter(t => {
+        if (adjMatches.length === 0 && typeof window.ensureInvoiceLoaded === 'function') {
+            try {
+                await window.ensureInvoiceLoaded(sId);
+                pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+                adjMatches = pool.filter(t => {
                     if (!t) return false;
                     const tType = String(t.type || '').toLowerCase();
                     const isAdjType = tType.includes('تسوية') || tType.includes('adjustment') || tType.includes('جرد') || tType.includes('عجز') || tType.includes('زيادة');
                     if (!isAdjType) return false;
                     return (t.invoiceId != null && String(t.invoiceId) === sId) ||
-                           (t.adjId != null && String(t.adjId) === sId) ||
-                           (t.id != null && String(t.id) === sId);
+                        (t.adjId != null && String(t.adjId) === sId) ||
+                        (t.id != null && String(t.id) === sId);
                 });
+            } catch (e) { }
+        }
 
-                if (adjMatches.length === 0 && !isNaN(Number(sId)) && pool[Number(sId)]) {
-                    const fallbackTx = pool[Number(sId)];
-                    const fType = String(fallbackTx.type || '').toLowerCase();
-                    if (fType.includes('تسوية') || fType.includes('جرد')) {
-                        adjMatches = [fallbackTx];
-                    }
-                }
-
-                if (adjMatches.length === 0 && typeof window.ensureInvoiceLoaded === 'function') {
-                    try {
-                        await window.ensureInvoiceLoaded(sId);
-                        pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
-                        adjMatches = pool.filter(t => {
-                            if (!t) return false;
-                            const tType = String(t.type || '').toLowerCase();
-                            const isAdjType = tType.includes('تسوية') || tType.includes('adjustment') || tType.includes('جرد') || tType.includes('عجز') || tType.includes('زيادة');
-                            if (!isAdjType) return false;
-                            return (t.invoiceId != null && String(t.invoiceId) === sId) ||
-                                   (t.adjId != null && String(t.adjId) === sId) ||
-                                   (t.id != null && String(t.id) === sId);
-                        });
-                    } catch(e) {}
-                }
-
-                if (adjMatches.length === 0) {
-                    return showCustomAlert({
-                        type: 'error',
-                        titleText: '❌ غير موجود',
-                        msg: `لم يتم العثور على محضر التسوية المخزنية رقم (#${sId}).`
-                    });
-                }
-
-                const head = adjMatches.find(t => t.isInvoiceHead) || adjMatches[0];
-                let tx = { ...head };
-                tx.invoiceId = head.invoiceId || head.adjId || head.id || sId;
-                tx.id = head.id || tx.invoiceId;
-                tx.type = 'تسوية مخزنية';
-                tx.warehouse = head.warehouse || 'المخزن الرئيسي';
-                tx.terminal = head.terminal || 'الجهاز الرئيسي 💻';
-                tx.partner = head.partner || head.customer || 'جرد مخزني';
-                tx.notes = adjMatches.find(t => t.notes)?.notes || head.notes || '';
-
-                const seenAdj = new Set();
-                let uniqueAdjMatches = adjMatches.filter(i => {
-                    if (!i || (!i.product && !i.productName && !i.name)) return false;
-                    const p = (i.product || i.productName || i.name || '').trim();
-                    const s = (i.size || i.selectedSize || '').trim();
-                    const c = (i.color || i.selectedColor || '').trim();
-                    const q = parseFloat(i.qty != null ? i.qty : (i.quantity || 0)) || 0;
-                    const pr = parseFloat(i.price != null ? i.price : 0) || 0;
-                    const sig = `${i.id || ''}|${p}|${s}|${c}|${q}|${pr}`;
-                    if (seenAdj.has(sig)) return false;
-                    seenAdj.add(sig);
-                    return true;
-                });
-
-                // إذا كانت البنود غير مفككة في أسطر الذاكرة، نستخرجها من head.items أو head.products أو BayanSQLite
-                if (uniqueAdjMatches.length === 0) {
-                    let extractedItems = [];
-                    if (Array.isArray(head.items) && head.items.length > 0) extractedItems = head.items;
-                    else if (Array.isArray(head.products) && head.products.length > 0) extractedItems = head.products;
-                    else if (Array.isArray(head.cart) && head.cart.length > 0) extractedItems = head.cart;
-                    else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
-                        extractedItems = window.BayanSQLite.getInvoiceItems(sId, 'تسوية مخزنية', optTxId || head.id) || [];
-                    }
-                    if (extractedItems.length > 0) {
-                        uniqueAdjMatches = extractedItems.map(it => ({
-                            product: it.product || it.productName || it.name || 'صنف تسوية',
-                            qty: it.qty != null ? it.qty : (it.quantity || 0),
-                            price: it.price != null ? it.price : (it.costPrice || 0),
-                            unit: it.unit || '-',
-                            size: it.size || it.selectedSize || '',
-                            color: it.color || it.selectedColor || '',
-                            total: it.total != null ? it.total : ((it.qty || 0) * (it.price || 0))
-                        }));
-                    }
-                }
-
-                tx.items = uniqueAdjMatches.map(i => {
-                    const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 0));
-                    const price = parseFloat(i.price != null ? i.price : (i.costPrice || 0));
-                    return {
-                        name: i.product || i.productName || i.name || 'صنف تسوية',
-                        qty: qty,
-                        unit: i.unit || '-',
-                        size: i.size || i.selectedSize || '',
-                        color: i.color || i.selectedColor || '',
-                        price: price,
-                        costPrice: price,
-                        discount: 0,
-                        discountType: 'val',
-                        addition: 0,
-                        total: parseFloat(i.total != null ? i.total : (qty * price))
-                    };
-                });
-
-                const calculatedTotal = tx.items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0);
-                tx.total = (parseFloat(head.total) > 0) ? parseFloat(head.total) : calculatedTotal;
-
-                return window.renderCustomInvoiceModal(tx);
-            }
-
-            // ====================================================================
-            // 3️⃣ الحالة الثالثة: تحويل مخزني بين الفروع والمخازن
-            // ⛔ تبحث فقط وحصرياً في أذون التحويل المخزني
-            // ====================================================================
-            if (isTransfer) {
-                let transferMatches = pool.filter(t => {
-                    if (!t) return false;
-                    const tType = String(t.type || '').toLowerCase();
-                    if (!tType.includes('تحويل') && !tType.includes('transfer')) return false;
-                    return (t.invoiceId != null && String(t.invoiceId) === sId) ||
-                           (t.transferId != null && String(t.transferId) === sId) ||
-                           (t.id != null && String(t.id) === sId);
-                });
-
-                if (transferMatches.length === 0 && !isNaN(Number(sId)) && pool[Number(sId)]) {
-                    const fallbackTx = pool[Number(sId)];
-                    const fType = String(fallbackTx.type || '').toLowerCase();
-                    if (fType.includes('تحويل')) {
-                        transferMatches = [fallbackTx];
-                    }
-                }
-
-                if (transferMatches.length === 0 && typeof window.ensureInvoiceLoaded === 'function') {
-                    try {
-                        await window.ensureInvoiceLoaded(sId);
-                        pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
-                        transferMatches = pool.filter(t => {
-                            if (!t) return false;
-                            const tType = String(t.type || '').toLowerCase();
-                            if (!tType.includes('تحويل') && !tType.includes('transfer')) return false;
-                            return (t.invoiceId != null && String(t.invoiceId) === sId) ||
-                                   (t.transferId != null && String(t.transferId) === sId) ||
-                                   (t.id != null && String(t.id) === sId);
-                        });
-                    } catch(e) {}
-                }
-
-                if (transferMatches.length === 0) {
-                    return showCustomAlert({
-                        type: 'error',
-                        titleText: '❌ غير موجود',
-                        msg: `لم يتم العثور على إذن التحويل المخزني رقم (#${sId}).`
-                    });
-                }
-
-                const head = transferMatches.find(t => t.isInvoiceHead) || transferMatches[0];
-                let tx = { ...head };
-                tx.invoiceId = head.invoiceId || head.transferId || head.id || sId;
-                tx.id = head.id || tx.invoiceId;
-                tx.type = 'تحويل مخزني';
-                tx.warehouse = head.toWarehouse || head.destWarehouse || head.warehouse || 'المخزن المحول إليه';
-                tx.sourceWarehouse = head.sourceWarehouse || head.fromWarehouse || head.from || 'المخزن الرئيسي';
-                tx.terminal = head.terminal || 'الجهاز الرئيسي 💻';
-                tx.partner = head.partner || `${tx.sourceWarehouse} -> ${tx.warehouse}`;
-                tx.notes = transferMatches.find(t => t.notes)?.notes || head.notes || '';
-
-                const seenTr = new Set();
-                let uniqueTrMatches = transferMatches.filter(i => {
-                    if (!i || (!i.product && !i.productName && !i.name)) return false;
-                    const p = (i.product || i.productName || i.name || '').trim();
-                    const s = (i.size || i.selectedSize || '').trim();
-                    const c = (i.color || i.selectedColor || '').trim();
-                    const q = parseFloat(i.qty != null ? i.qty : (i.quantity || 0)) || 0;
-                    const sig = `${i.id || ''}|${p}|${s}|${c}|${q}`;
-                    if (seenTr.has(sig)) return false;
-                    seenTr.add(sig);
-                    return true;
-                });
-
-                // إذا كانت البنود غير مفككة في أسطر الذاكرة، نستخرجها من head.items أو head.products أو BayanSQLite
-                if (uniqueTrMatches.length === 0) {
-                    let extractedItems = [];
-                    if (Array.isArray(head.items) && head.items.length > 0) extractedItems = head.items;
-                    else if (Array.isArray(head.products) && head.products.length > 0) extractedItems = head.products;
-                    else if (Array.isArray(head.cart) && head.cart.length > 0) extractedItems = head.cart;
-                    else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
-                        extractedItems = window.BayanSQLite.getInvoiceItems(sId, 'تحويل مخزني', optTxId || head.id) || [];
-                    }
-                    if (extractedItems.length > 0) {
-                        uniqueTrMatches = extractedItems.map(it => ({
-                            product: it.product || it.productName || it.name || 'صنف محول',
-                            qty: it.qty != null ? it.qty : (it.quantity || 0),
-                            price: it.price != null ? it.price : (it.costPrice || 0),
-                            unit: it.unit || '-',
-                            size: it.size || it.selectedSize || '',
-                            color: it.color || it.selectedColor || '',
-                            total: it.total != null ? it.total : ((it.qty || 0) * (it.price || 0))
-                        }));
-                    }
-                }
-
-                tx.items = uniqueTrMatches.map(i => {
-                    const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 0));
-                    const price = parseFloat(i.price != null ? i.price : (i.costPrice || 0));
-                    return {
-                        name: i.product || i.productName || i.name || 'صنف محول',
-                        qty: qty,
-                        unit: i.unit || '-',
-                        size: i.size || i.selectedSize || '',
-                        color: i.color || i.selectedColor || '',
-                        price: price,
-                        costPrice: price,
-                        discount: 0,
-                        discountType: 'val',
-                        addition: 0,
-                        total: parseFloat(i.total != null ? i.total : (qty * price))
-                    };
-                });
-
-                const calculatedTotal = tx.items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0);
-                tx.total = (parseFloat(head.total) > 0) ? parseFloat(head.total) : calculatedTotal;
-
-                return window.renderCustomInvoiceModal(tx);
-            }
-
-            // ====================================================================
-            // 4️⃣ الحالة الرابعة: فاتورة مشتريات أو مرتجع مشتريات 🧺
-            // ⛔ تبحث فقط وحصرياً في سجلات المشتريات وتبرز المورد والتكلفة
-            // ====================================================================
-            if (isPurchase) {
-                let purchaseMatches = [];
-                if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
-                    try {
-                        const cleanPurchType = isReturn ? 'مرتجع مشتريات' : 'فاتورة مشتريات';
-                        purchaseMatches = window.BayanSQLite.getInvoiceItems(sId, cleanPurchType) || [];
-                    } catch(e) {}
-                }
-
-                if (purchaseMatches.length <= 1) {
-                    const memPurch = pool.filter(t => {
-                        if (!t) return false;
-                        const tType = String(t.type || '').toLowerCase();
-                        const isPurch = tType.includes('شراء') || tType.includes('مشتريات') || tType.includes('purchase');
-                        if (!isPurch) return false;
-                        if (isReturn && !tType.includes('مرتجع')) return false;
-                        if (!isReturn && tType.includes('مرتجع')) return false;
-                        return (t.invoiceId != null && String(t.invoiceId) === sId) ||
-                               (t.id != null && String(t.id) === sId);
-                    });
-                    if (memPurch.length > purchaseMatches.length) {
-                        purchaseMatches = memPurch;
-                    }
-                }
-
-                if (purchaseMatches.length <= 1 && typeof window.ensureInvoiceLoaded === 'function' && sId) {
-                    try {
-                        await window.ensureInvoiceLoaded(sId);
-                        const updatedPool = window.transactions || [];
-                        const memPurch = updatedPool.filter(t => {
-                            if (!t) return false;
-                            const tType = String(t.type || '').toLowerCase();
-                            const isPurch = tType.includes('شراء') || tType.includes('مشتريات') || tType.includes('purchase');
-                            if (!isPurch) return false;
-                            if (isReturn && !tType.includes('مرتجع')) return false;
-                            if (!isReturn && tType.includes('مرتجع')) return false;
-                            return (t.invoiceId != null && String(t.invoiceId) === sId) ||
-                                   (t.id != null && String(t.id) === sId);
-                        });
-                        if (memPurch.length > purchaseMatches.length) {
-                            purchaseMatches = memPurch;
-                        }
-                    } catch(e) {}
-                }
-
-                if (purchaseMatches.length === 0) {
-                    return showCustomAlert({
-                        type: 'error',
-                        titleText: '❌ غير موجود',
-                        msg: `لم يتم العثور على فاتورة مشتريات بالرقم (#${sId || sTxId}).`
-                    });
-                }
-
-                const isMatchPurch = t => {
-                    if (!t) return false;
-                    const tType = String(t.type || '').toLowerCase();
-                    const isPurch = tType.includes('شراء') || tType.includes('مشتريات') || tType.includes('purchase');
-                    if (!isPurch) return false;
-                    if (isReturn && !tType.includes('مرتجع')) return false;
-                    if (!isReturn && tType.includes('مرتجع')) return false;
-                    return (t.invoiceId != null && String(t.invoiceId) === sId) || (t.id != null && String(t.id) === sId);
-                };
-                const headFromPool = pool.find(t => isMatchPurch(t) && t.isInvoiceHead) || pool.find(t => isMatchPurch(t));
-                const head = headFromPool || purchaseMatches.find(t => t.isInvoiceHead) || purchaseMatches[0];
-                let tx = { ...head };
-                let resolvedInvId = head.invoiceId || sId;
-                if (String(resolvedInvId).includes('_item_')) resolvedInvId = String(resolvedInvId).split('_item_')[0];
-                tx.invoiceId = resolvedInvId;
-                tx.id = head.id || sTxId || tx.invoiceId;
-                tx.type = isReturn ? 'مرتجع مشتريات' : 'فاتورة مشتريات';
-                tx.warehouse = head.warehouse || 'المخزن الرئيسي';
-                tx.partner = head.partner || head.customer || head.supplier || 'مورد نقدي';
-                tx.method = head.method || head.paymentMethod || 'نقدي';
-                tx.notes = head.notes || purchaseMatches.find(t => t.notes)?.notes || tx.notes || '';
-                tx.time = head.time || head.timeISO || tx.time || '';
-                tx.timeISO = head.timeISO || head.time || tx.timeISO || '';
-                tx.date = head.date || tx.date || '';
-                tx.dateISO = head.dateISO || tx.dateISO || '';
-
-                const seenPur = new Set();
-                let uniquePurMatches = purchaseMatches.filter(i => {
-                    if (!i || (!i.product && !i.productName && !i.name)) return false;
-                    const p = (i.product || i.productName || i.name || '').trim();
-                    const s = (i.size || i.selectedSize || '').trim();
-                    const c = (i.color || i.selectedColor || '').trim();
-                    const q = parseFloat(i.qty != null ? i.qty : (i.quantity || 0)) || 0;
-                    const pr = parseFloat(i.price != null ? i.price : 0) || 0;
-                    const sig = `${i.id || ''}|${p}|${s}|${c}|${q}|${pr}`;
-                    if (seenPur.has(sig)) return false;
-                    seenPur.add(sig);
-                    return true;
-                });
-
-                const purHeadGrandTotal = parseFloat(head.invoiceGrandTotal || 0) || 0;
-                const purHeadDateVal = head.dateISO || (head.date ? String(head.date).split(' ')[0] : '');
-                const purHeadPartnerVal = String(head.partner || head.customer || head.supplier || '').trim();
-                const purHeadTimeVal = String(head.time || head.timeISO || '').trim();
-
-                // تصفية السطور لتطابق تاريخ ومورد رأس الفاتورة
-                uniquePurMatches = uniquePurMatches.filter(i => {
-                    if (!i) return false;
-                    if (String(i.id) === String(head.id)) return true;
-                    if (purHeadDateVal) {
-                        const iDate = i.dateISO || (i.date ? String(i.date).split(' ')[0] : '');
-                        if (iDate && iDate !== purHeadDateVal) return false;
-                    }
-                    if (purHeadPartnerVal && typeof window.isGenericCashPartner === 'function' && !window.isGenericCashPartner(purHeadPartnerVal)) {
-                        const iPartner = String(i.partner || i.customer || i.supplier || '').trim();
-                        if (iPartner && iPartner !== purHeadPartnerVal) return false;
-                    }
-                    return true;
-                });
-
-                if (purHeadGrandTotal > 0 && uniquePurMatches.length > 1) {
-                    const curSum = uniquePurMatches.reduce((s, it) => s + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
-                    if (curSum > purHeadGrandTotal + 0.05) {
-                        if (purHeadTimeVal) {
-                            const byTime = uniquePurMatches.filter(it => {
-                                if (String(it.id) === String(head.id)) return true;
-                                const itTime = String(it.time || it.timeISO || '').trim();
-                                return itTime && itTime === purHeadTimeVal;
-                            });
-                            if (byTime.length > 0) uniquePurMatches = byTime;
-                        }
-                        const headLineTotal = parseFloat(head.total) || (parseFloat(head.qty || 0) * parseFloat(head.price || 0)) || 0;
-                        if (Math.abs(headLineTotal - purHeadGrandTotal) < 0.05) {
-                            uniquePurMatches = [head];
-                        }
-                    }
-                }
-
-                // إذا كانت البنود المستخرجة بنداً واحداً أو أقل بينما رأس الفاتورة أو SQLite يحتوي على قائمة أصناف أكبر وأشمل:
-                let extracted = [];
-                const isHeadActualPurch = head && head.type && (isReturn ? String(head.type).includes('مرتجع') : ((String(head.type).includes('شراء') || String(head.type).includes('مشتريات')) && !String(head.type).includes('مرتجع')));
-                if (isHeadActualPurch && Array.isArray(head.items) && head.items.length > uniquePurMatches.length) extracted = head.items;
-                else if (isHeadActualPurch && Array.isArray(head.products) && head.products.length > uniquePurMatches.length) extracted = head.products;
-                else if (isHeadActualPurch && Array.isArray(head.cart) && head.cart.length > uniquePurMatches.length) extracted = head.cart;
-                else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
-                    const lookupInvId = resolvedInvId || head.invoiceId || sId;
-                    const sqItems = window.BayanSQLite.getInvoiceItems(lookupInvId, isReturn ? 'مرتجع مشتريات' : 'فاتورة مشتريات', sTxId) || [];
-                    const curSum = uniquePurMatches.reduce((s, it) => s + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
-                    const sqSum = sqItems.reduce((s, it) => s + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
-                    if (purHeadGrandTotal > 0 && Math.abs(curSum - purHeadGrandTotal) < 0.05 && sqSum > purHeadGrandTotal + 0.05) {
-                        // البنود الحالية تطابق إجمالي الفاتورة بدقة، لا نستبدلها ببنود شبحية
-                    } else if (sqItems.length > uniquePurMatches.length) {
-                        extracted = sqItems;
-                    }
-                }
-                if (extracted.length > 0) {
-                    uniquePurMatches = extracted.map(it => ({
-                        product: it.product || it.productName || it.name || 'صنف مشتريات',
-                        qty: it.qty != null ? it.qty : (it.quantity || 0),
-                        price: it.price != null ? it.price : (it.costPrice || it.purchasePrice || 0),
-                        costPrice: it.costPrice || it.purchasePrice || it.price || 0,
-                        discount: it.discount || it.itemDiscount || 0,
-                        discountType: it.discountType || 'val',
-                        addition: it.addition || it.extra || 0,
-                        unit: it.unit || '-',
-                        size: it.size || it.selectedSize || '',
-                        color: it.color || it.selectedColor || '',
-                        total: it.total != null ? it.total : ((it.qty || 0) * (it.price || 0))
-                    }));
-                }
-
-                tx.items = uniquePurMatches.map(i => {
-                    const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 0));
-                    const price = parseFloat(i.price != null ? i.price : (i.costPrice || i.purchasePrice || 0));
-                    let disc = parseFloat(i.discount != null ? i.discount : (i.itemDiscount != null ? i.itemDiscount : 0)) || 0;
-                    let addition = parseFloat(i.addition != null ? i.addition : (i.extra != null ? i.extra : 0)) || 0;
-                    return {
-                        name: i.product || i.productName || i.name || 'صنف مشتريات',
-                        qty: qty,
-                        unit: i.unit || '-',
-                        size: i.size || '',
-                        color: i.color || '',
-                        price: price,
-                        costPrice: price,
-                        discount: disc,
-                        discountType: i.discountType || 'val',
-                        addition: addition,
-                        total: parseFloat(i.total != null ? i.total : (qty * price - disc + addition))
-                    };
-                });
-
-                return window.renderCustomInvoiceModal(tx);
-            }
-
-            // ====================================================================
-            // 5️⃣ الحالة الخامسة: فاتورة بيع أو مرتجع بيع 🛒
-            // ⛔ تبحث في بنود المبيعات فقط ولا تخلط مع أي نوع آخر
-            // ====================================================================
-            let saleMatches = [];
-
-            // البحث في SQLite فقط إذا كانت العملية مبيعات صريحة
-            if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
-                try {
-                    const cleanSalesType = isReturn ? 'مرتجع مبيعات' : 'فاتورة مبيعات';
-                    const rawSql = window.BayanSQLite.getInvoiceItems(sId, cleanSalesType, sTxId) || [];
-                    saleMatches = rawSql.filter(t => {
-                        if (!t) return false;
-                        const tType = String(t.type || '').toLowerCase();
-                        const isSaleType = (tType.includes('بيع') || tType.includes('مبيعات') || tType.includes('sale'));
-                        if (!isSaleType) return false;
-                        if (isReturn && !tType.includes('مرتجع')) return false;
-                        if (!isReturn && tType.includes('مرتجع')) return false;
-                        return true;
-                    });
-                } catch(e) {}
-            }
-
-            // البحث في الذاكرة transactions مع التحقق من نوع المبيعات
-            if (saleMatches.length <= 1) {
-                const memMatches = pool.filter(t => {
-                    if (!t) return false;
-                    const tType = String(t.type || '').toLowerCase();
-                    const isSaleType = (tType.includes('بيع') || tType.includes('مبيعات') || tType.includes('sale'));
-                    if (!isSaleType) return false;
-                    if (isReturn && !tType.includes('مرتجع')) return false;
-                    if (!isReturn && tType.includes('مرتجع')) return false;
-                    return (t.invoiceId != null && String(t.invoiceId) === sId) ||
-                           (t.id != null && String(t.id) === sId);
-                });
-                if (memMatches.length > saleMatches.length) {
-                    saleMatches = memMatches;
-                }
-            }
-
-            if (saleMatches.length <= 1 && typeof window.ensureInvoiceLoaded === 'function' && sId) {
-                try {
-                    await window.ensureInvoiceLoaded(sId);
-                    const updatedPool = window.transactions || [];
-                    const memMatches = updatedPool.filter(t => {
-                        if (!t) return false;
-                        const tType = String(t.type || '').toLowerCase();
-                        const isSaleType = (tType.includes('بيع') || tType.includes('مبيعات') || tType.includes('sale'));
-                        if (!isSaleType) return false;
-                        if (isReturn && !tType.includes('مرتجع')) return false;
-                        if (!isReturn && tType.includes('مرتجع')) return false;
-                        return (t.invoiceId != null && String(t.invoiceId) === sId) ||
-                               (t.id != null && String(t.id) === sId);
-                    });
-                    if (memMatches.length > saleMatches.length) {
-                        saleMatches = memMatches;
-                    }
-                } catch(e) {}
-            }
-
-            if (saleMatches.length === 0) {
-                return showCustomAlert({
-                    type: 'error',
-                    titleText: '❌ غير موجود',
-                    msg: `لم يتم العثور على فاتورة مبيعات بالرقم (#${sId}).`
-                });
-            }
-
-            // 🔍 جلب رأس الفاتورة من سجل المعاملات لاستعادة الملاحظات والوقت الحقيقيين
-            const isMatchSale = (t) => {
-                if (!t) return false;
-                const tType = String(t.type || '').toLowerCase();
-                const isSaleType = (tType.includes('بيع') || tType.includes('مبيعات') || tType.includes('sale'));
-                if (!isSaleType) return false;
-                if (isReturn && !tType.includes('مرتجع')) return false;
-                if (!isReturn && tType.includes('مرتجع')) return false;
-                return (t.invoiceId != null && String(t.invoiceId) === sId) || (t.id != null && String(t.id) === sId);
-            };
-
-            const headFromPool = (optTxId ? pool.find(t => t && String(t.id) === optTxId) : null) ||
-                                 pool.find(t => isMatchSale(t) && t.isInvoiceHead) ||
-                                 pool.find(t => isMatchSale(t));
-            const head = headFromPool || saleMatches.find(t => t.isInvoiceHead) || saleMatches[0];
-            let tx = { ...head };
-            let resolvedInvId = head.invoiceId || sId;
-            if (String(resolvedInvId).includes('_item_')) resolvedInvId = String(resolvedInvId).split('_item_')[0];
-            tx.invoiceId = resolvedInvId;
-            tx.id = head.id || optTxId || tx.invoiceId;
-            tx.type = isReturn ? 'مرتجع مبيعات' : 'فاتورة مبيعات';
-            tx.warehouse = head.warehouse || 'المخزن الرئيسي';
-            tx.partner = head.partner || head.customer || 'عميل نقدي';
-            tx.method = head.method || head.paymentMethod || 'نقدي';
-            tx.notes = head.notes || saleMatches.find(t => t.notes)?.notes || tx.notes || '';
-            tx.time = head.time || head.timeISO || tx.time || '';
-            tx.timeISO = head.timeISO || head.time || tx.timeISO || '';
-            tx.date = head.date || tx.date || '';
-            tx.dateISO = head.dateISO || tx.dateISO || '';
-
-            const seenSale = new Set();
-            let uniqueSaleMatches = saleMatches.filter(i => {
-                if (!i || (!i.product && !i.productName && !i.name)) return false;
-                const p = (i.product || i.productName || i.name || '').trim();
-                const s = (i.size || i.selectedSize || '').trim();
-                const c = (i.color || i.selectedColor || '').trim();
-                const q = parseFloat(i.qty != null ? i.qty : (i.quantity || 0)) || 0;
-                const pr = parseFloat(i.price != null ? i.price : 0) || 0;
-                const sig = `${i.id || ''}|${p}|${s}|${c}|${q}|${pr}`;
-                if (seenSale.has(sig)) return false;
-                seenSale.add(sig);
-                return true;
+        if (adjMatches.length === 0) {
+            return showCustomAlert({
+                type: 'error',
+                titleText: '❌ غير موجود',
+                msg: `لم يتم العثور على محضر التسوية المخزنية رقم (#${sId}).`
             });
+        }
 
-            // التحقق الصارم: إذا كان لرأس الفاتورة إجمالي رسمي، نستبعد أي سطور قديمة متبقية تجعل المجموع يتجاوز إجمالي الفاتورة
-            const saleHeadGrandTotal = parseFloat(head.invoiceGrandTotal || 0) || 0;
-            const headDateVal = head.dateISO || (head.date ? String(head.date).split(' ')[0] : '');
-            const headPartnerVal = String(head.partner || head.customer || '').trim();
-            const headTimeVal = String(head.time || head.timeISO || '').trim();
+        const head = adjMatches.find(t => t.isInvoiceHead) || adjMatches[0];
+        let tx = { ...head };
+        tx.invoiceId = head.invoiceId || head.adjId || head.id || sId;
+        tx.id = head.id || tx.invoiceId;
+        tx.type = 'تسوية مخزنية';
+        tx.warehouse = head.warehouse || 'المخزن الرئيسي';
+        tx.terminal = head.terminal || 'الجهاز الرئيسي 💻';
+        tx.partner = head.partner || head.customer || 'جرد مخزني';
+        tx.notes = adjMatches.find(t => t.notes)?.notes || head.notes || '';
 
-            // تصفية السطور لتطابق تاريخ وطرف رأس الفاتورة
-            uniqueSaleMatches = uniqueSaleMatches.filter(i => {
-                if (!i) return false;
-                if (String(i.id) === String(head.id)) return true;
-                if (headDateVal) {
-                    const iDate = i.dateISO || (i.date ? String(i.date).split(' ')[0] : '');
-                    if (iDate && iDate !== headDateVal) return false;
-                }
-                if (headPartnerVal && typeof window.isGenericCashPartner === 'function' && !window.isGenericCashPartner(headPartnerVal)) {
-                    const iPartner = String(i.partner || i.customer || '').trim();
-                    if (iPartner && iPartner !== headPartnerVal) return false;
-                }
-                return true;
-            });
+        const seenAdj = new Set();
+        let uniqueAdjMatches = adjMatches.filter(i => {
+            if (!i || (!i.product && !i.productName && !i.name)) return false;
+            const p = (i.product || i.productName || i.name || '').trim();
+            const s = (i.size || i.selectedSize || '').trim();
+            const c = (i.color || i.selectedColor || '').trim();
+            const q = parseFloat(i.qty != null ? i.qty : (i.quantity || 0)) || 0;
+            const pr = parseFloat(i.price != null ? i.price : 0) || 0;
+            const sig = `${i.id || ''}|${p}|${s}|${c}|${q}|${pr}`;
+            if (seenAdj.has(sig)) return false;
+            seenAdj.add(sig);
+            return true;
+        });
 
-            // 🛡️ صيانة بنود الفاتورة: الحفاظ على كافة البنود كاملة ومستقلة وعدم اختزالها في بند الرأس نهائياً
-            // اختلاف مجموع أسعار البنود عن الإجمالي الرسمي أمر طبيعي ومشروع بسبب وجود الخصم العام للفاتورة
-
-            // إذا كانت البنود المستخرجة بنداً واحداً أو أقل بينما رأس الفاتورة أو SQLite يحتوي على قائمة أصناف أكبر وأشمل:
-            const headTypeStr = String(head.type || '').toLowerCase();
-            const isHeadActualSale = (headTypeStr.includes('بيع') || headTypeStr.includes('مبيعات') || headTypeStr.includes('sale'));
-
-            let extracted = [];
-            if (isHeadActualSale && Array.isArray(head.items) && head.items.length > uniqueSaleMatches.length) extracted = head.items;
-            else if (isHeadActualSale && Array.isArray(head.products) && head.products.length > uniqueSaleMatches.length) extracted = head.products;
-            else if (isHeadActualSale && Array.isArray(head.cart) && head.cart.length > uniqueSaleMatches.length) extracted = head.cart;
+        // إذا كانت البنود غير مفككة في أسطر الذاكرة، نستخرجها من head.items أو head.products أو BayanSQLite
+        if (uniqueAdjMatches.length === 0) {
+            let extractedItems = [];
+            if (Array.isArray(head.items) && head.items.length > 0) extractedItems = head.items;
+            else if (Array.isArray(head.products) && head.products.length > 0) extractedItems = head.products;
+            else if (Array.isArray(head.cart) && head.cart.length > 0) extractedItems = head.cart;
             else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
-                const lookupInvId = resolvedInvId || head.invoiceId || sId;
-                const sqItems = window.BayanSQLite.getInvoiceItems(lookupInvId, isReturn ? 'مرتجع مبيعات' : 'فاتورة مبيعات', optTxId || sTxId) || [];
-                const curSum = uniqueSaleMatches.reduce((s, it) => s + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
-                const sqSum = sqItems.reduce((s, it) => s + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
-                if (saleHeadGrandTotal > 0 && Math.abs(curSum - saleHeadGrandTotal) < 0.05 && sqSum > saleHeadGrandTotal + 0.05) {
-                    // البنود الحالية تطابق إجمالي الفاتورة بدقة، لا نستبدلها ببنود شبحية من SQLite
-                } else if (sqItems.length > uniqueSaleMatches.length) {
-                    extracted = sqItems;
-                }
+                extractedItems = window.BayanSQLite.getInvoiceItems(sId, 'تسوية مخزنية', optTxId || head.id) || [];
             }
-            if (extracted.length > 0) {
-                uniqueSaleMatches = extracted.map(it => ({
-                    product: it.product || it.productName || it.name || 'صنف',
+            if (extractedItems.length > 0) {
+                uniqueAdjMatches = extractedItems.map(it => ({
+                    product: it.product || it.productName || it.name || 'صنف تسوية',
                     qty: it.qty != null ? it.qty : (it.quantity || 0),
-                    price: it.price != null ? it.price : 0,
-                    costPrice: it.costPrice || it.price || 0,
-                    discount: it.discount || it.itemDiscount || 0,
-                    discountType: it.discountType || 'val',
-                    addition: it.addition || it.extra || 0,
+                    price: it.price != null ? it.price : (it.costPrice || 0),
                     unit: it.unit || '-',
                     size: it.size || it.selectedSize || '',
                     color: it.color || it.selectedColor || '',
                     total: it.total != null ? it.total : ((it.qty || 0) * (it.price || 0))
                 }));
             }
+        }
 
-            tx.items = uniqueSaleMatches.map(i => {
-                const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 0));
-                const price = parseFloat(i.price != null ? i.price : 0);
-                let disc = parseFloat(i.discount != null ? i.discount : (i.itemDiscount != null ? i.itemDiscount : 0)) || 0;
-                let addition = parseFloat(i.addition != null ? i.addition : (i.extra != null ? i.extra : 0)) || 0;
-                return {
-                    name: i.product || i.productName || i.name || 'صنف',
-                    qty: qty,
-                    unit: i.unit || '-',
-                    size: i.size || i.selectedSize || '',
-                    color: i.color || i.selectedColor || '',
-                    price: price,
-                    costPrice: i.costPrice || price,
-                    discount: disc,
-                    discountType: i.discountType || 'val',
-                    addition: addition,
-                    total: parseFloat(i.total != null ? i.total : (qty * price - disc + addition))
-                };
+        tx.items = uniqueAdjMatches.map(i => {
+            const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 0));
+            const price = parseFloat(i.price != null ? i.price : (i.costPrice || 0));
+            return {
+                name: i.product || i.productName || i.name || 'صنف تسوية',
+                qty: qty,
+                unit: i.unit || '-',
+                size: i.size || i.selectedSize || '',
+                color: i.color || i.selectedColor || '',
+                price: price,
+                costPrice: price,
+                discount: 0,
+                discountType: 'val',
+                addition: 0,
+                total: parseFloat(i.total != null ? i.total : (qty * price))
+            };
+        });
+
+        const calculatedTotal = tx.items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0);
+        tx.total = (parseFloat(head.total) > 0) ? parseFloat(head.total) : calculatedTotal;
+
+        return window.renderCustomInvoiceModal(tx);
+    }
+
+    // ====================================================================
+    // 3️⃣ الحالة الثالثة: تحويل مخزني بين الفروع والمخازن
+    // ⛔ تبحث فقط وحصرياً في أذون التحويل المخزني
+    // ====================================================================
+    if (isTransfer) {
+        let transferMatches = pool.filter(t => {
+            if (!t) return false;
+            const tType = String(t.type || '').toLowerCase();
+            if (!tType.includes('تحويل') && !tType.includes('transfer')) return false;
+            return (t.invoiceId != null && String(t.invoiceId) === sId) ||
+                (t.transferId != null && String(t.transferId) === sId) ||
+                (t.id != null && String(t.id) === sId);
+        });
+
+        if (transferMatches.length === 0 && !isNaN(Number(sId)) && pool[Number(sId)]) {
+            const fallbackTx = pool[Number(sId)];
+            const fType = String(fallbackTx.type || '').toLowerCase();
+            if (fType.includes('تحويل')) {
+                transferMatches = [fallbackTx];
+            }
+        }
+
+        if (transferMatches.length === 0 && typeof window.ensureInvoiceLoaded === 'function') {
+            try {
+                await window.ensureInvoiceLoaded(sId);
+                pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+                transferMatches = pool.filter(t => {
+                    if (!t) return false;
+                    const tType = String(t.type || '').toLowerCase();
+                    if (!tType.includes('تحويل') && !tType.includes('transfer')) return false;
+                    return (t.invoiceId != null && String(t.invoiceId) === sId) ||
+                        (t.transferId != null && String(t.transferId) === sId) ||
+                        (t.id != null && String(t.id) === sId);
+                });
+            } catch (e) { }
+        }
+
+        if (transferMatches.length === 0) {
+            return showCustomAlert({
+                type: 'error',
+                titleText: '❌ غير موجود',
+                msg: `لم يتم العثور على إذن التحويل المخزني رقم (#${sId}).`
             });
+        }
 
-            return window.renderCustomInvoiceModal(tx);
+        const head = transferMatches.find(t => t.isInvoiceHead) || transferMatches[0];
+        let tx = { ...head };
+        tx.invoiceId = head.invoiceId || head.transferId || head.id || sId;
+        tx.id = head.id || tx.invoiceId;
+        tx.type = 'تحويل مخزني';
+        tx.warehouse = head.toWarehouse || head.destWarehouse || head.warehouse || 'المخزن المحول إليه';
+        tx.sourceWarehouse = head.sourceWarehouse || head.fromWarehouse || head.from || 'المخزن الرئيسي';
+        tx.terminal = head.terminal || 'الجهاز الرئيسي 💻';
+        tx.partner = head.partner || `${tx.sourceWarehouse} -> ${tx.warehouse}`;
+        tx.notes = transferMatches.find(t => t.notes)?.notes || head.notes || '';
+
+        const seenTr = new Set();
+        let uniqueTrMatches = transferMatches.filter(i => {
+            if (!i || (!i.product && !i.productName && !i.name)) return false;
+            const p = (i.product || i.productName || i.name || '').trim();
+            const s = (i.size || i.selectedSize || '').trim();
+            const c = (i.color || i.selectedColor || '').trim();
+            const q = parseFloat(i.qty != null ? i.qty : (i.quantity || 0)) || 0;
+            const sig = `${i.id || ''}|${p}|${s}|${c}|${q}`;
+            if (seenTr.has(sig)) return false;
+            seenTr.add(sig);
+            return true;
+        });
+
+        // إذا كانت البنود غير مفككة في أسطر الذاكرة، نستخرجها من head.items أو head.products أو BayanSQLite
+        if (uniqueTrMatches.length === 0) {
+            let extractedItems = [];
+            if (Array.isArray(head.items) && head.items.length > 0) extractedItems = head.items;
+            else if (Array.isArray(head.products) && head.products.length > 0) extractedItems = head.products;
+            else if (Array.isArray(head.cart) && head.cart.length > 0) extractedItems = head.cart;
+            else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
+                extractedItems = window.BayanSQLite.getInvoiceItems(sId, 'تحويل مخزني', optTxId || head.id) || [];
+            }
+            if (extractedItems.length > 0) {
+                uniqueTrMatches = extractedItems.map(it => ({
+                    product: it.product || it.productName || it.name || 'صنف محول',
+                    qty: it.qty != null ? it.qty : (it.quantity || 0),
+                    price: it.price != null ? it.price : (it.costPrice || 0),
+                    unit: it.unit || '-',
+                    size: it.size || it.selectedSize || '',
+                    color: it.color || it.selectedColor || '',
+                    total: it.total != null ? it.total : ((it.qty || 0) * (it.price || 0))
+                }));
+            }
+        }
+
+        tx.items = uniqueTrMatches.map(i => {
+            const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 0));
+            const price = parseFloat(i.price != null ? i.price : (i.costPrice || 0));
+            return {
+                name: i.product || i.productName || i.name || 'صنف محول',
+                qty: qty,
+                unit: i.unit || '-',
+                size: i.size || i.selectedSize || '',
+                color: i.color || i.selectedColor || '',
+                price: price,
+                costPrice: price,
+                discount: 0,
+                discountType: 'val',
+                addition: 0,
+                total: parseFloat(i.total != null ? i.total : (qty * price))
+            };
+        });
+
+        const calculatedTotal = tx.items.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0);
+        tx.total = (parseFloat(head.total) > 0) ? parseFloat(head.total) : calculatedTotal;
+
+        return window.renderCustomInvoiceModal(tx);
+    }
+
+    // ====================================================================
+    // 4️⃣ الحالة الرابعة: فاتورة مشتريات أو مرتجع مشتريات 🧺
+    // ⛔ تبحث فقط وحصرياً في سجلات المشتريات وتبرز المورد والتكلفة
+    // ====================================================================
+    if (isPurchase) {
+        let purchaseMatches = [];
+        if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
+            try {
+                const cleanPurchType = isReturn ? 'مرتجع مشتريات' : 'فاتورة مشتريات';
+                purchaseMatches = window.BayanSQLite.getInvoiceItems(sId, cleanPurchType) || [];
+            } catch (e) { }
+        }
+
+        if (purchaseMatches.length <= 1) {
+            const memPurch = pool.filter(t => {
+                if (!t) return false;
+                const tType = String(t.type || '').toLowerCase();
+                const isPurch = tType.includes('شراء') || tType.includes('مشتريات') || tType.includes('purchase');
+                if (!isPurch) return false;
+                if (isReturn && !tType.includes('مرتجع')) return false;
+                if (!isReturn && tType.includes('مرتجع')) return false;
+                return (t.invoiceId != null && String(t.invoiceId) === sId) ||
+                    (t.id != null && String(t.id) === sId);
+            });
+            if (memPurch.length > purchaseMatches.length) {
+                purchaseMatches = memPurch;
+            }
+        }
+
+        if (purchaseMatches.length <= 1 && typeof window.ensureInvoiceLoaded === 'function' && sId) {
+            try {
+                await window.ensureInvoiceLoaded(sId);
+                const updatedPool = window.transactions || [];
+                const memPurch = updatedPool.filter(t => {
+                    if (!t) return false;
+                    const tType = String(t.type || '').toLowerCase();
+                    const isPurch = tType.includes('شراء') || tType.includes('مشتريات') || tType.includes('purchase');
+                    if (!isPurch) return false;
+                    if (isReturn && !tType.includes('مرتجع')) return false;
+                    if (!isReturn && tType.includes('مرتجع')) return false;
+                    return (t.invoiceId != null && String(t.invoiceId) === sId) ||
+                        (t.id != null && String(t.id) === sId);
+                });
+                if (memPurch.length > purchaseMatches.length) {
+                    purchaseMatches = memPurch;
+                }
+            } catch (e) { }
+        }
+
+        if (purchaseMatches.length === 0) {
+            return showCustomAlert({
+                type: 'error',
+                titleText: '❌ غير موجود',
+                msg: `لم يتم العثور على فاتورة مشتريات بالرقم (#${sId || sTxId}).`
+            });
+        }
+
+        const isMatchPurch = t => {
+            if (!t) return false;
+            const tType = String(t.type || '').toLowerCase();
+            const isPurch = tType.includes('شراء') || tType.includes('مشتريات') || tType.includes('purchase');
+            if (!isPurch) return false;
+            if (isReturn && !tType.includes('مرتجع')) return false;
+            if (!isReturn && tType.includes('مرتجع')) return false;
+            return (t.invoiceId != null && String(t.invoiceId) === sId) || (t.id != null && String(t.id) === sId);
         };
+        const headFromPool = pool.find(t => isMatchPurch(t) && t.isInvoiceHead) || pool.find(t => isMatchPurch(t));
+        const head = headFromPool || purchaseMatches.find(t => t.isInvoiceHead) || purchaseMatches[0];
+        let tx = { ...head };
+        let resolvedInvId = head.invoiceId || sId;
+        if (String(resolvedInvId).includes('_item_')) resolvedInvId = String(resolvedInvId).split('_item_')[0];
+        tx.invoiceId = resolvedInvId;
+        tx.id = head.id || sTxId || tx.invoiceId;
+        tx.type = isReturn ? 'مرتجع مشتريات' : 'فاتورة مشتريات';
+        tx.warehouse = head.warehouse || 'المخزن الرئيسي';
+        tx.partner = head.partner || head.customer || head.supplier || 'مورد نقدي';
+        tx.method = head.method || head.paymentMethod || 'نقدي';
+        tx.notes = head.notes || purchaseMatches.find(t => t.notes)?.notes || tx.notes || '';
+        tx.time = head.time || head.timeISO || tx.time || '';
+        tx.timeISO = head.timeISO || head.time || tx.timeISO || '';
+        tx.date = head.date || tx.date || '';
+        tx.dateISO = head.dateISO || tx.dateISO || '';
 
-        function selectHistoryRow(idx, rowEl, invId, invType, txId) {
-            selectedHistoryIndex = idx;
-            window.selectedHistoryIndex = idx;
-            const tbody = document.getElementById('historyTableBody');
-            if (!tbody) return;
-            tbody.querySelectorAll('tr').forEach(tr => {
-                tr.classList.remove('selected-row');
-                const rad = tr.querySelector('input[type="radio"]');
-                if (rad) rad.checked = false;
+        const seenPur = new Set();
+        let uniquePurMatches = purchaseMatches.filter(i => {
+            if (!i || (!i.product && !i.productName && !i.name)) return false;
+            const p = (i.product || i.productName || i.name || '').trim();
+            const s = (i.size || i.selectedSize || '').trim();
+            const c = (i.color || i.selectedColor || '').trim();
+            const q = parseFloat(i.qty != null ? i.qty : (i.quantity || 0)) || 0;
+            const pr = parseFloat(i.price != null ? i.price : 0) || 0;
+            const sig = `${i.id || ''}|${p}|${s}|${c}|${q}|${pr}`;
+            if (seenPur.has(sig)) return false;
+            seenPur.add(sig);
+            return true;
+        });
+
+        const purHeadGrandTotal = parseFloat(head.invoiceGrandTotal || 0) || 0;
+        const purHeadDateVal = head.dateISO || (head.date ? String(head.date).split(' ')[0] : '');
+        const purHeadPartnerVal = String(head.partner || head.customer || head.supplier || '').trim();
+        const purHeadTimeVal = String(head.time || head.timeISO || '').trim();
+
+        // تصفية السطور لتطابق تاريخ ومورد رأس الفاتورة
+        uniquePurMatches = uniquePurMatches.filter(i => {
+            if (!i) return false;
+            if (String(i.id) === String(head.id)) return true;
+            if (purHeadDateVal) {
+                const iDate = i.dateISO || (i.date ? String(i.date).split(' ')[0] : '');
+                if (iDate && iDate !== purHeadDateVal) return false;
+            }
+            if (purHeadPartnerVal && typeof window.isGenericCashPartner === 'function' && !window.isGenericCashPartner(purHeadPartnerVal)) {
+                const iPartner = String(i.partner || i.customer || i.supplier || '').trim();
+                if (iPartner && iPartner !== purHeadPartnerVal) return false;
+            }
+            return true;
+        });
+
+        if (purHeadGrandTotal > 0 && uniquePurMatches.length > 1) {
+            const curSum = uniquePurMatches.reduce((s, it) => s + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
+            if (curSum > purHeadGrandTotal + 0.05) {
+                if (purHeadTimeVal) {
+                    const byTime = uniquePurMatches.filter(it => {
+                        if (String(it.id) === String(head.id)) return true;
+                        const itTime = String(it.time || it.timeISO || '').trim();
+                        return itTime && itTime === purHeadTimeVal;
+                    });
+                    if (byTime.length > 0) uniquePurMatches = byTime;
+                }
+                const headLineTotal = parseFloat(head.total) || (parseFloat(head.qty || 0) * parseFloat(head.price || 0)) || 0;
+                if (Math.abs(headLineTotal - purHeadGrandTotal) < 0.05) {
+                    uniquePurMatches = [head];
+                }
+            }
+        }
+
+        // إذا كانت البنود المستخرجة بنداً واحداً أو أقل بينما رأس الفاتورة أو SQLite يحتوي على قائمة أصناف أكبر وأشمل:
+        let extracted = [];
+        const isHeadActualPurch = head && head.type && (isReturn ? String(head.type).includes('مرتجع') : ((String(head.type).includes('شراء') || String(head.type).includes('مشتريات')) && !String(head.type).includes('مرتجع')));
+        if (isHeadActualPurch && Array.isArray(head.items) && head.items.length > uniquePurMatches.length) extracted = head.items;
+        else if (isHeadActualPurch && Array.isArray(head.products) && head.products.length > uniquePurMatches.length) extracted = head.products;
+        else if (isHeadActualPurch && Array.isArray(head.cart) && head.cart.length > uniquePurMatches.length) extracted = head.cart;
+        else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
+            const lookupInvId = resolvedInvId || head.invoiceId || sId;
+            const sqItems = window.BayanSQLite.getInvoiceItems(lookupInvId, isReturn ? 'مرتجع مشتريات' : 'فاتورة مشتريات', sTxId) || [];
+            const curSum = uniquePurMatches.reduce((s, it) => s + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
+            const sqSum = sqItems.reduce((s, it) => s + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
+            if (purHeadGrandTotal > 0 && Math.abs(curSum - purHeadGrandTotal) < 0.05 && sqSum > purHeadGrandTotal + 0.05) {
+                // البنود الحالية تطابق إجمالي الفاتورة بدقة، لا نستبدلها ببنود شبحية
+            } else if (sqItems.length > uniquePurMatches.length) {
+                extracted = sqItems;
+            }
+        }
+        if (extracted.length > 0) {
+            uniquePurMatches = extracted.map(it => ({
+                product: it.product || it.productName || it.name || 'صنف مشتريات',
+                qty: it.qty != null ? it.qty : (it.quantity || 0),
+                price: it.price != null ? it.price : (it.costPrice || it.purchasePrice || 0),
+                costPrice: it.costPrice || it.purchasePrice || it.price || 0,
+                discount: it.discount || it.itemDiscount || 0,
+                discountType: it.discountType || 'val',
+                addition: it.addition || it.extra || 0,
+                unit: it.unit || '-',
+                size: it.size || it.selectedSize || '',
+                color: it.color || it.selectedColor || '',
+                total: it.total != null ? it.total : ((it.qty || 0) * (it.price || 0))
+            }));
+        }
+
+        tx.items = uniquePurMatches.map(i => {
+            const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 0));
+            const price = parseFloat(i.price != null ? i.price : (i.costPrice || i.purchasePrice || 0));
+            let disc = parseFloat(i.discount != null ? i.discount : (i.itemDiscount != null ? i.itemDiscount : 0)) || 0;
+            let addition = parseFloat(i.addition != null ? i.addition : (i.extra != null ? i.extra : 0)) || 0;
+            return {
+                name: i.product || i.productName || i.name || 'صنف مشتريات',
+                qty: qty,
+                unit: i.unit || '-',
+                size: i.size || '',
+                color: i.color || '',
+                price: price,
+                costPrice: price,
+                discount: disc,
+                discountType: i.discountType || 'val',
+                addition: addition,
+                total: parseFloat(i.total != null ? i.total : (qty * price - disc + addition))
+            };
+        });
+
+        return window.renderCustomInvoiceModal(tx);
+    }
+
+    // ====================================================================
+    // 5️⃣ الحالة الخامسة: فاتورة بيع أو مرتجع بيع 🛒
+    // ⛔ تبحث في بنود المبيعات فقط ولا تخلط مع أي نوع آخر
+    // ====================================================================
+    let saleMatches = [];
+
+    // البحث في SQLite فقط إذا كانت العملية مبيعات صريحة
+    if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
+        try {
+            const cleanSalesType = isReturn ? 'مرتجع مبيعات' : 'فاتورة مبيعات';
+            const rawSql = window.BayanSQLite.getInvoiceItems(sId, cleanSalesType, sTxId) || [];
+            saleMatches = rawSql.filter(t => {
+                if (!t) return false;
+                const tType = String(t.type || '').toLowerCase();
+                const isSaleType = (tType.includes('بيع') || tType.includes('مبيعات') || tType.includes('sale'));
+                if (!isSaleType) return false;
+                if (isReturn && !tType.includes('مرتجع')) return false;
+                if (!isReturn && tType.includes('مرتجع')) return false;
+                return true;
             });
+        } catch (e) { }
+    }
 
-            let targetRow = rowEl || (typeof event !== 'undefined' && event?.currentTarget ? event.currentTarget : null);
-            if (!targetRow && idx !== null && idx !== undefined) {
-                targetRow = tbody.querySelector(`tr[data-orig-index="${idx}"]`);
-            }
+    // البحث في الذاكرة transactions مع التحقق من نوع المبيعات
+    if (saleMatches.length <= 1) {
+        const memMatches = pool.filter(t => {
+            if (!t) return false;
+            const tType = String(t.type || '').toLowerCase();
+            const isSaleType = (tType.includes('بيع') || tType.includes('مبيعات') || tType.includes('sale'));
+            if (!isSaleType) return false;
+            if (isReturn && !tType.includes('مرتجع')) return false;
+            if (!isReturn && tType.includes('مرتجع')) return false;
+            return (t.invoiceId != null && String(t.invoiceId) === sId) ||
+                (t.id != null && String(t.id) === sId);
+        });
+        if (memMatches.length > saleMatches.length) {
+            saleMatches = memMatches;
+        }
+    }
 
-            if (targetRow) {
-                targetRow.classList.add('selected-row');
-                const rad = targetRow.querySelector('input[type="radio"]');
-                if (rad) rad.checked = true;
-                if (!invId) invId = targetRow.getAttribute('data-invoice-id');
-                if (!invType) invType = targetRow.getAttribute('data-invoice-type');
-                if (!txId) txId = targetRow.getAttribute('data-tx-id');
+    if (saleMatches.length <= 1 && typeof window.ensureInvoiceLoaded === 'function' && sId) {
+        try {
+            await window.ensureInvoiceLoaded(sId);
+            const updatedPool = window.transactions || [];
+            const memMatches = updatedPool.filter(t => {
+                if (!t) return false;
+                const tType = String(t.type || '').toLowerCase();
+                const isSaleType = (tType.includes('بيع') || tType.includes('مبيعات') || tType.includes('sale'));
+                if (!isSaleType) return false;
+                if (isReturn && !tType.includes('مرتجع')) return false;
+                if (!isReturn && tType.includes('مرتجع')) return false;
+                return (t.invoiceId != null && String(t.invoiceId) === sId) ||
+                    (t.id != null && String(t.id) === sId);
+            });
+            if (memMatches.length > saleMatches.length) {
+                saleMatches = memMatches;
             }
+        } catch (e) { }
+    }
 
-            if (invId) {
-                window.selectedHistoryInvoiceId = invId;
-                window.selectedInvoiceId = invId;
+    if (saleMatches.length === 0) {
+        return showCustomAlert({
+            type: 'error',
+            titleText: '❌ غير موجود',
+            msg: `لم يتم العثور على فاتورة مبيعات بالرقم (#${sId}).`
+        });
+    }
+
+    // 🔍 جلب رأس الفاتورة من سجل المعاملات لاستعادة الملاحظات والوقت الحقيقيين
+    const isMatchSale = (t) => {
+        if (!t) return false;
+        const tType = String(t.type || '').toLowerCase();
+        const isSaleType = (tType.includes('بيع') || tType.includes('مبيعات') || tType.includes('sale'));
+        if (!isSaleType) return false;
+        if (isReturn && !tType.includes('مرتجع')) return false;
+        if (!isReturn && tType.includes('مرتجع')) return false;
+        return (t.invoiceId != null && String(t.invoiceId) === sId) || (t.id != null && String(t.id) === sId);
+    };
+
+    const headFromPool = (optTxId ? pool.find(t => t && String(t.id) === optTxId) : null) ||
+        pool.find(t => isMatchSale(t) && t.isInvoiceHead) ||
+        pool.find(t => isMatchSale(t));
+    const head = headFromPool || saleMatches.find(t => t.isInvoiceHead) || saleMatches[0];
+    let tx = { ...head };
+    let resolvedInvId = head.invoiceId || sId;
+    if (String(resolvedInvId).includes('_item_')) resolvedInvId = String(resolvedInvId).split('_item_')[0];
+    tx.invoiceId = resolvedInvId;
+    tx.id = head.id || optTxId || tx.invoiceId;
+    tx.type = isReturn ? 'مرتجع مبيعات' : 'فاتورة مبيعات';
+    tx.warehouse = head.warehouse || 'المخزن الرئيسي';
+    tx.partner = head.partner || head.customer || 'عميل نقدي';
+    tx.method = head.method || head.paymentMethod || 'نقدي';
+    tx.notes = head.notes || saleMatches.find(t => t.notes)?.notes || tx.notes || '';
+    tx.time = head.time || head.timeISO || tx.time || '';
+    tx.timeISO = head.timeISO || head.time || tx.timeISO || '';
+    tx.date = head.date || tx.date || '';
+    tx.dateISO = head.dateISO || tx.dateISO || '';
+
+    const seenSale = new Set();
+    let uniqueSaleMatches = saleMatches.filter(i => {
+        if (!i || (!i.product && !i.productName && !i.name)) return false;
+        const p = (i.product || i.productName || i.name || '').trim();
+        const s = (i.size || i.selectedSize || '').trim();
+        const c = (i.color || i.selectedColor || '').trim();
+        const q = parseFloat(i.qty != null ? i.qty : (i.quantity || 0)) || 0;
+        const pr = parseFloat(i.price != null ? i.price : 0) || 0;
+        const sig = `${i.id || ''}|${p}|${s}|${c}|${q}|${pr}`;
+        if (seenSale.has(sig)) return false;
+        seenSale.add(sig);
+        return true;
+    });
+
+    // التحقق الصارم: إذا كان لرأس الفاتورة إجمالي رسمي، نستبعد أي سطور قديمة متبقية تجعل المجموع يتجاوز إجمالي الفاتورة
+    const saleHeadGrandTotal = parseFloat(head.invoiceGrandTotal || 0) || 0;
+    const headDateVal = head.dateISO || (head.date ? String(head.date).split(' ')[0] : '');
+    const headPartnerVal = String(head.partner || head.customer || '').trim();
+    const headTimeVal = String(head.time || head.timeISO || '').trim();
+
+    // تصفية السطور لتطابق تاريخ وطرف رأس الفاتورة
+    uniqueSaleMatches = uniqueSaleMatches.filter(i => {
+        if (!i) return false;
+        if (String(i.id) === String(head.id)) return true;
+        if (headDateVal) {
+            const iDate = i.dateISO || (i.date ? String(i.date).split(' ')[0] : '');
+            if (iDate && iDate !== headDateVal) return false;
+        }
+        if (headPartnerVal && typeof window.isGenericCashPartner === 'function' && !window.isGenericCashPartner(headPartnerVal)) {
+            const iPartner = String(i.partner || i.customer || '').trim();
+            if (iPartner && iPartner !== headPartnerVal) return false;
+        }
+        return true;
+    });
+
+    // 🛡️ صيانة بنود الفاتورة: الحفاظ على كافة البنود كاملة ومستقلة وعدم اختزالها في بند الرأس نهائياً
+    // اختلاف مجموع أسعار البنود عن الإجمالي الرسمي أمر طبيعي ومشروع بسبب وجود الخصم العام للفاتورة
+
+    // إذا كانت البنود المستخرجة بنداً واحداً أو أقل بينما رأس الفاتورة أو SQLite يحتوي على قائمة أصناف أكبر وأشمل:
+    const headTypeStr = String(head.type || '').toLowerCase();
+    const isHeadActualSale = (headTypeStr.includes('بيع') || headTypeStr.includes('مبيعات') || headTypeStr.includes('sale'));
+
+    let extracted = [];
+    if (isHeadActualSale && Array.isArray(head.items) && head.items.length > uniqueSaleMatches.length) extracted = head.items;
+    else if (isHeadActualSale && Array.isArray(head.products) && head.products.length > uniqueSaleMatches.length) extracted = head.products;
+    else if (isHeadActualSale && Array.isArray(head.cart) && head.cart.length > uniqueSaleMatches.length) extracted = head.cart;
+    else if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
+        const lookupInvId = resolvedInvId || head.invoiceId || sId;
+        const sqItems = window.BayanSQLite.getInvoiceItems(lookupInvId, isReturn ? 'مرتجع مبيعات' : 'فاتورة مبيعات', optTxId || sTxId) || [];
+        const curSum = uniqueSaleMatches.reduce((s, it) => s + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
+        const sqSum = sqItems.reduce((s, it) => s + (parseFloat(it.total) || (parseFloat(it.qty || 0) * parseFloat(it.price || 0)) || 0), 0);
+        if (saleHeadGrandTotal > 0 && Math.abs(curSum - saleHeadGrandTotal) < 0.05 && sqSum > saleHeadGrandTotal + 0.05) {
+            // البنود الحالية تطابق إجمالي الفاتورة بدقة، لا نستبدلها ببنود شبحية من SQLite
+        } else if (sqItems.length > uniqueSaleMatches.length) {
+            extracted = sqItems;
+        }
+    }
+    if (extracted.length > 0) {
+        uniqueSaleMatches = extracted.map(it => ({
+            product: it.product || it.productName || it.name || 'صنف',
+            qty: it.qty != null ? it.qty : (it.quantity || 0),
+            price: it.price != null ? it.price : 0,
+            costPrice: it.costPrice || it.price || 0,
+            discount: it.discount || it.itemDiscount || 0,
+            discountType: it.discountType || 'val',
+            addition: it.addition || it.extra || 0,
+            unit: it.unit || '-',
+            size: it.size || it.selectedSize || '',
+            color: it.color || it.selectedColor || '',
+            total: it.total != null ? it.total : ((it.qty || 0) * (it.price || 0))
+        }));
+    }
+
+    tx.items = uniqueSaleMatches.map(i => {
+        const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 0));
+        const price = parseFloat(i.price != null ? i.price : 0);
+        let disc = parseFloat(i.discount != null ? i.discount : (i.itemDiscount != null ? i.itemDiscount : 0)) || 0;
+        let addition = parseFloat(i.addition != null ? i.addition : (i.extra != null ? i.extra : 0)) || 0;
+        return {
+            name: i.product || i.productName || i.name || 'صنف',
+            qty: qty,
+            unit: i.unit || '-',
+            size: i.size || i.selectedSize || '',
+            color: i.color || i.selectedColor || '',
+            price: price,
+            costPrice: i.costPrice || price,
+            discount: disc,
+            discountType: i.discountType || 'val',
+            addition: addition,
+            total: parseFloat(i.total != null ? i.total : (qty * price - disc + addition))
+        };
+    });
+
+    return window.renderCustomInvoiceModal(tx);
+};
+
+function selectHistoryRow(idx, rowEl, invId, invType, txId) {
+    selectedHistoryIndex = idx;
+    window.selectedHistoryIndex = idx;
+    const tbody = document.getElementById('historyTableBody');
+    if (!tbody) return;
+    tbody.querySelectorAll('tr').forEach(tr => {
+        tr.classList.remove('selected-row');
+        const rad = tr.querySelector('input[type="radio"]');
+        if (rad) rad.checked = false;
+    });
+
+    let targetRow = rowEl || (typeof event !== 'undefined' && event?.currentTarget ? event.currentTarget : null);
+    if (!targetRow && idx !== null && idx !== undefined) {
+        targetRow = tbody.querySelector(`tr[data-orig-index="${idx}"]`);
+    }
+
+    if (targetRow) {
+        targetRow.classList.add('selected-row');
+        const rad = targetRow.querySelector('input[type="radio"]');
+        if (rad) rad.checked = true;
+        if (!invId) invId = targetRow.getAttribute('data-invoice-id');
+        if (!invType) invType = targetRow.getAttribute('data-invoice-type');
+        if (!txId) txId = targetRow.getAttribute('data-tx-id');
+    }
+
+    if (invId) {
+        window.selectedHistoryInvoiceId = invId;
+        window.selectedInvoiceId = invId;
+    }
+    if (invType) {
+        window.selectedHistoryInvoiceType = invType;
+        window.selectedInvoiceType = invType;
+    }
+    if (txId) {
+        window.selectedHistoryTxId = txId;
+        window.selectedTxId = txId;
+    }
+}
+
+function selectInvoiceRow(idx, rowEl, invId, invType, txId) {
+    selectedInvoiceIndex = idx;
+    window.selectedInvoiceIndex = idx;
+
+    if (rowEl) {
+        if (!invId) invId = rowEl.getAttribute('data-invoice-id');
+        if (!invType) invType = rowEl.getAttribute('data-invoice-type');
+        if (!txId) txId = rowEl.getAttribute('data-tx-id');
+    }
+    if (invId) {
+        window.selectedInvoiceId = invId;
+        selectedInvoiceId = invId;
+    }
+    if (invType) {
+        window.selectedInvoiceType = invType;
+        selectedInvoiceType = invType;
+    }
+    if (txId) {
+        window.selectedTxId = txId;
+        selectedTxId = txId;
+    }
+
+    const tbody = document.getElementById('invoicesTableBody');
+    if (tbody) {
+        tbody.querySelectorAll('tr.selected-row').forEach(r => r.classList.remove('selected-row'));
+        tbody.querySelectorAll('input[name="invRad"]').forEach(rad => rad.checked = false);
+        const tr = rowEl || (txId ? tbody.querySelector(`tr[data-tx-id="${txId}"]`) : null) || (invId ? (invType ? (tbody.querySelector(`tr[data-invoice-id="${invId}"][data-invoice-type="${invType}"]`) || tbody.querySelector(`tr[data-invoice-id="${invId}"]`)) : tbody.querySelector(`tr[data-invoice-id="${invId}"]`)) : tbody.querySelector(`tr[data-orig-index="${idx}"]`));
+        if (tr) {
+            tr.classList.add('selected-row');
+            const rad = tr.querySelector('input[name="invRad"]');
+            if (rad) rad.checked = true;
+            if (!window.selectedInvoiceId && tr.getAttribute('data-invoice-id')) {
+                window.selectedInvoiceId = tr.getAttribute('data-invoice-id');
+                selectedInvoiceId = window.selectedInvoiceId;
             }
-            if (invType) {
-                window.selectedHistoryInvoiceType = invType;
-                window.selectedInvoiceType = invType;
+            if (!window.selectedInvoiceType && tr.getAttribute('data-invoice-type')) {
+                window.selectedInvoiceType = tr.getAttribute('data-invoice-type');
+                selectedInvoiceType = window.selectedInvoiceType;
             }
-            if (txId) {
-                window.selectedHistoryTxId = txId;
-                window.selectedTxId = txId;
+            if (!window.selectedTxId && tr.getAttribute('data-tx-id')) {
+                window.selectedTxId = tr.getAttribute('data-tx-id');
+                selectedTxId = window.selectedTxId;
             }
         }
+    }
+}
+window.selectInvoiceRow = selectInvoiceRow;
 
-        function selectInvoiceRow(idx, rowEl, invId, invType, txId) {
-            selectedInvoiceIndex = idx;
-            window.selectedInvoiceIndex = idx;
+function shareSelectedInvoice(platform) {
+    const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
+    let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : null;
+    let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : null;
+    let txId = (isInv && window.selectedTxId) ? window.selectedTxId : null;
+    let t = null;
 
-            if (rowEl) {
-                if (!invId) invId = rowEl.getAttribute('data-invoice-id');
-                if (!invType) invType = rowEl.getAttribute('data-invoice-type');
-                if (!txId) txId = rowEl.getAttribute('data-tx-id');
-            }
-            if (invId) {
-                window.selectedInvoiceId = invId;
-                selectedInvoiceId = invId;
-            }
-            if (invType) {
-                window.selectedInvoiceType = invType;
-                selectedInvoiceType = invType;
-            }
-            if (txId) {
-                window.selectedTxId = txId;
-                selectedTxId = txId;
-            }
+    if (isInv && txId) {
+        t = transactions.find(x => String(x.id) === String(txId));
+    }
+    if (!t && isInv && invId) {
+        t = transactions.find(x => String(x.invoiceId) === String(invId) && (!invType || (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(x.type, invType) : x.type === invType)));
+        if (!t) t = transactions.find(x => String(x.invoiceId) === String(invId));
+    }
 
-            const tbody = document.getElementById('invoicesTableBody');
-            if (tbody) {
-                tbody.querySelectorAll('tr.selected-row').forEach(r => r.classList.remove('selected-row'));
-                tbody.querySelectorAll('input[name="invRad"]').forEach(rad => rad.checked = false);
-                const tr = rowEl || (txId ? tbody.querySelector(`tr[data-tx-id="${txId}"]`) : null) || (invId ? (invType ? (tbody.querySelector(`tr[data-invoice-id="${invId}"][data-invoice-type="${invType}"]`) || tbody.querySelector(`tr[data-invoice-id="${invId}"]`)) : tbody.querySelector(`tr[data-invoice-id="${invId}"]`)) : tbody.querySelector(`tr[data-orig-index="${idx}"]`));
-                if (tr) {
-                    tr.classList.add('selected-row');
-                    const rad = tr.querySelector('input[name="invRad"]');
-                    if (rad) rad.checked = true;
-                    if (!window.selectedInvoiceId && tr.getAttribute('data-invoice-id')) {
-                        window.selectedInvoiceId = tr.getAttribute('data-invoice-id');
-                        selectedInvoiceId = window.selectedInvoiceId;
-                    }
-                    if (!window.selectedInvoiceType && tr.getAttribute('data-invoice-type')) {
-                        window.selectedInvoiceType = tr.getAttribute('data-invoice-type');
-                        selectedInvoiceType = window.selectedInvoiceType;
-                    }
-                    if (!window.selectedTxId && tr.getAttribute('data-tx-id')) {
-                        window.selectedTxId = tr.getAttribute('data-tx-id');
-                        selectedTxId = window.selectedTxId;
-                    }
-                }
+    if (!t) {
+        const activeIdx = (isInv ? selectedInvoiceIndex : selectedHistoryIndex);
+        if (activeIdx !== null && activeIdx !== undefined && transactions[activeIdx]) {
+            t = transactions[activeIdx];
+        } else if (!isInv && window._currentHistoryDisplayed && activeIdx !== null && window._currentHistoryDisplayed[activeIdx]) {
+            t = window._currentHistoryDisplayed[activeIdx];
+        }
+    }
+
+    if (!t) {
+        return showCustomAlert({
+            type: 'warning',
+            titleText: '⚠️ تنبيه',
+            msg: 'يرجى تحديد العملية من الجدول أولاً للمشاركة.'
+        });
+    }
+
+    const pmText = (typeof window.formatPaymentMethodDisplay === 'function') ? window.formatPaymentMethodDisplay(t) : (t.method || 'نقدي');
+    const text = `📄 تفاصيل ${t.type}\n🔢 رقم العملية: ${t.invoiceId || '-'}\n📅 التاريخ: ${t.date}\n👤 الطرف: ${t.partner || 'بدون'}\n💳 طريقة الدفع: ${pmText}\n💰 المبلغ: ${parseFloat(t.total || t.price || 0).toFixed(2)} ج.م\n📝 البيان: ${t.product || '-'}\n\nتم الإرسال عبر تطبيق بيان POS ✨`;
+
+    let url = '';
+    if (platform === 'wa') {
+        let cleanPhone = '';
+        if (typeof getPartnerPhone === 'function' && typeof formatPhoneForWhatsApp === 'function') {
+            cleanPhone = formatPhoneForWhatsApp(getPartnerPhone(t.partner));
+        }
+        url = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
+    } else if (platform === 'tg') {
+        url = `https://t.me/share/url?url=${encodeURIComponent('https://t.me')}&text=${encodeURIComponent(text)}`;
+    }
+
+    if (url) window.open(url, '_blank');
+    try { toggleShareMenu('invoicesShareMenu'); } catch (e) { }
+}
+
+function printSelectedInvoice() {
+    const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
+    let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : null;
+    let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : null;
+    let txId = (isInv && window.selectedTxId) ? window.selectedTxId : null;
+    let t = null;
+
+    const pool = (typeof transactions !== 'undefined' ? transactions : (window.transactions || []));
+
+    if (isInv && txId) {
+        t = pool.find(x => String(x.id) === String(txId));
+    }
+    if (!t && isInv && invId) {
+        t = pool.find(x => String(x.invoiceId) === String(invId) && (!invType || (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(x.type, invType) : x.type === invType)));
+        if (!t) t = pool.find(x => String(x.invoiceId) === String(invId));
+    }
+
+    if (!t) {
+        const activeIdx = (isInv ? selectedInvoiceIndex : selectedHistoryIndex);
+        if (activeIdx !== null && activeIdx !== undefined && pool[activeIdx]) {
+            t = pool[activeIdx];
+            if (!invId) invId = t.invoiceId;
+            if (!invType) invType = t.type;
+            if (!txId) txId = t.id;
+        }
+    }
+
+    if (!t && !invId) {
+        return showCustomAlert({
+            type: 'warning',
+            titleText: '⚠️ تنبيه',
+            msg: 'يرجى تحديد (الضغط على) العملية من الجدول أولاً لطباعتها.'
+        });
+    }
+
+    try { toggleShareMenu('invoicesShareMenu'); } catch (e) { }
+
+    // 🌉 توجيه موحد للمحرك المركزي للطباعة
+    if (typeof window.printInvoiceById === 'function') {
+        if (t && Array.isArray(t.items) && t.items.length > 0) {
+            return window.printInvoiceById(t);
+        }
+        return window.printInvoiceById(invId || (t ? t.invoiceId : ''), invType || (t ? t.type : ''), txId || (t ? t.id : ''));
+    } else if (invId) {
+        if (typeof viewInvoiceItems === 'function') {
+            return viewInvoiceItems(invId, invType || (t ? t.type : ''), true, txId || (t ? t.id : ''));
+        }
+    } else if (t) {
+        return window.renderCustomInvoiceModal({
+            ...t,
+            id: t.id || t.invoiceId || Math.floor(Math.random() * 10000),
+            items: [{
+                name: t.product || t.type,
+                qty: 1,
+                unit: '-',
+                price: t.total || t.price || 0,
+                total: t.total || t.price || 0
+            }],
+            paid: t.paidAmount || t.total || 0,
+            partner: t.partner || '-'
+        }, true);
+    }
+}
+window.printSelectedInvoice = printSelectedInvoice;
+
+function viewSelectedInvoice() {
+    const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
+    let invId = (isInv ? window.selectedInvoiceId : (window.selectedHistoryInvoiceId || window.selectedInvoiceId)) || null;
+    let invType = (isInv ? window.selectedInvoiceType : (window.selectedHistoryInvoiceType || window.selectedInvoiceType)) || null;
+    let txId = (isInv ? window.selectedTxId : (window.selectedHistoryTxId || window.selectedTxId)) || null;
+
+    const tbodySelector = isInv ? '#invoicesTableBody' : '#historyTableBody';
+    const tr = document.querySelector(`${tbodySelector} tr.selected-row`) ||
+        document.querySelector(`${tbodySelector} tr input[type="radio"]:checked`)?.closest('tr');
+    if (tr) {
+        if (!invId) invId = tr.getAttribute('data-invoice-id');
+        if (!invType) invType = tr.getAttribute('data-invoice-type');
+        if (!txId) txId = tr.getAttribute('data-tx-id');
+    }
+
+    if (!invId) {
+        const activeIdx = (isInv ? selectedInvoiceIndex : selectedHistoryIndex);
+        if (activeIdx !== null && activeIdx !== undefined && activeIdx !== -1) {
+            if (isInv && transactions[activeIdx]) {
+                invId = transactions[activeIdx].invoiceId || transactions[activeIdx].id || transactions[activeIdx].transferId || transactions[activeIdx].adjId;
+                invType = transactions[activeIdx].type;
+                txId = transactions[activeIdx].id;
+            } else if (!isInv && window._currentHistoryDisplayed && window._currentHistoryDisplayed[activeIdx]) {
+                const item = window._currentHistoryDisplayed[activeIdx];
+                invId = item.invoiceId || item.id || item.transferId || item.adjId;
+                invType = item.type;
+                txId = item.id || item.tx_id;
+            } else if (transactions[activeIdx]) {
+                invId = transactions[activeIdx].invoiceId || transactions[activeIdx].id;
+                invType = transactions[activeIdx].type;
+                txId = transactions[activeIdx].id;
             }
         }
-        window.selectInvoiceRow = selectInvoiceRow;
+    }
 
-        function shareSelectedInvoice(platform) {
-            const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
-            let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : null;
-            let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : null;
-            let txId = (isInv && window.selectedTxId) ? window.selectedTxId : null;
-            let t = null;
+    if (!invId) {
+        return showCustomAlert({
+            type: 'warning',
+            titleText: '⚠️ تنبيه',
+            msg: 'يرجى تحديد (الضغط على) العملية من الجدول أولاً لعرضها.'
+        });
+    }
 
-            if (isInv && txId) {
-                t = transactions.find(x => String(x.id) === String(txId));
-            }
-            if (!t && isInv && invId) {
-                t = transactions.find(x => String(x.invoiceId) === String(invId) && (!invType || (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(x.type, invType) : x.type === invType)));
-                if (!t) t = transactions.find(x => String(x.invoiceId) === String(invId));
-            }
+    if (typeof window.viewAnyDocumentUnified === 'function') {
+        window.viewAnyDocumentUnified(invId, invType || '', txId || '');
+    } else if (typeof viewInvoiceItems === 'function') {
+        viewInvoiceItems(invId, invType || '', false, txId || '');
+    }
+}
+window.viewSelectedInvoice = viewSelectedInvoice;
 
-            if (!t) {
-                const activeIdx = (isInv ? selectedInvoiceIndex : selectedHistoryIndex);
-                if (activeIdx !== null && activeIdx !== undefined && transactions[activeIdx]) {
-                    t = transactions[activeIdx];
-                } else if (!isInv && window._currentHistoryDisplayed && activeIdx !== null && window._currentHistoryDisplayed[activeIdx]) {
-                    t = window._currentHistoryDisplayed[activeIdx];
-                }
-            }
+// دالة التعديل السريع برقم الفاتورة
+window.quickEditByNumber = function () {
+    const settings = JSON.parse(getStore('pos_settings') || '{}');
+    const canEditHistory = !!settings.allowHistoryEdit;
+    if (!canEditHistory) {
+        return showCustomAlert({
+            type: 'error',
+            titleText: '🚫 صلاحية ملغاة',
+            msg: 'عذراً، صلاحية تعديل السجل (Edit History) غير مفعلة في الإعدادات.'
+        });
+    }
 
-            if (!t) {
-                return showCustomAlert({
-                    type: 'warning',
-                    titleText: '⚠️ تنبيه',
-                    msg: 'يرجى تحديد العملية من الجدول أولاً للمشاركة.'
-                });
-            }
+    const input = document.getElementById('quickEditInvoiceId');
+    if (!input) return;
+    const invId = input.value.trim();
 
-            const pmText = (typeof window.formatPaymentMethodDisplay === 'function') ? window.formatPaymentMethodDisplay(t) : (t.method || 'نقدي');
-            const text = `📄 تفاصيل ${t.type}\n🔢 رقم العملية: ${t.invoiceId || '-'}\n📅 التاريخ: ${t.date}\n👤 الطرف: ${t.partner || 'بدون'}\n💳 طريقة الدفع: ${pmText}\n💰 المبلغ: ${parseFloat(t.total || t.price || 0).toFixed(2)} ج.م\n📝 البيان: ${t.product || '-'}\n\nتم الإرسال عبر تطبيق بيان POS ✨`;
+    if (!invId) {
+        showToast("⚠️ يرجى إدخال رقم الفاتورة أولاً", "warning");
+        input.focus();
+        return;
+    }
 
-            let url = '';
-            if (platform === 'wa') {
-                let cleanPhone = '';
-                if (typeof getPartnerPhone === 'function' && typeof formatPhoneForWhatsApp === 'function') {
-                    cleanPhone = formatPhoneForWhatsApp(getPartnerPhone(t.partner));
-                }
-                url = cleanPhone ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}` : `https://wa.me/?text=${encodeURIComponent(text)}`;
-            } else if (platform === 'tg') {
-                url = `https://t.me/share/url?url=${encodeURIComponent('https://t.me')}&text=${encodeURIComponent(text)}`;
-            }
+    // البحث عن الفاتورة في قاعدة البيانات مع مراعاة الأولوية (فواتير المبيعات أولاً للكاشير ثم باقي العمليات)
+    let found = transactions.find(t => t.invoiceId == invId && t.type && (t.type.includes('بيع') || t.type.includes('مبيعات')) && !t.type.includes('مرتجع'));
+    if (!found) {
+        found = transactions.find(t => t.invoiceId == invId);
+    }
+    if (!found && window.BayanSQLite && typeof window.BayanSQLite.getInvoice === 'function') {
+        found = window.BayanSQLite.getInvoice(invId, 'بيع') || window.BayanSQLite.getInvoice(invId);
+    }
 
-            if (url) window.open(url, '_blank');
-            try { toggleShareMenu('invoicesShareMenu'); } catch(e){}
+    if (found) {
+        let cleanType = '';
+        const typeStr = found.type;
+        if (typeStr.includes('بيع') && !typeStr.includes('مرتجع')) cleanType = 'بيع';
+        else if (typeStr.includes('شراء') && !typeStr.includes('مرتجع')) cleanType = 'شراء';
+        else if (typeStr.includes('مرتجع بيع')) cleanType = 'مرتجع بيع';
+        else if (typeStr.includes('مرتجع شراء')) cleanType = 'مرتجع شراء';
+        else if (typeStr.includes('قبض')) cleanType = 'قبض';
+        else if (typeStr.includes('صرف')) cleanType = 'صرف';
+
+        if (window.editTransaction) {
+            window.editTransaction(invId, cleanType);
+            input.value = '';
         }
+    } else {
+        showCustomAlert({
+            type: 'error',
+            titleText: '❌ غير موجود',
+            msg: `لم يتم العثور على فاتورة بالرقم (#${invId}).`
+        });
+    }
+};
 
-        function printSelectedInvoice() {
-            const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
-            let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : null;
-            let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : null;
-            let txId = (isInv && window.selectedTxId) ? window.selectedTxId : null;
-            let t = null;
+function editSelectedInvoice() {
+    const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
+    let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : (window.selectedHistoryInvoiceId || window.selectedInvoiceId || null);
+    let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : (window.selectedHistoryInvoiceType || window.selectedInvoiceType || null);
+    let txId = (isInv && window.selectedTxId) ? window.selectedTxId : (window.selectedHistoryTxId || window.selectedTxId || null);
+    let t = null;
 
-            const pool = (typeof transactions !== 'undefined' ? transactions : (window.transactions || []));
+    const tbodySelector = isInv ? '#invoicesTableBody' : '#historyTableBody';
+    const tr = document.querySelector(`${tbodySelector} tr.selected-row`) ||
+        document.querySelector(`${tbodySelector} tr input[type="radio"]:checked`)?.closest('tr');
+    if (tr) {
+        if (!invId) invId = tr.getAttribute('data-invoice-id');
+        if (!invType) invType = tr.getAttribute('data-invoice-type');
+        if (!txId) txId = tr.getAttribute('data-tx-id');
+    }
 
-            if (isInv && txId) {
-                t = pool.find(x => String(x.id) === String(txId));
-            }
-            if (!t && isInv && invId) {
-                t = pool.find(x => String(x.invoiceId) === String(invId) && (!invType || (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(x.type, invType) : x.type === invType)));
-                if (!t) t = pool.find(x => String(x.invoiceId) === String(invId));
-            }
+    if (txId) {
+        t = transactions.find(x => String(x.id) === String(txId));
+    }
+    if (!t && invId) {
+        t = transactions.find(x => String(x.invoiceId) === String(invId) && (!invType || (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(x.type, invType) : x.type === invType)));
+        if (!t) t = transactions.find(x => String(x.invoiceId) === String(invId));
+    }
 
-            if (!t) {
-                const activeIdx = (isInv ? selectedInvoiceIndex : selectedHistoryIndex);
-                if (activeIdx !== null && activeIdx !== undefined && pool[activeIdx]) {
-                    t = pool[activeIdx];
-                    if (!invId) invId = t.invoiceId;
-                    if (!invType) invType = t.type;
-                    if (!txId) txId = t.id;
-                }
-            }
-
-            if (!t && !invId) {
-                return showCustomAlert({
-                    type: 'warning',
-                    titleText: '⚠️ تنبيه',
-                    msg: 'يرجى تحديد (الضغط على) العملية من الجدول أولاً لطباعتها.'
-                });
-            }
-
-            try { toggleShareMenu('invoicesShareMenu'); } catch(e){}
-
-            // 🌉 توجيه موحد للمحرك المركزي للطباعة
-            if (typeof window.printInvoiceById === 'function') {
-                if (t && Array.isArray(t.items) && t.items.length > 0) {
-                    return window.printInvoiceById(t);
-                }
-                return window.printInvoiceById(invId || (t ? t.invoiceId : ''), invType || (t ? t.type : ''), txId || (t ? t.id : ''));
-            } else if (invId) {
-                if (typeof viewInvoiceItems === 'function') {
-                    return viewInvoiceItems(invId, invType || (t ? t.type : ''), true, txId || (t ? t.id : ''));
-                }
-            } else if (t) {
-                return window.renderCustomInvoiceModal({
-                    ...t,
-                    id: t.id || t.invoiceId || Math.floor(Math.random() * 10000),
-                    items: [{
-                        name: t.product || t.type,
-                        qty: 1,
-                        unit: '-',
-                        price: t.total || t.price || 0,
-                        total: t.total || t.price || 0
-                    }],
-                    paid: t.paidAmount || t.total || 0,
-                    partner: t.partner || '-'
-                }, true);
+    if (!t) {
+        const activeIdx = isInv ? selectedInvoiceIndex : selectedHistoryIndex;
+        if (activeIdx !== null && activeIdx !== undefined && activeIdx !== -1) {
+            if (isInv && transactions[activeIdx]) {
+                t = transactions[activeIdx];
+                if (!invId) invId = t.invoiceId;
+                if (!invType) invType = t.type;
+            } else if (!isInv && window._currentHistoryDisplayed && window._currentHistoryDisplayed[activeIdx]) {
+                t = window._currentHistoryDisplayed[activeIdx];
+                if (!invId) invId = t.invoiceId;
+                if (!invType) invType = t.type;
+            } else if (transactions[activeIdx]) {
+                t = transactions[activeIdx];
+                if (!invId) invId = t.invoiceId;
+                if (!invType) invType = t.type;
             }
         }
-        window.printSelectedInvoice = printSelectedInvoice;
+    }
 
-        function viewSelectedInvoice() {
-            const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
-            let invId = (isInv ? window.selectedInvoiceId : (window.selectedHistoryInvoiceId || window.selectedInvoiceId)) || null;
-            let invType = (isInv ? window.selectedInvoiceType : (window.selectedHistoryInvoiceType || window.selectedInvoiceType)) || null;
-            let txId = (isInv ? window.selectedTxId : (window.selectedHistoryTxId || window.selectedTxId)) || null;
+    if (!t && !invId) {
+        return showCustomAlert({
+            type: 'warning',
+            titleText: '⚠️ تنبيه',
+            msg: 'يرجى تحديد (الضغط على) العملية من الجدول أولاً لبدء التعديل.'
+        });
+    }
 
-            const tbodySelector = isInv ? '#invoicesTableBody' : '#historyTableBody';
-            const tr = document.querySelector(`${tbodySelector} tr.selected-row`) ||
-                       document.querySelector(`${tbodySelector} tr input[type="radio"]:checked`)?.closest('tr');
-            if (tr) {
-                if (!invId) invId = tr.getAttribute('data-invoice-id');
-                if (!invType) invType = tr.getAttribute('data-invoice-type');
-                if (!txId) txId = tr.getAttribute('data-tx-id');
-            }
+    let cleanType = '';
+    const typeStr = (invType || (t ? t.type : '') || '');
+    if (typeStr.includes('بيع') && !typeStr.includes('مرتجع')) cleanType = 'بيع';
+    else if (typeStr.includes('شراء') && !typeStr.includes('مرتجع')) cleanType = 'شراء';
+    else if (typeStr.includes('مرتجع بيع')) cleanType = 'مرتجع بيع';
+    else if (typeStr.includes('مرتجع شراء')) cleanType = 'مرتجع شراء';
+    else if (typeStr.includes('تسوية')) cleanType = 'تسوية';
+    else if (typeStr.includes('قبض')) cleanType = 'قبض';
+    else if (typeStr.includes('صرف')) cleanType = 'صرف';
+    else if (typeStr.includes('تحويل')) cleanType = 'تحويل';
 
-            if (!invId) {
-                const activeIdx = (isInv ? selectedInvoiceIndex : selectedHistoryIndex);
-                if (activeIdx !== null && activeIdx !== undefined && activeIdx !== -1) {
-                    if (isInv && transactions[activeIdx]) {
-                        invId = transactions[activeIdx].invoiceId || transactions[activeIdx].id || transactions[activeIdx].transferId || transactions[activeIdx].adjId;
-                        invType = transactions[activeIdx].type;
-                        txId = transactions[activeIdx].id;
-                    } else if (!isInv && window._currentHistoryDisplayed && window._currentHistoryDisplayed[activeIdx]) {
-                        const item = window._currentHistoryDisplayed[activeIdx];
-                        invId = item.invoiceId || item.id || item.transferId || item.adjId;
-                        invType = item.type;
-                        txId = item.id || item.tx_id;
-                    } else if (transactions[activeIdx]) {
-                        invId = transactions[activeIdx].invoiceId || transactions[activeIdx].id;
-                        invType = transactions[activeIdx].type;
-                        txId = transactions[activeIdx].id;
-                    }
-                }
-            }
+    if (window.editTransaction) {
+        window.editTransaction(invId || (t ? (t.invoiceId || t.id) : null), cleanType, txId || (t ? t.id : ''));
+    }
+}
 
-            if (!invId) {
-                return showCustomAlert({
-                    type: 'warning',
-                    titleText: '⚠️ تنبيه',
-                    msg: 'يرجى تحديد (الضغط على) العملية من الجدول أولاً لعرضها.'
-                });
-            }
+function deleteSelectedInvoice() {
+    const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
+    let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : (window.selectedHistoryInvoiceId || window.selectedInvoiceId || null);
+    let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : (window.selectedHistoryInvoiceType || window.selectedInvoiceType || null);
+    let txId = (isInv && window.selectedTxId) ? window.selectedTxId : (window.selectedHistoryTxId || window.selectedTxId || null);
 
-            if (typeof window.viewAnyDocumentUnified === 'function') {
-                window.viewAnyDocumentUnified(invId, invType || '', txId || '');
-            } else if (typeof viewInvoiceItems === 'function') {
-                viewInvoiceItems(invId, invType || '', false, txId || '');
-            }
+    const tbodySelector = isInv ? '#invoicesTableBody' : '#historyTableBody';
+    const tr = document.querySelector(`${tbodySelector} tr.selected-row`) ||
+        document.querySelector(`${tbodySelector} tr input[type="radio"]:checked`)?.closest('tr');
+    if (tr) {
+        if (!invId) invId = tr.getAttribute('data-invoice-id');
+        if (!invType) invType = tr.getAttribute('data-invoice-type');
+        if (!txId) txId = tr.getAttribute('data-tx-id');
+    }
+
+    if (invId) {
+        if (typeof window.deleteInvoiceGlobal === 'function') {
+            return window.deleteInvoiceGlobal(invId, invType, txId);
         }
-        window.viewSelectedInvoice = viewSelectedInvoice;
+    }
 
-        // دالة التعديل السريع برقم الفاتورة
-        window.quickEditByNumber = function() {
-            const settings = JSON.parse(getStore('pos_settings') || '{}');
-            const canEditHistory = !!settings.allowHistoryEdit;
-            if (!canEditHistory) {
-                return showCustomAlert({
-                    type: 'error',
-                    titleText: '🚫 صلاحية ملغاة',
-                    msg: 'عذراً، صلاحية تعديل السجل (Edit History) غير مفعلة في الإعدادات.'
-                });
-            }
+    const activeIdx = isInv ? selectedInvoiceIndex : selectedHistoryIndex;
+    if (activeIdx === null || activeIdx === undefined || activeIdx === -1) {
+        return showCustomAlert({
+            type: 'warning',
+            titleText: '⚠️ تنبيه',
+            msg: 'يرجى تحديد (الضغط على) العملية من الجدول أولاً لتتمكن من حذفها.'
+        });
+    }
 
-            const input = document.getElementById('quickEditInvoiceId');
-            if (!input) return;
-            const invId = input.value.trim();
+    deleteTransaction(activeIdx);
+}
 
-            if (!invId) {
-                showToast("⚠️ يرجى إدخال رقم الفاتورة أولاً", "warning");
-                input.focus();
-                return;
-            }
-
-            // البحث عن الفاتورة في قاعدة البيانات مع مراعاة الأولوية (فواتير المبيعات أولاً للكاشير ثم باقي العمليات)
-            let found = transactions.find(t => t.invoiceId == invId && t.type && (t.type.includes('بيع') || t.type.includes('مبيعات')) && !t.type.includes('مرتجع'));
-            if (!found) {
-                found = transactions.find(t => t.invoiceId == invId);
-            }
-            if (!found && window.BayanSQLite && typeof window.BayanSQLite.getInvoice === 'function') {
-                found = window.BayanSQLite.getInvoice(invId, 'بيع') || window.BayanSQLite.getInvoice(invId);
-            }
-
-            if (found) {
-                let cleanType = '';
-                const typeStr = found.type;
-                if (typeStr.includes('بيع') && !typeStr.includes('مرتجع')) cleanType = 'بيع';
-                else if (typeStr.includes('شراء') && !typeStr.includes('مرتجع')) cleanType = 'شراء';
-                else if (typeStr.includes('مرتجع بيع')) cleanType = 'مرتجع بيع';
-                else if (typeStr.includes('مرتجع شراء')) cleanType = 'مرتجع شراء';
-                else if (typeStr.includes('قبض')) cleanType = 'قبض';
-                else if (typeStr.includes('صرف')) cleanType = 'صرف';
-
-                if (window.editTransaction) {
-                    window.editTransaction(invId, cleanType);
-                    input.value = '';
-                }
-            } else {
+function printIndividualTransaction(idx) {
+    const t = transactions[idx];
+    if (!t) return;
+    if (t.type.includes('بيع') || t.type.includes('شراء') || t.type.includes('مرتجع')) {
+        if (t.invoiceId && typeof viewInvoiceItems === 'function') {
+            viewInvoiceItems(t.invoiceId, t.type, true, t.id);
+        } else if (t.invoiceId && typeof printBillFromData === 'function') {
+            printBillFromData(t.invoiceId, t.type);
+        } else {
+            if (typeof showCustomAlert === 'function') {
                 showCustomAlert({
-                    type: 'error',
-                    titleText: '❌ غير موجود',
-                    msg: `لم يتم العثور على فاتورة بالرقم (#${invId}).`
-                });
-            }
-        };
-
-        function editSelectedInvoice() {
-            const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
-            let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : (window.selectedHistoryInvoiceId || window.selectedInvoiceId || null);
-            let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : (window.selectedHistoryInvoiceType || window.selectedInvoiceType || null);
-            let txId = (isInv && window.selectedTxId) ? window.selectedTxId : (window.selectedHistoryTxId || window.selectedTxId || null);
-            let t = null;
-
-            const tbodySelector = isInv ? '#invoicesTableBody' : '#historyTableBody';
-            const tr = document.querySelector(`${tbodySelector} tr.selected-row`) ||
-                       document.querySelector(`${tbodySelector} tr input[type="radio"]:checked`)?.closest('tr');
-            if (tr) {
-                if (!invId) invId = tr.getAttribute('data-invoice-id');
-                if (!invType) invType = tr.getAttribute('data-invoice-type');
-                if (!txId) txId = tr.getAttribute('data-tx-id');
-            }
-
-            if (txId) {
-                t = transactions.find(x => String(x.id) === String(txId));
-            }
-            if (!t && invId) {
-                t = transactions.find(x => String(x.invoiceId) === String(invId) && (!invType || (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(x.type, invType) : x.type === invType)));
-                if (!t) t = transactions.find(x => String(x.invoiceId) === String(invId));
-            }
-
-            if (!t) {
-                const activeIdx = isInv ? selectedInvoiceIndex : selectedHistoryIndex;
-                if (activeIdx !== null && activeIdx !== undefined && activeIdx !== -1) {
-                    if (isInv && transactions[activeIdx]) {
-                        t = transactions[activeIdx];
-                        if (!invId) invId = t.invoiceId;
-                        if (!invType) invType = t.type;
-                    } else if (!isInv && window._currentHistoryDisplayed && window._currentHistoryDisplayed[activeIdx]) {
-                        t = window._currentHistoryDisplayed[activeIdx];
-                        if (!invId) invId = t.invoiceId;
-                        if (!invType) invType = t.type;
-                    } else if (transactions[activeIdx]) {
-                        t = transactions[activeIdx];
-                        if (!invId) invId = t.invoiceId;
-                        if (!invType) invType = t.type;
-                    }
-                }
-            }
-
-            if (!t && !invId) {
-                return showCustomAlert({
                     type: 'warning',
-                    titleText: '⚠️ تنبيه',
-                    msg: 'يرجى تحديد (الضغط على) العملية من الجدول أولاً لبدء التعديل.'
+                    titleText: 'تنبيه',
+                    msg: 'لا يمكن طباعة هذا البند بشكل مستقل (لا يوجد رقم فاتورة)'
                 });
-            }
-
-            let cleanType = '';
-            const typeStr = (invType || (t ? t.type : '') || '');
-            if (typeStr.includes('بيع') && !typeStr.includes('مرتجع')) cleanType = 'بيع';
-            else if (typeStr.includes('شراء') && !typeStr.includes('مرتجع')) cleanType = 'شراء';
-            else if (typeStr.includes('مرتجع بيع')) cleanType = 'مرتجع بيع';
-            else if (typeStr.includes('مرتجع شراء')) cleanType = 'مرتجع شراء';
-            else if (typeStr.includes('تسوية')) cleanType = 'تسوية';
-            else if (typeStr.includes('قبض')) cleanType = 'قبض';
-            else if (typeStr.includes('صرف')) cleanType = 'صرف';
-            else if (typeStr.includes('تحويل')) cleanType = 'تحويل';
-
-            if (window.editTransaction) {
-                window.editTransaction(invId || (t ? (t.invoiceId || t.id) : null), cleanType, txId || (t ? t.id : ''));
-            }
-        }
-
-        function deleteSelectedInvoice() {
-            const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
-            let invId = (isInv && window.selectedInvoiceId) ? window.selectedInvoiceId : (window.selectedHistoryInvoiceId || window.selectedInvoiceId || null);
-            let invType = (isInv && window.selectedInvoiceType) ? window.selectedInvoiceType : (window.selectedHistoryInvoiceType || window.selectedInvoiceType || null);
-            let txId = (isInv && window.selectedTxId) ? window.selectedTxId : (window.selectedHistoryTxId || window.selectedTxId || null);
-
-            const tbodySelector = isInv ? '#invoicesTableBody' : '#historyTableBody';
-            const tr = document.querySelector(`${tbodySelector} tr.selected-row`) ||
-                       document.querySelector(`${tbodySelector} tr input[type="radio"]:checked`)?.closest('tr');
-            if (tr) {
-                if (!invId) invId = tr.getAttribute('data-invoice-id');
-                if (!invType) invType = tr.getAttribute('data-invoice-type');
-                if (!txId) txId = tr.getAttribute('data-tx-id');
-            }
-
-            if (invId) {
-                if (typeof window.deleteInvoiceGlobal === 'function') {
-                    return window.deleteInvoiceGlobal(invId, invType, txId);
-                }
-            }
-
-            const activeIdx = isInv ? selectedInvoiceIndex : selectedHistoryIndex;
-            if (activeIdx === null || activeIdx === undefined || activeIdx === -1) {
-                return showCustomAlert({
-                    type: 'warning',
-                    titleText: '⚠️ تنبيه',
-                    msg: 'يرجى تحديد (الضغط على) العملية من الجدول أولاً لتتمكن من حذفها.'
-                });
-            }
-
-            deleteTransaction(activeIdx);
-        }
-
-        function printIndividualTransaction(idx) {
-            const t = transactions[idx];
-            if (!t) return;
-            if (t.type.includes('بيع') || t.type.includes('شراء') || t.type.includes('مرتجع')) {
-                if (t.invoiceId && typeof viewInvoiceItems === 'function') {
-                    viewInvoiceItems(t.invoiceId, t.type, true, t.id);
-                } else if (t.invoiceId && typeof printBillFromData === 'function') {
-                    printBillFromData(t.invoiceId, t.type);
-                } else {
-                    if (typeof showCustomAlert === 'function') {
-                        showCustomAlert({
-                            type: 'warning',
-                            titleText: 'تنبيه',
-                            msg: 'لا يمكن طباعة هذا البند بشكل مستقل (لا يوجد رقم فاتورة)'
-                        });
-                    } else if (typeof showToast === 'function') {
-                        showToast('⚠️ لا يمكن طباعة هذا البند بشكل مستقل (لا يوجد رقم فاتورة)', 'warning');
-                    } else {
-                        alert("لا يمكن طباعة هذا البند بشكل مستقل (لا يوجد رقم فاتورة)");
-                    }
-                }
-            } else if (t.type.includes('قبض')) {
-                document.getElementById('receiptID').value = t.invoiceId || '-';
-                document.getElementById('receiptDate').value = t.dateISO;
-                document.getElementById('receiptCustomer').value = t.partner;
-                document.getElementById('receiptAmount').value = t.price;
-                document.getElementById('receiptNotes').value = t.product;
-                printReceiptData();
-            } else if (t.type.includes('صرف')) {
-                document.getElementById('disburseID').value = t.invoiceId || '-';
-                document.getElementById('disburseDate').value = t.dateISO;
-                document.getElementById('disbursePayee').value = t.partner;
-                document.getElementById('disburseAmount').value = t.price;
-                document.getElementById('disburseNotes').value = t.product;
-                printDisbursementData();
+            } else if (typeof showToast === 'function') {
+                showToast('⚠️ لا يمكن طباعة هذا البند بشكل مستقل (لا يوجد رقم فاتورة)', 'warning');
             } else {
-                if (typeof showToast === 'function') {
-                    showToast("تم إرسال طلب الطباعة للطابعة الافتراضية...", "success");
-                }
+                alert("لا يمكن طباعة هذا البند بشكل مستقل (لا يوجد رقم فاتورة)");
             }
         }
-
-        let loginClockInterval = null;
-
-        // =========================================================================
-        // 🎯 إغلاق نوافذ التنبيه واستعادة الفوكس والتحكم بالماوس فورياً
-        // =========================================================================
-        function closeAlertModal() {
-            if (typeof window.closeCustomAlert === 'function') {
-                window.closeCustomAlert();
-                return;
-            }
-            const modal = document.getElementById('alertModal');
-            if (modal) {
-                modal.classList.add('hidden');
-                modal.style.display = 'none';
-                modal.style.pointerEvents = 'none';
-            }
-            setTimeout(() => {
-                const barcodeInput = document.getElementById('barcodeInput') || 
-                                     document.getElementById('posBarcodeSearch') || 
-                                     document.getElementById('productSearch') ||
-                                     document.querySelector('.barcode-input') ||
-                                     document.querySelector('#productSearchInput');
-                if (barcodeInput && !barcodeInput.disabled && !barcodeInput.readOnly) {
-                    try {
-                        barcodeInput.focus();
-                        if (typeof barcodeInput.select === 'function') barcodeInput.select();
-                    } catch (e) {}
-                }
-            }, 50);
+    } else if (t.type.includes('قبض')) {
+        document.getElementById('receiptID').value = t.invoiceId || '-';
+        document.getElementById('receiptDate').value = t.dateISO;
+        document.getElementById('receiptCustomer').value = t.partner;
+        document.getElementById('receiptAmount').value = t.price;
+        document.getElementById('receiptNotes').value = t.product;
+        printReceiptData();
+    } else if (t.type.includes('صرف')) {
+        document.getElementById('disburseID').value = t.invoiceId || '-';
+        document.getElementById('disburseDate').value = t.dateISO;
+        document.getElementById('disbursePayee').value = t.partner;
+        document.getElementById('disburseAmount').value = t.price;
+        document.getElementById('disburseNotes').value = t.product;
+        printDisbursementData();
+    } else {
+        if (typeof showToast === 'function') {
+            showToast("تم إرسال طلب الطباعة للطابعة الافتراضية...", "success");
         }
-        window.closeAlertModal = closeAlertModal;
+    }
+}
+
+let loginClockInterval = null;
+
+// =========================================================================
+// 🎯 إغلاق نوافذ التنبيه واستعادة الفوكس والتحكم بالماوس فورياً
+// =========================================================================
+function closeAlertModal() {
+    if (typeof window.closeCustomAlert === 'function') {
+        window.closeCustomAlert();
+        return;
+    }
+    const modal = document.getElementById('alertModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        modal.style.display = 'none';
+        modal.style.pointerEvents = 'none';
+    }
+    setTimeout(() => {
+        const barcodeInput = document.getElementById('barcodeInput') ||
+            document.getElementById('posBarcodeSearch') ||
+            document.getElementById('productSearch') ||
+            document.querySelector('.barcode-input') ||
+            document.querySelector('#productSearchInput');
+        if (barcodeInput && !barcodeInput.disabled && !barcodeInput.readOnly) {
+            try {
+                barcodeInput.focus();
+                if (typeof barcodeInput.select === 'function') barcodeInput.select();
+            } catch (e) { }
+        }
+    }, 50);
+}
+window.closeAlertModal = closeAlertModal;

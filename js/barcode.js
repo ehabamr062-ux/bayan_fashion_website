@@ -895,8 +895,9 @@ const BayanBarcode = (function () {
 
         // 🛡️ صمام أمان حاسم: إذا كان المستخدم يكتب في حقل كلمة سر أو داخل نافذة منبثقة/حوار، نتجاهل مستمع الباركود تماماً
         const isPasswordInput = activeElem && activeElem.tagName === 'INPUT' && activeElem.type === 'password';
-        const isInsideModal = activeElem && !!activeElem.closest('.confirm-modal-overlay, .modal-overlay, #customPromptModal, #alertModal, #confirmModal, #loginModal, #userFormCard');
-        const hasOpenPromptModal = !!document.querySelector('#customPromptModal:not(.hidden):not([style*="display: none"]), #alertModal:not(.hidden):not([style*="display: none"]), #confirmModal:not(.hidden):not([style*="display: none"]), #loginModal:not(.hidden):not([style*="display: none"])');
+        const isInsideModal = activeElem && !!activeElem.closest('.confirm-modal-overlay, .modal-overlay, #customPromptModal, #alertModal, #confirmModal, #loginModal, #userFormCard, #customViewModalOverlay, #financialVoucherModalOverlay, #notifyModal, #unitSelectionModal, #bayanVariantPickerOverlay');
+        const modalPromptSelectors = '#customPromptModal, #alertModal, #confirmModal, #loginModal, #notifyModal, #customViewModalOverlay, #financialVoucherModalOverlay, #unitSelectionModal, #bayanVariantPickerOverlay';
+        const hasOpenPromptModal = Array.from(document.querySelectorAll(modalPromptSelectors)).some(el => el && !el.classList.contains('hidden') && el.offsetParent !== null);
         const isPromptOrSettingsInput = activeElem && (activeElem.id === 'customPromptInput' || activeElem.id === 'userPinInput' || activeElem.id === 'trashSearchInput' || !!activeElem.closest('#settings-section'));
 
         if (isPasswordInput || isInsideModal || hasOpenPromptModal || isPromptOrSettingsInput) {

@@ -174,9 +174,13 @@
 
             // جلب البريد الإلكتروني للمستخدم
             try {
+                const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+                const toId = ctrl ? setTimeout(() => ctrl.abort(), 3000) : null;
                 const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    signal: ctrl ? ctrl.signal : undefined
                 });
+                if (toId) clearTimeout(toId);
                 if (userRes.ok) {
                     const userData = await userRes.json();
                     this.state.userEmail = userData.email || '';
@@ -213,11 +217,20 @@
             const query = encodeURIComponent(`name='${GDRIVE_FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
             const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${query}&fields=files(id,name)`;
 
-            const searchRes = await fetch(searchUrl, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            let searchRes = null;
+            try {
+                const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+                const toId = ctrl ? setTimeout(() => ctrl.abort(), 3000) : null;
+                searchRes = await fetch(searchUrl, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    signal: ctrl ? ctrl.signal : undefined
+                });
+                if (toId) clearTimeout(toId);
+            } catch (e) {
+                console.warn("[GoogleDrive] Search folder fetch error:", e);
+            }
 
-            if (searchRes.ok) {
+            if (searchRes && searchRes.ok) {
                 const searchData = await searchRes.json();
                 if (searchData.files && searchData.files.length > 0) {
                     return searchData.files[0].id;
@@ -225,22 +238,30 @@
             }
 
             // إنشاء المجلد إذا لم يكن موجوداً
-            const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    name: GDRIVE_FOLDER_NAME,
-                    mimeType: 'application/vnd.google-apps.folder',
-                    description: 'مجلد النسخ الاحتياطية التلقائية لنظام بيان لإدارة نقاط البيع Bayan POS'
-                })
-            });
+            try {
+                const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+                const toId = ctrl ? setTimeout(() => ctrl.abort(), 3000) : null;
+                const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    signal: ctrl ? ctrl.signal : undefined,
+                    body: JSON.stringify({
+                        name: GDRIVE_FOLDER_NAME,
+                        mimeType: 'application/vnd.google-apps.folder',
+                        description: 'مجلد النسخ الاحتياطية التلقائية لنظام بيان لإدارة نقاط البيع Bayan POS'
+                    })
+                });
+                if (toId) clearTimeout(toId);
 
-            if (createRes.ok) {
-                const createData = await createRes.json();
-                return createData.id;
+                if (createRes && createRes.ok) {
+                    const createData = await createRes.json();
+                    return createData.id;
+                }
+            } catch (e) {
+                console.warn("[GoogleDrive] Create folder fetch error:", e);
             }
 
             return '';
@@ -411,7 +432,12 @@
             if (this._oauthPollTimer) clearInterval(this._oauthPollTimer);
             this._oauthPollTimer = setInterval(async () => {
                 try {
-                    const resp = await fetch('http://127.0.0.1:4545/api/gdrive/auth-status');
+                    const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+                    const toId = ctrl ? setTimeout(() => ctrl.abort(), 1000) : null;
+                    const resp = await fetch('http://127.0.0.1:4545/api/gdrive/auth-status', {
+                        signal: ctrl ? ctrl.signal : undefined
+                    });
+                    if (toId) clearTimeout(toId);
                     if (resp.ok) {
                         const data = await resp.json();
                         if (data && data.success && data.accessToken) {
@@ -677,14 +703,26 @@
 
             const uploadUrl = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
 
-            const res = await fetch(uploadUrl, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': `multipart/related; boundary=${boundary}`
-                },
-                body: multipartRequestBody
-            });
+            let res = null;
+            try {
+                const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+                const toId = ctrl ? setTimeout(() => ctrl.abort(), 3000) : null;
+                res = await fetch(uploadUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': `multipart/related; boundary=${boundary}`
+                    },
+                    signal: ctrl ? ctrl.signal : undefined,
+                    body: multipartRequestBody
+                });
+                if (toId) clearTimeout(toId);
+            } catch (uploadErr) {
+                console.warn("[GoogleDrive] Upload timeout or network error:", uploadErr);
+                return false;
+            }
+
+            if (!res) return false;
 
             if (res.status === 401) {
                 console.warn("[GoogleDrive] Token expired (401). Prompting re-auth...");
@@ -798,14 +836,18 @@
 
             // 2. المحاولة عبر المتصفح العادي (Web Fetch Fallback)
             try {
+                const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+                const toId = ctrl ? setTimeout(() => ctrl.abort(), 3000) : null;
                 const res = await fetch(webhookUrl, {
                     method: 'POST',
                     mode: 'no-cors',
                     headers: {
                         'Content-Type': 'text/plain;charset=utf-8'
                     },
+                    signal: ctrl ? ctrl.signal : undefined,
                     body: postPayload
                 });
+                if (toId) clearTimeout(toId);
                 return true;
             } catch (err) {
                 console.error("[GoogleDrive] Upload fallback error:", err);
@@ -993,7 +1035,13 @@ function doPost(e) {
                 });
             } else {
                 navigator.clipboard.writeText(templateCode);
-                alert("تم نسخ كود السكربت إلى الحافظة بنجاح!");
+                if (typeof this.showNotification === 'function') {
+                    this.showNotification("📋 تم نسخ كود السكربت إلى الحافظة بنجاح!", "success");
+                } else if (typeof showToast === 'function') {
+                    showToast("📋 تم نسخ كود السكربت إلى الحافظة بنجاح!", "success");
+                } else {
+                    alert("تم نسخ كود السكربت إلى الحافظة بنجاح!");
+                }
             }
         }
     };

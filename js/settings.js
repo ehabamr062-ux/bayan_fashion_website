@@ -2423,7 +2423,7 @@ function deleteUser(idx) {
         return showToast("🚫 لا يمكنك حذف حسابك الحالي أثناء تسجيل الدخول به!", "error");
     }
 
-    if (confirm(`هل أنت متأكد من حذف الموظف (${u.name}) نهائياً؟`)) {
+    const doDeleteUser = () => {
         if (typeof addToTrash === 'function') addToTrash('user', u, `مستخدم: ${u.name}`);
         const deletedName = u.name;
         const deletedId = u.id;
@@ -2453,7 +2453,24 @@ function deleteUser(idx) {
 
         if (typeof logAuditAction === 'function') logAuditAction('حذف مستخدم', `الاسم: ${deletedName}`);
         if (typeof syncUsersToCloud === 'function') syncUsersToCloud();
-        showToast(`🗑️ تم حذف الموظف (${deletedName}) بنجاح`, "info");
+        showToast(`🗑️ تم نقل الموظف (${deletedName}) إلى سلة المحذوفات.`);
+        if (typeof window.forceElectronWebContentsFocus === 'function') {
+            window.forceElectronWebContentsFocus();
+        }
+    };
+
+    if (typeof showCustomAlert === 'function') {
+        showCustomAlert({
+            type: 'question',
+            titleText: 'تأكيد حذف الموظف',
+            msg: `هل أنت متأكد من حذف الموظف ( <b>${typeof escapeHtml === 'function' ? escapeHtml(u.name) : u.name}</b> ) ونقله لسلة المحذوفات؟`,
+            confirmText: 'نعم، حذف الموظف',
+            cancelText: 'تراجع',
+            showCancel: true,
+            onConfirm: doDeleteUser
+        });
+    } else if (confirm(`هل أنت متأكد من حذف الموظف (${u.name}) نهائياً؟`)) {
+        doDeleteUser();
     }
 }
 
@@ -3142,42 +3159,60 @@ async function deleteWarehouse(idx) {
         return;
     }
 
-    if (!confirm(`هل أنت تأكد من نقل المخزن "${targetWH.name}" وبضاعته إلى سلة المحذوفات؟`)) return;
+    const doDeleteWarehouse = async () => {
+        // جلب البضاعة والكميات المسجلة في هذا المخزن لحفظها في السلة
+        let warehouseStock = [];
+        if (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
+            warehouseStock = productsDB.map(p => {
+                if (p && p.warehouseStocks && p.warehouseStocks[targetWH.name] !== undefined) {
+                    return { productId: p.id, barcode: p.barcode, name: p.name, quantity: p.warehouseStocks[targetWH.name] };
+                }
+                return null;
+            }).filter(Boolean);
+        }
 
-    // جلب البضاعة والكميات المسجلة في هذا المخزن لحفظها في السلة
-    let warehouseStock = [];
-    if (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
-        warehouseStock = productsDB.map(p => {
-            if (p && p.warehouseStocks && p.warehouseStocks[targetWH.name] !== undefined) {
-                return { productId: p.id, barcode: p.barcode, name: p.name, quantity: p.warehouseStocks[targetWH.name] };
-            }
-            return null;
-        }).filter(Boolean);
-    }
+        const trashPayload = {
+            warehouse: { ...targetWH },
+            stock: warehouseStock
+        };
 
-    const trashPayload = {
-        warehouse: { ...targetWH },
-        stock: warehouseStock
+        if (typeof trashManager !== 'undefined' && trashManager.moveToTrash) {
+            await trashManager.moveToTrash(trashPayload, 'warehouse', `مخزن: ${targetWH.name}`);
+        }
+
+        warehouses.splice(idx, 1);
+        if (typeof users !== 'undefined' && Array.isArray(users)) {
+            users.forEach(u => {
+                if (u.assignedWarehouse === targetWH.name) {
+                    u.warehouseScope = 'all';
+                    u.assignedWarehouse = '';
+                }
+            });
+            renderUsersTable();
+        }
+        if (typeof populateUserSpecificWarehouseSelect === 'function') populateUserSpecificWarehouseSelect();
+        if (typeof saveData === 'function') saveData();
+        renderWarehousesTable();
+        if (typeof renderInventoryTable === 'function') renderInventoryTable();
+        showToast(`🗑️ تم نقل المخزن "${targetWH.name}" إلى سلة المحذوفات.`);
+        if (typeof window.forceElectronWebContentsFocus === 'function') {
+            window.forceElectronWebContentsFocus();
+        }
     };
 
-    if (typeof trashManager !== 'undefined' && trashManager.moveToTrash) {
-        await trashManager.moveToTrash(trashPayload, 'warehouse', `مخزن: ${targetWH.name}`);
-    }
-
-    warehouses.splice(idx, 1);
-    if (typeof users !== 'undefined' && Array.isArray(users)) {
-        users.forEach(u => {
-            if (u.assignedWarehouse === targetWH.name) {
-                u.warehouseScope = 'all';
-                u.assignedWarehouse = '';
-            }
+    if (typeof showCustomAlert === 'function') {
+        showCustomAlert({
+            type: 'question',
+            titleText: 'تأكيد حذف المخزن',
+            msg: `هل أنت متأكد من نقل المخزن "<b>${typeof escapeHtml === 'function' ? escapeHtml(targetWH.name) : targetWH.name}</b>" إلى سلة المحذوفات؟`,
+            confirmText: 'نعم، حذف المخزن',
+            cancelText: 'تراجع',
+            showCancel: true,
+            onConfirm: doDeleteWarehouse
         });
-        renderUsersTable();
+    } else if (confirm(`هل أنت تأكد من نقل المخزن "${targetWH.name}" وبضاعته إلى سلة المحذوفات؟`)) {
+        doDeleteWarehouse();
     }
-    if (typeof populateUserSpecificWarehouseSelect === 'function') populateUserSpecificWarehouseSelect();
-    if (typeof saveData === 'function') saveData();
-    renderWarehousesTable();
-    if (typeof renderInventoryTable === 'function') renderInventoryTable();
 }
 
 function saveWarehouse() {
@@ -3840,7 +3875,15 @@ function _fallbackCopyEmergencyPin(val, callback) {
         document.execCommand('copy');
         if (callback) callback();
     } catch (e) {
-        prompt("انسخ كود الطوارئ يدوياً:", val);
+        if (typeof showCustomAlert === 'function') {
+            showCustomAlert({
+                type: 'info',
+                titleText: 'كود الطوارئ',
+                msg: `يرجى نسخ كود الطوارئ يدوياً:<br><input type="text" readonly value="${val}" style="width:100%; text-align:center; padding:8px; margin-top:8px; font-weight:bold; font-size:1.1rem; border:1px solid #cbd5e1; border-radius:8px;">`
+            });
+        } else {
+            prompt("انسخ كود الطوارئ يدوياً:", val);
+        }
     }
     ta.remove();
 }

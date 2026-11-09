@@ -2526,6 +2526,10 @@
         const modal = document.getElementById('bayanFastInquiryModal');
         if (modal) {
             modal.style.display = 'none';
+            modal.classList.add('hidden');
+        }
+        if (typeof window.forceElectronWebContentsFocus === 'function') {
+            window.forceElectronWebContentsFocus();
         }
         // 🎯 إعادة التركيز التلقائي الذكي فوراً لحقل الإدخال في التبويب النشط حالياً
         setTimeout(() => {
@@ -2551,9 +2555,9 @@
             const discountModal = document.getElementById('discountModal') || document.getElementById('invoiceDiscountModal');
             const otherActiveModal = document.querySelector('.confirm-modal-overlay:not(#bayanFastInquiryModal)');
 
-            const isPayActive = payModal && !payModal.classList.contains('hidden') && payModal.style.display !== 'none';
-            const isDiscActive = discountModal && !discountModal.classList.contains('hidden') && discountModal.style.display !== 'none';
-            const isOtherActive = otherActiveModal && !otherActiveModal.classList.contains('hidden') && otherActiveModal.style.display !== 'none';
+            const isPayActive = payModal && !payModal.classList.contains('hidden') && payModal.offsetParent !== null;
+            const isDiscActive = discountModal && !discountModal.classList.contains('hidden') && discountModal.offsetParent !== null;
+            const isOtherActive = otherActiveModal && !otherActiveModal.classList.contains('hidden') && otherActiveModal.offsetParent !== null;
 
             if (isPayActive || isDiscActive || isOtherActive) {
                 return; // منع فتح الاستعلام فوق شاشات الدفع أو التأكيد
