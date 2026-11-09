@@ -4308,6 +4308,56 @@
             if (!this.db) return [];
             try {
                 let sql = `
+                    WITH tx_summary AS (
+                        SELECT 
+                            partner,
+                            ROUND(COALESCE(SUM(
+                                CASE 
+                                    WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN (
+                                        CASE 
+                                            WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) 
+                                                  AND (COALESCE(remaining, 0) = 0 OR COALESCE(paidAmount, 0) >= total)) THEN 0 
+                                            ELSE (total - COALESCE(paidAmount, 0)) 
+                                        END
+                                    )
+                                    WHEN type LIKE '%مرتجع بيع%' THEN -(
+                                        CASE 
+                                            WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) 
+                                                  AND (COALESCE(remaining, 0) = 0 OR COALESCE(paidAmount, 0) >= total)) THEN 0 
+                                            ELSE (total - COALESCE(paidAmount, 0)) 
+                                        END
+                                    )
+                                    WHEN type LIKE '%شراء%' AND type NOT LIKE '%مرتجع%' THEN -(
+                                        CASE 
+                                            WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) 
+                                                  AND (COALESCE(remaining, 0) = 0 OR COALESCE(paidAmount, 0) >= total)) THEN 0 
+                                            ELSE (total - COALESCE(paidAmount, 0)) 
+                                        END
+                                    )
+                                    WHEN type LIKE '%مرتجع شراء%' THEN (
+                                        CASE 
+                                            WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) 
+                                                  AND (COALESCE(remaining, 0) = 0 OR COALESCE(paidAmount, 0) >= total)) THEN 0 
+                                            ELSE (total - COALESCE(paidAmount, 0)) 
+                                        END
+                                    )
+                                    WHEN (type LIKE '%قبض%' OR type LIKE '%توريد%') THEN -total
+                                    WHEN (type LIKE '%صرف%' OR type LIKE '%مصروف%' OR type LIKE '%مسحوبات%' OR type LIKE '%دفع%') THEN total
+                                    ELSE 0 
+                                END
+                            ), 0), 2) AS netBalance,
+                            ROUND(COALESCE(SUM(
+                                CASE 
+                                    WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN total 
+                                    ELSE 0 
+                                END
+                            ), 0), 2) AS totalSales,
+                            MAX(CASE WHEN (type LIKE '%قبض%' OR type LIKE '%توريد%') THEN dateISO ELSE NULL END) AS lastReceiptDate,
+                            MAX(dateISO) AS lastTxDate
+                        FROM transactions
+                        WHERE (status IS NULL OR status != 'void') AND partner IS NOT NULL AND partner != ''
+                        GROUP BY partner
+                    )
                     SELECT 
                         a.id,
                         a.name,
@@ -4322,66 +4372,30 @@
                                    OR COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0) != 0)
                                 THEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0))
                                 ELSE COALESCE(a.balance, CAST(json_extract(a.raw_json, '$.balance') AS REAL), 0)
-                            END + COALESCE(SUM(
-                                CASE 
-                                    WHEN t.type LIKE '%بيع%' AND t.type NOT LIKE '%مرتجع%' THEN (
-                                        CASE 
-                                            WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) 
-                                                  AND (COALESCE(t.remaining, 0) = 0 OR COALESCE(t.paidAmount, 0) >= t.total)) THEN 0 
-                                            ELSE (t.total - COALESCE(t.paidAmount, 0)) 
-                                        END
-                                    )
-                                    WHEN t.type LIKE '%مرتجع بيع%' THEN -(
-                                        CASE 
-                                            WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) 
-                                                  AND (COALESCE(t.remaining, 0) = 0 OR COALESCE(t.paidAmount, 0) >= t.total)) THEN 0 
-                                            ELSE (t.total - COALESCE(t.paidAmount, 0)) 
-                                        END
-                                    )
-                                    WHEN t.type LIKE '%شراء%' AND t.type NOT LIKE '%مرتجع%' THEN -(
-                                        CASE 
-                                            WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) 
-                                                  AND (COALESCE(t.remaining, 0) = 0 OR COALESCE(t.paidAmount, 0) >= t.total)) THEN 0 
-                                            ELSE (t.total - COALESCE(t.paidAmount, 0)) 
-                                        END
-                                    )
-                                    WHEN t.type LIKE '%مرتجع شراء%' THEN (
-                                        CASE 
-                                            WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) 
-                                                  AND (COALESCE(t.remaining, 0) = 0 OR COALESCE(t.paidAmount, 0) >= t.total)) THEN 0 
-                                            ELSE (t.total - COALESCE(t.paidAmount, 0)) 
-                                        END
-                                    )
-                                    WHEN (t.type LIKE '%قبض%' OR t.type LIKE '%توريد%') THEN -t.total
-                                    WHEN (t.type LIKE '%صرف%' OR t.type LIKE '%مصروف%' OR t.type LIKE '%مسحوبات%' OR t.type LIKE '%دفع%') THEN t.total
-                                    ELSE 0 
-                                END
-                            ), 0)
+                            END + COALESCE(s.netBalance, 0)
                         , 2) AS currentBalance,
-                        ROUND(COALESCE(SUM(
-                            CASE 
-                                WHEN t.type LIKE '%بيع%' AND t.type NOT LIKE '%مرتجع%' THEN t.total 
-                                ELSE 0 
-                            END
-                        ), 0), 2) AS totalSales,
-                        MAX(CASE WHEN (t.type LIKE '%قبض%' OR t.type LIKE '%توريد%') THEN t.dateISO ELSE NULL END) AS lastReceiptDate,
-                        MAX(t.dateISO) AS lastTxDate
+                        COALESCE(s.totalSales, 0) AS totalSales,
+                        s.lastReceiptDate,
+                        s.lastTxDate
                     FROM accounts a
-                    LEFT JOIN transactions t ON (
-                        a.name = t.partner 
-                        OR (a.code IS NOT NULL AND a.code != '' AND a.code = t.partner)
-                        OR (a.code IS NOT NULL AND a.code != '' AND json_extract(t.raw_json, '$.partnerCode') = a.code)
-                        OR (a.code IS NOT NULL AND a.code != '' AND json_extract(t.raw_json, '$.accountCode') = a.code)
-                    ) AND (t.status IS NULL OR t.status != 'void')
+                    LEFT JOIN tx_summary s ON (a.name = s.partner OR (a.code IS NOT NULL AND a.code != '' AND a.code = s.partner))
                 `;
 
                 const params = [];
+                let whereClauses = [
+                    "(json_extract(a.raw_json, '$.isDeleted') IS NULL OR json_extract(a.raw_json, '$.isDeleted') = 0 OR json_extract(a.raw_json, '$.isDeleted') = 'false')"
+                ];
+
                 if (typeFilter && typeFilter !== 'all') {
-                    sql += ` WHERE (a.type = ? OR a.type LIKE ?) `;
+                    whereClauses.push("(a.type = ? OR a.type LIKE ?)");
                     params.push(typeFilter, `%${typeFilter}%`);
                 }
 
-                sql += ` GROUP BY a.id, a.name ORDER BY a.name ASC;`;
+                if (whereClauses.length > 0) {
+                    sql += ` WHERE ` + whereClauses.join(' AND ');
+                }
+
+                sql += ` ORDER BY a.name ASC;`;
 
                 let rows = [];
                 if (this.isNative && this.nativeDb) {
