@@ -1146,7 +1146,12 @@ const BayanBarcode = (function () {
             return;
         }
         // لا تسرق التركيز إذا كانت هناك أي نافذة منبثقة مفتوحة أو إذا كان المستخدم في قسم الإعدادات
-        const hasOpenModal = document.querySelector('.confirm-modal-overlay:not(.hidden):not([style*="display: none"]), .modal-overlay:not(.hidden):not([style*="display: none"]), #customPromptModal:not(.hidden):not([style*="display: none"]), #alertModal:not(.hidden):not([style*="display: none"]), #confirmModal:not(.hidden):not([style*="display: none"]), #loginModal:not(.hidden):not([style*="display: none"]), #searchInvoiceModal:not(.hidden):not([style*="display: none"]), #newItemModal:not(.hidden):not([style*="display: none"])');
+        const modalSelector = '.confirm-modal-overlay, .modal-overlay, #customPromptModal, #alertModal, #confirmModal, #loginModal, #searchInvoiceModal, #newItemModal, #notifyModal, #unitSelectionModal';
+        const hasOpenModal = Array.from(document.querySelectorAll(modalSelector)).some(el => {
+            if (!el) return false;
+            if (el.classList && el.classList.contains('hidden')) return false;
+            return el.offsetParent !== null;
+        });
         const isSettings = !!document.querySelector('#settings-section:not(.hidden)');
         if (hasOpenModal || isSettings) {
             return;

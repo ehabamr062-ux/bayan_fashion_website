@@ -320,6 +320,25 @@ app.on('window-all-closed', function () {
     app.exit(0);
 });
 
+// قنوات الاتصال (IPC) لإنعاش تركيز نافذة الويندوز و webContents لمنع تجمد حقول الإدخال
+ipcMain.on('fix-electron-focus', (event) => {
+    try {
+        const win = (event && event.sender ? BrowserWindow.fromWebContents(event.sender) : null) || mainWindow;
+        if (win && !win.isDestroyed()) {
+            win.blur();
+            win.focus();
+            if (win.webContents && !win.webContents.isDestroyed()) {
+                win.webContents.focus();
+            }
+        }
+    } catch (e) {
+        console.warn('[Main] fix-electron-focus error:', e);
+    }
+    try {
+        event.returnValue = true;
+    } catch (_) {}
+});
+
 // قنوات الاتصال (IPC) لفتح نافذة جديدة - تركيز النافذة الحالية وتوجيه الأمر لفتح فاتورة بيع جديدة بأمان
 ipcMain.handle('open-new-window', () => {
     if (mainWindow && !mainWindow.isDestroyed()) {

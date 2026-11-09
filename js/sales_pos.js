@@ -605,20 +605,13 @@ window.addEventListener('keydown', function (e) {
     }
 
     // 4. لا يتم خطف المؤشر إذا كانت هناك أي نافذة منبثقة أو مودال مفتوح
-    const openModal = document.querySelector(
-        '.confirm-modal-overlay:not(.hidden):not([style*="display: none"]), ' +
-        '.modal-overlay:not(.hidden):not([style*="display: none"]), ' +
-        '#customPromptModal:not(.hidden):not([style*="display: none"]), ' +
-        '#alertModal:not(.hidden):not([style*="display: none"]), ' +
-        '#confirmModal:not(.hidden):not([style*="display: none"]), ' +
-        '#loginModal:not(.hidden):not([style*="display: none"]), ' +
-        '#newItemModal:not(.hidden):not([style*="display: none"]), ' +
-        '#searchInvoiceModal:not(.hidden):not([style*="display: none"]), ' +
-        '#bayanVariantPickerOverlay, ' +
-        '#unitSelectionModal:not(.hidden):not([style*="display: none"]), ' +
-        '#royalCalculator.visible'
-    );
-    if (openModal) return;
+    const modalSelector = '.confirm-modal-overlay, .modal-overlay, #customPromptModal, #alertModal, #confirmModal, #loginModal, #newItemModal, #searchInvoiceModal, #notifyModal, #bayanVariantPickerOverlay, #unitSelectionModal, #royalCalculator.visible';
+    const hasOpenModal = Array.from(document.querySelectorAll(modalSelector)).some(el => {
+        if (!el) return false;
+        if (el.classList && el.classList.contains('hidden')) return false;
+        return el.offsetParent !== null;
+    });
+    if (hasOpenModal) return;
 
     // 5. توجيه الضغطة فوراً وبسلاسة إلى خانة #productSearch
     const pSearch = document.getElementById('productSearch');
@@ -3681,14 +3674,34 @@ async function saveBill(force = false, accountChecked = false, event = null) {
 function shareBill(platform) {
 
     if (!navigator.onLine) {
-
-        alert("⚠️ أنت في وضع الأوفلاين (غير متصل بالإنترنت).\nلا يمكن مشاركة الفاتورة عبر واتساب أو تلجرام حالياً.");
-
+        if (typeof showCustomAlert === 'function') {
+            showCustomAlert({
+                type: 'warning',
+                titleText: '⚠️ وضع الأوفلاين',
+                msg: 'أنت في وضع الأوفلاين (غير متصل بالإنترنت).<br>لا يمكن مشاركة الفاتورة عبر واتساب أو تلجرام حالياً.'
+            });
+        } else if (typeof showToast === 'function') {
+            showToast("⚠️ أنت في وضع الأوفلاين (غير متصل بالإنترنت).", "warning");
+        } else {
+            alert("⚠️ أنت في وضع الأوفلاين (غير متصل بالإنترنت).\nلا يمكن مشاركة الفاتورة عبر واتساب أو تلجرام حالياً.");
+        }
         return;
-
     }
 
-    if (cart.length === 0) return alert("الفاتورة فارغة!");
+    if (cart.length === 0) {
+        if (typeof showCustomAlert === 'function') {
+            showCustomAlert({
+                type: 'warning',
+                titleText: '⚠️ تنبيه',
+                msg: 'الفاتورة فارغة!'
+            });
+        } else if (typeof showToast === 'function') {
+            showToast('⚠️ الفاتورة فارغة!', 'warning');
+        } else {
+            alert("الفاتورة فارغة!");
+        }
+        return;
+    }
 
     let text = `🛒 * فاتورة جديدة من متجر السعادة *\n`;
 
@@ -3841,7 +3854,20 @@ function getSalesInvoicePrintData() {
 window.getSalesInvoicePrintData = getSalesInvoicePrintData;
 
 function printBill() {
-    if (cart.length === 0) return alert("⚠️ الفاتورة فارغة! لا يمكن طباعة فاتورة بدون أصناف.");
+    if (cart.length === 0) {
+        if (typeof showCustomAlert === 'function') {
+            showCustomAlert({
+                type: 'warning',
+                titleText: '⚠️ تنبيه',
+                msg: 'الفاتورة فارغة! لا يمكن طباعة فاتورة بدون أصناف.'
+            });
+        } else if (typeof showToast === 'function') {
+            showToast('⚠️ الفاتورة فارغة! لا يمكن طباعة فاتورة بدون أصناف.', 'warning');
+        } else {
+            alert("⚠️ الفاتورة فارغة! لا يمكن طباعة فاتورة بدون أصناف.");
+        }
+        return;
+    }
     const method = getSelectedPaymentMethod('sales-section');
     const customerNameInput = document.getElementById('customerName');
     const customer = customerNameInput ? customerNameInput.value.trim() : 'عميل نقدي';
@@ -3865,13 +3891,36 @@ function printBill() {
         const isAppEnv = typeof window !== 'undefined' && !!(window.require || (window.process && window.process.versions && window.process.versions.electron));
         printInvoice(invoiceData, { silent: isAppEnv });
     } else {
-        alert('خطأ: محرك الطباعة غير متوفر!');
+        if (typeof showCustomAlert === 'function') {
+            showCustomAlert({
+                type: 'error',
+                titleText: 'خطأ',
+                msg: 'محرك الطباعة غير متوفر!'
+            });
+        } else if (typeof showToast === 'function') {
+            showToast('خطأ: محرك الطباعة غير متوفر!', 'error');
+        } else {
+            alert('خطأ: محرك الطباعة غير متوفر!');
+        }
     }
 }
 
 function printPurchaseBill() {
 
-    if (purchaseCart.length === 0) return alert("⚠️ الفاتورة فارغة!");
+    if (purchaseCart.length === 0) {
+        if (typeof showCustomAlert === 'function') {
+            showCustomAlert({
+                type: 'warning',
+                titleText: '⚠️ تنبيه',
+                msg: 'الفاتورة فارغة!'
+            });
+        } else if (typeof showToast === 'function') {
+            showToast('⚠️ الفاتورة فارغة!', 'warning');
+        } else {
+            alert("⚠️ الفاتورة فارغة!");
+        }
+        return;
+    }
 
     const supplier = document.getElementById('supplierName').value || 'مورد عام';
 
@@ -3927,7 +3976,17 @@ function printPurchaseBill() {
     if (typeof printInvoice === 'function') {
         printInvoice(invoiceData);
     } else {
-        alert('خطأ: محرك الطباعة غير متوفر!');
+        if (typeof showCustomAlert === 'function') {
+            showCustomAlert({
+                type: 'error',
+                titleText: 'خطأ',
+                msg: 'محرك الطباعة غير متوفر!'
+            });
+        } else if (typeof showToast === 'function') {
+            showToast('خطأ: محرك الطباعة غير متوفر!', 'error');
+        } else {
+            alert('خطأ: محرك الطباعة غير متوفر!');
+        }
     }
 }
 
@@ -3948,7 +4007,20 @@ async function showCurrentBillProfit() {
         return;
     }
 
-    if (cart.length === 0) return alert("⚠️ الفاتورة فارغة!");
+    if (cart.length === 0) {
+        if (typeof showCustomAlert === 'function') {
+            showCustomAlert({
+                type: 'warning',
+                titleText: '⚠️ تنبيه',
+                msg: 'الفاتورة فارغة!'
+            });
+        } else if (typeof showToast === 'function') {
+            showToast('⚠️ الفاتورة فارغة!', 'warning');
+        } else {
+            alert("⚠️ الفاتورة فارغة!");
+        }
+        return;
+    }
     let totalCost = 0;
     let totalSale = 0;
 

@@ -511,16 +511,25 @@
                     'confirmModal', 'alertModal', 'quickNavModal', 'profitModal',
                     'newItemModal', 'newAccountModal', 'searchInvoiceModal',
                     'customAlertModal', 'bayanCustomModal', 'editInvoiceModal', 'unitManagerModal',
-                    'drawerAuditClosingModal', 'transferOrderModal'
+                    'drawerAuditClosingModal', 'transferOrderModal',
+                    'notifyModal', 'unitSelectionModal', 'customPromptModal'
                 ];
                 openModalsToClose.forEach(mId => {
                     const mEl = document.getElementById(mId);
-                    if (mEl && !mEl.classList.contains('hidden')) {
-                        mEl.classList.add('hidden');
-                        mEl.style.display = 'none';
-                        mEl.style.pointerEvents = 'none';
+                    if (mEl) {
+                        if (mId === 'notifyModal') {
+                            try { mEl.remove(); } catch(e) {}
+                        } else if (!mEl.classList.contains('hidden')) {
+                            mEl.classList.add('hidden');
+                            mEl.style.display = 'none';
+                            mEl.style.pointerEvents = 'none';
+                        }
                     }
                 });
+                const orphanNotifyModal = document.getElementById('notifyModal');
+                if (orphanNotifyModal) {
+                    try { orphanNotifyModal.remove(); } catch(e) {}
+                }
 
                 // إظهار أو إخفاء الشاشات الخاصة بنظام التبويبات (إدارة الأسعار وتحويل المخزون)
                 const pModal = document.getElementById('priceAdjustmentModal');
@@ -616,7 +625,7 @@
                 }
                 const instantFocusInput = (elemId) => {
                     const active = document.activeElement;
-                    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT')) {
+                    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT') && active.offsetParent !== null) {
                         return;
                     }
                     const el = document.getElementById(elemId);
@@ -630,6 +639,10 @@
                     instantFocusInput('productSearch');
                 } else if (targetTab.type === 'purchase') {
                     instantFocusInput('purchaseSearch');
+                } else if (targetTab.type === 'receipt') {
+                    instantFocusInput('receiptCustomer');
+                } else if (targetTab.type === 'disbursement') {
+                    instantFocusInput('disbursePayee');
                 } else if (targetTab.type === 'adjustment') {
                     const adjBody = document.getElementById('adjTableBody');
                     if (!adjBody || adjBody.children.length === 0 || window._adjNeedsRefresh) {

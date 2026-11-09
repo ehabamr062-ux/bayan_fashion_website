@@ -18,6 +18,46 @@
             }
         };
 
+        // 🎯 إغلاق مركز التنبيهات مع إنعاش تركيز نافذة و webContents Electron فورياً
+        window.closeNotifyModal = function() {
+            const notifyModal = document.getElementById('notifyModal');
+            if (notifyModal) {
+                try {
+                    notifyModal.remove();
+                } catch (e) {
+                    notifyModal.style.display = 'none';
+                }
+            }
+            if (typeof window.forceElectronWebContentsFocus === 'function') {
+                window.forceElectronWebContentsFocus();
+            }
+        };
+
+        // 🛡️ تأكيد رفض إذن التحويل المخزني عبر المودال الاحترافي دون إفقاد التركيز
+        window.confirmRejectTransferFromNotify = function(trId) {
+            if (!trId) return;
+            const msg = `هل أنت متأكد من رفض إذن التحويل #${trId}؟<br><small style="color:#64748b;">(ملاحظة: تظل البضاعة مسجلة بالكامل برصيد المخزن المصدر)</small>`;
+            if (typeof showCustomAlert === 'function') {
+                showCustomAlert({
+                    type: 'question',
+                    titleText: 'تأكيد رفض التحويل',
+                    msg: msg,
+                    confirmText: 'نعم، رفض التحويل',
+                    cancelText: 'تراجع',
+                    showCancel: true,
+                    onConfirm: () => {
+                        if (typeof window.rejectTransferFromNotify === 'function') {
+                            window.rejectTransferFromNotify(trId);
+                        }
+                    }
+                });
+            } else if (confirm(`هل أنت متأكد من رفض إذن التحويل #${trId}؟ تظل البضاعة مسجلة بالكامل برصيد المخزن المصدر.`)) {
+                if (typeof window.rejectTransferFromNotify === 'function') {
+                    window.rejectTransferFromNotify(trId);
+                }
+            }
+        };
+
         window.showNotificationsModal = function(activeTab = null) {
             // 1. استدعاء الإحصائيات الشاملة من المصدر الموحد للحقيقة (Single Source of Truth)
             const stats = (typeof window.getSystemNotificationsStats === 'function') 
@@ -116,7 +156,7 @@
                                     <span>✔️</span> استلام وتوثيق الكل
                                 </button>
                             ` : ''}
-                            <button onclick="document.getElementById('notifyModal').remove()" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.35); color: #ffffff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 1.35rem; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s; backdrop-filter: blur(4px); box-shadow: 0 2px 8px rgba(0,0,0,0.15);" onmouseover="this.style.background='rgba(239, 68, 68, 0.85)'; this.style.borderColor='rgba(239, 68, 68, 1)'; this.style.transform='scale(1.08)';" onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'; this.style.borderColor='rgba(255, 255, 255, 0.35)'; this.style.transform='none';">&times;</button>
+                            <button onclick="window.closeNotifyModal()" style="background: rgba(255, 255, 255, 0.2); border: 1px solid rgba(255, 255, 255, 0.35); color: #ffffff; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 1.35rem; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s; backdrop-filter: blur(4px); box-shadow: 0 2px 8px rgba(0,0,0,0.15);" onmouseover="this.style.background='rgba(239, 68, 68, 0.85)'; this.style.borderColor='rgba(239, 68, 68, 1)'; this.style.transform='scale(1.08)';" onmouseout="this.style.background='rgba(255, 255, 255, 0.2)'; this.style.borderColor='rgba(255, 255, 255, 0.35)'; this.style.transform='none';">&times;</button>
                         </div>
                     </div>
 
@@ -314,7 +354,7 @@
                                                         ${tr.notes ? `<div style="font-size:0.85rem; color:#475569; margin-bottom:14px; background:#ffffff; padding:8px 14px; border-radius:10px; border:1px solid #e2e8f0; font-weight:bold;">📝 ملاحظات المرسل: ${escapeStr(tr.notes)}</div>` : ''}
 
                                                         <div style="display:flex; justify-content:flex-end; gap:12px;">
-                                                            <button onclick="if(confirm('هل أنت متأكد من رفض إذن التحويل #${escapeStr(tr.id)}؟ تظل البضاعة مسجلة بالكامل برصيد المخزن المصدر.')) window.rejectTransferFromNotify('${escapeStr(tr.id)}')" style="background:#fee2e2; color:#dc2626; border:1.5px solid #fca5a5; border-radius:10px; padding:9px 18px; font-weight:900; font-size:0.86rem; cursor:pointer; transition:0.2s;">
+                                                            <button onclick="window.confirmRejectTransferFromNotify('${escapeStr(tr.id)}')" style="background:#fee2e2; color:#dc2626; border:1.5px solid #fca5a5; border-radius:10px; padding:9px 18px; font-weight:900; font-size:0.86rem; cursor:pointer; transition:0.2s;">
                                                                 ❌ رفض التحويل
                                                             </button>
                                                             <button onclick="window.acceptTransferFromNotify('${escapeStr(tr.id)}')" style="background:linear-gradient(135deg, #10b981, #047857); color:#fff; border:none; border-radius:10px; padding:9px 24px; font-weight:900; font-size:0.92rem; cursor:pointer; box-shadow:0 3px 10px rgba(16,185,129,0.35); transition:0.2s;">
@@ -970,7 +1010,7 @@
                                         </button>
                                     ` : ''}
                                 </div>
-                                <button onclick="document.getElementById('notifyModal').remove()" style="padding: 10px 32px; background: #1e293b; color: white; border: none; border-radius: 10px; font-weight: 900; font-size:0.92rem; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='#0f172a'" onmouseout="this.style.background='#1e293b'">إغلاق</button>
+                                <button onclick="window.closeNotifyModal()" style="padding: 10px 32px; background: #1e293b; color: white; border: none; border-radius: 10px; font-weight: 900; font-size:0.92rem; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='#0f172a'" onmouseout="this.style.background='#1e293b'">إغلاق</button>
                             </div>
 
                         </div> <!-- closes left main column -->
@@ -996,8 +1036,12 @@
                 return;
             }
 
-            const notifyModal = document.getElementById('notifyModal');
-            if (notifyModal) notifyModal.remove();
+            if (typeof window.closeNotifyModal === 'function') {
+                window.closeNotifyModal();
+            } else {
+                const notifyModal = document.getElementById('notifyModal');
+                if (notifyModal) notifyModal.remove();
+            }
 
             if (typeof switchSection === 'function') {
                 switchSection('accounts');
@@ -1230,7 +1274,19 @@
             }
 
             const acc = accounts.find(a => a.name === name);
-            if (!acc) return alert("العميل غير موجود في سجل الحسابات.");
+            if (!acc) {
+                if (typeof showCustomAlert === 'function') {
+                    return showCustomAlert({
+                        type: 'error',
+                        titleText: 'خطأ',
+                        msg: 'العميل غير موجود في سجل الحسابات.'
+                    });
+                } else if (typeof showToast === 'function') {
+                    return showToast('⚠️ العميل غير موجود في سجل الحسابات.', 'warning');
+                } else {
+                    return alert("العميل غير موجود في سجل الحسابات.");
+                }
+            }
 
             const bal = getAccountBalance(name);
             const lastTrans = transactions.filter(t => t.partner === name).reverse().slice(0, 5);
@@ -3887,7 +3943,17 @@
                 } else if (t.invoiceId && typeof printBillFromData === 'function') {
                     printBillFromData(t.invoiceId, t.type);
                 } else {
-                    alert("لا يمكن طباعة هذا البند بشكل مستقل (لا يوجد رقم فاتورة)");
+                    if (typeof showCustomAlert === 'function') {
+                        showCustomAlert({
+                            type: 'warning',
+                            titleText: 'تنبيه',
+                            msg: 'لا يمكن طباعة هذا البند بشكل مستقل (لا يوجد رقم فاتورة)'
+                        });
+                    } else if (typeof showToast === 'function') {
+                        showToast('⚠️ لا يمكن طباعة هذا البند بشكل مستقل (لا يوجد رقم فاتورة)', 'warning');
+                    } else {
+                        alert("لا يمكن طباعة هذا البند بشكل مستقل (لا يوجد رقم فاتورة)");
+                    }
                 }
             } else if (t.type.includes('قبض')) {
                 document.getElementById('receiptID').value = t.invoiceId || '-';

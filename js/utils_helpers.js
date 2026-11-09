@@ -2287,7 +2287,7 @@
                 showToast("ℹ️ سجل الاستلام فارغ بالفعل.");
                 return;
             }
-            if (confirm("هل أنت متأكد من مسح كافة بيانات سجل الاستلام والتدفق نهائياً؟\n(ملاحظة: هذا الإجراء يمسح أرشيف التنبيهات فقط ولا يؤثر مطلقاً على حركة المخزون الفعلية)")) {
+            const performClear = () => {
                 window.bayanReceiptLog = [];
                 setStore('bayan_receipt_log', JSON.stringify([]));
                 setStore('bayan_legacy_backfilled', 'true');
@@ -2303,12 +2303,29 @@
                     showNotificationsModal('archived');
                 }
                 showToast("🗑️ تم مسح سجل الاستلام بالكامل بنجاح.");
+                if (typeof window.forceElectronWebContentsFocus === 'function') {
+                    window.forceElectronWebContentsFocus();
+                }
+            };
+
+            if (typeof showCustomAlert === 'function') {
+                showCustomAlert({
+                    type: 'question',
+                    titleText: 'مسح سجل الاستلام والتدفق',
+                    msg: 'هل أنت متأكد من مسح كافة بيانات سجل الاستلام والتدفق نهائياً؟<br><small style="color:#64748b;">(ملاحظة: هذا الإجراء يمسح أرشيف التنبيهات فقط ولا يؤثر مطلقاً على حركة المخزون الفعلية)</small>',
+                    confirmText: 'نعم، مسح السجل',
+                    cancelText: 'تراجع',
+                    showCancel: true,
+                    onConfirm: performClear
+                });
+            } else if (confirm("هل أنت متأكد من مسح كافة بيانات سجل الاستلام والتدفق نهائياً؟\n(ملاحظة: هذا الإجراء يمسح أرشيف التنبيهات فقط ولا يؤثر مطلقاً على حركة المخزون الفعلية)")) {
+                performClear();
             }
         };
 
         // استعادة كافة التنبيهات من سجل الاستلام للنشط
         window.resetAcknowledgedNotifications = function() {
-            if (confirm("هل أنت متأكد من استعادة كافة التنبيهات المستلمة (البضاعة والحسابات والسحابية) إلى القوائم النشطة؟\n(ملاحظة: أذونات التحويل المخزني تظل معتمدة وموثقة نهائياً لحماية الأرصدة)")) {
+            const performReset = () => {
                 window.acknowledgedLowStock = [];
                 window.acknowledgedExpiry = [];
                 window.acknowledgedDebt = [];
@@ -2329,6 +2346,23 @@
                     showNotificationsModal('archived');
                 }
                 showToast("🔄 تم استعادة التنبيهات للقوائم النشطة وبقيت أذونات التحويل معتمدة نهائياً.");
+                if (typeof window.forceElectronWebContentsFocus === 'function') {
+                    window.forceElectronWebContentsFocus();
+                }
+            };
+
+            if (typeof showCustomAlert === 'function') {
+                showCustomAlert({
+                    type: 'question',
+                    titleText: 'استعادة التنبيهات المستلمة',
+                    msg: 'هل أنت متأكد من استعادة كافة التنبيهات المستلمة (البضاعة والحسابات والسحابية) إلى القوائم النشطة؟<br><small style="color:#64748b;">(ملاحظة: أذونات التحويل المخزني تظل معتمدة وموثقة نهائياً لحماية الأرصدة)</small>',
+                    confirmText: 'نعم، استعادة للقوائم النشطة',
+                    cancelText: 'تراجع',
+                    showCancel: true,
+                    onConfirm: performReset
+                });
+            } else if (confirm("هل أنت متأكد من استعادة كافة التنبيهات المستلمة (البضاعة والحسابات والسحابية) إلى القوائم النشطة؟\n(ملاحظة: أذونات التحويل المخزني تظل معتمدة وموثقة نهائياً لحماية الأرصدة)")) {
+                performReset();
             }
         };
 
@@ -3719,9 +3753,101 @@
                 if (icon) icon.style.display = 'block';
             }
             restorePosFocusAfterModal();
+            if (typeof window.forceElectronWebContentsFocus === 'function') {
+                window.forceElectronWebContentsFocus();
+            }
         }
         window.closeCustomAlert = closeCustomAlert;
         window.closeAlertModal = closeCustomAlert;
+
+        // =========================================================================
+        // 🚀 نظام إنعاش تركيز Electron و webContents الفوري (Focus Self-Healing Engine)
+        // =========================================================================
+        window.forceElectronWebContentsFocus = function(targetEl) {
+            try {
+                let ipc = null;
+                if (typeof window !== 'undefined' && window.ipcRenderer) {
+                    ipc = window.ipcRenderer;
+                } else if (typeof window !== 'undefined' && window.require) {
+                    ipc = window.require('electron').ipcRenderer;
+                } else if (typeof require !== 'undefined') {
+                    ipc = require('electron').ipcRenderer;
+                }
+                if (ipc && typeof ipc.send === 'function') {
+                    ipc.send('fix-electron-focus');
+                }
+            } catch (e) {}
+
+            setTimeout(() => {
+                try {
+                    if (targetEl && typeof targetEl.focus === 'function' && !targetEl.disabled && !targetEl.readOnly) {
+                        targetEl.focus();
+                    } else if (typeof window.restorePosFocusAfterModal === 'function') {
+                        window.restorePosFocusAfterModal();
+                    }
+                } catch (err) {}
+            }, 20);
+        };
+
+        // 🛡️ التغليف العالمي لـ window.alert و window.confirm و window.prompt لإنعاش التركيز فوراً بعد انتهاء أي نافذة حوار أصلية
+        (function() {
+            const _origAlert = window.alert;
+            const _origConfirm = window.confirm;
+            const _origPrompt = window.prompt;
+
+            window.alert = function() {
+                try {
+                    return _origAlert.apply(this, arguments);
+                } finally {
+                    if (typeof window.forceElectronWebContentsFocus === 'function') {
+                        window.forceElectronWebContentsFocus();
+                    }
+                }
+            };
+
+            window.confirm = function() {
+                try {
+                    return _origConfirm.apply(this, arguments);
+                } finally {
+                    if (typeof window.forceElectronWebContentsFocus === 'function') {
+                        window.forceElectronWebContentsFocus();
+                    }
+                }
+            };
+
+            window.prompt = function() {
+                try {
+                    return _origPrompt.apply(this, arguments);
+                } finally {
+                    if (typeof window.forceElectronWebContentsFocus === 'function') {
+                        window.forceElectronWebContentsFocus();
+                    }
+                }
+            };
+        })();
+
+        // 🎯 حارس الإنعاش الذاتي (Self-Healing Mousedown Listener) على document في طور الالتقاط
+        document.addEventListener('mousedown', function(event) {
+            const el = event.target;
+            if (!el) return;
+            const tag = el.tagName;
+            if ((tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') && !el.disabled && !el.readOnly) {
+                if (!document.hasFocus()) {
+                    if (typeof window.forceElectronWebContentsFocus === 'function') {
+                        window.forceElectronWebContentsFocus(el);
+                    }
+                    try { el.focus(); } catch (e) {}
+                }
+                setTimeout(() => {
+                    if (document.activeElement !== el && !el.disabled && !el.readOnly && el.offsetParent !== null) {
+                        if (typeof window.forceElectronWebContentsFocus === 'function') {
+                            window.forceElectronWebContentsFocus(el);
+                        }
+                        try { el.focus(); } catch (e) {}
+                    }
+                }, 10);
+            }
+        }, true);
 
         function contactDeveloper() {
             let modal = document.getElementById('bayanHelpModal');
