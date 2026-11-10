@@ -1272,7 +1272,7 @@ window.addEventListener('keydown', function (event) {
             'royalCalculator', 'confirmModal', 'alertModal', 'newItemModal', 'newAccountModal',
             'quickNavModal', 'profitModal', 'priceAdjustmentModal',
             'wallpaperMenu', 'subscriptionModal', 'cloudRegistrationModal',
-            'transferModal', 'loginModal', 'searchInvoiceModal', 'selectReturnItemsModal',
+            'bulkTransferModal', 'transferModal', 'loginModal', 'searchInvoiceModal', 'selectReturnItemsModal',
             'statementModal', 'dailyReportModal', 'inventoryModal', 'permissionsModal',
             'unitSelectionModal', 'invoiceShareMenu', 'stmtShareMenu',
             'salesInvoiceShareMenu', 'salesShareMenu', 'purShareMenu', 'invoiceItemsModal',
@@ -1310,6 +1310,13 @@ window.addEventListener('keydown', function (event) {
                         else {
                             el.classList.add('hidden');
                             el.style.setProperty('display', 'none', 'important');
+                        }
+                    }
+                    else if (modalId === 'bulkTransferModal') {
+                        if (typeof window.closeBulkWarehouseTransferModal === 'function') window.closeBulkWarehouseTransferModal();
+                        else {
+                            el.style.display = 'none';
+                            el.classList.add('hidden');
                         }
                     }
                     else if (modalId === 'bayanFastInquiryModal') {
