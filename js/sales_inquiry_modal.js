@@ -180,6 +180,8 @@
 
         selectedInquiryWarehouse = 'all';
         isColCustomizerOpen = false;
+        inquirySearchResults = [];
+        inquirySearchActiveIndex = -1;
 
         currentInquiryTab = 'general';
         renderInquiryModal();
@@ -203,6 +205,14 @@
             `;
             document.body.appendChild(modal);
         }
+
+        // 🛡️ إزالة أي حجب أو كلاس hidden وإعادة إظهار المودال بنشاط كامل وفوري
+        modal.classList.remove('hidden');
+        modal.style.display = 'flex';
+        modal.style.pointerEvents = 'auto';
+        modal.style.visibility = 'visible';
+        modal.style.opacity = '1';
+        modal.style.zIndex = '99999999';
 
         const prevScroll = document.getElementById('inquiryTabContentContainer')?.scrollTop || 0;
 
@@ -262,7 +272,11 @@
                     </div>
                 </div>
             `;
+            modal.classList.remove('hidden');
             modal.style.display = 'flex';
+            modal.style.pointerEvents = 'auto';
+            modal.style.visibility = 'visible';
+            modal.style.opacity = '1';
             setTimeout(() => document.getElementById('inquiryLiveSearch')?.focus(), 100);
             return;
         }
@@ -378,7 +392,11 @@
             </div>
         `;
 
+        modal.classList.remove('hidden');
         modal.style.display = 'flex';
+        modal.style.pointerEvents = 'auto';
+        modal.style.visibility = 'visible';
+        modal.style.opacity = '1';
         const curScroll = document.getElementById('inquiryTabContentContainer');
         if (curScroll && prevScroll > 0) {
             curScroll.scrollTop = prevScroll;
@@ -2527,7 +2545,11 @@
         if (modal) {
             modal.style.display = 'none';
             modal.classList.add('hidden');
+            modal.style.pointerEvents = 'none';
         }
+        currentInquiryProduct = null;
+        inquirySearchResults = [];
+        inquirySearchActiveIndex = -1;
         if (typeof window.forceElectronWebContentsFocus === 'function') {
             window.forceElectronWebContentsFocus();
         }
@@ -2553,18 +2575,22 @@
             // 🛡️ فحص ومنع تداخل النوافذ إذا كانت شاشة الدفع أو أي نافذة منبثقة نشطة
             const payModal = document.getElementById('checkoutModal') || document.getElementById('quickPaymentModal') || document.getElementById('paymentModal');
             const discountModal = document.getElementById('discountModal') || document.getElementById('invoiceDiscountModal');
-            const otherActiveModal = document.querySelector('.confirm-modal-overlay:not(#bayanFastInquiryModal)');
+            const otherActiveModals = Array.from(document.querySelectorAll('.confirm-modal-overlay:not(#bayanFastInquiryModal), .modal-overlay:not(#bayanFastInquiryModal)'));
+            const isOtherActive = otherActiveModals.some(m => !m.classList.contains('hidden') && (m.style.display === 'flex' || m.offsetParent !== null));
 
             const isPayActive = payModal && !payModal.classList.contains('hidden') && payModal.offsetParent !== null;
             const isDiscActive = discountModal && !discountModal.classList.contains('hidden') && discountModal.offsetParent !== null;
-            const isOtherActive = otherActiveModal && !otherActiveModal.classList.contains('hidden') && otherActiveModal.offsetParent !== null;
 
             if (isPayActive || isDiscActive || isOtherActive) {
                 return; // منع فتح الاستعلام فوق شاشات الدفع أو التأكيد
             }
 
             e.preventDefault();
-            window.openFastItemInquiryModal();
+            const modal = document.getElementById('bayanFastInquiryModal');
+            const isModalVisible = modal && !modal.classList.contains('hidden') && modal.style.display === 'flex' && modal.offsetParent !== null;
+            if (!isModalVisible) {
+                window.openFastItemInquiryModal();
+            }
         } else if (e.key === 'Escape') {
             if (isColCustomizerOpen) {
                 e.preventDefault();
@@ -2574,7 +2600,7 @@
                 return;
             }
             const modal = document.getElementById('bayanFastInquiryModal');
-            if (modal && modal.style.display === 'flex') {
+            if (modal && !modal.classList.contains('hidden') && (modal.style.display === 'flex' || modal.offsetParent !== null)) {
                 e.preventDefault();
                 window.closeFastItemInquiryModal();
             }

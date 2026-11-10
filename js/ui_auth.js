@@ -1427,7 +1427,8 @@ window.addEventListener('keydown', function (event) {
     } else if (event.key === 'F8') {
         event.preventDefault();
         const modal = document.getElementById('bayanFastInquiryModal');
-        if (!modal || modal.style.display !== 'flex') {
+        const isModalVisible = modal && !modal.classList.contains('hidden') && modal.style.display === 'flex' && modal.offsetParent !== null;
+        if (!isModalVisible) {
             if (typeof window.openFastItemInquiryModal === 'function') window.openFastItemInquiryModal();
         }
     } else if (event.key === 'F9' || event.key === 'F12') {
