@@ -611,16 +611,6 @@ let _activePrintDestroyTimer = null;
 
 ipcMain.handle('print-receipt-silent', async (event, payload) => {
     return new Promise(async (resolve) => {
-        // تنظيف أي نافذة طباعة معلقة سابقة فوراً لمنع تراكم نوافذ Chromium في الرام
-        if (_activePrintDestroyTimer) {
-            clearTimeout(_activePrintDestroyTimer);
-            _activePrintDestroyTimer = null;
-        }
-        if (_activePrintWin && !_activePrintWin.isDestroyed()) {
-            try { _activePrintWin.destroy(); } catch (e) { }
-            _activePrintWin = null;
-        }
-
         let printWin = null;
         let resolved = false;
         let tempReceiptFile = null;
@@ -631,21 +621,19 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                 clearTimeout(timeoutTimer);
                 resolve(res);
 
-                // ⏱️ مهلة ترشيد سريعة (1.5 ثانية) في الخلفية قبل إغلاق نافذة الطباعة لتحرير معالج الرسوميات والذاكرة فور إرسال الفاتورة لـ Windows Spooler دون تراكم العمليات
+                // ⏱️ مهلة 5 ثوانٍ في الخلفية قبل تدمير نافذة الطباعة لضمان اكتمال تدفق البيانات لـ Windows Spooler وفتح الدرج الكهربائي والمقص التلقائي
                 if (delayDestroy) {
-                    _activePrintDestroyTimer = setTimeout(() => {
+                    setTimeout(() => {
                         if (printWin && !printWin.isDestroyed()) {
                             try { printWin.destroy(); } catch (e) { }
-                            if (_activePrintWin === printWin) _activePrintWin = null;
                         }
                         if (tempReceiptFile) {
                             try { if (fs.existsSync(tempReceiptFile)) fs.unlinkSync(tempReceiptFile); } catch (e) { }
                         }
-                    }, 1500);
+                    }, 5000);
                 } else {
                     if (printWin && !printWin.isDestroyed()) {
                         try { printWin.destroy(); } catch (e) { }
-                        if (_activePrintWin === printWin) _activePrintWin = null;
                     }
                     if (tempReceiptFile) {
                         try { if (fs.existsSync(tempReceiptFile)) fs.unlinkSync(tempReceiptFile); } catch (e) { }
@@ -659,7 +647,7 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
         }, 20000);
 
         try {
-            const { html, printerName, pageWidth } = payload || {};
+            const { html, printerName } = payload || {};
             if (!html || typeof html !== 'string' || !html.trim()) {
                 return cleanup({ success: false, error: 'No invoice HTML provided' }, false);
             }
@@ -680,10 +668,10 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                     nodeIntegration: false,
                     contextIsolation: true,
                     sandbox: false,
-                    backgroundThrottling: false
+                    backgroundThrottling: false,
+                    webSecurity: false
                 }
             });
-            _activePrintWin = printWin;
 
             printWin.webContents.on('did-fail-load', (_e, code, desc) => {
                 cleanup({ success: false, error: desc || 'Failed to load receipt HTML' }, false);
@@ -694,7 +682,7 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                     await printWin.webContents.executeJavaScript(`
                         Promise.all([
                             document.fonts ? document.fonts.ready : Promise.resolve(),
-                            new Promise(resolve => setTimeout(resolve, 250))
+                            new Promise(resolve => setTimeout(resolve, 100))
                         ])
                     `).catch(() => { });
 
@@ -714,21 +702,38 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                     }
 
                     printWin.setContentSize(350, Math.max(1000, (renderStatus.scrollHeight || 0) + 200));
-                    await new Promise(r => setTimeout(r, 150));
+                    await new Promise(r => setTimeout(r, 50));
 
                     let targetDevice = '';
                     try {
                         const printers = await printWin.webContents.getPrintersAsync();
                         const pNameInput = (printerName && String(printerName).trim()) || '';
+                        const thermalRegex = /XP-80|80C|Xprinter|POS|Receipt|Thermal|Cashier|EPSON|RP80|Star|Bixolon/i;
+                        const virtualRegex = /PDF|OneNote|XPS|Fax/i;
+
+                        // الأولوية 1: إذا كان printerName محدداً وموجوداً في قائمة طابعات الويندوز
                         if (pNameInput && printers.some(p => p.name === pNameInput)) {
                             targetDevice = pNameInput;
                         } else {
-                            const receiptPrinter = printers.find(p => /XP-80|80C|Xprinter|POS|Receipt|Thermal|Cashier/i.test(p.name));
-                            if (receiptPrinter) {
-                                targetDevice = receiptPrinter.name;
+                            // الأولوية 2: طابعة حرارية وتكون افتراضية (p.isDefault) أو حالتها متصلة (p.status === 0)
+                            const activeThermal = printers.find(p => thermalRegex.test(p.name) && (p.isDefault || p.status === 0));
+                            if (activeThermal) {
+                                targetDevice = activeThermal.name;
                             } else {
-                                const defaultPrinter = printers.find(p => p.isDefault);
-                                if (defaultPrinter) targetDevice = defaultPrinter.name;
+                                // الأولوية 3: الطابعة الافتراضية للويندوز بشرط ألا تكون طابعة وهمية
+                                const realDefault = printers.find(p => p.isDefault && !virtualRegex.test(p.name));
+                                if (realDefault) {
+                                    targetDevice = realDefault.name;
+                                } else {
+                                    // الأولوية 4: أي طابعة حرارية مطابقة للـ Regex في القائمة
+                                    const anyThermal = printers.find(p => thermalRegex.test(p.name));
+                                    if (anyThermal) {
+                                        targetDevice = anyThermal.name;
+                                    } else {
+                                        const fallbackDefault = printers.find(p => p.isDefault);
+                                        if (fallbackDefault) targetDevice = fallbackDefault.name;
+                                    }
+                                }
                             }
                         }
                     } catch (pe) {
@@ -736,30 +741,36 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                         if (printerName) targetDevice = String(printerName).trim();
                     }
 
-                    const contentHeightMicrons = Math.max(180000, Math.ceil(((renderStatus.scrollHeight || 800) * 25400) / 96) + 35000);
-                    const is57mm = (pageWidth === '57mm') || (payload && payload.pageWidth === '57mm');
-
-                    const printOptions = {
+                    // 1. المحاولة الأولى (Primary): إعدادات محسنة لسرعة وخفة الطابعات الحرارية
+                    const primaryPrintOptions = {
                         silent: true,
                         printBackground: true,
-                        margins: { marginType: 'printableArea' },
-                        preferCSSPageSize: false,
-                        pageSize: {
-                            width: is57mm ? 58000 : 80000,
-                            height: contentHeightMicrons
-                        }
+                        margins: { marginType: 'none' },
+                        preferCSSPageSize: true
                     };
-
-                    if (targetDevice) {
-                        printOptions.deviceName = targetDevice;
-                    }
+                    if (targetDevice) primaryPrintOptions.deviceName = targetDevice;
 
                     console.log(`[Print Silent] 🖨️ Printing silently to: "${targetDevice || 'Default Printer'}"`);
 
-                    printWin.webContents.print(printOptions, (success, failureReason) => {
+                    printWin.webContents.print(primaryPrintOptions, (success, failureReason) => {
                         if (!success) {
-                            console.warn('[Print Silent] Print failed:', failureReason);
-                            cleanup({ success: false, error: failureReason }, false);
+                            console.warn(`[Print Silent] Primary print failed (${failureReason}), attempting instant driver fallback...`);
+                            // 2. المحاولة الثانية التلقائية (Instant Driver Fallback): بإعدادات الدرايفر القياسية
+                            const fallbackOptions = {
+                                silent: true,
+                                printBackground: true
+                            };
+                            if (targetDevice) fallbackOptions.deviceName = targetDevice;
+
+                            printWin.webContents.print(fallbackOptions, (fbSuccess, fbReason) => {
+                                if (!fbSuccess) {
+                                    console.warn('[Print Silent] Fallback print also failed:', fbReason);
+                                    cleanup({ success: false, error: fbReason || failureReason }, false);
+                                } else {
+                                    console.log('[Print Silent] Print job sent successfully via Fallback ✅');
+                                    cleanup({ success: true, deviceName: targetDevice }, true);
+                                }
+                            });
                         } else {
                             console.log('[Print Silent] Print job sent successfully ✅');
                             cleanup({ success: true, deviceName: targetDevice }, true);

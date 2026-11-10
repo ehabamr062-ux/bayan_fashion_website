@@ -514,6 +514,9 @@ function buildInvoiceDocumentHTML(invoiceData) {
 window.buildInvoiceDocumentHTML = buildInvoiceDocumentHTML;
 
 async function printInvoice(invoiceData, options = {}) {
+    if (invoiceData && typeof invoiceData === 'object') {
+        window._lastPrintedInvoiceData = invoiceData;
+    }
     const rendered = buildInvoiceDocumentHTML(invoiceData);
     const content = rendered.content;
     const pageWidth = rendered.pageWidth;
@@ -638,7 +641,7 @@ async function printInvoice(invoiceData, options = {}) {
                     printerName: targetPrinter,
                     pageWidth: pageWidth
                 });
-                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Printer timeout')), 3500));
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Printer timeout')), 12000));
                 const result = await Promise.race([printPromise, timeoutPromise]).catch(err => {
                     console.warn("⚠️ Print silent timeout or error:", err);
                     return { success: false, error: err.message };

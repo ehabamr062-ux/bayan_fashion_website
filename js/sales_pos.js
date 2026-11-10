@@ -3511,73 +3511,72 @@ async function saveBill(force = false, accountChecked = false, event = null) {
             logAuditAction(auditAction, `فاتورة رقم #${newInvoiceId}, الإجمالي: ${currentTotal.toFixed(2)} ج.م, العميل: ${document.getElementById('customerName')?.value || 'نقدي'}, طريقة الدفع: ${selectedMethod}`);
         }
 
-        // 🖨️ فحص وتنفيذ الطباعة التلقائية فور الحفظ إذا كانت الخاصية مفعلة
+        // 🖨️ تجهيز كائن بيانات طباعة الفاتورة المحفوظة دائماً للطباعة السريعة وإعادة الطباعة
         const shouldAutoPrint = (typeof isPOSAutoPrintEnabled === 'function') && isPOSAutoPrintEnabled();
-        let autoPrintInvoiceData = null;
-
-        if (shouldAutoPrint) {
-            const customerNameInput = document.getElementById('customerName');
-            const customer = customerNameInput ? customerNameInput.value.trim() : 'عميل نقدي';
-            const isExplicitCredit = typeof window.isTransactionCredit === 'function' ? window.isTransactionCredit(selectedMethod, 0, 0, 0) : (selectedMethod.includes('آجل') || selectedMethod.includes('اجل') || selectedMethod.includes('ذمم'));
-            let paidValue = currentTotal;
-            const tenderedInp = document.getElementById('tenderedAmount');
-            if (!isExplicitCredit) {
-                paidValue = currentTotal;
-            } else if (tenderedInp && tenderedInp.value !== '') {
-                paidValue = parseFloat(tenderedInp.value) || 0;
-            } else {
-                paidValue = 0;
-            }
-
-            if (customer && !window.isGenericCashPartner(customer)) {
-                if (typeof getHistoricalPartnerBalance === 'function') {
-                    prevBalance = getHistoricalPartnerBalance(customer, newInvoiceId);
-                } else if (typeof getAccountBalance === 'function') {
-                    prevBalance = getAccountBalance(customer, newInvoiceId);
-                }
-            } else if (document.getElementById('prevBalanceDisplay')) {
-                prevBalance = parseFloat(document.getElementById('prevBalanceDisplay').innerText) || 0;
-            }
-
-            let discountVal = parseFloat(document.getElementById('discountInput')?.value) || 0;
-            const discountType = document.getElementById('discountType')?.value || 'val';
-            let discountAmount = (discountType === 'perc') ? (subTotal * discountVal / 100) : discountVal;
-
-            let taxVal = parseFloat(document.getElementById('taxInput')?.value) || 0;
-            const taxType = document.getElementById('taxType')?.value || 'val';
-            let taxAmount = (taxType === 'perc') ? (subTotal * taxVal / 100) : taxVal;
-            const taxReasonEl = document.getElementById('taxReason');
-            const selectedTaxReason = taxReasonEl ? taxReasonEl.value.trim() : 'إضافة';
-
-            const settings = JSON.parse(getStore('pos_settings') || '{}');
-            const globalTaxEnabled = settings.taxEnabled || false;
-            const globalTaxPercent = parseFloat(settings.taxPercent) || 0;
-            let globalTaxAmount = globalTaxEnabled ? (subTotal * globalTaxPercent / 100) : 0;
-
-            autoPrintInvoiceData = {
-                invoiceNumber: (currentDailyTaxSeq || newInvoiceId),
-                originalInvoiceId: newInvoiceId,
-                taxInvoiceSeq: currentDailyTaxSeq,
-                dailySeq: currentDailyTaxSeq,
-                invoiceType: selectedMethod,
-                date: dt.iso || dt.full.split(' ')[0],
-                time: dt.time || '',
-                cashier: currentUser ? currentUser.name : 'كاشير',
-                customer: customer,
-                items: JSON.parse(JSON.stringify(cart)),
-                subTotal: subTotal,
-                discount: discountAmount,
-                tax: taxAmount,
-                taxLabel: selectedTaxReason,
-                globalTax: globalTaxAmount,
-                totalAmount: currentTotal,
-                paid: paidValue,
-                deferred: currentTotal - paidValue,
-                prevBalance: prevBalance,
-                currentBalance: prevBalance + (currentTotal - paidValue),
-                docType: 'sales'
-            };
+        const customerNameInput = document.getElementById('customerName');
+        const customer = customerNameInput ? customerNameInput.value.trim() : 'عميل نقدي';
+        const isExplicitCredit = typeof window.isTransactionCredit === 'function' ? window.isTransactionCredit(selectedMethod, 0, 0, 0) : (selectedMethod.includes('آجل') || selectedMethod.includes('اجل') || selectedMethod.includes('ذمم'));
+        let paidValue = currentTotal;
+        const tenderedInp = document.getElementById('tenderedAmount');
+        if (!isExplicitCredit) {
+            paidValue = currentTotal;
+        } else if (tenderedInp && tenderedInp.value !== '') {
+            paidValue = parseFloat(tenderedInp.value) || 0;
+        } else {
+            paidValue = 0;
         }
+
+        if (customer && !window.isGenericCashPartner(customer)) {
+            if (typeof getHistoricalPartnerBalance === 'function') {
+                prevBalance = getHistoricalPartnerBalance(customer, newInvoiceId);
+            } else if (typeof getAccountBalance === 'function') {
+                prevBalance = getAccountBalance(customer, newInvoiceId);
+            }
+        } else if (document.getElementById('prevBalanceDisplay')) {
+            prevBalance = parseFloat(document.getElementById('prevBalanceDisplay').innerText) || 0;
+        }
+
+        let discountVal = parseFloat(document.getElementById('discountInput')?.value) || 0;
+        const discountType = document.getElementById('discountType')?.value || 'val';
+        let discountAmount = (discountType === 'perc') ? (subTotal * discountVal / 100) : discountVal;
+
+        let taxVal = parseFloat(document.getElementById('taxInput')?.value) || 0;
+        const taxType = document.getElementById('taxType')?.value || 'val';
+        let taxAmount = (taxType === 'perc') ? (subTotal * taxVal / 100) : taxVal;
+        const taxReasonEl = document.getElementById('taxReason');
+        const selectedTaxReason = taxReasonEl ? taxReasonEl.value.trim() : 'إضافة';
+
+        const settings = JSON.parse(getStore('pos_settings') || '{}');
+        const globalTaxEnabled = settings.taxEnabled || false;
+        const globalTaxPercent = parseFloat(settings.taxPercent) || 0;
+        let globalTaxAmount = globalTaxEnabled ? (subTotal * globalTaxPercent / 100) : 0;
+
+        const savedInvoicePrintPayload = {
+            invoiceNumber: (currentDailyTaxSeq || newInvoiceId),
+            originalInvoiceId: newInvoiceId,
+            taxInvoiceSeq: currentDailyTaxSeq,
+            dailySeq: currentDailyTaxSeq,
+            invoiceType: selectedMethod,
+            date: dt.iso || dt.full.split(' ')[0],
+            time: dt.time || '',
+            cashier: currentUser ? currentUser.name : 'كاشير',
+            customer: customer,
+            warehouse: activeWH || 'المخزن الرئيسي',
+            items: JSON.parse(JSON.stringify(cart)),
+            subTotal: subTotal,
+            discount: discountAmount,
+            tax: taxAmount,
+            taxLabel: selectedTaxReason,
+            globalTax: globalTaxAmount,
+            totalAmount: currentTotal,
+            paid: paidValue,
+            deferred: currentTotal - paidValue,
+            prevBalance: prevBalance,
+            currentBalance: prevBalance + (currentTotal - paidValue),
+            docType: 'sales'
+        };
+
+        window._lastSavedSalesInvoiceData = savedInvoicePrintPayload;
 
         showCustomAlert({
 
@@ -3621,11 +3620,9 @@ async function saveBill(force = false, accountChecked = false, event = null) {
 
         resetBill();
 
-        // 🖨️ إرسال أمر الطباعة التلقائي المباشر (صامت تماماً وفوري دون أي نوافذ)
-        if (shouldAutoPrint && autoPrintInvoiceData && typeof printInvoice === 'function') {
-            setTimeout(() => {
-                printInvoice(autoPrintInvoiceData, { silent: true });
-            }, 100);
+        // 🖨️ إرسال أمر الطباعة التلقائي المباشر (صامت تماماً وفوري دون أي تأخير)
+        if (shouldAutoPrint && window._lastSavedSalesInvoiceData && typeof printInvoice === 'function') {
+            printInvoice(window._lastSavedSalesInvoiceData, { silent: true });
         }
 
         if (typeof window.clearRevertedInvoiceBackup === 'function') {
@@ -3864,7 +3861,17 @@ function getSalesInvoicePrintData() {
 window.getSalesInvoicePrintData = getSalesInvoicePrintData;
 
 function printBill() {
+    const isAppEnv = typeof window !== 'undefined' && !!(window.require || (window.process && window.process.versions && window.process.versions.electron));
+
     if (cart.length === 0) {
+        // إذا كانت السلة فارغة وتوجد آخر فاتورة محفوظة، تتم إعادة طباعتها فوراً بضغطة واحدة
+        if (window._lastSavedSalesInvoiceData && typeof printInvoice === 'function') {
+            if (typeof showToast === 'function') {
+                showToast('🖨️ جاري طباعة آخر فاتورة تم حفظها (#' + window._lastSavedSalesInvoiceData.invoiceNumber + ')...', 'info');
+            }
+            return printInvoice(window._lastSavedSalesInvoiceData, { silent: isAppEnv });
+        }
+
         if (typeof showCustomAlert === 'function') {
             showCustomAlert({
                 type: 'warning',
