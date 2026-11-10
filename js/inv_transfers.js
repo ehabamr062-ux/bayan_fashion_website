@@ -2974,6 +2974,11 @@ window.openBulkWarehouseTransferModal = function () {
     if (searchInp) searchInp.value = '';
     const notesInp = document.getElementById('bulkTransferNotes');
     if (notesInp) notesInp.value = 'ترحيل رصيد مجمع';
+    const selectAllCb = document.getElementById('bulkTransferSelectAll');
+    if (selectAllCb) {
+        selectAllCb.checked = true;
+        selectAllCb.indeterminate = false;
+    }
 
     // تحديث خيارات الوجهة وتجهيز المعاينة
     window.onBulkTransferSourceChanged();
@@ -2994,6 +2999,11 @@ window.closeBulkWarehouseTransferModal = function () {
     }
     window._currentBulkTransferItems = [];
     window._filteredBulkTransferItems = [];
+    const selectAllCb = document.getElementById('bulkTransferSelectAll');
+    if (selectAllCb) {
+        selectAllCb.checked = true;
+        selectAllCb.indeterminate = false;
+    }
     const loader = document.getElementById('bulkTransferLoadingOverlay');
     if (loader) {
         loader.classList.add('hidden');
@@ -3099,6 +3109,8 @@ window.updateBulkTransferPreview = function () {
                     const costVal = parseFloat(v.cost) || parseFloat(v.avgBuyPrice) || parseFloat(p.cost) || parseFloat(p.avgBuyPrice) || 0;
 
                     items.push({
+                        uid: `bti_${p.id}_v${vIdx}`,
+                        selected: true,
                         productId: p.id,
                         productName: p.name,
                         code: v.barcode || p.code || p.barcode || p.id,
@@ -3131,6 +3143,8 @@ window.updateBulkTransferPreview = function () {
                 const costVal = parseFloat(p.cost) || parseFloat(p.avgBuyPrice) || 0;
 
                 items.push({
+                    uid: `bti_${p.id}_base`,
+                    selected: true,
                     productId: p.id,
                     productName: p.name,
                     code: p.code || p.barcode || p.id,
@@ -3164,29 +3178,174 @@ window.updateBulkTransferPreview = function () {
 };
 
 /**
- * تصفية فورية في المعاينة
+ * دالة مساعدة لتوحيد النصوص للبحث الذكي
  */
-window.filterBulkTransferPreview = function (query) {
-    if (!window._currentBulkTransferItems) window._currentBulkTransferItems = [];
-    const cleanQ = (query || '').trim().toLowerCase()
+function normalizeBulkSearchText(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .trim()
+        .toLowerCase()
+        .replace(/[٠١٢٣٤٥٦٧٨٩]/g, d => '0123456789'['٠١٢٣٤٥٦٧٨٩'.indexOf(d)])
         .replace(/[أإآ]/g, 'ا')
         .replace(/ة/g, 'ه')
         .replace(/[ىي]/g, 'ي');
+}
 
-    if (!cleanQ) {
+/**
+ * تصفية فورية في المعاينة بنظام الأولوية الذكية (Smart Relevance Ranking)
+ */
+window.filterBulkTransferPreview = function (query) {
+    if (!window._currentBulkTransferItems) window._currentBulkTransferItems = [];
+    const rawQ = (query || '').trim();
+    const qNorm = normalizeBulkSearchText(rawQ);
+
+    if (!qNorm) {
         window._filteredBulkTransferItems = window._currentBulkTransferItems;
     } else {
-        window._filteredBulkTransferItems = window._currentBulkTransferItems.filter(it => {
-            const pName = (it.productName || '').toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي');
-            const code = String(it.code || '').toLowerCase();
-            const barcode = String(it.barcode || '').toLowerCase();
-            const size = String(it.size || '').toLowerCase();
-            const color = String(it.color || '').toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي');
-            return pName.includes(cleanQ) || code.includes(cleanQ) || barcode.includes(cleanQ) || size.includes(cleanQ) || color.includes(cleanQ);
+        const matchesWithWeights = [];
+
+        for (let i = 0; i < window._currentBulkTransferItems.length; i++) {
+            const it = window._currentBulkTransferItems[i];
+            const nameRaw = (it.productName || '').trim();
+            const nameNorm = normalizeBulkSearchText(nameRaw);
+            const barcodeRaw = String(it.barcode || '').trim();
+            const barcodeNorm = normalizeBulkSearchText(barcodeRaw);
+            const codeRaw = String(it.code || '').trim();
+            const codeNorm = normalizeBulkSearchText(codeRaw);
+            const sizeRaw = (it.size && it.size !== '-') ? String(it.size).trim() : '';
+            const sizeNorm = normalizeBulkSearchText(sizeRaw);
+            const colorRaw = (it.color && it.color !== '-') ? String(it.color).trim() : '';
+            const colorNorm = normalizeBulkSearchText(colorRaw);
+
+            let weight = 999;
+
+            // 1. الوزن 1 (أعلى أولوية): التطابق التام لاسم الصنف مع نص البحث
+            if (nameRaw.toLowerCase() === rawQ.toLowerCase() || nameNorm === qNorm) {
+                weight = 1;
+            }
+            // 2. الوزن 2: اسم الصنف يبدأ بنص البحث
+            else if (nameRaw.toLowerCase().startsWith(rawQ.toLowerCase()) || nameNorm.startsWith(qNorm)) {
+                weight = 2;
+            }
+            // 3. الوزن 3: التطابق التام للباركود أو الكود مع نص البحث
+            else if (barcodeRaw === rawQ || codeRaw === rawQ || barcodeNorm === qNorm || codeNorm === qNorm) {
+                weight = 3;
+            }
+            // 4. الوزن 4: الباركود أو الكود يبدأ بنص البحث
+            else if (barcodeRaw.startsWith(rawQ) || codeRaw.startsWith(rawQ) || barcodeNorm.startsWith(qNorm) || codeNorm.startsWith(qNorm)) {
+                weight = 4;
+            }
+            // 5. الوزن 5: اسم الصنف يحتوي على نص البحث
+            else if (nameRaw.toLowerCase().includes(rawQ.toLowerCase()) || nameNorm.includes(qNorm)) {
+                weight = 5;
+            }
+            // 6. الوزن 6 (أقل أولوية): الباركود أو الكود أو المقاس أو اللون يحتوي على نص البحث
+            else if (
+                barcodeRaw.includes(rawQ) || codeRaw.includes(rawQ) ||
+                barcodeNorm.includes(qNorm) || codeNorm.includes(qNorm) ||
+                (sizeRaw && (sizeRaw.toLowerCase().includes(rawQ.toLowerCase()) || sizeNorm.includes(qNorm))) ||
+                (colorRaw && (colorRaw.toLowerCase().includes(rawQ.toLowerCase()) || colorNorm.includes(qNorm)))
+            ) {
+                weight = 6;
+            }
+
+            if (weight <= 6) {
+                matchesWithWeights.push({ item: it, weight: weight, originalIndex: i });
+            }
+        }
+
+        // فرز النتائج دائماً بحسب أولوية الوزن (الوزن 1 أولاً، ثم 2، ثم 3...)
+        matchesWithWeights.sort((a, b) => {
+            if (a.weight !== b.weight) {
+                return a.weight - b.weight;
+            }
+            return a.originalIndex - b.originalIndex;
         });
+
+        window._filteredBulkTransferItems = matchesWithWeights.map(m => m.item);
     }
 
     window.renderBulkTransferPreviewTable(window._filteredBulkTransferItems);
+};
+
+/**
+ * تبديل حالة تحديد صنف واحد
+ */
+window.toggleBulkTransferItem = function (uid, isChecked) {
+    if (!window._currentBulkTransferItems) return;
+    const it = window._currentBulkTransferItems.find(item => item.uid === uid);
+    if (it) {
+        it.selected = !!isChecked;
+    }
+    window.updateBulkTransferSummaryCounters();
+};
+
+/**
+ * تبديل تحديد أو إلغاء تحديد كل الأصناف المعروضة حالياً
+ */
+window.toggleBulkTransferSelectAll = function (isChecked) {
+    const displayed = window._filteredBulkTransferItems || [];
+    displayed.forEach(it => {
+        it.selected = !!isChecked;
+    });
+
+    const cbs = document.querySelectorAll('#bulkTransferPreviewTbody .bulk-item-checkbox');
+    cbs.forEach(cb => {
+        cb.checked = !!isChecked;
+    });
+
+    window.updateBulkTransferSummaryCounters();
+};
+
+/**
+ * تحديث شارات العدادات العلوية ومزامنة أزرار الحفظ وتحديد الكل
+ */
+window.updateBulkTransferSummaryCounters = function () {
+    const countBadge = document.getElementById('bulkSummaryItemsCount');
+    const piecesBadge = document.getElementById('bulkSummaryPiecesCount');
+    const negBadge = document.getElementById('bulkSummaryNegativeBadge');
+    const negCount = document.getElementById('bulkSummaryNegativeCount');
+    const execBtn = document.getElementById('btnExecuteBulkTransfer');
+    const selectAllCb = document.getElementById('bulkTransferSelectAll');
+
+    const allItems = window._currentBulkTransferItems || [];
+    const selectedItems = allItems.filter(it => it.selected);
+    const selectedCount = selectedItems.length;
+    const selectedPieces = selectedItems.reduce((acc, it) => acc + (it.sourceStock || 0), 0);
+    const negativeSelected = selectedItems.filter(it => it.sourceStock < 0);
+
+    // تحديث الشارات في الهيدر فوراً
+    if (countBadge) countBadge.textContent = `${selectedCount} صنف`;
+    if (piecesBadge) piecesBadge.textContent = `${Number(selectedPieces.toFixed(2)).toLocaleString('ar-EG')} قطعة`;
+
+    if (negBadge && negCount) {
+        if (negativeSelected.length > 0) {
+            negBadge.style.display = 'flex';
+            negCount.textContent = `⚠️ يوجد (${negativeSelected.length}) صنف محدد به رصيد سالب (عجز) سيتم نقله`;
+        } else {
+            negBadge.style.display = 'none';
+        }
+    }
+
+    // تعطيل زر الحفظ إذا كان عدد الأصناف المحددة = 0
+    if (execBtn) {
+        execBtn.disabled = (selectedCount === 0);
+        execBtn.style.opacity = (selectedCount === 0) ? '0.5' : '1';
+        execBtn.style.cursor = (selectedCount === 0) ? 'not-allowed' : 'pointer';
+    }
+
+    // مزامنة مربع تحديد الكل الرئيسي بناءً على المعروض حالياً
+    if (selectAllCb) {
+        const displayed = window._filteredBulkTransferItems || [];
+        if (displayed.length === 0) {
+            selectAllCb.checked = false;
+            selectAllCb.indeterminate = false;
+        } else {
+            const displayedChecked = displayed.filter(it => it.selected).length;
+            selectAllCb.checked = (displayedChecked === displayed.length);
+            selectAllCb.indeterminate = (displayedChecked > 0 && displayedChecked < displayed.length);
+        }
+    }
 };
 
 /**
@@ -3195,35 +3354,8 @@ window.filterBulkTransferPreview = function (query) {
 window.renderBulkTransferPreviewTable = function (itemsToRender) {
     const tbody = document.getElementById('bulkTransferPreviewTbody');
     const emptyState = document.getElementById('bulkTransferEmptyState');
-    const countBadge = document.getElementById('bulkSummaryItemsCount');
-    const piecesBadge = document.getElementById('bulkSummaryPiecesCount');
-    const negBadge = document.getElementById('bulkSummaryNegativeBadge');
-    const negCount = document.getElementById('bulkSummaryNegativeCount');
-    const execBtn = document.getElementById('btnExecuteBulkTransfer');
 
-    const allItems = window._currentBulkTransferItems || [];
-    const totalItems = allItems.length;
-    const totalPieces = allItems.reduce((acc, it) => acc + (it.sourceStock || 0), 0);
-    const negativeItems = allItems.filter(it => it.sourceStock < 0);
-
-    // تحديث كبسولات الملخص
-    if (countBadge) countBadge.textContent = `${totalItems} صنف`;
-    if (piecesBadge) piecesBadge.textContent = `${Number(totalPieces.toFixed(2)).toLocaleString('ar-EG')} قطعة`;
-
-    if (negBadge && negCount) {
-        if (negativeItems.length > 0) {
-            negBadge.style.display = 'flex';
-            negCount.textContent = `⚠️ يوجد (${negativeItems.length}) صنف برصيد سالب (عجز) سيتم نقله لمعالجة العجز بدقة`;
-        } else {
-            negBadge.style.display = 'none';
-        }
-    }
-
-    if (execBtn) {
-        execBtn.disabled = (totalItems === 0);
-        execBtn.style.opacity = (totalItems === 0) ? '0.5' : '1';
-        execBtn.style.cursor = (totalItems === 0) ? 'not-allowed' : 'pointer';
-    }
+    window.updateBulkTransferSummaryCounters();
 
     if (!tbody) return;
 
@@ -3247,6 +3379,11 @@ window.renderBulkTransferPreviewTable = function (itemsToRender) {
         return `
             <tr style="border-bottom: 1px solid #e2e8f0; background: ${idx % 2 === 0 ? '#ffffff' : '#f8fafc'}; transition: background 0.15s;"
                 onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='${idx % 2 === 0 ? '#ffffff' : '#f8fafc'}'">
+                <td style="padding: 10px 10px; text-align: center;">
+                    <input type="checkbox" class="bulk-item-checkbox" data-uid="${it.uid}" ${it.selected ? 'checked' : ''}
+                        onchange="window.toggleBulkTransferItem('${it.uid}', this.checked)"
+                        style="width: 18px; height: 18px; cursor: pointer; accent-color: #059669; vertical-align: middle;">
+                </td>
                 <td style="padding: 10px 14px; font-family: monospace; font-weight: 900; color: #0f172a;">${it.code}</td>
                 <td style="padding: 10px 14px; font-weight: 800; color: #0f172a;">${it.productName}</td>
                 <td style="padding: 10px 10px; text-align: center; font-weight: 900; color: #334155;">${it.size}</td>
@@ -3286,9 +3423,11 @@ window.executeBulkWarehouseTransfer = async function () {
         return;
     }
 
-    const itemsToTransfer = window._currentBulkTransferItems || [];
+    const allItems = window._currentBulkTransferItems || [];
+    const itemsToTransfer = allItems.filter(it => it.selected);
+
     if (itemsToTransfer.length === 0) {
-        if (typeof showToast === 'function') showToast("⚠️ المخزن المصدر لا يحتوي على أي أصناف برصيد لنقلها!", "warning");
+        if (typeof showToast === 'function') showToast("⚠️ يرجى تحديد صنف واحد على الأقل لإتمام الترحيل!", "warning");
         return;
     }
 
@@ -3296,9 +3435,9 @@ window.executeBulkWarehouseTransfer = async function () {
     const totalPieces = itemsToTransfer.reduce((acc, it) => acc + (it.sourceStock || 0), 0);
     const negativeItems = itemsToTransfer.filter(it => it.sourceStock < 0);
 
-    let confirmMsg = `سيتم نقل (${totalItems}) صنف بإجمالي (${Number(totalPieces.toFixed(2)).toLocaleString('ar-EG')}) قطعة من [${wFrom}] إلى [${wTo}].\n\nستصبح أرصدة هذه الأصناف في [${wFrom}] = 0 وتضاف بالكامل إلى [${wTo}].`;
+    let confirmMsg = `سيتم نقل (${totalItems}) صنف محدد بإجمالي (${Number(totalPieces.toFixed(2)).toLocaleString('ar-EG')}) قطعة من [${wFrom}] إلى [${wTo}].\n\nستصبح أرصدة هذه الأصناف المحددة في [${wFrom}] = 0 وتضاف بالكامل إلى [${wTo}]، بينما تبقى أي أصناف غير محددة كما هي دون أي مساس بها.`;
     if (negativeItems.length > 0) {
-        confirmMsg += `\n\n⚠️ تنبيه هام: يوجد (${negativeItems.length}) صنف به رصيد سالب (عجز) سيتم نقله كما هو لمعالجة العجز بدقة.`;
+        confirmMsg += `\n\n⚠️ تنبيه هام: يوجد (${negativeItems.length}) صنف محدد به رصيد سالب (عجز) سيتم نقله كما هو لمعالجة العجز بدقة.`;
     }
     confirmMsg += `\n\n🔒 لا تؤثر هذه العملية على الأرباح أو تكاليف الشراء أو حسابات العملاء والموردين.\nهل تريد المتابعة وتأكيد الترحيل النهائي؟`;
 
@@ -3483,7 +3622,7 @@ window.executeBulkWarehouseTransfer = async function () {
 
             // إشعار نجاح فوري
             if (typeof showToast === 'function') {
-                showToast(`✅ تم بنجاح ترحيل أرصدة (${totalItems}) صنف بإجمالي (${Number(totalPieces.toFixed(2)).toLocaleString('ar-EG')}) قطعة من [${wFrom}] إلى [${wTo}]!`, "success");
+                showToast(`✅ تم بنجاح ترحيل أرصدة (${totalItems}) صنف محدد بإجمالي (${Number(totalPieces.toFixed(2)).toLocaleString('ar-EG')}) قطعة من [${wFrom}] إلى [${wTo}]!`, "success");
             }
 
             // إغلاق النافذة
