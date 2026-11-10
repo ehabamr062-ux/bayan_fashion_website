@@ -336,7 +336,7 @@ ipcMain.on('fix-electron-focus', (event) => {
     }
     try {
         event.returnValue = true;
-    } catch (_) {}
+    } catch (_) { }
 });
 
 // قنوات الاتصال (IPC) لفتح نافذة جديدة - تركيز النافذة الحالية وتوجيه الأمر لفتح فاتورة بيع جديدة بأمان
@@ -609,8 +609,25 @@ ipcMain.handle('get-system-printers', async (event) => {
 let _activePrintWin = null;
 let _activePrintDestroyTimer = null;
 
+function logPrintOperation(logData) {
+    try {
+        const logsDir = path.join(app.getPath('userData'), 'logs');
+        if (!fs.existsSync(logsDir)) {
+            fs.mkdirSync(logsDir, { recursive: true });
+        }
+        const logFile = path.join(logsDir, 'print.log');
+        const timestamp = new Date().toISOString();
+        const line = `[${timestamp}] printer="${logData.printer || 'NONE'}" reason="${logData.reason || 'NONE'}" totalMs=${logData.totalMs || 0} renderMs=${logData.renderMs || 0} printMs=${logData.printMs || 0} usedFallback=${logData.usedFallback ? 'YES' : 'NO'} failureReason="${logData.failureReason || 'NONE'}" success=${logData.success ? 'TRUE' : 'FALSE'}\n`;
+        fs.appendFile(logFile, line, 'utf8', () => { });
+    } catch (_) {
+        // أي خطأ يتم بلعه تماماً لعدم حجب الطباعة
+    }
+}
+
 ipcMain.handle('print-receipt-silent', async (event, payload) => {
     return new Promise(async (resolve) => {
+        const startTime = Date.now();
+        let renderEndTime = 0;
         let printWin = null;
         let resolved = false;
         let tempReceiptFile = null;
@@ -643,12 +660,32 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
         };
 
         const timeoutTimer = setTimeout(() => {
+            logPrintOperation({
+                printer: 'TIMEOUT',
+                reason: 'TIMEOUT',
+                totalMs: Date.now() - startTime,
+                renderMs: renderEndTime ? (renderEndTime - startTime) : 0,
+                printMs: 0,
+                usedFallback: false,
+                failureReason: 'Print operation timed out (20000ms)',
+                success: false
+            });
             cleanup({ success: false, error: 'Print operation timed out' }, false);
         }, 20000);
 
         try {
-            const { html, printerName } = payload || {};
+            const { html, printerName, pageWidth } = payload || {};
             if (!html || typeof html !== 'string' || !html.trim()) {
+                logPrintOperation({
+                    printer: 'NONE',
+                    reason: 'NO_HTML',
+                    totalMs: Date.now() - startTime,
+                    renderMs: 0,
+                    printMs: 0,
+                    usedFallback: false,
+                    failureReason: 'No invoice HTML provided',
+                    success: false
+                });
                 return cleanup({ success: false, error: 'No invoice HTML provided' }, false);
             }
 
@@ -668,21 +705,32 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                     nodeIntegration: false,
                     contextIsolation: true,
                     sandbox: false,
-                    backgroundThrottling: false,
-                    webSecurity: false
+                    backgroundThrottling: false
                 }
             });
 
             printWin.webContents.on('did-fail-load', (_e, code, desc) => {
+                logPrintOperation({
+                    printer: 'NONE',
+                    reason: 'LOAD_FAIL',
+                    totalMs: Date.now() - startTime,
+                    renderMs: 0,
+                    printMs: 0,
+                    usedFallback: false,
+                    failureReason: desc || 'Failed to load receipt HTML',
+                    success: false
+                });
                 cleanup({ success: false, error: desc || 'Failed to load receipt HTML' }, false);
             });
 
             printWin.webContents.on('did-finish-load', async () => {
+                let targetDevice = '';
+                let selectedReason = '';
                 try {
                     await printWin.webContents.executeJavaScript(`
                         Promise.all([
                             document.fonts ? document.fonts.ready : Promise.resolve(),
-                            new Promise(resolve => setTimeout(resolve, 100))
+                            new Promise(resolve => setTimeout(resolve, 250))
                         ])
                     `).catch(() => { });
 
@@ -698,64 +746,97 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                     // حماية صارمة: منع إرسال أمر طباعة لمستند فارغ
                     if (!renderStatus || renderStatus.textLen === 0) {
                         console.warn('[Print Silent] Refusing to print empty document content');
+                        logPrintOperation({
+                            printer: 'NONE',
+                            reason: 'EMPTY_CONTENT',
+                            totalMs: Date.now() - startTime,
+                            renderMs: 0,
+                            printMs: 0,
+                            usedFallback: false,
+                            failureReason: 'Invoice content is blank',
+                            success: false
+                        });
                         return cleanup({ success: false, error: 'Invoice content is blank' }, false);
                     }
 
                     printWin.setContentSize(350, Math.max(1000, (renderStatus.scrollHeight || 0) + 200));
-                    await new Promise(r => setTimeout(r, 50));
+                    await new Promise(r => setTimeout(r, 150));
+                    renderEndTime = Date.now();
+                    const renderMs = renderEndTime - startTime;
 
-                    let targetDevice = '';
+                    const thermalRegex = /XP-80|80C|Xprinter|RP80|TM-T\d+|Bixolon|Thermal|Receipt|POS|Cashier/i;
+                    const virtualRegex = /PDF|OneNote|XPS|Fax/i;
+
                     try {
                         const printers = await printWin.webContents.getPrintersAsync();
                         const pNameInput = (printerName && String(printerName).trim()) || '';
-                        const thermalRegex = /XP-80|80C|Xprinter|POS|Receipt|Thermal|Cashier|EPSON|RP80|Star|Bixolon/i;
-                        const virtualRegex = /PDF|OneNote|XPS|Fax/i;
 
-                        // الأولوية 1: إذا كان printerName محدداً وموجوداً في قائمة طابعات الويندوز
-                        if (pNameInput && printers.some(p => p.name === pNameInput)) {
-                            targetDevice = pNameInput;
-                        } else {
-                            // الأولوية 2: طابعة حرارية وتكون افتراضية (p.isDefault) أو حالتها متصلة (p.status === 0)
-                            const activeThermal = printers.find(p => thermalRegex.test(p.name) && (p.isDefault || p.status === 0));
-                            if (activeThermal) {
-                                targetDevice = activeThermal.name;
-                            } else {
-                                // الأولوية 3: الطابعة الافتراضية للويندوز بشرط ألا تكون طابعة وهمية
-                                const realDefault = printers.find(p => p.isDefault && !virtualRegex.test(p.name));
-                                if (realDefault) {
-                                    targetDevice = realDefault.name;
-                                } else {
-                                    // الأولوية 4: أي طابعة حرارية مطابقة للـ Regex في القائمة
-                                    const anyThermal = printers.find(p => thermalRegex.test(p.name));
-                                    if (anyThermal) {
-                                        targetDevice = anyThermal.name;
-                                    } else {
-                                        const fallbackDefault = printers.find(p => p.isDefault);
-                                        if (fallbackDefault) targetDevice = fallbackDefault.name;
-                                    }
+                        // (1) الاسم المحفوظ في الإعدادات لو موجود
+                        if (pNameInput && printers.some(p => p.name.toLowerCase() === pNameInput.toLowerCase())) {
+                            const found = printers.find(p => p.name.toLowerCase() === pNameInput.toLowerCase());
+                            targetDevice = found ? found.name : pNameInput;
+                            selectedReason = 'settings';
+                        }
+                        // (2) طابعة تطابق /XP-80|80C|Xprinter|RP80|TM-T\d+|Bixolon|Thermal|Receipt|POS|Cashier/i وليست وهمية
+                        else {
+                            const thermalMatch = printers.find(p => thermalRegex.test(p.name) && !virtualRegex.test(p.name));
+                            if (thermalMatch) {
+                                targetDevice = thermalMatch.name;
+                                selectedReason = 'thermal_regex';
+                            }
+                            // (3) الافتراضية بشرط ألا تطابق /PDF|OneNote|XPS|Fax/i
+                            else {
+                                const defaultMatch = printers.find(p => p.isDefault && !virtualRegex.test(p.name));
+                                if (defaultMatch) {
+                                    targetDevice = defaultMatch.name;
+                                    selectedReason = 'default_not_virtual';
                                 }
                             }
                         }
                     } catch (pe) {
-                        console.warn('[Print Silent] getPrintersAsync fallback notice:', pe.message);
-                        if (printerName) targetDevice = String(printerName).trim();
+                        console.warn('[Print Silent] getPrintersAsync error:', pe.message);
                     }
 
-                    // 1. المحاولة الأولى (Primary): إعدادات محسنة لسرعة وخفة الطابعات الحرارية
+                    // (4) لو مفيش ارجع { success:false, error:'NO_PRINTER' }
+                    if (!targetDevice) {
+                        logPrintOperation({
+                            printer: 'NONE',
+                            reason: 'NO_PRINTER',
+                            totalMs: Date.now() - startTime,
+                            renderMs: renderMs,
+                            printMs: 0,
+                            usedFallback: false,
+                            failureReason: 'NO_PRINTER',
+                            success: false
+                        });
+                        return cleanup({ success: false, error: 'NO_PRINTER' }, false);
+                    }
+
+                    const contentHeightMicrons = Math.max(180000, Math.ceil(((renderStatus.scrollHeight || 800) * 25400) / 96) + 35000);
+                    const is57mm = (pageWidth === '57mm') || (payload && payload.pageWidth === '57mm');
+
+                    // 1. المحاولة الأولى (Primary): إعدادات الطباعة الأساسية (pageSize بالميكرون + marginType:'printableArea' + preferCSSPageSize:false)
                     const primaryPrintOptions = {
                         silent: true,
                         printBackground: true,
-                        margins: { marginType: 'none' },
-                        preferCSSPageSize: true
+                        margins: { marginType: 'printableArea' },
+                        preferCSSPageSize: false,
+                        pageSize: {
+                            width: is57mm ? 58000 : 80000,
+                            height: contentHeightMicrons
+                        }
                     };
                     if (targetDevice) primaryPrintOptions.deviceName = targetDevice;
 
-                    console.log(`[Print Silent] 🖨️ Printing silently to: "${targetDevice || 'Default Printer'}"`);
+                    console.log(`[Print Silent] 🖨️ Printing silently to: "${targetDevice}" (Reason: ${selectedReason})`);
+
+                    const printStartTime = Date.now();
 
                     printWin.webContents.print(primaryPrintOptions, (success, failureReason) => {
                         if (!success) {
-                            console.warn(`[Print Silent] Primary print failed (${failureReason}), attempting instant driver fallback...`);
-                            // 2. المحاولة الثانية التلقائية (Instant Driver Fallback): بإعدادات الدرايفر القياسية
+                            console.warn(`[Print Silent] Primary print failed (${failureReason}), attempting single fallback attempt...`);
+
+                            // 2. المحاولة الثانية بالخيارات البسيطة تتنفذ فقط لو رجعت الأولى success=false، ومرة واحدة
                             const fallbackOptions = {
                                 silent: true,
                                 printBackground: true
@@ -763,20 +844,68 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                             if (targetDevice) fallbackOptions.deviceName = targetDevice;
 
                             printWin.webContents.print(fallbackOptions, (fbSuccess, fbReason) => {
+                                const fbEndTime = Date.now();
+                                const printMs = fbEndTime - printStartTime;
+                                const totalMs = fbEndTime - startTime;
+
                                 if (!fbSuccess) {
                                     console.warn('[Print Silent] Fallback print also failed:', fbReason);
+                                    logPrintOperation({
+                                        printer: targetDevice,
+                                        reason: selectedReason,
+                                        totalMs: totalMs,
+                                        renderMs: renderMs,
+                                        printMs: printMs,
+                                        usedFallback: true,
+                                        failureReason: fbReason || failureReason || 'Fallback failed',
+                                        success: false
+                                    });
                                     cleanup({ success: false, error: fbReason || failureReason }, false);
                                 } else {
                                     console.log('[Print Silent] Print job sent successfully via Fallback ✅');
+                                    logPrintOperation({
+                                        printer: targetDevice,
+                                        reason: selectedReason,
+                                        totalMs: totalMs,
+                                        renderMs: renderMs,
+                                        printMs: printMs,
+                                        usedFallback: true,
+                                        failureReason: failureReason || 'NONE',
+                                        success: true
+                                    });
                                     cleanup({ success: true, deviceName: targetDevice }, true);
                                 }
                             });
                         } else {
+                            const printEndTime = Date.now();
+                            const printMs = printEndTime - printStartTime;
+                            const totalMs = printEndTime - startTime;
+
                             console.log('[Print Silent] Print job sent successfully ✅');
+                            logPrintOperation({
+                                printer: targetDevice,
+                                reason: selectedReason,
+                                totalMs: totalMs,
+                                renderMs: renderMs,
+                                printMs: printMs,
+                                usedFallback: false,
+                                failureReason: 'NONE',
+                                success: true
+                            });
                             cleanup({ success: true, deviceName: targetDevice }, true);
                         }
                     });
                 } catch (printErr) {
+                    logPrintOperation({
+                        printer: targetDevice || 'NONE',
+                        reason: selectedReason || 'NONE',
+                        totalMs: Date.now() - startTime,
+                        renderMs: renderEndTime ? (renderEndTime - startTime) : 0,
+                        printMs: 0,
+                        usedFallback: false,
+                        failureReason: printErr.message,
+                        success: false
+                    });
                     cleanup({ success: false, error: printErr.message }, false);
                 }
             });
@@ -785,6 +914,16 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
 
         } catch (err) {
             console.error('[Print Silent] Handler error:', err);
+            logPrintOperation({
+                printer: 'NONE',
+                reason: 'HANDLER_ERROR',
+                totalMs: Date.now() - startTime,
+                renderMs: 0,
+                printMs: 0,
+                usedFallback: false,
+                failureReason: err.message,
+                success: false
+            });
             cleanup({ success: false, error: err.message }, false);
         }
     });

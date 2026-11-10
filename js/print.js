@@ -514,9 +514,6 @@ function buildInvoiceDocumentHTML(invoiceData) {
 window.buildInvoiceDocumentHTML = buildInvoiceDocumentHTML;
 
 async function printInvoice(invoiceData, options = {}) {
-    if (invoiceData && typeof invoiceData === 'object') {
-        window._lastPrintedInvoiceData = invoiceData;
-    }
     const rendered = buildInvoiceDocumentHTML(invoiceData);
     const content = rendered.content;
     const pageWidth = rendered.pageWidth;
@@ -641,10 +638,14 @@ async function printInvoice(invoiceData, options = {}) {
                     printerName: targetPrinter,
                     pageWidth: pageWidth
                 });
-                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Printer timeout')), 12000));
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 25000));
+                let isTimedOut = false;
                 const result = await Promise.race([printPromise, timeoutPromise]).catch(err => {
                     console.warn("⚠️ Print silent timeout or error:", err);
-                    return { success: false, error: err.message };
+                    if (err && (err.message === 'TIMEOUT' || err.message === 'Printer timeout')) {
+                        isTimedOut = true;
+                    }
+                    return { success: false, error: err ? err.message : 'unknown' };
                 });
 
                 if (result && result.success) {
@@ -653,6 +654,24 @@ async function printInvoice(invoiceData, options = {}) {
                         showToast('🖨️ جاري خروج الفاتورة من الطابعة مباشرة...', 'info');
                     }
                     return true;
+                } else if (isTimedOut) {
+                    console.warn('⚠️ [Print Silent] استغرقت استجابة الطابعة وقتاً أطول من المعتاد.');
+                    if (typeof showToast === 'function') {
+                        showToast('🖨️ جاري الطباعة، لو لم تخرج الورقة اضغط F4', 'info');
+                    }
+                    return true;
+                } else if (result && result.error === 'NO_PRINTER') {
+                    console.warn('⚠️ [Print Silent] لا توجد طابعة فواتير متصلة أو محددة.');
+                    if (typeof showToast === 'function') {
+                        showToast('⚠️ اختر طابعة الفواتير من الإعدادات', 'warning');
+                    } else if (typeof showCustomAlert === 'function') {
+                        showCustomAlert({
+                            type: 'warning',
+                            titleText: '⚠️ طابعة الفواتير',
+                            msg: 'اختر طابعة الفواتير من الإعدادات'
+                        });
+                    }
+                    return false;
                 } else {
                     console.warn('⚠️ [Print Silent] فشل الإرسال الصامت أو انتهاء المهلة:', result ? result.error : 'unknown');
                     if (typeof showToast === 'function') {
