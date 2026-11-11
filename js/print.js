@@ -534,7 +534,7 @@ async function printInvoice(invoiceData, options = {}) {
     <link rel="stylesheet" href="${baseUrl}fonts/cairo.css">
     <style>
         @page { 
-            size: ${pageWidth === '57mm' ? '58mm auto' : (pageWidth === 'A4' || pageWidth === '210mm' ? 'A4 portrait' : (pageWidth === 'A5' || pageWidth === '148mm' ? 'A5 portrait' : '80mm auto'))}; 
+            size: ${(pageWidth === 'A4' || pageWidth === '210mm') ? 'A4 portrait' : ((pageWidth === 'A5' || pageWidth === '148mm') ? 'A5 portrait' : 'auto')}; 
             margin: 0mm !important; /* يمنع ظهور التاريخ ورابط الصفحة الباهت أعلى وأسفل الورقة */
         }
         *, *::before, *::after { 

@@ -4276,7 +4276,9 @@ setTimeout(() => {
 // =========================================================================
 
 function isPOSAutoPrintEnabled() {
-    return getStore('pos_auto_print_enabled') === 'true';
+    const saved = getStore('pos_auto_print_enabled');
+    if (saved === null || saved === undefined || saved === '') return true;
+    return saved === 'true';
 }
 
 function updatePOSAutoPrintUI(isEnabled) {
