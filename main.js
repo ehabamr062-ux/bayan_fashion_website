@@ -812,21 +812,16 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                         return cleanup({ success: false, error: 'NO_PRINTER' }, false);
                     }
 
-                    const contentHeightMicrons = Math.max(180000, Math.ceil(((renderStatus.scrollHeight || 800) * 25400) / 96) + 35000);
-                    const is57mm = (pageWidth === '57mm') || (payload && payload.pageWidth === '57mm');
-
-                    // 1. المحاولة الأولى (Primary): إعدادات الطباعة الأساسية (pageSize بالميكرون + marginType:'printableArea' + preferCSSPageSize:false)
+                    // 1. المحاولة الأولى (Primary): الإعداد القياسي المعتمد لطابعات الإيصالات في Chromium/Electron
                     const primaryPrintOptions = {
                         silent: true,
                         printBackground: true,
-                        margins: { marginType: 'printableArea' },
-                        preferCSSPageSize: false,
-                        pageSize: {
-                            width: is57mm ? 58000 : 80000,
-                            height: contentHeightMicrons
-                        }
+                        margins: { marginType: 'none' }, // بدون هوامش خارجية من كروميوم
+                        preferCSSPageSize: true          // الاعتماد التام على @page في الـ CSS
                     };
-                    if (targetDevice) primaryPrintOptions.deviceName = targetDevice;
+                    if (targetDevice) {
+                        primaryPrintOptions.deviceName = targetDevice;
+                    }
 
                     console.log(`[Print Silent] 🖨️ Printing silently to: "${targetDevice}" (Reason: ${selectedReason})`);
 

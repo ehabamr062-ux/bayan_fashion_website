@@ -3868,33 +3868,6 @@ window.getSalesInvoicePrintData = getSalesInvoicePrintData;
 
 function printBill() {
     if (cart.length === 0) {
-        if (window._lastSavedSalesInvoiceId) {
-            const lastId = window._lastSavedSalesInvoiceId;
-            const confirmMsg = `السلة فارغة. هل تريد طباعة آخر فاتورة محفوظة (رقم #${lastId})؟`;
-            const doReprint = () => {
-                if (typeof window.printInvoiceById === 'function') {
-                    window.printInvoiceById(lastId, 'sales');
-                } else if (typeof printInvoiceById === 'function') {
-                    printInvoiceById(lastId, 'sales');
-                }
-            };
-
-            if (typeof showCustomAlert === 'function') {
-                showCustomAlert({
-                    type: 'question',
-                    titleText: '🖨️ طباعة آخر فاتورة',
-                    msg: confirmMsg,
-                    showCancel: true,
-                    confirmText: 'نعم، اطبع',
-                    cancelText: 'إلغاء',
-                    onConfirm: doReprint
-                });
-            } else if (confirm(confirmMsg)) {
-                doReprint();
-            }
-            return;
-        }
-
         if (typeof showCustomAlert === 'function') {
             showCustomAlert({
                 type: 'warning',
@@ -3903,8 +3876,6 @@ function printBill() {
             });
         } else if (typeof showToast === 'function') {
             showToast('⚠️ الفاتورة فارغة! لا يمكن طباعة فاتورة بدون أصناف.', 'warning');
-        } else {
-            alert("⚠️ الفاتورة فارغة! لا يمكن طباعة فاتورة بدون أصناف.");
         }
         return;
     }
