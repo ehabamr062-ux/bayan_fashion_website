@@ -446,9 +446,7 @@ async function handleSearch(query) {
                 </div>
                 <div style="max-height: 380px; overflow-y: auto; padding: 6px; scrollbar-gutter: stable;">
                     ${displayFiltered.map(rawP => {
-                        const p = (typeof productsDB !== 'undefined' && Array.isArray(productsDB))
-                            ? (productsDB.find(prod => prod && (prod.id === rawP.id || prod.id == rawP.id)) || rawP)
-                            : rawP;
+                        const p = rawP;
                         const priceVal = parseFloat(p.price) || 0;
                         const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
                         let stockVal = 0;

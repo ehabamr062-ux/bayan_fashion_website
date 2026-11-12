@@ -896,6 +896,7 @@
                     CREATE INDEX IF NOT EXISTS idx_tx_wh_date ON transactions(warehouse, dateISO);
                     CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);
                     CREATE INDEX IF NOT EXISTS idx_tx_isHead ON transactions(isInvoiceHead);
+                    CREATE INDEX IF NOT EXISTS idx_tx_orig_inv ON transactions(originalInvoiceId);
                 `);
             } catch (txErr) {
                 console.warn("[SQLite] transactions table schema notice:", txErr.message);
@@ -977,6 +978,7 @@
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_wh_date ON transactions(warehouse, dateISO);");
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);");
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_isHead ON transactions(isInvoiceHead);");
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_orig_inv ON transactions(originalInvoiceId);");
             } catch (e) { }
             try {
                 this.db.run("ALTER TABLE accounts ADD COLUMN debit REAL DEFAULT 0;");
@@ -1017,7 +1019,8 @@
                 );
                 CREATE INDEX IF NOT EXISTS idx_ti_invoiceId ON transaction_items(invoiceId);
                 CREATE INDEX IF NOT EXISTS idx_ti_barcode ON transaction_items(barcode);
-                CREATE INDEX IF NOT EXISTS idx_ti_date ON transaction_items(dateISO);
+                DROP INDEX IF EXISTS idx_ti_date;
+                CREATE INDEX IF NOT EXISTS idx_ti_wh_barcode ON transaction_items(warehouse, barcode);
                 CREATE INDEX IF NOT EXISTS idx_ti_productName ON transaction_items(productName);
                 CREATE INDEX IF NOT EXISTS idx_items_date_prod ON transaction_items(dateISO, productName);
                 CREATE INDEX IF NOT EXISTS idx_ti_tx_id ON transaction_items(tx_id);
@@ -1066,6 +1069,7 @@
                 CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT, pin TEXT, role TEXT, raw_json TEXT);
                 CREATE TABLE IF NOT EXISTS trash (id INTEGER PRIMARY KEY, type TEXT, deletedAt TEXT, deleted_at TEXT, raw_json TEXT);
                 CREATE TABLE IF NOT EXISTS auditLogs (id INTEGER PRIMARY KEY, timestamp TEXT, action TEXT, raw_json TEXT);
+                CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON auditLogs(timestamp DESC);
                 CREATE TABLE IF NOT EXISTS treasuryAudit (id INTEGER PRIMARY KEY, date TEXT, category TEXT, raw_json TEXT);
                 CREATE TABLE IF NOT EXISTS wallpapers (id INTEGER PRIMARY KEY, name TEXT, raw_json TEXT);
                 CREATE TABLE IF NOT EXISTS backups (id INTEGER PRIMARY KEY, timestamp TEXT, raw_json TEXT);
