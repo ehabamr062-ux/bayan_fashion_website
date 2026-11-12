@@ -695,8 +695,8 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
 
             const winWidthPx = pageWidth === '57mm' ? 216
                 : (pageWidth === 'A4' || pageWidth === '210mm') ? 794
-                : (pageWidth === 'A5' || pageWidth === '148mm') ? 559
-                : 302;
+                    : (pageWidth === 'A5' || pageWidth === '148mm') ? 559
+                        : 302;
 
             printWin = new BrowserWindow({
                 width: winWidthPx,
@@ -819,7 +819,7 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                     const widthMicrons = isA4 ? 210000 : (isA5 ? 148000 : (is57 ? 57000 : 80000));
                     const heightMicrons = isA4 ? 297000
                         : (isA5 ? 210000
-                        : Math.max(80000, Math.ceil((renderStatus.scrollHeight || 400) * 264.5833) + 25000));
+                            : Math.max(80000, Math.ceil((renderStatus.scrollHeight || 400) * 264.5833) + 25000));
 
                     const primaryPrintOptions = {
                         silent: true,
