@@ -529,13 +529,11 @@ async function printInvoice(invoiceData, options = {}) {
 <html dir="rtl" lang="ar">
 <head>
     <meta charset="UTF-8">
-    <base href="${baseUrl}">
     <title>${docTitle} - ${shopName}</title>
-    <link rel="stylesheet" href="${baseUrl}fonts/cairo.css">
     <style>
         @page { 
-            size: ${(pageWidth === 'A4' || pageWidth === '210mm') ? 'A4 portrait' : ((pageWidth === 'A5' || pageWidth === '148mm') ? 'A5 portrait' : 'auto')}; 
-            margin: 0mm !important; /* يمنع ظهور التاريخ ورابط الصفحة الباهت أعلى وأسفل الورقة */
+            size: ${(pageWidth === 'A4' || pageWidth === '210mm') ? 'A4 portrait' : ((pageWidth === 'A5' || pageWidth === '148mm') ? 'A5 portrait' : `${pageWidth} auto`)}; 
+            margin: 0mm !important;
         }
         *, *::before, *::after { 
             box-sizing: border-box !important; 
@@ -545,28 +543,19 @@ async function printInvoice(invoiceData, options = {}) {
         html, body {
             margin: 0 !important;
             padding: 0 !important;
-            width: 100% !important;
+            width: ${pageWidth} !important;
             max-width: ${pageWidth} !important;
             height: auto !important;
             overflow: visible !important;
-            font-family: 'Arial', 'Tahoma', 'Segoe UI', 'Cairo', sans-serif !important;
+            font-family: 'Tahoma', 'Arial', 'Segoe UI', sans-serif !important;
             text-align: right;
             direction: rtl;
             color: #000000 !important;
             background: #ffffff !important;
             font-weight: 900 !important;
-            -webkit-text-stroke: 0.55px #000000 !important;
-            text-shadow: 0.25px 0 0 #000, -0.25px 0 0 #000, 0 0.25px 0 #000, 0 -0.25px 0 #000 !important;
         }
-        /* 🖨️ تعزيز ثقل الحبر والسواد الفاحم الصريح للطابعات الحرارية بدون بهتان */
         body, div, span, b, strong, td, th, p, h1, h2, h3, label {
             color: #000000 !important;
-            font-weight: 900 !important;
-            -webkit-text-stroke: 0.55px #000000 !important;
-            text-shadow: 0.25px 0 0 #000, -0.25px 0 0 #000, 0 0.25px 0 #000, 0 -0.25px 0 #000 !important;
-        }
-        b, strong, th, .bold-text {
-            -webkit-text-stroke: 0.75px #000000 !important;
             font-weight: 900 !important;
         }
         table {
@@ -581,8 +570,9 @@ async function printInvoice(invoiceData, options = {}) {
         }
         .receipt-container, #thermalReceipt {
             box-sizing: border-box !important;
-            padding-right: 4mm !important;
+            padding-right: 3mm !important;
             padding-left: 3mm !important;
+            width: 100% !important;
             max-width: ${pageWidth === '57mm' ? '54mm' : (pageWidth === 'A4' || pageWidth === '210mm' || pageWidth === 'A5' || pageWidth === '148mm' ? '100%' : '72mm')} !important;
             margin: 0 auto !important;
         }
@@ -591,14 +581,7 @@ async function printInvoice(invoiceData, options = {}) {
             html, body {
                 padding: 0 !important;
                 margin: 0 !important;
-                width: 100% !important;
-            }
-            .receipt-container, #thermalReceipt {
-                box-sizing: border-box !important;
-                padding-right: 4mm !important;
-                padding-left: 3mm !important;
-                max-width: ${pageWidth === '57mm' ? '54mm' : (pageWidth === 'A4' || pageWidth === '210mm' || pageWidth === 'A5' || pageWidth === '148mm' ? '100%' : '72mm')} !important;
-                margin: 0 auto !important;
+                width: ${pageWidth} !important;
             }
         }
     </style>

@@ -693,10 +693,16 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
             tempReceiptFile = path.join(os.tmpdir(), `bayan_receipt_${Date.now()}_${Math.floor(Math.random() * 1000)}.html`);
             await fs.promises.writeFile(tempReceiptFile, html, 'utf8');
 
+            const winWidthPx = pageWidth === '57mm' ? 216
+                : (pageWidth === 'A4' || pageWidth === '210mm') ? 794
+                : (pageWidth === 'A5' || pageWidth === '148mm') ? 559
+                : 302;
+
             printWin = new BrowserWindow({
-                width: 350,
-                height: 900,
+                width: winWidthPx,
+                height: 1200,
                 show: false,
+                paintWhenInitiallyHidden: true,
                 backgroundColor: '#ffffff',
                 focusable: false,
                 skipTaskbar: true,
@@ -705,6 +711,7 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                     nodeIntegration: false,
                     contextIsolation: true,
                     sandbox: false,
+                    webSecurity: false,
                     backgroundThrottling: false
                 }
             });
@@ -727,23 +734,24 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                 let targetDevice = '';
                 let selectedReason = '';
                 try {
-                    await printWin.webContents.executeJavaScript(`
-                        Promise.all([
-                            document.fonts ? document.fonts.ready : Promise.resolve(),
-                            new Promise(resolve => setTimeout(resolve, 250))
-                        ])
-                    `).catch(() => { });
-
                     const renderStatus = await printWin.webContents.executeJavaScript(`
-                        (() => {
-                            return {
-                                scrollHeight: document.body.scrollHeight || 0,
-                                textLen: (document.body.innerText || '').trim().length
-                            };
-                        })()
+                        new Promise(resolve => {
+                            requestAnimationFrame(() => {
+                                requestAnimationFrame(() => {
+                                    setTimeout(() => {
+                                        const el = document.getElementById('thermalReceipt') || document.body;
+                                        const rectH = el ? Math.ceil(el.getBoundingClientRect().height) : 0;
+                                        const scrollH = Math.max(rectH, document.body.scrollHeight || 0, document.documentElement.scrollHeight || 0);
+                                        resolve({
+                                            scrollHeight: scrollH,
+                                            textLen: (document.body.innerText || '').trim().length
+                                        });
+                                    }, 180);
+                                });
+                            });
+                        })
                     `).catch(() => ({ scrollHeight: 0, textLen: 0 }));
 
-                    // حماية صارمة: منع إرسال أمر طباعة لمستند فارغ
                     if (!renderStatus || renderStatus.textLen === 0) {
                         console.warn('[Print Silent] Refusing to print empty document content');
                         logPrintOperation({
@@ -759,8 +767,6 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                         return cleanup({ success: false, error: 'Invoice content is blank' }, false);
                     }
 
-                    printWin.setContentSize(350, Math.max(1000, (renderStatus.scrollHeight || 0) + 200));
-                    await new Promise(r => setTimeout(r, 150));
                     renderEndTime = Date.now();
                     const renderMs = renderEndTime - startTime;
 
@@ -771,21 +777,16 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                         const printers = await printWin.webContents.getPrintersAsync();
                         const pNameInput = (printerName && String(printerName).trim()) || '';
 
-                        // (1) الاسم المحفوظ في الإعدادات لو موجود
                         if (pNameInput && printers.some(p => p.name.toLowerCase() === pNameInput.toLowerCase())) {
                             const found = printers.find(p => p.name.toLowerCase() === pNameInput.toLowerCase());
                             targetDevice = found ? found.name : pNameInput;
                             selectedReason = 'settings';
-                        }
-                        // (2) طابعة تطابق /XP-80|80C|Xprinter|RP80|TM-T\d+|Bixolon|Thermal|Receipt|POS|Cashier/i وليست وهمية
-                        else {
+                        } else {
                             const thermalMatch = printers.find(p => thermalRegex.test(p.name) && !virtualRegex.test(p.name));
                             if (thermalMatch) {
                                 targetDevice = thermalMatch.name;
                                 selectedReason = 'thermal_regex';
-                            }
-                            // (3) الافتراضية بشرط ألا تطابق /PDF|OneNote|XPS|Fax/i
-                            else {
+                            } else {
                                 const defaultMatch = printers.find(p => p.isDefault && !virtualRegex.test(p.name));
                                 if (defaultMatch) {
                                     targetDevice = defaultMatch.name;
@@ -797,7 +798,6 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                         console.warn('[Print Silent] getPrintersAsync error:', pe.message);
                     }
 
-                    // (4) لو مفيش ارجع { success:false, error:'NO_PRINTER' }
                     if (!targetDevice) {
                         logPrintOperation({
                             printer: 'NONE',
@@ -812,18 +812,28 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                         return cleanup({ success: false, error: 'NO_PRINTER' }, false);
                     }
 
-                    // 1. المحاولة الأولى (Primary): الإعداد القياسي المعتمد لطابعات الإيصالات في Chromium/Electron
+                    const isA4 = (pageWidth === 'A4' || pageWidth === '210mm');
+                    const isA5 = (pageWidth === 'A5' || pageWidth === '148mm');
+                    const is57 = (pageWidth === '57mm');
+
+                    const widthMicrons = isA4 ? 210000 : (isA5 ? 148000 : (is57 ? 57000 : 80000));
+                    const heightMicrons = isA4 ? 297000
+                        : (isA5 ? 210000
+                        : Math.max(80000, Math.ceil((renderStatus.scrollHeight || 400) * 264.5833) + 25000));
+
                     const primaryPrintOptions = {
                         silent: true,
                         printBackground: true,
-                        margins: { marginType: 'none' }, // بدون هوامش خارجية من كروميوم
-                        preferCSSPageSize: true          // الاعتماد التام على @page في الـ CSS
+                        deviceName: targetDevice,
+                        margins: { marginType: 'none' },
+                        preferCSSPageSize: false,
+                        pageSize: {
+                            width: widthMicrons,
+                            height: heightMicrons
+                        }
                     };
-                    if (targetDevice) {
-                        primaryPrintOptions.deviceName = targetDevice;
-                    }
 
-                    console.log(`[Print Silent] 🖨️ Printing silently to: "${targetDevice}" (Reason: ${selectedReason})`);
+                    console.log(`[Print Silent] 🖨️ Printing silently to: "${targetDevice}" (${widthMicrons}x${heightMicrons} microns, Reason: ${selectedReason})`);
 
                     const printStartTime = Date.now();
 
@@ -831,12 +841,12 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                         if (!success) {
                             console.warn(`[Print Silent] Primary print failed (${failureReason}), attempting single fallback attempt...`);
 
-                            // 2. المحاولة الثانية بالخيارات البسيطة تتنفذ فقط لو رجعت الأولى success=false، ومرة واحدة
                             const fallbackOptions = {
                                 silent: true,
-                                printBackground: true
+                                printBackground: true,
+                                deviceName: targetDevice,
+                                margins: { marginType: 'none' }
                             };
-                            if (targetDevice) fallbackOptions.deviceName = targetDevice;
 
                             printWin.webContents.print(fallbackOptions, (fbSuccess, fbReason) => {
                                 const fbEndTime = Date.now();
