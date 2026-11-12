@@ -357,31 +357,14 @@
                         this.ping('network_reconnected');
                     }, 2500);
                 });
-
-                // فحص فوري عند عودة التركيز على نافذة البرنامج (Window Focus) بمعدل ذكي (مرة كل 30 ثانية كحد أقصى)
-                let lastFocusCheck = 0;
-                window.addEventListener('focus', () => {
-                    const now = Date.now();
-                    if (now - lastFocusCheck > 30000) {
-                        lastFocusCheck = now;
-                        this.checkRemoteCommandNow();
-                    }
-                });
             }
 
-            // فحص دوري خفيف للأوامر الصادرة من Google Sheets وتحديث الرصيد كل 15 دقيقة (مع فحص فوري عند التركيز على النافذة)
-            setInterval(() => {
+            // ⚡ فحص هادئ لمرة واحدة فقط بعد بدء التشغيل بـ 30 ثانية (Zero Background Polling)
+            setTimeout(() => {
                 if (typeof navigator !== 'undefined' && navigator.onLine) {
                     this.checkRemoteCommand();
                 }
-            }, 15 * 60 * 1000);
-
-            // تقرير استهلاك دوري كل 30 دقيقة
-            setInterval(() => {
-                if (typeof navigator !== 'undefined' && navigator.onLine) {
-                    this.ping('periodic');
-                }
-            }, 30 * 60 * 1000);
+            }, 30000);
         }
     };
 

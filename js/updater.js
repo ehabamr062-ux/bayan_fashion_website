@@ -1429,24 +1429,22 @@
     const autoCheck = () => {
         window.initAutoUpdatesPolicyUI();
 
-        // 1. فحص فوري وسريع للإشعارات السحابية بعد تشغيل التطبيق بـ 2.5 ثانية فقط
+        // 1. فحص هادئ للإشعارات السحابية بعد تشغيل التطبيق بـ 2.5 ثانية (فقط عند توفر اتصال إنترنت)
         setTimeout(() => {
-            window.checkCloudAnnouncements();
+            if (typeof navigator === 'undefined' || navigator.onLine) {
+                window.checkCloudAnnouncements();
+            }
         }, 2500);
 
-        // 2. فحص إصدارات البرنامج والترقيات بعد 6 ثوانٍ
+        // 2. فحص إصدارات البرنامج والترقيات بعد 6 ثوانٍ (فقط عند توفر اتصال إنترنت وعدم تجميد التحديثات)
         setTimeout(() => {
+            if (typeof navigator !== 'undefined' && !navigator.onLine) return;
             if (!window.__isAutoUpdatesFrozenNow || !window.__isAutoUpdatesFrozenNow()) {
                 window.checkGitHubReleases(false);
             } else {
                 console.log('[Updater] 🔒 تخطي فحص إصدارات البرنامج: التحديثات مجمدة بناءً على اختيار العميل.');
             }
         }, 6000);
-
-        // 3. فحص دوري خفيف كل 10 دقائق في الخلفية
-        setInterval(() => {
-            window.checkCloudAnnouncements();
-        }, 10 * 60 * 1000);
     };
 
     if (document.readyState === 'complete' || document.readyState === 'interactive') {

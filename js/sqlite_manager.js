@@ -1026,6 +1026,8 @@
                 CREATE INDEX IF NOT EXISTS idx_ti_tx_id ON transaction_items(tx_id);
                 CREATE INDEX IF NOT EXISTS idx_ti_date_barcode ON transaction_items(dateISO, barcode);
                 CREATE INDEX IF NOT EXISTS idx_ti_date_type ON transaction_items(dateISO, type);
+                CREATE INDEX IF NOT EXISTS idx_ti_src_wh ON transaction_items(json_extract(raw_json, '$.sourceWarehouse'));
+                CREATE INDEX IF NOT EXISTS idx_ti_to_wh ON transaction_items(json_extract(raw_json, '$.toWarehouse'));
             `);
 
             // 3. جدول الحسابات (العملاء والموردين)
@@ -1094,6 +1096,12 @@
             } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_items_date_prod ON transaction_items(dateISO, productName);");
+            } catch (e) { }
+            try {
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_ti_src_wh ON transaction_items(json_extract(raw_json, '$.sourceWarehouse'));");
+            } catch (e) { }
+            try {
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_ti_to_wh ON transaction_items(json_extract(raw_json, '$.toWarehouse'));");
             } catch (e) { }
 
             // 🛡️ عزل استعلامات الترقية الثقيلة لتعمل مرة واحدة فقط داخل معاملة Transaction
@@ -4483,78 +4491,111 @@
             if (typeof window !== 'undefined' && window.isGenericCashPartner && window.isGenericCashPartner(p)) return 0;
 
             try {
+                // 1. جلب بيانات الحساب ورصيده الافتتاحي أولاً باستخدام الفهرس المباشر
+                let openBal = 0;
+                let partnerCode = null;
+                const accSql = `
+                    SELECT 
+                        name,
+                        code,
+                        ROUND(
+                            CASE 
+                                WHEN (COALESCE(debit, CAST(json_extract(raw_json, '$.debit') AS REAL), 0) != 0 
+                                   OR COALESCE(credit, CAST(json_extract(raw_json, '$.credit') AS REAL), 0) != 0)
+                                THEN (COALESCE(debit, CAST(json_extract(raw_json, '$.debit') AS REAL), 0) - COALESCE(credit, CAST(json_extract(raw_json, '$.credit') AS REAL), 0))
+                                ELSE COALESCE(balance, CAST(json_extract(raw_json, '$.balance') AS REAL), 0)
+                            END
+                        , 2) AS openBalance
+                    FROM accounts 
+                    WHERE name = ? OR (code IS NOT NULL AND code != '' AND code = ?)
+                    LIMIT 1;
+                `;
+                if (this.isNative && this.nativeDb) {
+                    const accRow = this.nativeDb.prepare(accSql).get(p, p);
+                    if (accRow) {
+                        openBal = parseFloat(accRow.openBalance) || 0;
+                        partnerCode = accRow.code;
+                    }
+                } else {
+                    const stmt = this.db.prepare(accSql);
+                    stmt.bind([p, p]);
+                    if (stmt.step()) {
+                        const accRow = stmt.getAsObject();
+                        openBal = parseFloat(accRow.openBalance) || 0;
+                        partnerCode = accRow.code;
+                    }
+                    stmt.free();
+                }
+
+                // 2. تجميع معرفات الشريك (الاسم والكود) للاستعلام المفهرس السريع
+                const partnerList = [p];
+                if (partnerCode && String(partnerCode).trim() && String(partnerCode).trim() !== p) {
+                    partnerList.push(String(partnerCode).trim());
+                }
+
+                const placeholders = partnerList.map(() => '?').join(',');
+                const txParams = [...partnerList];
+
                 let excludeCondition = "";
-                const params = [];
                 if (excludeInvoiceId) {
                     const exId = String(excludeInvoiceId).trim();
-                    excludeCondition = " AND (t.invoiceId != ? AND t.id != ?) ";
-                    params.push(exId, exId);
+                    excludeCondition = " AND (invoiceId != ? AND id != ?) ";
+                    txParams.push(exId, exId);
                 }
-                params.push(p);
 
-                const sql = `
-                    SELECT ROUND(
+                const txSql = `
+                    SELECT ROUND(COALESCE(SUM(
                         CASE 
-                            WHEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) != 0 
-                               OR COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0) != 0)
-                            THEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0))
-                            ELSE COALESCE(a.balance, CAST(json_extract(a.raw_json, '$.balance') AS REAL), 0)
-                        END + COALESCE(SUM(
-                            CASE 
-                                WHEN t.type LIKE '%بيع%' AND t.type NOT LIKE '%مرتجع%' THEN (
-                                    CASE 
-                                        WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) AND COALESCE(t.remaining, 0) = 0) THEN 0 
-                                        ELSE (t.total - COALESCE(t.paidAmount, 0)) 
-                                    END
-                                )
-                                WHEN t.type LIKE '%مرتجع بيع%' THEN -(
-                                    CASE 
-                                        WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) AND COALESCE(t.remaining, 0) = 0) THEN 0 
-                                        ELSE (t.total - COALESCE(t.paidAmount, 0)) 
-                                    END
-                                )
-                                WHEN t.type LIKE '%شراء%' AND t.type NOT LIKE '%مرتجع%' THEN -(
-                                    CASE 
-                                        WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) AND COALESCE(t.remaining, 0) = 0) THEN 0 
-                                        ELSE (t.total - COALESCE(t.paidAmount, 0)) 
-                                    END
-                                )
-                                WHEN t.type LIKE '%مرتجع شراء%' THEN (
-                                    CASE 
-                                        WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) AND COALESCE(t.remaining, 0) = 0) THEN 0 
-                                        ELSE (t.total - COALESCE(t.paidAmount, 0)) 
-                                    END
-                                )
-                                WHEN (t.type LIKE '%قبض%' OR t.type LIKE '%توريد%') THEN -t.total
-                                WHEN (t.type LIKE '%صرف%' OR t.type LIKE '%مصروف%' OR t.type LIKE '%مسحوبات%' OR t.type LIKE '%دفع%') THEN t.total
-                                ELSE 0 
-                            END
-                        ), 0)
-                    , 2) AS balance
-                    FROM accounts a
-                    LEFT JOIN transactions t ON (
-                        a.name = t.partner 
-                        OR (a.code IS NOT NULL AND a.code != '' AND a.code = t.partner)
-                        OR (a.code IS NOT NULL AND a.code != '' AND json_extract(t.raw_json, '$.partnerCode') = a.code)
-                        OR (a.code IS NOT NULL AND a.code != '' AND json_extract(t.raw_json, '$.accountCode') = a.code)
-                    ) AND (t.status IS NULL OR t.status != 'void') ${excludeCondition}
-                    WHERE a.name = ?;
+                            WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN (
+                                CASE 
+                                    WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) AND COALESCE(remaining, 0) = 0) THEN 0 
+                                    ELSE (total - COALESCE(paidAmount, 0)) 
+                                END
+                            )
+                            WHEN type LIKE '%مرتجع بيع%' THEN -(
+                                CASE 
+                                    WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) AND COALESCE(remaining, 0) = 0) THEN 0 
+                                    ELSE (total - COALESCE(paidAmount, 0)) 
+                                END
+                            )
+                            WHEN type LIKE '%شراء%' AND type NOT LIKE '%مرتجع%' THEN -(
+                                CASE 
+                                    WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) AND COALESCE(remaining, 0) = 0) THEN 0 
+                                    ELSE (total - COALESCE(paidAmount, 0)) 
+                                END
+                            )
+                            WHEN type LIKE '%مرتجع شراء%' THEN (
+                                CASE 
+                                    WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) AND COALESCE(remaining, 0) = 0) THEN 0 
+                                    ELSE (total - COALESCE(paidAmount, 0)) 
+                                END
+                            )
+                            WHEN (type LIKE '%قبض%' OR type LIKE '%توريد%') THEN -total
+                            WHEN (type LIKE '%صرف%' OR type LIKE '%مصروف%' OR type LIKE '%مسحوبات%' OR type LIKE '%دفع%') THEN total
+                            ELSE 0 
+                        END
+                    ), 0), 2) AS txSum
+                    FROM transactions 
+                    WHERE partner IN (${placeholders})
+                      AND (status IS NULL OR status != 'void')
+                      ${excludeCondition};
                 `;
 
+                let txSum = 0;
                 if (this.isNative && this.nativeDb) {
-                    const row = this.nativeDb.prepare(sql).get(...params);
-                    return row ? (parseFloat(row.balance) || 0) : 0;
+                    const row = this.nativeDb.prepare(txSql).get(...txParams);
+                    txSum = row ? (parseFloat(row.txSum) || 0) : 0;
+                } else {
+                    const stmt = this.db.prepare(txSql);
+                    stmt.bind(txParams);
+                    if (stmt.step()) {
+                        const res = stmt.getAsObject();
+                        txSum = parseFloat(res.txSum) || 0;
+                    }
+                    stmt.free();
                 }
 
-                const stmt = this.db.prepare(sql);
-                stmt.bind(params);
-                let bal = 0;
-                if (stmt.step()) {
-                    const res = stmt.getAsObject();
-                    bal = parseFloat(res.balance) || 0;
-                }
-                stmt.free();
-                return bal;
+                return Math.round((openBal + txSum) * 100) / 100;
             } catch (err) {
                 console.warn("[SQLite] getAccountBalanceDirect error:", err.message);
                 return 0;
@@ -4562,7 +4603,7 @@
         }
 
         /**
-         * ⚡ استعلام SQL لحساب الرصيد السابق لكشف الحساب قبل تاريخ محدد (< 2ms)
+         * ⚡ استعلام SQL لحساب الرصيد السابق لكشف الحساب قبل تاريخ محدد (< 0.2ms)
          */
         getAccountPriorBalance(accountName, beforeDateISO) {
             if (!this.db || !accountName) return 0;
@@ -4570,106 +4611,114 @@
             if (typeof window !== 'undefined' && window.isGenericCashPartner && window.isGenericCashPartner(p)) return 0;
 
             try {
-                if (!beforeDateISO) {
-                    const openSql = `
-                        SELECT ROUND(
+                // 1. جلب بيانات الحساب ورصيده الافتتاحي أولاً باستخدام الفهرس المباشر
+                let openBal = 0;
+                let partnerCode = null;
+                const accSql = `
+                    SELECT 
+                        name,
+                        code,
+                        ROUND(
                             CASE 
-                                WHEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) != 0 
-                                   OR COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0) != 0)
-                                THEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0))
-                                ELSE COALESCE(a.balance, CAST(json_extract(a.raw_json, '$.balance') AS REAL), 0)
+                                WHEN (COALESCE(debit, CAST(json_extract(raw_json, '$.debit') AS REAL), 0) != 0 
+                                   OR COALESCE(credit, CAST(json_extract(raw_json, '$.credit') AS REAL), 0) != 0)
+                                THEN (COALESCE(debit, CAST(json_extract(raw_json, '$.debit') AS REAL), 0) - COALESCE(credit, CAST(json_extract(raw_json, '$.credit') AS REAL), 0))
+                                ELSE COALESCE(balance, CAST(json_extract(raw_json, '$.balance') AS REAL), 0)
                             END
-                        , 2) AS priorBalance
-                        FROM accounts a WHERE (a.name = ? OR (a.code IS NOT NULL AND a.code != '' AND a.code = ?)) LIMIT 1;
-                    `;
-                    if (this.isNative && this.nativeDb) {
-                        const r = this.nativeDb.prepare(openSql).get(p, p);
-                        return r ? (parseFloat(r.priorBalance) || 0) : 0;
+                        , 2) AS openBalance
+                    FROM accounts 
+                    WHERE (name = ? OR (code IS NOT NULL AND code != '' AND code = ?))
+                    LIMIT 1;
+                `;
+                if (this.isNative && this.nativeDb) {
+                    const accRow = this.nativeDb.prepare(accSql).get(p, p);
+                    if (accRow) {
+                        openBal = parseFloat(accRow.openBalance) || 0;
+                        partnerCode = accRow.code;
                     }
-                    const stmt = this.db.prepare(openSql);
+                } else {
+                    const stmt = this.db.prepare(accSql);
                     stmt.bind([p, p]);
-                    let openBal = 0;
                     if (stmt.step()) {
-                        openBal = parseFloat(stmt.getAsObject().priorBalance) || 0;
+                        const accRow = stmt.getAsObject();
+                        openBal = parseFloat(accRow.openBalance) || 0;
+                        partnerCode = accRow.code;
                     }
                     stmt.free();
+                }
+
+                if (!beforeDateISO) {
                     return openBal;
                 }
 
-                const sql = `
-                    SELECT ROUND(
+                // 2. تجميع معرفات الشريك (الاسم والكود)
+                const partnerList = [p];
+                if (partnerCode && String(partnerCode).trim() && String(partnerCode).trim() !== p) {
+                    partnerList.push(String(partnerCode).trim());
+                }
+
+                const placeholders = partnerList.map(() => '?').join(',');
+                const txParams = [...partnerList, beforeDateISO];
+
+                const txSql = `
+                    SELECT ROUND(COALESCE(SUM(
                         CASE 
-                            WHEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) != 0 
-                               OR COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0) != 0)
-                            THEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0))
-                            ELSE COALESCE(a.balance, CAST(json_extract(a.raw_json, '$.balance') AS REAL), 0)
-                        END + COALESCE(SUM(
-                            CASE 
-                                WHEN t.type LIKE '%بيع%' AND t.type NOT LIKE '%مرتجع%' THEN (
-                                    CASE 
-                                        WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) AND COALESCE(t.remaining, 0) = 0) THEN 0 
-                                        ELSE (t.total - COALESCE(t.paidAmount, 0)) 
-                                    END
-                                )
-                                WHEN t.type LIKE '%مرتجع بيع%' THEN -(
-                                    CASE 
-                                        WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) AND COALESCE(t.remaining, 0) = 0) THEN 0 
-                                        ELSE (t.total - COALESCE(t.paidAmount, 0)) 
-                                    END
-                                )
-                                WHEN t.type LIKE '%شراء%' AND t.type NOT LIKE '%مرتجع%' THEN -(
-                                    CASE 
-                                        WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) AND COALESCE(t.remaining, 0) = 0) THEN 0 
-                                        ELSE (t.total - COALESCE(t.paidAmount, 0)) 
-                                    END
-                                )
-                                WHEN t.type LIKE '%مرتجع شراء%' THEN (
-                                    CASE 
-                                        WHEN ((t.method IS NULL OR (t.method NOT LIKE '%اجل%' AND t.method NOT LIKE '%آجل%' AND t.method NOT LIKE '%ذمم%' AND t.method NOT LIKE '%تقسيط%' AND t.method NOT LIKE '%حساب%')) AND COALESCE(t.remaining, 0) = 0) THEN 0 
-                                        ELSE (t.total - COALESCE(t.paidAmount, 0)) 
-                                    END
-                                )
-                                WHEN (t.type LIKE '%قبض%' OR t.type LIKE '%توريد%') THEN -t.total
-                                WHEN (t.type LIKE '%صرف%' OR t.type LIKE '%مصروف%' OR t.type LIKE '%مسحوبات%' OR t.type LIKE '%دفع%') THEN t.total
-                                ELSE 0 
-                            END
-                        ), 0)
-                    , 2) AS priorBalance
-                    FROM accounts a
-                    LEFT JOIN transactions t ON (
-                        a.name = t.partner 
-                        OR (a.code IS NOT NULL AND a.code != '' AND a.code = t.partner)
-                        OR (a.code IS NOT NULL AND a.code != '' AND json_extract(t.raw_json, '$.partnerCode') = a.code)
-                        OR (a.code IS NOT NULL AND a.code != '' AND json_extract(t.raw_json, '$.accountCode') = a.code)
-                    )
-                        AND t.dateISO < ? 
-                        AND (t.status IS NULL OR t.status != 'void')
-                    WHERE (a.name = ? OR (a.code IS NOT NULL AND a.code != '' AND a.code = ?));
+                            WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN (
+                                CASE 
+                                    WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) AND COALESCE(remaining, 0) = 0) THEN 0 
+                                    ELSE (total - COALESCE(paidAmount, 0)) 
+                                END
+                            )
+                            WHEN type LIKE '%مرتجع بيع%' THEN -(
+                                CASE 
+                                    WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) AND COALESCE(remaining, 0) = 0) THEN 0 
+                                    ELSE (total - COALESCE(paidAmount, 0)) 
+                                END
+                            )
+                            WHEN type LIKE '%شراء%' AND type NOT LIKE '%مرتجع%' THEN -(
+                                CASE 
+                                    WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) AND COALESCE(remaining, 0) = 0) THEN 0 
+                                    ELSE (total - COALESCE(paidAmount, 0)) 
+                                END
+                            )
+                            WHEN type LIKE '%مرتجع شراء%' THEN (
+                                CASE 
+                                    WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) AND COALESCE(remaining, 0) = 0) THEN 0 
+                                    ELSE (total - COALESCE(paidAmount, 0)) 
+                                END
+                            )
+                            WHEN (type LIKE '%قبض%' OR type LIKE '%توريد%') THEN -total
+                            WHEN (type LIKE '%صرف%' OR type LIKE '%مصروف%' OR type LIKE '%مسحوبات%' OR type LIKE '%دفع%') THEN total
+                            ELSE 0 
+                        END
+                    ), 0), 2) AS txSum
+                    FROM transactions 
+                    WHERE partner IN (${placeholders})
+                      AND dateISO < ?
+                      AND (status IS NULL OR status != 'void');
                 `;
 
+                let txSum = 0;
                 if (this.isNative && this.nativeDb) {
-                    const row = this.nativeDb.prepare(sql).get(beforeDateISO, p, p);
-                    return row ? (parseFloat(row.priorBalance) || 0) : 0;
+                    const row = this.nativeDb.prepare(txSql).get(...txParams);
+                    txSum = row ? (parseFloat(row.txSum) || 0) : 0;
+                } else {
+                    const stmt = this.db.prepare(txSql);
+                    stmt.bind(txParams);
+                    if (stmt.step()) {
+                        const res = stmt.getAsObject();
+                        txSum = parseFloat(res.txSum) || 0;
+                    }
+                    stmt.free();
                 }
 
-                const stmt = this.db.prepare(sql);
-                stmt.bind([beforeDateISO, p, p]);
-                let prior = 0;
-                if (stmt.step()) {
-                    const res = stmt.getAsObject();
-                    prior = parseFloat(res.priorBalance) || 0;
-                }
-                stmt.free();
-                return prior;
+                return Math.round((openBal + txSum) * 100) / 100;
             } catch (err) {
                 console.warn("[SQLite] getAccountPriorBalance error:", err.message);
                 return 0;
             }
         }
 
-        /**
-         * ⚡ جلب حركات كشف الحساب لشريك معين خلال فترة محددة مباشرة من SQLite
-         */
         getAccountTransactionsForPeriod(accountName, fromDateISO = null, toDateISO = null, limit = 50000, accountCode = null) {
             if (!this.db || !accountName) return [];
             const p = String(accountName).trim();

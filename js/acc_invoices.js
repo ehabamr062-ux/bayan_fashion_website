@@ -417,6 +417,19 @@ window.getAccountBalance = getAccountBalance;
 // دالة حساب الرصيد التاريخي للعميل/المورد عند لحظة إصدار فاتورة معينة
 function getHistoricalPartnerBalance(name, invoiceId = null, beforeIndex = null) {
     if (!name || (window.isGenericCashPartner && window.isGenericCashPartner(name))) return 0;
+
+    // ⚡ استعلام SQL مباشر وسريع جداً (< 0.1ms) عند توفر SQLite
+    if (window.BayanSQLite && window.BayanSQLite.db && typeof window.BayanSQLite.getAccountBalanceDirect === 'function') {
+        try {
+            const bal = window.BayanSQLite.getAccountBalanceDirect(name, invoiceId);
+            if (typeof bal === 'number' && !isNaN(bal)) {
+                return bal;
+            }
+        } catch (e) {
+            console.warn('[SQLite] getHistoricalPartnerBalance direct fallback:', e);
+        }
+    }
+
     const targetNameClean = cleanArabicCached(name);
 
     const acc = getAccountByNameCached(targetNameClean);

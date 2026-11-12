@@ -660,18 +660,30 @@ async function saveSalesReturn(force = false, accountChecked = false) {
         if (originalInvoiceId && originalInvoiceId !== '---') {
             if (typeof window.ensureInvoiceLoaded === 'function') {
                 await window.ensureInvoiceLoaded(originalInvoiceId);
-                try {
-                    const prevR = (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceReturns === 'function')
-                        ? window.BayanSQLite.getInvoiceReturns(originalInvoiceId)
-                        : ((typeof db !== 'undefined' && db && db.transactions)
-                            ? await db.transactions.where('type').startsWith('مرتجع').filter(t => String(t.originalInvoiceId) === String(originalInvoiceId)).toArray()
-                            : []);
-                    if (prevR && prevR.length > 0) {
-                        const exIds = new Set(transactions.map(t => t.id));
-                        prevR.forEach(r => { if (r && r.id && !exIds.has(r.id)) transactions.push(r); });
-                    }
-                } catch(e) {}
             }
+            try {
+                const prevR = (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceReturns === 'function')
+                    ? window.BayanSQLite.getInvoiceReturns(originalInvoiceId, 'مرتجع بيع')
+                    : ((typeof db !== 'undefined' && db && db.transactions)
+                        ? await db.transactions.where('type').startsWith('مرتجع').filter(t => String(t.originalInvoiceId) === String(originalInvoiceId)).toArray()
+                        : []);
+                if (prevR && prevR.length > 0) {
+                    const exIds = new Set(transactions.map(t => t.id));
+                    prevR.forEach(r => { if (r && r.id && !exIds.has(r.id)) transactions.push(r); });
+                }
+
+                if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function' && window.BayanSQLite.db) {
+                    const sqlItems = window.BayanSQLite.getInvoiceItems(originalInvoiceId, 'بيع');
+                    if (sqlItems && sqlItems.length > 0) {
+                        const exIds = new Set(transactions.map(t => t.id));
+                        sqlItems.forEach(it => {
+                            if (it && it.id && !exIds.has(it.id)) {
+                                transactions.push(it);
+                            }
+                        });
+                    }
+                }
+            } catch(e) {}
             const cleanStr = (s) => (s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
             for (const item of returnCart) {
                 const itemClean = cleanStr(item.name);
@@ -937,9 +949,15 @@ async function saveSalesReturn(force = false, accountChecked = false) {
 
             // جلب بيانات الفاتورة الأصلية للمرجعية
 
-            const originalInv = transactions.find(t => t.invoiceId == originalInvoiceId && !t.type.includes('مرتجع'));
+            let originalInv = transactions.find(t => t.invoiceId == originalInvoiceId && !t.type.includes('مرتجع'));
+            if (!originalInv && originalInvoiceId && window.BayanSQLite && typeof window.BayanSQLite.getInvoiceFullDetails === 'function' && window.BayanSQLite.db) {
+                try {
+                    const fd = window.BayanSQLite.getInvoiceFullDetails(originalInvoiceId, 'بيع');
+                    if (fd) originalInv = fd;
+                } catch(e) {}
+            }
 
-            const originalDate = originalInv ? originalInv.date : '-';
+            const originalDate = originalInv ? (originalInv.date || originalInv.dateISO || '-') : '-';
 
             const originalMethod = originalInv ? originalInv.method : '-';
 
@@ -1547,18 +1565,30 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
         if (originalInvoiceId && originalInvoiceId !== '---') {
             if (typeof window.ensureInvoiceLoaded === 'function') {
                 await window.ensureInvoiceLoaded(originalInvoiceId);
-                try {
-                    const prevR = (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceReturns === 'function')
-                        ? window.BayanSQLite.getInvoiceReturns(originalInvoiceId)
-                        : ((typeof db !== 'undefined' && db && db.transactions)
-                            ? await db.transactions.where('type').startsWith('مرتجع').filter(t => String(t.originalInvoiceId) === String(originalInvoiceId)).toArray()
-                            : []);
-                    if (prevR && prevR.length > 0) {
-                        const exIds = new Set(transactions.map(t => t.id));
-                        prevR.forEach(r => { if (r && r.id && !exIds.has(r.id)) transactions.push(r); });
-                    }
-                } catch(e) {}
             }
+            try {
+                const prevR = (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceReturns === 'function')
+                    ? window.BayanSQLite.getInvoiceReturns(originalInvoiceId, 'مرتجع شراء')
+                    : ((typeof db !== 'undefined' && db && db.transactions)
+                        ? await db.transactions.where('type').startsWith('مرتجع').filter(t => String(t.originalInvoiceId) === String(originalInvoiceId)).toArray()
+                        : []);
+                if (prevR && prevR.length > 0) {
+                    const exIds = new Set(transactions.map(t => t.id));
+                    prevR.forEach(r => { if (r && r.id && !exIds.has(r.id)) transactions.push(r); });
+                }
+
+                if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function' && window.BayanSQLite.db) {
+                    const sqlItems = window.BayanSQLite.getInvoiceItems(originalInvoiceId, 'شراء');
+                    if (sqlItems && sqlItems.length > 0) {
+                        const exIds = new Set(transactions.map(t => t.id));
+                        sqlItems.forEach(it => {
+                            if (it && it.id && !exIds.has(it.id)) {
+                                transactions.push(it);
+                            }
+                        });
+                    }
+                }
+            } catch(e) {}
             const cleanStr = (s) => (s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
             for (const item of purReturnCart) {
                 const itemClean = cleanStr(item.name);
@@ -1682,9 +1712,15 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
 
             // جلب بيانات الفاتورة الأصلية للمرجعية
 
-            const originalInv = transactions.find(t => t.invoiceId == originalInvoiceId && !t.type.includes('مرتجع'));
+            let originalInv = transactions.find(t => t.invoiceId == originalInvoiceId && !t.type.includes('مرتجع'));
+            if (!originalInv && originalInvoiceId && window.BayanSQLite && typeof window.BayanSQLite.getInvoiceFullDetails === 'function' && window.BayanSQLite.db) {
+                try {
+                    const fd = window.BayanSQLite.getInvoiceFullDetails(originalInvoiceId, 'شراء');
+                    if (fd) originalInv = fd;
+                } catch(e) {}
+            }
 
-            const originalDate = originalInv ? originalInv.date : '-';
+            const originalDate = originalInv ? (originalInv.date || originalInv.dateISO || '-') : '-';
 
             const originalMethod = originalInv ? originalInv.method : '-';
 
