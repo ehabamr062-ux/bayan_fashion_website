@@ -376,3 +376,166 @@
     }
 })();
 
+// ==============================================================================
+//  نظام إشعارات المطور المباشرة عبر تليجرام (Telegram Developer Alerts Module)
+//  خاص بالباشمهندس عمرو إيهاب (مطور وصاحب منظومة بَيَان POS)
+// ==============================================================================
+(function (window) {
+    'use strict';
+
+    const BOT_TOKEN = "8802750051:AAHSTiNbKZSlmz0gZY9D-adXnaQSVKuJuYc";
+    const CHAT_ID = "7322434131";
+
+    const TelegramDevNotify = {
+        token: BOT_TOKEN,
+        chatId: CHAT_ID,
+        _lastSentTime: {},
+
+        /**
+         * ⚡ إرسال رسالة صامتة وغير معطلة في الخلفية إلى تليجرام المطور
+         */
+        send: async function (text, options = {}) {
+            // 1. الخروج الفوري إذا كان الجهاز أوفلاين (صفر استهلاك للموارد وأداء أوفلاين فوري)
+            if (typeof navigator !== 'undefined' && !navigator.onLine) {
+                return false;
+            }
+            if (!text || !this.token || !this.chatId) return false;
+
+            // خنق الرسائل المتطابقة لمنع التكرار والسبام (Throttling)
+            const type = options.type || 'general';
+            const minInterval = options.minInterval != null ? options.minInterval : 60000;
+            const now = Date.now();
+            if (this._lastSentTime[type] && (now - this._lastSentTime[type] < minInterval)) {
+                return false;
+            }
+            this._lastSentTime[type] = now;
+
+            const url = `https://api.telegram.org/bot${this.token}/sendMessage`;
+            const payload = {
+                chat_id: this.chatId,
+                text: text,
+                parse_mode: options.parseMode || 'HTML',
+                disable_web_page_preview: options.disablePreview !== false
+            };
+
+            // استخدام طريقة غير حاجزة تماماً (Non-blocking background fetch)
+            try {
+                if (typeof fetch === 'function') {
+                    const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+                    const tid = ctrl ? setTimeout(() => ctrl.abort(), 4000) : null;
+                    fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                        signal: ctrl ? ctrl.signal : undefined
+                    }).then(() => {
+                        if (tid) clearTimeout(tid);
+                    }).catch(() => {
+                        if (tid) clearTimeout(tid);
+                    });
+                    return true;
+                }
+            } catch (e) {
+                // هدوء تام في حالة أي استثناء
+            }
+            return false;
+        },
+
+        /**
+         * 🚨 إرسال إشعار بخطأ برمجيا حرج غير متوقع في النظام
+         */
+        notifyError: function (err, context = '') {
+            try {
+                const errMsg = (err && err.message) ? err.message : String(err);
+                const stack = (err && err.stack) ? err.stack.split('\n').slice(0, 3).join('\n') : '';
+                let shop = 'غير محدد';
+                try {
+                    if (typeof getStore === 'function') shop = getStore('shopName') || 'غير محدد';
+                } catch(e) {}
+                const version = (typeof window.APP_VERSION !== 'undefined') ? window.APP_VERSION : '5.1.3';
+
+                const msg = `⚠️ <b>تنبيه خطأ برمجي - بَيَان POS (v${version})</b>\n` +
+                            `🏢 <b>المحل:</b> ${escapeHtml(shop)}\n` +
+                            `📍 <b>السياق:</b> ${escapeHtml(context || 'عام')}\n` +
+                            `❌ <b>الخطأ:</b> <code>${escapeHtml(errMsg)}</code>\n` +
+                            (stack ? `📑 <code>${escapeHtml(stack)}</code>` : '');
+
+                this.send(msg, { type: 'err_' + errMsg.substring(0, 30), minInterval: 10 * 60 * 1000 });
+            } catch (e) {}
+        },
+
+        /**
+         * 🌟 إرسال إشعار عند أول تشغيل للبرنامج على جهاز جديد (تثبيت جديد)
+         */
+        notifyFirstLaunch: function () {
+            try {
+                if (typeof localStorage === 'undefined') return;
+                const isFirst = !localStorage.getItem('bayan_dev_first_launch_notified');
+                if (!isFirst) return;
+
+                setTimeout(async () => {
+                    let mId = 'UNKNOWN';
+                    try {
+                        if (typeof getUniqueHWID === 'function') mId = await getUniqueHWID();
+                        else if (typeof getMachineId === 'function') mId = getMachineId();
+                    } catch (e) {}
+
+                    let shop = 'جديد';
+                    try {
+                        if (typeof getStore === 'function') shop = getStore('shopName') || 'جديد';
+                    } catch(e) {}
+                    const version = (typeof window.APP_VERSION !== 'undefined') ? window.APP_VERSION : '5.1.3';
+
+                    const msg = `🎉 <b>تثبيت وتشغيل جديد للمنظومة!</b>\n` +
+                                `📦 <b>الإصدار:</b> v${version}\n` +
+                                `🏢 <b>المحل:</b> ${escapeHtml(shop)}\n` +
+                                `💻 <b>معرف الجهاز:</b> <code>${escapeHtml(mId)}</code>\n` +
+                                `🕒 <b>التاريخ:</b> ${new Date().toLocaleString('ar-EG')}`;
+
+                    const sent = await TelegramDevNotify.send(msg, { type: 'first_launch', minInterval: 0 });
+                    if (sent) {
+                        localStorage.setItem('bayan_dev_first_launch_notified', 'true');
+                    }
+                }, 15000); // إرسال هادئ بعد 15 ثانية من فتح البرنامج لأول مرة
+            } catch (e) {}
+        },
+
+        init: function () {
+            if (typeof window !== 'undefined') {
+                // مستمع عام للأخطاء غير الملتقطة
+                window.addEventListener('error', (event) => {
+                    if (event && event.error) {
+                        this.notifyError(event.error, `${event.filename || ''}:${event.lineno || ''}`);
+                    }
+                });
+
+                // فحص أول تشغيل
+                this.notifyFirstLaunch();
+            }
+        }
+    };
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+    }
+
+    window.TelegramDevNotify = TelegramDevNotify;
+    window.notifyDeveloper = function (msg, opts) {
+        return TelegramDevNotify.send(msg, opts);
+    };
+
+    // تشغيل تلقائي
+    if (typeof document !== 'undefined') {
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => TelegramDevNotify.init());
+        } else {
+            TelegramDevNotify.init();
+        }
+    }
+})(typeof window !== 'undefined' ? window : globalThis);
+
+
