@@ -15,3 +15,9 @@ Thumbs.db
 !tools/
 !tools/generate_stress_test_backup.html
 .kilo/
+
+# Local Dev Reporting Tool & Secrets
+.env
+.env.local
+.env.*
+send_tg_report.js

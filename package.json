@@ -76,7 +76,9 @@
       "!.kilo/**",
       "!media/bayan_ad_masterpiece.jpg",
       "!dist/**",
-      "!lib/dexie.js"
+      "!lib/dexie.js",
+      "!send_tg_report.js",
+      "!*.env*"
     ],
     "asar": true,
     "asarUnpack": [
