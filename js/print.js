@@ -1546,6 +1546,32 @@ async function printInvoiceById(invoiceIdOrTx, type = '', optTxId = '') {
                 return true;
             });
 
+            // 🛡️ صمام أمان الطباعة: منع تدبيل أو تكرار الأصناف
+            const printGrandTotal = parseFloat(head.invoiceGrandTotal != null ? head.invoiceGrandTotal : (head.finalTotal != null ? head.finalTotal : (head.grandTotal || head.total || 0))) || 0;
+            const dedupedPrintItems = [];
+            const seenPrintSignatures = new Map();
+            for (const item of rawItemsList) {
+                const pName = (item.product || item.productName || item.name || '').trim().toLowerCase();
+                const pSize = (item.size || item.selectedSize || '').trim();
+                const pColor = (item.color || item.selectedColor || '').trim();
+                const pQty = parseFloat(item.qty != null ? item.qty : (item.quantity || 0)) || 0;
+                const pPrice = parseFloat(item.price != null ? item.price : 0) || 0;
+                const pBarcode = (item.barcode || item.code || '').trim();
+                const sig = `${pBarcode}|${pName}|${pSize}|${pColor}|${pPrice}|${pQty}`;
+
+                const currentSum = dedupedPrintItems.reduce((s, it) => s + ((parseFloat(it.qty != null ? it.qty : it.quantity || 0) || 0) * (parseFloat(it.price || 0) || 0)), 0);
+                const itemTotalVal = pQty * pPrice;
+
+                if (seenPrintSignatures.has(sig)) {
+                    if (printGrandTotal > 0 && (currentSum + itemTotalVal > printGrandTotal + 0.05)) {
+                        continue;
+                    }
+                }
+                seenPrintSignatures.set(sig, (seenPrintSignatures.get(sig) || 0) + 1);
+                dedupedPrintItems.push(item);
+            }
+            rawItemsList = dedupedPrintItems;
+
             tx.items = rawItemsList.map(i => {
                 const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 1));
                 const price = parseFloat(i.price != null ? i.price : (i.costPrice || i.purchasePrice || 0));

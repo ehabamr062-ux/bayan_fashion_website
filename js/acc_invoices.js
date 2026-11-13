@@ -1446,6 +1446,33 @@ async function viewInvoiceItems(invoiceId, type = '', autoPrint = false, optTxId
         return true;
     });
 
+    // 🛡️ درع أمان حاسم: منع تكرار أو تدبيل بنود الفاتورة (Deduplication)
+    // إذا تكررت أسطر متطابقة (نفس الصنف والمقاس واللون والكمية والسعر) بسبب تدبيل سابق في الذاكرة أو قاعدة البيانات
+    const dedupedRawItems = [];
+    const seenItemSignatures = new Map();
+    for (const item of rawItems) {
+        const pName = (item.product || item.productName || item.name || '').trim().toLowerCase();
+        const pSize = (item.size || item.selectedSize || '').trim();
+        const pColor = (item.color || item.selectedColor || '').trim();
+        const pQty = parseFloat(item.qty != null ? item.qty : (item.quantity || 0)) || 0;
+        const pPrice = parseFloat(item.price != null ? item.price : 0) || 0;
+        const pBarcode = (item.barcode || item.code || '').trim();
+        const sig = `${pBarcode}|${pName}|${pSize}|${pColor}|${pPrice}|${pQty}`;
+        
+        const currentSum = dedupedRawItems.reduce((s, it) => s + ((parseFloat(it.qty != null ? it.qty : it.quantity || 0) || 0) * (parseFloat(it.price || 0) || 0)), 0);
+        const itemTotalVal = pQty * pPrice;
+        
+        if (seenItemSignatures.has(sig)) {
+            // إذا كان إجمالي البنود الحالية بإضافة هذا السطر سيتجاوز إجمالي الفاتورة الرسمي: نتجاهل التكرار
+            if (invGrandTotal > 0 && (currentSum + itemTotalVal > invGrandTotal + 0.05)) {
+                continue;
+            }
+        }
+        seenItemSignatures.set(sig, (seenItemSignatures.get(sig) || 0) + 1);
+        dedupedRawItems.push(item);
+    }
+    rawItems = dedupedRawItems;
+
     // قراءة بنود الفاتورة بالبيانات الصريحة فقط دون أي تخمين إجباري للخصم أو الإضافة
     tx.items = rawItems.map(i => {
         const qty = parseFloat(i.qty != null ? i.qty : (i.quantity || 0));

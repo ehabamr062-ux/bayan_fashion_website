@@ -777,6 +777,103 @@
                     }
                 }, 120000);
             }
+
+            // 🧹 صيانة وتنظيف أي فواتير قديمة تضاعفت سطورها سابقاً بسبب عمليات الإرجاع
+            try {
+                this._autoCleanDuplicateInvoiceRows();
+            } catch (cleanDupErr) {
+                console.warn("[SQLite] Auto-clean duplicates notice:", cleanDupErr.message);
+            }
+        }
+
+        /**
+         * 🧹 صيانة وتنظيف أي فواتير تضاعفت سطورها أو رؤوسها سابقاً (Auto-heal Duplicate Invoices)
+         */
+        _autoCleanDuplicateInvoiceRows() {
+            if (!this.db) return;
+            try {
+                const multiHeadSql = `
+                    SELECT invoiceId, type 
+                    FROM transactions 
+                    WHERE isInvoiceHead = 1 AND invoiceId IS NOT NULL AND invoiceId != '' AND invoiceId != '---'
+                    GROUP BY invoiceId, type 
+                    HAVING COUNT(*) > 1;
+                `;
+                let multiHeads = [];
+                if (this.isNative && this.nativeDb) {
+                    multiHeads = this.nativeDb.prepare(multiHeadSql).all();
+                } else {
+                    const stmt = this.db.prepare(multiHeadSql);
+                    while (stmt.step()) multiHeads.push(stmt.getAsObject());
+                    stmt.free();
+                }
+
+                if (!multiHeads || multiHeads.length === 0) return;
+
+                console.info(`[SQLite Auto-Heal] Found ${multiHeads.length} invoice(s) with duplicate heads to inspect and clean.`);
+
+                for (const row of multiHeads) {
+                    const invId = String(row.invoiceId);
+                    const invType = String(row.type);
+                    if (!invId) continue;
+
+                    let txRows = [];
+                    const selSql = `SELECT rowid, id, isInvoiceHead, raw_json FROM transactions WHERE invoiceId = ? AND type = ? ORDER BY rowid ASC;`;
+                    if (this.isNative && this.nativeDb) {
+                        txRows = this.nativeDb.prepare(selSql).all(invId, invType);
+                    } else {
+                        const stmt = this.db.prepare(selSql);
+                        stmt.bind([invId, invType]);
+                        while (stmt.step()) txRows.push(stmt.getAsObject());
+                        stmt.free();
+                    }
+
+                    if (!txRows || txRows.length <= 1) continue;
+
+                    let seenHead = false;
+                    const seenSigs = new Set();
+                    const toDeleteIds = [];
+
+                    for (const r of txRows) {
+                        let rj = {};
+                        try { rj = r.raw_json ? JSON.parse(r.raw_json) : {}; } catch(e) {}
+                        const bcode = String(rj.barcode || rj.code || '').trim();
+                        const prod = String(rj.product || rj.name || '').trim();
+                        const size = String(rj.size || '').trim();
+                        const color = String(rj.color || '').trim();
+                        const qty = parseFloat(rj.qty != null ? rj.qty : 0) || 0;
+                        const price = parseFloat(rj.price != null ? rj.price : 0) || 0;
+                        const isHead = (r.isInvoiceHead === 1 || r.isInvoiceHead === true || r.isInvoiceHead === '1');
+
+                        if (isHead) {
+                            if (!seenHead) {
+                                seenHead = true;
+                            } else {
+                                toDeleteIds.push(String(r.id));
+                            }
+                        } else {
+                            const sig = `${bcode}|${prod}|${size}|${color}|${qty}|${price}`;
+                            if (seenSigs.has(sig) || toDeleteIds.length > 0) {
+                                toDeleteIds.push(String(r.id));
+                            } else {
+                                seenSigs.add(sig);
+                            }
+                        }
+                    }
+
+                    if (toDeleteIds.length > 0) {
+                        this.runInTransaction(() => {
+                            for (const delId of toDeleteIds) {
+                                this.db.run(`DELETE FROM transactions WHERE id = ?;`, [delId]);
+                                this.db.run(`DELETE FROM transaction_items WHERE tx_id = ?;`, [delId]);
+                            }
+                        });
+                        console.log(`[SQLite Auto-Heal] Successfully pruned ${toDeleteIds.length} duplicate rows from invoice #${invId}`);
+                    }
+                }
+            } catch (err) {
+                console.warn("[SQLite Auto-Heal] Duplicate prune notice:", err.message);
+            }
         }
 
         /**
