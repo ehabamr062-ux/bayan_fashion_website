@@ -78,6 +78,8 @@
       "!dist/**",
       "!lib/dexie.js",
       "!send_tg_report.js",
+      "!fetch_tg_tasks.js",
+      "!.tg_*",
       "!*.env*"
     ],
     "asar": true,
