@@ -986,9 +986,10 @@
                         isInvoiceHead INTEGER DEFAULT NULL,
                         raw_json TEXT
                     );
-                    -- الفهارس المركبة الذكية الستة الحاكمة لجدول transactions
+                    -- الفهارس المركبة الذكية الحاكمة لجدول transactions
                     CREATE INDEX IF NOT EXISTS idx_tx_invoiceId ON transactions(invoiceId);
                     CREATE INDEX IF NOT EXISTS idx_tx_date_type_status ON transactions(dateISO, type, status);
+                    CREATE INDEX IF NOT EXISTS idx_tx_type_status_date ON transactions(type, status, dateISO);
                     CREATE INDEX IF NOT EXISTS idx_tx_partner_date ON transactions(partner, dateISO);
                     CREATE INDEX IF NOT EXISTS idx_tx_wh_date ON transactions(warehouse, dateISO);
                     CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);
@@ -1058,6 +1059,7 @@
                         ALTER TABLE transactions_mig RENAME TO transactions;
                         CREATE INDEX IF NOT EXISTS idx_tx_invoiceId ON transactions(invoiceId);
                         CREATE INDEX IF NOT EXISTS idx_tx_date_type_status ON transactions(dateISO, type, status);
+                        CREATE INDEX IF NOT EXISTS idx_tx_type_status_date ON transactions(type, status, dateISO);
                         CREATE INDEX IF NOT EXISTS idx_tx_partner_date ON transactions(partner, dateISO);
                         CREATE INDEX IF NOT EXISTS idx_tx_wh_date ON transactions(warehouse, dateISO);
                         CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);
@@ -1071,6 +1073,7 @@
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_invoiceId ON transactions(invoiceId);");
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_type_status ON transactions(dateISO, type, status);");
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_type_status_date ON transactions(type, status, dateISO);");
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_partner_date ON transactions(partner, dateISO);");
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_wh_date ON transactions(warehouse, dateISO);");
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);");
@@ -1123,6 +1126,7 @@
                 CREATE INDEX IF NOT EXISTS idx_ti_tx_id ON transaction_items(tx_id);
                 CREATE INDEX IF NOT EXISTS idx_ti_date_barcode ON transaction_items(dateISO, barcode);
                 CREATE INDEX IF NOT EXISTS idx_ti_date_type ON transaction_items(dateISO, type);
+                CREATE INDEX IF NOT EXISTS idx_ti_size_color ON transaction_items(size, color);
                 CREATE INDEX IF NOT EXISTS idx_ti_src_wh ON transaction_items(json_extract(raw_json, '$.sourceWarehouse'));
                 CREATE INDEX IF NOT EXISTS idx_ti_to_wh ON transaction_items(json_extract(raw_json, '$.toWarehouse'));
             `);
@@ -1193,6 +1197,12 @@
             } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_items_date_prod ON transaction_items(dateISO, productName);");
+            } catch (e) { }
+            try {
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_ti_size_color ON transaction_items(size, color);");
+            } catch (e) { }
+            try {
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_type_status_date ON transactions(type, status, dateISO);");
             } catch (e) { }
             try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_ti_src_wh ON transaction_items(json_extract(raw_json, '$.sourceWarehouse'));");
