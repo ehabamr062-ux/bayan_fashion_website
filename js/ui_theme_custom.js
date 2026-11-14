@@ -521,7 +521,7 @@ function handleLogoUpload(input) {
 
     // التأكد من حجم الملف (اختياري)
     if (file.size > 2 * 1024 * 1024) {
-        alert("حجم الصورة كبير جداً، يفضل أقل من 2 ميجابايت.");
+        showToast("⚠️ حجم الصورة كبير جداً، يفضل أقل من 2 ميجابايت.", "warning");
         return;
     }
 
@@ -533,10 +533,9 @@ function handleLogoUpload(input) {
             setStore('bayan_user_confirmed_custom_logo', 'true');
             updateLogoDisplays(base64);
             // عرض تنبيه نجاح (إذا كانت الدالة موجودة)
-            if (typeof showToast === 'function') showToast("تم تحديث الشعار بنجاح ✅");
-            else alert("تم تحديث شعار المؤسسة بنجاح ✅");
+            showToast("تم تحديث الشعار بنجاح ✅", "success");
         } catch (err) {
-            alert("عذراً، مساحة التخزين ممتلئة. حاول استخدام صورة أصغر حجماً.");
+            showToast("⚠️ عذراً، مساحة التخزين ممتلئة. حاول استخدام صورة أصغر حجماً.", "error");
         }
     };
     reader.readAsDataURL(file);
@@ -588,8 +587,7 @@ window.removeBusinessLogo = function () {
         if (typeof removeStore === 'function') removeStore('bayan_business_logo');
         if (window.AppStore) delete window.AppStore['bayan_business_logo'];
         updateLogoDisplays(null);
-        if (typeof showToast === 'function') showToast("تم حذف الشعار بنجاح ✅");
-        else alert("تم حذف الشعار بنجاح ✅");
+        showToast("تم حذف الشعار بنجاح ✅", "success");
     } catch (e) {
         console.error("Error removing business logo:", e);
     }
@@ -1020,15 +1018,13 @@ function requestActivation(plan, price) {
 
     // إذا كان المستخدم يمتلك باقة مدى الحياة، يسمح له بطلب خدمة السيرفر السحابي
     if (curTier === 3 && isPlanValid && !isCloud) {
-        if (typeof showToast === 'function') showToast("أنت تمتلك النسخة مدى الحياة بالفعل! لا حاجة للاشتراك.", "warning");
-        else alert("أنت تمتلك النسخة مدى الحياة بالفعل! لا حاجة للاشتراك.");
+        showToast("أنت تمتلك النسخة مدى الحياة بالفعل! لا حاجة للاشتراك.", "warning");
         return;
     }
 
     // فحص منع الرجوع لباقة أقل يسري فقط إذا كانت الباقة الحالية سارية المفعول
     if (isPlanValid && newTier < curTier && !isCloud) {
-        if (typeof showToast === 'function') showToast(`أنت مشترك حالياً في باقة أعلى (${currentPlan}). لا يمكن الرجوع لباقة أقل أثناء سريان الاشتراك.`, "error");
-        else alert(`أنت مشترك حالياً في باقة أعلى (${currentPlan}). لا يمكن الرجوع لباقة أقل أثناء سريان الاشتراك.`);
+        showToast(`أنت مشترك حالياً في باقة أعلى (${currentPlan}). لا يمكن الرجوع لباقة أقل أثناء سريان الاشتراك.`, "error");
         return;
     }
 
@@ -1043,8 +1039,7 @@ function requestActivation(plan, price) {
     const phone = document.getElementById('shopPhone1')?.value.trim();
 
     if (!shopName || !phone) {
-        if (typeof showToast === 'function') showToast("⚠️ روح سجل بيانات المحل (الاسم ورقم الهاتف) في قسم الإعدادات الأول عشان نقدر نرسل طلب الاشتراك.", "error");
-        else alert("⚠️ روح سجل بيانات المحل (الاسم ورقم الهاتف) في قسم الإعدادات الأول عشان نقدر نرسل طلب الاشتراك.");
+        showToast("⚠️ يرجى تسجيل بيانات المحل (الاسم ورقم الهاتف) في قسم الإعدادات أولاً عشان نقدر نرسل طلب الاشتراك.", "error");
         return;
     }
 
@@ -1321,8 +1316,7 @@ window.togglePricingSwitch = function () {
 // --- تبديل ستايلات الطباعة ---
 function setPrintStyle(style) {
     setStore('bayan_print_style', style);
-    if (typeof showToast === 'function') showToast(`تم ضبط نمط الطباعة على: ${style} ✅`);
-    else alert(`تم تغيير نمط الطباعة إلى ${style} بنجاح ✅`);
+    showToast(`تم تغيير نمط الطباعة إلى ${style} بنجاح ✅`, "success");
 }
 
 function savePrintSettings() {
@@ -1334,8 +1328,7 @@ function savePrintSettings() {
         showTaxID: document.getElementById('printShowTaxID').checked
     };
     setStore('bayan_print_settings', JSON.stringify(printSettings));
-    if (typeof showToast === 'function') showToast("تم حفظ خيارات الطباعة والتصميم بنجاح 🖨️");
-    else alert("تم حفظ خيارات الطباعة والتصميم بنجاح 🖨️");
+    showToast("تم حفظ خيارات الطباعة والتصميم بنجاح 🖨️", "success");
 }
 
 function loadPrintSettings() {
@@ -1575,8 +1568,7 @@ function savePrintTemplateSettings() {
     };
     setStore('bayan_print_template_choice', JSON.stringify(settings));
     refreshPinnedVisuals();
-    if (typeof showToast === 'function') showToast("تم تثبيت التصميم المختار بنجاح 📌");
-    else alert("تم تثبيت التصميم المختار بنجاح 📌");
+    showToast("تم تثبيت التصميم المختار بنجاح 📌", "success");
 }
 
 // --- وظائف Sidebar التصميم ---
@@ -1715,23 +1707,23 @@ window.registerOnCloud = async function () {
     const shopPhone = document.getElementById('shopPhone1')?.value?.trim() || document.getElementById('shopPhone')?.value?.trim();
 
     if (!shopName || !shopPhone) {
-        return alert("❌ برجاء إدخال (اسم المحل) و (الموبايل الأساسي) في تبويب بيانات المؤسسة أولاً!");
+        return showToast("❌ برجاء إدخال (اسم المحل) و (الموبايل الأساسي) في تبويب بيانات المؤسسة أولاً!", "warning");
     }
 
     try {
-        if (typeof showToast === 'function') showToast("جاري التفعيل المحلي... ⏳", "info");
+        showToast("جاري التفعيل المحلي... ⏳", "info");
 
         const hwid = typeof getUniqueHWID === 'function' ? await getUniqueHWID() : 'BNC-LOCAL';
         if (typeof startFreeTrial === 'function') {
             const success = await startFreeTrial(shopPhone, shopName, hwid);
             if (success) {
-                if (typeof showToast === 'function') showToast("🎉 تم التفعيل محلياً بنجاح!", "success");
+                showToast("🎉 تم التفعيل محلياً بنجاح!", "success");
                 return true;
             }
         }
     } catch (e) {
         console.error("❌ خطأ في التفعيل المحلي:", e);
-        alert("❌ فشل التفعيل: " + e.message);
+        showToast("❌ فشل التفعيل: " + e.message, "error");
     }
     return false;
 };
@@ -1740,8 +1732,8 @@ window.handleCloudRegistration = async function () {
     const name = document.getElementById('regShopName')?.value?.trim();
     const phone = document.getElementById('regShopPhone')?.value?.trim();
 
-    if (!name || !phone) return alert("❌ يرجى إدخال الاسم ورقم الهاتف للمتابعة.");
-    if (phone.length < 10) return alert("❌ يرجى إدخال رقم هاتف صحيح (10 أو 11 رقم).");
+    if (!name || !phone) return showToast("❌ يرجى إدخال الاسم ورقم الهاتف للمتابعة.", "warning");
+    if (phone.length < 10) return showToast("❌ يرجى إدخال رقم هاتف صحيح (10 أو 11 رقم).", "warning");
 
     if (typeof showToast === 'function') showToast("⏳ جاري التفعيل المحلي الشامل...", "info");
 

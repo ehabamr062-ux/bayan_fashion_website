@@ -13,6 +13,27 @@ function escapeHtml(str) {
 }
 window.escapeHtml = escapeHtml;
 
+function cleanAr(str) {
+    if (str === null || str === undefined) return '';
+    return String(str).trim().toLowerCase()
+        .replace(/[أإآٱ]/g, 'ا')
+        .replace(/ة/g, 'ه')
+        .replace(/[ىي]/g, 'ي')
+        .replace(/ؤ/g, 'و')
+        .replace(/ئ/g, 'ي')
+        .replace(/[\u064B-\u065F\u0670]/g, '')
+        .replace(/\u0640/g, '')
+        .replace(/\s+/g, ' ');
+}
+window.cleanAr = cleanAr;
+
+function cleanAttr(val) {
+    const s = cleanAr(val);
+    if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
+    return s;
+}
+window.cleanAttr = cleanAttr;
+
 function sanitizeInput(str) {
     if (str === null || str === undefined) return '';
     return String(str)
@@ -1473,7 +1494,7 @@ window.checkAccountFrozenAndAlert = function (accountNameOrId) {
                 }
             });
         } else {
-            alert(msgText);
+            showToast(msgText, "error");
         }
         return true;
     }
@@ -3161,11 +3182,7 @@ async function deleteSelectedInventoryItem() {
             showToast(`⚡ تم حذف ونقل (${targetIds.length}) صنف إلى سلة المحذوفات بنجاح فوراً!`, "success");
         } catch (err) {
             console.error("Error in bulk delete:", err);
-            if (typeof showCustomAlert === 'function') {
-                showCustomAlert({ type: 'error', titleText: 'خطأ', msg: 'حدث خطأ أثناء الحذف' });
-            } else {
-                alert("❌ حدث خطأ أثناء الحذف");
-            }
+            showCustomAlert({ type: 'error', titleText: 'خطأ', msg: 'حدث خطأ أثناء الحذف' });
         }
     };
 
@@ -3214,17 +3231,17 @@ function applyInventoryColumnVisibility() {
 
 async function saveInvEdits() {
     const id = parseInt(document.getElementById('invSelectedId').value);
-    if (!id) return alert('⚠️ يرجى تحديد صنف من الجدول أولاً');
+    if (!id) return showToast('⚠️ يرجى تحديد صنف من الجدول أولاً', 'warning');
 
     const p = productsDB.find(x => x.id === id);
-    if (!p) return alert('❌ الصنف غير موجود');
+    if (!p) return showToast('❌ الصنف غير موجود', 'error');
 
     const newCode = document.getElementById('invDisplayCode').value.trim();
     const newUnit = document.getElementById('invDisplayUnit').value;
     const newCost = parseFloat(document.getElementById('invDisplayCost').value) || 0;
     const newPrice = parseFloat(document.getElementById('invDisplayPrice').value) || 0;
 
-    if (newPrice <= 0) return alert('⚠️ يرجى إدخال سعر بيع صحيح');
+    if (newPrice <= 0) return showToast('⚠️ يرجى إدخال سعر بيع صحيح', 'warning');
 
     p.code = newCode;
     p.unit = newUnit;
@@ -3233,7 +3250,7 @@ async function saveInvEdits() {
 
     await saveData();
     renderInventoryTable();
-    alert(`✅ تم حفظ تعديلات الصنف: ${p.name}`);
+    showToast(`✅ تم حفظ تعديلات الصنف: ${p.name}`, 'success');
 }
 
 function handleProductImage(event) {
@@ -3549,8 +3566,7 @@ window.verifyAdminPinAuthorization = async function (actionTitle, actionDesc) {
     });
 
     if (!isValidAdmin) {
-        if (typeof showToast === 'function') showToast('❌ رمز PIN المدير غير صحيح! تم رفض العملية.', 'error');
-        else alert('❌ رمز PIN المدير غير صحيح! تم رفض العملية.');
+        showToast('❌ رمز PIN المدير غير صحيح! تم رفض العملية.', 'error');
         if (typeof logAuditAction === 'function') {
             logAuditAction('محاولة غير مصرح بها', `فشل التحقق من رمز PIN المدير أثناء: ${actionTitle || 'عملية حساسة'}`);
         }
@@ -4040,11 +4056,7 @@ window.sendAnyDeskCodeToDev = openAnyDeskDirectly;
 function copyDevPhone() {
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText('01006825905').then(() => {
-            if (typeof showToast === 'function') {
-                showToast('✅ تم نسخ رقم هاتف المطور (01006825905) بنجاح!', 'success');
-            } else {
-                alert('تم نسخ الرقم بنجاح');
-            }
+            showToast('✅ تم نسخ رقم هاتف المطور (01006825905) بنجاح!', 'success');
         }).catch(() => {
             prompt('رقم الدعم الفني:', '01006825905');
         });
@@ -5039,311 +5051,6 @@ function renderSectionInquiryVariantsTable() {
     }
 }
 
-// --- وظائف المشاركة والطباعة الفورية ---
-
-function buildInvoiceHTML(data, templateChoice) {
-    const itemsHtml = data.items.map(item => {
-        const unitName = item.selectedUnit ? (typeof item.selectedUnit === 'object' ? item.selectedUnit.unitName : item.selectedUnit) : (item.unit || 'قطعة');
-        return `
-            <tr style="border-bottom:1px solid #ddd; font-style:normal !important;">
-                <td style="padding:5px; text-align:right; font-style:normal !important; font-weight:bold;">${item.name}</td>
-                <td style="padding:5px; text-align:center; font-style:normal !important; font-weight:bold;">${item.qty} ${unitName}</td>
-                <td style="padding:5px; text-align:center; font-style:normal !important; font-weight:bold;">${(parseFloat(item.price) || 0).toFixed(2)}</td>
-                <td style="padding:5px; text-align:left; font-style:normal !important; font-weight:bold;">${((parseFloat(item.price) || 0) * (parseFloat(item.qty) || 0)).toFixed(2)}</td>
-            </tr>
-        `;
-    }).join('');
-
-    const compactItemsHtml = data.items.map(item => {
-        const unitName = item.selectedUnit ? (typeof item.selectedUnit === 'object' ? item.selectedUnit.unitName : item.selectedUnit) : (item.unit || 'قطعة');
-        return `
-            <tr style="font-style:normal !important; border-bottom:1px solid #ccc;">
-                <td style="text-align:right; font-style:normal !important; font-weight:900; color:#000; padding:2px 0;">${item.name}</td>
-                <td style="text-align:center; font-style:normal !important; font-weight:900; color:#000; padding:2px 0;">${item.qty}</td>
-                <td style="text-align:left; font-style:normal !important; font-weight:900; color:#000; padding:2px 0;">${((parseFloat(item.price) || 0) * (parseFloat(item.qty) || 0)).toFixed(2)}</td>
-            </tr>
-        `;
-    }).join('');
-
-    let layout = '';
-
-    if (templateChoice === 'A4 Professional' || templateChoice === 'A4') {
-        layout = `
-            <div class="print-container" style="font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction:rtl; padding:40px; background:#fff; color:#333; font-style:normal !important;">
-                <div style="display:flex; justify-content:space-between; border-bottom:2px solid #2c3e50; padding-bottom:20px; margin-bottom:30px;">
-                    <div>
-                        <h1 style="margin:0; color:#2c3e50; font-size:2rem; font-style:normal !important;">${data.shopName}</h1>
-                        <p style="margin:5px 0 0 0; color:#7f8c8d; font-style:normal !important;">${data.shopAddress}</p>
-                        <p style="margin:5px 0 0 0; color:#7f8c8d; font-style:normal !important;">${data.shopPhone}</p>
-                    </div>
-                    <div style="text-align:left;">
-                        <h2 style="margin:0; color:#e74c3c; font-size:1.8rem; font-style:normal !important;">${data.title}</h2>
-                        <p style="margin:5px 0 0 0; font-weight:bold; font-style:normal !important;">رقم المستند: #${data.id}</p>
-                        <p style="margin:5px 0 0 0; font-style:normal !important;">التاريخ: ${data.date}</p>
-                    </div>
-                </div>
-
-                <div style="background:#f9f9f9; padding:15px; border-radius:8px; margin-bottom:30px; display:flex; justify-content:space-between;">
-                    <div>
-                        <strong style="color:#2c3e50; font-style:normal !important;">${data.partnerLabel}:</strong> ${data.partnerName} <br>
-                        ${data.partnerAddress ? `<span style="color:#7f8c8d; font-style:normal !important;">العنوان: ${data.partnerAddress}</span>` : ''}
-                    </div>
-                    <div style="text-align:left;">
-                        <strong style="color:#2c3e50; font-style:normal !important;">الكاشير:</strong> ${data.cashier}<br>
-                        <strong style="color:#2c3e50; font-style:normal !important;">طريقة الدفع:</strong> ${data.paymentMethod}
-                    </div>
-                </div>
-
-                <table style="width:100%; border-collapse:collapse; margin-bottom:30px;">
-                    <thead>
-                        <tr style="background:#2c3e50; color:white;">
-                            <th style="padding:12px; text-align:right; border:1px solid #34495e; font-style:normal !important;">الصنف</th>
-                            <th style="padding:12px; text-align:center; border:1px solid #34495e; font-style:normal !important;">الكمية</th>
-                            <th style="padding:12px; text-align:center; border:1px solid #34495e; font-style:normal !important;">سعر الوحدة</th>
-                            <th style="padding:12px; text-align:left; border:1px solid #34495e; font-style:normal !important;">الإجمالي</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${itemsHtml}
-                    </tbody>
-                </table>
-
-                <div style="display:flex; justify-content:flex-end;">
-                    <div style="width:300px; background:#f9f9f9; padding:20px; border-radius:8px; border:1px solid #eee;">
-                        <div style="display:flex; justify-content:space-between; margin-bottom:10px; font-size:1.2rem; font-weight:bold; color:#2c3e50;">
-                            <span style="font-style:normal !important;">الإجمالي الكلي:</span>
-                            <span style="font-style:normal !important;">${data.total.toFixed(2)}</span>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#27ae60;">
-                            <span style="font-style:normal !important;">المدفوع:</span>
-                            <span style="font-style:normal !important;">${data.paid.toFixed(2)}</span>
-                        </div>
-                        <div style="display:flex; justify-content:space-between; color:#c0392b; font-weight:bold;">
-                            <span style="font-style:normal !important;">المتبقي:</span>
-                            <span style="font-style:normal !important;">${data.credit.toFixed(2)}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div style="margin-top:50px; text-align:center; border-top:1px solid #ddd; padding-top:20px; color:#7f8c8d; font-style:normal !important;">
-                    <p style="font-style:normal !important;">${data.footerMsg}</p>
-                </div>
-            </div>
-        `;
-    } else if (templateChoice === 'A5 Modern' || templateChoice === 'A5') {
-        layout = `
-            <div class="print-container" style="font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; direction:rtl; padding:20px; background:#fff; color:#333; font-style:normal !important;">
-                <div style="text-align:center; margin-bottom:20px;">
-                    <h1 style="margin:0; color:#34495e; font-size:1.6rem; font-style:normal !important;">${data.shopName}</h1>
-                    <h2 style="margin:5px 0 0 0; color:#e67e22; font-size:1.2rem; font-style:normal !important;">${data.title}</h2>
-                </div>
-
-                <table style="width:100%; font-size:0.9rem; margin-bottom:15px;">
-                    <tr>
-                        <td style="width:50%; font-style:normal !important;"><b>رقم:</b> #${data.id}</td>
-                        <td style="width:50%; text-align:left; font-style:normal !important;"><b>التاريخ:</b> ${data.date}</td>
-                    </tr>
-                    <tr>
-                        <td style="width:50%; font-style:normal !important;"><b>${data.partnerLabel}:</b> ${data.partnerName}</td>
-                        <td style="width:50%; text-align:left; font-style:normal !important;"><b>الدفع:</b> ${data.paymentMethod}</td>
-                    </tr>
-                </table>
-
-                <table style="width:100%; border-collapse:collapse; margin-bottom:20px; font-size:0.9rem;">
-                    <thead>
-                        <tr style="background:#ecf0f1; border-bottom:2px solid #bdc3c7;">
-                            <th style="padding:8px; text-align:right; font-style:normal !important;">الصنف</th>
-                            <th style="padding:8px; text-align:center; font-style:normal !important;">الكمية</th>
-                            <th style="padding:8px; text-align:center; font-style:normal !important;">السعر</th>
-                            <th style="padding:8px; text-align:left; font-style:normal !important;">إجمالي</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${itemsHtml}
-                    </tbody>
-                </table>
-
-                <table style="width:100%; font-size:1rem; border-top:2px solid #34495e; padding-top:10px;">
-                    <tr>
-                        <td style="font-weight:bold; font-style:normal !important;">الصافي المطلوب:</td>
-                        <td style="text-align:left; font-weight:bold; font-size:1.2rem; font-style:normal !important;">${data.total.toFixed(2)} ج.م</td>
-                    </tr>
-                    ${data.credit > 0 ? `
-                    <tr>
-                        <td style="color:#27ae60; font-size:0.9rem; font-style:normal !important;">المدفوع: ${data.paid.toFixed(2)}</td>
-                        <td style="text-align:left; color:#c0392b; font-size:0.9rem; font-style:normal !important;">المتبقي: ${data.credit.toFixed(2)}</td>
-                    </tr>` : ''}
-                </table>
-
-                <div style="text-align:center; margin-top:30px; font-size:0.8rem; color:#7f8c8d; font-style:normal !important;">
-                    ${data.footerMsg}
-                </div>
-            </div>
-        `;
-    } else if (templateChoice === '57mm Mobile' || templateChoice === '57mm') {
-        layout = `
-            <div class="print-container" style="width:57mm; font-family:Arial, sans-serif; direction:rtl; padding:2mm; margin:0 auto; color:#000; font-size:11px; font-style:normal !important; font-weight:bold;">
-                <div style="text-align:center; margin-bottom:5px; border-bottom:1px dashed #000; padding-bottom:5px;">
-                    <strong style="font-size:14px; font-style:normal !important;">${data.shopName}</strong><br>
-                    <span style="font-style:normal !important;">${data.title}</span>
-                </div>
-                <div style="margin-bottom:5px; font-style:normal !important;">
-                    #${data.id} | ${data.date}<br>
-                    ${data.partnerLabel}: ${data.partnerName}<br>
-                    الدفع: ${data.paymentMethod}
-                </div>
-                <table style="width:100%; border-collapse:collapse; margin-bottom:5px; border-top:1px dashed #000; border-bottom:1px dashed #000;">
-                    <tr style="border-bottom:1px solid #000;">
-                        <th style="text-align:right; font-style:normal !important;">الصنف</th>
-                        <th style="text-align:center; font-style:normal !important;">ك</th>
-                        <th style="text-align:left; font-style:normal !important;">ق</th>
-                    </tr>
-                    ${compactItemsHtml}
-                </table>
-                <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:13px; font-style:normal !important;">
-                    <span style="font-style:normal !important;">المطلوب:</span>
-                    <span style="font-style:normal !important;">${data.total.toFixed(2)}</span>
-                </div>
-                ${data.credit > 0 ? `
-                <div style="display:flex; justify-content:space-between; font-size:11px; font-style:normal !important;">
-                    <span style="font-style:normal !important;">مدفوع:</span><span style="font-style:normal !important;">${data.paid.toFixed(2)}</span>
-                </div>
-                <div style="display:flex; justify-content:space-between; font-size:11px; font-style:normal !important;">
-                    <span style="font-style:normal !important;">باقي:</span><span style="font-style:normal !important;">${data.credit.toFixed(2)}</span>
-                </div>` : ''}
-                <div style="text-align:center; margin-top:5px; border-top:1px dashed #000; padding-top:5px; font-size:10px; font-style:normal !important;">
-                    ${data.footerMsg}
-                </div>
-            </div>
-        `;
-    } else if (templateChoice === '80mm Compact') {
-        layout = `
-            <div class="print-container" style="width:80mm; font-family:Arial, sans-serif; direction:rtl; padding:3mm; margin:0 auto; color:#000; font-size:13px; font-style:normal !important; font-weight:900;">
-                <div style="text-align:center; margin-bottom:5px; border-bottom:2px solid #000; padding-bottom:5px;">
-                    <strong style="font-size:22px; font-weight:900; color:#000; font-style:normal !important;">${data.shopName}</strong><br>
-                    ${data.shopAddress ? `<span style="font-size:14px; font-weight:900; color:#000; font-style:normal !important;">${data.shopAddress}</span><br>` : ''}
-                    ${data.shopPhone ? `<span style="font-size:14px; font-weight:900; color:#000; font-style:normal !important;">ت: ${data.shopPhone}</span><br>` : ''}
-                    <span style="font-size:16px; font-weight:900; border:2px solid #000; padding:2px 10px; display:inline-block; margin-top:5px; font-style:normal !important;">${data.title}</span>
-                </div>
-
-                <div style="display:flex; justify-content:space-between; font-size:13px; font-weight:900; margin-bottom:5px; font-style:normal !important; color:#000;">
-                    <div style="text-align:right;">
-                        <span style="font-style:normal !important;">كاشير: ${data.cashier}</span><br>
-                        <span style="font-style:normal !important;">التاريخ: ${data.date}</span>
-                    </div>
-                    <div style="text-align:left;">
-                        <span style="font-size:15px; font-style:normal !important;">رقم: #${data.id}</span>
-                    </div>
-                </div>
-
-                <div style="font-size:13px; font-weight:900; border-bottom:2px solid #000; padding-bottom:3px; margin-bottom:5px; font-style:normal !important; color:#000;">
-                    <div style="font-style:normal !important;">${data.partnerLabel}: ${data.partnerName}</div>
-                    <div style="font-style:normal !important;">الدفع: ${data.paymentMethod}</div>
-                </div>
-
-                <table style="width:100%; border-collapse:collapse; margin-bottom:5px; border-top:2px solid #000; border-bottom:2px solid #000; font-weight:900; color:#000;">
-                    <thead>
-                        <tr style="border-bottom:2px solid #000;">
-                            <th style="text-align:right; padding:2px; font-size:16px; font-weight:900; color:#000; -webkit-text-stroke:0.5px #000; font-style:normal !important;">الصنف</th>
-                            <th style="text-align:center; padding:2px; font-size:16px; font-weight:900; color:#000; -webkit-text-stroke:0.5px #000; font-style:normal !important;">الكمية</th>
-                            <th style="text-align:left; padding:2px; font-size:16px; font-weight:900; color:#000; -webkit-text-stroke:0.5px #000; font-style:normal !important;">الإجمالي</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${compactItemsHtml}
-                    </tbody>
-                </table>
-
-                <div style="margin-bottom:5px; font-weight:900; font-size:14px; font-style:normal !important; color:#000;">
-                    <div style="display:flex; justify-content:space-between; font-style:normal !important;">
-                        <span style="font-style:normal !important;">مبلغ الفاتورة:</span>
-                        <span style="font-style:normal !important;">${(data.invoiceAmount || data.total).toFixed(2)}</span>
-                    </div>
-                    ${(data.prevBalance && data.prevBalance > 0) ? `
-                    <div style="display:flex; justify-content:space-between; font-style:normal !important;">
-                        <span style="font-style:normal !important;">الرصيد السابق للعميل:</span>
-                        <span style="font-style:normal !important;">${data.prevBalance.toFixed(2)}</span>
-                    </div>` : ''}
-                    <div style="display:flex; justify-content:space-between; font-size:17px; border-top:2px dashed #000; border-bottom:2px dashed #000; margin:3px 0; padding:2px 0; font-style:normal !important;">
-                        <span style="font-style:normal !important;">الإجمالي المستحق:</span>
-                        <span style="font-style:normal !important;">${data.total.toFixed(2)} ج.م</span>
-                    </div>
-                    ${data.credit > 0 ? `
-                    <div style="display:flex; justify-content:space-between; font-style:normal !important;">
-                        <span style="font-style:normal !important;">المدفوع:</span>
-                        <span style="font-style:normal !important;">${data.paid.toFixed(2)}</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; font-style:normal !important;">
-                        <span style="font-style:normal !important;">الرصيد النهائي:</span>
-                        <span style="font-style:normal !important;">${data.credit.toFixed(2)}</span>
-                    </div>` : ''}
-                </div>
-
-                <div style="text-align:center; margin-top:10px; font-size:15px; font-weight:900; color:#000; font-style:normal !important;">
-                    ${data.footerMsg}
-                </div>
-            </div>
-        `;
-    } else {
-        // Default: 80mm Standard
-        layout = `
-            <div class="print-container" style="width:80mm; font-family:'Arial', 'Segoe UI', sans-serif; direction:rtl; padding:5px; color:#000; box-sizing:border-box; line-height:1.5; font-weight:bold; font-style:normal !important;">
-                <div style="text-align:center; border-bottom:3px solid #000; padding-bottom:5px; margin-bottom:10px; font-style:normal !important;">
-                    <div style="font-size:24px; font-weight:bold; font-style:normal !important;">${data.shopName}</div>
-                    <div style="font-size:18px; font-weight:bold; border:2px solid #000; display:inline-block; padding:3px 15px; margin-top:5px; font-style:normal !important;">${data.title}</div>
-                </div>
-
-                <div style="font-size:13px; font-weight:bold; margin-bottom:10px; border-bottom:2px solid #000; padding-bottom:5px; font-style:normal !important;">
-                    <div style="display:flex; justify-content:space-between; font-style:normal !important;">
-                        <span style="font-style:normal !important;">رقم: #${data.id}</span>
-                        <span style="font-style:normal !important;">التاريخ: ${data.date}</span>
-                    </div>
-                    <div style="margin-top:3px; font-style:normal !important;">${data.partnerLabel}: ${data.partnerName} ${data.partnerAddress ? ' (' + data.partnerAddress + ')' : ''}</div>
-                    <div style="display:flex; justify-content:space-between; margin-top:3px; font-style:normal !important;">
-                        <span style="font-style:normal !important;">كاشير: ${data.cashier}</span>
-                        <span style="font-style:normal !important;">الدفع: ${data.paymentMethod}</span>
-                    </div>
-                </div>
-
-                <table style="width:100%; border-collapse:collapse; font-size:13px; margin-bottom:10px; border:2px solid #000; font-weight:bold; font-style:normal !important;">
-                    <thead>
-                        <tr style="border-bottom:2px solid #000; background:#fff; font-style:normal !important;">
-                            <th style="text-align:right; padding:5px 2px; border-left:1px solid #000; font-size:15px; font-style:normal !important; font-weight:900; color:#000; -webkit-text-stroke:0.5px #000;">الصنف</th>
-                            <th style="padding:5px 2px; border-left:1px solid #000; font-size:15px; font-style:normal !important; font-weight:900; color:#000; -webkit-text-stroke:0.5px #000;">الكمية</th>
-                            <th style="padding:5px 2px; border-left:1px solid #000; font-size:15px; font-style:normal !important; font-weight:900; color:#000; -webkit-text-stroke:0.5px #000;">السعر</th>
-                            <th style="text-align:left; padding:5px 2px; font-size:15px; font-style:normal !important; font-weight:900; color:#000; -webkit-text-stroke:0.5px #000;">إجمالي</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${itemsHtml}
-                    </tbody>
-                </table>
-
-                <div style="margin-bottom:10px; font-size:14px; font-style:normal !important;">
-                    <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:900; border-top:2px solid #000; border-bottom:2px solid #000; padding:5px 0; margin-bottom:5px; font-style:normal !important;">
-                        <span style="font-style:normal !important;">صافي المطلوب:</span>
-                        <span style="font-style:normal !important;">${data.total.toFixed(2)}</span>
-                    </div>
-                    ${data.credit > 0 ? `
-                    <div style="display:flex; justify-content:space-between; margin-bottom:2px; font-style:normal !important;">
-                        <span style="font-style:normal !important;">المدفوع:</span>
-                        <span style="font-style:normal !important;">${data.paid.toFixed(2)}</span>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-bottom:2px; font-style:normal !important;">
-                        <span style="font-style:normal !important;">المتبقي:</span>
-                        <span style="font-style:normal !important;">${data.credit.toFixed(2)}</span>
-                    </div>` : ''}
-                </div>
-
-                <div style="text-align:center; border-top:2px dashed #000; padding-top:10px; font-size:12px; font-style:normal !important;">
-                    ${data.footerMsg}
-                </div>
-            </div>
-        `;
-    }
-
-    return layout;
-}
 
 // ============================================================
 //  تعبئة ومزامنة القوائم المنسدلة للمخازن عبر شاشات النظام

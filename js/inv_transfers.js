@@ -393,7 +393,7 @@ window.getPendingTransferBaseQty = function (productId, productName, size, color
         size = productName;
         productName = '';
     }
-    const cleanAttr = (val) => {
+    const cleanAttr = (typeof window.cleanAttr === 'function') ? window.cleanAttr : (val) => {
         const s = String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
         if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
         return s;
@@ -1278,7 +1278,7 @@ document.getElementById('transferProductSearch').addEventListener('keydown', fun
                     let currentWhStock = Math.max(0, rawWhStock - pendingQty);
 
                     // دالة مساعدة لمعايرة المقاسات والألوان وتوحيد القيم الافتراضية
-                    const cleanAttr = (val) => {
+                    const cleanAttr = (typeof window.cleanAttr === 'function') ? window.cleanAttr : (val) => {
                         const s = String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
                         if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
                         return s;
@@ -1469,7 +1469,7 @@ window.addManualTransferItem = function () {
     availStock = Math.max(0, rawStock - pendingQty);
     const availInUnit = (availStock / factor);
 
-    const cleanAttr = (val) => {
+    const cleanAttr = (typeof window.cleanAttr === 'function') ? window.cleanAttr : (val) => {
         const s = String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
         if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
         return s;
@@ -1780,7 +1780,7 @@ window.processBatchTransfer = async function () {
 
                 // تجميع شامل لكافة أسطر التحويل بالوحدة الأساسية لكل صنف وتشكيلة لمنع التحويل بالسالب نهائياً
                 const aggregatedTransfer = new Map();
-                const cleanAttr = (val) => {
+                const cleanAttr = (typeof window.cleanAttr === 'function') ? window.cleanAttr : (val) => {
                     const s = String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
                     if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
                     return s;
@@ -2435,7 +2435,7 @@ window.acceptTransferFromNotify = async function (invId) {
         return;
     }
 
-    const cleanAttr = (val) => {
+    const cleanAttr = (typeof window.cleanAttr === 'function') ? window.cleanAttr : (val) => {
         if (!val && val !== 0) return '';
         let s = String(val).trim().toLowerCase()
             .replace(/[أإآ]/g, 'ا')

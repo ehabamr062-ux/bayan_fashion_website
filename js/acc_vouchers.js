@@ -72,11 +72,8 @@
                 const type = document.getElementById('receiptType').value;
 
                 if (!amount || amount <= 0) {
-
-                    alert("⚠️ يرجى إدخال مبلغ صحيح");
-
+                    showToast("⚠️ يرجى إدخال مبلغ صحيح", "warning");
                     return false;
-
                 }
 
                 if (!payer || window.isGenericCashPartner(payer)) {
@@ -348,11 +345,8 @@
                 const type = document.getElementById('disburseType').value;
 
                 if (!amount || amount <= 0) {
-
-                    alert("⚠️ يرجى إدخال مبلغ صرف صحيح!");
-
+                    showToast("⚠️ يرجى إدخال مبلغ صرف صحيح!", "warning");
                     return false;
-
                 }
 
                 if (!payee || window.isGenericCashPartner(payee)) {
@@ -608,16 +602,13 @@
             const isPayerEmpty = (!payer || payer === 'غير محدد' || payer === 'عميل نقدي' || payer === 'عميل');
 
             if (amount <= 0 && isPayerEmpty) {
-                if (typeof showToast === 'function') showToast("⚠️ لا يمكن الطباعة: يرجى كتابة اسم العميل وإدخال مبلغ سند القبض أولاً!", "warning");
-                else alert("⚠️ لا يمكن الطباعة: يرجى كتابة اسم العميل وإدخال مبلغ سند القبض أولاً!");
+                showToast("⚠️ لا يمكن الطباعة: يرجى كتابة اسم العميل وإدخال مبلغ سند القبض أولاً!", "warning");
                 return;
             } else if (amount <= 0) {
-                if (typeof showToast === 'function') showToast("⚠️ لا يمكن الطباعة: يرجى إدخال مبلغ صحيح لسند القبض أولاً!", "warning");
-                else alert("⚠️ لا يمكن الطباعة: يرجى إدخال مبلغ صحيح لسند القبض أولاً!");
+                showToast("⚠️ لا يمكن الطباعة: يرجى إدخال مبلغ صحيح لسند القبض أولاً!", "warning");
                 return;
             } else if (isPayerEmpty) {
-                if (typeof showToast === 'function') showToast("⚠️ لا يمكن الطباعة: يرجى كتابة وتحديد اسم العميل أولاً للسند!", "warning");
-                else alert("⚠️ لا يمكن الطباعة: يرجى كتابة وتحديد اسم العميل أولاً للسند!");
+                showToast("⚠️ لا يمكن الطباعة: يرجى كتابة وتحديد اسم العميل أولاً للسند!", "warning");
                 return;
             }
 
@@ -909,16 +900,13 @@
             const isPayeeEmpty = (!payee || payee === 'غير محدد' || payee === 'مورد نقدي' || payee === 'جهة');
 
             if (amount <= 0 && isPayeeEmpty) {
-                if (typeof showToast === 'function') showToast("⚠️ لا يمكن الطباعة: يرجى كتابة اسم المستلم/المورد وإدخال مبلغ سند الصرف أولاً!", "warning");
-                else alert("⚠️ لا يمكن الطباعة: يرجى كتابة اسم المستلم/المورد وإدخال مبلغ سند الصرف أولاً!");
+                showToast("⚠️ لا يمكن الطباعة: يرجى كتابة اسم المستلم/المورد وإدخال مبلغ سند الصرف أولاً!", "warning");
                 return;
             } else if (amount <= 0) {
-                if (typeof showToast === 'function') showToast("⚠️ لا يمكن الطباعة: يرجى إدخال مبلغ صحيح لسند الصرف أولاً!", "warning");
-                else alert("⚠️ لا يمكن الطباعة: يرجى إدخال مبلغ صحيح لسند الصرف أولاً!");
+                showToast("⚠️ لا يمكن الطباعة: يرجى إدخال مبلغ صحيح لسند الصرف أولاً!", "warning");
                 return;
             } else if (isPayeeEmpty) {
-                if (typeof showToast === 'function') showToast("⚠️ لا يمكن الطباعة: يرجى كتابة اسم المستلم / المورد أولاً للسند!", "warning");
-                else alert("⚠️ لا يمكن الطباعة: يرجى كتابة اسم المستلم / المورد أولاً للسند!");
+                showToast("⚠️ لا يمكن الطباعة: يرجى كتابة اسم المستلم / المورد أولاً للسند!", "warning");
                 return;
             }
 
@@ -1209,24 +1197,20 @@
             if (type === 'disbursement' && typeof checkPermission === 'function' && !checkPermission('sec_disburse')) return;
 
             const accId = window.selectedAccountID || (typeof selectedAccountID !== 'undefined' ? selectedAccountID : null);
-            if (!accId) return alert("⚠️ يرجى تحديد حساب أولاً (بالضغط عليه في الجدول) قبل الضغط على قبض أو صرف!");
+            if (!accId) return showToast("⚠️ يرجى تحديد حساب أولاً (بالضغط عليه في الجدول) قبل الضغط على قبض أو صرف!", "warning");
 
             const allAccs = window.accounts || (typeof accounts !== 'undefined' ? accounts : []);
             const acc = allAccs.find(a => a.id == accId || a.id === accId);
-            if (!acc) return alert("⚠️ لم يتم العثور على بيانات الحساب المحدد!");
+            if (!acc) return showToast("⚠️ لم يتم العثور على بيانات الحساب المحدد!", "error");
 
             // فحص التجميد مباشرة
             const isFrozen = (acc.inactive === true || acc.inactive === 'true' || acc.isFrozen === true);
             if (isFrozen) {
-                if (typeof showCustomAlert === 'function') {
-                    showCustomAlert({
-                        type: 'error',
-                        titleText: '❄️ الحساب مجمّد',
-                        msg: `عذراً، الحساب "<b>${acc.name}</b>" مجمّد حالياً من قبل الإدارة.<br>لا يمكن إنشاء سندات قبض أو صرف له حتى يتم إلغاء التجميد.`
-                    });
-                } else {
-                    alert(`❄️ عذراً، الحساب "${acc.name}" مجمّد حالياً ولا يمكن إجراء حركات مالية عليه.`);
-                }
+                showCustomAlert({
+                    type: 'error',
+                    titleText: '❄️ الحساب مجمّد',
+                    msg: `عذراً، الحساب "<b>${acc.name}</b>" مجمّد حالياً من قبل الإدارة.<br>لا يمكن إنشاء سندات قبض أو صرف له حتى يتم إلغاء التجميد.`
+                });
                 return;
             }
 
@@ -1471,15 +1455,11 @@
 
             const defaults = DEFAULT_VOUCHER_CATEGORIES[type] || [];
             if (defaults.some(d => d.toLowerCase() === oldName.toLowerCase())) {
-                if (typeof showCustomAlert === 'function') {
-                    showCustomAlert({
-                        type: 'warning',
-                        titleText: '🔒 حماية البنود الأساسية',
-                        msg: 'عذراً، لا يمكن تعديل البنود الأساسية الافتراضية للنظام.'
-                    });
-                } else {
-                    alert('🔒 لا يمكن تعديل البنود الأساسية الافتراضية للنظام.');
-                }
+                showCustomAlert({
+                    type: 'warning',
+                    titleText: '🔒 حماية البنود الأساسية',
+                    msg: 'عذراً، لا يمكن تعديل البنود الأساسية الافتراضية للنظام.'
+                });
                 return;
             }
 
@@ -1616,15 +1596,11 @@
 
             const rawName = inputEl.value.trim();
             if (!rawName) {
-                if (typeof showCustomAlert === 'function') {
-                    showCustomAlert({
-                        type: 'warning',
-                        titleText: '⚠️ تنبيه',
-                        msg: 'يرجى كتابة اسم البند أولاً.'
-                    });
-                } else {
-                    alert('⚠️ يرجى كتابة اسم البند أولاً.');
-                }
+                showCustomAlert({
+                    type: 'warning',
+                    titleText: '⚠️ تنبيه',
+                    msg: 'يرجى كتابة اسم البند أولاً.'
+                });
                 inputEl.focus();
                 return;
             }
@@ -1642,29 +1618,21 @@
                 }
 
                 if (defaults.some(d => d.toLowerCase() === rawName.toLowerCase())) {
-                    if (typeof showCustomAlert === 'function') {
-                        showCustomAlert({
-                            type: 'warning',
-                            titleText: '⚠️ تنبيه',
-                            msg: 'لا يمكن استخدام اسم بند أساسي للنظام.'
-                        });
-                    } else {
-                        alert('⚠️ لا يمكن استخدام اسم بند أساسي للنظام.');
-                    }
+                    showCustomAlert({
+                        type: 'warning',
+                        titleText: '⚠️ تنبيه',
+                        msg: 'لا يمكن استخدام اسم بند أساسي للنظام.'
+                    });
                     inputEl.focus();
                     return;
                 }
 
                 if (currentCustom.some(c => c.toLowerCase() === rawName.toLowerCase() && c.toLowerCase() !== oldName.toLowerCase())) {
-                    if (typeof showCustomAlert === 'function') {
-                        showCustomAlert({
-                            type: 'warning',
-                            titleText: '⚠️ تنبيه',
-                            msg: `البند "${rawName}" موجود بالفعل.`
-                        });
-                    } else {
-                        alert(`⚠️ البند "${rawName}" موجود بالفعل.`);
-                    }
+                    showCustomAlert({
+                        type: 'warning',
+                        titleText: '⚠️ تنبيه',
+                        msg: `البند "${rawName}" موجود بالفعل.`
+                    });
                     inputEl.focus();
                     return;
                 }
@@ -1690,15 +1658,11 @@
 
             // التحقق من عدم وجوده في البنود الافتراضية
             if (defaults.some(d => d.toLowerCase() === rawName.toLowerCase())) {
-                if (typeof showCustomAlert === 'function') {
-                    showCustomAlert({
-                        type: 'info',
-                        titleText: 'ℹ️ معلومة',
-                        msg: `البند "${rawName}" موجود بالفعل كبند افتراضي في القائمة.`
-                    });
-                } else {
-                    alert(`ℹ️ البند "${rawName}" موجود بالفعل كبند افتراضي.`);
-                }
+                showCustomAlert({
+                    type: 'info',
+                    titleText: 'ℹ️ معلومة',
+                    msg: `البند "${rawName}" موجود بالفعل كبند افتراضي في القائمة.`
+                });
                 const selectId = (type === 'receipt') ? 'receiptType' : 'disburseType';
                 const sel = document.getElementById(selectId);
                 if (sel) sel.value = rawName;
@@ -1708,15 +1672,11 @@
 
             // التحقق من عدم تكراره في البنود المخصصة
             if (currentCustom.some(c => c.toLowerCase() === rawName.toLowerCase())) {
-                if (typeof showCustomAlert === 'function') {
-                    showCustomAlert({
-                        type: 'info',
-                        titleText: 'ℹ️ معلومة',
-                        msg: `البند "${rawName}" موجود مسبقاً في القائمة المخصصة.`
-                    });
-                } else {
-                    alert(`ℹ️ البند "${rawName}" موجود مسبقاً.`);
-                }
+                showCustomAlert({
+                    type: 'info',
+                    titleText: 'ℹ️ معلومة',
+                    msg: `البند "${rawName}" موجود مسبقاً في القائمة المخصصة.`
+                });
                 const selectId = (type === 'receipt') ? 'receiptType' : 'disburseType';
                 const sel = document.getElementById(selectId);
                 if (sel) sel.value = rawName;
@@ -1755,15 +1715,11 @@
 
             const defaults = DEFAULT_VOUCHER_CATEGORIES[type] || [];
             if (defaults.some(d => d.toLowerCase() === itemToDelete.toLowerCase())) {
-                if (typeof showCustomAlert === 'function') {
-                    showCustomAlert({
-                        type: 'warning',
-                        titleText: '🔒 حماية البنود الأساسية',
-                        msg: 'عذراً، لا يمكن حذف البنود الأساسية الافتراضية للنظام.'
-                    });
-                } else {
-                    alert('🔒 لا يمكن حذف البنود الأساسية الافتراضية للنظام.');
-                }
+                showCustomAlert({
+                    type: 'warning',
+                    titleText: '🔒 حماية البنود الأساسية',
+                    msg: 'عذراً، لا يمكن حذف البنود الأساسية الافتراضية للنظام.'
+                });
                 return;
             }
 

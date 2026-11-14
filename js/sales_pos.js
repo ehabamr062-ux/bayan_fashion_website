@@ -1147,7 +1147,7 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
     const maxAvailInUnit = (availBaseStock + originalQtyInInvoice) / factor;
 
     // دالة مساعدة لمعايرة المقاسات والألوان وتوحيد القيم الافتراضية
-    const cleanAttr = (val) => {
+    const cleanAttr = (typeof window.cleanAttr === 'function') ? window.cleanAttr : (val) => {
         const s = String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
         if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
         return s;
@@ -1733,7 +1733,7 @@ function updateQty(index, newQty) {
         // في وضع تعديل فاتورة قديمة: إضافة الكمية الأصلية المحجوزة بالفاتورة إلى الرصيد المتاح
         let originalQtyInInvoice = 0;
         if (typeof isEditMode !== 'undefined' && isEditMode && typeof editingOriginalItems !== 'undefined' && Array.isArray(editingOriginalItems)) {
-            const cleanAttr = (val) => {
+            const cleanAttr = (typeof window.cleanAttr === 'function') ? window.cleanAttr : (val) => {
                 const s = String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
                 if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
                 return s;
@@ -2995,7 +2995,7 @@ async function saveBill(force = false, accountChecked = false, event = null) {
             // في وضع التعديل: استرداد إجمالي الكمية الأصلية المحجوزة في الفاتورة لهذا الصنف وتشكيلته لإتاحتها
             let originalQtyInInvoice = 0;
             if (typeof isEditMode !== 'undefined' && isEditMode && typeof editingOriginalItems !== 'undefined' && Array.isArray(editingOriginalItems)) {
-                const cleanAttr = (val) => {
+                const cleanAttr = (typeof window.cleanAttr === 'function') ? window.cleanAttr : (val) => {
                     const s = String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
                     if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
                     return s;

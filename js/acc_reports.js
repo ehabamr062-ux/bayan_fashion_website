@@ -4104,63 +4104,6 @@
             }
         };
 
-        // --- نافذة الملاحظات على التقفيل ---
-        window.openDrawerClosingNotesModal = function() {
-            let existing = document.getElementById('drawerClosingNotesModal');
-            if (existing) existing.remove();
-
-            const currentNotes = window.currentDrawerClosingState.notes || '';
-
-            document.getElementById('drawerClosingNotesModal')?.remove();
-            const modal = document.createElement('div');
-            modal.id = 'drawerClosingNotesModal';
-            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(15, 23, 42, 0.7); backdrop-filter: blur(4px); z-index: 999999; display: flex; align-items: center; justify-content: center; padding: 15px; box-sizing: border-box; direction: rtl; font-family: inherit;';
-
-            modal.innerHTML = `
-                <div style="background: #ffffff; color: #0f172a; width: 100%; max-width: 480px; border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35); overflow: hidden; border: 1.5px solid #cbd5e1;">
-                    <div style="background: linear-gradient(135deg, #1e293b, #334155); padding: 16px 20px; color: white; display: flex; align-items: center; justify-content: space-between;">
-                        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 900; display: flex; align-items: center; gap: 8px;">
-                            <span>📝</span> ملاحظات تقفيل الدرج والوردية
-                        </h3>
-                        <button onclick="document.getElementById('drawerClosingNotesModal').remove()" style="background: rgba(255,255,255,0.2); border: none; color: white; width: 32px; height: 32px; border-radius: 50%; font-size: 1.1rem; cursor: pointer;">✕</button>
-                    </div>
-                    <div style="padding: 20px;">
-                        <p style="margin: 0 0 10px 0; font-size: 0.88rem; color: #64748b; font-weight: 700;">
-                            اكتب أي تفاصيل هامة تخص العجز أو الزيادة، أو تسليم النقدية للإدارة، أو توجيهات للوردية التالية:
-                        </p>
-                        <textarea id="drawerClosingNotesText" rows="4" placeholder="اكتب الملاحظات هنا..."
-                            style="width: 100%; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 12px; font-family: inherit; font-size: 0.95rem; box-sizing: border-box; outline: none;">${currentNotes}</textarea>
-                        
-                        <div style="margin-top: 16px; display: flex; gap: 10px;">
-                            <button type="button" onclick="saveDrawerClosingNotes()"
-                                style="flex: 1; height: 42px; background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; border: none; border-radius: 10px; font-weight: 900; font-size: 0.95rem; cursor: pointer;">
-                                حفظ الملاحظات ✅
-                            </button>
-                            <button type="button" onclick="document.getElementById('drawerClosingNotesModal').remove()"
-                                style="height: 42px; padding: 0 16px; background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; border-radius: 10px; font-weight: 800; font-size: 0.9rem; cursor: pointer;">
-                                إلغاء
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            modal.addEventListener('click', function(ev) { if (ev.target === modal) modal.remove(); });
-            document.body.appendChild(modal);
-        };
-
-        window.saveDrawerClosingNotes = function() {
-            const ta = document.getElementById('drawerClosingNotesText');
-            if (ta) {
-                window.currentDrawerClosingState.notes = ta.value.trim();
-            }
-            const modal = document.getElementById('drawerClosingNotesModal');
-            if (modal) modal.remove();
-            if (typeof showToast === 'function') {
-                showToast("✅ تم حفظ ملاحظات التقفيل بنجاح", "info");
-            }
-        };
-
         // --- دالة توليد كود محضر تقفيل الوردية المحاسبي الشيك باليوم والساعة (مثال: Z-0910-1643) ---
         window.generateShiftCloseId = function(targetDate = new Date()) {
             const d = (targetDate instanceof Date && !isNaN(targetDate)) ? targetDate : new Date();
@@ -4183,11 +4126,7 @@
         window.commitDrawerClosing = async function() {
             const actualInput = document.getElementById('drawerActualCashInput');
             if (!actualInput || actualInput.value.trim() === '') {
-                if (typeof showToast === 'function') {
-                    showToast("⚠️ يرجى أولاً عد النقدية وكتابة المبلغ الفعلي الموجود بالدرج في المربع الأصفر!", "warning");
-                } else {
-                    alert("يرجى أولاً عد النقدية وكتابة المبلغ الفعلي الموجود بالدرج!");
-                }
+                showToast("⚠️ يرجى أولاً عد النقدية وكتابة المبلغ الفعلي الموجود بالدرج في المربع الأصفر!", "warning");
                 if (actualInput) actualInput.focus();
                 return;
             }
@@ -5772,11 +5711,7 @@
         window.saveEditedDrawerClosure = async function(closureId, andPrint) {
             const inp = document.getElementById('editActualCashAmount');
             if (!inp || inp.value.trim() === '' || isNaN(parseFloat(inp.value))) {
-                if (typeof showToast === 'function') {
-                    showToast("⚠️ يرجى كتابة المبلغ الفعلي المحصي بشكل صحيح!", "warning");
-                } else {
-                    alert("يرجى كتابة المبلغ الفعلي المحصي!");
-                }
+                showToast("⚠️ يرجى كتابة المبلغ الفعلي المحصي بشكل صحيح!", "warning");
                 if (inp) inp.focus();
                 return;
             }
@@ -6084,8 +6019,7 @@
                 const repData = window.dailyReportData || {};
                 const hasActivity = (periodTxs.length > 0 || (repData.totalSales || 0) > 0 || (repData.totalPurchases || 0) > 0 || (repData.totalReceipts || 0) > 0 || (repData.totalExpenses || 0) > 0);
                 if (!hasActivity) {
-                    if (typeof showToast === 'function') showToast("⚠️ لا توجد أي معاملات أو حركات مسجلة في هذا اليوم لطباعتها!", "warning");
-                    else alert("⚠️ لا توجد أي معاملات أو حركات مسجلة في هذا اليوم لطباعتها!");
+                    showToast("⚠️ لا توجد أي معاملات أو حركات مسجلة في هذا اليوم لطباعتها!", "warning");
                     return;
                 }
             }
@@ -6346,7 +6280,7 @@
 
          function printAdjustmentData() {
 
-            if (!window.adjCart || window.adjCart.length === 0) return alert("لا توجد بيانات للطباعة");
+            if (!window.adjCart || window.adjCart.length === 0) return showToast("⚠️ لا توجد بيانات للطباعة", "warning");
 
             const shopName    = document.getElementById('shopName')?.value || 'بـيـان POS';
             const shopAddress = document.getElementById('shopAddress')?.value || '';
@@ -8181,11 +8115,7 @@
                     }
                 }
 
-                if (typeof showCustomAlert === 'function') {
-                    showCustomAlert({ type: 'warning', titleText: '⚠️ تنبيه', msg: 'يرجى اختيار وتحديد فاتورة من الجدول أولاً لعرض تفاصيلها.' });
-                } else {
-                    alert('يرجى اختيار وتحديد فاتورة من الجدول أولاً.');
-                }
+                showCustomAlert({ type: 'warning', titleText: '⚠️ تنبيه', msg: 'يرجى اختيار وتحديد فاتورة من الجدول أولاً لعرض تفاصيلها.' });
             }
         }
         window.viewSelectedAnalysisInvoice = viewSelectedAnalysisInvoice;
@@ -8288,11 +8218,7 @@
         function exportAnalysisToExcel() {
             try {
                 if (typeof XLSX === 'undefined') {
-                    if (typeof showCustomAlert === 'function') {
-                        showCustomAlert({ type: 'warning', titleText: '⚠️ تنبيه', msg: 'مكتبة Excel غير محملة.' });
-                    } else {
-                        alert('مكتبة Excel غير محملة.');
-                    }
+                    showCustomAlert({ type: 'warning', titleText: '⚠️ تنبيه', msg: 'مكتبة Excel غير محملة.' });
                     return;
                 }
 
@@ -8301,11 +8227,7 @@
 
                 const rows = table.querySelectorAll('tbody tr');
                 if (rows.length === 0 || (rows.length === 1 && rows[0].innerText.includes('لا توجد'))) {
-                    if (typeof showCustomAlert === 'function') {
-                        showCustomAlert({ type: 'warning', titleText: '⚠️ تنبيه', msg: 'لا توجد بيانات متاحة للتصدير في هذه الفترة.' });
-                    } else {
-                        alert('لا توجد بيانات متاحة للتصدير في هذه الفترة.');
-                    }
+                    showCustomAlert({ type: 'warning', titleText: '⚠️ تنبيه', msg: 'لا توجد بيانات متاحة للتصدير في هذه الفترة.' });
                     return;
                 }
 
@@ -8738,109 +8660,6 @@
             btn.classList.add('active');
 
             renderInventoryTable();
-
-        }
-
-        // ================= رفع صورة الهوية للحساب =================
-
-        function generateDebtReport() {
-
-            const debtors = accounts.map(a => {
-                const bal = typeof getAccountBalance === 'function' ? getAccountBalance(a.name) : ((parseFloat(a.debit) || 0) - (parseFloat(a.credit) || 0));
-                return { ...a, realBalance: bal };
-            }).filter(a => a.realBalance > 0); // عليه فلوس
-
-            if (debtors.length === 0) return alert("لا توجد مديونيات مستحقة حالياً.");
-
-            let rows = '';
-
-            let totalDebt = 0;
-
-            debtors.forEach(a => {
-
-                const debt = a.realBalance;
-
-                totalDebt += debt;
-
-                rows += `<tr><td>${a.name}</td><td>${a.mobile || '-'}</td><td>${debt.toFixed(2)}</td></tr>`;
-
-            });
-
-            const content = `
-
-                <div class="print-container">
-
-                    <div class="print-header"><div class="print-title">تقرير المديونيات المستحقة (الآجل)</div></div>
-
-                    <table class="print-table"><thead><tr><th>العميل</th><th>رقم الهاتف</th><th>المبلغ المستحق</th></tr></thead><tbody>${rows}</tbody></table>
-
-                    <div class="print-total-box">إجمالي الديون: ${totalDebt.toFixed(2)}</div>
-
-                </div>`;
-
-            document.getElementById('receipt-area').innerHTML = content;
-
-            window.print();
-
-        }
-
-        // ================= تقرير تجاوز الحد الائتماني (Over Limit Report) =================
-
-        function generateOverLimitReport() {
-
-            const overLimitAccounts = accounts.filter(a => {
-
-                const limit = parseFloat(a.maxDebt) || 0;
-
-                if (limit <= 0) return false; // لا يوجد حد
-
-                const balance = (parseFloat(a.debit) || 0) - (parseFloat(a.credit) || 0);
-
-                return balance > limit;
-
-            });
-
-            if (overLimitAccounts.length === 0) return alert("✅ ممتاز! لا يوجد عملاء متجاوزين للحد الائتماني.");
-
-            let rows = '';
-
-            overLimitAccounts.forEach(a => {
-
-                const balance = (parseFloat(a.debit) || 0) - (parseFloat(a.credit) || 0);
-
-                const limit = parseFloat(a.maxDebt);
-
-                const diff = balance - limit;
-
-                rows += `<tr><td>${a.name}</td><td>${a.mobile || '-'}</td><td>${limit.toFixed(2)}</td><td style="color:red; font-weight:bold;">${balance.toFixed(2)}</td><td style="color:#c0392b;">+${diff.toFixed(2)}</td></tr>`;
-
-            });
-
-            const content = `
-
-                <div class="print-container">
-
-                    <div class="print-header">
-
-                        <div class="print-title">⚠️ تقرير العملاء المتجاوزين للحد الائتماني</div>
-
-                        <div>تاريخ التقرير: ${new Date().toLocaleString('ar-EG')}</div>
-
-                    </div>
-
-                    <table class="print-table">
-
-                        <thead><tr><th>العميل</th><th>رقم الهاتف</th><th>الحد المسموح</th><th>الرصيد الحالي</th><th>قيمة التجاوز</th></tr></thead>
-
-                        <tbody>${rows}</tbody>
-
-                    </table>
-
-                </div>`;
-
-            document.getElementById('receipt-area').innerHTML = content;
-
-            window.print();
 
         }
 

@@ -569,13 +569,6 @@ function updatePurReturnItem(idx, field, val, shouldReRender = true) {
 
 }
 
-function updateReturnQty(idx, val) {
-
-    // بقيت هنا للتوافق مع استدعاءات قديمة إن وجدت
-
-    updateReturnItem(idx, 'qty', val, true);
-
-}
 
 async function saveSalesReturn(force = false, accountChecked = false) {
 
@@ -1411,11 +1404,6 @@ function updatePurReturnItemUnit(idx, unitName) {
 
 }
 
-function updatePurReturnQty(idx, val) {
-
-    updatePurReturnItem(idx, 'qty', val, true);
-
-}
 
 async function savePurchaseReturn(force = false, accountChecked = false) {
 
@@ -2299,79 +2287,6 @@ async function handleReturnSearchEnter(query, event, type, forceAdd = false) {
 
 }
 
-function filterSalesReturnCartItems(query) {
-
-    const rows = document.querySelectorAll('#returnCartBody tr');
-
-    const q = query.trim().toLowerCase();
-
-    let firstMatch = null;
-
-    rows.forEach(row => {
-
-        const rowText = row.innerText.toLowerCase();
-
-        if (rowText.includes(q)) {
-
-            row.style.display = "";
-
-            row.style.background = q !== "" ? "rgba(230, 126, 34, 0.15)" : "";
-
-            if (q !== "" && !firstMatch) firstMatch = row;
-
-        } else {
-
-            row.style.display = "none";
-
-        }
-
-    });
-
-    if (firstMatch && q !== "") {
-
-        firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-    }
-
-}
-
-// --- فلترة سلة مرتجع الشراء ---
-
-function filterPurReturnCartItems(query) {
-
-    const rows = document.querySelectorAll('#purReturnCartBody tr');
-
-    const q = query.trim().toLowerCase();
-
-    let firstMatch = null;
-
-    rows.forEach(row => {
-
-        const rowText = row.innerText.toLowerCase();
-
-        if (rowText.includes(q)) {
-
-            row.style.display = "";
-
-            row.style.background = q !== "" ? "rgba(192, 57, 43, 0.15)" : "";
-
-            if (q !== "" && !firstMatch) firstMatch = row;
-
-        } else {
-
-            row.style.display = "none";
-
-        }
-
-    });
-
-    if (firstMatch && q !== "") {
-
-        firstMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-    }
-
-}
 
 // --- نافذة تعديل أسعار البيع (Price Adjustment Window) ---
 
@@ -2772,7 +2687,7 @@ async function executeInvoiceSearch() {
     const targetType = isSalesReturn ? 'بيع' : 'شراء';
 
     // ⚡ دالة توحيد وتطبيع الحروف العربية (إلغاء فروق الهمزات والياء والألف اللينة والتاء المربوطة والتشكيل)
-    const cleanAr = (str) => String(str || '').trim().toLowerCase()
+    const cleanAr = (typeof window.cleanAr === 'function') ? window.cleanAr : (str) => String(str || '').trim().toLowerCase()
         .replace(/[أإآ]/g, 'ا')
         .replace(/ة/g, 'ه')
         .replace(/[ىي]/g, 'ي')
@@ -3147,214 +3062,7 @@ function openSelectReturnItemsForSelected() {
 
 }
 
-async function confirmSelectedInvoiceForReturn(invoiceId) {
 
-    if (!invoiceId) {
-
-        const checked = document.querySelector('input[name="selectedReturnInvoice"]:checked');
-
-        if (!checked) return alert('الرجاء اختيار فاتورة أولاً!');
-
-        invoiceId = checked.value;
-
-    }
-
-    const currentTab = typeof openTabs !== 'undefined' ? openTabs.find(t => t.id === activeTabId) : null;
-
-    const isSalesReturn = document.getElementById('sales-return-section') && !document.getElementById('sales-return-section').classList.contains('hidden');
-
-    const targetType = isSalesReturn ? 'بيع' : 'شراء';
-
-    // ⚡ جلب أصناف الفاتورة الأصلية مباشرة من SQLite في 1 ميلي ثانية
-    let originalInvoiceItems = [];
-    if (window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
-        originalInvoiceItems = window.BayanSQLite.getInvoiceItems(invoiceId, targetType).filter(t => t && t.type && t.type.includes(targetType) && !t.type.includes('مرتجع'));
-    }
-    if (!originalInvoiceItems || originalInvoiceItems.length === 0) {
-        originalInvoiceItems = transactions.filter(t => t.invoiceId == invoiceId && t.type.includes(targetType) && !t.type.includes('مرتجع'));
-    }
-    if (originalInvoiceItems.length === 0 && typeof window.ensureInvoiceLoaded === 'function') {
-        await window.ensureInvoiceLoaded(invoiceId);
-        originalInvoiceItems = (window.transactions || []).filter(t => t.invoiceId == invoiceId && t.type.includes(targetType) && !t.type.includes('مرتجع'));
-    }
-
-    if (originalInvoiceItems.length === 0) {
-        alert("تعذر العثور على أصناف لهذه الفاتورة!");
-        return;
-    }
-
-    const selectedItems = [];
-
-    originalInvoiceItems.forEach((originalItem) => {
-        const itemSize = (originalItem.selectedSize || originalItem.size || '').trim();
-        const itemColor = (originalItem.selectedColor || originalItem.color || '').trim();
-        const prodName = (originalItem.name || originalItem.product || originalItem.productName || '').trim();
-        const prodBarcode = (originalItem.code || originalItem.barcode || '').trim();
-
-        // ⚡ حساب الكمية المرتجعة سابقاً بالاستعلام المباشر فائق السرعة
-        let returnedQty = 0;
-        if (window.BayanSQLite && typeof window.BayanSQLite.getReturnedQtyForProduct === 'function') {
-            returnedQty = window.BayanSQLite.getReturnedQtyForProduct(originalItem.invoiceId, prodName, itemSize, itemColor);
-        } else {
-            returnedQty = transactions
-                .filter(t => t.originalInvoiceId == originalItem.invoiceId && t.type.includes('مرتجع') && 
-                    ((t.product && t.product === prodName) || (t.productName && t.productName === prodName) || (t.name && t.name === prodName)) &&
-                    (!itemSize || (t.size || t.selectedSize || '').trim() === itemSize) &&
-                    (!itemColor || (t.color || t.selectedColor || '').trim() === itemColor)
-                )
-                .reduce((sum, t) => sum + (parseFloat(t.qty) || 0), 0);
-        }
-
-        const availableQty = parseFloat(originalItem.qty) - returnedQty;
-
-        if (availableQty > 0) {
-            const p = productsDB.find(x => 
-                (prodName && x.name === prodName) || 
-                (originalItem.productId && String(x.id) === String(originalItem.productId)) ||
-                (originalItem.id && String(x.id) === String(originalItem.id)) ||
-                (prodBarcode && (x.code === prodBarcode || x.barcode === prodBarcode))
-            );
-
-            let selectedUnitObj = null;
-            let unitFactor = parseFloat(originalItem.unitFactor) || 1;
-
-            if (p && p.units) {
-                const foundUnit = p.units.find(u => u.unitName === originalItem.unit);
-                if (foundUnit) {
-                    selectedUnitObj = foundUnit;
-                    unitFactor = parseFloat(foundUnit.factor) || unitFactor;
-                }
-            }
-
-            const finalName = prodName || (p ? p.name : '') || 'صنف غير محدد';
-            const finalId = p ? p.id : (originalItem.productId || originalItem.id || '');
-            const finalCode = prodBarcode || (p ? (p.code || p.barcode) : '---');
-
-            selectedItems.push({
-                id: finalId,
-                name: finalName,
-                product: finalName,
-                productName: finalName,
-                price: (function() {
-                    const oPrice = parseFloat(originalItem.price) || 0;
-                    const oTotal = parseFloat(originalItem.total) || 0;
-                    const oQty = parseFloat(originalItem.qty) || 1;
-                    let netU = oPrice;
-                    if (oQty > 0 && oTotal > 0) {
-                        const calculated = oTotal / oQty;
-                        // إذا كان السعر المحسوب أكبر من سعر الصنف الأصلي (ابتلع إجمالي الفاتورة)، نعتمد السعر الأصلي oPrice فوراً
-                        if (oPrice > 0 && calculated > (oPrice * 1.05)) {
-                            netU = oPrice;
-                        } else {
-                            netU = calculated;
-                        }
-                    }
-                    return parseFloat(netU.toFixed(2));
-                })(),
-                qty: availableQty, // تنزيل كامل الكمية المتبقية تلقائياً
-                maxQty: availableQty, // حفظ المتاح كحد أقصى
-                unit: originalItem.unit || (p ? p.unit : 'قطعة'),
-                selectedUnit: selectedUnitObj,
-                unitFactor: unitFactor,
-                size: itemSize,
-                selectedSize: itemSize,
-                color: itemColor,
-                selectedColor: itemColor,
-                selectedVariant: originalItem.selectedVariant || null,
-                code: finalCode,
-                barcode: finalCode,
-                invoiceId: originalItem.invoiceId
-            });
-        }
-    });
-
-    if (selectedItems.length === 0) {
-
-        alert("⚠️ عذراً، جميع أصناف هذه الفاتورة تم إرجاعها بالكامل بالفعل!");
-
-        return;
-
-    }
-
-    const firstItem = originalInvoiceItems[0];
-
-    const pName = firstItem.partner || (isSalesReturn ? 'عميل عام' : 'مورد عام');
-
-    const invNo = firstItem.invoiceId || '---';
-
-    if (isSalesReturn) {
-
-        returnCart = selectedItems;
-
-        const partnerEl = document.getElementById('salesReturnPartnerDisplay');
-
-        const partnerBadge = document.getElementById('salesReturnPartnerBadge');
-
-        const invEl = document.getElementById('salesReturnInvoiceDisplay');
-
-        const badgeID = document.getElementById('salesReturnBadgeID');
-
-        const safePName = (typeof escapeHtml === 'function') ? escapeHtml(pName) : (window.escapeHtml ? window.escapeHtml(pName) : pName);
-
-        if (partnerEl) partnerEl.innerText = pName;
-
-        if (partnerBadge) partnerBadge.innerHTML = '👤 عميل: ' + safePName;
-
-        const accInput = document.getElementById('salesReturnAccountInput');
-
-        if (accInput) accInput.value = pName;
-
-        if (invEl) invEl.innerText = invNo;
-
-        if (badgeID) badgeID.innerText = invNo;
-
-        if (typeof renderReturnCart === 'function') renderReturnCart();
-
-    } else {
-
-        purReturnCart = selectedItems;
-
-        const partnerEl = document.getElementById('purReturnPartnerDisplay');
-
-        const partnerBadge = document.getElementById('purReturnPartnerBadge');
-
-        const invEl = document.getElementById('purReturnInvoiceDisplay');
-
-        const badgeID = document.getElementById('purReturnBadgeID');
-
-        const safePName = (typeof escapeHtml === 'function') ? escapeHtml(pName) : (window.escapeHtml ? window.escapeHtml(pName) : pName);
-
-        if (partnerEl) partnerEl.innerText = pName;
-
-        if (partnerBadge) partnerBadge.innerHTML = '👤 مورد: ' + safePName;
-
-        const accInput = document.getElementById('purReturnAccountInput');
-
-        if (accInput) accInput.value = pName;
-
-        if (invEl) invEl.innerText = invNo;
-
-        if (badgeID) badgeID.innerText = invNo;
-
-        if (typeof renderPurReturnCart === 'function') renderPurReturnCart();
-
-    }
-
-    // إغلاق نافذة البحث
-
-    document.getElementById('searchInvoiceModal').classList.add('hidden');
-
-    showToast("✅ تم استيراد أصناف الفاتورة مباشرة بنجاح");
-
-    // تحديث بطاقة الفاتورة والحساب
-
-    const retType = isSalesReturn ? 'sales' : 'purchase';
-
-    updateReturnInvoiceCard(invoiceId, retType);
-
-    updateReturnAccountBalance(pName, retType);
-
-}
 
 let currentReturnInvoiceItems = [];
 

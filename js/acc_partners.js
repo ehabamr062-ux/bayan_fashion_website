@@ -69,15 +69,14 @@
 
             const name = (document.getElementById('accName').value || '').trim();
 
-            if (!name) return alert("يرجى إدخال اسم الحساب");
+            if (!name) return showToast("⚠️ يرجى إدخال اسم الحساب", "warning");
 
             // منع تكرار اسم الحساب لتفادي تداخل المعاملات المالية
-            const cleanArabic = (str) => (str || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+            const cleanArabic = (typeof window.cleanAr === 'function') ? window.cleanAr : (str) => (str || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
             const targetClean = cleanArabic(name);
             const isDuplicate = accounts.some(a => cleanArabic(a.name) === targetClean && (!editId || a.id != editId));
             if (isDuplicate) {
-                if (typeof showToast === 'function') showToast(`🚫 يوجد حساب مسجل بالفعل باسم "${name}"! يرجى اختيار اسم فريد.`, "error");
-                else alert(`🚫 يوجد حساب مسجل بالفعل باسم "${name}"!`);
+                showToast(`🚫 يوجد حساب مسجل بالفعل باسم "${name}"! يرجى اختيار اسم فريد.`, "error");
                 return;
             }
 
@@ -85,7 +84,7 @@
 
             if (landValue && landValue.length !== 10) {
 
-                return alert("⚠️ يجب أن يتكون رقم الخط الأرضي من 10 أرقام (مثال: 0212345678)");
+                return showToast("⚠️ يجب أن يتكون رقم الخط الأرضي من 10 أرقام (مثال: 0212345678)", "warning");
 
             }
 
@@ -299,66 +298,6 @@
             setStore('pos_stmt_cols', JSON.stringify(statementColumnVisibility));
 
             generateAccountStatement(); // تحديث العرض فورياً
-
-        }
-
-        function showStatementColumnCustomizer() {
-
-            const cols = [
-
-                { id: 0, name: "تحديد" },
-
-                { id: 1, name: "التاريخ" },
-
-                { id: 2, name: "نوع الحركة" },
-
-                { id: 3, name: "البيان" },
-
-                { id: 4, name: "مدين (عليه)" },
-
-                { id: 5, name: "دائن (له)" },
-
-                { id: 6, name: "الرصيد" }
-
-            ];
-
-            let html = `<div style="display:grid; grid-template-columns: repeat(2, 1fr); gap:10px; padding:15px;">`;
-
-            cols.forEach(c => {
-
-                const checked = statementColumnVisibility[c.id] ? 'checked' : '';
-
-                html += `<label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px; background:#f8fafc; border-radius:8px; border:1px solid #e2e8f0; font-size:0.85rem;">
-
-                            <input type="checkbox" ${checked} onchange="toggleStatementColumn(${c.id}, this.checked)"> ${c.name}
-
-                         </label>`;
-
-            });
-
-            html += `</div>`;
-
-            // 🛡️ فحص وإزالة أي نافذة سابقة لمنع التكرار في الـ DOM
-            const oldModal = document.getElementById('statementColCustomizerModal');
-            if (oldModal) oldModal.remove();
-
-            const modal = document.createElement('div');
-            modal.id = 'statementColCustomizerModal';
-            modal.className = 'modal-overlay';
-            modal.style.zIndex = '10005';
-
-            modal.innerHTML = `
-                <div class="login-box" style="width: 400px; text-align: right; padding: 25px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; border-bottom:1.5px solid #3498db; padding-bottom:10px;">
-                        <h3 style="margin:0; color:#2c3e50;">⚙️ تخصيص أعمدة كشف الحساب</h3>
-                        <button onclick="document.getElementById('statementColCustomizerModal')?.remove()" style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#95a5a6;">&times;</button>
-                    </div>
-                    ${html}
-                    <button class="action-btn btn-save" style="width:100%; margin-top:15px; background:#2c3e50; color:white;" onclick="document.getElementById('statementColCustomizerModal')?.remove()">✅ حفظ وإغلاق</button>
-                </div>
-            `;
-
-            document.body.appendChild(modal);
 
         }
 
@@ -969,8 +908,7 @@
                 return;
             }
             if (!selectedAccountID) {
-                if (typeof showToast === 'function') showToast("⚠️ يرجى تحديد واختيار حساب من الجدول أولاً!", "warning");
-                else alert("⚠️ يرجى تحديد واختيار حساب من الجدول أولاً!");
+                showToast("⚠️ يرجى تحديد واختيار حساب من الجدول أولاً!", "warning");
                 return;
             }
             const acc = accounts.find(a => String(a.id) === String(selectedAccountID));
@@ -992,7 +930,7 @@
 
             if (!checkPermission('accounts_edit')) return;
 
-            if (!selectedAccountID) return alert("⚠️ يرجى اختيار حساب من الجدول أولاً!");
+            if (!selectedAccountID) return showToast("⚠️ يرجى اختيار حساب من الجدول أولاً!", "warning");
 
             // جلب البيانات مباشرة من قاعدة البيانات لضمان الحصول على أحدث القيم المسجلة
             let acc = await db.accounts.get(selectedAccountID);
@@ -1111,7 +1049,7 @@
 
         async function deleteSelectedAccount() {
             if (!checkPermission('accounts_delete')) return;
-            if (!selectedAccountID) return alert("⚠️ يرجى اختيار حساب من الجدول أولاً!");
+            if (!selectedAccountID) return showToast("⚠️ يرجى اختيار حساب من الجدول أولاً!", "warning");
 
             const acc = accounts.find(a => String(a.id) === String(selectedAccountID));
             if (!acc) return;
@@ -1120,17 +1058,11 @@
             const bal = Math.abs(actualBal);
             if (bal > 0.01) {
                 const msgErr = `⚠️ لا يمكن حذف الحساب "${acc.name}" لأنه يحتوي على رصيد قائم (${bal.toFixed(2)} ج.م)! يرجى تسوية الحساب أولاً.`;
-                if (typeof showCustomAlert === 'function') {
-                    showCustomAlert({
-                        type: 'error',
-                        titleText: 'رصيد قائم على الحساب',
-                        msg: msgErr
-                    });
-                } else if (typeof showToast === 'function') {
-                    showToast(msgErr, "warning");
-                } else {
-                    alert(msgErr);
-                }
+                showCustomAlert({
+                    type: 'error',
+                    titleText: 'رصيد قائم على الحساب',
+                    msg: msgErr
+                });
                 return;
             }
 
@@ -1395,11 +1327,7 @@
             const filter = rawVal.trim().toLowerCase();
             dropdown.innerHTML = '';
             
-            const cleanAr = (str) => (str || '').trim().toLowerCase()
-                .replace(/[أإآ]/g, 'ا')
-                .replace(/ة/g, 'ه')
-                .replace(/[ىي]/g, 'ي')
-                .replace(/\s+/g, ' ');
+            const cleanAr = (typeof window.cleanAr === 'function') ? window.cleanAr : (str) => (str || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
 
             const filterClean = cleanAr(filter);
 
@@ -1483,11 +1411,7 @@
                 return;
             }
 
-            const cleanAr = (str) => (str || '').trim().toLowerCase()
-                .replace(/[أإآ]/g, 'ا')
-                .replace(/ة/g, 'ه')
-                .replace(/[ىي]/g, 'ي')
-                .replace(/\s+/g, ' ');
+            const cleanAr = (typeof window.cleanAr === 'function') ? window.cleanAr : (str) => (str || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
             const valClean = cleanAr(val);
 
             // مطابقة تامة فقط: بالاسم الدقيق، أو الكود، أو الاسم بعد تنظيف الهمزات (بدون مطابقة جزئية includes لمنع إجبار الخيار الأول)
@@ -1519,7 +1443,7 @@
                 const typedVal = selectorInput ? selectorInput.value.trim() : '';
                 
                 if (typedVal) {
-                    const cleanAr = (str) => (str || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+                    const cleanAr = (typeof window.cleanAr === 'function') ? window.cleanAr : (str) => (str || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
                     const typedClean = cleanAr(typedVal);
                     const matchedAcc = accounts.find(a => a.name === typedVal || String(a.code || '').trim() === typedVal || cleanAr(a.name) === typedClean);
                     if (matchedAcc) targetId = matchedAcc.id;
@@ -1619,7 +1543,7 @@
                 runningBalance = startBalance;
             }
 
-            const cleanAr = (str) => (str || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+            const cleanAr = (typeof window.cleanAr === 'function') ? window.cleanAr : (str) => (str || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
             const targetPartnerClean = cleanAr(acc.name);
             const targetAccCode = (acc.code || '').toString().trim();
 
@@ -2201,8 +2125,7 @@
                     }
                     window.editTransaction(id, cleanType);
                 } else {
-                    if(typeof showToast !== 'undefined') showToast('دالة التعديل غير متوفرة حالياً.', 'error');
-                    else alert('دالة التعديل غير متوفرة حالياً.');
+                    showToast('⚠️ دالة التعديل غير متوفرة حالياً.', 'warning');
                 }
             } else if (action === 'delete') {
                 if (typeof deleteInvoiceGlobal === 'function') {
@@ -2214,7 +2137,7 @@
 
         window.exportAccountStatementToExcel = function() {
             const table = document.getElementById('stmtMasterTable') || document.querySelector('#statement-section .stmt-table');
-            if (!table) return alert('❌ لا توجد بيانات لتصديرها');
+            if (!table) return showToast('❌ لا توجد بيانات لتصديرها', 'warning');
 
             const accName = document.getElementById('statementHeaderAccName')?.innerText || document.getElementById('stmtAccountSelector')?.value || 'كشف_حساب';
             const fileName = `كشف_حساب_${accName.trim().replace(/\s+/g, '_')}_${new Date().toLocaleDateString('ar-EG')}.csv`;
@@ -2289,7 +2212,7 @@
 
             const tableEl = document.getElementById('accountsTableBody');
 
-            if (!tableEl) return alert('❌ لا يوجد بيانات للطباعة');
+            if (!tableEl) return showToast('❌ لا يوجد بيانات للطباعة', 'warning');
 
             // نسخ الجدول وتنظيفه من أزرار الاختيار والتحديد
             const tableClone = tableEl.cloneNode(true);
@@ -2552,8 +2475,7 @@
                 });
 
                 if (exportData.length === 0) {
-                    if (typeof showToast === 'function') showToast("⚠️ لا توجد حسابات مطابقة للتصدير", "warning");
-                    else alert("⚠️ لا توجد حسابات مطابقة للتصدير");
+                    showToast("⚠️ لا توجد حسابات مطابقة للتصدير", "warning");
                     return;
                 }
 
@@ -2760,7 +2682,7 @@
                             type: 'error'
                         });
                     } else {
-                        alert("⚠️ فشل استيراد الحسابات: " + err.message);
+                        showToast("⚠️ فشل استيراد الحسابات: " + err.message, "error");
                     }
                 }
             };

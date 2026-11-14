@@ -922,7 +922,7 @@ function completeAddToPurchaseCart(product, selectedUnit, manualQty = null, manu
     const vColor = effVariant ? (effVariant.color || '') : '';
     const vBarcode = effVariant && effVariant.barcode ? String(effVariant.barcode).trim() : '';
 
-    const cleanAttr = (val) => {
+    const cleanAttr = (typeof window.cleanAttr === 'function') ? window.cleanAttr : (val) => {
         const s = String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
         if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
         return s;

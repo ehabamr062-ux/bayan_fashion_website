@@ -395,7 +395,6 @@ window.getExactVariantStock = (v, wh) => FashionStockEngine.getVariantStock(v, w
 window.getExactProductStock = (p, wh) => FashionStockEngine.getProductStock(p, wh);
 window.findProductVariant = (p, q) => FashionStockEngine.findVariant(p, q);
 window.syncProductFashionTotals = (p, wh) => FashionStockEngine.syncProductTotals(p, wh);
-window.applyFashionStockMovement = (opts) => FashionStockEngine.applyMovement(opts);
 window.normalizeWarehouseStocks = (obj) => FashionStockEngine.normalizeWarehouseStocks(obj);
 
 // تهيئة قائمة المعرفات المختارة لتظل محفوظة عند التنقل بين الأقسام
@@ -524,7 +523,7 @@ window.handleInventorySearchKeyDown = function(e) {
         if (!query) return;
 
         const allProducts = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : [];
-        const cleanAr = (str) => (str || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+        const cleanAr = (typeof window.cleanAr === 'function') ? window.cleanAr : (str) => (str || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
         const rawQ = query.toLowerCase();
         const q = cleanAr(query);
 
@@ -607,7 +606,7 @@ async function renderInventoryTable(isLoadMore = false) {
 
     const searchInput = document.getElementById('invSearchInput');
     const rawSearch = searchInput ? searchInput.value.trim().toLowerCase() : '';
-    const cleanAr = (str) => (str || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+    const cleanAr = (typeof window.cleanAr === 'function') ? window.cleanAr : (str) => (str || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
     const search = cleanAr(rawSearch);
     const catFilter = document.getElementById('invCategoryFilter')?.value || 'all';
 
@@ -1277,7 +1276,7 @@ async function renderWarehouseReportTable(isSearchTrigger = false) {
         window.wrRenderState = { limit: 100 };
     }
 
-    const cleanAr = (text) => {
+    const cleanAr = (typeof window.cleanAr === 'function') ? window.cleanAr : (text) => {
         if (!text) return '';
         return String(text)
             .replace(/[أإآ]/g, 'ا')
@@ -1691,7 +1690,7 @@ function printWarehouseReport() {
     const sDate = (window.wrFilterState && window.wrFilterState.startDate) ? window.wrFilterState.startDate : null;
     const eDate = (window.wrFilterState && window.wrFilterState.endDate) ? window.wrFilterState.endDate : null;
 
-    const cleanAr = (text) => {
+    const cleanAr = (typeof window.cleanAr === 'function') ? window.cleanAr : (text) => {
         if (!text) return '';
         return String(text)
             .replace(/[أإآ]/g, 'ا')
@@ -2033,7 +2032,7 @@ function exportWarehouseReportToExcel() {
     if (canViewProfits) headerRow.push("ربح الجملة", "ربح التجزئة");
     table.push(headerRow);
 
-    const cleanAr = (text) => {
+    const cleanAr = (typeof window.cleanAr === 'function') ? window.cleanAr : (text) => {
         if (!text) return '';
         return String(text)
             .replace(/[أإآ]/g, 'ا')
@@ -2725,31 +2724,6 @@ function getWarehouseStock(productName, warehouseName, startDate = null, endDate
 }
 window.getWarehouseStock = getWarehouseStock;
 
-function showInvDetails(id) {
-    const p = productsDB.find(x => x.id === id);
-    if (!p) return;
-
-    const idEl = document.getElementById('invSelectedId');
-    if (idEl) idEl.value = id;
-
-    const stockEl = document.getElementById('invDisplayStock');
-    if (stockEl) stockEl.innerText = p.stock || 0;
-
-    const costEl = document.getElementById('invDisplayCost');
-    if (costEl) costEl.value = p.cost || 0;
-
-    const priceEl = document.getElementById('invDisplayPrice');
-    if (priceEl) priceEl.value = p.price || 0;
-
-    const unitSel = document.getElementById('invDisplayUnit');
-    if (unitSel && p.unit) {
-        for (let opt of unitSel.options) {
-            if (opt.value === p.unit) { opt.selected = true; break; }
-        }
-    }
-
-    updateSideStockCard(id);
-}
 
 function openQuickEditFloating(id) {
     const p = productsDB.find(x => x.id === id);
@@ -2788,19 +2762,6 @@ function closeQuickEditFloating() {
     if (floatingWin) floatingWin.classList.add('hidden');
 }
 
-function showQuickEditManual() {
-    let targetId = typeof selectedInventoryId !== 'undefined' ? selectedInventoryId : null;
-    if (!targetId) {
-        const checked = document.querySelector('.inv-row-check:checked');
-        if (checked) targetId = parseInt(checked.closest('tr').getAttribute('data-id'));
-    }
-
-    if (!targetId) {
-        return showToast("⚠️ يرجى تحديد صنف من الجدول أولاً", "error");
-    }
-
-    openQuickEditFloating(targetId);
-}
 
 function quickAddProduct(name, context) {
     if (typeof currentQuickAddContext !== 'undefined') window.currentQuickAddContext = context;
@@ -2845,426 +2806,8 @@ window.openProductImagePreview = function(productId, event) {
     document.body.appendChild(overlay);
 };
 
-// =========================================================================
-// 🔬 محرك فحص ومطابقة المخزون الشامل (Stock Reconciliation & Audit Engine)
-// يقارن بين:
-//   1. الرصيد الدفتري التراكمي المحسوب من سجل الحركات (الطريقة القديمة - getInvSummaryMap / Ledger)
-//   2. الرصيد اللحظي المباشر المسجل في كروت الأصناف والتشكيلات (الطريقة الجديدة - Live State O(1))
-// ويختبر بدقة تامة العمليات الـ 9:
-//   (شراء، بيع، مرتجع بيع، مرتجع شراء، تعديل، حذف، جرد وتسوية، تحويل، مقاسات وألوان Fashion، أصناف بدون Variants)
-// =========================================================================
-window.runStockReconciliationAudit = function(showModal = true) {
-    console.log('%c🔬 بدء الاختبار والمطابقة الشاملة لأرصدة المخزون - بَيَان POS', 'background:#1e1b4b; color:#fbbf24; font-size:14px; font-weight:bold; padding:8px 14px; border-radius:8px;');
 
-    // -------------------------------------------------------------
-    // القسم الأول: محاكاة واختبار العمليات التسع (9 Operational Scenarios Test)
-    // -------------------------------------------------------------
-    const testResults = [];
 
-    function runScenarioTest(title, operationName, category, executeFn) {
-        try {
-            const res = executeFn();
-            const isMatch = Math.abs(res.oldLedger - res.liveState) < 0.0001;
-            testResults.push({
-                'الرقم': testResults.length + 1,
-                'العملية': title,
-                'التصنيف': category,
-                'الرصيد الدفتري (القديم)': Number(res.oldLedger.toFixed(2)),
-                'الرصيد اللحظي (الجديد)': Number(res.liveState.toFixed(2)),
-                'الفرق': Number(Math.abs(res.oldLedger - res.liveState).toFixed(2)),
-                'التطابق': isMatch ? '✅ متطابق 100%' : '❌ غير متطابق',
-                'ملاحظات': res.notes || 'تم التنفيذ والمطابقة بنجاح'
-            });
-        } catch (e) {
-            testResults.push({
-                'الرقم': testResults.length + 1,
-                'العملية': title,
-                'التصنيف': category,
-                'الرصيد الدفتري (القديم)': 0,
-                'الرصيد اللحظي (الجديد)': 0,
-                'الفرق': 0,
-                'التطابق': '⚠️ خطأ في المحاكاة',
-                'ملاحظات': e.message
-            });
-        }
-    }
-
-    // 1. شراء صنف عادي بدون تشكيلة
-    runScenarioTest('1. شراء بضاعة (صنف عادي)', 'شراء', 'صنف بدون Variants', () => {
-        let oldLedger = 0;
-        let liveState = 0;
-        // شراء 10 قطع
-        const buyQty = 10;
-        oldLedger += buyQty;
-        liveState += buyQty;
-        return { oldLedger, liveState, notes: 'شراء 10 قطع: القديم = 10 | الجديد = 10' };
-    });
-
-    // 2. بيع صنف عادي
-    runScenarioTest('2. بيع فاتورة نقدية (صنف عادي)', 'بيع', 'صنف بدون Variants', () => {
-        let oldLedger = 10;
-        let liveState = 10;
-        // بيع 3 قطع
-        const sellQty = 3;
-        oldLedger -= sellQty;
-        liveState -= sellQty;
-        return { oldLedger, liveState, notes: 'بيع 3 قطع من أصل 10: القديم = 7 | الجديد = 7' };
-    });
-
-    // 3. مرتجع بيع من عميل
-    runScenarioTest('3. مرتجع بيع (إرجاع للرف)', 'مرتجع بيع', 'صنف بدون Variants', () => {
-        let oldLedger = 7;
-        let liveState = 7;
-        // مرتجع قطعة واحدة
-        const retQty = 1;
-        oldLedger += retQty;
-        liveState += retQty;
-        return { oldLedger, liveState, notes: 'مرتجع بيع 1 قطعة: القديم = 8 | الجديد = 8' };
-    });
-
-    // 4. مرتجع شراء لمورد
-    runScenarioTest('4. مرتجع مشتريات (إرجاع للمورد)', 'مرتجع شراء', 'صنف بدون Variants', () => {
-        let oldLedger = 8;
-        let liveState = 8;
-        // مرتجع شراء 2 قطعة
-        const purRetQty = 2;
-        oldLedger -= purRetQty;
-        liveState -= purRetQty;
-        return { oldLedger, liveState, notes: 'مرتجع شراء قطعتين: القديم = 6 | الجديد = 6' };
-    });
-
-    // 5. تعديل فاتورة بيع (تغيير الكمية)
-    runScenarioTest('5. تعديل فاتورة بيع (زيادة الكمية)', 'تعديل', 'صنف بدون Variants', () => {
-        let oldLedger = 6;
-        let liveState = 6;
-        // تعديل بيع سابق من 3 إلى 5 (عكس 3 ثم خصم 5 = فارق خصم 2)
-        const oldQty = 3;
-        const newQty = 5;
-        // عكس القديم
-        liveState += oldQty;
-        // تطبيق الجديد
-        liveState -= newQty;
-        // في الدفتر القديم: الحركات تُستبدل فيعاد الحساب
-        oldLedger = oldLedger + oldQty - newQty;
-        return { oldLedger, liveState, notes: 'تعديل الكمية المباعة من 3 إلى 5: الرصيد ينخفض بقطعتين (القديم = 4 | الجديد = 4)' };
-    });
-
-    // 6. حذف فاتورة إلى سلة المحذوفات
-    runScenarioTest('6. حذف فاتورة بيع (إلغاء إلى السلة)', 'حذف', 'صنف بدون Variants', () => {
-        let oldLedger = 4;
-        let liveState = 4;
-        // حذف فاتورة بيع بـ 5 قطع
-        const deletedQty = 5;
-        // في النظام: دالة revertAndClearOldInvoice تسترجع الكمية للمخزن
-        liveState += deletedQty;
-        // في الدفتر القديم: تحذف الحركة من الحركات
-        oldLedger += deletedQty;
-        return { oldLedger, liveState, notes: 'حذف الفاتورة واستعادة المباع: القديم = 9 | الجديد = 9' };
-    });
-
-    // 7. جرد وتسوية مخزنية
-    runScenarioTest('7. جرد وتسوية مخزنية (زيادة فعلية)', 'جرد وتسوية', 'صنف بدون Variants', () => {
-        let oldLedger = 9;
-        let liveState = 9;
-        // الجرد الفعلي وجد 15 قطعة (فارق تسوية +6)
-        const countedStock = 15;
-        const diff = countedStock - liveState; // +6
-        // النظام يضبط الرصيد الفعلي على المجرود
-        liveState = countedStock;
-        // الدفتر القديم يسجل حركة تسوية (+6)
-        oldLedger += diff;
-        return { oldLedger, liveState, notes: `جرد فعلي: دفتري 9، مجرود 15، فارق +${diff}: القديم = 15 | الجديد = 15` };
-    });
-
-    // 8. تحويل مخزني بين الفروع
-    runScenarioTest('8. تحويل مخزني (رئيسي -> فرعي)', 'تحويل', 'مخازن متعددة', () => {
-        let mainOld = 15, branchOld = 0;
-        let mainLive = 15, branchLive = 0;
-        // تحويل 4 قطع مع الاستلام (received)
-        const transferQty = 4;
-        mainLive -= transferQty;
-        branchLive += transferQty;
-        mainOld -= transferQty;
-        branchOld += transferQty;
-        return {
-            oldLedger: mainOld + branchOld,
-            liveState: mainLive + branchLive,
-            notes: `تحويل 4 قطع: الرئيسي (11/11)، الفرعي (4/4)، المجموع الكلي (15/15)`
-        };
-    });
-
-    // 9. تشكيلات فاشون مقاسات وألوان (Fashion Variants)
-    runScenarioTest('9. تشكيلات فاشون (مقاس ولون)', 'فاشون تشكيلات', 'Fashion Variants', () => {
-        // تشكيلة: أحمر L (شراء 20، بيع 8، مرتجع 2) = 14
-        // تشكيلة: أزرق XL (شراء 30، بيع 10) = 20
-        const varRedOld = (20 - 8 + 2);
-        const varRedLive = (20 - 8 + 2);
-        const varBlueOld = (30 - 10);
-        const varBlueLive = (30 - 10);
-
-        const totalOld = varRedOld + varBlueOld;
-        const totalLive = varRedLive + varBlueLive;
-        return {
-            oldLedger: totalOld,
-            liveState: totalLive,
-            notes: `أحمر L: (${varRedLive}/${varRedOld}) | أزرق XL: (${varBlueLive}/${varBlueOld}) | إجمالي الموديل: (${totalLive}/${totalOld})`
-        };
-    });
-
-    // -------------------------------------------------------------
-    // القسم الثاني: فحص ومطابقة قاعدة البيانات الحقيقية الحالية
-    // -------------------------------------------------------------
-    const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
-    const allProducts = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : [];
-    const allTransactions = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : [];
-
-    const startPerfOld = performance.now();
-    // تجميع الحركات بالطريقة القديمة
-    const productTxMap = {};
-    for (let i = 0; i < allTransactions.length; i++) {
-        const t = allTransactions[i];
-        const pName = (t.product || '').trim();
-        if (!pName) continue;
-        if (!productTxMap[pName]) productTxMap[pName] = { in: 0, out: 0, diff: 0, wStock: 0 };
-        const s = productTxMap[pName];
-        const factor = parseFloat(t.unitFactor) || 1;
-        const qty = (parseFloat(t.qty) || 0) * factor;
-        const type = t.type || '';
-        const tWH = (t.warehouse || 'المخزن الرئيسي').trim();
-
-        let change = 0;
-        if (type.includes('شراء') && !type.includes('مرتجع')) {
-            change = qty; s.in += qty;
-        } else if (type.includes('مرتجع بيع')) {
-            change = qty; s.in += qty;
-        } else if (type.includes('بيع') && !type.includes('مرتجع')) {
-            change = -qty; s.out += qty;
-        } else if (type.includes('مرتجع شراء')) {
-            change = -qty; s.out += qty;
-        } else if (type.includes('تسوية') || type.includes('جرد')) {
-            change = qty;
-        } else if (type.includes('تحويل') && t.transferStatus === 'received') {
-            const parts = (t.partner || '').split(' -> ');
-            if (parts.length === 2) {
-                if (parts[1].trim() === activeWH) s.wStock += qty;
-                if (parts[0].trim() === activeWH) s.wStock -= qty;
-            }
-            continue;
-        }
-        if (tWH === activeWH) s.wStock += change;
-    }
-    const endPerfOld = performance.now();
-    const oldLedgerTimeMs = (endPerfOld - startPerfOld).toFixed(2);
-
-    const startPerfLive = performance.now();
-    const liveAuditedItems = [];
-    let matchingCount = 0;
-    let discrepancyCount = 0;
-
-    allProducts.forEach(p => {
-        if (!p) return;
-        const liveStock = (typeof getLiveProductWhStock === 'function')
-            ? getLiveProductWhStock(p, activeWH)
-            : (typeof getWarehouseStock === 'function' ? getWarehouseStock(p, activeWH) : 0);
-
-        const txData = productTxMap[(p.name || '').trim()] || { wStock: 0, in: 0, out: 0 };
-        
-        // فحص هل للصنف رصيد افتتاحي أولي مسجل بكارت الصنف
-        const initialStock = parseFloat(p.initialStock || p.openingStock || 0);
-        const calculatedOld = txData.wStock + initialStock;
-
-        const isExactMatch = Math.abs(liveStock - calculatedOld) < 0.01;
-        if (isExactMatch) matchingCount++;
-        else discrepancyCount++;
-
-        liveAuditedItems.push({
-            id: p.id,
-            name: p.name || '---',
-            barcode: p.barcode || '---',
-            liveStock: Number(liveStock.toFixed(2)),
-            calculatedOld: Number(calculatedOld.toFixed(2)),
-            diff: Number((liveStock - calculatedOld).toFixed(2)),
-            isMatch: isExactMatch,
-            hasVariants: !!(p.variants && p.variants.length > 0),
-            variantCount: (p.variants && p.variants.length) || 0
-        });
-    });
-    const endPerfLive = performance.now();
-    const liveStateTimeMs = (endPerfLive - startPerfLive).toFixed(2);
-
-    console.table(testResults);
-    console.log(`%c📊 ملخص فحص قاعدة البيانات الفعلية (${allProducts.length} صنف / ${allTransactions.length} حركة):`, 'color:#10b981; font-weight:bold; font-size:12px;');
-    console.log(`- وقت قراءة الدفتر التراكمي القديم O(N): ${oldLedgerTimeMs} ms`);
-    console.log(`- وقت قراءة الرصيد اللحظي الفوري O(1): ${liveStateTimeMs} ms (أسرع بأكثر من ${(parseFloat(oldLedgerTimeMs) / Math.max(0.01, parseFloat(liveStateTimeMs))).toFixed(0)}x)`);
-    console.log(`- الأصناف المتطابقة تماماً: ${matchingCount} من أصل ${allProducts.length}`);
-
-    // -------------------------------------------------------------
-    // القسم الثالث: إظهار النافذة التفاعلية الفخمة للمستخدم (UI Modal)
-    // -------------------------------------------------------------
-    if (showModal) {
-        const oldModal = document.getElementById('bayanStockAuditModal');
-        if (oldModal) oldModal.remove();
-
-        const modal = document.createElement('div');
-        modal.id = 'bayanStockAuditModal';
-        modal.style.cssText = 'position: fixed; inset: 0; background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 999999; direction: rtl; font-family: "Cairo", sans-serif; padding: 20px; animation: fadeIn 0.2s ease-out;';
-
-        const scenarioRowsHtml = testResults.map(r => `
-            <tr style="border-bottom: 1px solid #f1f5f9; transition: 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-                <td style="padding: 10px 12px; font-weight: 800; color: #475569; text-align: center;">${r['الرقم']}</td>
-                <td style="padding: 10px 12px; font-weight: 900; color: #1e293b;">${r['العملية']}</td>
-                <td style="padding: 10px 12px; text-align: center;"><span style="background: #e0e7ff; color: #3730a3; padding: 3px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 800;">${r['التصنيف']}</span></td>
-                <td style="padding: 10px 12px; text-align: center; font-weight: 800; color: #0284c7;">${r['الرصيد الدفتري (القديم)']}</td>
-                <td style="padding: 10px 12px; text-align: center; font-weight: 900; color: #059669;">${r['الرصيد اللحظي (الجديد)']}</td>
-                <td style="padding: 10px 12px; text-align: center;"><span style="background: #dcfce7; color: #15803d; border: 1px solid #86efac; padding: 4px 10px; border-radius: 8px; font-weight: 900; font-size: 0.85rem;">${r['التطابق']}</span></td>
-                <td style="padding: 10px 12px; font-size: 0.82rem; color: #64748b; font-weight: 700;">${r['ملاحظات']}</td>
-            </tr>
-        `).join('');
-
-        const previewLiveRows = liveAuditedItems.slice(0, 15).map((it, idx) => `
-            <tr style="border-bottom: 1px solid #f1f5f9;">
-                <td style="padding: 8px 10px; text-align: center; font-weight: 800; color: #64748b;">${idx + 1}</td>
-                <td style="padding: 8px 10px; font-weight: 900; color: #0f172a;">${it.name} ${it.hasVariants ? `<span style="background:#fef3c7; color:#92400e; font-size:0.75rem; padding:2px 6px; border-radius:4px; margin-right:4px;">${it.variantCount} مقاس/لون</span>` : ''}</td>
-                <td style="padding: 8px 10px; font-size: 0.85rem; color: #64748b;">${it.barcode}</td>
-                <td style="padding: 8px 10px; text-align: center; font-weight: 800; color: #0284c7;">${it.calculatedOld}</td>
-                <td style="padding: 8px 10px; text-align: center; font-weight: 900; color: #059669;">${it.liveStock}</td>
-                <td style="padding: 8px 10px; text-align: center;">
-                    <span style="background: ${it.isMatch ? '#dcfce7' : '#fee2e2'}; color: ${it.isMatch ? '#15803d' : '#b91c1c'}; border: 1px solid ${it.isMatch ? '#86efac' : '#fca5a5'}; padding: 3px 8px; border-radius: 6px; font-size: 0.8rem; font-weight: 900;">
-                        ${it.isMatch ? '✅ متطابق' : '⚠️ فارق ' + it.diff}
-                    </span>
-                </td>
-            </tr>
-        `).join('');
-
-        modal.innerHTML = `
-            <div style="background: white; width: 950px; max-width: 95vw; max-height: 92vh; border-radius: 20px; box-shadow: 0 25px 60px rgba(0,0,0,0.5); border: 2.5px solid #4f46e5; display: flex; flex-direction: column; overflow: hidden; animation: zoomIn 0.25s ease;" onclick="event.stopPropagation()">
-                <!-- هيدر النافذة -->
-                <div style="background: linear-gradient(135deg, #1e1b4b, #312e81); color: white; padding: 18px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #6366f1;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 1.8rem;">🔬</span>
-                        <div>
-                            <h3 style="margin: 0; font-size: 1.25rem; font-weight: 900; color: #fbbf24;">تقرير فحص ومطابقة المخزون الشامل</h3>
-                            <span style="font-size: 0.85rem; color: #c7d2fe; font-weight: 700;">مقارنة الرصيد الدفتري التراكمي (القديم) VS الرصيد اللحظي المباشر (الجديد) عبر 9 عمليات</span>
-                        </div>
-                    </div>
-                    <button onclick="document.getElementById('bayanStockAuditModal').remove()" style="background: rgba(255,255,255,0.15); border: none; color: white; border-radius: 50%; width: 34px; height: 34px; font-weight: 900; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; transition: 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='rgba(255,255,255,0.15)'">✕</button>
-                </div>
-
-                <!-- البطاقات الإحصائية السريعة -->
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 18px 24px; background: #f8fafc; border-bottom: 1.5px solid #e2e8f0;">
-                    <div style="background: white; padding: 12px 16px; border-radius: 12px; border: 1.5px solid #e2e8f0; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
-                        <span style="font-size: 0.8rem; color: #64748b; font-weight: 800;">🧪 العمليات المختبرة</span>
-                        <div style="font-size: 1.4rem; font-weight: 900; color: #4338ca; margin-top: 4px;">9 / 9 عمليات</div>
-                    </div>
-                    <div style="background: white; padding: 12px 16px; border-radius: 12px; border: 1.5px solid #e2e8f0; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
-                        <span style="font-size: 0.8rem; color: #64748b; font-weight: 800;">🎯 نسبة تطابق السيناريوهات</span>
-                        <div style="font-size: 1.4rem; font-weight: 900; color: #059669; margin-top: 4px;">100% تطابق تام</div>
-                    </div>
-                    <div style="background: white; padding: 12px 16px; border-radius: 12px; border: 1.5px solid #e2e8f0; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
-                        <span style="font-size: 0.8rem; color: #64748b; font-weight: 800;">📦 أصناف قاعدة البيانات</span>
-                        <div style="font-size: 1.4rem; font-weight: 900; color: #0284c7; margin-top: 4px;">${allProducts.length} صنف</div>
-                    </div>
-                    <div style="background: white; padding: 12px 16px; border-radius: 12px; border: 1.5px solid #e2e8f0; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
-                        <span style="font-size: 0.8rem; color: #64748b; font-weight: 800;">⚡ فارق سرعة الحساب</span>
-                        <div style="font-size: 1.4rem; font-weight: 900; color: #d97706; margin-top: 4px;">لحظي 0 ms</div>
-                    </div>
-                </div>
-
-                <!-- التبويبات الداخلية -->
-                <div style="padding: 12px 24px 0 24px; display: flex; gap: 10px; border-bottom: 2px solid #e2e8f0;">
-                    <button id="bayanTabScenariosBtn" onclick="window.switchAuditModalTab('scenarios')" style="padding: 8px 18px; border-radius: 10px 10px 0 0; border: none; background: #4f46e5; color: white; font-weight: 900; cursor: pointer; font-size: 0.95rem;">🧪 اختبار العمليات الـ 9 المعتمدة</button>
-                    <button id="bayanTabLiveBtn" onclick="window.switchAuditModalTab('live')" style="padding: 8px 18px; border-radius: 10px 10px 0 0; border: none; background: #f1f5f9; color: #475569; font-weight: 900; cursor: pointer; font-size: 0.95rem;">📊 مطابقة أصناف قاعدة البيانات (${allProducts.length})</button>
-                </div>
-
-                <!-- المحتوى التفاعلي -->
-                <div style="flex: 1; overflow-y: auto; padding: 16px 24px;">
-                    <!-- تبويب 1: السيناريوهات التسع -->
-                    <div id="bayanAuditTabScenarios">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem;">
-                            <thead>
-                                <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: right;">
-                                    <th style="padding: 10px 12px; text-align: center; width: 40px;">#</th>
-                                    <th style="padding: 10px 12px;">نوع العملية والسيناريو</th>
-                                    <th style="padding: 10px 12px; text-align: center;">التصنيف</th>
-                                    <th style="padding: 10px 12px; text-align: center; color: #0284c7;">الدفتري (القديم)</th>
-                                    <th style="padding: 10px 12px; text-align: center; color: #059669;">اللحظي (الجديد)</th>
-                                    <th style="padding: 10px 12px; text-align: center;">النتيجة</th>
-                                    <th style="padding: 10px 12px;">تفاصيل وملاحظة الحركة</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${scenarioRowsHtml}
-                            </tbody>
-                        </table>
-                    </div>
-
-                    <!-- تبويب 2: فحص أصناف الداتابيز الحقيقية -->
-                    <div id="bayanAuditTabLive" style="display: none;">
-                        <div style="margin-bottom: 12px; padding: 10px 14px; background: #eff6ff; border-radius: 10px; border: 1px solid #bfdbfe; font-size: 0.85rem; color: #1e40af; font-weight: 800;">
-                            💡 ملاحظة: يتم احتساب الرصيد الدفتري القديم بتجميع كافة الـ ${allTransactions.length} حركة المسجلة في السجل، ومقارنته بالرصيد الفعلي المعتمد في كارت الصنف والتشكيلات لمخزن: [<b>${activeWH}</b>].
-                        </div>
-                        <table style="width: 100%; border-collapse: collapse; font-size: 0.86rem;">
-                            <thead>
-                                <tr style="background: #f1f5f9; border-bottom: 2px solid #cbd5e1; text-align: right;">
-                                    <th style="padding: 8px 10px; text-align: center; width: 40px;">#</th>
-                                    <th style="padding: 8px 10px;">اسم الصنف</th>
-                                    <th style="padding: 8px 10px;">الباركود</th>
-                                    <th style="padding: 8px 10px; text-align: center; color: #0284c7;">الدفتري التراكمي</th>
-                                    <th style="padding: 8px 10px; text-align: center; color: #059669;">الرصيد الفعلي</th>
-                                    <th style="padding: 8px 10px; text-align: center;">حالة التطابق</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                ${previewLiveRows}
-                            </tbody>
-                        </table>
-                        ${liveAuditedItems.length > 15 ? `<div style="text-align: center; padding: 10px; color: #64748b; font-size: 0.85rem; font-weight: 800;">(تم عرض عينة من أول 15 صنفاً - النتائج التفصيلية الكاملة لجميع الأصناف مطبوعة في وحدة تحكم Console)</div>` : ''}
-                    </div>
-                </div>
-
-                <!-- فوتر النافذة -->
-                <div style="background: #f8fafc; padding: 14px 24px; border-top: 1.5px solid #e2e8f0; display: flex; justify-content: space-between; align-items: center;">
-                    <div style="font-size: 0.85rem; color: #475569; font-weight: 800;">
-                        🛡️ كافة العمليات متطابقة بنسبة <b>100%</b> — الرصيد اللحظي آمن ومطابق تماماً لسجل الحركات.
-                    </div>
-                    <button onclick="document.getElementById('bayanStockAuditModal').remove()" style="padding: 8px 24px; border-radius: 10px; background: #4f46e5; color: white; border: none; font-weight: 900; font-size: 0.95rem; cursor: pointer; box-shadow: 0 2px 8px rgba(79,70,229,0.3);">
-                        تم الاطلاع واعتماد النتيجة ✓
-                    </button>
-                </div>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        window.switchAuditModalTab = function(tab) {
-            const secScenarios = document.getElementById('bayanAuditTabScenarios');
-            const secLive = document.getElementById('bayanAuditTabLive');
-            const btnScenarios = document.getElementById('bayanTabScenariosBtn');
-            const btnLive = document.getElementById('bayanTabLiveBtn');
-            if (tab === 'scenarios') {
-                if (secScenarios) secScenarios.style.display = 'block';
-                if (secLive) secLive.style.display = 'none';
-                if (btnScenarios) { btnScenarios.style.background = '#4f46e5'; btnScenarios.style.color = 'white'; }
-                if (btnLive) { btnLive.style.background = '#f1f5f9'; btnLive.style.color = '#475569'; }
-            } else {
-                if (secScenarios) secScenarios.style.display = 'none';
-                if (secLive) secLive.style.display = 'block';
-                if (btnScenarios) { btnScenarios.style.background = '#f1f5f9'; btnScenarios.style.color = '#475569'; }
-                if (btnLive) { btnLive.style.background = '#4f46e5'; btnLive.style.color = 'white'; }
-            }
-        };
-    }
-
-    return {
-        success: true,
-        scenarios: testResults,
-        productsCount: allProducts.length,
-        transactionsCount: allTransactions.length,
-        matchingCount,
-        discrepancyCount,
-        perf: { oldLedgerTimeMs, liveStateTimeMs }
-    };
-};
 function showInventoryColumnCustomizer() {
     if (typeof checkColumnCustomizationPermission === 'function' && !checkColumnCustomizationPermission()) return;
     const cols = [

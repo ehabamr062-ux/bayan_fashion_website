@@ -227,7 +227,7 @@ async function saveNewItem(mode = 'save') {
 
             // البحث عن التشكيلة المطابقة في بيانات الصنف السابقة للاحتفاظ بأرصدتها في كل مخزن
             let vWarehouseStocks = {};
-            const cleanAttr = (val) => {
+            const cleanAttr = (typeof window.cleanAttr === 'function') ? window.cleanAttr : (val) => {
                 if (!val && val !== 0) return '';
                 return String(val).trim().toLowerCase()
                     .replace(/[أإآ]/g, 'ا')

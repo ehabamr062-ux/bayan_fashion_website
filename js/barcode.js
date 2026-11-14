@@ -1309,7 +1309,7 @@ window.dispatchSearchBarcode = function(code, context) {
     }
 
     // دالة مساعدة لمعايرة المقاسات والألوان وتوحيد القيم الافتراضية
-    const cleanAttr = (val) => {
+    const cleanAttr = (typeof window.cleanAttr === 'function') ? window.cleanAttr : (val) => {
         const s = String(val || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
         if (!s || s === 'قياسي' || s === 'موحد' || s === 'عام' || s === '-') return '';
         return s;

@@ -2193,17 +2193,6 @@ body.dark-mode .report-table thead tr {
     color: var(--accent-gold) !important;
 }
 
-body.dark-mode .report-filter-bar {
-    background: rgba(26, 26, 30, 0.9) !important;
-    border: 1px solid var(--border-color) !important;
-}
-
-body.dark-mode .report-filter-bar input, 
-body.dark-mode .report-filter-bar select {
-    background: rgba(0, 0, 0, 0.3) !important;
-    color: white !important;
-    border: 1px solid rgba(255, 255, 255, 0.1) !important;
-}
 
 body.dark-mode #reportLastUpdate {
     background: rgba(255, 255, 255, 0.05) !important;

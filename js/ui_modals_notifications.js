@@ -143,12 +143,7 @@ window.showNotificationsModal = function (activeTab = null) {
         .replace(/'/g, "\\'")
         .replace(/"/g, '&quot;')
         .replace(/\r?\n/g, ' ');
-    const escapeHtml = (str) => String(str || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+    const escapeHtml = (str) => (typeof window.escapeHtml === 'function') ? window.escapeHtml(str) : String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
     const modalContent = `
                 <div class="glass-card-premium" style="background: #ffffff; border: 1px solid #cbd5e1; padding: 0; border-radius: 24px; width: 1080px; max-width: 96vw; height: 86vh; max-height: 860px; overflow: hidden; box-shadow: 0 16px 36px rgba(15, 23, 42, 0.22); display: flex; flex-direction: column; direction: rtl; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;">
@@ -1078,53 +1073,6 @@ window.openStatementFromNotify = function (accountId) {
     }
 };
 
-function adjustInvoiceFont(part, val) {
-    const preview = document.getElementById('invoiceLivePreview');
-    if (!preview) return;
-
-    if (part === 'header') {
-        const header = preview.querySelector('div[style*="font-weight: 900"]');
-        if (header) header.style.fontSize = (val / 10) + 'rem';
-    } else if (part === 'table') {
-        const table = preview.querySelector('table');
-        if (table) table.style.fontSize = (val / 16) + 'rem';
-    }
-}
-
-function loadPrintTemplateChoice() {
-    const saved = getStore('bayan_print_template_choice');
-    if (saved) {
-        const s = JSON.parse(saved);
-        currentSelectedTemplateType = s.type || 'فاتورة المبيعات';
-        currentSelectedTemplateId = s.template || '0010 - 80mm';
-    }
-    // تمييز العناصر المختارة في القوائم
-    document.querySelectorAll('.template-type-item').forEach(item => {
-        if (item.innerText === currentSelectedTemplateType) {
-            item.classList.add('active');
-            item.style.background = '#3498db';
-            item.style.color = 'white';
-        } else {
-            item.classList.remove('active');
-            item.style.background = 'transparent';
-            item.style.color = 'inherit';
-        }
-    });
-    document.querySelectorAll('.template-item').forEach(item => {
-        const onclickAttr = item.getAttribute('onclick') || '';
-        if (onclickAttr.includes("'" + currentSelectedTemplateId + "'")) {
-            item.classList.add('active');
-            item.style.background = '#3498db';
-            item.style.color = 'white';
-        } else {
-            item.classList.remove('active');
-            item.style.background = 'transparent';
-            item.style.color = 'inherit';
-        }
-    });
-    refreshPinnedVisuals();
-    updatePrintPreview();
-}
 // تكرار الحماية السحابية (تم النقل للأعلى للتوحيد)
 function showLockScreen(message) {
     let lockOverlay = document.getElementById('bayanLockScreen');
@@ -3812,59 +3760,6 @@ function viewSelectedInvoice() {
 }
 window.viewSelectedInvoice = viewSelectedInvoice;
 
-// دالة التعديل السريع برقم الفاتورة
-window.quickEditByNumber = function () {
-    const settings = JSON.parse(getStore('pos_settings') || '{}');
-    const canEditHistory = !!settings.allowHistoryEdit;
-    if (!canEditHistory) {
-        return showCustomAlert({
-            type: 'error',
-            titleText: '🚫 صلاحية ملغاة',
-            msg: 'عذراً، صلاحية تعديل السجل (Edit History) غير مفعلة في الإعدادات.'
-        });
-    }
-
-    const input = document.getElementById('quickEditInvoiceId');
-    if (!input) return;
-    const invId = input.value.trim();
-
-    if (!invId) {
-        showToast("⚠️ يرجى إدخال رقم الفاتورة أولاً", "warning");
-        input.focus();
-        return;
-    }
-
-    // البحث عن الفاتورة في قاعدة البيانات مع مراعاة الأولوية (فواتير المبيعات أولاً للكاشير ثم باقي العمليات)
-    let found = transactions.find(t => t.invoiceId == invId && t.type && (t.type.includes('بيع') || t.type.includes('مبيعات')) && !t.type.includes('مرتجع'));
-    if (!found) {
-        found = transactions.find(t => t.invoiceId == invId);
-    }
-    if (!found && window.BayanSQLite && typeof window.BayanSQLite.getInvoice === 'function') {
-        found = window.BayanSQLite.getInvoice(invId, 'بيع') || window.BayanSQLite.getInvoice(invId);
-    }
-
-    if (found) {
-        let cleanType = '';
-        const typeStr = found.type;
-        if (typeStr.includes('بيع') && !typeStr.includes('مرتجع')) cleanType = 'بيع';
-        else if (typeStr.includes('شراء') && !typeStr.includes('مرتجع')) cleanType = 'شراء';
-        else if (typeStr.includes('مرتجع بيع')) cleanType = 'مرتجع بيع';
-        else if (typeStr.includes('مرتجع شراء')) cleanType = 'مرتجع شراء';
-        else if (typeStr.includes('قبض')) cleanType = 'قبض';
-        else if (typeStr.includes('صرف')) cleanType = 'صرف';
-
-        if (window.editTransaction) {
-            window.editTransaction(invId, cleanType);
-            input.value = '';
-        }
-    } else {
-        showCustomAlert({
-            type: 'error',
-            titleText: '❌ غير موجود',
-            msg: `لم يتم العثور على فاتورة بالرقم (#${invId}).`
-        });
-    }
-};
 
 function editSelectedInvoice() {
     const isInv = (typeof activeTabId === 'string' && activeTabId.startsWith('invoices'));
@@ -3966,47 +3861,6 @@ function deleteSelectedInvoice() {
     deleteTransaction(activeIdx);
 }
 
-function printIndividualTransaction(idx) {
-    const t = transactions[idx];
-    if (!t) return;
-    if (t.type.includes('بيع') || t.type.includes('شراء') || t.type.includes('مرتجع')) {
-        if (t.invoiceId && typeof viewInvoiceItems === 'function') {
-            viewInvoiceItems(t.invoiceId, t.type, true, t.id);
-        } else if (t.invoiceId && typeof printBillFromData === 'function') {
-            printBillFromData(t.invoiceId, t.type);
-        } else {
-            if (typeof showCustomAlert === 'function') {
-                showCustomAlert({
-                    type: 'warning',
-                    titleText: 'تنبيه',
-                    msg: 'لا يمكن طباعة هذا البند بشكل مستقل (لا يوجد رقم فاتورة)'
-                });
-            } else if (typeof showToast === 'function') {
-                showToast('⚠️ لا يمكن طباعة هذا البند بشكل مستقل (لا يوجد رقم فاتورة)', 'warning');
-            } else {
-                alert("لا يمكن طباعة هذا البند بشكل مستقل (لا يوجد رقم فاتورة)");
-            }
-        }
-    } else if (t.type.includes('قبض')) {
-        document.getElementById('receiptID').value = t.invoiceId || '-';
-        document.getElementById('receiptDate').value = t.dateISO;
-        document.getElementById('receiptCustomer').value = t.partner;
-        document.getElementById('receiptAmount').value = t.price;
-        document.getElementById('receiptNotes').value = t.product;
-        printReceiptData();
-    } else if (t.type.includes('صرف')) {
-        document.getElementById('disburseID').value = t.invoiceId || '-';
-        document.getElementById('disburseDate').value = t.dateISO;
-        document.getElementById('disbursePayee').value = t.partner;
-        document.getElementById('disburseAmount').value = t.price;
-        document.getElementById('disburseNotes').value = t.product;
-        printDisbursementData();
-    } else {
-        if (typeof showToast === 'function') {
-            showToast("تم إرسال طلب الطباعة للطابعة الافتراضية...", "success");
-        }
-    }
-}
 
 let loginClockInterval = null;
 

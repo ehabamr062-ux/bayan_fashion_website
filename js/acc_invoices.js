@@ -216,7 +216,9 @@ function cleanArabicCached(str) {
     if (!str) return '';
     let val = window._cleanArabicCache.get(str);
     if (val !== undefined) return val;
-    val = String(str).trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+    val = (typeof window.cleanAr === 'function')
+        ? window.cleanAr(str)
+        : String(str).trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
     if (window._cleanArabicCache.size > 8000) window._cleanArabicCache.clear();
     window._cleanArabicCache.set(str, val);
     return val;

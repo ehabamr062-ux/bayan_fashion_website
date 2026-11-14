@@ -515,13 +515,7 @@
         }
     };
 
-    function escapeHtml(str) {
-        if (!str) return '';
-        return String(str)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;');
-    }
+    const escapeHtml = (str) => (typeof window.escapeHtml === 'function') ? window.escapeHtml(str) : String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
     window.TelegramDevNotify = TelegramDevNotify;
     window.notifyDeveloper = function (msg, opts) {

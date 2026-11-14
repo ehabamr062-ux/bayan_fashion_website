@@ -535,7 +535,7 @@ async function attemptLogin() {
                 errorMsgEl.innerText = lockMsg;
                 errorMsgEl.style.display = 'block';
             } else {
-                alert(lockMsg);
+                showToast(lockMsg, "warning");
             }
             return;
         }
@@ -555,7 +555,7 @@ async function attemptLogin() {
                 errorMsgEl.innerText = "⚠️ يرجى اختيار مستخدم أو كتابة الاسم يدوياً";
                 errorMsgEl.style.display = 'block';
             } else {
-                alert("يرجى اختيار مستخدم أو كتابة الاسم يدوياً");
+                showToast("⚠️ يرجى اختيار مستخدم أو كتابة الاسم يدوياً", "warning");
             }
             return;
         }
@@ -598,7 +598,7 @@ async function attemptLogin() {
                 errorMsgEl.innerText = "❌ اسم المستخدم غير موجود بالنظام!";
                 errorMsgEl.style.display = 'block';
             } else {
-                alert("❌ اسم المستخدم غير موجود بالنظام!");
+                showToast("❌ اسم المستخدم غير موجود بالنظام!", "error");
             }
             return;
         }
@@ -768,7 +768,7 @@ async function attemptLogin() {
                     errorMsgEl.innerText = lockoutMsg;
                     errorMsgEl.style.display = 'block';
                 } else {
-                    alert(lockoutMsg);
+                    showToast(lockoutMsg, "warning");
                 }
             } else {
                 setLoginLockoutState(0, failedLoginAttempts);
@@ -778,7 +778,7 @@ async function attemptLogin() {
                     errorMsgEl.innerText = failMsg;
                     errorMsgEl.style.display = 'block';
                 } else {
-                    alert(failMsg);
+                    showToast(failMsg, "error");
                 }
             }
             document.getElementById('loginPinInput').value = '';
@@ -906,7 +906,7 @@ window.triggerLoginEmergencyRestore = async function () {
                 if (typeof window.resetLoginEmergencyRestoreCard === 'function') {
                     window.resetLoginEmergencyRestoreCard();
                 }
-                return alert("❌ خطأ في فتح الملف: " + res.error);
+                return showToast("❌ خطأ في فتح الملف: " + res.error, "error");
             }
 
             const ext = (res.fileName || '').toLowerCase();
@@ -918,11 +918,11 @@ window.triggerLoginEmergencyRestore = async function () {
                 } catch (_) { }
                 const restoreRes = await ipc.invoke('restore-sqlite-direct-backup', res.filePath);
                 if (restoreRes && restoreRes.success) {
-                    alert("✅ تم استرجاع قاعدة البيانات بنجاح! سيتم إعادة تحميل البرنامج الآن.");
-                    window.location.reload();
+                    showToast("✅ تم استرجاع قاعدة البيانات بنجاح! جاري التحديث...", "success");
+                    setTimeout(() => window.location.reload(), 1000);
                     return;
                 } else {
-                    alert("❌ فشل استرجاع ملف قاعدة البيانات: " + (restoreRes?.error || 'خطأ غير معروف'));
+                    showToast("❌ فشل استرجاع ملف قاعدة البيانات: " + (restoreRes?.error || 'خطأ غير معروف'), "error");
                     if (typeof window.resetLoginEmergencyRestoreCard === 'function') {
                         window.resetLoginEmergencyRestoreCard();
                     }
@@ -1007,7 +1007,7 @@ window.executeLoginEmergencyRestore = async function (input) {
         } else if (typeof window.restoreData === 'function') {
             await window.restoreData(input, true);
         } else {
-            alert("❌ محرك استعادة البيانات غير جاهز، يرجى المحاولة بعد قليل.");
+            showToast("❌ محرك استعادة البيانات غير جاهز، يرجى المحاولة بعد قليل.", "error");
             window.resetLoginEmergencyRestoreCard();
         }
     } catch (err) {
@@ -1207,15 +1207,11 @@ function logout() {
         // التنقل والرجوع التلقائي للتبويب المعلق
         switchSection(unsaved.tabType, true, unsaved.tabId);
 
-        if (typeof showCustomAlert === 'function') {
-            showCustomAlert({
-                titleText: '⚠️ تنبيه أمان: بيانات غير محفوظة!',
-                msg: `تنبيه: لا يمكن تسجيل الخروج لأن هناك بيانات غير محفوظة في (${unsaved.tabLabel}).\n\n📌 السبب: ${unsaved.reason}.\n\nيرجى حفظ الفاتورة/المستند أولاً أو إفراغ البيانات قبل تسجيل الخروج.`,
-                type: 'warning'
-            });
-        } else {
-            alert(`⚠️ تنبيه أمان: توجد بيانات غير محفوظة في (${unsaved.tabLabel}).\n${unsaved.reason}.\n\nيرجى حفظ البيانات أولاً.`);
-        }
+        showCustomAlert({
+            titleText: '⚠️ تنبيه أمان: بيانات غير محفوظة!',
+            msg: `تنبيه: لا يمكن تسجيل الخروج لأن هناك بيانات غير محفوظة في (${unsaved.tabLabel}).\n\n📌 السبب: ${unsaved.reason}.\n\nيرجى حفظ الفاتورة/المستند أولاً أو إفراغ البيانات قبل تسجيل الخروج.`,
+            type: 'warning'
+        });
         return;
     }
 
@@ -1530,10 +1526,10 @@ window.executeFirstTimeSetup = async function () {
     const pin = document.getElementById('setupAdminPin').value.trim();
     const pinConfirm = document.getElementById('setupAdminPinConfirm').value.trim();
 
-    if (!name) return alert("❌ يرجى إدخال اسم المدير المسؤول!");
-    if (!pin) return alert("❌ يرجى إدخال رمز المرور السري!");
-    if (pin.length < 4) return alert("❌ يجب أن يتكون رمز المرور من 4 أرقام على الأقل!");
-    if (pin !== pinConfirm) return alert("❌ رمز المرور غير متطابق!");
+    if (!name) return showToast("❌ يرجى إدخال اسم المدير المسؤول!", "warning");
+    if (!pin) return showToast("❌ يرجى إدخال رمز المرور السري!", "warning");
+    if (pin.length < 4) return showToast("❌ يجب أن يتكون رمز المرور من 4 أرقام على الأقل!", "warning");
+    if (pin !== pinConfirm) return showToast("❌ رمز المرور غير متطابق!", "error");
 
     try {
         // تثبيت نوع النشاط في إعدادات النظام pos_settings ليكون فاشون ومقاسات وألوان دائماً
@@ -1593,12 +1589,12 @@ window.executeFirstTimeSetup = async function () {
         if (successModal) {
             successModal.classList.remove('hidden');
         } else {
-            alert("🎉 تم إنشاء حساب المالك وتفعيل نظام بَيَان بنجاح!\nالاسم: " + name + "\nرمز المرور: " + pin + "\nنوع النشاط: " + (bizNames[selectedBizType] || selectedBizType));
+            showToast("🎉 تم إنشاء حساب المالك وتفعيل نظام بَيَان بنجاح!", "success");
             closeSetupSuccessAndEnter();
         }
     } catch (e) {
         console.error(e);
-        alert("❌ حدث خطأ أثناء تفعيل النظام!");
+        showToast("❌ حدث خطأ أثناء تفعيل النظام!", "error");
     }
 };
 
@@ -1891,14 +1887,10 @@ window.emergencyResetAdminPinPrompt = async function () {
         const errEl = document.getElementById('loginErrorMsg');
         if (errEl) errEl.style.display = 'none';
 
-        if (typeof showToast === 'function') {
-            showToast('✅ تم ضبط رمز المدير المسؤول إلى (1234) بنجاح. اضغط تسجيل الدخول!', 'success');
-        } else {
-            alert('✅ تم ضبط رمز المدير المسؤول إلى (1234) بنجاح. يمكنك تسجيل الدخول الآن!');
-        }
+        showToast('✅ تم ضبط رمز المدير المسؤول إلى (1234) بنجاح. اضغط تسجيل الدخول!', 'success');
     } catch (e) {
         console.error("Emergency reset error:", e);
-        alert("حدث خطأ أثناء استعادة الرمز: " + e.message);
+        showToast("⚠️ حدث خطأ أثناء استعادة الرمز: " + e.message, "error");
     }
 };
 
