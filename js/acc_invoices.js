@@ -59,6 +59,7 @@ window.toggleDailyReportAmountsPrivacy = async function () {
 
 // 🏷️ توليد شارة ملونة ومميزة للجهاز وحرفه في جدول الفواتير
 function getTerminalBadgeHtml(t) {
+    const esc = (typeof escapeHtml === 'function') ? escapeHtml : (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
     const rawTerminal = t.terminal || 'الجهاز الرئيسي 💻';
     let letter = t.terminalLetter;
     if (!letter) {
@@ -82,13 +83,15 @@ function getTerminalBadgeHtml(t) {
 
     const style = colorMap[letter] || { bg: '#f8fafc', border: '#94a3b8', color: '#334155', dot: '#64748b', label: rawTerminal };
     const label = isMaster ? '💻 الرئيسي' : (t.terminal || style.label);
-    const safeInvId = String(t.invoiceId || t.id || '').replace(/'/g, "\\'");
+    const safeInvId = String(t.invoiceId || t.id || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    const safeTitle = esc(rawTerminal);
+    const safeLabel = esc(label);
 
     return `
                 <div style="display:inline-flex; align-items:center; gap:4px; margin-top:2px;">
-                    <span style="font-size:0.73rem; background:${style.bg}; color:${style.color}; border:1px solid ${style.border}; padding:1px 6px; border-radius:6px; font-weight:800; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 3px rgba(0,0,0,0.04);" title="${rawTerminal}">
+                    <span style="font-size:0.73rem; background:${style.bg}; color:${style.color}; border:1px solid ${style.border}; padding:1px 6px; border-radius:6px; font-weight:800; display:inline-flex; align-items:center; gap:4px; box-shadow:0 1px 3px rgba(0,0,0,0.04);" title="${safeTitle}">
                         <span style="width:6px; height:6px; border-radius:50%; background:${style.dot}; display:inline-block;"></span>
-                        <span>${label}</span>
+                        <span>${safeLabel}</span>
                     </span>
                     <button type="button" onclick="event.stopPropagation(); window.showTerminalInfoModal('${safeInvId}')" 
                         style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:50%; width:18px; height:18px; font-size:0.68rem; font-weight:900; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0; line-height:1; transition:0.2s;" 
@@ -100,6 +103,7 @@ function getTerminalBadgeHtml(t) {
 // ❓ نافذة الاستعلام التوضيحية لجهاز إصدار الفاتورة
 window.showTerminalInfoModal = function (invoiceId) {
     if (!window.transactions) return;
+    const esc = (typeof escapeHtml === 'function') ? escapeHtml : (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
     const tx = transactions.find(t => String(t.invoiceId || t.id) === String(invoiceId) && t.isInvoiceHead)
         || transactions.find(t => String(t.invoiceId || t.id) === String(invoiceId));
     if (!tx) {
@@ -151,48 +155,48 @@ window.showTerminalInfoModal = function (invoiceId) {
                         تفاصيل جهاز إصدار العملية
                     </h3>
                     <div style="color:#64748b; font-size:0.85rem; font-weight:700; margin-bottom:16px;">
-                        فاتورة رقم: <span style="font-family:monospace; color:#2563eb; font-weight:900;">#${tx.invoiceId || tx.id}</span>
+                        فاتورة رقم: <span style="font-family:monospace; color:#2563eb; font-weight:900;">#${esc(tx.invoiceId || tx.id)}</span>
                     </div>
 
                     <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:14px; padding:16px; margin-bottom:16px; text-align:right; font-size:0.88rem; line-height:1.7;">
                         <div style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
                             <span style="color:#64748b; font-weight:bold;">جهاز البيع / الإصدار:</span>
-                            <span style="font-weight:900; color:#0f172a;">${tx.terminal || (isMaster ? 'الجهاز الرئيسي 💻' : 'كاشير فرعي 📱')}</span>
+                            <span style="font-weight:900; color:#0f172a;">${esc(tx.terminal || (isMaster ? 'الجهاز الرئيسي 💻' : 'كاشير فرعي 📱'))}</span>
                         </div>
 
                         <div style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
                             <span style="color:#64748b; font-weight:bold;">الرمز الأبجدي للجهاز:</span>
                             <span style="background:${isMaster ? '#10b981' : '#7c3aed'}; color:white; font-weight:900; padding:2px 10px; border-radius:6px; font-family:monospace; font-size:0.88rem;">
-                                ${letter}
+                                ${esc(letter)}
                             </span>
                         </div>
 
                         <div style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
                             <span style="color:#64748b; font-weight:bold;">المستخدم / الكاشير:</span>
-                            <span style="font-weight:800; color:#1e293b;">👤 ${tx.user || '-'}</span>
+                            <span style="font-weight:800; color:#1e293b;">👤 ${esc(tx.user || '-')}</span>
                         </div>
 
                         <div style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
                             <span style="color:#64748b; font-weight:bold;">المخزن / القسم:</span>
-                            <span style="font-weight:800; color:#047857;">🏢 ${tx.warehouse || 'المخزن الرئيسي'}</span>
+                            <span style="font-weight:800; color:#047857;">🏢 ${esc(tx.warehouse || 'المخزن الرئيسي')}</span>
                         </div>
 
                         <div style="margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
                             <span style="color:#64748b; font-weight:bold;">تاريخ وتوقيت العملية:</span>
-                            <span style="font-weight:800; color:#475569; font-size:0.82rem;">${tx.date || ''} ${tx.timeISO || ''}</span>
+                            <span style="font-weight:800; color:#475569; font-size:0.82rem;">${esc(tx.date || '')} ${esc(tx.timeISO || '')}</span>
                         </div>
 
                         ${tx.terminalId ? `
                         <div style="display:flex; justify-content:space-between; align-items:center;">
                             <span style="color:#64748b; font-weight:bold;">معرّف الجهاز (Device ID):</span>
-                            <span style="font-family:monospace; color:#64748b; font-size:0.8rem;">${tx.terminalId}</span>
+                            <span style="font-family:monospace; color:#64748b; font-size:0.8rem;">${esc(tx.terminalId)}</span>
                         </div>
                         ` : ''}
                     </div>
 
                     <div style="background:${isMaster ? '#ecfdf5' : '#f5f3ff'}; border:1px solid ${isMaster ? '#a7f3d0' : '#ddd6fe'}; border-radius:12px; padding:12px 14px; margin-bottom:18px; text-align:right; font-size:0.84rem; color:${isMaster ? '#065f46' : '#5b21b6'}; font-weight:700; line-height:1.5;">
                         ℹ️ <strong>حالة الجهاز في المنظومة:</strong><br>
-                        ${syncOrderDescription}
+                        ${esc(syncOrderDescription)}
                     </div>
 
                     <button onclick="document.getElementById('${modalId}').remove()" style="background:#0f172a; color:#ffffff; border:none; padding:11px 30px; border-radius:12px; font-weight:bold; font-size:0.95rem; cursor:pointer; width:100%; transition:0.2s;">
@@ -793,9 +797,7 @@ async function renderInvoicesTable(isLoadMore = false) {
             }
         }
 
-        const tbody = document.getElementById('invoicesTableBody');
-
-        tbody.innerHTML = '';
+        if (tbody) tbody.innerHTML = '';
 
         // الحفاظ على الفهرس الأصلي للعملية بدون استهلاك الذاكرة أو استنساخ آلاف الكائنات
         if (rawData.length > 0 && rawData[0].originalIndex === undefined) {
@@ -1398,7 +1400,11 @@ async function viewInvoiceItems(invoiceId, type = '', autoPrint = false, optTxId
         invoiceItems = invoiceItems.filter(t => t.type && !t.type.includes('قبض') && !t.type.includes('صرف'));
     }
 
-    if (invoiceItems.length === 0) return alert('خطأ: لم يتم العثور على تفاصيل الفاتورة.');
+    if (invoiceItems.length === 0) {
+        if (typeof showToast === 'function') showToast('❌ لم يتم العثور على تفاصيل الفاتورة المطلوبة', 'error');
+        else if (typeof showCustomAlert === 'function') showCustomAlert({ type: 'error', titleText: '⚠️ تنبيه', msg: 'لم يتم العثور على تفاصيل الفاتورة المطلوبة.' });
+        return;
+    }
 
     // 🛡️ سحب رأس الفاتورة بدقة مع مراعاة النوع والمعرف الفريد
     let pool = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
@@ -1544,452 +1550,10 @@ async function viewInvoiceItems(invoiceId, type = '', autoPrint = false, optTxId
     if (typeof window.renderCustomInvoiceModal === 'function') {
         window.renderCustomInvoiceModal(tx, autoPrint);
     } else {
-        alert("جاري تحميل واجهة العرض...");
+        if (typeof showToast === 'function') showToast("⏳ جاري تحميل واجهة العرض...", "info");
     }
 }
-window.updateEditPrice = function (input) {
-
-    const row = input.closest('tr');
-
-    const name = input.value.trim();
-
-    const p = productsDB.find(x => x.name === name);
-
-    if (p) {
-
-        // جلب سعر المستهلك الافتراضي (أو السعر المسجل)
-
-        row.querySelector('.edit-p-input').value = p.price || 0;
-
-        window.calcEditRow(input); // إعادة حساب الإجماليات
-
-    }
-
-};
 window.viewInvoiceItems = viewInvoiceItems;
-
-window.calcEditRow = function (input) {
-
-    const row = input.closest('tr');
-
-    const q = parseFloat(row.querySelector('.edit-q-input').value) || 0;
-
-    const p = parseFloat(row.querySelector('.edit-p-input').value) || 0;
-
-    const total = q * p;
-
-    row.querySelector('.edit-t-cell').innerText = total.toFixed(2);
-
-    // تحديث الإجمالي الكلي
-
-    let grandTotal = 0;
-
-    document.querySelectorAll('.edit-t-cell').forEach(cell => {
-
-        grandTotal += parseFloat(cell.innerText) || 0;
-
-    });
-
-    document.getElementById('advEditGrandTotal').innerText = grandTotal.toFixed(2);
-
-};
-
-window.openAdvancedEditModal = async function (invId = null) {
-
-    if (!checkPermission('docs_edit')) return;
-
-    if (!invId) {
-
-        if (typeof selectedInvoiceIndex === 'undefined' || selectedInvoiceIndex === null) return showCustomAlert({ type: 'warning', titleText: '⚠️ تنبيه', msg: 'يرجى تحديد فاتورة أولاً.' });
-
-        invId = transactions[selectedInvoiceIndex].invoiceId;
-
-    }
-
-    if (!invId) return showToast("❌ لا يمكن تعديل هذه الحركة مباشرة", "error");
-
-    const baseTx = (typeof selectedInvoiceIndex !== 'undefined' && selectedInvoiceIndex !== null && transactions[selectedInvoiceIndex]) ? transactions[selectedInvoiceIndex] : null;
-    const expectedType = baseTx ? baseTx.type : (transactions.find(t => String(t.invoiceId) === String(invId))?.type || '');
-
-    const items = transactions.filter(t => {
-        const hasInvId = t.invoiceId != null && t.invoiceId !== '';
-        const idMatch = hasInvId ? (String(t.invoiceId) === String(invId)) : (String(t.id) === String(invId));
-        if (!idMatch) return false;
-        return (typeof window.isMatchingInvoiceType === 'function') ? window.isMatchingInvoiceType(t.type, expectedType) : true;
-    });
-
-    const displayItems = items;
-
-    const head = displayItems[0] || items[0];
-
-    let rowsHtml = '';
-
-    displayItems.forEach((it, idx) => {
-
-        const itSize = it.selectedSize || it.size || '';
-        const itColor = it.selectedColor || it.color || '';
-        const variantBadge = (itSize || itColor)
-            ? `<div style="font-size:0.75rem; color:#4338ca; background:#e0e7ff; padding:2px 8px; border-radius:4px; margin-top:4px; display:inline-block; font-weight:700;">المقاس: ${itSize || '-'} | اللون: ${itColor || '-'}</div>`
-            : '';
-
-        rowsHtml += `
-
-                <tr class="edit-row" data-id="${it.invoiceId}" data-tx-id="${it.id || ''}" data-product="${it.product}" data-size="${itSize}" data-color="${itColor}">
-
-                    <td style="padding:10px; border:1px solid #ddd; background:#f9f9f9;">
-                        <input type="text" class="edit-name-input" value="${it.product}" oninput="window.updateEditPrice(this)" style="width:100%; border:1px solid #ccc; padding:5px; border-radius:4px; font-weight:bold;">
-                        ${variantBadge}
-                    </td>
-
-                    <td style="padding:10px; border:1px solid #ddd;"><input type="number" step="0.01" class="edit-q-input" value="${it.qty}" oninput="window.calcEditRow(this)" style="width:70px; border:1px solid #ccc; padding:5px; border-radius:4px;"></td>
-
-                    <td style="padding:10px; border:1px solid #ddd;"><input type="number" step="0.01" class="edit-p-input" value="${it.price}" oninput="window.calcEditRow(this)" style="width:90px; border:1px solid #ccc; padding:5px; border-radius:4px;"></td>
-
-                    <td style="padding:10px; border:1px solid #ddd; font-weight:bold; color:var(--main-blue);" class="edit-t-cell">${(parseFloat(it.total) || parseFloat(it.price) || 0).toFixed(2)}</td>
-
-                </tr>`;
-
-    });
-
-    const isCash = (head && head.method && (head.method.includes('نقدي') || head.method.includes('كاش') || head.method.includes('نقدية')));
-    const isGoods = head && head.type && !head.type.includes('قبض') && !head.type.includes('صرف');
-
-    const content = `
-
-            <div style="direction:rtl; text-align:right;">
-
-                <div style="background:var(--main-purple); color:white; padding:15px; border-radius:10px 10px 0 0; margin:-20px -20px 20px -20px; display:flex; justify-content:space-between; align-items:center;">
-
-                    <h3 style="margin:0;">⚙️ التعديل الشامل - ${isGoods ? 'فاتورة' : 'سند'} #${invId}</h3>
-
-                </div>
-
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:20px; background:#f0f2f5; padding:15px; border-radius:10px;">
-
-                    <div><label style="font-size:0.8rem;">👤 الطرف</label><input type="text" id="advEditPartner" value="${head.partner || ''}" class="search-input" style="width:100%;"></div>
-
-                    <div><label style="font-size:0.8rem;">💳 طريقة الدفع</label><select id="advEditMethod" class="search-input" style="width:100%;"><option value="نقدي" ${isCash ? 'selected' : ''}>نقدي</option><option value="آجل" ${!isCash ? 'selected' : ''}>آجل</option></select></div>
-
-                    <div><label style="font-size:0.8rem;">📅 التاريخ</label><input type="date" id="advEditDate" value="${head.dateISO || ''}" class="search-input" style="width:100%;"></div>
-
-                    <div><label style="font-size:0.8rem;">⏰ الوقت</label><input type="time" id="advEditTime" value="${head.timeISO || ''}" class="search-input" style="width:100%;"></div>
-
-                </div>
-
-                <div style="max-height:300px; overflow-y:auto; border:2px solid #ddd; border-radius:8px; margin-bottom:20px;">
-
-                    <table style="width:100%; border-collapse:collapse;">
-
-                        <thead style="background:#34495e; color:white; position:sticky; top:0;"><tr><th style="padding:10px;">الصنف</th><th style="padding:10px;">الكمية</th><th style="padding:10px;">السعر</th><th style="padding:10px;">الإجمالي</th></tr></thead>
-
-                        <tbody>${rowsHtml}</tbody>
-
-                    </table>
-
-                </div>
-
-                <div style="background:#fff; border:2px solid var(--main-blue); padding:15px; border-radius:10px; display:flex; justify-content:space-between; align-items:center;">
-
-                    <div style="font-weight:bold;">الإجمالي الجديد: <span id="advEditGrandTotal" style="color:var(--main-blue); font-size:1.5rem;">${displayItems.reduce((a, b) => a + (parseFloat(b.total) || 0), 0).toFixed(2)}</span> ج.م</div>
-
-                    <div style="display:flex; gap:10px;"><button onclick="closeCustomModal()" class="action-btn">إلغاء</button><button onclick="window.saveAdvancedInvoiceChanges('${invId}')" style="padding:10px 30px; background:var(--main-green); color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">💾 حفظ التعديلات</button></div>
-
-                </div>
-
-            </div>`;
-
-    showProfessionalModal(content);
-
-};
-
-window.saveAdvancedInvoiceChanges = async function (invId) {
-
-    const rows = document.querySelectorAll('.edit-row');
-
-    const newPartner = document.getElementById('advEditPartner').value;
-
-    const newMethod = document.getElementById('advEditMethod').value;
-
-    const origHeadCandidate = transactions.find(t => String(t.invoiceId) === String(invId) || String(t.id) === String(invId));
-    const expectedType = origHeadCandidate ? origHeadCandidate.type : '';
-    const oldItems = transactions.filter(t => {
-        const hasInvId = t.invoiceId != null && t.invoiceId !== '';
-        const idMatch = hasInvId ? (String(t.invoiceId) === String(invId)) : (String(t.id) === String(invId));
-        if (!idMatch) return false;
-        return (typeof window.isMatchingInvoiceType === 'function') ? window.isMatchingInvoiceType(t.type, expectedType) : true;
-    });
-    const origHead = oldItems.find(t => t.isInvoiceHead) || oldItems[0];
-    const newDate = document.getElementById('advEditDate').value || (origHead ? (origHead.dateISO || origHead.date) : '');
-    const newTime = document.getElementById('advEditTime').value || (origHead ? (origHead.timeISO || origHead.time) : '');
-
-    // التحقق من صحة المنطق: عميل نقدي لا يمكنه عمل آجل
-
-    if ((newPartner.includes('نقدي') || newPartner.includes('كاش')) && newMethod === 'آجل') {
-
-        return showCustomAlert({
-
-            type: 'warning',
-
-            titleText: '⚠️ خطأ في المنطق المحاسبي',
-
-            msg: 'لا يمكن عمل فاتورة "آجل" لحساب "عميل نقدي". الحساب النقدي يجب أن يكون مدفوعاً بالكامل ولا يظهر في كشف الحساب كمديونية.'
-
-        });
-
-    }
-
-    const defaultWH = (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي';
-
-    oldItems.forEach(item => {
-        if (!item) return;
-        const p = productsDB.find(x => x.name === item.product);
-        if (p) {
-            let factor = parseFloat(item.unitFactor) || 1;
-            if (item.unit && p.units && Array.isArray(p.units)) {
-                const u = p.units.find(u => u && u.unitName === item.unit);
-                if (u) factor = parseFloat(u.factor) || 1;
-            }
-            const baseQty = (parseFloat(item.qty) || 0) * factor;
-            const activeWH = (item.warehouse || item.sourceWarehouse || (oldItems[0] && oldItems[0].warehouse) || defaultWH || 'المخزن الرئيسي').trim();
-
-            if (!p.warehouseStocks || typeof p.warehouseStocks !== 'object') p.warehouseStocks = {};
-
-            if (item.type.includes('مرتجع بيع')) {
-                p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
-                p.warehouseStocks[activeWH] = Math.max(0, (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty);
-            } else if (item.type.includes('مرتجع شراء')) {
-                p.stock = (parseFloat(p.stock) || 0) + baseQty;
-                p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
-            } else if (item.type.includes('بيع')) {
-                p.stock = (parseFloat(p.stock) || 0) + baseQty;
-                p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
-            } else if (item.type.includes('شراء')) {
-                p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
-                p.warehouseStocks[activeWH] = Math.max(0, (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty);
-            }
-
-            if (p.variants && Array.isArray(p.variants)) {
-                const sSize = String(item.size || '').trim();
-                const sColor = String(item.color || '').trim();
-                if (sSize || sColor) {
-                    const matchedVar = p.variants.find(v =>
-                        (!sSize || String(v.size || '').trim() === sSize) &&
-                        (!sColor || String(v.color || '').trim() === sColor)
-                    );
-                    if (matchedVar) {
-                        if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
-                        if (item.type.includes('مرتجع بيع')) {
-                            matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
-                            matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
-                        } else if (item.type.includes('مرتجع شراء')) {
-                            matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
-                            matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) + baseQty;
-                        } else if (item.type.includes('بيع')) {
-                            matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
-                            matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) + baseQty;
-                        } else if (item.type.includes('شراء')) {
-                            matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
-                            matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
-                        }
-                    }
-                }
-            }
-        }
-    });
-
-    // حساب الإجمالي الكلي أولاً لتعيينه في خانة المدفوع إذا كانت نقدية
-
-    let totalOfInvoice = 0;
-
-    rows.forEach(r => {
-
-        const q = parseFloat(r.querySelector('.edit-q-input').value) || 0;
-
-        const p = parseFloat(r.querySelector('.edit-p-input').value) || 0;
-
-        totalOfInvoice += (q * p);
-
-    });
-
-    let firstRowHeaderProcessed = false;
-
-    const affectedProducts = [];
-    const updatedInvoiceRows = [];
-    rows.forEach(row => {
-
-        const originalProductName = row.dataset.product;
-
-        const newProductName = row.querySelector('.edit-name-input').value.trim();
-
-        const newQty = parseFloat(row.querySelector('.edit-q-input').value) || 0;
-
-        const newPrice = parseFloat(row.querySelector('.edit-p-input').value) || 0;
-
-        const newTotal = newQty * newPrice;
-
-        // البحث عن السجل الأصلي لتعديله بدقة باستخدام معرف الحركة ID الفريد ثم التشكيلة
-        const txId = row.dataset.txId;
-        const rowSize = row.dataset.size || '';
-        const rowColor = row.dataset.color || '';
-
-        let transaction = txId ? transactions.find(t => String(t.id) === String(txId)) : null;
-        if (!transaction) {
-            transaction = transactions.find(t =>
-                String(t.invoiceId) === String(invId) &&
-                t.product === originalProductName &&
-                (!rowSize || (t.size || t.selectedSize) === rowSize) &&
-                (!rowColor || (t.color || t.selectedColor) === rowColor)
-            ) || transactions.find(t => String(t.invoiceId) === String(invId) && t.product === originalProductName);
-        }
-
-        if (transaction) {
-            updatedInvoiceRows.push(transaction);
-
-            transaction.product = newProductName; // تحديث الاسم الجديد
-
-            transaction.partner = newPartner;
-
-            transaction.method = newMethod;
-
-            transaction.date = newDate;
-
-            transaction.dateISO = newDate;
-
-            transaction.timeISO = newTime;
-
-            transaction.qty = newQty;
-
-            transaction.price = newPrice;
-
-            transaction.total = newTotal.toFixed(2);
-
-            // تسجيل تاريخ التعديل واسم المستخدم الذي قام به
-
-            const editorName = currentUser ? currentUser.name : 'مجهول';
-
-            transaction.editDate = `${new Date().toLocaleString('ar-EG')} (بواسطة: ${editorName})`;
-
-            transaction.user = editorName; // تحديث المستخدم ليكون آخر من عدل الفاتورة
-
-            // حساب الربح الجديد بناءً على التكلفة (مع مراعاة تكلفة المقاس المخصص في الفاشون)
-
-            const p = productsDB.find(x => x.name === newProductName);
-
-            if (p) {
-                if (!affectedProducts.includes(p)) affectedProducts.push(p);
-
-                let effCost = parseFloat(p.cost) || 0;
-                const sSize = String(transaction.selectedSize || transaction.size || rowSize || '').trim();
-                const sColor = String(transaction.selectedColor || transaction.color || rowColor || '').trim();
-
-                if (p.variants && Array.isArray(p.variants) && (sSize || sColor)) {
-                    const matchedVarForCost = p.variants.find(v =>
-                        (!sSize || String(v.size || '').trim() === sSize) &&
-                        (!sColor || String(v.color || '').trim() === sColor)
-                    );
-                    if (matchedVarForCost && matchedVarForCost.cost) {
-                        effCost = parseFloat(matchedVarForCost.cost) || effCost;
-                    }
-                }
-
-                const factor = parseFloat(transaction.unitFactor) || 1;
-
-                const totalCost = effCost * newQty * factor;
-
-                if (transaction.type.includes('بيع')) {
-
-                    transaction.profit = (newTotal - totalCost).toFixed(2);
-
-                } else {
-
-                    transaction.profit = 0; // المشتريات ليس لها ربح مباشر
-
-                }
-
-                // تحديث المخزن (خصم الكمية الجديدة) مع مراعاة المخزن والتشكيلة
-                const baseQty = newQty * factor;
-                const activeWH = (transaction.warehouse || transaction.sourceWarehouse || (typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) || 'المخزن الرئيسي').trim();
-                if (!p.warehouseStocks || typeof p.warehouseStocks !== 'object') p.warehouseStocks = {};
-
-                if (transaction.type.includes('مرتجع بيع')) {
-                    p.stock = (parseFloat(p.stock) || 0) + baseQty;
-                    p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
-                } else if (transaction.type.includes('مرتجع شراء')) {
-                    p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
-                    p.warehouseStocks[activeWH] = Math.max(0, (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty);
-                } else if (transaction.type.includes('بيع')) {
-                    p.stock = Math.max(0, (parseFloat(p.stock) || 0) - baseQty);
-                    p.warehouseStocks[activeWH] = Math.max(0, (parseFloat(p.warehouseStocks[activeWH]) || 0) - baseQty);
-                } else if (transaction.type.includes('شراء')) {
-                    p.stock = (parseFloat(p.stock) || 0) + baseQty;
-                    p.warehouseStocks[activeWH] = (parseFloat(p.warehouseStocks[activeWH]) || 0) + baseQty;
-                }
-
-                // تحديث رصيد المقاس واللون إن وجد
-                if (p.variants && Array.isArray(p.variants)) {
-                    const sSize = String(transaction.selectedSize || transaction.size || '').trim();
-                    const sColor = String(transaction.selectedColor || transaction.color || '').trim();
-                    if (sSize || sColor) {
-                        const matchedVar = p.variants.find(v =>
-                            (!sSize || String(v.size || '').trim() === sSize) &&
-                            (!sColor || String(v.color || '').trim() === sColor)
-                        );
-                        if (matchedVar) {
-                            if (!matchedVar.warehouseStocks || typeof matchedVar.warehouseStocks !== 'object') matchedVar.warehouseStocks = {};
-                            if (transaction.type.includes('مرتجع بيع')) {
-                                matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
-                                matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) + baseQty;
-                            } else if (transaction.type.includes('مرتجع شراء')) {
-                                matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
-                                matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
-                            } else if (transaction.type.includes('بيع')) {
-                                matchedVar.stock = Math.max(0, (parseFloat(matchedVar.stock) || 0) - baseQty);
-                                matchedVar.warehouseStocks[activeWH] = Math.max(0, (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) - baseQty);
-                            } else if (transaction.type.includes('شراء')) {
-                                matchedVar.stock = (parseFloat(matchedVar.stock) || 0) + baseQty;
-                                matchedVar.warehouseStocks[activeWH] = (parseFloat(matchedVar.warehouseStocks[activeWH]) || 0) + baseQty;
-                            }
-                        }
-                    }
-                }
-
-            }
-
-            if (!firstRowHeaderProcessed) {
-
-                transaction.isInvoiceHead = true;
-
-                // تصحيح: المدفوع هو إجمالي الفاتورة كلها لو نقدي، أو 0 لو آجل
-
-                const isCash = (newMethod.includes('نقدي') || newMethod.includes('نقدية') || newMethod.includes('كاش'));
-
-                transaction.paidAmount = (isCash ? totalOfInvoice : 0);
-
-                firstRowHeaderProcessed = true;
-
-            } else transaction.isInvoiceHead = false;
-
-        }
-
-    });
-
-    if (typeof window.saveTransactionChanges === 'function') {
-        await window.saveTransactionChanges({
-            newTransactions: updatedInvoiceRows,
-            modifiedProducts: affectedProducts,
-            modifiedAccounts: []
-        });
-    } else {
-        await saveData();
-    }
-
-    closeCustomModal();
-
-    renderInvoicesTable();
-
-    showToast("✅ تم تحديث الفاتورة والمخازن بنجاح", "success");
-
-};
 
 // ================= وظيفة التعديل الشامل للعمليات (Edit System) =================
 
