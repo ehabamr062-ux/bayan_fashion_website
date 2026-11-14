@@ -3294,9 +3294,11 @@ async function confirmSelectedInvoiceForReturn(invoiceId) {
 
         const badgeID = document.getElementById('salesReturnBadgeID');
 
+        const safePName = (typeof escapeHtml === 'function') ? escapeHtml(pName) : (window.escapeHtml ? window.escapeHtml(pName) : pName);
+
         if (partnerEl) partnerEl.innerText = pName;
 
-        if (partnerBadge) partnerBadge.innerHTML = '👤 عميل: ' + pName;
+        if (partnerBadge) partnerBadge.innerHTML = '👤 عميل: ' + safePName;
 
         const accInput = document.getElementById('salesReturnAccountInput');
 
@@ -3320,9 +3322,11 @@ async function confirmSelectedInvoiceForReturn(invoiceId) {
 
         const badgeID = document.getElementById('purReturnBadgeID');
 
+        const safePName = (typeof escapeHtml === 'function') ? escapeHtml(pName) : (window.escapeHtml ? window.escapeHtml(pName) : pName);
+
         if (partnerEl) partnerEl.innerText = pName;
 
-        if (partnerBadge) partnerBadge.innerHTML = '👤 مورد: ' + pName;
+        if (partnerBadge) partnerBadge.innerHTML = '👤 مورد: ' + safePName;
 
         const accInput = document.getElementById('purReturnAccountInput');
 
@@ -3792,9 +3796,11 @@ async function confirmReturnItemsSelection() {
 
         const invNo = firstItem.invoiceId || '---';
 
+        const safePName = (typeof escapeHtml === 'function') ? escapeHtml(pName) : (window.escapeHtml ? window.escapeHtml(pName) : pName);
+
         if (partnerEl) partnerEl.innerText = pName;
 
-        if (partnerBadge) partnerBadge.innerHTML = '👤 عميل: ' + pName;
+        if (partnerBadge) partnerBadge.innerHTML = '👤 عميل: ' + safePName;
 
         const accInput = document.getElementById('salesReturnAccountInput');
 
@@ -3822,9 +3828,11 @@ async function confirmReturnItemsSelection() {
 
         const invNo = firstItem.invoiceId || '---';
 
+        const safePName = (typeof escapeHtml === 'function') ? escapeHtml(pName) : (window.escapeHtml ? window.escapeHtml(pName) : pName);
+
         if (partnerEl) partnerEl.innerText = pName;
 
-        if (partnerBadge) partnerBadge.innerHTML = '👤 مورد: ' + pName;
+        if (partnerBadge) partnerBadge.innerHTML = '👤 مورد: ' + safePName;
 
         const accInput = document.getElementById('purReturnAccountInput');
 

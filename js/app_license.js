@@ -486,6 +486,14 @@ window.SubscriptionHistoryManager = {
             if (paidPlanName.includes('حياة') || paidPlanName.includes('احترافية')) {
                 isCurrentExpired = false;
             } else if (expiryDateStr) {
+                // 🛡️ فحص تلاعب ساعة الجهاز قبل مقارنة انتهاء الصلاحية
+                const lastTxForHistory = (typeof getLatestRecordedTransactionDate === 'function') ? getLatestRecordedTransactionDate() : null;
+                if (lastTxForHistory && String(lastTxForHistory).length >= 10) {
+                    const todayStr = new Date().toISOString().slice(0, 10);
+                    if (new Date(todayStr).getTime() < (new Date(String(lastTxForHistory).slice(0, 10)).getTime() - 86400000)) {
+                        window.clockTampered = true;
+                    }
+                }
                 isCurrentExpired = (new Date() > new Date(expiryDateStr));
             } else {
                 isCurrentExpired = !isPlanValid;
@@ -1409,8 +1417,49 @@ setTimeout(() => {
     } catch(e) {}
 }, 3000);
 
+// 🕒 استعلام أحدث تاريخ حركة مسجل في قاعدة البيانات SQLite للتحقق الصارم ضد التلاعب بساعة الجهاز
+function getLatestRecordedTransactionDate() {
+    let maxDate = null;
+    try {
+        if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+            const row = window.BayanSQLite.nativeDb.prepare("SELECT MAX(dateISO) as maxDate FROM transactions;").get();
+            if (row && row.maxDate) maxDate = row.maxDate;
+        } else if (window.BayanSQLite && window.BayanSQLite.db) {
+            const res = window.BayanSQLite.db.exec("SELECT MAX(dateISO) as maxDate FROM transactions;");
+            if (res && res[0] && res[0].values && res[0].values[0] && res[0].values[0][0]) {
+                maxDate = res[0].values[0][0];
+            }
+        }
+    } catch(e) {}
+
+    if (!maxDate && typeof transactions !== 'undefined' && Array.isArray(transactions) && transactions.length > 0) {
+        for (let i = transactions.length - 1; i >= 0; i--) {
+            const t = transactions[i];
+            const d = t.dateISO || (t.date && t.date.length >= 10 && t.date.includes('-') ? t.date.slice(0, 10) : null);
+            if (d && (!maxDate || d > maxDate)) {
+                maxDate = d;
+            }
+        }
+    }
+    return maxDate;
+}
+window.getLatestRecordedTransactionDate = getLatestRecordedTransactionDate;
+
 window.isSubscriptionValid = function (actionType = 'invoice') {
     const nowTime = Date.now();
+
+    // 🛡️ فحص التلاعب بساعة الويندوز بمقارنتها بآخر حركة مسجلة في قاعدة البيانات SQLite
+    const lastTxDate = getLatestRecordedTransactionDate();
+    if (lastTxDate && String(lastTxDate).length >= 10) {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const todayTime = new Date(todayStr).getTime();
+        const lastTxTime = new Date(String(lastTxDate).slice(0, 10)).getTime();
+        // إذا كان تاريخ الويندوز الحالي أقدم بأكثر من يوم واحد (86400000ms) عن آخر تاريخ حركة مسجل
+        if (todayTime < (lastTxTime - 86400000)) {
+            window.clockTampered = true;
+            return false;
+        }
+    }
     const maxSeenTimeStr = (typeof getStore === 'function' ? getStore('bayan_max_seen_timestamp') : null) || (typeof localStorage !== 'undefined' ? localStorage.getItem('bayan_max_seen_timestamp') : null);
     let maxSeenTime = maxSeenTimeStr ? parseInt(maxSeenTimeStr, 10) : 0;
 
@@ -1553,15 +1602,28 @@ window.enforceSubscriptionCheck = function (actionType = 'invoice') {
         return false;
     }
 
+    // 🛡️ فحص التلاعب بساعة الجهاز بمقارنتها بآخر حركة مسجلة في SQLite
+    const lastRecordedTx = (typeof getLatestRecordedTransactionDate === 'function') ? getLatestRecordedTransactionDate() : null;
+    if (lastRecordedTx && String(lastRecordedTx).length >= 10) {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const todayTime = new Date(todayStr).getTime();
+        const lastTxTime = new Date(String(lastRecordedTx).slice(0, 10)).getTime();
+        if (todayTime < (lastTxTime - 86400000)) {
+            window.clockTampered = true;
+        }
+    }
+
     if (window.clockTampered) {
+        const lastDateHint = lastRecordedTx ? ` (آخر حركة مسجلة بالنظام كانت بتاريخ: ${lastRecordedTx})` : '';
+        const tamperedMsg = `تم رصد إرجاع تاريخ أو ساعة الكمبيوتر للخلف برمجياً${lastDateHint}.\n\nلحماية أمان المنظومة والحسابات المالية وسريان الاشتراكات، يرجى ضبط تاريخ وساعة الويندوز الحالية للاستمرار في إجراء وحفظ العمليات والفواتير.`;
         if (typeof window.verifyAndHealClockTampering === 'function') {
             window.verifyAndHealClockTampering().catch(() => {});
         }
         if (typeof showCustomAlert === 'function') {
             showCustomAlert({
                 type: 'error',
-                titleText: '🛑 تحذير أمني: تم رصد تغيير في تاريخ الجهاز!',
-                msg: 'تم رصد إرجاع تاريخ أو ساعة الكمبيوتر للخلف برمجياً.\n\nلحماية أمان المنظومة والسجلات المالية، يرجى ضبط تاريخ وساعة الجهاز بالشكل الصحيح للاستمرار في إجراء وحفظ العمليات والفواتير.\n\n💡 إذا كانت الساعة مضبوطة الآن بالشكل الصحيح، اضغط على زر التحقق بالأسفل لإلغاء القفل فوراً.',
+                titleText: '🛑 تحذير أمني: تم رصد تلاعب بساعة الجهاز!',
+                msg: tamperedMsg,
                 confirmText: 'التحقق وإلغاء القفل عبر الإنترنت 🌐',
                 onConfirm: async () => {
                     if (typeof window.verifyAndHealClockTampering === 'function') {
@@ -1573,7 +1635,7 @@ window.enforceSubscriptionCheck = function (actionType = 'invoice') {
                 }
             });
         } else {
-            alert("🛑 تحذير أمني: يرجى ضبط تاريخ وساعة جهاز الكمبيوتر بشكل صحيح.");
+            alert("🛑 " + tamperedMsg);
         }
         return false;
     }

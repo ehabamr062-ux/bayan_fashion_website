@@ -634,6 +634,28 @@ async function attemptLogin() {
         }
 
         if (isPinValid) {
+            // 🛡️ ترقية تلقائية سلسة لصيغة التجزئة الأحادية المشددة HASH:pbkdf2 عند تسجيل الدخول الناجح
+            if (!isEmergencyRescueLogin && window.BayanSecurity && typeof window.BayanSecurity.needsPinUpgrade === 'function' && window.BayanSecurity.needsPinUpgrade(foundUser.pin)) {
+                try {
+                    const upgradedPin = window.BayanSecurity.hashPinSecure(cleanEnteredPin);
+                    foundUser.pin = upgradedPin;
+                    if (typeof db !== 'undefined' && db.users) {
+                        db.users.put({ ...foundUser, pin: upgradedPin }).catch(() => {});
+                    }
+                    if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+                        try {
+                            window.BayanSQLite.nativeDb.prepare("UPDATE users SET pin = ? WHERE id = ?;").run(upgradedPin, foundUser.id);
+                        } catch (e) { }
+                    }
+                    if (typeof users !== 'undefined' && Array.isArray(users)) {
+                        const u = users.find(x => x && x.id === foundUser.id);
+                        if (u) u.pin = upgradedPin;
+                    }
+                } catch (upErr) {
+                    console.warn('[Auth] Pin auto-upgrade notice:', upErr);
+                }
+            }
+
             // نجاح الدخول: إعادة تعيين عداد المحاولات الخاطئة وحفظها دائماً
             setLoginLockoutState(0, 0);
 
@@ -1522,10 +1544,12 @@ window.executeFirstTimeSetup = async function () {
 
         setStore('pos_settings', JSON.stringify(posSettings));
 
-        // إضافة المستخدم الأول كأدمن مع تشفير PIN في قاعدة البيانات
-        const encPin = (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
-            ? window.BayanSecurity.encryptPin(pin)
-            : pin;
+        // إضافة المستخدم الأول كأدمن مع تشفير PIN بتجزئة PBKDF2 المشددة في قاعدة البيانات
+        const encPin = (window.BayanSecurity && typeof window.BayanSecurity.hashPinSecure === 'function')
+            ? window.BayanSecurity.hashPinSecure(pin)
+            : ((window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
+                ? window.BayanSecurity.encryptPin(pin)
+                : pin);
         const dbUser = { id: 1, name: name, pin: encPin, role: 'admin' };
         if (typeof db !== 'undefined' && db.users) {
             await db.users.put(dbUser);

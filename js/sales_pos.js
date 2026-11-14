@@ -214,8 +214,10 @@ async function handleCustomerSearch(query) {
                 typeBadgeHtml = `<span style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; font-size:0.75rem; font-weight:800; padding:2px 8px; border-radius:6px;">حساب 🤝</span>`;
             }
 
-            const codeDisplay = a.code ? `<small style="color:#64748b; font-size:0.75rem; margin-right:6px;">(#${a.code})</small>` : '';
-            div.innerHTML = `<span style="font-weight:800; color:#0f172a;">${a.name}${codeDisplay}</span>${typeBadgeHtml}`;
+            const safeName = (typeof escapeHtml === 'function') ? escapeHtml(a.name) : (window.escapeHtml ? window.escapeHtml(a.name) : a.name);
+            const safeCode = a.code ? ((typeof escapeHtml === 'function') ? escapeHtml(a.code) : (window.escapeHtml ? window.escapeHtml(a.code) : a.code)) : '';
+            const codeDisplay = safeCode ? `<small style="color:#64748b; font-size:0.75rem; margin-right:6px;">(#${safeCode})</small>` : '';
+            div.innerHTML = `<span style="font-weight:800; color:#0f172a;">${safeName}${codeDisplay}</span>${typeBadgeHtml}`;
 
             div.onclick = (e) => {
                 e.stopPropagation();

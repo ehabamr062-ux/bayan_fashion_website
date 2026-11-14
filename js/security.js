@@ -467,6 +467,40 @@
         },
 
         // 🔑 تجزئة آمنة أحادية الاتجاه لرمز PIN (One-way Salted Hash)
+        // 🔒 تجزئة أحادية الاتجاه فائقة الأمان بمعيار PBKDF2 و 10,000 دورة تكرار مع Salt عشوائي فريد لكل مستخدم
+        hashPinSecure: function (pin, customSalt = null) {
+            if (!pin) return '';
+            const sPin = String(pin).trim();
+            const salt = customSalt || (
+                _nodeCrypto && typeof _nodeCrypto.randomBytes === 'function'
+                    ? _nodeCrypto.randomBytes(16).toString('hex')
+                    : (Math.random().toString(36).substring(2, 12) + Date.now().toString(36))
+            );
+
+            let hashHex = '';
+            if (_nodeCrypto && typeof _nodeCrypto.pbkdf2Sync === 'function') {
+                try {
+                    hashHex = _nodeCrypto.pbkdf2Sync(sPin, salt + ':' + PORTABLE_BACKUP_SALT, 10000, 32, 'sha256').toString('hex');
+                } catch (e) { }
+            }
+
+            if (!hashHex) {
+                let h = sPin + ':' + salt + ':' + PORTABLE_BACKUP_SALT;
+                for (let i = 0; i < 50; i++) {
+                    h = this._sha256Hex(h + salt);
+                }
+                hashHex = h;
+            }
+
+            return 'HASH:pbkdf2:' + salt + ':' + hashHex;
+        },
+
+        // فحص هل الـ PIN مسجل بصيغة قديمة ويحتاج لترقية تلقائية سلسة
+        needsPinUpgrade: function (storedPin) {
+            if (!storedPin || typeof storedPin !== 'string') return false;
+            return !storedPin.startsWith('HASH:pbkdf2:');
+        },
+
         hashPin: function (pin, customSalt) {
             if (!pin) return '';
             const sPin = String(pin).trim();
@@ -481,6 +515,30 @@
             const cleanEntered = String(enteredPin).trim();
             const cleanStored = String(storedPin).trim();
             if (!cleanEntered || !cleanStored) return false;
+
+            // 0. التحقق من التجزئة الأحادية المشددة HASH:pbkdf2:
+            if (cleanStored.startsWith('HASH:pbkdf2:')) {
+                const parts = cleanStored.split(':');
+                if (parts.length === 4) {
+                    const salt = parts[2];
+                    const expectedHash = parts[3];
+                    let calculatedHash = '';
+                    if (_nodeCrypto && typeof _nodeCrypto.pbkdf2Sync === 'function') {
+                        try {
+                            calculatedHash = _nodeCrypto.pbkdf2Sync(cleanEntered, salt + ':' + PORTABLE_BACKUP_SALT, 10000, 32, 'sha256').toString('hex');
+                        } catch (e) { }
+                    }
+                    if (!calculatedHash) {
+                        let h = cleanEntered + ':' + salt + ':' + PORTABLE_BACKUP_SALT;
+                        for (let i = 0; i < 50; i++) {
+                            h = this._sha256Hex(h + salt);
+                        }
+                        calculatedHash = h;
+                    }
+                    return this._timingSafeEqual(calculatedHash, expectedHash);
+                }
+                return false;
+            }
 
             // 1. التحقق من التجزئة أحادية الاتجاه HASH:v1:
             if (cleanStored.startsWith('HASH:v1:')) {

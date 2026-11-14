@@ -1432,9 +1432,12 @@
                 displayMatched.forEach(acc => {
                     const div = document.createElement('div');
                     div.style.cssText = 'padding: 10px 14px; cursor: pointer; border-bottom: 1px solid #f1f5f9; color: #1e293b; font-weight: bold; transition: 0.15s; display: flex; justify-content: space-between; align-items: center;';
-                    const codeBadge = acc.code ? `<span style="font-size:0.8rem; background:#e2e8f0; color:#475569; padding:2px 7px; border-radius:4px; font-family:monospace;">#${acc.code}</span>` : '';
-                    const phoneText = acc.mobile ? `<span style="font-size:0.8rem; color:#64748b;">📞 ${acc.mobile}</span>` : '';
-                    div.innerHTML = `<span>${acc.name}</span><div style="display:flex; gap:6px; align-items:center;">${codeBadge}${phoneText}</div>`;
+                    const safeName = (typeof escapeHtml === 'function') ? escapeHtml(acc.name) : (window.escapeHtml ? window.escapeHtml(acc.name) : acc.name);
+                    const safeCode = acc.code ? ((typeof escapeHtml === 'function') ? escapeHtml(acc.code) : (window.escapeHtml ? window.escapeHtml(acc.code) : acc.code)) : '';
+                    const safeMobile = acc.mobile ? ((typeof escapeHtml === 'function') ? escapeHtml(acc.mobile) : (window.escapeHtml ? window.escapeHtml(acc.mobile) : acc.mobile)) : '';
+                    const codeBadge = safeCode ? `<span style="font-size:0.8rem; background:#e2e8f0; color:#475569; padding:2px 7px; border-radius:4px; font-family:monospace;">#${safeCode}</span>` : '';
+                    const phoneText = safeMobile ? `<span style="font-size:0.8rem; color:#64748b;">📞 ${safeMobile}</span>` : '';
+                    div.innerHTML = `<span>${safeName}</span><div style="display:flex; gap:6px; align-items:center;">${codeBadge}${phoneText}</div>`;
                     div.onmouseover = () => div.style.background = '#f1f5f9';
                     div.onmouseout = () => div.style.background = 'transparent';
                     div.onmousedown = (ev) => {

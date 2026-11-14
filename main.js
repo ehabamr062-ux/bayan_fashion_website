@@ -65,7 +65,7 @@ function createWindow() {
             nodeIntegration: true,
             contextIsolation: false,
             sandbox: false,
-            devTools: true, // متاح في وضع التطوير والتجربة
+            devTools: !app.isPackaged, // متاح في وضع التطوير فقط ومغلق في الإنتاج
             spellcheck: false, // تعطيل التدقيق الإملائي لتوفير الرامات والمعالج
             backgroundThrottling: false, // ضمان استمرار عمل دورات المزامنة السحابية ومؤقتات الشبكة بسلاسة تامة دون انقطاع عند تصغير البرنامج
             webSecurity: false, // إلغاء حظر CORS وقيود البروتوكولات على الملفات المحلية (file:///)
@@ -101,6 +101,32 @@ function createWindow() {
     win.webContents.on('responsive', () => {
         console.log("✅ [Main] Window has recovered responsiveness.");
     });
+
+    // 🛡️ حماية نسخة الإنتاج: إغلاق أدوات المطورين وحظر اختصارات الفحص والتفتيش
+    if (app.isPackaged) {
+        win.webContents.on('before-input-event', (event, input) => {
+            // حظر مفتاح F12
+            if (input.key === 'F12') {
+                event.preventDefault();
+                return;
+            }
+            // حظر Ctrl+Shift+I و Ctrl+Shift+J و Ctrl+Shift+C
+            if (input.control && input.shift && ['I', 'i', 'J', 'j', 'C', 'c'].includes(input.key)) {
+                event.preventDefault();
+                return;
+            }
+            // حظر Ctrl+U (عرض كود المصدر)
+            if (input.control && ['U', 'u'].includes(input.key)) {
+                event.preventDefault();
+                return;
+            }
+        });
+
+        // حظر القائمة السياقية (Right-Click Context Menu) لمنع فحص العناصر
+        win.webContents.on('context-menu', (e) => {
+            e.preventDefault();
+        });
+    }
 
     // نافذة إلكترون تدير التركيز والمربعات تلقائياً عبر نواة كروميوم بدون سرقة التركيز
 
@@ -1050,17 +1076,9 @@ if (!fs.existsSync(userDataPath)) {
     fs.mkdirSync(userDataPath, { recursive: true });
 }
 
-// 🔒 استرجاع وتوليد كود الجهاز المشفر الثابت وغير القابل للتغيير (Hardware UUID / Machine GUID)
+// 🔒 استرجاع وتوليد كود الجهاز المشفر الثابت من عتاد الويندوز الفعلي (Hardware UUID / Machine GUID)
 ipcMain.handle('get-hardware-uuid', () => {
     try {
-        const keyFile = path.join(userDataPath, 'device_hwid.key');
-        if (fs.existsSync(keyFile)) {
-            const saved = fs.readFileSync(keyFile, 'utf8').trim();
-            if (saved && /^BNC-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(saved)) {
-                return saved.toUpperCase();
-            }
-        }
-
         let rawGuid = '';
         if (process.platform === 'win32') {
             try {
@@ -1084,6 +1102,8 @@ ipcMain.handle('get-hardware-uuid', () => {
         const part2 = hash.substring(4, 8);
         const hwid = `BNC-${part1}-${part2}`;
 
+        // 🛡️ حفظ البصمة في الملف للعرض المرجعي فقط وليس كمصدر للقراءة لمنع تزوير الترخيص بنسخ الملف
+        const keyFile = path.join(userDataPath, 'device_hwid.key');
         try {
             fs.writeFileSync(keyFile, hwid, 'utf8');
         } catch (e) { }

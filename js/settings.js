@@ -1612,9 +1612,11 @@ async function addUser() {
         ? false
         : (document.getElementById('perm_wh_lock_switching') ? document.getElementById('perm_wh_lock_switching').checked : true);
 
-    const securePin = (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
-        ? window.BayanSecurity.encryptPin(finalPin)
-        : finalPin;
+    const securePin = (window.BayanSecurity && typeof window.BayanSecurity.hashPinSecure === 'function')
+        ? window.BayanSecurity.hashPinSecure(finalPin)
+        : ((window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
+            ? window.BayanSecurity.encryptPin(finalPin)
+            : finalPin);
 
     const newUser = {
         id: window.editingUserId || Date.now(),
