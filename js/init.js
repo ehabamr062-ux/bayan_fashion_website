@@ -215,35 +215,42 @@ window.addEventListener('beforeinstallprompt', (e) => {
     deferredPwaPrompt = e;
     console.log('📱 PWA Install Prompt captured.');
 
-    // إظهار كارت تنبيه التثبيت للأندرويد بعد ثانيتين
+    // إظهار كارت تنبيه التثبيت للأندرويد والمتصفح بعد ثانيتين
     setTimeout(() => {
         if (!document.getElementById('pwa-android-install-banner') && !sessionStorage.getItem('pwa_banner_dismissed')) {
             const banner = document.createElement('div');
             banner.id = 'pwa-android-install-banner';
             banner.style.cssText = `
-                position: fixed; bottom: 20px; right: 20px; left: 20px; max-width: 460px; margin: 0 auto;
+                position: fixed; bottom: 20px; right: 20px; left: 20px; max-width: 480px; margin: 0 auto;
                 background: linear-gradient(145deg, #1e113a, #0f172a); border: 2px solid rgba(212, 175, 55, 0.6);
-                border-radius: 20px; padding: 18px 22px; color: white; z-index: 999999;
+                border-radius: 20px; padding: 14px 18px; color: white; z-index: 999999;
                 box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 30px rgba(147, 51, 234, 0.3);
-                display: flex; align-items: center; justify-content: space-between; gap: 14px;
+                display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
                 direction: rtl; font-family: 'Cairo', sans-serif; animation: pwaSlideUp 0.4s ease;
+                transition: opacity 0.25s ease, transform 0.25s ease;
             `;
             banner.innerHTML = `
-                <div style="display:flex; align-items:center; gap:12px;">
-                    <img src="media/bayan_logo.png" style="width:48px; height:48px; border-radius:12px; border:1.5px solid rgba(255,255,255,0.2); box-shadow:0 4px 12px rgba(0,0,0,0.3);" alt="Logo">
-                    <div>
-                        <div style="font-weight:900; font-size:1rem; color:#ffffff;">تثبيت تطبيق بَيَان POS 📱</div>
-                        <div style="font-size:0.78rem; color:#cbd5e1; font-weight:700;">ثبّت التطبيق ليعمل بدون إنترنت كبرنامج أندرويد أصلي</div>
+                <div style="display:flex; align-items:center; gap:12px; flex: 1 1 200px; min-width: 0;">
+                    <img src="media/bayan_logo.png" style="width:44px; height:44px; border-radius:12px; border:1.5px solid rgba(255,255,255,0.2); box-shadow:0 4px 12px rgba(0,0,0,0.3); flex-shrink: 0;" alt="Logo">
+                    <div style="min-width: 0;">
+                        <div style="font-weight:900; font-size:0.95rem; color:#ffffff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">تثبيت تطبيق بَيَان POS 📱</div>
+                        <div style="font-size:0.75rem; color:#cbd5e1; font-weight:700;">ثبّت التطبيق ليعمل بدون إنترنت كبرنامج أصلي</div>
                     </div>
                 </div>
-                <div style="display:flex; gap:8px; align-items:center;">
-                    <button id="btnPwaInstallNow" style="padding:10px 18px; border-radius:12px; background:linear-gradient(135deg, #10b981, #059669); color:white; border:none; font-weight:900; font-size:0.88rem; cursor:pointer; font-family:'Cairo',sans-serif; box-shadow:0 4px 15px rgba(16,185,129,0.4); transition:0.2s;">
+                <div style="display:flex; gap:10px; align-items:center; justify-content: flex-end; flex-shrink: 0;">
+                    <button id="btnPwaInstallNow" style="padding:9px 18px; border-radius:12px; background:linear-gradient(135deg, #10b981, #059669); color:white; border:none; font-weight:900; font-size:0.86rem; cursor:pointer; font-family:'Cairo',sans-serif; box-shadow:0 4px 15px rgba(16,185,129,0.4); transition:0.2s; white-space: nowrap;">
                         تثبيت الآن
                     </button>
-                    <button id="btnPwaDismiss" style="background:transparent; border:none; color:#94a3b8; font-size:1.2rem; cursor:pointer; padding:4px;">✕</button>
+                    <button id="btnPwaDismiss" title="إغلاق التنبيه" aria-label="إغلاق" style="width:36px; height:36px; border-radius:10px; background:rgba(255,255,255,0.15); border:1.5px solid rgba(255,255,255,0.35); color:#ffffff; font-size:1.2rem; font-weight:900; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.2s ease; box-shadow:0 2px 6px rgba(0,0,0,0.25); flex-shrink: 0;" onmouseover="this.style.background='rgba(239,68,68,0.35)'; this.style.borderColor='#ef4444'; this.style.color='#fecaca';" onmouseout="this.style.background='rgba(255,255,255,0.15)'; this.style.borderColor='rgba(255,255,255,0.35)'; this.style.color='#ffffff';">✕</button>
                 </div>
             `;
             document.body.appendChild(banner);
+
+            const closeBanner = () => {
+                banner.style.opacity = '0';
+                banner.style.transform = 'translateY(15px)';
+                setTimeout(() => banner.remove(), 250);
+            };
 
             document.getElementById('btnPwaInstallNow').addEventListener('click', async () => {
                 if (deferredPwaPrompt) {
@@ -251,13 +258,14 @@ window.addEventListener('beforeinstallprompt', (e) => {
                     const { outcome } = await deferredPwaPrompt.userChoice;
                     console.log(`PWA user response: ${outcome}`);
                     deferredPwaPrompt = null;
-                    banner.remove();
+                    closeBanner();
                 }
             });
 
             document.getElementById('btnPwaDismiss').addEventListener('click', () => {
                 sessionStorage.setItem('pwa_banner_dismissed', 'true');
-                banner.remove();
+                try { localStorage.setItem('pwa_banner_dismissed', 'true'); } catch (e) { }
+                closeBanner();
             });
         }
     }, 2000);
