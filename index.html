@@ -15460,16 +15460,20 @@
                     <p class="sub-header-desc">
                         نظام إدارة محلات الملابس والأحذية والكوتشيات 👗👟👔 • تراخيص موثقة وأمان متكامل
                     </p>
-                    <div id="deviceIdBox">
-                        <span style="color: #0f172a; font-size: 0.95rem;">🆔 كود الجهاز (HWID):</span>
+                    <div id="deviceIdBox"
+                        style="background: #ffffff; padding: 8px 18px; border-radius: 50px; display: inline-flex; align-items: center; justify-content: center; gap: 12px; margin: 8px auto; border: 2px solid #fbbf24; font-weight: 900; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.22); direction: rtl; max-width: 95%; flex-wrap: wrap;">
+                        <span class="sub-hwid-label"
+                            style="color: #0f172a; font-size: 0.92rem; font-weight: 850; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;">
+                            <span>🆔</span> <span>كود الجهاز (HWID):</span>
+                        </span>
                         <span id="displayMachineId"
-                            style="font-family: monospace; font-size: 1.15rem; font-weight: 900; color: #047857; background: #ecfdf5; padding: 4px 14px; border-radius: 8px; border: 1.5px solid #a7f3d0; letter-spacing: 1px; user-select: all;">جاري
+                            style="font-family: monospace; font-size: 1.15rem; font-weight: 900; color: #047857; background: #ecfdf5; padding: 5px 14px; border-radius: 10px; border: 1.5px solid #a7f3d0; letter-spacing: 1px; user-select: all; display: inline-block; direction: ltr; text-align: center;">جاري
                             التحميل...</span>
-                        <button type="button"
-                            onclick="if(typeof copyPaymentNumber==='function'){copyPaymentNumber(document.getElementById('displayMachineId').innerText);}else{navigator.clipboard.writeText(document.getElementById('displayMachineId').innerText);if(typeof showToast==='function')showToast('تم نسخ كود الجهاز بنجاح 📋','success');else if(typeof showCustomAlert==='function')showCustomAlert({ title:'كود الجهاز', message:'تم نسخ كود الجهاز بنجاح 📋' });else alert('تم نسخ كود الجهاز بنجاح 📋');}"
-                            style="background: #047857; color: white; border: none; border-radius: 8px; padding: 6px 12px; font-size: 0.85rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: 0.2s;"
+                        <button type="button" class="sub-copy-btn"
+                            onclick="if(typeof copyPaymentNumber==='function'){copyPaymentNumber(document.getElementById('displayMachineId').innerText);}else{navigator.clipboard.writeText(document.getElementById('displayMachineId').innerText);if(typeof showToast==='function')showToast('تم نسخ كود الجهاز بنجاح 📋','success');else if(typeof showCustomAlert==='function')showCustomAlert({ title:'كود الجهاز', message:'تم نسخ كود الجهاز بنجاح 📋' });}"
+                            style="background: linear-gradient(135deg, #059669, #047857); color: white; border: none; border-radius: 25px; padding: 6px 14px; font-size: 0.85rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(5, 150, 105, 0.35); transition: all 0.2s ease; white-space: nowrap;"
                             title="نسخ كود الجهاز">
-                            📋 نسخ الكود
+                            <span>📋</span> <span>نسخ الكود</span>
                         </button>
                     </div>
                     <div>

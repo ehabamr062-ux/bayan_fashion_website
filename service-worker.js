@@ -3,9 +3,9 @@
 //  النسخة المطورة للعمل أوفلاين 100%
 // ============================================================
 
-const CACHE_NAME = 'bayan-pos-v5.1.5';
-const STATIC_CACHE = 'bayan-static-v5.1.5';
-const DYNAMIC_CACHE = 'bayan-dynamic-v5.1.5';
+const CACHE_NAME = 'bayan-pos-v5.1.6';
+const STATIC_CACHE = 'bayan-static-v5.1.6';
+const DYNAMIC_CACHE = 'bayan-dynamic-v5.1.6';
 
 // كافة ملفات النظام الأساسية المتوفرة محلياً (بدون تكرار لتفادي خطأ Entry already exists على GitHub Pages)
 const STATIC_FILES = [
@@ -150,8 +150,8 @@ self.addEventListener('fetch', (event) => {
                 if (networkResponse && networkResponse.status === 200) {
                     const responseToCache = networkResponse.clone();
                     caches.open(DYNAMIC_CACHE).then((cache) => {
-                        cache.put(request, responseToCache).catch(() => {});
-                    }).catch(() => {});
+                        cache.put(request, responseToCache).catch(() => { });
+                    }).catch(() => { });
                 }
                 return networkResponse;
             }).catch(() => {
@@ -180,8 +180,8 @@ self.addEventListener('fetch', (event) => {
 
                 const responseToCache = networkResponse.clone();
                 caches.open(DYNAMIC_CACHE).then((cache) => {
-                    cache.put(request, responseToCache).catch(() => {});
-                }).catch(() => {});
+                    cache.put(request, responseToCache).catch(() => { });
+                }).catch(() => { });
 
                 return networkResponse;
             }).catch(() => {
