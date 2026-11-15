@@ -271,7 +271,7 @@
                 if (restored && typeof restored === 'string' && restored.startsWith(salt)) {
                     return restored.substring(salt.length);
                 }
-            } catch (e) {}
+            } catch (e) { }
             return null;
         },
 
@@ -291,7 +291,7 @@
                     if (restored && typeof restored === 'string' && restored.startsWith(PIN_SALT)) {
                         return restored.substring(PIN_SALT.length);
                     }
-                } catch (e) {}
+                } catch (e) { }
                 return null;
             }
 
@@ -303,7 +303,7 @@
                     if (restored && typeof restored === 'string' && restored.startsWith(PIN_SALT)) {
                         return restored.substring(PIN_SALT.length);
                     }
-                } catch (e) {}
+                } catch (e) { }
                 return null;
             }
 
@@ -315,7 +315,7 @@
                     if (restored && typeof restored === 'string' && restored.startsWith(PIN_SALT)) {
                         return restored.substring(PIN_SALT.length);
                     }
-                } catch (e) {}
+                } catch (e) { }
                 return null;
             }
 
@@ -327,7 +327,7 @@
                 if (decrypted && typeof decrypted === 'string' && decrypted.startsWith(LEGACY_SALT)) {
                     return decrypted.substring(LEGACY_SALT.length);
                 }
-            } catch (e) {}
+            } catch (e) { }
             return null;
         },
 
