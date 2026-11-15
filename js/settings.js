@@ -1153,8 +1153,8 @@ function changeUserPin(idx) {
                 </div>
                 <div style="padding: 22px 24px; display: flex; flex-direction: column; gap: 16px;">
                     <div>
-                        <label style="display: block; font-weight: 900; font-size: 0.85rem; color: #334155; margin-bottom: 8px;">رمز الدخول الجديد (PIN مكون من 4 أرقام):</label>
-                        <input type="password" id="customNewPinInput" maxlength="4" placeholder="••••" autofocus
+                        <label style="display: block; font-weight: 900; font-size: 0.85rem; color: #334155; margin-bottom: 8px;">رمز الدخول الجديد (أرقام إنجليزية أو عربية):</label>
+                        <input type="password" id="customNewPinInput" maxlength="12" placeholder="••••" autofocus
                             style="width: 100%; height: 48px; border: 2px solid #cbd5e1; border-radius: 12px; font-family: monospace; font-size: 1.3rem; font-weight: 900; letter-spacing: 6px; text-align: center; box-sizing: border-box; outline: none; transition: border-color 0.2s;"
                             onfocus="this.style.borderColor='#d97706'" onblur="this.style.borderColor='#cbd5e1'"
                             onkeydown="if(event.key==='Enter') executeChangeUserPin(${idx})">
@@ -1188,9 +1188,13 @@ function executeChangeUserPin(idx) {
 
     const inp = document.getElementById('customNewPinInput');
     if (!inp) return;
-    const cleanPin = String(inp.value).trim();
-    if (!cleanPin || cleanPin.length !== 4 || isNaN(cleanPin)) {
-        return showToast("⚠️ يجب أن يكون الرمز PIN مكوناً من 4 أرقام عددية!", "error");
+    const rawVal = String(inp.value).trim();
+    const cleanPin = rawVal
+        .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+        .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+        .trim();
+    if (!cleanPin || isNaN(cleanPin)) {
+        return showToast("⚠️ يرجى إدخال رمز دخول صالح بالأرقام (إنجليزية أو عربية)!", "error");
     }
     const pinExists = users.some((other, i) => i !== idx && (
         other.pin === cleanPin ||
@@ -1199,19 +1203,26 @@ function executeChangeUserPin(idx) {
     if (pinExists) {
         return showToast("🚫 رمز PIN هذا مستخدم بالفعل لموظف آخر!", "error");
     }
-    u.pin = cleanPin;
+    const securePin = (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
+        ? window.BayanSecurity.encryptPin(cleanPin)
+        : cleanPin;
+    u.pin = securePin;
     if (currentUser && (currentUser.id === u.id || currentUser.name === u.name)) {
         if (typeof window.setCurrentUserInternal === 'function') {
-            window.setCurrentUserInternal({ ...currentUser, pin: cleanPin });
+            window.setCurrentUserInternal({ ...currentUser, pin: securePin });
         } else {
-            currentUser.pin = cleanPin;
+            currentUser.pin = securePin;
             window.currentUser = currentUser;
         }
         if (typeof setStore === 'function') {
             setStore('pos_session_user', JSON.stringify({ userName: currentUser.name, warehouseName: currentUser.warehouseName }));
         }
     }
-    saveData();
+    if (typeof saveUsersDirectlyToDb === 'function') {
+        saveUsersDirectlyToDb();
+    } else {
+        saveData();
+    }
     renderUsersTable();
     if (typeof updateLoginUsersList === 'function') updateLoginUsersList();
     const modal = document.getElementById('changePinModalOverlay');
@@ -1415,7 +1426,11 @@ async function addUser() {
         return showToast("🚫 ليس لديك صلاحية إدارة وصلاحيات المستخدمين!", "error");
     }
     const name = document.getElementById('newUserName').value.trim();
-    const pin = document.getElementById('newUserPin').value.trim();
+    const rawPin = document.getElementById('newUserPin').value.trim();
+    const pin = rawPin
+        .replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d))
+        .replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d))
+        .trim();
     let role = document.getElementById('newUserRole').value;
     const nfcUid = (document.getElementById('newUserNfcUid') ? document.getElementById('newUserNfcUid').value.trim() : '');
     let warehouseScope = document.getElementById('newUserWarehouseScope') ? document.getElementById('newUserWarehouseScope').value : 'all';
@@ -1442,7 +1457,7 @@ async function addUser() {
             : existingTarget.pin;
     }
 
-    if (!name || !finalPin) return showToast("⚠️ يرجى إدخال اسم المستخدم ورمز الدخول", "error");
+    if (!name || (!finalPin && !existingTarget)) return showToast("⚠️ يرجى إدخال اسم المستخدم ورمز الدخول", "error");
 
     const duplicateNameUser = users.find(u => u.name && u.name.trim().toLowerCase() === name.toLowerCase() && u.id !== (window.editingUserId || 0));
     if (duplicateNameUser) {
@@ -1612,11 +1627,18 @@ async function addUser() {
         ? false
         : (document.getElementById('perm_wh_lock_switching') ? document.getElementById('perm_wh_lock_switching').checked : true);
 
-    const securePin = (window.BayanSecurity && typeof window.BayanSecurity.hashPinSecure === 'function')
-        ? window.BayanSecurity.hashPinSecure(finalPin)
-        : ((window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
+    let securePin = '';
+    if (pin) {
+        securePin = (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
+            ? window.BayanSecurity.encryptPin(pin)
+            : pin;
+    } else if (existingTarget && existingTarget.pin) {
+        securePin = existingTarget.pin;
+    } else if (finalPin) {
+        securePin = (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
             ? window.BayanSecurity.encryptPin(finalPin)
-            : finalPin);
+            : finalPin;
+    }
 
     const newUser = {
         id: window.editingUserId || Date.now(),
@@ -1709,10 +1731,13 @@ function editUser(idx) {
             plainPin = (window.BayanSecurity && typeof window.BayanSecurity.decryptPin === 'function')
                 ? window.BayanSecurity.decryptPin(u.pin)
                 : u.pin;
+            if (plainPin && String(plainPin).startsWith('HASH:')) {
+                plainPin = '';
+            }
         }
         pinInput.type = 'password';
         pinInput.value = plainPin || '';
-        pinInput.placeholder = '••••';
+        pinInput.placeholder = plainPin ? '••••' : 'أدخل الرمز السري';
     }
     const pinEyeBtn = document.getElementById('toggleUserPinBtn');
     if (pinEyeBtn) {
