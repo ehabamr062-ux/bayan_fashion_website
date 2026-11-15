@@ -1643,8 +1643,14 @@ function renderPriceAdjustmentTable(filteredData = null) {
                         onchange="updateRowPriceAdj(${originalIndex}, 'minPrice', this.value)"
                         onkeydown="handlePriceAdjKeyNav(event, this)">
                 </td>
-                <td class="col-adj-9" style="text-align:center; font-weight:900; color:${p.stock > 0 ? '#15803d' : '#dc2626'}; background:rgba(241,245,249,0.4); font-size:0.88rem;">
-                    ${Number(p.stock || 0).toFixed(2).replace(/\.00$/, '')}
+                <td class="col-adj-9" style="text-align:center; padding:4px;">
+                    <input type="number" data-field="stock" data-row="${renderIndex}" step="1" value="${Number(p.stock || 0)}" 
+                        style="width:95%; height:34px; border:1.5px solid #86efac; border-radius:8px; text-align:center; font-weight:900; color:#047857; background:#f0fdf4; font-size:0.92rem; outline:none; transition:0.2s;"
+                        onfocus="this.style.borderColor='#10b981'; this.style.boxShadow='0 0 0 3px rgba(16,185,129,0.15)';"
+                        onblur="this.style.borderColor='#86efac'; this.style.boxShadow='none';"
+                        onchange="updateRowPriceAdj(${originalIndex}, 'stock', this.value)"
+                        onkeydown="handlePriceAdjKeyNav(event, this)"
+                        title="تعديل الرصيد الكلي المباشر للصنف">
                 </td>
             </tr>
         `);
@@ -1702,6 +1708,9 @@ async function updateRowPriceAdj(adjIndex, field, value) {
     } else {
         newValue = parseFloat(value) || 0;
         item[field] = newValue;
+        if (field === 'stock') {
+            item._stockModified = true;
+        }
 
         if (field === 'retail' || field === 'avgBuyPrice') {
             item.profitMargin = item.avgBuyPrice > 0 ? (((item.retail - item.avgBuyPrice) / item.avgBuyPrice) * 100).toFixed(1) : '0.0';
@@ -1765,6 +1774,14 @@ async function updateRowPriceAdj(adjIndex, field, value) {
                 else if (field === 'wholesale') pInDB.wholesale = numVal;
                 else if (field === 'avgBuyPrice') pInDB.cost = numVal;
                 else if (field === 'minPrice') pInDB.minPrice = numVal;
+                else if (field === 'stock') {
+                    pInDB.stock = numVal;
+                    const activeWh = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName)
+                        ? currentUser.warehouseName
+                        : ((typeof getStore === 'function' ? getStore('activeWarehouse') : null) || 'المخزن الرئيسي')).trim();
+                    if (!pInDB.warehouseStock || typeof pInDB.warehouseStock !== 'object') pInDB.warehouseStock = {};
+                    pInDB.warehouseStock[activeWh] = numVal;
+                }
 
                 if (Array.isArray(pInDB.variants)) {
                     pInDB.variants.forEach(v => {
@@ -2070,8 +2087,12 @@ function renderFvpListTable(item) {
                         onchange="updateSingleVariantPrice(${idx}, 'minPrice', this.value)"
                         onkeydown="handleFvpKeyNav(event, this)">
                 </td>
-                <td style="text-align: center; font-weight: 900; color: ${v.stock > 0 ? '#15803d' : '#dc2626'}; font-size: 0.88rem;">
-                    ${v.stock || 0}
+                <td style="text-align: center; padding: 4px;">
+                    <input type="number" step="1" value="${v.stock || 0}" data-field="stock" data-vidx="${idx}"
+                        style="width: 95%; height: 32px; border: 1.5px solid #86efac; border-radius: 6px; text-align: center; font-weight: 900; color: #047857; background: #f0fdf4; font-size: 0.9rem;"
+                        onchange="updateSingleVariantPrice(${idx}, 'stock', this.value)"
+                        onkeydown="handleFvpKeyNav(event, this)"
+                        title="تعديل رصيد هذا المقاس/اللون">
                 </td>
             </tr>
         `;
@@ -2242,6 +2263,20 @@ function updateSingleVariantPrice(vIndex, field, value) {
     } else {
         const numVal = parseFloat(value) || 0;
         item.variants[vIndex][field] = numVal;
+
+        if (field === 'stock') {
+            item._stockModified = true;
+            const totalStock = item.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
+            item.stock = totalStock;
+            const origIdx = window.priceAdjData ? window.priceAdjData.indexOf(item) : -1;
+            if (origIdx !== -1) {
+                const mainTr = document.querySelector(`tr[data-orig-idx="${origIdx}"]`);
+                if (mainTr) {
+                    const stockInp = mainTr.querySelector('input[data-field="stock"]');
+                    if (stockInp) stockInp.value = totalStock;
+                }
+            }
+        }
 
         // تحديث شارة الربح في جدول التفاصيل إن وجدت
         const tr = document.querySelector(`#fvpTableBody tr[data-vidx="${vIndex}"]`);
@@ -2765,6 +2800,17 @@ async function savePriceAdjustments() {
                 p.minPrice = parseFloat(item.minPrice) || 0;
                 if (item.barcode) p.barcode = String(item.barcode).trim();
 
+                // ⚡ تحديث الرصيد الكلي في المخزن الرئيسي وحساب الأرصدة
+                if (item._stockModified || (item.stock !== undefined && item.stock !== null && item.stock !== '')) {
+                    const newStock = parseFloat(item.stock) || 0;
+                    p.stock = newStock;
+                    const activeWh = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName)
+                        ? currentUser.warehouseName
+                        : ((typeof getStore === 'function' ? getStore('activeWarehouse') : null) || 'المخزن الرئيسي')).trim();
+                    if (!p.warehouseStock || typeof p.warehouseStock !== 'object') p.warehouseStock = {};
+                    p.warehouseStock[activeWh] = newStock;
+                }
+
                 if (item.hasVariants && Array.isArray(item.variants)) {
                     if (!p.variants) p.variants = [];
                     item.variants.forEach((v, vIdx) => {
@@ -2775,8 +2821,22 @@ async function savePriceAdjustments() {
                             p.variants[targetIdx].cost = (p.variants[targetIdx].cost !== undefined && p.variants[targetIdx].cost !== null && p.variants[targetIdx].cost > 0) ? p.variants[targetIdx].cost : (parseFloat(v.cost) || 0);
                             p.variants[targetIdx].minPrice = parseFloat(v.minPrice) || 0;
                             if (v.barcode) p.variants[targetIdx].barcode = String(v.barcode).trim();
+                            if (v.stock !== undefined && v.stock !== null && v.stock !== '') {
+                                p.variants[targetIdx].stock = parseFloat(v.stock) || 0;
+                            }
                         }
                     });
+
+                    // مزامنة الرصيد الكلي مع مجموع أرصدة التشكيلات إذا تم تعديلها
+                    if (item._stockModified || item.variants.some(v => v.stock !== undefined)) {
+                        const sumVarStock = p.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
+                        p.stock = sumVarStock;
+                        const activeWh = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName)
+                            ? currentUser.warehouseName
+                            : ((typeof getStore === 'function' ? getStore('activeWarehouse') : null) || 'المخزن الرئيسي')).trim();
+                        if (!p.warehouseStock || typeof p.warehouseStock !== 'object') p.warehouseStock = {};
+                        p.warehouseStock[activeWh] = sumVarStock;
+                    }
                 }
 
                 p.updatedAt = new Date().toISOString();

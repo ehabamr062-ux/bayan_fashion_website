@@ -4693,6 +4693,11 @@
                         <!-- باكدج أزرار العمليات المتصلة (ماسكين في بعض ككتلة واحدة) -->
                         <div class="action-toolbar-premium"
                             style="margin: 0; display: inline-flex; border-radius: 10px; overflow: hidden; border: 1.5px solid #cbd5e1; box-shadow: 0 2px 5px rgba(0,0,0,0.06); background: #ffffff;">
+                            <button id="invSelectAllBtn" class="tool-btn" onclick="toggleSelectAllInventoryBtn()"
+                                title="تحديد أو إلغاء تحديد كافة الأصناف المعروضة"
+                                style="height: 40px; padding: 0 13px; font-size: 0.82rem; background: #059669; color: white; border: none; border-left: 1px solid rgba(255,255,255,0.25); border-radius: 0; cursor: pointer; font-weight: 900; display: flex; align-items: center; gap: 5px; transition: 0.2s;">
+                                <span id="invSelectAllIcon">☑️</span> <span id="invSelectAllText">تحديد الكل</span>
+                            </button>
                             <button id="invEditBtn" class="tool-btn edit" onclick="editSelectedInventoryItem()"
                                 title="تعديل الصنف المختار"
                                 style="height: 40px; padding: 0 13px; font-size: 0.82rem; background: #2563eb; color: white; border: none; border-left: 1px solid rgba(255,255,255,0.25); border-radius: 0; cursor: pointer; font-weight: 900; display: flex; align-items: center; gap: 5px; transition: 0.2s;">

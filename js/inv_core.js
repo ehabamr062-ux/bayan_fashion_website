@@ -2436,6 +2436,7 @@ async function importProductsFromExcel(event) {
 }
 
 function selectAllInventory(checked) {
+    if (!window.selectedInventoryIds) window.selectedInventoryIds = new Set();
     document.querySelectorAll('.inv-row-check').forEach(chk => {
         chk.checked = checked;
         const tr = chk.closest('tr');
@@ -2452,6 +2453,41 @@ function selectAllInventory(checked) {
     });
     updateInventorySelectionUI();
 }
+
+function toggleSelectAllInventoryBtn() {
+    if (!window.selectedInventoryIds) window.selectedInventoryIds = new Set();
+    const visibleRows = document.querySelectorAll('#inventoryTableBody tr[data-id]');
+    if (visibleRows.length === 0) return;
+
+    const allSelected = Array.from(visibleRows).every(tr => {
+        const id = parseInt(tr.getAttribute('data-id'));
+        return window.selectedInventoryIds.has(id);
+    });
+
+    const shouldSelect = !allSelected;
+    visibleRows.forEach(tr => {
+        const id = parseInt(tr.getAttribute('data-id'));
+        const chk = tr.querySelector('.inv-row-check');
+        if (shouldSelect) {
+            window.selectedInventoryIds.add(id);
+            tr.classList.add('selected-row-gold');
+            if (chk) chk.checked = true;
+        } else {
+            window.selectedInventoryIds.delete(id);
+            tr.classList.remove('selected-row-gold');
+            if (chk) chk.checked = false;
+        }
+    });
+
+    const masterCheck = document.querySelector('.col-inv-0 input[type="checkbox"]');
+    if (masterCheck) masterCheck.checked = shouldSelect;
+
+    updateInventorySelectionUI();
+    if (typeof showToast === 'function') {
+        showToast(shouldSelect ? `✅ تم تحديد كافة الأصناف المعروضة (${window.selectedInventoryIds.size} صنف)` : `ℹ️ تم إلغاء تحديد الأصناف`, 'info');
+    }
+}
+window.toggleSelectAllInventoryBtn = toggleSelectAllInventoryBtn;
 
 function handleInventoryCheckClick(event, id, tr) {
     event.stopPropagation();
@@ -2498,6 +2534,23 @@ function updateInventorySelectionUI() {
             }
         }
     });
+
+    const btnText = document.getElementById('invSelectAllText');
+    const btnIcon = document.getElementById('invSelectAllIcon');
+    if (btnText && btnIcon) {
+        const visibleRows = document.querySelectorAll('#inventoryTableBody tr[data-id]');
+        const allSelected = visibleRows.length > 0 && Array.from(visibleRows).every(tr => {
+            const id = parseInt(tr.getAttribute('data-id'));
+            return window.selectedInventoryIds.has(id);
+        });
+        if (allSelected && visibleRows.length > 0) {
+            btnText.innerText = 'إلغاء التحديد';
+            btnIcon.innerText = '✖️';
+        } else {
+            btnText.innerText = checkedCount > 0 ? `تحديد الكل (${checkedCount})` : 'تحديد الكل';
+            btnIcon.innerText = '☑️';
+        }
+    }
 }
 
 function toggleInventoryRowSelection(id, tr, event) {
