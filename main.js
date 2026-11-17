@@ -32,16 +32,30 @@ app.commandLine.appendSwitch('enable-raster-multithread');
 app.commandLine.appendSwitch('disable-breakpad');
 
 
+// =========================================================================
+// 📁 نظام مسار البيانات والتخزين الموحد (AppData/Roaming/Bayan POS)
+// يجب ضبطه قبل requestSingleInstanceLock لتوحيد ملف القفل (SingletonLock) ومنع Error code: 32
+// =========================================================================
+const userDataPath = path.join(app.getPath('appData'), 'Bayan POS');
+app.setPath('userData', userDataPath);
+if (!fs.existsSync(userDataPath)) {
+    fs.mkdirSync(userDataPath, { recursive: true });
+}
+
 const gotTheLock = app.requestSingleInstanceLock();
 if (!gotTheLock) {
-    console.log('⚠️ نسخة أخرى من تطبيق Bayan POS تعمل بالفعل بالخلفية. إغلاق النسخة المكررة فوراً...');
-    app.exit(0);
+    console.log('⚠️ نسخة أخرى من تطبيق Bayan POS تعمل بالفعل بالخلفية. جاري توجيه التركيز إليها وإغلاق النسخة المكررة...');
+    app.quit();
 } else {
     app.on('second-instance', () => {
         if (mainWindow && !mainWindow.isDestroyed()) {
             if (mainWindow.isMinimized()) mainWindow.restore();
             mainWindow.show();
+            if (typeof mainWindow.moveTop === 'function') mainWindow.moveTop();
             mainWindow.focus();
+        } else {
+            // 🛡️ صمام أمان: فتح النافذة فوراً إذا كانت العملية تعمل بالخلفية بدون واجهة
+            createWindow();
         }
     });
 }
@@ -307,40 +321,30 @@ function createWindow() {
     return win;
 }
 
-// تهيئة التطبيق وإحالة الجلسة المكررة إلى النافذة المفتوحة
-app.on('second-instance', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-        if (mainWindow.isMinimized()) mainWindow.restore();
-        mainWindow.show();
-        mainWindow.focus();
-    } else {
-        // 🛡️ صمام أمان: فتح النافذة فوراً إذا كانت العملية تعمل بالخلفية بدون واجهة
-        createWindow();
-    }
-});
-
 const os = require('os');
 
-app.whenReady().then(() => {
-    createWindow();
+if (gotTheLock) {
+    app.whenReady().then(() => {
+        createWindow();
 
-    app.on('activate', function () {
-        if (BrowserWindow.getAllWindows().length === 0) createWindow();
+        app.on('activate', function () {
+            if (BrowserWindow.getAllWindows().length === 0) createWindow();
+        });
+
+        // فحص التحديثات تلقائياً بهدوء بعد 3 دقائق من تشغيل التطبيق لضمان استقرار شاشة البيع وعدم تعليق مدخلات الكاشير
+        setTimeout(() => {
+            if (typeof isAutoUpdatesFrozenOnDisk === 'function' && isAutoUpdatesFrozenOnDisk()) {
+                console.log('[Updater] 🔒 تخطي الفحص التلقائي عند بدء التشغيل: التحديثات مجمدة تماماً بناءً على اختيار العميل.');
+                return;
+            }
+            if (autoUpdater) {
+                autoUpdater.checkForUpdates().catch(err => {
+                    console.warn('Auto check for updates failed (safe to ignore if offline):', err.message);
+                });
+            }
+        }, 180000);
     });
-
-    // فحص التحديثات تلقائياً بهدوء بعد 3 دقائق من تشغيل التطبيق لضمان استقرار شاشة البيع وعدم تعليق مدخلات الكاشير
-    setTimeout(() => {
-        if (typeof isAutoUpdatesFrozenOnDisk === 'function' && isAutoUpdatesFrozenOnDisk()) {
-            console.log('[Updater] 🔒 تخطي الفحص التلقائي عند بدء التشغيل: التحديثات مجمدة تماماً بناءً على اختيار العميل.');
-            return;
-        }
-        if (autoUpdater) {
-            autoUpdater.checkForUpdates().catch(err => {
-                console.warn('Auto check for updates failed (safe to ignore if offline):', err.message);
-            });
-        }
-    }, 180000);
-});
+}
 
 app.on('window-all-closed', function () {
     app.exit(0);
@@ -1065,16 +1069,8 @@ ipcMain.handle('hash-activation-payload', (event, payload) => {
 
 // =========================================================================
 // 📁 1. نظام إدارة مجلد والنسخ الاحتياطية (Smart Backup System)
+// (تم ضبط userDataPath في أعلى الملف قبل requestSingleInstanceLock)
 // =========================================================================
-
-// =========================================================================
-// 📁 1. نظام مسار البيانات والتخزين الموحد (AppData/Roaming/Bayan POS)
-// =========================================================================
-const userDataPath = path.join(app.getPath('appData'), 'Bayan POS');
-app.setPath('userData', userDataPath);
-if (!fs.existsSync(userDataPath)) {
-    fs.mkdirSync(userDataPath, { recursive: true });
-}
 
 // 🔒 استرجاع وتوليد كود الجهاز المشفر الثابت من عتاد الويندوز الفعلي (Hardware UUID / Machine GUID)
 ipcMain.handle('get-hardware-uuid', () => {
