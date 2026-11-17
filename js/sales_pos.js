@@ -596,7 +596,7 @@ document.addEventListener('click', function (e) {
 // ⌨️ التوجيه التلقائي الذكي لضغطات الكيبورد والـ Numpad إلى خانة البحث في شاشة البيع
 window.addEventListener('keydown', function (e) {
     // 1. استثناء مفاتيح التحكم والأوامر الخاصة (Ctrl, Alt, Meta, F-keys, Escape, Tab, Arrows, etc.)
-    if (e.ctrlKey || e.altKey || e.metaKey) return;
+    if (!e || !e.key || e.ctrlKey || e.altKey || e.metaKey) return;
     if (e.key.length !== 1) return; // التقاط الحروف والأرقام والرموز فقط (تجاهل Enter, Tab, Shift, F1-F12...)
 
     // 2. التحقق من أن شاشة البيع (sales-section) هي المعروضة والنشطة حالياً بدون استدعاء getComputedStyle لمنع Forced Reflow

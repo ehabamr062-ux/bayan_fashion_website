@@ -836,7 +836,7 @@
 
                     for (const r of txRows) {
                         let rj = {};
-                        try { rj = r.raw_json ? JSON.parse(r.raw_json) : {}; } catch(e) {}
+                        try { rj = r.raw_json ? JSON.parse(r.raw_json) : {}; } catch (e) { }
                         const bcode = String(rj.barcode || rj.code || '').trim();
                         const prod = String(rj.product || rj.name || '').trim();
                         const size = String(rj.size || '').trim();
@@ -5505,7 +5505,7 @@
                             if (inv && inv.invoiceId) {
                                 inv.items = this.getInvoiceItems(inv.invoiceId, inv.type || (isSalesReturn ? 'بيع' : 'شراء'));
                             }
-                        } catch (itemErr) {}
+                        } catch (itemErr) { }
                     });
                 }
 

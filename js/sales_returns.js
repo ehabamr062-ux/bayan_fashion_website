@@ -2332,7 +2332,7 @@ document.addEventListener('keydown', (e) => {
     const targetId = searchMap[currentTab.type] || null;
     if (!targetId) return;
 
-    const isChar = e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey;
+    const isChar = e && e.key && e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey;
 
     if (!isInput && isChar) {
         const target = document.getElementById(targetId);

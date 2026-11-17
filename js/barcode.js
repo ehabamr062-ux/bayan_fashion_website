@@ -993,7 +993,7 @@ const BayanBarcode = (function () {
         }
 
         // تجميع أحرف الباركود
-        if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        if (e && e.key && e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
             // 🛡️ إذا كان المستخدم يكتب في حقل إدخال عادي بسرعة يدوية عادية، نفرغ البافر فوراً لمنع التداخل
             if (isStandardInput && timeDiff > SCAN_THRESHOLD_MS) {
                 buffer = '';
