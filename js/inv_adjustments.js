@@ -2406,15 +2406,19 @@ async function saveFashionVariantsPrice() {
             if (!pInDB.warehouseStocks || typeof pInDB.warehouseStocks !== 'object') pInDB.warehouseStocks = {};
             if (!pInDB.warehouseStock || typeof pInDB.warehouseStock !== 'object') pInDB.warehouseStock = {};
 
+            let activeWhStock = 0;
             if (window.FashionStockEngine && typeof FashionStockEngine.syncProductTotals === 'function') {
                 FashionStockEngine.syncProductTotals(pInDB, activeWh);
+                activeWhStock = FashionStockEngine.getProductStock(pInDB, activeWh);
+                pInDB.warehouseStock[activeWh] = activeWhStock;
             } else {
                 const sumVarStock = pInDB.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
                 pInDB.stock = sumVarStock;
                 pInDB.warehouseStocks[activeWh] = sumVarStock;
                 pInDB.warehouseStock[activeWh] = sumVarStock;
+                activeWhStock = sumVarStock;
             }
-            item.stock = pInDB.stock;
+            item.stock = activeWhStock;
 
             // تحديث سعر الصنف الأب في الذاكرة والقاعدة
             if (item.variants.length > 0) {
@@ -2449,14 +2453,26 @@ async function saveFashionVariantsPrice() {
 
             // تحديث كائن الصنف في نافذة تعديل الأسعار الرئيسية
             if (Array.isArray(window.priceAdjData)) {
-                const pIdx = window.priceAdjData.findIndex(x => x.id === item.id);
+                const pIdx = window.priceAdjData.findIndex(x => String(x.id) === String(item.id));
                 if (pIdx !== -1) {
                     window.priceAdjData[pIdx].retail = pInDB.price;
                     window.priceAdjData[pIdx].wholesale = pInDB.wholesale;
                     window.priceAdjData[pIdx].avgBuyPrice = pInDB.cost;
-                    window.priceAdjData[pIdx].stock = sumVarStock;
+                    window.priceAdjData[pIdx].stock = activeWhStock;
                     window.priceAdjData[pIdx]._stockModified = true;
-                    window.priceAdjData[pIdx].variants = JSON.parse(JSON.stringify(pInDB.variants || []));
+                    window.priceAdjData[pIdx].variants = (pInDB.variants || []).map((v, vIdx) => ({
+                        variantIndex: vIdx,
+                        size: String(v.size || '').trim(),
+                        color: String(v.color || '').trim(),
+                        barcode: String(v.barcode || '').trim() || pInDB.barcode || '',
+                        cost: parseFloat(v.cost) || parseFloat(pInDB.cost) || 0,
+                        wholesale: parseFloat(v.wholesale) || parseFloat(v.wholesalePrice) || parseFloat(pInDB.wholesale) || 0,
+                        price: parseFloat(v.price) || parseFloat(pInDB.price) || 0,
+                        minPrice: parseFloat(v.minPrice) || parseFloat(pInDB.minPrice) || 0,
+                        stock: (window.FashionStockEngine && typeof FashionStockEngine.getVariantStock === 'function')
+                            ? FashionStockEngine.getVariantStock(v, activeWh)
+                            : ((v.warehouseStocks && v.warehouseStocks[activeWh] !== undefined) ? (parseFloat(v.warehouseStocks[activeWh]) || 0) : (parseFloat(v.stock) || 0))
+                    }));
                 }
             }
         }
