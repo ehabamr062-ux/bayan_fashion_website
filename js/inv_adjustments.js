@@ -1644,13 +1644,25 @@ function renderPriceAdjustmentTable(filteredData = null) {
                         onkeydown="handlePriceAdjKeyNav(event, this)">
                 </td>
                 <td class="col-adj-9" style="text-align:center; padding:4px;">
-                    <input type="number" data-field="stock" data-row="${renderIndex}" step="1" value="${Number(p.stock || 0)}" 
-                        style="width:95%; height:34px; border:1.5px solid #86efac; border-radius:8px; text-align:center; font-weight:900; color:#047857; background:#f0fdf4; font-size:0.92rem; outline:none; transition:0.2s;"
-                        onfocus="this.style.borderColor='#10b981'; this.style.boxShadow='0 0 0 3px rgba(16,185,129,0.15)';"
-                        onblur="this.style.borderColor='#86efac'; this.style.boxShadow='none';"
-                        onchange="updateRowPriceAdj(${originalIndex}, 'stock', this.value)"
-                        onkeydown="handlePriceAdjKeyNav(event, this)"
-                        title="تعديل الرصيد الكلي المباشر للصنف">
+                    ${(p.hasVariants && Array.isArray(p.variants) && p.variants.length > 0) ? `
+                        <div onclick="openFashionVariantsPriceModal(${originalIndex})" 
+                            style="width:95%; height:34px; margin:0 auto; display:flex; align-items:center; justify-content:center; gap:5px; background:linear-gradient(135deg, #f0fdf4, #dcfce7); border:1.5px dashed #059669; border-radius:8px; cursor:pointer; transition:0.2s; user-select:none;"
+                            onmouseover="this.style.background='#bbf7d0'; this.style.borderColor='#047857'; this.style.transform='scale(1.02)';"
+                            onmouseout="this.style.background='linear-gradient(135deg, #f0fdf4, #dcfce7)'; this.style.borderColor='#059669'; this.style.transform='scale(1)';"
+                            title="رصيد الموديل محسوب آلياً من مجموع مقاساته وألوانه (${Number(p.stock || 0)} قطعة). انقر لتعديل وتوزيع أرصدة المقاسات">
+                            <span style="font-size:0.8rem;">👗</span>
+                            <span class="fvp-stock-badge-num" style="font-weight:900; color:#047857; font-size:0.95rem;">${Number(p.stock || 0)}</span>
+                            <span style="font-size:0.7rem; color:#059669; background:rgba(255,255,255,0.7); padding:1px 4px; border-radius:4px; font-weight:800;">تعديل</span>
+                        </div>
+                    ` : `
+                        <input type="number" data-field="stock" data-row="${renderIndex}" step="1" value="${Number(p.stock || 0)}" 
+                            style="width:95%; height:34px; border:1.5px solid #86efac; border-radius:8px; text-align:center; font-weight:900; color:#047857; background:#f0fdf4; font-size:0.92rem; outline:none; transition:0.2s;"
+                            onfocus="this.style.borderColor='#10b981'; this.style.boxShadow='0 0 0 3px rgba(16,185,129,0.15)';"
+                            onblur="this.style.borderColor='#86efac'; this.style.boxShadow='none';"
+                            onchange="updateRowPriceAdj(${originalIndex}, 'stock', this.value)"
+                            onkeydown="handlePriceAdjKeyNav(event, this)"
+                            title="تعديل الرصيد الكلي المباشر للصنف">
+                    `}
                 </td>
             </tr>
         `);
@@ -1810,7 +1822,7 @@ async function updateRowPriceAdj(adjIndex, field, value) {
 // ============================================================
 window.activeFashionModalIndex = null;
 window.activeFashionItem = null;
-window.fvpCurrentPriceMode = 'price'; // 'price' | 'wholesale' | 'cost' | 'minPrice'
+window.fvpCurrentPriceMode = 'price'; // 'price' | 'wholesale' | 'cost' | 'minPrice' | 'stock'
 window.fvpCurrentColorFilter = 'all';
 window.fvpCurrentSizeFilter = 'all';
 
@@ -1820,7 +1832,8 @@ function setFvpMatrixPriceMode(mode) {
         { id: 'price', bg: '#0284c7', text: '#ffffff', shadow: 'rgba(2,132,199,0.35)' },
         { id: 'wholesale', bg: '#4f46e5', text: '#ffffff', shadow: 'rgba(79,70,229,0.35)' },
         { id: 'cost', bg: '#475569', text: '#ffffff', shadow: 'rgba(71,85,105,0.35)' },
-        { id: 'minPrice', bg: '#e11d48', text: '#ffffff', shadow: 'rgba(225,29,72,0.35)' }
+        { id: 'minPrice', bg: '#e11d48', text: '#ffffff', shadow: 'rgba(225,29,72,0.35)' },
+        { id: 'stock', bg: '#059669', text: '#ffffff', shadow: 'rgba(5,150,105,0.35)' }
     ];
 
     modes.forEach(m => {
@@ -2152,11 +2165,12 @@ function renderFvpMatrixGrid(item) {
 
     // خصائص الأنماط بحسب نوع السعر النشط
     const modeMeta = {
-        price: { title: 'سعر القطاعي', border: '#38bdf8', bg: '#f0f9ff', text: '#0369a1' },
-        wholesale: { title: 'سعر الجملة', border: '#818cf8', bg: '#eef2ff', text: '#3730a3' },
-        cost: { title: 'سعر التكلفة (للقراءة فقط 🔒)', border: '#cbd5e1', bg: '#f8fafc', text: '#475569' },
-        minPrice: { title: 'أدنى سعر', border: '#f43f5e', bg: '#fff1f2', text: '#be123c' }
-    }[mode] || { title: 'سعر القطاعي', border: '#38bdf8', bg: '#f0f9ff', text: '#0369a1' };
+        price: { title: 'سعر القطاعي', border: '#38bdf8', bg: '#f0f9ff', text: '#0369a1', step: '0.5' },
+        wholesale: { title: 'سعر الجملة', border: '#818cf8', bg: '#eef2ff', text: '#3730a3', step: '0.5' },
+        cost: { title: 'سعر التكلفة (للقراءة فقط 🔒)', border: '#cbd5e1', bg: '#f8fafc', text: '#475569', step: '0.5' },
+        minPrice: { title: 'أدنى سعر', border: '#f43f5e', bg: '#fff1f2', text: '#be123c', step: '0.5' },
+        stock: { title: 'الرصيد المخزني', border: '#86efac', bg: '#f0fdf4', text: '#047857', step: '1' }
+    }[mode] || { title: 'سعر القطاعي', border: '#38bdf8', bg: '#f0f9ff', text: '#0369a1', step: '0.5' };
 
     let tableHtml = `
         <table class="invoice-table" style="width: 100%; border-collapse: separate; border-spacing: 0; min-width: 500px; border: 1.5px solid #cbd5e1; border-radius: 10px;">
@@ -2196,6 +2210,8 @@ function renderFvpMatrixGrid(item) {
                     subInfo = `ق: <strong style="color:#0369a1">${v.price || 0}</strong> | ج: <strong style="color:#4338ca">${v.wholesale || 0}</strong>`;
                 } else if (mode === 'minPrice') {
                     subInfo = `ق: <strong style="color:#0369a1">${v.price || 0}</strong> | ج: <strong style="color:#4338ca">${v.wholesale || 0}</strong>`;
+                } else if (mode === 'stock') {
+                    subInfo = `ق: <strong style="color:#0369a1">${v.price || 0}</strong> | ج: <strong style="color:#4338ca">${v.wholesale || 0}</strong>`;
                 }
 
                 tableHtml += `
@@ -2206,7 +2222,7 @@ function renderFvpMatrixGrid(item) {
                                     🔒 ${Number(activeVal || 0).toFixed(2)}
                                 </div>
                             ` : `
-                                <input type="number" step="0.5" value="${activeVal}" data-vidx="${foundIdx}" data-field="${mode}" data-col="${col}" data-sz="${sz}"
+                                <input type="number" step="${modeMeta.step || '0.5'}" value="${activeVal}" data-vidx="${foundIdx}" data-field="${mode}" data-col="${col}" data-sz="${sz}"
                                     style="width: 82px; height: 32px; border: 1.5px solid ${modeMeta.border}; border-radius: 7px; text-align: center; font-weight: 900; color: ${modeMeta.text}; background: ${modeMeta.bg}; font-size: 0.92rem; outline: none; transition: 0.15s;"
                                     onfocus="this.style.boxShadow='0 0 0 3px rgba(99,102,241,0.25)';" onblur="this.style.boxShadow='none';"
                                     onchange="updateSingleVariantPrice(${foundIdx}, '${mode}', this.value); renderFvpListTable(window.activeFashionItem);"
@@ -2274,8 +2290,12 @@ function updateSingleVariantPrice(vIndex, field, value) {
                 if (mainTr) {
                     const stockInp = mainTr.querySelector('input[data-field="stock"]');
                     if (stockInp) stockInp.value = totalStock;
+                    const stockBadgeNum = mainTr.querySelector('.fvp-stock-badge-num');
+                    if (stockBadgeNum) stockBadgeNum.innerText = totalStock;
                 }
             }
+            const totStockEl = document.getElementById('fvpTotalStockCount');
+            if (totStockEl) totStockEl.innerText = totalStock;
         }
 
         // تحديث شارة الربح في جدول التفاصيل إن وجدت
@@ -2357,8 +2377,21 @@ async function saveFashionVariantsPrice() {
                     pInDB.variants[targetIdx].cost = (pInDB.variants[targetIdx].cost !== undefined && pInDB.variants[targetIdx].cost !== null && pInDB.variants[targetIdx].cost > 0) ? pInDB.variants[targetIdx].cost : (parseFloat(v.cost) || 0);
                     pInDB.variants[targetIdx].minPrice = parseFloat(v.minPrice) || 0;
                     if (v.barcode) pInDB.variants[targetIdx].barcode = v.barcode;
+                    if (v.stock !== undefined && v.stock !== null && v.stock !== '') {
+                        pInDB.variants[targetIdx].stock = parseFloat(v.stock) || 0;
+                    }
                 }
             });
+
+            // مزامنة الرصيد الكلي للصنف الأب مع مجموع أرصدة المقاسات والتشكيلات
+            const sumVarStock = pInDB.variants.reduce((sum, v) => sum + (parseFloat(v.stock) || 0), 0);
+            pInDB.stock = sumVarStock;
+            item.stock = sumVarStock;
+            const activeWh = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName)
+                ? currentUser.warehouseName
+                : ((typeof getStore === 'function' ? getStore('activeWarehouse') : null) || 'المخزن الرئيسي')).trim();
+            if (!pInDB.warehouseStock || typeof pInDB.warehouseStock !== 'object') pInDB.warehouseStock = {};
+            pInDB.warehouseStock[activeWh] = sumVarStock;
 
             // تحديث سعر الصنف الأب في الذاكرة والقاعدة
             if (item.variants.length > 0) {
@@ -2392,6 +2425,8 @@ async function saveFashionVariantsPrice() {
                     window.priceAdjData[pIdx].retail = pInDB.price;
                     window.priceAdjData[pIdx].wholesale = pInDB.wholesale;
                     window.priceAdjData[pIdx].avgBuyPrice = pInDB.cost;
+                    window.priceAdjData[pIdx].stock = sumVarStock;
+                    window.priceAdjData[pIdx]._stockModified = true;
                     window.priceAdjData[pIdx].variants = JSON.parse(JSON.stringify(pInDB.variants || []));
                 }
             }
