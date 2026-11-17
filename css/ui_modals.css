@@ -2673,6 +2673,31 @@
             margin-bottom: 5px;
         }
 
+        .dm-action-tile.dm-sec-shortcuts {
+            padding: 10px 6px !important;
+            gap: 4px !important;
+        }
+
+        .dm-action-tile.dm-sec-shortcuts .icon {
+            font-size: 1.5rem !important;
+            line-height: 1 !important;
+            margin-bottom: 2px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+        }
+
+        .dm-action-tile.dm-sec-shortcuts .label {
+            font-size: 0.92rem !important;
+            line-height: 1.25 !important;
+            margin-top: 2px !important;
+            padding: 0 4px !important;
+            text-align: center !important;
+            white-space: normal !important;
+            word-break: break-word !important;
+            max-width: 100% !important;
+        }
+
         .dm-action-tile:hover {
             transform: translateY(-5px) scale(1.05) !important;
             filter: brightness(1.1) !important;
