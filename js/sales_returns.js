@@ -161,16 +161,22 @@ function checkSalesReturnRequiresOriginalInvoice() {
             if (window.BayanBarcode && typeof BayanBarcode.playBeep === 'function') {
                 BayanBarcode.playBeep(false);
             }
+            const enteredQuery = (document.getElementById('returnProductSearch')?.value || '').trim();
             if (typeof showCustomAlert === 'function') {
                 showCustomAlert({
                     type: 'error',
                     titleText: '🚫 المرتجع مقيد بفاتورة بيع أصلية',
-                    msg: 'عذراً، سياسة أمان النظام تمنع إجراء أي مرتجع مبيعات حر بدون استدعاء فاتورة بيع أصلية مسجلة بالنظام.\n\nيرجى الضغط على زر (استدعاء فاتورة) وإدخال أو اختيار رقم الفاتورة أولاً.'
+                    msg: 'عذراً، سياسة أمان النظام تمنع إجراء أي مرتجع مبيعات حر بدون استدعاء فاتورة بيع أصلية مسجلة بالنظام.\n\nيرجى استدعاء الفاتورة أولاً للبحث برقم الفاتورة، أو رقم الموديل، المقاس، أو اللون.',
+                    onConfirm: () => {
+                        if (typeof openSearchInvoiceModal === 'function') openSearchInvoiceModal(enteredQuery);
+                    }
                 });
             } else if (typeof showToast === 'function') {
                 showToast('🚫 سياسة النظام تمنع المرتجع بدون أصل فاتورة بيع سابقة!', 'error');
+                if (typeof openSearchInvoiceModal === 'function') openSearchInvoiceModal(enteredQuery);
             } else {
                 alert('🚫 سياسة أمان النظام تمنع إجراء أي مرتجع مبيعات إلا باستدعاء فاتورة بيع أصلية مسجلة بالنظام.');
+                if (typeof openSearchInvoiceModal === 'function') openSearchInvoiceModal(enteredQuery);
             }
             return true;
         }
@@ -2569,15 +2575,61 @@ function updateSearchInvoiceDates(range) {
 
 }
 
+function populateSearchInvoiceDatalists() {
+    const sizeList = document.getElementById('searchInvoiceSizesList');
+    const colorList = document.getElementById('searchInvoiceColorsList');
+    if (!sizeList || !colorList) return;
+
+    const sizes = new Set();
+    const colors = new Set();
+
+    if (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
+        productsDB.forEach(p => {
+            if (p.variants && Array.isArray(p.variants)) {
+                p.variants.forEach(v => {
+                    const s = String(v.size || '').trim();
+                    const c = String(v.color || '').trim();
+                    if (s && s !== '-' && s !== 'موحد' && s !== 'قياسي') sizes.add(s);
+                    if (c && c !== '-' && c !== 'افتراضي') colors.add(c);
+                });
+            }
+        });
+    }
+
+    if (typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+        transactions.slice(0, 1000).forEach(t => {
+            const s = String(t.size || t.selectedSize || '').trim();
+            const c = String(t.color || t.selectedColor || '').trim();
+            if (s && s !== '-') sizes.add(s);
+            if (c && c !== '-') colors.add(c);
+            if (t.items && Array.isArray(t.items)) {
+                t.items.forEach(it => {
+                    const is_ = String(it.size || it.selectedSize || '').trim();
+                    const ic_ = String(it.color || it.selectedColor || '').trim();
+                    if (is_ && is_ !== '-') sizes.add(is_);
+                    if (ic_ && ic_ !== '-') colors.add(ic_);
+                });
+            }
+        });
+    }
+
+    sizeList.innerHTML = Array.from(sizes).map(s => `<option value="${s}"></option>`).join('');
+    colorList.innerHTML = Array.from(colors).map(c => `<option value="${c}"></option>`).join('');
+}
+window.populateSearchInvoiceDatalists = populateSearchInvoiceDatalists;
+
 function resetSearchInvoiceModal() {
 
-    // تصفير المدخلات
-
-    document.getElementById('searchInvoiceRef').value = '';
+    // تصفير كافة المدخلات
+    if (document.getElementById('searchInvoiceRef')) document.getElementById('searchInvoiceRef').value = '';
     if (document.getElementById('searchInvoiceProduct')) document.getElementById('searchInvoiceProduct').value = '';
-    document.getElementById('searchInvoiceAccount').value = '';
+    if (document.getElementById('searchInvoiceSize')) document.getElementById('searchInvoiceSize').value = '';
+    if (document.getElementById('searchInvoiceColor')) document.getElementById('searchInvoiceColor').value = '';
+    if (document.getElementById('searchInvoiceAccount')) document.getElementById('searchInvoiceAccount').value = '';
 
-    document.getElementById('searchInvoiceTableBody').innerHTML = '<tr><td colspan="10" style="padding: 30px; color: #94a3b8; text-align: center;">ابدأ البحث برقم الفاتورة، أو اسم/باركود الصنف، أو اسم العميل...</td></tr>';
+    populateSearchInvoiceDatalists();
+
+    document.getElementById('searchInvoiceTableBody').innerHTML = '<tr><td colspan="10" style="padding: 30px; color: #94a3b8; text-align: center;">ابدأ البحث برقم الفاتورة، أو رقم الموديل/الصنف، المقاس، اللون، أو اسم العميل...</td></tr>';
 
     // تعبئة قائمة الحسابات (Autocomplete)
 
@@ -2629,7 +2681,7 @@ function resetSearchInvoiceModal() {
 
 }
 
-window.openSearchInvoiceModal = function () {
+window.openSearchInvoiceModal = function (initialQuery = null) {
 
     const modal = document.getElementById('searchInvoiceModal');
 
@@ -2651,7 +2703,14 @@ window.openSearchInvoiceModal = function () {
 
     resetSearchInvoiceModal();
 
-    updateSearchInvoiceDates('today'); // تفعيل "اليوم" تلقائياً عند الفتح
+    if (initialQuery && String(initialQuery).trim()) {
+        const prodInp = document.getElementById('searchInvoiceProduct');
+        if (prodInp) prodInp.value = String(initialQuery).trim();
+        updateSearchInvoiceDates('all'); // البحث في كامل الأرشيف التاريخي تلقائياً عند تمرير موديل أو باركود
+        executeInvoiceSearch();
+    } else {
+        updateSearchInvoiceDates('today'); // تفعيل "اليوم" تلقائياً عند الفتح
+    }
 
 };
 
@@ -2672,18 +2731,16 @@ async function executeInvoiceSearch() {
 
     const ref = (document.getElementById('searchInvoiceRef')?.value || '').trim();
     const product = (document.getElementById('searchInvoiceProduct')?.value || '').trim();
+    const size = (document.getElementById('searchInvoiceSize')?.value || '').trim();
+    const color = (document.getElementById('searchInvoiceColor')?.value || '').trim();
     const account = (document.getElementById('searchInvoiceAccount')?.value || '').trim();
 
     const dateFrom = document.getElementById('searchInvoiceDateFrom')?.value || '';
-
     const dateTo = document.getElementById('searchInvoiceDateTo')?.value || '';
-
     const periodVal = document.getElementById('searchInvoicePeriod')?.value || 'all';
 
     const currentTab = typeof openTabs !== 'undefined' ? openTabs.find(t => t.id === activeTabId) : null;
-
     const isSalesReturn = document.getElementById('sales-return-section') && !document.getElementById('sales-return-section').classList.contains('hidden');
-
     const targetType = isSalesReturn ? 'بيع' : 'شراء';
 
     // ⚡ دالة توحيد وتطبيع الحروف العربية (إلغاء فروق الهمزات والياء والألف اللينة والتاء المربوطة والتشكيل)
@@ -2696,6 +2753,22 @@ async function executeInvoiceSearch() {
 
     const cleanAccQuery = cleanAr(account);
     const cleanProdQuery = cleanAr(product);
+    const cleanSizeQuery = cleanAr(size);
+    const cleanColorQuery = cleanAr(color);
+
+    const hasItemFilter = Boolean(ref || product || size || color);
+
+    // ⚡ عند البحث بموديل أو صنف أو مقاس أو لون أو رقم فاتورة، وكانت الفترة هي "اليوم" الافتراضية
+    // نلغي قيد اليوم تلقائياً ونبحث في كامل الأرشيف التاريخي لتظهر فواتير الأمس والماضي فوراً دون إجبار الكاشير على تقليب الأيام
+    let effectiveDateFrom = dateFrom;
+    let effectiveDateTo = dateTo;
+    if (hasItemFilter && periodVal === 'today') {
+        effectiveDateFrom = '';
+        effectiveDateTo = '';
+    } else if (periodVal === 'all') {
+        effectiveDateFrom = '';
+        effectiveDateTo = '';
+    }
 
     // ⚡ استدعاء الفواتير مباشرة من محرك SQLite C++ فائق السرعة بكامل الأرشيف التاريخي
     let sqliteLoaded = false;
@@ -2704,9 +2777,12 @@ async function executeInvoiceSearch() {
             const foundRows = window.BayanSQLite.searchReturnInvoices({
                 ref,
                 product: cleanAr(product),
+                model: cleanAr(product),
+                size: cleanAr(size),
+                color: cleanAr(color),
                 account: cleanAccQuery,
-                dateFrom: (periodVal !== 'all' ? dateFrom : ''),
-                dateTo: (periodVal !== 'all' ? dateTo : ''),
+                dateFrom: effectiveDateFrom,
+                dateTo: effectiveDateTo,
                 isSalesReturn,
                 limit: 300
             });
@@ -2783,8 +2859,8 @@ async function executeInvoiceSearch() {
     }
 
     // ⚡ استدعاء نطاق التاريخ المطلوب من SQLite عند الحاجة (احتياطي)
-    if (!sqliteLoaded && !ref && !cleanAccQuery && periodVal !== 'all' && (dateFrom || dateTo) && typeof window.loadTransactionsForDateRange === 'function') {
-        await window.loadTransactionsForDateRange(dateFrom, dateTo);
+    if (!sqliteLoaded && !ref && !cleanAccQuery && periodVal !== 'all' && (effectiveDateFrom || effectiveDateTo) && typeof window.loadTransactionsForDateRange === 'function') {
+        await window.loadTransactionsForDateRange(effectiveDateFrom, effectiveDateTo);
     }
 
     // إذا كان البحث عاماً بدون شروط ومصفوفة الذاكرة لا تحتوي إلا فواتير اليوم، نجلب أحدث 300 فاتورة من SQLite (احتياطي)
@@ -2825,10 +2901,58 @@ async function executeInvoiceSearch() {
             itemCodes.includes(ref.toLowerCase())
         );
 
-        let matchProduct = true;
-        if (cleanProdQuery) {
-            const pName = cleanAr(t.product || t.name || '');
-            matchProduct = pName.includes(cleanProdQuery) || itemCodes.includes(cleanProdQuery);
+        // 👗 التحقق الدقيق من مطابقة رقم الموديل والصنف والمقاس واللون
+        let matchItem = true;
+        let matchedItemsList = [];
+        const hasItemCriteria = Boolean(cleanProdQuery || cleanSizeQuery || cleanColorQuery);
+
+        let txItems = t.items || (t.raw_json && typeof t.raw_json === 'object' && t.raw_json.items) || null;
+        if (!txItems && typeof t.raw_json === 'string') {
+            try {
+                const parsed = JSON.parse(t.raw_json);
+                if (parsed && Array.isArray(parsed.items)) txItems = parsed.items;
+            } catch(e) {}
+        }
+        if (!txItems && window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function' && t.invoiceId) {
+            txItems = window.BayanSQLite.getInvoiceItems(t.invoiceId, t.type || targetType);
+        }
+
+        if (Array.isArray(txItems) && txItems.length > 0) {
+            if (hasItemCriteria) {
+                matchedItemsList = txItems.filter(it => {
+                    const itName = cleanAr(it.name || it.productName || it.product || '');
+                    const itCode = cleanAr(it.code || '');
+                    const itBarcode = cleanAr(it.barcode || it.itemBarcode || '');
+                    const itSize = cleanAr(it.size || it.selectedSize || '');
+                    const itColor = cleanAr(it.color || it.selectedColor || '');
+
+                    let pMatch = !cleanProdQuery || (itName.includes(cleanProdQuery) || itCode.includes(cleanProdQuery) || itBarcode.includes(cleanProdQuery));
+                    let sMatch = !cleanSizeQuery || itSize.includes(cleanSizeQuery);
+                    let cMatch = !cleanColorQuery || itColor.includes(cleanColorQuery);
+                    return pMatch && sMatch && cMatch;
+                });
+                matchItem = matchedItemsList.length > 0;
+            } else {
+                matchedItemsList = txItems;
+            }
+        } else if (t.product || t.productName || t.barcode) {
+            const itName = cleanAr(t.product || t.productName || t.name || '');
+            const itCode = cleanAr(t.code || '');
+            const itBarcode = cleanAr(t.barcode || t.itemBarcode || '');
+            const itSize = cleanAr(t.size || t.selectedSize || '');
+            const itColor = cleanAr(t.color || t.selectedColor || '');
+
+            let pMatch = !cleanProdQuery || (itName.includes(cleanProdQuery) || itCode.includes(cleanProdQuery) || itBarcode.includes(cleanProdQuery));
+            let sMatch = !cleanSizeQuery || itSize.includes(cleanSizeQuery);
+            let cMatch = !cleanColorQuery || itColor.includes(cleanColorQuery);
+            matchItem = pMatch && sMatch && cMatch;
+            if (matchItem) matchedItemsList = [t];
+        } else if (hasItemCriteria) {
+            matchItem = false;
+        }
+
+        if (matchedItemsList.length > 0) {
+            t._matchedItems = matchedItemsList;
         }
 
         // البحث عن الحساب بالاسم أو الكود أو الهاتف بتطبيع كامل
@@ -2841,17 +2965,16 @@ async function executeInvoiceSearch() {
 
         // فلترة التاريخ: إذا تم تحديد رقم فاتورة صريح أو صنف أو كانت الفترة "كل الفترات"، نتجاهل القيود ليجد الفاتورة فوراً
         let matchDate = true;
-        if (!ref && !product && periodVal !== 'all' && (dateFrom || dateTo)) {
+        if (effectiveDateFrom || effectiveDateTo) {
             const tDate = t.dateISO ? String(t.dateISO).slice(0, 10) : (t.date ? String(t.date).split(' ')[0] : '');
-            matchDate = (!dateFrom || tDate >= dateFrom) && (!dateTo || tDate <= dateTo);
+            matchDate = (!effectiveDateFrom || tDate >= effectiveDateFrom) && (!effectiveDateTo || tDate <= effectiveDateTo);
         }
 
-        return matchRef && matchProduct && matchAccount && matchDate;
+        return matchRef && matchItem && matchAccount && matchDate;
 
     });
 
     // تجميع النتائج حسب رقم الفاتورة وحساب الصافي بعد المرتجعات
-
     const grouped = {};
 
     results.forEach(t => {
@@ -2859,57 +2982,44 @@ async function executeInvoiceSearch() {
         if (!grouped[t.invoiceId]) {
 
             // حساب إجمالي المرتجعات لهذه الفاتورة (باستخدام معرف الربط)
-
             const returnedVal = transactions
-
                 .filter(rt => rt.originalInvoiceId == t.invoiceId && rt.type.includes('مرتجع'))
-
                 .reduce((sum, rt) => sum + (parseFloat(rt.total) || 0), 0);
 
             // استخراج الوقت والتاريخ من dateISO إذا أمكن
-
             let timeStr = '-';
-
             let dateStr = t.date;
 
             try {
-
                 if (t.dateISO) {
-
                     const d = new Date(t.dateISO);
-
                     timeStr = d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: true });
-
                 }
-
             } catch (e) { }
 
             grouped[t.invoiceId] = {
-
                 id: t.invoiceId,
-
                 date: dateStr,
-
                 time: timeStr,
-
                 partner: t.partner || '-',
-
                 originalTotal: 0,
-
                 returnedTotal: returnedVal,
-
                 is_returned: t.is_returned || (returnedVal > 0),
-
                 warehouse: t.warehouse || 'المخزن الرئيسي',
-
                 user: t.user || 'أدمن',
-
                 taxInvoiceSeq: (typeof getInvoiceTaxReceiptSeq === 'function' ? getInvoiceTaxReceiptSeq(t) : (t.taxInvoiceSeq || t.dailySeq || null)),
-
-                type: t.type || targetType
-
+                type: t.type || targetType,
+                matchedItems: t._matchedItems ? [...t._matchedItems] : (t.items ? [...t.items] : [])
             };
 
+        } else if (t._matchedItems && t._matchedItems.length > 0) {
+            if (!grouped[t.invoiceId].matchedItems) grouped[t.invoiceId].matchedItems = [];
+            t._matchedItems.forEach(mit => {
+                const mitKey = `${mit.name || mit.productName || ''}_${mit.size || ''}_${mit.color || ''}`;
+                if (!grouped[t.invoiceId].matchedItems.some(x => `${x.name || x.productName || ''}_${x.size || ''}_${x.color || ''}` === mitKey)) {
+                    grouped[t.invoiceId].matchedItems.push(mit);
+                }
+            });
         }
 
         grouped[t.invoiceId].originalTotal += parseFloat(t.total) || 0;
@@ -2917,120 +3027,108 @@ async function executeInvoiceSearch() {
     });
 
     const tbody = document.getElementById('searchInvoiceTableBody');
-
     tbody.innerHTML = '';
 
     Object.values(grouped).reverse().forEach((inv, idx) => {
 
         const netTotal = inv.originalTotal - inv.returnedTotal;
-
         const isFullyReturned = netTotal <= 0.01 && inv.returnedTotal > 0;
 
         const tr = document.createElement('tr');
-
         tr.style.cursor = 'pointer';
 
         if (isFullyReturned) {
-
             tr.style.opacity = '0.6';
-
             tr.style.background = '#f1f5f9';
-
         }
 
         tr.onclick = function () {
-
             if (isFullyReturned) {
-
                 if (typeof showToast === 'function') {
-
                     showToast("⚠️ الفاتورة مسترجعة بالكامل ولا يوجد متبقي!", "error");
-
                 } else {
-
                     alert("⚠️ الفاتورة مسترجعة بالكامل ولا يوجد متبقي!");
-
                 }
-
                 return;
-
             }
 
-            // Unselect all other radios
-
             document.querySelectorAll('.invoice-radio-select').forEach(r => r.checked = false);
-
             document.querySelectorAll('#searchInvoiceTableBody tr').forEach(r => r.style.background = '');
 
             const radio = tr.querySelector('.invoice-radio-select');
-
             if (radio) {
-
                 radio.checked = true;
-
                 tr.style.background = '#d1e7dd';
-
             }
-
         };
 
         tr.ondblclick = function () {
-
             if (isFullyReturned) return;
-
             openSelectReturnItemsModal(inv.id);
-
         };
 
         const esc = (typeof escapeHtml === 'function') ? escapeHtml : (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 
         tr.innerHTML = `
-
-                    <td style="border: 1px solid #ddd; padding: 5px;">
-
-                        <input type="radio" name="selectedReturnInvoice" value="${esc(inv.id)}" class="invoice-radio-select" style="cursor: pointer; transform: scale(1.3); ${isFullyReturned ? 'opacity: 0.4;' : ''}">
-
-                    </td>
-
-                    <td style="border: 1px solid #ddd; padding: 5px;">${esc(inv.date)}</td>
-
-                    <td style="border: 1px solid #ddd; padding: 5px;">${esc(inv.time)}</td>
-
-                    <td style="border: 1px solid #ddd; padding: 5px; font-weight: bold;">
-                        #${esc(inv.id)} 
-                        ${isFullyReturned ? '<span style="color:#ef4444; font-size:0.7rem; margin-right:4px;">(مسترجعة)</span>' : ''}
-                    </td>
-
-                    <td style="border: 1px solid #ddd; padding: 5px; text-align: center;">
-                        ${typeof getInvoiceReceiptBadgeHtml === 'function' ? getInvoiceReceiptBadgeHtml(inv) : (inv.taxInvoiceSeq ? `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; border-radius:6px; padding:2px 8px; font-size:0.82rem; font-weight:900;" title="رقم الإيصال اليومي">#${esc(inv.taxInvoiceSeq)}</span>` : '<span style="color:#94a3b8; font-size:0.85rem;">-</span>')}
-                    </td>
-
-                    <td style="border: 1px solid #ddd; padding: 5px;">${esc(inv.partner)}</td>
-
-                    <td style="border: 1px solid #ddd; padding: 5px; direction: ltr;">${netTotal.toFixed(2)}</td>
-
-                    <td style="border: 1px solid #ddd; padding: 5px;">${esc(inv.warehouse)}</td>
-
-                    <td style="border: 1px solid #ddd; padding: 5px; color: #1e8449;">${esc(inv.user)}</td>
-
-                    <td style="border: 1px solid #ddd; padding: 4px; text-align: center;">
-
-                        <button type="button" class="btn-invoice-preview-fast" 
-                            data-inv-id="${esc(inv.id)}"
-                            data-inv-type="${esc(inv.type || targetType)}"
-                            onclick="event.stopPropagation(); if(typeof viewInvoiceItems==='function') viewInvoiceItems(this.getAttribute('data-inv-id'), this.getAttribute('data-inv-type'));" 
-                            title="عرض تفاصيل وأصناف الفاتورة" 
-                            style="background: linear-gradient(135deg, #0284c7, #0369a1); border: none; color: white; width: 34px; height: 30px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 1.05rem; box-shadow: 0 2px 6px rgba(2,132,199,0.3); transition: transform 0.15s, box-shadow 0.15s;" 
-                            onmouseover="this.style.transform='scale(1.1)';" 
-                            onmouseout="this.style.transform='scale(1)';">
-
-                            👁️
-
-                        </button>
-
-                    </td>
-
-                `;
+            <td style="border: 1px solid #ddd; padding: 5px;">
+                <input type="radio" name="selectedReturnInvoice" value="${esc(inv.id)}" class="invoice-radio-select" style="cursor: pointer; transform: scale(1.3); ${isFullyReturned ? 'opacity: 0.4;' : ''}">
+            </td>
+            <td style="border: 1px solid #ddd; padding: 5px;">${esc(inv.date)}</td>
+            <td style="border: 1px solid #ddd; padding: 5px;">${esc(inv.time)}</td>
+            <td style="border: 1px solid #ddd; padding: 6px 8px; font-weight: bold; text-align: right; min-width: 140px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+                    <span style="font-size: 0.95rem; color: #0f172a;">#${esc(inv.id)}</span>
+                    ${isFullyReturned ? '<span style="color:#ef4444; font-size:0.7rem; font-weight:800; background:#fee2e2; padding:1px 6px; border-radius:4px;">(مسترجعة)</span>' : ''}
+                </div>
+                ${(function() {
+                    let mItems = inv.matchedItems || [];
+                    if ((!mItems || mItems.length === 0) && window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
+                        try { mItems = window.BayanSQLite.getInvoiceItems(inv.id, inv.type || targetType); } catch(e) {}
+                    }
+                    if (!mItems || mItems.length === 0) return '';
+                    return `
+                        <div style="margin-top: 5px; display: flex; flex-direction: column; gap: 3px;">
+                            ${mItems.slice(0, 3).map(it => {
+                                const iName = it.name || it.productName || it.product || 'صنف';
+                                const iSize = (it.size || it.selectedSize || '').trim();
+                                const iColor = (it.color || it.selectedColor || '').trim();
+                                const iCode = (it.code || '').trim();
+                                const iPrice = parseFloat(it.price) || 0;
+                                return `
+                                    <div style="font-size: 0.74rem; font-weight: 700; color: #0369a1; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 5px; padding: 2px 6px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                                        <span style="color: #0284c7;">🏷️ ${esc(iName)}</span>
+                                        ${iCode ? `<span style="color: #64748b; font-size: 0.7rem;">[كود: ${esc(iCode)}]</span>` : ''}
+                                        ${iSize ? `<span style="background: #e0e7ff; color: #4338ca; padding: 1px 4px; border-radius: 3px; font-size: 0.7rem;">📏 ${esc(iSize)}</span>` : ''}
+                                        ${iColor ? `<span style="background: #fef3c7; color: #b45309; padding: 1px 4px; border-radius: 3px; font-size: 0.7rem;">🎨 ${esc(iColor)}</span>` : ''}
+                                        <span style="color: #059669; font-weight: 800; margin-right: auto;">${iPrice.toFixed(2)} ج.م</span>
+                                    </div>
+                                `;
+                            }).join('')}
+                            ${mItems.length > 3 ? `<span style="font-size: 0.7rem; color: #64748b;">+ ${mItems.length - 3} أصناف أخرى...</span>` : ''}
+                        </div>
+                    `;
+                })()}
+            </td>
+            <td style="border: 1px solid #ddd; padding: 5px; text-align: center;">
+                ${typeof getInvoiceReceiptBadgeHtml === 'function' ? getInvoiceReceiptBadgeHtml(inv) : (inv.taxInvoiceSeq ? `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; border-radius:6px; padding:2px 8px; font-size:0.82rem; font-weight:900;" title="رقم الإيصال اليومي">#${esc(inv.taxInvoiceSeq)}</span>` : '<span style="color:#94a3b8; font-size:0.85rem;">-</span>')}
+            </td>
+            <td style="border: 1px solid #ddd; padding: 5px;">${esc(inv.partner)}</td>
+            <td style="border: 1px solid #ddd; padding: 5px; direction: ltr;">${netTotal.toFixed(2)}</td>
+            <td style="border: 1px solid #ddd; padding: 5px;">${esc(inv.warehouse)}</td>
+            <td style="border: 1px solid #ddd; padding: 5px; color: #1e8449;">${esc(inv.user)}</td>
+            <td style="border: 1px solid #ddd; padding: 4px; text-align: center;">
+                <button type="button" class="btn-invoice-preview-fast" 
+                    data-inv-id="${esc(inv.id)}"
+                    data-inv-type="${esc(inv.type || targetType)}"
+                    onclick="event.stopPropagation(); if(typeof viewInvoiceItems==='function') viewInvoiceItems(this.getAttribute('data-inv-id'), this.getAttribute('data-inv-type'));" 
+                    title="عرض تفاصيل وأصناف الفاتورة" 
+                    style="background: linear-gradient(135deg, #0284c7, #0369a1); border: none; color: white; width: 34px; height: 30px; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 1.05rem; box-shadow: 0 2px 6px rgba(2,132,199,0.3); transition: transform 0.15s, box-shadow 0.15s;" 
+                    onmouseover="this.style.transform='scale(1.1)';" 
+                    onmouseout="this.style.transform='scale(1)';">
+                    👁️
+                </button>
+            </td>
+        `;
 
         tbody.appendChild(tr);
 

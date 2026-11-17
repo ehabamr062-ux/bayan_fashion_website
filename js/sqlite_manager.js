@@ -5414,8 +5414,9 @@
 
         /**
          * ⚡ بحث واستعلام فوري عن فواتير الإرجاع مباشرة من SQLite بكامل الأرشيف التاريخي
+         * يدعم التصفية الدقيقة برقم الموديل، الصنف، الباركود، المقاس، اللون، الحساب، والفترة
          */
-        searchReturnInvoices({ ref = '', product = '', account = '', dateFrom = '', dateTo = '', isSalesReturn = true, limit = 300 } = {}) {
+        searchReturnInvoices({ ref = '', product = '', model = '', size = '', color = '', account = '', dateFrom = '', dateTo = '', isSalesReturn = true, limit = 300 } = {}) {
             if (!this.db) return [];
             try {
                 const typeClause = isSalesReturn
@@ -5430,10 +5431,37 @@
                     params.push(r, r, `%${r}%`, r, `%${r}%`, `%${r}%`, `%${r}%`);
                 }
 
-                if (product) {
-                    const p = String(product).trim();
-                    sql += ` AND (id IN (SELECT tx_id FROM transaction_items WHERE barcode = ? OR barcode LIKE ? OR productName LIKE ?) OR raw_json LIKE ?)`;
-                    params.push(p, `%${p}%`, `%${p}%`, `%${p}%`);
+                const queryProduct = String(product || '').trim();
+                const queryModel = String(model || '').trim();
+                const targetProd = queryProduct || queryModel;
+                if (targetProd) {
+                    sql += ` AND (
+                        id IN (
+                            SELECT tx_id FROM transaction_items 
+                            WHERE barcode = ? OR barcode LIKE ? OR productName LIKE ? OR raw_json LIKE ?
+                            OR barcode IN (SELECT barcode FROM products WHERE code = ? OR code LIKE ? OR name LIKE ? OR barcode = ?)
+                        )
+                        OR raw_json LIKE ?
+                    )`;
+                    params.push(targetProd, `%${targetProd}%`, `%${targetProd}%`, `%${targetProd}%`, targetProd, `%${targetProd}%`, `%${targetProd}%`, targetProd, `%${targetProd}%`);
+                }
+
+                if (size) {
+                    const s = String(size).trim();
+                    sql += ` AND (
+                        id IN (SELECT tx_id FROM transaction_items WHERE size = ? OR size LIKE ? OR raw_json LIKE ?)
+                        OR raw_json LIKE ?
+                    )`;
+                    params.push(s, `%${s}%`, `%"size":"${s}"%`, `%"size":"${s}"%`);
+                }
+
+                if (color) {
+                    const c = String(color).trim();
+                    sql += ` AND (
+                        id IN (SELECT tx_id FROM transaction_items WHERE color = ? OR color LIKE ? OR raw_json LIKE ?)
+                        OR raw_json LIKE ?
+                    )`;
+                    params.push(c, `%${c}%`, `%"color":"${c}"%`, `%"color":"${c}"%`);
                 }
 
                 if (account) {
@@ -5456,18 +5484,32 @@
                 sql += ` ORDER BY dateISO DESC, id DESC LIMIT ?;`;
                 params.push(parseInt(limit, 10) || 300);
 
+                let rows = [];
                 if (this.isNative && this.nativeDb) {
-                    const rows = this.nativeDb.prepare(sql).all(...params);
-                    return rows ? rows.map(r => this._reconstructRow(r)) : [];
+                    rows = this.nativeDb.prepare(sql).all(...params);
+                } else {
+                    const stmt = this.db.prepare(sql);
+                    stmt.bind(params);
+                    while (stmt.step()) {
+                        rows.push(stmt.getAsObject());
+                    }
+                    stmt.free();
                 }
-                const stmt = this.db.prepare(sql);
-                stmt.bind(params);
-                const items = [];
-                while (stmt.step()) {
-                    items.push(this._reconstructRow(stmt.getAsObject()));
+
+                const finalRows = rows ? rows.map(r => this._reconstructRow(r)) : [];
+
+                // إرفاق أصناف كل فاتورة مسترجعة لتمكين العرض الفوري للأصناف والموديلات المطابقة في جدول البحث
+                if (finalRows.length > 0) {
+                    finalRows.forEach(inv => {
+                        try {
+                            if (inv && inv.invoiceId) {
+                                inv.items = this.getInvoiceItems(inv.invoiceId, inv.type || (isSalesReturn ? 'بيع' : 'شراء'));
+                            }
+                        } catch (itemErr) {}
+                    });
                 }
-                stmt.free();
-                return items;
+
+                return finalRows;
             } catch (e) {
                 console.warn("[SQLite] searchReturnInvoices notice:", e.message);
                 return [];
