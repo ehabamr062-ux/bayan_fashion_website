@@ -660,9 +660,10 @@
                 }
                 if (targetTab.type === 'inventory') {
                     const invBody = document.getElementById('inventoryTableBody');
-                    if (!invBody || invBody.children.length === 0 || window._inventoryNeedsRefresh) {
+                    if (!invBody || invBody.children.length === 0 || window._inventoryNeedsRefresh || window._inventoryTableNeedsRender) {
                         renderInventoryTable();
                         window._inventoryNeedsRefresh = false;
+                        window._inventoryTableNeedsRender = false;
                     }
                     instantFocusInput('invSearchInput');
                 }
