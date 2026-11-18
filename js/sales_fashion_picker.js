@@ -1213,6 +1213,21 @@ function renderVariantSelectElements(item, index, cartType = 'sales') {
         colorElement = `<span style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; padding:2px 8px; border-radius:6px; font-weight:900; font-size:0.82rem;">${currentColor}</span>`;
     }
 
+    // مزامنة صامتة لكائن التشكيلة item.selectedVariant لضمان مطابقة الذاكرة مع المقاس واللون المعروض
+    if (pInfo && pInfo.variants && Array.isArray(pInfo.variants)) {
+        const sSize = String(item.selectedSize || currentSize || '').trim();
+        const sColor = String(item.selectedColor || currentColor || '').trim();
+        if (sSize || sColor) {
+            const mv = pInfo.variants.find(v =>
+                (!sSize || String(v.size || '').trim() === sSize) &&
+                (!sColor || String(v.color || '').trim() === sColor)
+            );
+            if (mv) {
+                item.selectedVariant = mv;
+            }
+        }
+    }
+
     return { sizeElement, colorElement };
 }
 window.renderVariantSelectElements = renderVariantSelectElements;
@@ -1321,6 +1336,7 @@ function updateItemVariantAttr(index, attr, value, cartType = 'sales') {
         );
 
         if (matchedVariant) {
+            item.selectedVariant = matchedVariant;
             if (matchedVariant.barcode) {
                 item.barcode = matchedVariant.barcode;
                 item.code = matchedVariant.barcode;
@@ -1359,12 +1375,17 @@ function updateItemVariantAttr(index, attr, value, cartType = 'sales') {
             } else if (matchedVariant.cost && (cartType === 'purchase' || cartType === 'purReturn')) {
                 item.price = parseFloat(matchedVariant.cost) || item.price;
             }
+            if (matchedVariant.cost && (cartType === 'sales' || cartType === 'return')) {
+                item.cost = parseFloat(matchedVariant.cost) || item.cost;
+            }
             if (matchedVariant.price && (cartType === 'sales' || cartType === 'return') && parseFloat(matchedVariant.price) > 0) {
                 const priceLevel = document.getElementById('salesPriceLevel')?.value || 'retail';
                 const vPrice = (priceLevel === 'wholesale' && parseFloat(matchedVariant.wholesale) > 0) ? parseFloat(matchedVariant.wholesale) : parseFloat(matchedVariant.price);
                 item.price = vPrice;
                 item.originalPrice = vPrice;
             }
+        } else {
+            item.selectedVariant = null;
         }
     }
 

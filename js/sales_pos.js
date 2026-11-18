@@ -3348,13 +3348,32 @@ async function saveBill(force = false, accountChecked = false, event = null) {
                 if (typeof window.FashionStockEngine !== 'undefined') {
                     const sSize = String(cartItem.selectedSize || cartItem.size || '').trim();
                     const sColor = String(cartItem.selectedColor || cartItem.color || '').trim();
-                    const vBarcode = (cartItem.selectedVariant && cartItem.selectedVariant.barcode)
-                        ? String(cartItem.selectedVariant.barcode).trim()
+
+                    // 🛡️ صمام أمان حاسم: مطابقة التشكيلة بدقة مع المقاس واللون المختارين فعلياً بالسلة
+                    let effVariant = cartItem.selectedVariant;
+                    if (effVariant && (String(effVariant.size || '').trim() !== sSize || String(effVariant.color || '').trim() !== sColor)) {
+                        effVariant = null;
+                    }
+                    if (!effVariant && product.variants && Array.isArray(product.variants) && (sSize || sColor)) {
+                        effVariant = product.variants.find(v => 
+                            (String(v.size || '').trim() === sSize) && 
+                            (String(v.color || '').trim() === sColor)
+                        ) || product.variants.find(v => 
+                            (!sSize || String(v.size || '').trim() === sSize) && 
+                            (!sColor || String(v.color || '').trim() === sColor)
+                        );
+                    }
+                    if (effVariant) {
+                        cartItem.selectedVariant = effVariant;
+                    }
+
+                    const vBarcode = (effVariant && effVariant.barcode)
+                        ? String(effVariant.barcode).trim()
                         : (cartItem.barcode ? String(cartItem.barcode).trim() : '');
 
                     window.FashionStockEngine.applyMovement({
                         product,
-                        variantRef: cartItem.selectedVariant || { size: sSize, color: sColor, barcode: vBarcode },
+                        variantRef: effVariant || { size: sSize, color: sColor, barcode: vBarcode },
                         qtyDelta: -baseQty,
                         warehouseName: activeWH
                     });

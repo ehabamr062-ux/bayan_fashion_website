@@ -910,9 +910,29 @@ async function saveSalesReturn(force = false, accountChecked = false) {
 
             if (p) {
                 if (typeof window.FashionStockEngine !== 'undefined') {
+                    let effVariant = item.selectedVariant;
+                    if (effVariant && (String(effVariant.size || '').trim() !== sSize || String(effVariant.color || '').trim() !== sColor)) {
+                        effVariant = null;
+                    }
+                    if (!effVariant && p.variants && Array.isArray(p.variants) && (sSize || sColor)) {
+                        effVariant = p.variants.find(v => 
+                            (String(v.size || '').trim() === sSize) && 
+                            (String(v.color || '').trim() === sColor)
+                        ) || p.variants.find(v => 
+                            (!sSize || String(v.size || '').trim() === sSize) && 
+                            (!sColor || String(v.color || '').trim() === sColor)
+                        );
+                    }
+                    if (effVariant) {
+                        item.selectedVariant = effVariant;
+                    }
+                    const vBarcode = (effVariant && effVariant.barcode)
+                        ? String(effVariant.barcode).trim()
+                        : (item.barcode ? String(item.barcode).trim() : '');
+
                     window.FashionStockEngine.applyMovement({
                         product: p,
-                        variantRef: item.selectedVariant || { size: sSize, color: sColor, barcode: item.barcode },
+                        variantRef: effVariant || { size: sSize, color: sColor, barcode: vBarcode },
                         qtyDelta: baseQty,
                         warehouseName: activeWH,
                         allowCreateVariant: true
@@ -1705,9 +1725,29 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
 
             if (p) {
                 if (typeof window.FashionStockEngine !== 'undefined') {
+                    let effVariant = item.selectedVariant;
+                    if (effVariant && (String(effVariant.size || '').trim() !== sSize || String(effVariant.color || '').trim() !== sColor)) {
+                        effVariant = null;
+                    }
+                    if (!effVariant && p.variants && Array.isArray(p.variants) && (sSize || sColor)) {
+                        effVariant = p.variants.find(v => 
+                            (String(v.size || '').trim() === sSize) && 
+                            (String(v.color || '').trim() === sColor)
+                        ) || p.variants.find(v => 
+                            (!sSize || String(v.size || '').trim() === sSize) && 
+                            (!sColor || String(v.color || '').trim() === sColor)
+                        );
+                    }
+                    if (effVariant) {
+                        item.selectedVariant = effVariant;
+                    }
+                    const vBarcode = (effVariant && effVariant.barcode)
+                        ? String(effVariant.barcode).trim()
+                        : (item.barcode ? String(item.barcode).trim() : '');
+
                     window.FashionStockEngine.applyMovement({
                         product: p,
-                        variantRef: item.selectedVariant || { size: sSize, color: sColor, barcode: item.barcode },
+                        variantRef: effVariant || { size: sSize, color: sColor, barcode: vBarcode },
                         qtyDelta: -baseQty,
                         warehouseName: itemWH
                     });
