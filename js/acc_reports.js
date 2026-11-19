@@ -332,18 +332,18 @@
             modal.innerHTML = `
                 <div style="background: #ffffff; color: #0f172a; border-radius: 24px; width: 100%; max-width: 760px; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 35px 80px rgba(15, 23, 42, 0.28); border: 2px solid #e2e8f0; animation: slideUp 0.3s ease; overflow: hidden;">
                     
-                    <!-- الهيدر بتدرج داكن وفخم متناسق تماماً -->
-                    <div style="padding: 16px 24px; background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%); color: white; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1);">
+                    <!-- هيدر النافذة الفاخر الأخضر الزمردي المتناسق تماماً مع هوية المنظومة -->
+                    <div style="padding: 16px 24px; background: linear-gradient(135deg, #059669 0%, #047857 100%) !important; color: white; display: flex; justify-content: space-between; align-items: center; border-bottom: 2.5px solid #10b981; flex-shrink: 0; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
                         <div style="display: flex; align-items: center; gap: 12px;">
-                            <div style="width: 44px; height: 44px; border-radius: 14px; background: linear-gradient(135deg, #4f46e5, #4338ca); display: flex; align-items: center; justify-content: center; font-size: 1.35rem; box-shadow: 0 4px 14px rgba(79, 70, 229, 0.4);">
+                            <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(255, 255, 255, 0.2); display: flex; align-items: center; justify-content: center; font-size: 1.35rem; border: 1.5px solid rgba(255, 255, 255, 0.35); box-shadow: 0 4px 14px rgba(0,0,0,0.1);">
                                 ⚙️
                             </div>
                             <div>
-                                <h3 style="margin: 0; font-size: 1.22rem; font-weight: 900; color: #f8fafc; letter-spacing: -0.3px;">تخصيص بنود وعناصر تقرير الحركة اليومية</h3>
-                                <p style="margin: 2px 0 0; font-size: 0.78rem; color: #94a3b8; font-weight: 700;">تحكم في إظهار أو إخفاء البنود والصفوف المحددة بحسب طبيعة نشاطك التجاري</p>
+                                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 900; color: #ffffff; letter-spacing: -0.3px; text-shadow: 0 1px 3px rgba(0,0,0,0.2);">تخصيص بنود وعناصر تقرير الحركة اليومية</h3>
+                                <p style="margin: 2px 0 0; font-size: 0.8rem; color: #ecfdf5; font-weight: 700; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">تحكم في إظهار أو إخفاء البنود والصفوف المحددة بحسب طبيعة نشاطك التجاري</p>
                             </div>
                         </div>
-                        <button onclick="document.getElementById('dailyReportCustomizerModal').remove()" style="background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25); color: #fff; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: 1.25rem; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: 0.2s;" onmouseover="this.style.background='rgba(239, 68, 68, 0.85)'" onmouseout="this.style.background='rgba(255,255,255,0.12)'">&times;</button>
+                        <button onclick="document.getElementById('dailyReportCustomizerModal').remove()" style="background: rgba(255,255,255,0.18); border: 1px solid rgba(255,255,255,0.3); color: #fff; width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: 0.2s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='rgba(255,255,255,0.18)'">&times;</button>
                     </div>
 
                     <!-- شريط التبويبات العلوي (Custom Tabs Bar - خانتان رئيسيتان بالأعلى: يمين وشمال وبينهما فاصل) -->
