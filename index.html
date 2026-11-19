@@ -13493,6 +13493,225 @@
                     transform: translateY(-2px) !important;
                     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15) !important;
                 }
+
+                /* --- 📏 تنسيقات تبويب وحدات القياس (Units Tab Luxury Styling) --- */
+                #newItemModal #tab-units .bayan-units-table-container {
+                    border: 1.5px solid #e2e8f0 !important;
+                    border-radius: 14px !important;
+                    overflow: hidden !important;
+                    background: #ffffff !important;
+                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03) !important;
+                }
+
+                #newItemModal #tab-units table thead th {
+                    background: linear-gradient(135deg, #1e1b4b 0%, #1e293b 100%) !important;
+                    color: #ffffff !important;
+                    font-weight: 800 !important;
+                    font-size: 0.84rem !important;
+                    padding: 10px 8px !important;
+                    text-align: center !important;
+                    border: none !important;
+                    white-space: nowrap !important;
+                }
+
+                #newItemModal #tab-units table tbody tr {
+                    transition: background 0.15s ease !important;
+                }
+
+                #newItemModal #tab-units table tbody tr:hover {
+                    background: #f8fafc !important;
+                }
+
+                #newItemModal #tab-units table tbody td {
+                    padding: 8px 6px !important;
+                    vertical-align: middle !important;
+                    border-bottom: 1px solid #f1f5f9 !important;
+                    text-align: center !important;
+                }
+
+                #newItemModal #tab-units table input[type="number"],
+                #newItemModal #tab-units table input[type="text"],
+                #newItemModal #tab-units table select {
+                    height: 36px !important;
+                    border-radius: 8px !important;
+                    border: 1.5px solid #cbd5e1 !important;
+                    background: #ffffff !important;
+                    color: #0f172a !important;
+                    font-weight: 800 !important;
+                    font-size: 0.92rem !important;
+                    font-family: 'Cairo', sans-serif !important;
+                    padding: 0 8px !important;
+                    box-sizing: border-box !important;
+                    outline: none !important;
+                    transition: all 0.2s ease !important;
+                }
+
+                #newItemModal #tab-units table input:focus,
+                #newItemModal #tab-units table select:focus {
+                    border-color: #6366f1 !important;
+                    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2) !important;
+                }
+
+                #newItemModal #tab-units table input[type="checkbox"] {
+                    width: 18px !important;
+                    height: 18px !important;
+                    cursor: pointer !important;
+                    accent-color: #4f46e5 !important;
+                    margin: 0 auto !important;
+                    display: block !important;
+                }
+
+                #newItemModal .bayan-sidebar-actions {
+                    display: flex !important;
+                    flex-direction: column !important;
+                    gap: 10px !important;
+                    justify-content: flex-start !important;
+                    padding-top: 4px !important;
+                }
+
+                #newItemModal .bayan-action-circle {
+                    width: 44px !important;
+                    height: 44px !important;
+                    border-radius: 12px !important;
+                    font-weight: 900 !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    cursor: pointer !important;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                    font-size: 1.3rem !important;
+                }
+
+                #newItemModal .bayan-action-circle[title*="إضافة"] {
+                    background: linear-gradient(135deg, #10b981, #059669) !important;
+                    color: #ffffff !important;
+                    border: none !important;
+                    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3) !important;
+                }
+
+                #newItemModal .bayan-action-circle[title*="إضافة"]:hover {
+                    transform: translateY(-2px) scale(1.06) !important;
+                    box-shadow: 0 6px 16px rgba(16, 185, 129, 0.4) !important;
+                }
+
+                #newItemModal .bayan-action-circle[title*="حذف"] {
+                    background: #fef2f2 !important;
+                    color: #dc2626 !important;
+                    border: 1.5px solid #fecaca !important;
+                    box-shadow: 0 2px 6px rgba(220, 38, 38, 0.1) !important;
+                }
+
+                #newItemModal .bayan-action-circle[title*="حذف"]:hover {
+                    background: #fee2e2 !important;
+                    border-color: #ef4444 !important;
+                    transform: translateY(-2px) scale(1.06) !important;
+                }
+
+                /* --- 📦 تنسيقات تبويب الكميات والأرصدة (Quantities Tab Luxury Styling) --- */
+                #newItemModal #tab-quantities .bayan-metric-card {
+                    background: #ffffff !important;
+                    border: 1.5px solid #e2e8f0 !important;
+                    border-radius: 16px !important;
+                    padding: 16px 20px !important;
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03) !important;
+                    position: relative !important;
+                    overflow: hidden !important;
+                    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                }
+
+                #newItemModal #tab-quantities .bayan-metric-card:hover {
+                    transform: translateY(-2px) !important;
+                    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06) !important;
+                    border-color: #cbd5e1 !important;
+                }
+
+                #newItemModal #tab-quantities .bayan-metric-card::before {
+                    content: '' !important;
+                    position: absolute !important;
+                    top: 0 !important;
+                    left: 0 !important;
+                    right: 0 !important;
+                    height: 4px !important;
+                }
+
+                #newItemModal #tab-quantities .bayan-metric-card.emerald::before {
+                    background: linear-gradient(90deg, #10b981, #059669) !important;
+                }
+                #newItemModal #tab-quantities .bayan-metric-card.emerald .form-label {
+                    color: #047857 !important;
+                }
+                #newItemModal #tab-quantities .bayan-metric-card.emerald .metric-input {
+                    border-color: #a7f3d0 !important;
+                    color: #065f46 !important;
+                }
+
+                #newItemModal #tab-quantities .bayan-metric-card.blue::before {
+                    background: linear-gradient(90deg, #3b82f6, #1d4ed8) !important;
+                }
+                #newItemModal #tab-quantities .bayan-metric-card.blue .form-label {
+                    color: #1d4ed8 !important;
+                }
+                #newItemModal #tab-quantities .bayan-metric-card.blue .metric-input {
+                    border-color: #bfdbfe !important;
+                    color: #1e40af !important;
+                }
+
+                #newItemModal #tab-quantities .bayan-metric-card.amber::before {
+                    background: linear-gradient(90deg, #f59e0b, #d97706) !important;
+                }
+                #newItemModal #tab-quantities .bayan-metric-card.amber .form-label {
+                    color: #b45309 !important;
+                }
+                #newItemModal #tab-quantities .bayan-metric-card.amber .metric-input {
+                    border-color: #fde68a !important;
+                    color: #92400e !important;
+                }
+
+                #newItemModal #tab-quantities .metric-input {
+                    height: 46px !important;
+                    border-radius: 12px !important;
+                    font-size: 1.35rem !important;
+                    font-weight: 900 !important;
+                    text-align: center !important;
+                    background: #f8fafc !important;
+                    border-width: 1.5px !important;
+                    transition: all 0.2s ease !important;
+                }
+
+                #newItemModal #tab-quantities .metric-input:focus {
+                    background: #ffffff !important;
+                    outline: none !important;
+                    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2) !important;
+                }
+
+                #newItemModal #warehouseStockBreakdownCard {
+                    border: 1.5px solid #e2e8f0 !important;
+                    border-radius: 16px !important;
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03) !important;
+                    overflow: hidden !important;
+                }
+
+                #newItemModal #warehouseStockBreakdownCard table thead th {
+                    background: linear-gradient(135deg, #1e1b4b 0%, #1e293b 100%) !important;
+                    color: #ffffff !important;
+                    font-weight: 800 !important;
+                    font-size: 0.84rem !important;
+                    padding: 10px 12px !important;
+                }
+
+                /* --- 📝 تنسيقات تبويب الملاحظات والصلاحية (Notes & Expiry Luxury Styling) --- */
+                #newItemModal #tab-more .bayan-input-card {
+                    border-radius: 16px !important;
+                    border: 1.5px solid #e2e8f0 !important;
+                    padding: 18px 20px !important;
+                    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03) !important;
+                    transition: all 0.2s ease !important;
+                }
+
+                #newItemModal #tab-more .bayan-input-card:hover {
+                    border-color: #cbd5e1 !important;
+                    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06) !important;
+                }
             </style>
 
             <!-- أزرار التنقل الجانبية الشفافة -->
@@ -14247,18 +14466,21 @@
                     </div>
                 </div>
 
-                <!-- تبويب المزيد -->
+                <!-- تبويب المزيد (الصلاحية والملاحظات) -->
                 <div id="tab-more" class="hidden">
-                    <div style="display:grid; grid-template-columns: 1fr; gap:14px;">
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:18px;">
                         <div class="bayan-input-card">
                             <label class="bayan-card-label"><span>📅</span> تاريخ انتهاء الصلاحية</label>
-                            <input type="date" id="newItemExpiry" class="search-input" style="height: 40px;">
+                            <input type="date" id="newItemExpiry" class="search-input" style="height: 42px; font-weight: 800; border-radius: 10px; border: 1.5px solid #cbd5e1;">
+                            <div style="font-size: 0.8rem; color: #64748b; font-weight: 700; margin-top: 8px; display: flex; align-items: center; gap: 6px; line-height: 1.5;">
+                                <span>💡</span> <span>يُستخدم لتنبيهك المبكر قبل انتهاء صلاحية الصنف والتحكم في تواريخ الإنتاج.</span>
+                            </div>
                         </div>
                         <div class="bayan-input-card">
                             <label class="bayan-card-label"><span>📝</span> ملاحظات وتفاصيل إضافية</label>
                             <textarea id="newItemNotes" class="search-input"
-                                style="height: 100px; resize: none; padding: 10px; font-family: 'Cairo', sans-serif;"
-                                placeholder="أدخل أي ملاحظات أو مواصفات خاصة بهذا الصنف..."></textarea>
+                                style="height: 120px; resize: none; padding: 12px; font-family: 'Cairo', sans-serif; font-weight: 700; font-size: 0.92rem; line-height: 1.6; border-radius: 10px; border: 1.5px solid #cbd5e1;"
+                                placeholder="أدخل أي ملاحظات، خامات، مواصفات خاصة، أو تعليمات للمبيعات والمخزن..."></textarea>
                         </div>
                     </div>
                 </div>
