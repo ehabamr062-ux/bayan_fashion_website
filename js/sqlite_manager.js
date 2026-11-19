@@ -169,7 +169,7 @@
                     this.fs = req('fs');
                     this.path = req('path');
                     this.os = req('os');
-                    const dir = this.path.join(this.os.homedir(), '.bayan_pos');
+                    const dir = this._getSqliteDir();
                     if (!this.fs.existsSync(dir)) {
                         this.fs.mkdirSync(dir, { recursive: true });
                     }
@@ -308,6 +308,20 @@
             return appDir || '';
         }
 
+        _getSqliteDir() {
+            if (!this.path && this.req) try { this.path = this.req('path'); } catch (e) { }
+            if (!this.os && this.req) try { this.os = this.req('os'); } catch (e) { }
+            const p = this.path || (typeof require !== 'undefined' ? require('path') : null);
+            const o = this.os || (typeof require !== 'undefined' ? require('os') : null);
+            if (!p || !o) return '';
+            const testDir = (typeof process !== 'undefined' && process.env && process.env.BAYAN_TEST_DIR)
+                ? process.env.BAYAN_TEST_DIR
+                : ((typeof process !== 'undefined' && process.env && process.env.BAYAN_TEST_MODE === '1')
+                    ? p.join(o.tmpdir(), 'bayan_pos_test_' + process.pid)
+                    : null);
+            return testDir ? p.join(testDir, '.bayan_pos') : p.join(o.homedir(), '.bayan_pos');
+        }
+
         _ensureNode() {
             if (this.fs && this.path) return true;
             let req = null;
@@ -327,7 +341,7 @@
             }
             if (this.path && this.os && !this.dbPath) {
                 try {
-                    const dir = this.path.join(this.os.homedir(), '.bayan_pos');
+                    const dir = this._getSqliteDir();
                     if (this.fs && !this.fs.existsSync(dir)) {
                         this.fs.mkdirSync(dir, { recursive: true });
                     }
@@ -1376,7 +1390,7 @@
             if (!this.imageDir) {
                 if (this._ensureNode() && this.os && this.path) {
                     try {
-                        const dir = this.path.join(this.os.homedir(), '.bayan_pos', 'product_images');
+                        const dir = this.path.join(this._getSqliteDir(), 'product_images');
                         if (this.fs && !this.fs.existsSync(dir)) {
                             this.fs.mkdirSync(dir, { recursive: true });
                         }
@@ -5702,7 +5716,7 @@
         _autoSeedFromMasterSync() {
             if (!this.fs || !this.path || !this.os) return;
             try {
-                const masterFile = this.path.join(this.os.homedir(), '.bayan_pos', 'master_sync_db.json');
+                const masterFile = this.path.join(this._getSqliteDir(), 'master_sync_db.json');
                 if (this.fs.existsSync(masterFile)) {
                     const raw = this.fs.readFileSync(masterFile, 'utf8');
                     const data = JSON.parse(raw);

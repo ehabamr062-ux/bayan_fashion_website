@@ -36,17 +36,38 @@ app.commandLine.appendSwitch('disable-breakpad');
 // 📁 نظام مسار البيانات والتخزين الموحد (AppData/Roaming/Bayan POS)
 // يجب ضبطه قبل requestSingleInstanceLock لتوحيد ملف القفل (SingletonLock) ومنع Error code: 32
 // =========================================================================
-const userDataPath = path.join(app.getPath('appData'), 'Bayan POS');
+const isTestMode = process.argv.includes('--test-mode') || process.env.BAYAN_TEST_MODE === '1';
+const testDataDir = process.env.BAYAN_TEST_DIR || (isTestMode ? path.join(os.tmpdir(), 'bayan_pos_test_' + process.pid) : null);
+if (isTestMode && testDataDir) {
+    process.env.BAYAN_TEST_MODE = '1';
+    process.env.BAYAN_TEST_DIR = testDataDir;
+}
+
+function getBayanDbDir() {
+    if (isTestMode && testDataDir) {
+        return path.join(testDataDir, '.bayan_pos');
+    }
+    if (process.env.BAYAN_TEST_DIR) {
+        return path.join(process.env.BAYAN_TEST_DIR, '.bayan_pos');
+    }
+    return path.join(os.homedir(), '.bayan_pos');
+}
+
+function getBayanDbPath() {
+    return path.join(getBayanDbDir(), 'bayan_pos.db');
+}
+
+const userDataPath = isTestMode ? path.join(testDataDir, 'userData') : path.join(app.getPath('appData'), 'Bayan POS');
 app.setPath('userData', userDataPath);
 if (!fs.existsSync(userDataPath)) {
     fs.mkdirSync(userDataPath, { recursive: true });
 }
 
-const gotTheLock = app.requestSingleInstanceLock();
+const gotTheLock = isTestMode ? true : app.requestSingleInstanceLock();
 if (!gotTheLock) {
     console.log('⚠️ نسخة أخرى من تطبيق Bayan POS تعمل بالفعل بالخلفية. جاري توجيه التركيز إليها وإغلاق النسخة المكررة...');
     app.quit();
-} else {
+} else if (!isTestMode) {
     app.on('second-instance', () => {
         if (mainWindow && !mainWindow.isDestroyed()) {
             if (mainWindow.isMinimized()) mainWindow.restore();
@@ -452,7 +473,7 @@ ipcMain.handle('show-save-backup-dialog', async (_e, opts = {}) => {
 // 📦 إدارة ومسار قاعدة بيانات SQLite على القرص الصلب
 ipcMain.handle('get-sqlite-status', () => {
     try {
-        const sqliteFile = path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db');
+        const sqliteFile = getBayanDbPath();
         const exists = fs.existsSync(sqliteFile);
         let size = 0;
         if (exists) {
@@ -472,11 +493,11 @@ ipcMain.handle('get-sqlite-status', () => {
 
 ipcMain.handle('open-sqlite-folder', () => {
     try {
-        const sqliteDir = path.join(os.homedir(), '.bayan_pos');
+        const sqliteDir = getBayanDbDir();
         if (!fs.existsSync(sqliteDir)) {
             fs.mkdirSync(sqliteDir, { recursive: true });
         }
-        const dbPath = path.join(sqliteDir, 'bayan_pos.db');
+        const dbPath = getBayanDbPath();
         if (fs.existsSync(dbPath)) {
             shell.showItemInFolder(dbPath);
         } else {
@@ -500,7 +521,7 @@ ipcMain.on('save-backup-and-quit', async (event, backupData) => {
 
         // ⚡ مع القواعد الضخمة: نسخ غير متزامن فائق السرعة لملف SQLite دون استهلاك الرام ودون حظر الـ Main Thread
         const os = require('os');
-        const dbPath = path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db');
+        const dbPath = getBayanDbPath();
         if (fs.existsSync(dbPath)) {
             const backupDbPath = path.join(desktopDir, `backup_pos_${timestamp}.db`);
             await fs.promises.copyFile(dbPath, backupDbPath);
@@ -1205,7 +1226,7 @@ ipcMain.handle('save-backup-data', async (_e, payload) => {
         // 🌟 حفظ نسخة ثنائية مباشرة وفورية من ملف SQLite الأصلي bayan_pos.db (0ms وبدون استهلاك ذاكرة)
         try {
             const os = require('os');
-            const sqliteOriginalPath = path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db');
+            const sqliteOriginalPath = getBayanDbPath();
             if (fs.existsSync(sqliteOriginalPath)) {
                 const dbBackupName = `${prefix}${timestamp}.db`;
                 const dbBackupPath = path.join(backupDir, dbBackupName);
@@ -1238,8 +1259,8 @@ ipcMain.handle('save-sqlite-direct-backup', async (_e, payload) => {
         const defaultFilePath = path.join(backupDir, fileName);
 
         const os = require('os');
-        const sqliteOriginalPath = path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db');
-        const sqliteBakPath = path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db.bak');
+        const sqliteOriginalPath = getBayanDbPath();
+        const sqliteBakPath = getBayanDbPath() + '.bak';
 
         // 🧹 1. تطبيق تقنية التفريغ النظيف VACUUM INTO لتقليص الحجم من 184MB إلى ~6MB والتخلص من الـ Freelist والـ WAL فوراً
         let srcToCompress = null;
@@ -1361,7 +1382,7 @@ ipcMain.handle('save-sqlite-direct-backup', async (_e, payload) => {
 ipcMain.handle('restore-sqlite-direct-backup', async (_e, src) => {
     try {
         const os = require('os');
-        const sqliteOriginalPath = path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db');
+        const sqliteOriginalPath = getBayanDbPath();
         const dir = path.dirname(sqliteOriginalPath);
         if (!fs.existsSync(dir)) {
             fs.mkdirSync(dir, { recursive: true });
@@ -1572,6 +1593,7 @@ function setAutoUpdatesFrozenOnDisk(disabled) {
 // =========================================================================
 // 🚀 2. نظام التحديثات التلقائية المباشرة بالخلفية (Electron Auto Updater)
 // =========================================================================
+if (!isTestMode) {
 try {
     const { autoUpdater: updater } = require('electron-updater');
     autoUpdater = updater;
@@ -1650,6 +1672,7 @@ try {
 } catch (e) {
     console.warn('[Updater] electron-updater not loaded:', e.message);
 }
+}
 
 // =========================================================================
 // 🛡️ درع الأمان: نظام النسخ الاحتياطي الإجباري المزدوج قبل أي تحديث في إلكترون
@@ -1662,6 +1685,7 @@ async function createPreUpdateDualBackup() {
 
         // أ) تحديد مسار ملف قاعدة البيانات الفعلي المستخدم في إلكترون
         const candidateDbPaths = [
+            getBayanDbPath(),
             path.join(os.homedir(), '.bayan_pos', 'bayan_pos.db'),
             path.join(app.getPath('userData'), 'bayan_pos.db'),
             path.join(process.cwd(), 'bayan_pos.db')

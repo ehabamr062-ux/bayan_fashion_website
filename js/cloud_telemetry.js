@@ -105,6 +105,13 @@
         // إرسال التقرير واستقبال أوامر الإدارة في الخلفية
         postPayload: function (targetUrl, payload) {
             return new Promise((resolve) => {
+                if (typeof process !== 'undefined' && process.env && (process.env.BAYAN_TEST_MODE === '1' || process.env.BAYAN_TEST_DIR)) {
+                    return resolve({ ok: true, skipped: true });
+                }
+                if (typeof window !== 'undefined' && window.__BAYAN_TEST_MODE__) {
+                    return resolve({ ok: true, skipped: true });
+                }
+
                 // 1. في بيئة Electron: نستخدم وحدة https التابعة لـ Node.js لتجاوز قيود CORS وقراءة رد الخادم فوراً
                 if (typeof window !== 'undefined' && typeof window.require === 'function') {
                     try {

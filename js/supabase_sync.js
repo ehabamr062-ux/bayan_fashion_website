@@ -38,6 +38,9 @@
         // 🔒 التحقق الحاسم من ترخيص المزامنة السحابية قبل أي اتصال بالسحابة (حظر قاطع وفوري لأي باقة بدون ترخيص سحابي صريح)
         _isAllowed: function () {
             try {
+                if (typeof process !== 'undefined' && process.env && (process.env.BAYAN_TEST_MODE === '1' || process.env.BAYAN_TEST_DIR)) return false;
+                if (typeof window !== 'undefined' && (window.__BAYAN_TEST_MODE__ || (window.location && window.location.search && window.location.search.includes('test-mode')))) return false;
+
                 // 1. جلب الباقة الحالية
                 const plan = (typeof window.getBayanPlan === 'function')
                     ? window.getBayanPlan()
