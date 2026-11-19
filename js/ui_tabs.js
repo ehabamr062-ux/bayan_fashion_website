@@ -1979,6 +1979,9 @@
                 }
             }
             if (closingTab && closingTab.type === 'price-adjustment') {
+                if (document.body) {
+                    document.body.classList.remove('has-fullscreen-tab');
+                }
                 if (typeof window.closePriceAdjustmentModal === 'function') {
                     window.closePriceAdjustmentModal(true);
                 } else {
@@ -1987,6 +1990,9 @@
                 }
             }
             if (closingTab && closingTab.type === 'stock-transfer') {
+                if (document.body) {
+                    document.body.classList.remove('has-fullscreen-tab');
+                }
                 if (typeof window.closeTransferModal === 'function') {
                     window.closeTransferModal(true);
                 } else {

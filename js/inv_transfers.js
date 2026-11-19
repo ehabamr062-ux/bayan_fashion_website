@@ -210,6 +210,10 @@ window.closeTransferModal = function (isFromTabClose = false) {
         modal.style.setProperty('display', 'none', 'important');
     }
 
+    if (document.body) {
+        document.body.classList.remove('has-fullscreen-tab');
+    }
+
     // إعادة ضبط وضع التعديل وتفريغ القائمة بالكامل (فقط إذا كان التعديل يخص التحويل المخزني)
     if (window.editingInvoiceType === 'تحويل مخزني 🚚' || editingInvoiceType === 'تحويل مخزني 🚚') {
         isEditMode = false;
@@ -256,10 +260,17 @@ window.closeTransferModal = function (isFromTabClose = false) {
     renderTransferTable();
 
     // إغلاق التبويب الرسمي والرجوع السلس للتبويب السابق
-    if (!isFromTabClose && typeof openTabs !== 'undefined' && Array.isArray(openTabs)) {
-        const trTab = openTabs.find(t => t.type === 'stock-transfer');
-        if (trTab && typeof actuallyCloseTab === 'function') {
-            actuallyCloseTab(trTab.id);
+    if (!isFromTabClose) {
+        if (typeof openTabs !== 'undefined' && Array.isArray(openTabs)) {
+            const trTab = openTabs.find(t => (typeof activeTabId !== 'undefined' && t.id === activeTabId && t.type === 'stock-transfer')) || openTabs.find(t => t.type === 'stock-transfer');
+            if (trTab && typeof actuallyCloseTab === 'function') {
+                actuallyCloseTab(trTab.id);
+            } else if (typeof switchSection === 'function') {
+                const fallbackTab = openTabs.find(t => t.type !== 'stock-transfer') || { type: 'dashboard' };
+                switchSection(fallbackTab.type, true, fallbackTab.id);
+            }
+        } else if (typeof switchSection === 'function') {
+            switchSection('inventory');
         }
     }
 }
@@ -2069,7 +2080,19 @@ window.processBatchTransfer = async function () {
                     if (typeof window.selectedInventoryId !== 'undefined') window.selectedInventoryId = null;
                     document.querySelectorAll('#inventoryTableBody tr.selected, #inventoryTableBody tr.active-row').forEach(r => r.classList.remove('selected', 'active-row'));
 
-                    document.getElementById('transferModal').classList.add('hidden');
+                    // إغلاق نافذة وتبويب التحويل بسلاسة والرجوع للتبويب السابق
+                    if (typeof window.closeTransferModal === 'function') {
+                        window.closeTransferModal();
+                    } else {
+                        const tModal = document.getElementById('transferModal');
+                        if (tModal) {
+                            tModal.classList.add('hidden');
+                            tModal.style.setProperty('display', 'none', 'important');
+                        }
+                        if (document.body) {
+                            document.body.classList.remove('has-fullscreen-tab');
+                        }
+                    }
 
                     // تحديث كافة الجداول والتقارير المرتبطة
                     if (typeof renderInventoryTable === 'function') renderInventoryTable();
