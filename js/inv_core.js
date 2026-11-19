@@ -682,8 +682,11 @@ async function renderInventoryTable(isLoadMore = false) {
             } else if (pBarcodeLower.startsWith(rawSearch)) {
                 score = Math.max(score, 15000);
                 matched = true;
-            } else if (pNameClean.includes(' ' + search + ' ') || pNameClean.startsWith(search + ' ') || pNameClean.endsWith(' ' + search)) {
+            } else if (pNameClean.includes(' ' + search + ' ') || pNameClean.startsWith(search + ' ') || pNameClean.endsWith(' ' + search) || pNameClean.includes('#' + search + ' ') || pNameClean.endsWith('#' + search)) {
                 score = Math.max(score, 12000);
+                matched = true;
+            } else if (pNameClean.includes(' ' + search) || pNameClean.includes('#' + search)) {
+                score = Math.max(score, 10000);
                 matched = true;
             } else if (pNameClean.includes(search)) {
                 score = Math.max(score, 6000);
