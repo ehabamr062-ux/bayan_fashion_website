@@ -6,7 +6,8 @@
   "scripts": {
     "start": "electron .",
     "package": "electron-builder --win",
-    "test": "node tools/auto_test.js"
+    "test": "node tools/auto_test.js",
+    "test:watch": "node tools/auto_test.js --watch"
   },
   "build": {
     "appId": "com.diamondvision.bayanpos",
