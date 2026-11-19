@@ -669,9 +669,19 @@ window.addEventListener('beforeprint', () => {
     document.documentElement.style.setProperty('background-color', '#ffffff', 'important');
 });
 window.addEventListener('afterprint', () => {
-    const curWp = (typeof getStore === 'function') ? (getStore('pos_wallpaper') || 'deep_space.png') : 'none';
+    const curWp = (typeof getStore === 'function')
+        ? (getStore('bayan_wallpaper') || getStore('pos_wallpaper') || 'media/wallpapers/mountains.jpg')
+        : 'none';
     if (typeof applyWallpaperToDom === 'function') {
-        applyWallpaperToDom(curWp === 'none' ? 'none' : `url(media/wallpapers/${curWp})`);
+        if (curWp === 'none') {
+            applyWallpaperToDom('none');
+        } else if (curWp.startsWith('url(')) {
+            applyWallpaperToDom(curWp);
+        } else if (curWp.startsWith('data:') || curWp.startsWith('http') || curWp.startsWith('media/')) {
+            applyWallpaperToDom(`url('${curWp}')`);
+        } else {
+            applyWallpaperToDom(`url(media/wallpapers/${curWp})`);
+        }
     }
 });
 

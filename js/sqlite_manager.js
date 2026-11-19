@@ -1066,9 +1066,10 @@
                             warehouse TEXT,
                             status TEXT,
                             terminal TEXT,
+                            isInvoiceHead INTEGER DEFAULT NULL,
                             raw_json TEXT
                         );
-                        INSERT OR REPLACE INTO transactions_mig SELECT CAST(id AS TEXT), invoiceId, COALESCE(originalInvoiceId, ''), dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, COALESCE(status, ''), COALESCE(terminal, ''), raw_json FROM transactions;
+                        INSERT OR REPLACE INTO transactions_mig SELECT CAST(id AS TEXT), invoiceId, COALESCE(originalInvoiceId, ''), dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, COALESCE(status, ''), COALESCE(terminal, ''), isInvoiceHead, raw_json FROM transactions;
                         DROP TABLE transactions;
                         ALTER TABLE transactions_mig RENAME TO transactions;
                         CREATE INDEX IF NOT EXISTS idx_tx_invoiceId ON transactions(invoiceId);
@@ -1093,6 +1094,10 @@
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);");
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_isHead ON transactions(isInvoiceHead);");
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_orig_inv ON transactions(originalInvoiceId);");
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_isHead_date_type ON transactions(isInvoiceHead, dateISO, type);");
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_cashier_date ON transactions(cashier, dateISO);");
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_wh_head_date ON transactions(warehouse, isInvoiceHead, dateISO);");
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_method ON transactions(method);");
             } catch (e) { }
             try {
                 this.db.run("ALTER TABLE accounts ADD COLUMN debit REAL DEFAULT 0;");
@@ -1133,10 +1138,13 @@
                 );
                 CREATE INDEX IF NOT EXISTS idx_ti_invoiceId ON transaction_items(invoiceId);
                 CREATE INDEX IF NOT EXISTS idx_ti_barcode ON transaction_items(barcode);
-                DROP INDEX IF EXISTS idx_ti_date;
+                CREATE INDEX IF NOT EXISTS idx_ti_date ON transaction_items(dateISO);
                 CREATE INDEX IF NOT EXISTS idx_ti_wh_barcode ON transaction_items(warehouse, barcode);
                 CREATE INDEX IF NOT EXISTS idx_ti_productName ON transaction_items(productName);
                 CREATE INDEX IF NOT EXISTS idx_items_date_prod ON transaction_items(dateISO, productName);
+                CREATE INDEX IF NOT EXISTS idx_ti_prod_wh_date ON transaction_items(productName, warehouse, dateISO);
+                CREATE INDEX IF NOT EXISTS idx_ti_partner_date ON transaction_items(partner, dateISO);
+                CREATE INDEX IF NOT EXISTS idx_ti_type_date ON transaction_items(type, dateISO);
                 CREATE INDEX IF NOT EXISTS idx_ti_tx_id ON transaction_items(tx_id);
                 CREATE INDEX IF NOT EXISTS idx_ti_date_barcode ON transaction_items(dateISO, barcode);
                 CREATE INDEX IF NOT EXISTS idx_ti_date_type ON transaction_items(dateISO, type);
@@ -1188,6 +1196,8 @@
                 CREATE TABLE IF NOT EXISTS auditLogs (id INTEGER PRIMARY KEY, timestamp TEXT, action TEXT, raw_json TEXT);
                 CREATE INDEX IF NOT EXISTS idx_audit_timestamp ON auditLogs(timestamp DESC);
                 CREATE TABLE IF NOT EXISTS treasuryAudit (id INTEGER PRIMARY KEY, date TEXT, category TEXT, raw_json TEXT);
+                CREATE INDEX IF NOT EXISTS idx_ta_date ON treasuryAudit(date);
+                CREATE INDEX IF NOT EXISTS idx_ta_cat_date ON treasuryAudit(category, date);
                 CREATE TABLE IF NOT EXISTS wallpapers (id INTEGER PRIMARY KEY, name TEXT, raw_json TEXT);
                 CREATE TABLE IF NOT EXISTS backups (id INTEGER PRIMARY KEY, timestamp TEXT, raw_json TEXT);
                 CREATE TABLE IF NOT EXISTS syncQueue (id INTEGER PRIMARY KEY, timestamp TEXT, action TEXT, type TEXT, status TEXT, raw_json TEXT);

@@ -18,6 +18,7 @@
     const GITHUB_REPO_OWNER = 'ehabamr062-ux';
     const GITHUB_REPO_NAME = 'bayan_fashion_website';
     const GITHUB_API_URL = `https://api.github.com/repos/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases/latest`;
+    const GITHUB_RELEASES_PAGE = `https://github.com/${GITHUB_REPO_OWNER}/${GITHUB_REPO_NAME}/releases`;
     const GITHUB_BROADCAST_REPO = 'bayan_fashion_website';
     const GITHUB_BROADCAST_URL = `https://raw.githubusercontent.com/${GITHUB_REPO_OWNER}/${GITHUB_BROADCAST_REPO}/main/announcements.json`;
 

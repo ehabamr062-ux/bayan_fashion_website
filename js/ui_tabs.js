@@ -727,7 +727,8 @@
                                 delete dEl.dataset.touched;
                             }
                             if (tEl && !tEl.value) {
-                                tEl.value = todayNow;
+                                const isDateToField = config.t.toLowerCase().includes('date');
+                                tEl.value = isDateToField ? todayNow : timeNow;
                                 tEl.removeAttribute('data-touched');
                                 delete tEl.dataset.touched;
                             }

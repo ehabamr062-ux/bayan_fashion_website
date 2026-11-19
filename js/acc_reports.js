@@ -1379,7 +1379,7 @@
 
                 // 3. استدعاء تفاصيل السندات والمصروفات للتفاصيل ونوافذ العرض المنبثقة
                 if (typeof window.BayanSQLite.getDailyReportDetailsLists === 'function') {
-                    const details = window.BayanSQLite.getDailyReportDetailsLists(fromDate, toDate, selectedWarehouse, selectedUser, 300);
+                    const details = window.BayanSQLite.getDailyReportDetailsLists(fromDate, toDate, selectedWarehouse, selectedUser, 5000);
                     (details.disbursements || []).forEach((t, idx) => {
                         if (!t) return;
                         const amt = parseFloat(t.total) || parseFloat(t.price) || parseFloat(t.paidAmount) || 0;
