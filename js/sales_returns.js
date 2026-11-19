@@ -148,15 +148,15 @@ function checkSalesReturnRequiresOriginalInvoice() {
     try {
         const raw = (typeof getStore === 'function' ? getStore('pos_settings') : null) || (typeof localStorage !== 'undefined' ? localStorage.getItem('pos_settings') : null);
         const posSettings = JSON.parse(raw || '{}');
-        const isRequired = (posSettings.requireOriginalInvoiceForReturn !== undefined) 
-            ? !!posSettings.requireOriginalInvoiceForReturn 
+        const isRequired = (posSettings.requireOriginalInvoiceForReturn !== undefined)
+            ? !!posSettings.requireOriginalInvoiceForReturn
             : true;
 
         if (!isRequired) return false;
 
         const originalInvoiceId = (document.getElementById('salesReturnInvoiceDisplay')?.innerText || '').trim();
         const hasOriginalInvoice = Boolean(originalInvoiceId && originalInvoiceId !== '---' && originalInvoiceId !== '');
-        
+
         if (!hasOriginalInvoice) {
             if (window.BayanBarcode && typeof BayanBarcode.playBeep === 'function') {
                 BayanBarcode.playBeep(false);
@@ -311,10 +311,10 @@ function renderReturnCart() {
 
         totalQty += (parseFloat(item.qty) || 0);
 
-        const product = productsDB.find(p => 
-            (item.id && p.id === item.id) || 
-            (item.name && p.name === item.name) || 
-            (item.product && p.name === item.product) || 
+        const product = productsDB.find(p =>
+            (item.id && p.id === item.id) ||
+            (item.name && p.name === item.name) ||
+            (item.product && p.name === item.product) ||
             (item.code && (p.code === item.code || p.barcode === item.code))
         );
         const displayName = item.name || item.product || item.productName || (product ? product.name : '') || 'صنف غير محدد';
@@ -610,8 +610,8 @@ async function saveSalesReturn(force = false, accountChecked = false) {
         if (partner === '---') partner = '';
         partner = partner.trim();
 
-        const selectedMethod = (typeof getSelectedPaymentMethod === 'function') 
-            ? getSelectedPaymentMethod('sales-return-section') 
+        const selectedMethod = (typeof getSelectedPaymentMethod === 'function')
+            ? getSelectedPaymentMethod('sales-return-section')
             : (document.getElementById('sales-return-sectionPaymentMethodSelect')?.value || 'نقدي');
         const method = selectedMethod;
         const isCredit = (typeof window.isTransactionCredit === 'function') ? window.isTransactionCredit(method, 1, 0, 1) : false;
@@ -636,8 +636,8 @@ async function saveSalesReturn(force = false, accountChecked = false) {
 
         // 🛑 فحص الأمان: التحقق من سياسة إلزام الفاتورة الأصلية لمنع التلاعب بأموال الخزينة
         const posSettings = JSON.parse(getStore('pos_settings') || '{}');
-        const requireOrigInv = (posSettings.requireOriginalInvoiceForReturn !== undefined) 
-            ? !!posSettings.requireOriginalInvoiceForReturn 
+        const requireOrigInv = (posSettings.requireOriginalInvoiceForReturn !== undefined)
+            ? !!posSettings.requireOriginalInvoiceForReturn
             : true;
 
         if (requireOrigInv && (!originalInvoiceId || originalInvoiceId === '---' || originalInvoiceId === '')) {
@@ -670,7 +670,7 @@ async function saveSalesReturn(force = false, accountChecked = false) {
                     : ((typeof db !== 'undefined' && db && db.transactions)
                         ? await db.transactions.where('type').startsWith('مرتجع').filter(t => String(t.originalInvoiceId) === String(originalInvoiceId)).toArray()
                         : []);
-            } catch(e) {}
+            } catch (e) { }
 
             let fallbackSqlItems = null;
             const cleanStr = (s) => (s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
@@ -679,9 +679,9 @@ async function saveSalesReturn(force = false, accountChecked = false) {
                 const itemSize = (item.selectedSize || item.size || '').trim();
                 const itemColor = (item.selectedColor || item.color || '').trim();
 
-                let origItems = (window.transactions || transactions || []).filter(t => 
-                    String(t.invoiceId) === String(originalInvoiceId) && 
-                    (cleanStr(t.product) === itemClean || cleanStr(t.productName) === itemClean || (item.id && (t.productId == item.id || t.product == item.id))) && 
+                let origItems = (window.transactions || transactions || []).filter(t =>
+                    String(t.invoiceId) === String(originalInvoiceId) &&
+                    (cleanStr(t.product) === itemClean || cleanStr(t.productName) === itemClean || (item.id && (t.productId == item.id || t.product == item.id))) &&
                     (!itemSize || (t.size || t.selectedSize || '').trim() === itemSize) &&
                     (!itemColor || (t.color || t.selectedColor || '').trim() === itemColor) &&
                     t.type && t.type.includes('بيع') && !t.type.includes('مرتجع')
@@ -689,29 +689,29 @@ async function saveSalesReturn(force = false, accountChecked = false) {
 
                 if (origItems.length === 0 && window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function' && window.BayanSQLite.db) {
                     if (fallbackSqlItems === null) {
-                        try { fallbackSqlItems = window.BayanSQLite.getInvoiceItems(originalInvoiceId, 'بيع') || []; } catch(e) { fallbackSqlItems = []; }
+                        try { fallbackSqlItems = window.BayanSQLite.getInvoiceItems(originalInvoiceId, 'بيع') || []; } catch (e) { fallbackSqlItems = []; }
                     }
-                    origItems = (fallbackSqlItems || []).filter(t => 
-                        (cleanStr(t.product) === itemClean || cleanStr(t.productName) === itemClean || (item.id && (t.productId == item.id || t.product == item.id))) && 
+                    origItems = (fallbackSqlItems || []).filter(t =>
+                        (cleanStr(t.product) === itemClean || cleanStr(t.productName) === itemClean || (item.id && (t.productId == item.id || t.product == item.id))) &&
                         (!itemSize || (t.size || t.selectedSize || '').trim() === itemSize) &&
                         (!itemColor || (t.color || t.selectedColor || '').trim() === itemColor)
                     );
                 }
-                
+
                 const totalSoldQty = origItems.reduce((sum, i) => sum + (parseFloat(i.qty) || 0), 0);
-                
+
                 if (totalSoldQty > 0) {
-                    let otherReturns = (window.transactions || transactions || []).filter(t => 
-                        String(t.originalInvoiceId) === String(originalInvoiceId) && 
-                        (cleanStr(t.product) === itemClean || cleanStr(t.productName) === itemClean || (item.id && (t.productId == item.id || t.product == item.id))) && 
+                    let otherReturns = (window.transactions || transactions || []).filter(t =>
+                        String(t.originalInvoiceId) === String(originalInvoiceId) &&
+                        (cleanStr(t.product) === itemClean || cleanStr(t.productName) === itemClean || (item.id && (t.productId == item.id || t.product == item.id))) &&
                         (!itemSize || (t.size || t.selectedSize || '').trim() === itemSize) &&
                         (!itemColor || (t.color || t.selectedColor || '').trim() === itemColor) &&
                         t.type && t.type.includes('مرتجع') &&
                         (!isEditMode || String(t.invoiceId) !== String(editingInvoiceId))
                     );
                     if (otherReturns.length === 0 && prevR && prevR.length > 0) {
-                        otherReturns = prevR.filter(t => 
-                            (cleanStr(t.product) === itemClean || cleanStr(t.productName) === itemClean || (item.id && (t.productId == item.id || t.product == item.id))) && 
+                        otherReturns = prevR.filter(t =>
+                            (cleanStr(t.product) === itemClean || cleanStr(t.productName) === itemClean || (item.id && (t.productId == item.id || t.product == item.id))) &&
                             (!itemSize || (t.size || t.selectedSize || '').trim() === itemSize) &&
                             (!itemColor || (t.color || t.selectedColor || '').trim() === itemColor) &&
                             (!isEditMode || String(t.invoiceId) !== String(editingInvoiceId))
@@ -743,7 +743,7 @@ async function saveSalesReturn(force = false, accountChecked = false) {
 
         const dt = (typeof window.getEffectiveTransactionDateTime === 'function')
             ? window.getEffectiveTransactionDateTime('salesReturnDate', 'salesReturnTime', origDt, isEditMode)
-            : ((function() {
+            : ((function () {
                 const dateInputEl = document.getElementById('salesReturnDate');
                 const inputDateVal = dateInputEl?.value;
                 const wasTouched = Boolean(dateInputEl && (dateInputEl.getAttribute('data-touched') === 'true' || dateInputEl.dataset?.touched === 'true'));
@@ -772,7 +772,7 @@ async function saveSalesReturn(force = false, accountChecked = false) {
         // isCash محدد من خيار المستخدم في الواجهة
         const isNonCashReturn = (typeof window.isNonCashPaymentMethod === 'function')
             ? window.isNonCashPaymentMethod(selectedMethod)
-            : (function(m) {
+            : (function (m) {
                 const s = String(m || '').toLowerCase().replace(/[أإآ]/g, 'ا');
                 return s.includes('فيزا') || (s.includes('كاش') && !s.includes('نقدي')) || s.includes('فودافون') || s.includes('محفظ') || s.includes('بنك') || s.includes('انستاباي') || s.includes('شيك') || s.includes('تحويل');
             })(selectedMethod);
@@ -799,7 +799,7 @@ async function saveSalesReturn(force = false, accountChecked = false) {
                     onConfirm: () => {
                         const sel = document.getElementById('sales-return-sectionPaymentMethodSelect');
                         if (sel) {
-                            const creditOpt = Array.from(sel.options).find(o => 
+                            const creditOpt = Array.from(sel.options).find(o =>
                                 o.value.includes('خصم') || o.value.includes('أجل') || o.value.includes('حساب') ||
                                 o.text.includes('خصم') || o.text.includes('أجل') || o.text.includes('حساب')
                             );
@@ -818,7 +818,7 @@ async function saveSalesReturn(force = false, accountChecked = false) {
 
         // 🛑 فحص رصيد الدرج / الخزينة قبل صرف المرتجع النقدي الورقي فقط
         if (isCash && !force) {
-            const currentCash = (function() {
+            const currentCash = (function () {
                 let c = 0;
                 const isNonCash = (m) => {
                     if (typeof window.isNonCashPaymentMethod === 'function') return window.isNonCashPaymentMethod(m);
@@ -890,15 +890,15 @@ async function saveSalesReturn(force = false, accountChecked = false) {
             const sColor = String(item.selectedColor || item.color || '').trim();
 
             // تحديد المخزن: الأولوية لمخزن الفاتورة الأصلية المستدعاة لضمان عودة البضاعة لنفس مقرها الفعلي
-            const origMatch = originalInvoiceId ? (transactions.find(t => 
-                String(t.invoiceId) === String(originalInvoiceId) && 
+            const origMatch = originalInvoiceId ? (transactions.find(t =>
+                String(t.invoiceId) === String(originalInvoiceId) &&
                 (t.product === item.name || t.productName === item.name) &&
                 (!sSize || (t.size || t.selectedSize || '').trim() === sSize) &&
                 (!sColor || (t.color || t.selectedColor || '').trim() === sColor) &&
                 t.type && t.type.includes('بيع') && !t.type.includes('مرتجع')
-            ) || transactions.find(t => 
-                String(t.invoiceId) === String(originalInvoiceId) && 
-                (t.product === item.name || t.productName === item.name) && 
+            ) || transactions.find(t =>
+                String(t.invoiceId) === String(originalInvoiceId) &&
+                (t.product === item.name || t.productName === item.name) &&
                 t.type && t.type.includes('بيع') && !t.type.includes('مرتجع')
             )) : null;
 
@@ -915,11 +915,11 @@ async function saveSalesReturn(force = false, accountChecked = false) {
                         effVariant = null;
                     }
                     if (!effVariant && p.variants && Array.isArray(p.variants) && (sSize || sColor)) {
-                        effVariant = p.variants.find(v => 
-                            (String(v.size || '').trim() === sSize) && 
+                        effVariant = p.variants.find(v =>
+                            (String(v.size || '').trim() === sSize) &&
                             (String(v.color || '').trim() === sColor)
-                        ) || p.variants.find(v => 
-                            (!sSize || String(v.size || '').trim() === sSize) && 
+                        ) || p.variants.find(v =>
+                            (!sSize || String(v.size || '').trim() === sSize) &&
                             (!sColor || String(v.color || '').trim() === sColor)
                         );
                     }
@@ -951,15 +951,15 @@ async function saveSalesReturn(force = false, accountChecked = false) {
             const itemNetTotal = parseFloat((item.price * item.qty * ratio).toFixed(2));
 
             // حساب الربح "المسترد" بناءً على هامش ربح الصنف والمقاس نفسه في الفاتورة الأصلية بدقة
-            const originalInvItem = transactions.find(t => 
-                String(t.invoiceId) === String(originalInvoiceId) && 
-                (t.product === item.name || t.productName === item.name) && 
+            const originalInvItem = transactions.find(t =>
+                String(t.invoiceId) === String(originalInvoiceId) &&
+                (t.product === item.name || t.productName === item.name) &&
                 (t.type && t.type.includes('بيع') && !t.type.includes('مرتجع')) &&
                 (!sSize || String(t.size || t.selectedSize || '').trim() === sSize) &&
                 (!sColor || String(t.color || t.selectedColor || '').trim() === sColor)
-            ) || transactions.find(t => 
-                String(t.invoiceId) === String(originalInvoiceId) && 
-                (t.product === item.name || t.productName === item.name) && 
+            ) || transactions.find(t =>
+                String(t.invoiceId) === String(originalInvoiceId) &&
+                (t.product === item.name || t.productName === item.name) &&
                 (t.type && t.type.includes('بيع') && !t.type.includes('مرتجع'))
             );
 
@@ -982,7 +982,7 @@ async function saveSalesReturn(force = false, accountChecked = false) {
                 try {
                     const fd = window.BayanSQLite.getInvoiceFullDetails(originalInvoiceId, 'بيع');
                     if (fd) originalInv = fd;
-                } catch(e) {}
+                } catch (e) { }
             }
 
             const originalDate = originalInv ? (originalInv.date || originalInv.dateISO || '-') : '-';
@@ -1172,14 +1172,14 @@ async function saveSalesReturn(force = false, accountChecked = false) {
 
 function printReturnReceipt(type = 'sales') {
     const isSalesRet = (type === 'sales' || type === 'salesReturn');
-    const partner = isSalesRet 
+    const partner = isSalesRet
         ? (document.getElementById('salesReturnPartnerDisplay')?.innerText || document.getElementById('salesReturnAccountInput')?.value || 'عميل نقدي')
         : (document.getElementById('purReturnPartnerDisplay')?.innerText || document.getElementById('purReturnAccountInput')?.value || 'مورد نقدي');
-    const invId = isSalesRet 
+    const invId = isSalesRet
         ? (document.getElementById('salesReturnBadgeID')?.innerText || 'RET-01')
         : (document.getElementById('purReturnBadgeID')?.innerText || 'PRET-01');
-    const cartArr = isSalesRet 
-        ? (typeof returnCart !== 'undefined' ? returnCart : []) 
+    const cartArr = isSalesRet
+        ? (typeof returnCart !== 'undefined' ? returnCart : [])
         : (typeof purReturnCart !== 'undefined' ? purReturnCart : []);
 
     if (cartArr.length > 0 && typeof printInvoice === 'function') {
@@ -1307,10 +1307,10 @@ function renderPurReturnCart() {
 
         totalQty += (parseFloat(item.qty) || 0);
 
-        const product = productsDB.find(p => 
-            (item.id && p.id === item.id) || 
-            (item.name && p.name === item.name) || 
-            (item.product && p.name === item.product) || 
+        const product = productsDB.find(p =>
+            (item.id && p.id === item.id) ||
+            (item.name && p.name === item.name) ||
+            (item.product && p.name === item.product) ||
             (item.code && (p.code === item.code || p.barcode === item.code))
         );
         const displayName = item.name || item.product || item.productName || (product ? product.name : '') || 'صنف غير محدد';
@@ -1473,7 +1473,7 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
 
         const dt = (typeof window.getEffectiveTransactionDateTime === 'function')
             ? window.getEffectiveTransactionDateTime('purReturnDate', 'purReturnTime', origDt, isEditMode)
-            : ((function() {
+            : ((function () {
                 const dateInputEl = document.getElementById('purReturnDate');
                 const inputDateVal = dateInputEl?.value;
                 const wasTouched = Boolean(dateInputEl && (dateInputEl.getAttribute('data-touched') === 'true' || dateInputEl.dataset?.touched === 'true'));
@@ -1481,14 +1481,14 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
                 return (isEditMode && origDt && !isDateManuallyChanged) ? origDt : getTransactionDateTime('purReturnDate', 'purReturnTime');
             })());
 
-        const selectedMethod = (typeof getSelectedPaymentMethod === 'function') 
-            ? getSelectedPaymentMethod('purchase-return-section') 
+        const selectedMethod = (typeof getSelectedPaymentMethod === 'function')
+            ? getSelectedPaymentMethod('purchase-return-section')
             : (document.getElementById('purchase-return-sectionPaymentMethodSelect')?.value || 'نقدي (إلى الخزنة)');
         const method = selectedMethod;
         const isCredit = (typeof window.isTransactionCredit === 'function') ? window.isTransactionCredit(method, 1, 0, 1) : false;
         const isNonCashReturn = (typeof window.isNonCashPaymentMethod === 'function')
             ? window.isNonCashPaymentMethod(selectedMethod)
-            : (function(m) {
+            : (function (m) {
                 const s = String(m || '').toLowerCase().replace(/[أإآ]/g, 'ا');
                 return s.includes('فيزا') || (s.includes('كاش') && !s.includes('نقدي')) || s.includes('فودافون') || s.includes('محفظ') || s.includes('بنك') || s.includes('انستاباي') || s.includes('شيك') || s.includes('تحويل');
             })(selectedMethod);
@@ -1551,7 +1551,7 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
                     onConfirm: () => {
                         const sel = document.getElementById('purchase-return-sectionPaymentMethodSelect');
                         if (sel) {
-                            const creditOpt = Array.from(sel.options).find(o => 
+                            const creditOpt = Array.from(sel.options).find(o =>
                                 o.value.includes('خصم') || o.value.includes('أجل') || o.value.includes('حساب') ||
                                 o.text.includes('خصم') || o.text.includes('أجل') || o.text.includes('حساب')
                             );
@@ -1601,7 +1601,7 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
                     : ((typeof db !== 'undefined' && db && db.transactions)
                         ? await db.transactions.where('type').startsWith('مرتجع').filter(t => String(t.originalInvoiceId) === String(originalInvoiceId)).toArray()
                         : []);
-            } catch(e) {}
+            } catch (e) { }
 
             let fallbackSqlItems = null;
             const cleanStr = (s) => (s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
@@ -1610,9 +1610,9 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
                 const itemSize = (item.selectedSize || item.size || '').trim();
                 const itemColor = (item.selectedColor || item.color || '').trim();
 
-                let origItems = (window.transactions || transactions || []).filter(t => 
-                    String(t.invoiceId) === String(originalInvoiceId) && 
-                    (cleanStr(t.product) === itemClean || cleanStr(t.productName) === itemClean || (item.id && (t.productId == item.id || t.product == item.id))) && 
+                let origItems = (window.transactions || transactions || []).filter(t =>
+                    String(t.invoiceId) === String(originalInvoiceId) &&
+                    (cleanStr(t.product) === itemClean || cleanStr(t.productName) === itemClean || (item.id && (t.productId == item.id || t.product == item.id))) &&
                     (!itemSize || (t.size || t.selectedSize || '').trim() === itemSize) &&
                     (!itemColor || (t.color || t.selectedColor || '').trim() === itemColor) &&
                     t.type && t.type.includes('شراء') && !t.type.includes('مرتجع')
@@ -1620,29 +1620,29 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
 
                 if (origItems.length === 0 && window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function' && window.BayanSQLite.db) {
                     if (fallbackSqlItems === null) {
-                        try { fallbackSqlItems = window.BayanSQLite.getInvoiceItems(originalInvoiceId, 'شراء') || []; } catch(e) { fallbackSqlItems = []; }
+                        try { fallbackSqlItems = window.BayanSQLite.getInvoiceItems(originalInvoiceId, 'شراء') || []; } catch (e) { fallbackSqlItems = []; }
                     }
-                    origItems = (fallbackSqlItems || []).filter(t => 
-                        (cleanStr(t.product) === itemClean || cleanStr(t.productName) === itemClean || (item.id && (t.productId == item.id || t.product == item.id))) && 
+                    origItems = (fallbackSqlItems || []).filter(t =>
+                        (cleanStr(t.product) === itemClean || cleanStr(t.productName) === itemClean || (item.id && (t.productId == item.id || t.product == item.id))) &&
                         (!itemSize || (t.size || t.selectedSize || '').trim() === itemSize) &&
                         (!itemColor || (t.color || t.selectedColor || '').trim() === itemColor)
                     );
                 }
-                
+
                 const totalBoughtQty = origItems.reduce((sum, i) => sum + (parseFloat(i.qty) || 0), 0);
-                
+
                 if (totalBoughtQty > 0) {
-                    let otherReturns = (window.transactions || transactions || []).filter(t => 
-                        String(t.originalInvoiceId) === String(originalInvoiceId) && 
-                        (cleanStr(t.product) === itemClean || cleanStr(t.productName) === itemClean || (item.id && (t.productId == item.id || t.product == item.id))) && 
+                    let otherReturns = (window.transactions || transactions || []).filter(t =>
+                        String(t.originalInvoiceId) === String(originalInvoiceId) &&
+                        (cleanStr(t.product) === itemClean || cleanStr(t.productName) === itemClean || (item.id && (t.productId == item.id || t.product == item.id))) &&
                         (!itemSize || (t.size || t.selectedSize || '').trim() === itemSize) &&
                         (!itemColor || (t.color || t.selectedColor || '').trim() === itemColor) &&
                         t.type && t.type.includes('مرتجع') &&
                         (!isEditMode || String(t.invoiceId) !== String(editingInvoiceId))
                     );
                     if (otherReturns.length === 0 && prevR && prevR.length > 0) {
-                        otherReturns = prevR.filter(t => 
-                            (cleanStr(t.product) === itemClean || cleanStr(t.productName) === itemClean || (item.id && (t.productId == item.id || t.product == item.id))) && 
+                        otherReturns = prevR.filter(t =>
+                            (cleanStr(t.product) === itemClean || cleanStr(t.productName) === itemClean || (item.id && (t.productId == item.id || t.product == item.id))) &&
                             (!itemSize || (t.size || t.selectedSize || '').trim() === itemSize) &&
                             (!itemColor || (t.color || t.selectedColor || '').trim() === itemColor) &&
                             (!isEditMode || String(t.invoiceId) !== String(editingInvoiceId))
@@ -1678,14 +1678,14 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
                     const sSize = item.selectedSize || item.size || '';
                     const sColor = item.selectedColor || item.color || '';
                     if (sSize || sColor) {
-                        effVariant = p.variants.find(v => 
-                            (!sSize || v.size === sSize) && 
+                        effVariant = p.variants.find(v =>
+                            (!sSize || v.size === sSize) &&
                             (!sColor || v.color === sColor)
                         );
                     }
                 }
-                const availStock = effVariant 
-                    ? (window.FashionStockEngine ? window.FashionStockEngine.getVariantStock(effVariant, activeWH) : (parseFloat(effVariant.stock) || 0)) 
+                const availStock = effVariant
+                    ? (window.FashionStockEngine ? window.FashionStockEngine.getVariantStock(effVariant, activeWH) : (parseFloat(effVariant.stock) || 0))
                     : (window.FashionStockEngine ? window.FashionStockEngine.getProductStock(p, activeWH) : (parseFloat(p.stock) || 0));
                 if (baseQty > availStock) {
                     const variantInfo = effVariant ? ` [${effVariant.size || ''} ${effVariant.color || ''}]` : '';
@@ -1730,11 +1730,11 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
                         effVariant = null;
                     }
                     if (!effVariant && p.variants && Array.isArray(p.variants) && (sSize || sColor)) {
-                        effVariant = p.variants.find(v => 
-                            (String(v.size || '').trim() === sSize) && 
+                        effVariant = p.variants.find(v =>
+                            (String(v.size || '').trim() === sSize) &&
                             (String(v.color || '').trim() === sColor)
-                        ) || p.variants.find(v => 
-                            (!sSize || String(v.size || '').trim() === sSize) && 
+                        ) || p.variants.find(v =>
+                            (!sSize || String(v.size || '').trim() === sSize) &&
                             (!sColor || String(v.color || '').trim() === sColor)
                         );
                     }
@@ -1771,7 +1771,7 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
                 try {
                     const fd = window.BayanSQLite.getInvoiceFullDetails(originalInvoiceId, 'شراء');
                     if (fd) originalInv = fd;
-                } catch(e) {}
+                } catch (e) { }
             }
 
             const originalDate = originalInv ? (originalInv.date || originalInv.dateISO || '-') : '-';
@@ -2046,10 +2046,10 @@ async function handleReturnSearch(query, type) {
 
         let stockText = `<span style="font-size: 0.75rem; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 4px;">المخزون (${activeWH}): ${stockVal}</span>`;
 
-        const sizesList = (p.variants && Array.isArray(p.variants)) 
-            ? [...new Set(p.variants.map(v => String(v.size || '').trim()).filter(s => s && s !== '-' && s !== 'موحد' && s !== 'قياسي'))] 
+        const sizesList = (p.variants && Array.isArray(p.variants))
+            ? [...new Set(p.variants.map(v => String(v.size || '').trim()).filter(s => s && s !== '-' && s !== 'موحد' && s !== 'قياسي'))]
             : [];
-        const sizesHtml = sizesList.length > 0 
+        const sizesHtml = sizesList.length > 0
             ? `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 4px; font-size: 0.72rem; font-weight: 800; border: 1px solid #bae6fd; margin-right: 4px;">📏 مقاسات: ${sizesList.slice(0, 5).join(', ')}${sizesList.length > 5 ? '...' : ''}</span>`
             : '';
 
@@ -2313,7 +2313,7 @@ async function handleReturnSearchEnter(query, event, type, forceAdd = false) {
         const matches = (typeof window.searchProductsRanked === 'function')
             ? window.searchProductsRanked(cleanQuery, { limit: 10 })
             : productsDB.filter(p => (p.name && p.name.toLowerCase().includes(cleanQuery.toLowerCase())));
-        
+
         if (matches.length === 1) {
             pInDB = matches[0];
         } else if (matches.length > 1) {
@@ -2831,7 +2831,7 @@ function debouncedExecuteInvoiceSearch() {
     if (_invoiceSearchDebounceTimer) clearTimeout(_invoiceSearchDebounceTimer);
     _invoiceSearchDebounceTimer = setTimeout(() => {
         executeInvoiceSearch();
-    }, 200);
+    }, 350);
 }
 window.debouncedExecuteInvoiceSearch = debouncedExecuteInvoiceSearch;
 
@@ -2884,6 +2884,7 @@ async function executeInvoiceSearch() {
 
     // ⚡ استدعاء الفواتير مباشرة من محرك SQLite C++ فائق السرعة بكامل الأرشيف التاريخي
     let sqliteLoaded = false;
+    let sqliteMatchedRows = null;
     if (window.BayanSQLite && typeof window.BayanSQLite.searchReturnInvoices === 'function' && window.BayanSQLite.db) {
         try {
             const foundRows = window.BayanSQLite.searchReturnInvoices({
@@ -2899,6 +2900,7 @@ async function executeInvoiceSearch() {
                 limit: 300
             });
             if (foundRows && foundRows.length > 0) {
+                sqliteMatchedRows = foundRows;
                 const existingIds = new Set((window.transactions || []).map(t => t.id));
                 const invoiceIds = [];
                 foundRows.forEach(row => {
@@ -2936,7 +2938,7 @@ async function executeInvoiceSearch() {
                                 }
                             });
                         }
-                    } catch (eRet) {}
+                    } catch (eRet) { }
                 }
             }
         } catch (e) {
@@ -2967,7 +2969,7 @@ async function executeInvoiceSearch() {
                 const existingIds = new Set(transactions.map(t => t.id));
                 accMatches.forEach(row => { if (row && row.id && !existingIds.has(row.id)) transactions.push(row); });
             }
-        } catch(e) {}
+        } catch (e) { }
     }
 
     // ⚡ استدعاء نطاق التاريخ المطلوب من SQLite عند الحاجة (احتياطي)
@@ -2983,7 +2985,7 @@ async function executeInvoiceSearch() {
                 const existingIds = new Set(transactions.map(t => t.id));
                 recentTx.forEach(row => { if (row && row.id && !existingIds.has(row.id)) transactions.push(row); });
             }
-        } catch(e) {}
+        } catch (e) { }
     }
 
     // العثور على أسماء الحسابات التي تطابق المدخل (اسم، كود، أو هاتف) بتطبيع دقيق
@@ -3023,7 +3025,7 @@ async function executeInvoiceSearch() {
             try {
                 const parsed = JSON.parse(t.raw_json);
                 if (parsed && Array.isArray(parsed.items)) txItems = parsed.items;
-            } catch(e) {}
+            } catch (e) { }
         }
         if (!txItems && window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function' && t.invoiceId) {
             txItems = window.BayanSQLite.getInvoiceItems(t.invoiceId, t.type || targetType);
@@ -3086,25 +3088,25 @@ async function executeInvoiceSearch() {
 
     });
 
-    // تجميع النتائج حسب رقم الفاتورة وحساب الصافي بعد المرتجعات
+    // تجميع النتائج حسب رقم الفاتورة وحساب الصافي بعد المرتجعات (O(1) بدون استعلامات SQL متكررة داخل الحلقة)
+    const returnedByOrigInvMap = new Map();
+    if (Array.isArray(transactions)) {
+        for (let i = 0; i < transactions.length; i++) {
+            const rt = transactions[i];
+            if (rt && rt.originalInvoiceId && rt.type && rt.type.includes('مرتجع')) {
+                const key = String(rt.originalInvoiceId);
+                returnedByOrigInvMap.set(key, (returnedByOrigInvMap.get(key) || 0) + (parseFloat(rt.total) || 0));
+            }
+        }
+    }
+
     const grouped = {};
 
     results.forEach(t => {
 
         if (!grouped[t.invoiceId]) {
 
-            // حساب إجمالي المرتجعات لهذه الفاتورة (من SQLite أولاً لضمان شمول الفترات السابقة)
-            let returnedVal = 0;
-            if (window.BayanSQLite && typeof window.BayanSQLite.getTotalReturnedAmount === 'function' && window.BayanSQLite.db) {
-                try {
-                    returnedVal = Number(window.BayanSQLite.getTotalReturnedAmount(t.invoiceId)) || 0;
-                } catch (e) { returnedVal = 0; }
-            }
-            if (returnedVal === 0) {
-                returnedVal = transactions
-                    .filter(rt => rt.originalInvoiceId == t.invoiceId && rt.type && rt.type.includes('مرتجع'))
-                    .reduce((sum, rt) => sum + (parseFloat(rt.total) || 0), 0);
-            }
+            const returnedVal = returnedByOrigInvMap.get(String(t.invoiceId)) || 0;
 
             // استخراج الوقت والتاريخ من dateISO إذا أمكن
             let timeStr = '-';
@@ -3204,21 +3206,21 @@ async function executeInvoiceSearch() {
                     <span style="font-size: 0.95rem; color: #0f172a;">#${esc(inv.id)}</span>
                     ${isFullyReturned ? '<span style="color:#ef4444; font-size:0.7rem; font-weight:800; background:#fee2e2; padding:1px 6px; border-radius:4px;">(مسترجعة)</span>' : ''}
                 </div>
-                ${(function() {
-                    let mItems = inv.matchedItems || [];
-                    if ((!mItems || mItems.length === 0) && window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
-                        try { mItems = window.BayanSQLite.getInvoiceItems(inv.id, inv.type || targetType); } catch(e) {}
-                    }
-                    if (!mItems || mItems.length === 0) return '';
-                    return `
+                ${(function () {
+                let mItems = inv.matchedItems || [];
+                if ((!mItems || mItems.length === 0) && window.BayanSQLite && typeof window.BayanSQLite.getInvoiceItems === 'function') {
+                    try { mItems = window.BayanSQLite.getInvoiceItems(inv.id, inv.type || targetType); } catch (e) { }
+                }
+                if (!mItems || mItems.length === 0) return '';
+                return `
                         <div style="margin-top: 5px; display: flex; flex-direction: column; gap: 3px;">
                             ${mItems.slice(0, 3).map(it => {
-                                const iName = it.name || it.productName || it.product || 'صنف';
-                                const iSize = (it.size || it.selectedSize || '').trim();
-                                const iColor = (it.color || it.selectedColor || '').trim();
-                                const iCode = (it.code || '').trim();
-                                const iPrice = parseFloat(it.price) || 0;
-                                return `
+                    const iName = it.name || it.productName || it.product || 'صنف';
+                    const iSize = (it.size || it.selectedSize || '').trim();
+                    const iColor = (it.color || it.selectedColor || '').trim();
+                    const iCode = (it.code || '').trim();
+                    const iPrice = parseFloat(it.price) || 0;
+                    return `
                                     <div style="font-size: 0.74rem; font-weight: 700; color: #0369a1; background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 5px; padding: 2px 6px; display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
                                         <span style="color: #0284c7;">🏷️ ${esc(iName)}</span>
                                         ${iCode ? `<span style="color: #64748b; font-size: 0.7rem;">[كود: ${esc(iCode)}]</span>` : ''}
@@ -3227,11 +3229,11 @@ async function executeInvoiceSearch() {
                                         <span style="color: #059669; font-weight: 800; margin-right: auto;">${iPrice.toFixed(2)} ج.م</span>
                                     </div>
                                 `;
-                            }).join('')}
+                }).join('')}
                             ${mItems.length > 3 ? `<span style="font-size: 0.7rem; color: #64748b;">+ ${mItems.length - 3} أصناف أخرى...</span>` : ''}
                         </div>
                     `;
-                })()}
+            })()}
             </td>
             <td style="border: 1px solid #ddd; padding: 5px; text-align: center;">
                 ${typeof getInvoiceReceiptBadgeHtml === 'function' ? getInvoiceReceiptBadgeHtml(inv) : (inv.taxInvoiceSeq ? `<span style="background:#dcfce7; color:#15803d; border:1px solid #86efac; border-radius:6px; padding:2px 8px; font-size:0.82rem; font-weight:900;" title="رقم الإيصال اليومي">#${esc(inv.taxInvoiceSeq)}</span>` : '<span style="color:#94a3b8; font-size:0.85rem;">-</span>')}
@@ -3382,7 +3384,7 @@ async function openSelectReturnItemsModal(invoiceId) {
             returnedQty = window.BayanSQLite.getReturnedQtyForProduct(invoiceId, prodName, itemSize, itemColor);
         } else {
             returnedQty = transactions
-                .filter(t => t.originalInvoiceId == invoiceId && t.type.includes('مرتجع') && 
+                .filter(t => t.originalInvoiceId == invoiceId && t.type.includes('مرتجع') &&
                     ((t.product && t.product === prodName) || (t.productName && t.productName === prodName) || (t.name && t.name === prodName)) &&
                     (!itemSize || (t.size || t.selectedSize || '').trim() === itemSize) &&
                     (!itemColor || (t.color || t.selectedColor || '').trim() === itemColor)
@@ -3394,8 +3396,8 @@ async function openSelectReturnItemsModal(invoiceId) {
 
         const escModal = (typeof escapeHtml === 'function') ? escapeHtml : (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
         const varInfo = [itemSize, itemColor].filter(Boolean).join(' - ');
-        const varBadge = varInfo 
-            ? `<span style="display:inline-block; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 6px; padding: 2px 8px; font-size: 0.78rem; font-weight: 900; margin-right: 8px;">🏷️ ${escModal(varInfo)}</span>` 
+        const varBadge = varInfo
+            ? `<span style="display:inline-block; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 6px; padding: 2px 8px; font-size: 0.78rem; font-weight: 900; margin-right: 8px;">🏷️ ${escModal(varInfo)}</span>`
             : '';
 
         const tr = document.createElement('tr');
@@ -3433,27 +3435,27 @@ async function openSelectReturnItemsModal(invoiceId) {
                     </td>
 
                     <td style="text-align: center;">
-                        ${(function() {
-                            const oP = parseFloat(item.price) || 0;
-                            const oT = parseFloat(item.total) || 0;
-                            const oQ = parseFloat(item.qty) || 1;
-                            let netU = oP;
-                            if (oQ > 0 && oT > 0) {
-                                const calculated = oT / oQ;
-                                // إذا كان السعر المحسوب أكبر من سعر الصنف الأصلي (ابتلع إجمالي الفاتورة)، نعتمد السعر الأصلي oP فوراً
-                                if (oP > 0 && calculated > (oP * 1.05)) {
-                                    netU = oP;
-                                } else {
-                                    netU = calculated;
-                                }
-                            }
-                            netU = parseFloat(netU.toFixed(2));
-                            const dispP = netU;
-                            const hasD = (oP - dispP) > 0.01;
-                            return hasD 
-                                ? `<div style="font-weight:900; color:var(--main-blue); font-size:0.95rem;">${dispP.toFixed(2)}</div><div style="font-size:0.72rem; color:#dc2626; font-weight:bold;">(صافي بعد الخصم)</div>`
-                                : `<div style="font-weight:900; color:var(--main-blue); font-size:0.95rem;">${dispP.toFixed(2)}</div>`;
-                        })()}
+                        ${(function () {
+                const oP = parseFloat(item.price) || 0;
+                const oT = parseFloat(item.total) || 0;
+                const oQ = parseFloat(item.qty) || 1;
+                let netU = oP;
+                if (oQ > 0 && oT > 0) {
+                    const calculated = oT / oQ;
+                    // إذا كان السعر المحسوب أكبر من سعر الصنف الأصلي (ابتلع إجمالي الفاتورة)، نعتمد السعر الأصلي oP فوراً
+                    if (oP > 0 && calculated > (oP * 1.05)) {
+                        netU = oP;
+                    } else {
+                        netU = calculated;
+                    }
+                }
+                netU = parseFloat(netU.toFixed(2));
+                const dispP = netU;
+                const hasD = (oP - dispP) > 0.01;
+                return hasD
+                    ? `<div style="font-weight:900; color:var(--main-blue); font-size:0.95rem;">${dispP.toFixed(2)}</div><div style="font-size:0.72rem; color:#dc2626; font-weight:bold;">(صافي بعد الخصم)</div>`
+                    : `<div style="font-weight:900; color:var(--main-blue); font-size:0.95rem;">${dispP.toFixed(2)}</div>`;
+            })()}
                     </td>
 
                 `;
@@ -3594,7 +3596,7 @@ async function confirmReturnItemsSelection() {
                 returnedQty = window.BayanSQLite.getReturnedQtyForProduct(originalItem.invoiceId, prodName, itemSize, itemColor);
             } else {
                 returnedQty = transactions
-                    .filter(t => t.originalInvoiceId == originalItem.invoiceId && t.type.includes('مرتجع') && 
+                    .filter(t => t.originalInvoiceId == originalItem.invoiceId && t.type.includes('مرتجع') &&
                         ((t.product && t.product === prodName) || (t.productName && t.productName === prodName) || (t.name && t.name === prodName)) &&
                         (!itemSize || (t.size || t.selectedSize || '').trim() === itemSize) &&
                         (!itemColor || (t.color || t.selectedColor || '').trim() === itemColor)
@@ -3616,8 +3618,8 @@ async function confirmReturnItemsSelection() {
 
             if (qty > 0) {
 
-                const p = productsDB.find(x => 
-                    (prodName && x.name === prodName) || 
+                const p = productsDB.find(x =>
+                    (prodName && x.name === prodName) ||
                     (originalItem.productId && String(x.id) === String(originalItem.productId)) ||
                     (originalItem.id && String(x.id) === String(originalItem.id)) ||
                     (prodBarcode && (x.code === prodBarcode || x.barcode === prodBarcode))
@@ -3645,7 +3647,7 @@ async function confirmReturnItemsSelection() {
                     product: finalName,
                     productName: finalName,
 
-                    price: (function() {
+                    price: (function () {
                         const oPrice = parseFloat(originalItem.price) || 0;
                         const oTotal = parseFloat(originalItem.total) || 0;
                         const oQty = parseFloat(originalItem.qty) || 1;
@@ -4030,7 +4032,7 @@ function updateReturnInvoiceCard(invoiceId, type) {
     if (selectEl && selectEl.options && selectEl.options.length > 0) {
         // محاولة التعيين المباشر أولاً
         selectEl.value = targetSelectVal;
-        
+
         // إذا لم تتطابق القيمة وأصبح المربع فارغاً، نطابق بذكاء عبر نصوص وقيم الخيارات
         if (selectEl.selectedIndex === -1 || !selectEl.value) {
             const rawTarget = String(targetSelectVal || rawMethod || '').toLowerCase().replace(/[أإآ]/g, 'ا');
@@ -4059,7 +4061,7 @@ function updateReturnInvoiceCard(invoiceId, type) {
         }
 
         if (typeof selectMethod === 'function') {
-            try { selectMethod(selectEl); } catch(e){}
+            try { selectMethod(selectEl); } catch (e) { }
         }
     }
 
