@@ -1306,54 +1306,59 @@ function addVariantRow(size = '', color = '', barcode = '', stock = 1, price = n
     tr.dataset.origSize = size;
     tr.dataset.origColor = color;
 
+    const safeSize = String(size || '').replace(/"/g, '&quot;');
+    const safeColor = String(color || '').replace(/"/g, '&quot;');
+
     tr.innerHTML = `
-        <td style="font-weight: bold; color: #64748b;">${rowIdx}</td>
+        <td style="font-weight: 900; color: #64748b; font-size: 0.85rem;">${rowIdx}</td>
         <td>
-            <input type="text" class="search-input var-size-input" value="${size}" placeholder="اختياري"
-                style="height: 32px; font-weight: bold; text-align: center; border: 1px solid #cbd5e1; border-radius: 6px;">
+            <input type="text" class="search-input var-size-input" value="${safeSize}" placeholder="اختياري"
+                style="height: 36px; font-weight: 800; text-align: center; border: 1.5px solid #cbd5e1; border-radius: 8px; width: 100%; box-sizing: border-box;">
         </td>
         <td>
-            <input type="text" class="search-input var-color-input" value="${color}" placeholder="مثال: أسود"
-                style="height: 32px; font-weight: bold; text-align: center; border: 1px solid #cbd5e1; border-radius: 6px;">
+            <input type="text" class="search-input var-color-input" value="${safeColor}" placeholder="مثال: أسود"
+                style="height: 36px; font-weight: 800; text-align: center; border: 1.5px solid #cbd5e1; border-radius: 8px; width: 100%; box-sizing: border-box;">
         </td>
-        <td style="min-width: 155px;">
-            <div style="display: flex; gap: 4px; align-items: center;">
+        <td style="min-width: 170px;">
+            <div style="display: flex; gap: 5px; align-items: center;">
                 <input type="text" class="search-input var-barcode-input" value="${autoBarcode}" placeholder="باركود القطعة" readonly
                     onclick="this.select()"
-                    style="height: 32px; font-family: monospace; font-weight: 800; text-align: center; border: 1.5px solid #cbd5e1; border-radius: 6px; letter-spacing: 0.5px; font-size: 0.82rem; width: 100%; box-sizing: border-box; background: #f8fafc; color: #1e293b; cursor: default;"
+                    style="height: 36px; font-family: monospace; font-weight: 800; text-align: center; border: 1.5px solid #cbd5e1; border-radius: 8px; letter-spacing: 0.5px; font-size: 0.82rem; width: 100%; box-sizing: border-box; background: #f8fafc; color: #1e293b; cursor: default;"
                     title="🔒 باركود فريد محمي تلقائياً - غير قابل للمسح أو التعديل العرضي">
                 <button type="button" onclick="copyVariantBarcode(this)" title="نسخ باركود هذا المقاس"
-                    style="padding: 0 7px; height: 32px; background: #f1f5f9; border: 1.5px solid #cbd5e1; border-radius: 6px; cursor: pointer; font-size: 0.85rem; display: inline-flex; align-items: center; justify-content: center; transition: 0.15s;"
+                    style="padding: 0 9px; height: 36px; background: #f1f5f9; border: 1.5px solid #cbd5e1; border-radius: 8px; cursor: pointer; font-size: 0.86rem; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; transition: 0.15s;"
                     onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'">📋</button>
             </div>
         </td>
         <td>
             <input type="number" class="search-input var-stock-input" value="${effectiveStock}" min="0" data-orig-stock="${effectiveStock}"
-                onfocus="this.select()"
-                style="height: 32px; font-weight: bold; text-align: center; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff; cursor: text;">
+                ${isLocked ? 'readonly' : ''} onfocus="this.select()"
+                style="height: 36px; font-weight: 900; text-align: center; border: 1.5px solid #cbd5e1; border-radius: 8px; background: ${isLocked ? '#f8fafc' : '#ffffff'}; cursor: ${isLocked ? 'not-allowed' : 'text'}; width: 100%; box-sizing: border-box;">
         </td>
         <td>
             <input type="number" class="search-input var-price-input" value="${defaultPrice}" data-orig-price="${defaultPrice}"
-                style="height: 32px; font-weight: bold; text-align: center; border: 1px solid #cbd5e1; border-radius: 6px; color: #047857;">
+                style="height: 36px; font-weight: 900; text-align: center; border: 1.5px solid #cbd5e1; border-radius: 8px; color: #047857; width: 100%; box-sizing: border-box;">
         </td>
         <td>
             <input type="number" class="search-input var-ws-input" value="${defaultWs}" data-orig-ws="${defaultWs}"
-                style="height: 32px; font-weight: bold; text-align: center; border: 1px solid #cbd5e1; border-radius: 6px; color: #0284c7;">
+                style="height: 36px; font-weight: 900; text-align: center; border: 1.5px solid #cbd5e1; border-radius: 8px; color: #0284c7; width: 100%; box-sizing: border-box;">
         </td>
         <td>
             <input type="number" class="search-input var-cost-input" value="${defaultCost}" data-orig-cost="${defaultCost}"
-                style="height: 32px; font-weight: bold; text-align: center; border: 1px solid #cbd5e1; border-radius: 6px; color: #d97706;">
+                style="height: 36px; font-weight: 900; text-align: center; border: 1.5px solid #cbd5e1; border-radius: 8px; color: #d97706; width: 100%; box-sizing: border-box;">
         </td>
-        <td style="white-space: nowrap; padding: 4px;">
-            <button type="button" onclick="printSingleVariantBarcode(this, event)" title="🖨️ طباعة باركود هذا المقاس واللون فقط (Shift+نقر لتحديد عدد النسخ)"
-                style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 6px; padding: 4px 6px; cursor: pointer; font-weight: bold; margin-left: 3px;"
-                onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">🖨️</button>
-            <button type="button" onclick="restoreSingleVariantRow(this)" title="استعادة القيم الأصلية لهذا الصف"
-                style="background: #f0fdf4; color: #166534; border: 1px solid #86efac; border-radius: 6px; padding: 4px 6px; cursor: pointer; font-weight: bold; margin-left: 3px;"
-                onmouseover="this.style.background='#dcfce7'" onmouseout="this.style.background='#f0fdf4'">🔄</button>
-            <button type="button" onclick="this.closest('tr').remove(); updateVariantsCountBadge(); renderSmartMatrixView();"
-                style="background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; border-radius: 6px; padding: 4px 8px; cursor: pointer; font-weight: bold;"
-                onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'" title="حذف هذا الصف">✕</button>
+        <td style="white-space: nowrap; padding: 6px;">
+            <div style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;">
+                <button type="button" onclick="printSingleVariantBarcode(this, event)" title="🖨️ طباعة باركود هذا المقاس واللون فقط (Shift+نقر لتحديد عدد النسخ)"
+                    style="background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; border-radius: 8px; width: 32px; height: 32px; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; transition: 0.15s;"
+                    onmouseover="this.style.background='#dbeafe'" onmouseout="this.style.background='#eff6ff'">🖨️</button>
+                <button type="button" onclick="restoreSingleVariantRow(this)" title="استعادة القيم الأصلية لهذا الصف"
+                    style="background: #f0fdf4; color: #166534; border: 1px solid #86efac; border-radius: 8px; width: 32px; height: 32px; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; transition: 0.15s;"
+                    onmouseover="this.style.background='#dcfce7'" onmouseout="this.style.background='#f0fdf4'">🔄</button>
+                <button type="button" onclick="this.closest('tr').remove(); updateVariantsCountBadge(); renderSmartMatrixView();"
+                    style="background: #fef2f2; color: #ef4444; border: 1px solid #fecaca; border-radius: 8px; width: 32px; height: 32px; cursor: pointer; font-weight: bold; display: inline-flex; align-items: center; justify-content: center; transition: 0.15s;"
+                    onmouseover="this.style.background='#fee2e2'" onmouseout="this.style.background='#fef2f2'" title="حذف هذا الصف">✕</button>
+            </div>
         </td>
     `;
     tbody.appendChild(tr);
@@ -1466,6 +1471,7 @@ let currentVariantPickerMode = 'apparel';
 
 function setVariantPickerMode(mode = 'apparel') {
     currentVariantPickerMode = mode;
+    if (typeof renderQuickColorsBars === 'function') renderQuickColorsBars();
     const apparelBtn = document.getElementById('variantModeApparelBtn');
     const colorsBtn = document.getElementById('variantModeColorsOnlyBtn');
     const apparelSection = document.getElementById('apparelMatrixGeneratorSection');
@@ -1634,6 +1640,9 @@ function toggleVariantsViewMode(mode = 'matrix') {
         }
         if (matrixCont) matrixCont.style.display = 'none';
         if (detailCont) detailCont.style.display = 'block';
+        const emptyEl = document.getElementById('variantsDetailEmptyState');
+        const rowsLen = document.getElementById('productVariantsTableBody')?.rows?.length || 0;
+        if (emptyEl) emptyEl.style.display = (rowsLen === 0) ? 'block' : 'none';
     }
 }
 
@@ -1648,8 +1657,9 @@ function renderSmartMatrixView() {
     const rows = document.getElementById('productVariantsTableBody')?.rows || [];
     if (rows.length === 0) {
         wrapper.innerHTML = `
-            <div style="padding: 30px; text-align: center; color: #94a3b8; font-weight: bold; font-size: 0.95rem;">
-                <span>👕📦 لا توجد تشكيلات مضافة بعد. اختر قالباً أو أضف ألواناً لتظهر في الشبكة الذكية هنا.</span>
+            <div style="padding: 36px 20px; text-align: center; color: #64748b; font-weight: 800; font-size: 0.94rem;">
+                <div style="font-size: 2rem; margin-bottom: 8px;">👕🎨</div>
+                <div>لا توجد تشكيلات مضافة بعد. اختر قالباً جاهزاً أو أضف مقاساً ولوناً لتظهر الشبكة بوضوح هنا.</div>
             </div>
         `;
         return;
@@ -1688,6 +1698,8 @@ function renderSmartMatrixView() {
     const sizes = Array.from(sizeSet);
     const colors = Array.from(colorSet);
     const isLocked = (typeof window.isVariantsStockLocked !== 'undefined') ? window.isVariantsStockLocked : false;
+    const escAttr = (str) => String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const escJsArg = (str) => String(str || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
     // حساب إجماليات المقاسات (الأعمدة)
     const colTotals = {};
@@ -1695,23 +1707,23 @@ function renderSmartMatrixView() {
     let grandTotalStock = 0;
 
     let tableHtml = `
-        <table class="bayan-table" style="margin: 0; width: 100%; font-size: 0.88rem; text-align: center; border-collapse: separate; border-spacing: 0; border: 2px solid #64748b; border-radius: 8px; overflow: hidden;">
-            <thead style="position: sticky; top: 0; background: #0f172a; color: white; z-index: 5;">
+        <table class="bayan-table" style="margin: 0; width: 100%; font-size: 0.88rem; text-align: center; border-collapse: collapse;">
+            <thead style="position: sticky; top: 0; background: linear-gradient(135deg, #1e1b4b 0%, #1e293b 100%); color: white; z-index: 5;">
                 <tr>
-                    <th style="padding: 12px 14px; width: 140px; min-width: 140px; background: #0f172a; color: #f8fafc; font-weight: 900; border-bottom: 3px solid #334155; border-left: 2px solid #475569; text-align: right;">
-                        <span style="font-size: 0.95rem;">🎨 اللون \\ 📏 المقاس</span>
+                    <th style="padding: 12px 16px; min-width: 155px; background: #1e1b4b; color: #f8fafc; font-weight: 900; border-left: 1px solid rgba(255,255,255,0.14); text-align: right; white-space: nowrap;">
+                        <span style="font-size: 0.9rem;">🎨 اللون \\ 📏 المقاس</span>
                     </th>
                     ${sizes.map(s => `
-                        <th style="padding: 10px 8px; min-width: 90px; background: #1e293b; color: white; border-bottom: 3px solid #334155; border-left: 2px solid #475569; text-align: center;" title="عمود المقاس: ${s}">
-                            <div style="display: inline-flex; align-items: center; justify-content: center; min-width: 56px; padding: 5px 12px; background: #0f172a; color: #38bdf8; border: 2px solid #0284c7; border-radius: 8px; font-size: 1.15rem; font-weight: 900; box-shadow: 0 2px 5px rgba(0,0,0,0.35);">
-                                ${s}
+                        <th style="padding: 10px 8px; min-width: 105px; background: transparent; color: white; border-left: 1px solid rgba(255,255,255,0.12); text-align: center;" title="عمود المقاس: ${escAttr(s)}">
+                            <div style="display: inline-flex; align-items: center; justify-content: center; min-width: 56px; padding: 4px 14px; background: rgba(255,255,255,0.14); color: #ffffff; border: 1.5px solid rgba(255,255,255,0.28); border-radius: 8px; font-size: 0.98rem; font-weight: 900;">
+                                ${escAttr(s)}
                             </div>
                         </th>
                     `).join('')}
-                    <th style="padding: 10px 14px; width: 110px; min-width: 110px; background: #0f172a; color: #38bdf8; border-bottom: 3px solid #334155; border-left: 2px solid #475569; text-align: center; font-weight: 900;">
-                        <span>📊 إجمالي اللون</span>
+                    <th style="padding: 10px 14px; width: 120px; min-width: 120px; background: #1e1b4b; color: #93c5fd; border-left: 1px solid rgba(255,255,255,0.14); text-align: center; font-weight: 900; white-space: nowrap;">
+                        <span>📊 الإجمالي</span>
                     </th>
-                    <th style="padding: 10px 8px; width: 65px; min-width: 65px; background: #0f172a; color: #ef4444; border-bottom: 3px solid #334155; text-align: center; font-weight: 900;">
+                    <th style="padding: 10px 10px; width: 88px; min-width: 88px; background: #1e1b4b; color: #fca5a5; text-align: center; font-weight: 900;">
                         <span>إجراء</span>
                     </th>
                 </tr>
@@ -1719,9 +1731,13 @@ function renderSmartMatrixView() {
             <tbody>
     `;
 
-    colors.forEach(col => {
+    colors.forEach((col, cIdx) => {
         let rowSum = 0;
         let cellsHtml = '';
+        const colorMeta = (typeof getQuickColorMeta === 'function') ? getQuickColorMeta(col) : null;
+        const colorDotHtml = colorMeta
+            ? `<span style="display:inline-block; width:14px; height:14px; border-radius:50%; background:${colorMeta.hex}; border:1.5px solid ${colorMeta.borderColor || '#cbd5e1'}; flex-shrink:0;"></span>`
+            : `<span style="font-size: 0.95rem;">🎨</span>`;
 
         sizes.forEach((sz, sIdx) => {
             const item = matrixMap[`${col}__${sz}`];
@@ -1733,30 +1749,33 @@ function renderSmartMatrixView() {
             colTotals[sz] += stockVal;
             grandTotalStock += stockVal;
 
-            const colBg = (sIdx % 2 === 0) ? '#ffffff' : '#f8fafc';
+            const colBg = (cIdx % 2 === 0) ? '#ffffff' : '#fafbfc';
 
             if (item) {
+                const borderCol = isChanged ? '#f59e0b' : (stockVal > 0 ? '#6366f1' : '#cbd5e1');
+                const inputBg = stockVal > 0 ? '#f5f3ff' : '#ffffff';
+                const textCol = stockVal > 0 ? '#3730a3' : '#64748b';
                 cellsHtml += `
-                    <td style="padding: 8px 4px; border-bottom: 1.5px solid #cbd5e1; border-left: 2px solid #94a3b8; background: ${colBg}; text-align: center; vertical-align: middle;">
+                    <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; background: ${colBg}; text-align: center; vertical-align: middle;">
                         <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
-                            <input type="number" value="${stockVal}" min="0" data-row-indices="${item.rowIndices ? item.rowIndices.join(',') : item.rowIndex}" data-orig-stock="${origVal}" data-size="${sz}" data-color="${col}"
+                            <input type="number" value="${stockVal}" min="0" data-row-indices="${item.rowIndices ? item.rowIndices.join(',') : item.rowIndex}" data-orig-stock="${origVal}" data-size="${escAttr(sz)}" data-color="${escAttr(col)}"
                                 ${isLocked ? 'readonly' : ''}
                                 onchange="syncMatrixInputToDetailedRow(${rIdxParam}, this.value)"
                                 onfocus="this.select()"
-                                style="width: 70px; height: 36px; font-size: 1.1rem; font-weight: 900; text-align: center; border: 2px solid ${isChanged ? '#f59e0b' : '#2563eb'}; border-radius: 8px; color: ${stockVal > 0 ? '#047857' : '#64748b'}; background: ${stockVal > 0 ? '#eff6ff' : '#ffffff'}; cursor: text; transition: 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.06);"
-                                title="المقاس: ${sz} | اللون: ${col}${isChanged ? ` (الأصل: ${origVal})` : ''}">
+                                style="width: 82px; height: 38px; font-size: 1.05rem; font-weight: 900; text-align: center; border: 1.5px solid ${borderCol}; border-radius: 10px; color: ${textCol}; background: ${isLocked ? '#f8fafc' : inputBg}; cursor: ${isLocked ? 'not-allowed' : 'text'}; transition: 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.04);"
+                                title="المقاس: ${escAttr(sz)} | اللون: ${escAttr(col)}${isChanged ? ` (الأصل: ${origVal})` : ''}">
                         </div>
                     </td>
                 `;
             } else {
                 cellsHtml += `
-                    <td style="padding: 8px 4px; border-bottom: 1.5px solid #cbd5e1; border-left: 2px solid #94a3b8; background: #f1f5f9; text-align: center; vertical-align: middle;">
+                    <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; background: #f8fafc; text-align: center; vertical-align: middle;">
                         <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
-                            <button type="button" onclick="createVariantAndRenderMatrix('${sz}', '${col}')"
-                                style="border: 1.5px dashed #94a3b8; background: #ffffff; color: #475569; font-weight: 800; border-radius: 6px; padding: 5px 12px; cursor: pointer; font-size: 0.8rem; transition: 0.2s;"
-                                onmouseover="this.style.borderColor='#2563eb'; this.style.color='#2563eb';"
-                                onmouseout="this.style.borderColor='#94a3b8'; this.style.color='#475569';"
-                                title="إضافة مقاس ${sz} للون ${col}">+ إضافة</button>
+                            <button type="button" onclick="createVariantAndRenderMatrix('${escJsArg(sz)}', '${escJsArg(col)}')"
+                                style="border: 1.5px dashed #cbd5e1; background: #ffffff; color: #64748b; font-weight: 800; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 0.78rem; transition: 0.15s;"
+                                onmouseover="this.style.borderColor='#4f46e5'; this.style.color='#4f46e5'; this.style.background='#eef2ff';"
+                                onmouseout="this.style.borderColor='#cbd5e1'; this.style.color='#64748b'; this.style.background='#ffffff';"
+                                title="إضافة مقاس ${escAttr(sz)} للون ${escAttr(col)}">+ إضافة</button>
                         </div>
                     </td>
                 `;
@@ -1764,47 +1783,46 @@ function renderSmartMatrixView() {
         });
 
         tableHtml += `
-            <tr style="border-bottom: 1.5px solid #cbd5e1; transition: background 0.15s;" onmouseover="this.style.background='rgba(59,130,246,0.04)'" onmouseout="this.style.background=''">
-                <td style="padding: 10px 14px; font-weight: 900; color: #1e293b; text-align: right; background: #f8fafc; border-bottom: 1.5px solid #cbd5e1; border-left: 2px solid #94a3b8;">
-                    <div style="display: flex; align-items: center; gap: 6px;">
-                        <span style="font-size: 1.05rem;">🎨</span>
-                        <span style="font-size: 0.95rem; font-weight: 900; color: #0f172a;">${col}</span>
+            <tr style="transition: background 0.15s;">
+                <td style="padding: 10px 16px; font-weight: 900; color: #1e293b; text-align: right; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; white-space: nowrap;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        ${colorDotHtml}
+                        <span style="font-size: 0.94rem; font-weight: 900; color: #0f172a;">${escAttr(col)}</span>
                     </div>
                 </td>
                 ${cellsHtml}
-                <td style="padding: 8px 12px; font-weight: 900; font-size: 1.05rem; color: #0284c7; background: #f0f9ff; border-bottom: 1.5px solid #cbd5e1; border-left: 2px solid #94a3b8; text-align: center;">
-                    <span style="background: #e0f2fe; color: #0369a1; padding: 4px 12px; border-radius: 6px; border: 1.5px solid #bae6fd; display: inline-block;">${rowSum}</span>
+                <td style="padding: 10px 12px; font-weight: 900; font-size: 1rem; color: #1d4ed8; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; text-align: center;">
+                    <span style="background: #eff6ff; color: #1d4ed8; padding: 4px 14px; border-radius: 8px; border: 1px solid #bfdbfe; display: inline-block; min-width: 44px;">${rowSum}</span>
                 </td>
-                <td style="padding: 6px; border-bottom: 1.5px solid #cbd5e1; text-align: center; white-space: nowrap;">
-                    <button type="button" onclick="restoreColorRowInMatrix('${col}')"
-                        style="background: #f0fdf4; color: #166534; border: 1.5px solid #86efac; border-radius: 6px; width: 30px; height: 30px; cursor: pointer; font-weight: 900; margin-left: 3px;" title="استعادة أرصدة هذا اللون للأصل">🔄</button>
-                    <button type="button" onclick="removeColorRowFromMatrix('${col}')"
-                        style="background: #fee2e2; color: #dc2626; border: 1.5px solid #fca5a5; border-radius: 6px; width: 30px; height: 30px; cursor: pointer; font-weight: 900;" title="حذف كل مقاسات هذا اللون">✕</button>
+                <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; background: #ffffff; text-align: center; white-space: nowrap;">
+                    <div style="display: inline-flex; align-items: center; gap: 4px;">
+                        <button type="button" onclick="restoreColorRowInMatrix('${escJsArg(col)}')"
+                            style="background: #f0fdf4; color: #166534; border: 1px solid #86efac; border-radius: 8px; width: 30px; height: 30px; cursor: pointer; font-weight: 900; display: inline-flex; align-items: center; justify-content: center;" title="استعادة أرصدة هذا اللون للأصل">🔄</button>
+                        <button type="button" onclick="removeColorRowFromMatrix('${escJsArg(col)}')"
+                            style="background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; border-radius: 8px; width: 30px; height: 30px; cursor: pointer; font-weight: 900; display: inline-flex; align-items: center; justify-content: center;" title="حذف كل مقاسات هذا اللون">✕</button>
+                    </div>
                 </td>
             </tr>
         `;
     });
 
-    // سطر إجمالي المقاسات (الفوتر الذكي مع فواصل الأعمدة)
+    // سطر إجمالي المقاسات (الفوتر الذكي)
     tableHtml += `
             </tbody>
-            <tfoot style="position: sticky; bottom: 0; background: #f8fafc; font-weight: 900; border-top: 3px solid #64748b; z-index: 4;">
+            <tfoot style="position: sticky; bottom: 0; background: #f8fafc; font-weight: 900; border-top: 2px solid #cbd5e1; z-index: 4;">
                 <tr>
-                    <td style="padding: 10px 14px; text-align: right; color: #1e293b; font-weight: 900; background: #f1f5f9; border-left: 2px solid #94a3b8;">
+                    <td style="padding: 10px 16px; text-align: right; color: #1e293b; font-weight: 900; background: #f1f5f9; border-left: 1px solid #e2e8f0; white-space: nowrap;">
                         <span>📌 إجمالي المقاس:</span>
                     </td>
-                    ${sizes.map((s, sIdx) => {
-        const colBg = (sIdx % 2 === 0) ? '#fdf4ff' : '#faf5ff';
-        return `
-                            <td style="padding: 10px 6px; font-size: 1.05rem; font-weight: 900; color: #6d28d9; background: ${colBg}; border-left: 2px solid #94a3b8; text-align: center;">
-                                <span style="background: #ede9fe; color: #6d28d9; padding: 4px 12px; border-radius: 6px; border: 1.5px solid #ddd6fe; display: inline-block; min-width: 44px;">
-                                    ${colTotals[s]}
-                                </span>
-                            </td>
-                        `;
-    }).join('')}
-                    <td style="padding: 10px 12px; font-size: 1.15rem; font-weight: 900; color: #047857; background: #ecfdf5; border-left: 2px solid #94a3b8; text-align: center;">
-                        <span style="background: #d1fae5; color: #065f46; padding: 4px 14px; border-radius: 8px; border: 1.5px solid #a7f3d0; display: inline-block;">
+                    ${sizes.map((s) => `
+                        <td style="padding: 10px 8px; font-size: 1rem; font-weight: 900; color: #6d28d9; background: #f8fafc; border-left: 1px solid #e2e8f0; text-align: center;">
+                            <span style="background: #f5f3ff; color: #6d28d9; padding: 4px 14px; border-radius: 8px; border: 1px solid #ddd6fe; display: inline-block; min-width: 44px;">
+                                ${colTotals[s]}
+                            </span>
+                        </td>
+                    `).join('')}
+                    <td style="padding: 10px 12px; font-size: 1.08rem; font-weight: 900; color: #047857; background: #ecfdf5; border-left: 1px solid #e2e8f0; text-align: center;">
+                        <span style="background: #d1fae5; color: #065f46; padding: 4px 16px; border-radius: 8px; border: 1px solid #6ee7b7; display: inline-block; min-width: 50px;">
                             ${grandTotalStock}
                         </span>
                     </td>
@@ -2355,9 +2373,391 @@ function updateVariantsCountBadge() {
     }
     const badge = document.getElementById('variantsCountBadge');
     if (badge) badge.innerText = count;
+    const emptyEl = document.getElementById('variantsDetailEmptyState');
+    if (emptyEl) emptyEl.style.display = (count === 0) ? 'block' : 'none';
     if (typeof window.updateVariantPriceSyncUI === 'function') {
         window.updateVariantPriceSyncUI();
     }
+}
+
+// =========================================================================
+// 🎨 محرك الألوان السريعة المخصصة والمحفوظة بشكل دائم (Quick Colors Engine)
+// =========================================================================
+const BAYAN_DEFAULT_QUICK_COLORS = [
+    { name: 'أسود', hex: '#18181b', borderColor: '#18181b', isDefault: true },
+    { name: 'أبيض', hex: '#ffffff', borderColor: '#cbd5e1', isDefault: true },
+    { name: 'كحلي', hex: '#1e3a8a', borderColor: '#1e3a8a', isDefault: true },
+    { name: 'بيج', hex: '#fef3c7', borderColor: '#fde68a', isDefault: true },
+    { name: 'هافان', hex: '#b45309', borderColor: '#b45309', isDefault: true },
+    { name: 'رمادي', hex: '#64748b', borderColor: '#64748b', isDefault: true },
+    { name: 'نبيتي', hex: '#881337', borderColor: '#881337', isDefault: true },
+    { name: 'زيتي', hex: '#365314', borderColor: '#365314', isDefault: true },
+    { name: 'كشمير', hex: '#fbcfe8', borderColor: '#f472b6', isDefault: true },
+    { name: 'موف', hex: '#7e22ce', borderColor: '#7e22ce', isDefault: true },
+    { name: 'جملي', hex: '#d97706', borderColor: '#d97706', isDefault: true },
+    { name: 'موحد', hex: '#f1f5f9', borderColor: '#cbd5e1', isDefault: true }
+];
+
+const QUICK_COLORS_STORE_KEY = 'bayan_custom_quick_colors';
+
+function getContrastTextForHex(hex) {
+    try {
+        let clean = String(hex || '#0d9488').replace('#', '').trim();
+        if (clean.length === 3) clean = clean.split('').map(c => c + c).join('');
+        if (clean.length !== 6) return { textColor: '#ffffff', isLight: false };
+        const r = parseInt(clean.slice(0, 2), 16);
+        const g = parseInt(clean.slice(2, 4), 16);
+        const b = parseInt(clean.slice(4, 6), 16);
+        const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        const isLight = lum > 0.68;
+        return { textColor: isLight ? '#0f172a' : '#ffffff', isLight };
+    } catch (e) {
+        return { textColor: '#ffffff', isLight: false };
+    }
+}
+
+function getCustomQuickColors() {
+    try {
+        const raw = typeof getStore === 'function' ? getStore(QUICK_COLORS_STORE_KEY) : localStorage.getItem(QUICK_COLORS_STORE_KEY);
+        if (!raw) return [];
+        const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        if (!Array.isArray(parsed)) return [];
+        return parsed
+            .filter(item => item && typeof item.name === 'string' && item.name.trim() !== '')
+            .map(item => ({
+                name: item.name.trim(),
+                hex: /^#[0-9a-f]{3,6}$/i.test(String(item.hex || '').trim()) ? String(item.hex).trim() : '#0d9488',
+                isDefault: false
+            }));
+    } catch (e) {
+        console.warn('Quick colors read notice:', e);
+        return [];
+    }
+}
+
+function saveCustomQuickColors(arr) {
+    const cleanArr = (arr || []).map(c => ({ name: String(c.name || '').trim(), hex: String(c.hex || '#0d9488').trim() })).filter(c => c.name);
+    const json = JSON.stringify(cleanArr);
+    if (typeof setStore === 'function') {
+        setStore(QUICK_COLORS_STORE_KEY, json);
+    } else if (typeof localStorage !== 'undefined') {
+        localStorage.setItem(QUICK_COLORS_STORE_KEY, json);
+    }
+}
+
+function getAllQuickColors() {
+    return [...BAYAN_DEFAULT_QUICK_COLORS, ...getCustomQuickColors()];
+}
+
+function getQuickColorMeta(colorName) {
+    const clean = String(colorName || '').trim();
+    if (!clean) return null;
+    const found = getAllQuickColors().find(c => c.name.trim().toLowerCase() === clean.toLowerCase());
+    if (!found) return null;
+    const contrast = getContrastTextForHex(found.hex);
+    return {
+        name: found.name,
+        hex: found.hex,
+        textColor: found.name === 'بيج' ? '#78350f' : (found.name === 'كشمير' ? '#831843' : (found.name === 'موحد' ? '#334155' : contrast.textColor)),
+        borderColor: found.borderColor || (contrast.isLight ? '#cbd5e1' : found.hex),
+        isDefault: !!found.isDefault
+    };
+}
+window.getQuickColorMeta = getQuickColorMeta;
+
+function buildQuickColorChipButton(c, onClickHandler) {
+    const meta = getQuickColorMeta(c.name) || { hex: c.hex || '#0d9488', textColor: '#ffffff', borderColor: c.hex || '#0d9488' };
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'quick-color-chip';
+    btn.style.background = meta.hex;
+    btn.style.color = meta.textColor;
+    btn.style.border = `1px solid ${meta.borderColor}`;
+    btn.title = c.isDefault ? `لون أساسي: ${c.name}` : `لون مخصص محفوظ: ${c.name}`;
+    btn.textContent = c.name;
+    btn.addEventListener('click', () => onClickHandler(c.name));
+    return btn;
+}
+
+function renderQuickColorsBars() {
+    const allColors = getAllQuickColors();
+    const colorsOnlyList = document.getElementById('quickColorsChipList');
+    if (colorsOnlyList) {
+        colorsOnlyList.innerHTML = '';
+        allColors.forEach(c => {
+            colorsOnlyList.appendChild(buildQuickColorChipButton(c, quickAppendColorToMatrix));
+        });
+    }
+    const apparelList = document.getElementById('apparelQuickColorsChipList');
+    if (apparelList) {
+        apparelList.innerHTML = '';
+        allColors.forEach(c => {
+            apparelList.appendChild(buildQuickColorChipButton(c, appendColorToApparelInput));
+        });
+    }
+}
+window.renderQuickColorsBars = renderQuickColorsBars;
+
+function toggleApparelQuickColorsDrawer() {
+    const drawer = document.getElementById('apparelQuickColorsDrawer');
+    if (!drawer) return;
+    drawer.classList.toggle('hidden');
+    if (!drawer.classList.contains('hidden')) {
+        renderQuickColorsBars();
+    }
+}
+window.toggleApparelQuickColorsDrawer = toggleApparelQuickColorsDrawer;
+
+function appendColorToApparelInput(colorName) {
+    const inp = document.getElementById('variantColorsInput');
+    if (!inp || !colorName) return;
+    const clean = colorName.trim();
+    const existing = inp.value.split(/[,،]+/).map(s => s.trim()).filter(Boolean);
+    const existsIdx = existing.findIndex(s => s.toLowerCase() === clean.toLowerCase());
+    if (existsIdx !== -1) {
+        existing.splice(existsIdx, 1);
+        inp.value = existing.join('، ');
+        if (typeof showToast === 'function') showToast(`➖ تمت إزالة (${clean}) من خانة الألوان`, 'info');
+    } else {
+        existing.push(clean);
+        inp.value = existing.join('، ');
+    }
+    inp.focus();
+}
+window.appendColorToApparelInput = appendColorToApparelInput;
+
+function updateQuickColorLivePreview() {
+    const nameInp = document.getElementById('newCustomQuickColorName');
+    const hexInp = document.getElementById('newCustomQuickColorHex');
+    const preview = document.getElementById('quickColorLivePreview');
+    if (!preview) return;
+    const nameVal = (nameInp?.value || '').trim() || 'لون جديد';
+    const hexVal = (hexInp?.value || '#0d9488').trim();
+    const contrast = getContrastTextForHex(hexVal);
+    preview.textContent = nameVal;
+    preview.style.background = hexVal;
+    preview.style.color = contrast.textColor;
+    preview.style.border = `1px solid ${contrast.isLight ? '#cbd5e1' : hexVal}`;
+}
+window.updateQuickColorLivePreview = updateQuickColorLivePreview;
+
+function selectQuickColorSwatchPreset(hex) {
+    const hexInp = document.getElementById('newCustomQuickColorHex');
+    if (hexInp) hexInp.value = hex;
+    updateQuickColorLivePreview();
+}
+window.selectQuickColorSwatchPreset = selectQuickColorSwatchPreset;
+
+function resetQuickColorForm() {
+    const nameInp = document.getElementById('newCustomQuickColorName');
+    const hexInp = document.getElementById('newCustomQuickColorHex');
+    const idxInp = document.getElementById('editingQuickColorIdx');
+    const titleEl = document.getElementById('quickColorFormTitle');
+    const saveBtn = document.getElementById('btnSaveCustomQuickColor');
+    const cancelBtn = document.getElementById('btnCancelEditQuickColor');
+    if (nameInp) nameInp.value = '';
+    if (hexInp) hexInp.value = '#0d9488';
+    if (idxInp) idxInp.value = '-1';
+    if (titleEl) titleEl.innerHTML = '<span>✨</span><span>إضافة لون سريع جديد</span>';
+    if (saveBtn) saveBtn.innerHTML = '➕ حفظ اللون في القائمة';
+    if (cancelBtn) cancelBtn.classList.add('hidden');
+    updateQuickColorLivePreview();
+}
+
+function openQuickColorsManager() {
+    const modal = document.getElementById('quickColorsManagerModal');
+    if (!modal) return;
+    resetQuickColorForm();
+    renderQuickColorsManagerList();
+    modal.classList.remove('hidden');
+    setTimeout(() => document.getElementById('newCustomQuickColorName')?.focus(), 60);
+}
+window.openQuickColorsManager = openQuickColorsManager;
+
+function closeQuickColorsManager() {
+    const modal = document.getElementById('quickColorsManagerModal');
+    if (modal) modal.classList.add('hidden');
+    resetQuickColorForm();
+}
+window.closeQuickColorsManager = closeQuickColorsManager;
+
+function renderQuickColorsManagerList() {
+    const customColors = getCustomQuickColors();
+    const countEl = document.getElementById('customQuickColorsCount');
+    if (countEl) countEl.textContent = customColors.length;
+
+    const listEl = document.getElementById('customQuickColorsList');
+    if (listEl) {
+        listEl.innerHTML = '';
+        if (customColors.length === 0) {
+            const emptyDiv = document.createElement('div');
+            emptyDiv.style.cssText = 'padding: 18px; text-align: center; color: #64748b; font-size: 0.82rem; font-weight: 700; background: #ffffff; border: 1px dashed #cbd5e1; border-radius: 12px;';
+            emptyDiv.textContent = 'لم تضف أي ألوان إضافية بعد. أضف لونك من الخانة المجاورة ليُحفظ دائماً!';
+            listEl.appendChild(emptyDiv);
+        } else {
+            customColors.forEach((c, idx) => {
+                const contrast = getContrastTextForHex(c.hex);
+                const row = document.createElement('div');
+                row.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 9px 12px; background: #ffffff; border: 1.5px solid #e2e8f0; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.03);';
+
+                const info = document.createElement('div');
+                info.style.cssText = 'display: flex; align-items: center; gap: 10px;';
+
+                const dot = document.createElement('span');
+                dot.style.cssText = `width: 24px; height: 24px; border-radius: 7px; background: ${c.hex}; border: 1.5px solid ${contrast.isLight ? '#cbd5e1' : c.hex}; flex-shrink: 0;`;
+
+                const label = document.createElement('span');
+                label.style.cssText = 'font-weight: 900; color: #0f172a; font-size: 0.9rem;';
+                label.textContent = c.name;
+
+                info.appendChild(dot);
+                info.appendChild(label);
+
+                const actions = document.createElement('div');
+                actions.style.cssText = 'display: flex; gap: 6px;';
+
+                const editBtn = document.createElement('button');
+                editBtn.type = 'button';
+                editBtn.textContent = '✏️ تعديل';
+                editBtn.style.cssText = 'padding: 4px 10px; border-radius: 8px; border: 1px solid #cbd5e1; background: #f8fafc; color: #334155; font-weight: 800; font-size: 0.76rem; cursor: pointer;';
+                editBtn.addEventListener('click', () => editCustomQuickColor(idx));
+
+                const delBtn = document.createElement('button');
+                delBtn.type = 'button';
+                delBtn.textContent = '🗑️ حذف';
+                delBtn.style.cssText = 'padding: 4px 10px; border-radius: 8px; border: 1px solid #fecaca; background: #fef2f2; color: #dc2626; font-weight: 800; font-size: 0.76rem; cursor: pointer;';
+                delBtn.addEventListener('click', () => deleteCustomQuickColor(idx));
+
+                actions.appendChild(editBtn);
+                actions.appendChild(delBtn);
+                row.appendChild(info);
+                row.appendChild(actions);
+                listEl.appendChild(row);
+            });
+        }
+    }
+
+    const defListEl = document.getElementById('defaultQuickColorsPreviewList');
+    if (defListEl) {
+        defListEl.innerHTML = '';
+        BAYAN_DEFAULT_QUICK_COLORS.forEach(c => {
+            const meta = getQuickColorMeta(c.name);
+            const pill = document.createElement('span');
+            pill.textContent = c.name;
+            pill.style.cssText = `padding: 2px 8px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; background: ${meta.hex}; color: ${meta.textColor}; border: 1px solid ${meta.borderColor};`;
+            defListEl.appendChild(pill);
+        });
+    }
+}
+
+function saveCustomQuickColor() {
+    const nameInp = document.getElementById('newCustomQuickColorName');
+    const hexInp = document.getElementById('newCustomQuickColorHex');
+    const idxInp = document.getElementById('editingQuickColorIdx');
+    const name = (nameInp?.value || '').trim();
+    const hex = (hexInp?.value || '#0d9488').trim();
+    const editIdx = parseInt(idxInp?.value ?? '-1', 10);
+
+    if (!name) {
+        if (typeof showToast === 'function') showToast('⚠️ يرجى كتابة اسم اللون أولاً!', 'warning');
+        nameInp?.focus();
+        return;
+    }
+
+    const norm = name.toLowerCase();
+    if (BAYAN_DEFAULT_QUICK_COLORS.some(c => c.name.toLowerCase() === norm)) {
+        if (typeof showToast === 'function') showToast(`ℹ️ اللون (${name}) موجود بالفعل ضمن الألوان الأساسية الثابتة!`, 'info');
+        return;
+    }
+
+    const customColors = getCustomQuickColors();
+    const dupIdx = customColors.findIndex((c, i) => i !== editIdx && c.name.toLowerCase() === norm);
+    if (dupIdx !== -1) {
+        if (typeof showToast === 'function') showToast(`⚠️ اللون (${name}) مضاف بالفعل في قائمتك!`, 'warning');
+        return;
+    }
+
+    if (editIdx >= 0 && editIdx < customColors.length) {
+        customColors[editIdx] = { name, hex };
+        saveCustomQuickColors(customColors);
+        if (typeof showToast === 'function') showToast(`✅ تم تعديل اللون إلى (${name}) وحفظه بنجاح!`, 'success');
+    } else {
+        customColors.push({ name, hex });
+        saveCustomQuickColors(customColors);
+        if (typeof showToast === 'function') showToast(`🎨 تمت إضافة اللون (${name}) وحفظه في قائمتك دائماً!`, 'success');
+    }
+
+    resetQuickColorForm();
+    renderQuickColorsManagerList();
+    renderQuickColorsBars();
+    if (currentVariantsViewMode === 'matrix') renderSmartMatrixView();
+}
+window.saveCustomQuickColor = saveCustomQuickColor;
+
+function editCustomQuickColor(idx) {
+    const customColors = getCustomQuickColors();
+    const target = customColors[idx];
+    if (!target) return;
+    const nameInp = document.getElementById('newCustomQuickColorName');
+    const hexInp = document.getElementById('newCustomQuickColorHex');
+    const idxInp = document.getElementById('editingQuickColorIdx');
+    const titleEl = document.getElementById('quickColorFormTitle');
+    const saveBtn = document.getElementById('btnSaveCustomQuickColor');
+    const cancelBtn = document.getElementById('btnCancelEditQuickColor');
+    if (nameInp) nameInp.value = target.name;
+    if (hexInp) hexInp.value = target.hex || '#0d9488';
+    if (idxInp) idxInp.value = String(idx);
+    if (titleEl) titleEl.innerHTML = '<span>✏️</span><span>تعديل اللون المحدد</span>';
+    if (saveBtn) saveBtn.innerHTML = '💾 حفظ التعديل';
+    if (cancelBtn) cancelBtn.classList.remove('hidden');
+    updateQuickColorLivePreview();
+    nameInp?.focus();
+    nameInp?.select();
+}
+window.editCustomQuickColor = editCustomQuickColor;
+
+function cancelEditCustomQuickColor() {
+    resetQuickColorForm();
+}
+window.cancelEditCustomQuickColor = cancelEditCustomQuickColor;
+
+function deleteCustomQuickColor(idx) {
+    const customColors = getCustomQuickColors();
+    const target = customColors[idx];
+    if (!target) return;
+
+    const doDelete = () => {
+        const latest = getCustomQuickColors();
+        latest.splice(idx, 1);
+        saveCustomQuickColors(latest);
+        const curEditIdx = parseInt(document.getElementById('editingQuickColorIdx')?.value ?? '-1', 10);
+        if (curEditIdx === idx) resetQuickColorForm();
+        renderQuickColorsManagerList();
+        renderQuickColorsBars();
+        if (currentVariantsViewMode === 'matrix') renderSmartMatrixView();
+        if (typeof showToast === 'function') showToast(`🗑️ تم حذف اللون (${target.name}) بنجاح`, 'info');
+    };
+
+    if (typeof showCustomAlert === 'function') {
+        showCustomAlert({
+            type: 'warning',
+            titleText: '🗑️ تأكيد حذف اللون',
+            msg: `هل أنت متأكد من حذف اللون (${target.name}) من قائمة الألوان السريعة؟`,
+            showCancel: true,
+            confirmText: 'نعم، احذف',
+            onConfirm: doDelete
+        });
+    } else {
+        doDelete();
+    }
+}
+window.deleteCustomQuickColor = deleteCustomQuickColor;
+
+if (typeof document !== 'undefined') {
+    document.addEventListener('DOMContentLoaded', () => {
+        setTimeout(renderQuickColorsBars, 250);
+        setTimeout(renderQuickColorsBars, 1200);
+    });
 }
 
 function initVariantPriceSyncListeners() {

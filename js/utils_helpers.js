@@ -3379,14 +3379,24 @@ function openNewItemModal(product = null) {
         document.getElementById('isQuickItem').checked = false; // تصفير الاختيار للأصناف الجديدة
         if (mInp) mInp.dataset.origStock = "0";
         addProductUnitRow('قطعة');
+        const vBodyReset = document.getElementById('productVariantsTableBody');
+        if (vBodyReset) vBodyReset.innerHTML = '';
+        window.initialModalVariants = [];
+        if (typeof updateVariantsCountBadge === 'function') updateVariantsCountBadge();
+        if (typeof setVariantPickerMode === 'function') setVariantPickerMode('apparel');
+        if (typeof toggleVariantsViewMode === 'function') toggleVariantsViewMode('matrix');
         if (typeof renderProductWarehouseStocksTable === 'function') renderProductWarehouseStocksTable(null);
         window.hasSyncedVariantPrices = false;
         if (typeof window.updateVariantPriceSyncUI === 'function') window.updateVariantPriceSyncUI();
     }
 
+    if (document.getElementById('colorOnlyQtyInput')) document.getElementById('colorOnlyQtyInput').value = "1";
+    if (document.getElementById('fillAllVariantsQtyInput')) document.getElementById('fillAllVariantsQtyInput').value = "1";
+
     document.getElementById('newItemBarcode').focus();
     switchBayanTab('general', document.querySelector('.bayan-tab'));
     updateAllUnitSelects();
+    if (typeof renderQuickColorsBars === 'function') renderQuickColorsBars();
     if (typeof updateProductNavCounter === 'function') updateProductNavCounter();
     if (typeof window.updateVariantPriceSyncUI === 'function') window.updateVariantPriceSyncUI();
 }

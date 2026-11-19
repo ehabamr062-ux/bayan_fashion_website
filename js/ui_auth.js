@@ -1268,7 +1268,8 @@ window.addEventListener('keydown', function (event) {
     if (event.key === 'Escape') {
         // فحص النوافذ المنبثقة المفتوحة والظاهرة فعلياً (Modals & Menus) لإغلاقها
         const modals = [
-            'royalCalculator', 'confirmModal', 'alertModal', 'newItemModal', 'newAccountModal',
+            'royalCalculator', 'confirmModal', 'alertModal', 'quickColorsManagerModal', 'globalUnitsModal',
+            'newItemModal', 'newAccountModal',
             'quickNavModal', 'profitModal', 'priceAdjustmentModal',
             'wallpaperMenu', 'subscriptionModal', 'cloudRegistrationModal',
             'bulkTransferModal', 'transferModal', 'loginModal', 'searchInvoiceModal', 'selectReturnItemsModal',
@@ -1324,6 +1325,10 @@ window.addEventListener('keydown', function (event) {
                             el.style.display = 'none';
                             el.classList.add('hidden');
                         }
+                    }
+                    else if (modalId === 'quickColorsManagerModal') {
+                        if (typeof window.closeQuickColorsManager === 'function') window.closeQuickColorsManager();
+                        else el.classList.add('hidden');
                     }
                     else el.classList.add('hidden');
 

@@ -13712,6 +13712,132 @@
                     border-color: #cbd5e1 !important;
                     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06) !important;
                 }
+
+                /* --- 👕🎨 تنسيقات تبويب المقاسات والألوان (Variants & Smart Matrix Luxury Styling) --- */
+                #newItemModal #tab-variants .variants-mode-switcher-wrap {
+                    background: #ffffff !important;
+                    border: 1.5px solid #e2e8f0 !important;
+                    border-radius: 14px !important;
+                    padding: 6px !important;
+                    margin-bottom: 12px !important;
+                    display: flex !important;
+                    gap: 8px !important;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+                }
+
+                #newItemModal #tab-variants .variants-toolbar-card {
+                    background: #ffffff !important;
+                    border: 1.5px solid #e2e8f0 !important;
+                    border-radius: 14px !important;
+                    padding: 10px 14px !important;
+                    margin-bottom: 12px !important;
+                    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02) !important;
+                }
+
+                #newItemModal #tab-variants .variants-toolbar-row {
+                    display: flex !important;
+                    justify-content: space-between !important;
+                    align-items: center !important;
+                    flex-wrap: wrap !important;
+                    gap: 8px !important;
+                }
+
+                #newItemModal #tab-variants .variants-toolbar-subrow {
+                    display: flex !important;
+                    justify-content: space-between !important;
+                    align-items: center !important;
+                    flex-wrap: wrap !important;
+                    gap: 8px !important;
+                    margin-top: 8px !important;
+                    padding-top: 8px !important;
+                    border-top: 1px dashed #e2e8f0 !important;
+                }
+
+                #newItemModal #tab-variants .bayan-var-tool-btn {
+                    height: 34px !important;
+                    padding: 0 12px !important;
+                    font-size: 0.8rem !important;
+                    font-weight: 800 !important;
+                    border-radius: 9px !important;
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    gap: 5px !important;
+                    cursor: pointer !important;
+                    white-space: nowrap !important;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                }
+
+                #newItemModal #tab-variants .bayan-var-tool-btn:hover {
+                    transform: translateY(-1px) !important;
+                    filter: brightness(0.97) !important;
+                }
+
+                #newItemModal #tab-variants .quick-color-chip {
+                    border-radius: 8px !important;
+                    padding: 5px 11px !important;
+                    font-size: 0.8rem !important;
+                    font-weight: 800 !important;
+                    cursor: pointer !important;
+                    display: inline-flex !important;
+                    align-items: center !important;
+                    gap: 6px !important;
+                    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1) !important;
+                    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.07) !important;
+                    font-family: 'Cairo', sans-serif !important;
+                }
+
+                #newItemModal #tab-variants .quick-color-chip:hover {
+                    transform: translateY(-1.5px) scale(1.03) !important;
+                    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12) !important;
+                }
+
+                #newItemModal #variantsMatrixGridContainer,
+                #newItemModal #variantsDetailTableContainer {
+                    border: 1.5px solid #e2e8f0 !important;
+                    border-radius: 14px !important;
+                    background: #ffffff !important;
+                    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03) !important;
+                    min-height: 165px !important;
+                    max-height: clamp(260px, 44vh, 460px) !important;
+                    overflow: auto !important;
+                }
+
+                #newItemModal #variantsDetailTableContainer table thead th {
+                    background: linear-gradient(135deg, #1e1b4b 0%, #1e293b 100%) !important;
+                    color: #ffffff !important;
+                    font-weight: 800 !important;
+                    font-size: 0.83rem !important;
+                    padding: 10px 8px !important;
+                    border: none !important;
+                    white-space: nowrap !important;
+                }
+
+                #newItemModal #variantsDetailTableContainer table tbody td {
+                    padding: 8px 6px !important;
+                    vertical-align: middle !important;
+                    border-bottom: 1px solid #f1f5f9 !important;
+                }
+
+                #newItemModal #variantsDetailTableContainer table tbody tr:hover td {
+                    background: #f8fafc !important;
+                }
+
+                #newItemModal #variantsDetailTableContainer .search-input {
+                    height: 36px !important;
+                    border-radius: 8px !important;
+                    border: 1.5px solid #cbd5e1 !important;
+                    font-weight: 800 !important;
+                    font-size: 0.88rem !important;
+                    width: 100% !important;
+                    box-sizing: border-box !important;
+                    transition: all 0.2s ease !important;
+                }
+
+                #newItemModal #variantsDetailTableContainer .search-input:focus {
+                    border-color: #6366f1 !important;
+                    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18) !important;
+                }
             </style>
 
             <!-- أزرار التنقل الجانبية الشفافة -->
@@ -14033,250 +14159,264 @@
                 <!-- تبويب المقاسات والألوان (Size & Color Matrix for Clothing/Shoes) -->
                 <div id="tab-variants" class="hidden">
 
-                    <!-- أزرار اختيار نمط التوليد (ملابس مقاسات وألوان vs ألوان فقط شنط وإكسسوارات) -->
-                    <div
-                        style="display: flex; gap: 10px; margin-bottom: 12px; border-bottom: 1.5px solid #e2e8f0; padding-bottom: 12px;">
+                    <!-- 1. محول نمط التوليد الأنيق (مقاسات وألوان vs ألوان فقط) -->
+                    <div class="variants-mode-switcher-wrap">
                         <button type="button" id="variantModeApparelBtn" class="bayan-btn"
                             onclick="setVariantPickerMode('apparel')"
-                            style="flex: 1; padding: 8px 16px; font-size: 0.88rem; background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #ffffff; font-weight: 900; border-radius: 10px; border: 2px solid #7c3aed; box-shadow: 0 4px 12px rgba(124,58,237,0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                            style="flex: 1; padding: 9px 16px; font-size: 0.88rem; background: linear-gradient(135deg, #7c3aed, #6d28d9); color: #ffffff; font-weight: 900; border-radius: 10px; border: 2px solid #7c3aed; box-shadow: 0 4px 12px rgba(124,58,237,0.3); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;">
                             <span>👔</span> مقاسات وألوان (ملابس وأحذية)
                         </button>
                         <button type="button" id="variantModeColorsOnlyBtn" class="bayan-btn"
                             onclick="setVariantPickerMode('colorsOnly')"
-                            style="flex: 1; padding: 8px 16px; font-size: 0.88rem; background: #f8fafc; color: #475569; font-weight: 900; border-radius: 10px; border: 2px solid #cbd5e1; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                            style="flex: 1; padding: 9px 16px; font-size: 0.88rem; background: #f8fafc; color: #475569; font-weight: 900; border-radius: 10px; border: 2px solid #cbd5e1; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: 0.2s;">
                             <span>👜</span> ألوان فقط (أحذية / شنط / إكسسوارات)
                         </button>
                     </div>
 
-                    <!-- القسم الأول: مولد المقاسات والألوان للملابس -->
+                    <!-- 2-أ. القسم الأول: مولد المقاسات والألوان للملابس -->
                     <div id="apparelMatrixGeneratorSection"
-                        style="background: #f8fafc; border-radius: 16px; border: 1.5px solid #e2e8f0; padding: 14px; margin-bottom: 14px;">
+                        style="background: #ffffff; border-radius: 16px; border: 1.5px solid #e2e8f0; border-top: 3px solid #7c3aed; padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.03);">
                         <div
-                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 10px;">
+                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px; padding-bottom: 10px; border-bottom: 1px dashed #e2e8f0;">
                             <div
-                                style="font-weight: 900; color: #1e293b; font-size: 0.92rem; display: flex; align-items: center; gap: 6px;">
-                                <span>⚡ قوالب المقاسات السريعة الجاهزة:</span>
+                                style="font-weight: 900; color: #1e293b; font-size: 0.88rem; display: flex; align-items: center; gap: 6px;">
+                                <span>⚡</span><span>قوالب المقاسات السريعة الجاهزة:</span>
                             </div>
                             <div style="display: flex; gap: 6px; flex-wrap: wrap;">
                                 <button type="button" class="bayan-btn" onclick="applyPresetSizes('clothes')"
-                                    style="padding: 5px 10px; font-size: 0.78rem; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; font-weight: 800; border-radius: 8px; cursor: pointer;">
+                                    style="height: 30px; padding: 0 11px; font-size: 0.78rem; background: #ecfdf5; border: 1px solid #a7f3d0; color: #065f46; font-weight: 800; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
                                     👕 ملابس (S..3XL)
                                 </button>
                                 <button type="button" class="bayan-btn" onclick="applyPresetSizes('pants')"
-                                    style="padding: 5px 10px; font-size: 0.78rem; background: #fdf2f8; border: 1px solid #fbcfe8; color: #9d174d; font-weight: 800; border-radius: 8px; cursor: pointer;">
+                                    style="height: 30px; padding: 0 11px; font-size: 0.78rem; background: #fdf2f8; border: 1px solid #fbcfe8; color: #9d174d; font-weight: 800; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
                                     👖 بنطلونات (28-42)
                                 </button>
                                 <button type="button" class="bayan-btn" onclick="applyPresetSizes('shoes')"
-                                    style="padding: 5px 10px; font-size: 0.78rem; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; font-weight: 800; border-radius: 8px; cursor: pointer;">
+                                    style="height: 30px; padding: 0 11px; font-size: 0.78rem; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; font-weight: 800; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
                                     👟 أحذية (38-45)
                                 </button>
                                 <button type="button" class="bayan-btn" onclick="applyPresetSizes('kids')"
-                                    style="padding: 5px 10px; font-size: 0.78rem; background: #fefce8; border: 1px solid #fef08a; color: #854d0e; font-weight: 800; border-radius: 8px; cursor: pointer;">
+                                    style="height: 30px; padding: 0 11px; font-size: 0.78rem; background: #fefce8; border: 1px solid #fef08a; color: #854d0e; font-weight: 800; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
                                     👶 أطفال (0-12Y)
                                 </button>
                                 <button type="button" class="bayan-btn" onclick="applyPresetSizes('suits')"
-                                    style="padding: 5px 10px; font-size: 0.78rem; background: #faf5ff; border: 1px solid #e9d5ff; color: #6b21a8; font-weight: 800; border-radius: 8px; cursor: pointer;">
+                                    style="height: 30px; padding: 0 11px; font-size: 0.78rem; background: #faf5ff; border: 1px solid #e9d5ff; color: #6b21a8; font-weight: 800; border-radius: 8px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
                                     👔 بدل/قمصان (48-58)
                                 </button>
                             </div>
                         </div>
 
                         <div
-                            style="display: grid; grid-template-columns: 1.2fr 1.2fr auto; gap: 12px; align-items: end;">
+                            style="display: grid; grid-template-columns: minmax(200px, 1.2fr) minmax(200px, 1.2fr) auto; gap: 12px; align-items: end;">
                             <div class="form-group" style="margin:0;">
                                 <label
-                                    style="display:block; font-size:0.82rem; font-weight:800; color:#475569; margin-bottom:4px;">المقاسات
-                                    (افصل بينها بفاصلة أو مسافة):</label>
+                                    style="display:block; font-size:0.82rem; font-weight:800; color:#334155; margin-bottom:5px;">📏
+                                    المقاسات (افصل بينها بفاصلة أو مسافة):</label>
                                 <input type="text" id="variantSizesInput" class="search-input"
-                                    placeholder="مثال: S, M, L, XL, XXL أو 40, 41, 42..."
-                                    style="width: 100%; height: 38px; border-radius: 8px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-weight: bold; font-size: 0.88rem; box-sizing: border-box;">
+                                    placeholder="مثال: S, M, L, XL أو 40, 41, 42..."
+                                    style="width: 100%; height: 40px; border-radius: 10px; border: 1.5px solid #cbd5e1; padding: 0 12px; font-weight: 800; font-size: 0.88rem; box-sizing: border-box; background: #f8fafc;">
                             </div>
                             <div class="form-group" style="margin:0;">
-                                <label
-                                    style="display:block; font-size:0.82rem; font-weight:800; color:#475569; margin-bottom:4px;">الألوان
-                                    (افصل بينها بفاصلة أو مسافة):</label>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; gap: 6px;">
+                                    <label
+                                        style="display:block; font-size:0.82rem; font-weight:800; color:#334155; margin:0;">🎨
+                                        الألوان (افصل بينها بفاصلة):</label>
+                                    <button type="button" onclick="toggleApparelQuickColorsDrawer()"
+                                        style="background: #f5f3ff; color: #6d28d9; border: 1px solid #ddd6fe; border-radius: 6px; padding: 1px 8px; font-size: 0.74rem; font-weight: 800; cursor: pointer;">
+                                        🎨 ألوان سريعة ▾
+                                    </button>
+                                </div>
                                 <input type="text" id="variantColorsInput" class="search-input"
                                     placeholder="مثال: أسود، أبيض، كحلي، هافان..."
-                                    style="width: 100%; height: 38px; border-radius: 8px; border: 1.5px solid #cbd5e1; padding: 0 10px; font-weight: bold; font-size: 0.88rem; box-sizing: border-box;">
+                                    style="width: 100%; height: 40px; border-radius: 10px; border: 1.5px solid #cbd5e1; padding: 0 12px; font-weight: 800; font-size: 0.88rem; box-sizing: border-box; background: #f8fafc;">
                             </div>
                             <button type="button" class="bayan-btn" onclick="generateVariantsMatrix()"
-                                style="height: 38px; padding: 0 18px; border-radius: 8px; background: linear-gradient(135deg, #7c3aed, #6d28d9); color: white; border: none; font-weight: 900; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 3px 10px rgba(124,58,237,0.3); white-space: nowrap;">
+                                style="height: 40px; padding: 0 20px; border-radius: 10px; background: linear-gradient(135deg, #7c3aed, #6d28d9); color: white; border: none; font-weight: 900; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 4px 12px rgba(124,58,237,0.3); white-space: nowrap;">
                                 <span>⚡ توليد التشكيلة</span>
                             </button>
                         </div>
+
+                        <!-- درج الألوان السريعة الاختياري داخل وضع المقاسات والألوان (مخفي افتراضياً لمنع الزحام) -->
+                        <div id="apparelQuickColorsDrawer" class="hidden"
+                            style="margin-top: 10px; padding: 10px 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 6px;">
+                                <span style="font-size: 0.78rem; font-weight: 900; color: #475569;">🎨 انقر لإضافة أو إزالة لون من الخانة:</span>
+                                <button type="button" onclick="openQuickColorsManager()"
+                                    style="background: #ffffff; color: #6d28d9; border: 1px solid #c4b5fd; border-radius: 7px; padding: 3px 10px; font-size: 0.75rem; font-weight: 800; cursor: pointer;">
+                                    ⚙️ إضافة / تعديل ألواني
+                                </button>
+                            </div>
+                            <div id="apparelQuickColorsChipList" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;"></div>
+                        </div>
                     </div>
 
-                    <!-- القسم الثاني: مولد الألوان فقط للشنط والإكسسوارات -->
+                    <!-- 2-ب. القسم الثاني: مولد الألوان فقط للشنط والإكسسوارات -->
                     <div id="colorsOnlyMatrixGeneratorSection"
-                        style="display: none; background: #f0fdf4; border-radius: 16px; border: 1.5px solid #bbf7d0; padding: 14px; margin-bottom: 14px;">
+                        style="display: none; background: #ffffff; border-radius: 16px; border: 1.5px solid #bbf7d0; border-top: 3px solid #10b981; padding: 14px 16px; margin-bottom: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.03);">
                         <div
                             style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
                             <div
-                                style="font-weight: 900; color: #166534; font-size: 0.92rem; display: flex; align-items: center; gap: 6px;">
-                                <span>👜 إضافة ألوان فقط بدون مقاسات (شنط، محافظ، نظارات، إكسسوارات):</span>
+                                style="font-weight: 900; color: #166534; font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
+                                <span>👜</span><span>إضافة ألوان فقط بدون مقاسات (شنط، محافظ، نظارات، إكسسوارات):</span>
                             </div>
                         </div>
 
                         <div
-                            style="display: grid; grid-template-columns: 1.8fr 0.8fr auto; gap: 10px; align-items: end; margin-bottom: 10px;">
+                            style="display: grid; grid-template-columns: 1.8fr 0.7fr auto; gap: 10px; align-items: end; margin-bottom: 12px;">
                             <div class="form-group" style="margin:0;">
                                 <label
-                                    style="display:block; font-size:0.82rem; font-weight:800; color:#15803d; margin-bottom:4px;">اسم
+                                    style="display:block; font-size:0.82rem; font-weight:800; color:#15803d; margin-bottom:5px;">اسم
                                     اللون (أو عدة ألوان بفاصلة):</label>
                                 <input type="text" id="colorOnlyInput" class="search-input"
                                     placeholder="مثال: أسود، بيج، كحلي، هافان، نبيتي..."
-                                    style="width: 100%; height: 38px; border-radius: 8px; border: 1.5px solid #86efac; padding: 0 10px; font-weight: bold; font-size: 0.88rem; box-sizing: border-box;"
+                                    style="width: 100%; height: 40px; border-radius: 10px; border: 1.5px solid #86efac; padding: 0 12px; font-weight: 800; font-size: 0.88rem; box-sizing: border-box; background: #f0fdf4;"
                                     onkeydown="if(event.key==='Enter') addColorOnlyVariant()">
                             </div>
                             <div class="form-group" style="margin:0;">
                                 <label
-                                    style="display:block; font-size:0.82rem; font-weight:800; color:#15803d; margin-bottom:4px;">الكمية
+                                    style="display:block; font-size:0.82rem; font-weight:800; color:#15803d; margin-bottom:5px;">الكمية
                                     الأولية:</label>
                                 <input type="number" id="colorOnlyQtyInput" class="search-input" value="1" min="0"
-                                    style="width: 100%; height: 38px; border-radius: 8px; border: 1.5px solid #86efac; padding: 0 10px; font-weight: bold; text-align: center; font-size: 0.95rem; box-sizing: border-box;">
+                                    style="width: 100%; height: 40px; border-radius: 10px; border: 1.5px solid #86efac; padding: 0 10px; font-weight: 900; text-align: center; font-size: 0.95rem; box-sizing: border-box; background: #f0fdf4;">
                             </div>
                             <button type="button" class="bayan-btn" onclick="addColorOnlyVariant()"
-                                style="height: 38px; padding: 0 18px; border-radius: 8px; background: linear-gradient(135deg, #059669, #047857); color: white; border: none; font-weight: 900; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 3px 10px rgba(5,150,105,0.3); white-space: nowrap;">
+                                style="height: 40px; padding: 0 18px; border-radius: 10px; background: linear-gradient(135deg, #059669, #047857); color: white; border: none; font-weight: 900; font-size: 0.88rem; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 3px 10px rgba(5,150,105,0.3); white-space: nowrap;">
                                 <span>➕ إضافة اللون</span>
                             </button>
                         </div>
 
-                        <!-- أزرار سريعة للألوان الأكثر شيوعاً -->
-                        <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-                            <span style="font-size: 0.78rem; font-weight: 900; color: #166534;">🎨 ألوان سريعة بنقرة
-                                واحدة:</span>
-                            <button type="button" onclick="quickAppendColorToMatrix('أسود')"
-                                style="background: #18181b; color: white; border: none; border-radius: 6px; padding: 3px 9px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">أسود</button>
-                            <button type="button" onclick="quickAppendColorToMatrix('أبيض')"
-                                style="background: #ffffff; color: #0f172a; border: 1px solid #cbd5e1; border-radius: 6px; padding: 3px 9px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">أبيض</button>
-                            <button type="button" onclick="quickAppendColorToMatrix('كحلي')"
-                                style="background: #1e3a8a; color: white; border: none; border-radius: 6px; padding: 3px 9px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">كحلي</button>
-                            <button type="button" onclick="quickAppendColorToMatrix('بيج')"
-                                style="background: #fef3c7; color: #78350f; border: 1px solid #fde68a; border-radius: 6px; padding: 3px 9px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">بيج</button>
-                            <button type="button" onclick="quickAppendColorToMatrix('هافان')"
-                                style="background: #b45309; color: white; border: none; border-radius: 6px; padding: 3px 9px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">هافان</button>
-                            <button type="button" onclick="quickAppendColorToMatrix('رمادي')"
-                                style="background: #64748b; color: white; border: none; border-radius: 6px; padding: 3px 9px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">رمادي</button>
-                            <button type="button" onclick="quickAppendColorToMatrix('نبيتي')"
-                                style="background: #881337; color: white; border: none; border-radius: 6px; padding: 3px 9px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">نبيتي</button>
-                            <button type="button" onclick="quickAppendColorToMatrix('زيتي')"
-                                style="background: #365314; color: white; border: none; border-radius: 6px; padding: 3px 9px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">زيتي</button>
-                            <button type="button" onclick="quickAppendColorToMatrix('كشمير')"
-                                style="background: #fbcfe8; color: #831843; border: 1px solid #f472b6; border-radius: 6px; padding: 3px 9px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">كشمير</button>
-                            <button type="button" onclick="quickAppendColorToMatrix('موف')"
-                                style="background: #7e22ce; color: white; border: none; border-radius: 6px; padding: 3px 9px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">موف</button>
-                            <button type="button" onclick="quickAppendColorToMatrix('جملي')"
-                                style="background: #d97706; color: white; border: none; border-radius: 6px; padding: 3px 9px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">جملي</button>
-                            <button type="button" onclick="quickAppendColorToMatrix('موحد')"
-                                style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; border-radius: 6px; padding: 3px 9px; font-size: 0.78rem; font-weight: bold; cursor: pointer;">موحد</button>
-                        </div>
-                    </div>
-
-                    <!-- شريط التبديل بين العرض الشبكي والعرض التفصيلي وأدوات العمليات -->
-                    <div
-                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;">
-                        <!-- التبديل بين الشبكية والتفصيلي -->
-                        <div
-                            style="display: flex; background: #f1f5f9; padding: 3px; border-radius: 10px; border: 1px solid #cbd5e1;">
-                            <button type="button" id="btnViewMatrix" onclick="toggleVariantsViewMode('matrix')"
-                                style="padding: 6px 16px; font-size: 0.82rem; border-radius: 8px; border: none; background: #1e1b4b; color: #ffffff; font-weight: 900; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 4px;">
-                                📊 العرض الشبكي الذكي
-                            </button>
-                            <button type="button" id="btnViewDetail" onclick="toggleVariantsViewMode('detail')"
-                                style="padding: 6px 16px; font-size: 0.82rem; border-radius: 8px; border: none; background: transparent; color: #475569; font-weight: 900; cursor: pointer; display: flex; align-items: center; gap: 4px;">
-                                📋 جدول التشكيلات التفصيلي
-                            </button>
-                        </div>
-
-                        <!-- أزرار الإجراءات المجمعة -->
-                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                            <button type="button" class="bayan-btn" onclick="syncCardPriceAndDiscountToVariants()"
-                                style="padding: 6px 14px; font-size: 0.82rem; background: linear-gradient(135deg, #0284c7, #0369a1); color: white; border: none; font-weight: 900; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 6px rgba(2, 132, 199, 0.25); transition: 0.2s;"
-                                onmouseover="this.style.transform='translateY(-1px)'"
-                                onmouseout="this.style.transform='translateY(0)'"
-                                title="تحديث وتعميم سعر البيع، الجملة، والتكلفة من كارت الصنف العام على كافة المقاسات">
-                                <span>⚡</span>
-                                <span>تعميم السعر على المقاسات</span>
-                            </button>
-                            <button type="button" class="bayan-btn" onclick="addVariantRow()"
-                                style="padding: 6px 14px; font-size: 0.82rem; background: #ecfdf5; border: 1.5px solid #10b981; color: #047857; font-weight: 900; border-radius: 8px; cursor: pointer;">
-                                ➕ إضافة صف مقاس يدوي
-                            </button>
-                            <div
-                                style="display: flex; align-items: center; gap: 4px; background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 3px 8px; border-radius: 8px;">
-                                <label style="font-size: 0.76rem; font-weight: 800; color: #475569; margin: 0;">تعبئة
-                                    موحدة:</label>
-                                <input type="number" id="fillAllVariantsQtyInput" value="1" min="0"
-                                    style="width: 44px; height: 26px; text-align: center; font-weight: 900; border: 1px solid #cbd5e1; border-radius: 6px;">
-                                <button type="button" class="bayan-btn" onclick="applyUniformQtyToAllVariants()"
-                                    style="padding: 3px 8px; font-size: 0.76rem; background: #2563eb; color: white; border: none; font-weight: 800; border-radius: 6px; cursor: pointer;"
-                                    title="تطبيق هذه الكمية على جميع التشكيلات">⚡ تطبيق</button>
+                        <!-- شريط الألوان السريعة القابل للتخصيص والحفظ الدائم -->
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 10px 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; flex-wrap: wrap; gap: 8px;">
+                                <span style="font-size: 0.8rem; font-weight: 900; color: #166534; display: flex; align-items: center; gap: 5px;">
+                                    <span>🎨</span><span>ألوان سريعة بنقرة واحدة (الألوان الأساسية + ألوانك المحفوظة):</span>
+                                </span>
+                                <button type="button" onclick="openQuickColorsManager()"
+                                    style="background: #ffffff; color: #047857; border: 1.5px solid #10b981; border-radius: 8px; padding: 4px 12px; font-size: 0.78rem; font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; box-shadow: 0 1px 4px rgba(16,185,129,0.12); transition: 0.2s;"
+                                    title="إضافة ألوان جديدة مخصصة وحفظها بشكل دائم أو تعديلها وحذفها">
+                                    <span>➕</span><span>إضافة / إدارة الألوان</span>
+                                </button>
                             </div>
-                            <button type="button" id="btnToggleVariantsLock" class="bayan-btn"
-                                onclick="toggleVariantsStockLock()"
-                                style="padding: 6px 14px; font-size: 0.82rem; background: #ecfdf5; border: 1.5px solid #10b981; color: #047857; font-weight: 900; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);"
-                                title="قفل / فتح تعديل كميات المقاسات والألوان">
-                                <span id="variantsLockIcon">🔓</span>
-                                <span id="variantsLockText">تعديل الكميات متاح</span>
-                            </button>
-                            <button type="button" id="btnRestoreAllVariantsStock" class="bayan-btn"
-                                onclick="restoreAllVariantsStock()"
-                                style="padding: 6px 14px; font-size: 0.82rem; background: #f0fdf4; border: 1.5px solid #86efac; color: #166534; font-weight: 900; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);"
-                                title="استعادة كافة الأرصدة الأصلية السابقة المحفوظة">
-                                <span>🔄</span>
-                                <span>استعادة الأرصدة السابقة</span>
-                            </button>
-                            <button type="button" class="bayan-btn" onclick="clearAllVariants()"
-                                style="padding: 6px 14px; font-size: 0.82rem; background: #fef2f2; border: 1.5px solid #fca5a5; color: #dc2626; font-weight: 900; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);"
-                                title="مسح كافة التشكيلات الحالية للبدء من جديد">
-                                <span>🗑️</span>
-                                <span>مسح التشكيلات</span>
-                            </button>
-                            <button type="button" class="bayan-btn" onclick="printProductVariantHangtags()"
-                                style="padding: 6px 14px; font-size: 0.82rem; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; font-weight: 900; border-radius: 8px; cursor: pointer; display: flex; align-items: center; gap: 4px; box-shadow: 0 2px 6px rgba(245,158,11,0.25);">
-                                🖨️ طباعة تيكتات الموديل (Hangtags)
-                            </button>
-                        </div>
-                        <div style="font-size: 0.85rem; font-weight: 900; color: #581c87;">
-                            إجمالي التشكيلات: <span id="variantsCountBadge"
-                                style="background: #e9d5ff; color: #6b21a8; padding: 3px 10px; border-radius: 12px;">0</span>
+                            <div id="quickColorsChipList" style="display: flex; align-items: center; gap: 7px; flex-wrap: wrap;">
+                                <!-- يتم التوليد ديناميكياً من الألوان الأساسية + ألوان المستخدم المحفوظة -->
+                            </div>
                         </div>
                     </div>
 
-                    <!-- الحاوية 1: العرض الشبكي الذكي (Interactive Matrix View) -->
-                    <div id="variantsMatrixGridContainer"
-                        style="border: 1.5px solid #cbd5e1; border-radius: 12px; background: white; overflow-x: auto; max-height: 380px;">
+                    <!-- 3. شريط العرض والإجراءات المرتب (بدون زحام أو تداخل) -->
+                    <div class="variants-toolbar-card">
+                        <!-- الصف العلوي: التبديل بين الشبكية والتفصيلي + العدد + الإضافة والطباعة -->
+                        <div class="variants-toolbar-row">
+                            <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                <div
+                                    style="display: flex; background: #f1f5f9; padding: 3px; border-radius: 10px; border: 1px solid #cbd5e1;">
+                                    <button type="button" id="btnViewMatrix" onclick="toggleVariantsViewMode('matrix')"
+                                        style="padding: 6px 14px; font-size: 0.82rem; border-radius: 8px; border: none; background: #1e1b4b; color: #ffffff; font-weight: 900; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 5px; transition: 0.15s;">
+                                        📊 العرض الشبكي الذكي
+                                    </button>
+                                    <button type="button" id="btnViewDetail" onclick="toggleVariantsViewMode('detail')"
+                                        style="padding: 6px 14px; font-size: 0.82rem; border-radius: 8px; border: none; background: transparent; color: #475569; font-weight: 900; cursor: pointer; display: flex; align-items: center; gap: 5px; transition: 0.15s;">
+                                        📋 جدول التشكيلات التفصيلي
+                                    </button>
+                                </div>
+                                <div style="font-size: 0.84rem; font-weight: 900; color: #4c1d95; display: flex; align-items: center; gap: 5px; background: #f5f3ff; border: 1px solid #ddd6fe; padding: 4px 12px; border-radius: 10px;">
+                                    <span>إجمالي التشكيلات:</span>
+                                    <span id="variantsCountBadge"
+                                        style="background: #6d28d9; color: #ffffff; padding: 1px 9px; border-radius: 8px; font-size: 0.82rem;">0</span>
+                                </div>
+                            </div>
+
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <button type="button" class="bayan-btn bayan-var-tool-btn" onclick="addVariantRow()"
+                                    style="background: #ecfdf5; border: 1.5px solid #10b981; color: #047857;">
+                                    <span>➕</span><span>إضافة صف يدوي</span>
+                                </button>
+                                <button type="button" class="bayan-btn bayan-var-tool-btn" onclick="printProductVariantHangtags()"
+                                    style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; box-shadow: 0 2px 6px rgba(245,158,11,0.25);">
+                                    <span>🖨️</span><span>طباعة تيكتات الموديل</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- الصف السفلي: أدوات التعبئة والتعميم والأمان -->
+                        <div class="variants-toolbar-subrow">
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <div
+                                    style="display: flex; align-items: center; gap: 5px; background: #f8fafc; border: 1.5px solid #cbd5e1; padding: 2px 8px; border-radius: 9px; height: 34px; box-sizing: border-box;">
+                                    <label style="font-size: 0.78rem; font-weight: 800; color: #475569; margin: 0;">تعبئة موحدة:</label>
+                                    <input type="number" id="fillAllVariantsQtyInput" value="1" min="0"
+                                        style="width: 48px; height: 26px; text-align: center; font-weight: 900; border: 1px solid #cbd5e1; border-radius: 6px; background: #ffffff;">
+                                    <button type="button" class="bayan-btn" onclick="applyUniformQtyToAllVariants()"
+                                        style="height: 26px; padding: 0 10px; font-size: 0.76rem; background: #2563eb; color: white; border: none; font-weight: 800; border-radius: 6px; cursor: pointer;"
+                                        title="تطبيق هذه الكمية على جميع التشكيلات">⚡ تطبيق</button>
+                                </div>
+                                <button type="button" class="bayan-btn bayan-var-tool-btn" onclick="syncCardPriceAndDiscountToVariants()"
+                                    style="background: #eff6ff; border: 1.5px solid #93c5fd; color: #1d4ed8;"
+                                    title="تحديث وتعميم سعر البيع، الجملة، والتكلفة من كارت الصنف العام على كافة المقاسات">
+                                    <span>⚡</span><span>تعميم السعر على المقاسات</span>
+                                </button>
+                            </div>
+
+                            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <button type="button" id="btnToggleVariantsLock" class="bayan-btn bayan-var-tool-btn"
+                                    onclick="toggleVariantsStockLock()"
+                                    style="background: #ecfdf5; border: 1.5px solid #10b981; color: #047857;"
+                                    title="قفل / فتح تعديل كميات المقاسات والألوان">
+                                    <span id="variantsLockIcon">🔓</span>
+                                    <span id="variantsLockText">تعديل الكميات متاح</span>
+                                </button>
+                                <button type="button" id="btnRestoreAllVariantsStock" class="bayan-btn bayan-var-tool-btn"
+                                    onclick="restoreAllVariantsStock()"
+                                    style="background: #f8fafc; border: 1.5px solid #cbd5e1; color: #334155;"
+                                    title="استعادة كافة الأرصدة الأصلية السابقة المحفوظة">
+                                    <span>🔄</span><span>استعادة الأرصدة</span>
+                                </button>
+                                <button type="button" class="bayan-btn bayan-var-tool-btn" onclick="clearAllVariants()"
+                                    style="background: #fef2f2; border: 1.5px solid #fca5a5; color: #dc2626;"
+                                    title="مسح كافة التشكيلات الحالية للبدء من جديد">
+                                    <span>🗑️</span><span>مسح الكل</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 4. الحاوية 1: العرض الشبكي الذكي (Interactive Matrix View) -->
+                    <div id="variantsMatrixGridContainer">
                         <div id="smartMatrixWrapper">
                             <div
-                                style="padding: 30px; text-align: center; color: #94a3b8; font-weight: bold; font-size: 0.95rem;">
-                                <span>👕📦 لا توجد تشكيلات مضافة بعد. اختر قالباً أو أضف ألواناً لتظهر في الشبكة الذكية
-                                    هنا.</span>
+                                style="padding: 36px 20px; text-align: center; color: #64748b; font-weight: 800; font-size: 0.94rem;">
+                                <div style="font-size: 2rem; margin-bottom: 8px;">👕🎨</div>
+                                <div>لا توجد تشكيلات مضافة بعد. اختر قالباً جاهزاً أو أضف مقاساً ولوناً لتظهر الشبكة بوضوح هنا.</div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- الحاوية 2: جدول التشكيلات التفصيلي الكامل -->
-                    <div id="variantsDetailTableContainer"
-                        style="display: none; max-height: 380px; overflow-y: auto; border: 1.5px solid #e2e8f0; border-radius: 12px; background: white;">
+                    <!-- 5. الحاوية 2: جدول التشكيلات التفصيلي الكامل -->
+                    <div id="variantsDetailTableContainer" style="display: none;">
                         <table class="bayan-table"
-                            style="margin: 0; width: 100%; font-size: 0.84rem; text-align: center;">
-                            <thead style="position: sticky; top: 0; background: #1e293b; color: white; z-index: 5;">
+                            style="margin: 0; width: 100%; font-size: 0.85rem; text-align: center; border-collapse: collapse;">
+                            <thead style="position: sticky; top: 0; z-index: 5;">
                                 <tr>
-                                    <th style="width: 35px; padding: 8px 4px;">#</th>
-                                    <th id="thVarSize" style="width: 80px; padding: 8px;">المقاس (Size)</th>
-                                    <th style="width: 85px; padding: 8px;">اللون (Color)</th>
-                                    <th style="width: 140px; padding: 8px;">الباركود الفريد</th>
-                                    <th style="width: 75px; padding: 8px;">الرصيد</th>
-                                    <th style="width: 80px; padding: 8px;">قطاعي</th>
-                                    <th style="width: 80px; padding: 8px;">جملة</th>
-                                    <th style="width: 80px; padding: 8px;">التكلفة</th>
-                                    <th style="width: 105px; padding: 8px 4px;">إجراءات</th>
+                                    <th style="width: 42px; padding: 10px 6px;">#</th>
+                                    <th id="thVarSize" style="min-width: 95px; padding: 10px 8px;">المقاس (Size)</th>
+                                    <th style="min-width: 105px; padding: 10px 8px;">اللون (Color)</th>
+                                    <th style="min-width: 175px; padding: 10px 8px;">الباركود الفريد</th>
+                                    <th style="min-width: 85px; padding: 10px 8px;">الرصيد</th>
+                                    <th style="min-width: 90px; padding: 10px 8px;">قطاعي</th>
+                                    <th style="min-width: 90px; padding: 10px 8px;">جملة</th>
+                                    <th style="min-width: 90px; padding: 10px 8px;">التكلفة</th>
+                                    <th style="width: 115px; padding: 10px 6px;">إجراءات</th>
                                 </tr>
                             </thead>
                             <tbody id="productVariantsTableBody">
                                 <!-- سيتم التوليد والإضافة برمجياً بواسطة JS -->
                             </tbody>
                         </table>
+                        <div id="variantsDetailEmptyState"
+                            style="padding: 36px 20px; text-align: center; color: #64748b; font-weight: 800; font-size: 0.94rem;">
+                            <div style="font-size: 2rem; margin-bottom: 8px;">📋👕</div>
+                            <div>لا توجد تشكيلات مضافة حالياً. اضغط «➕ إضافة صف يدوي» أو استخدم التوليد السريع بالأعلى.</div>
+                        </div>
                     </div>
                 </div>
 
@@ -14532,6 +14672,111 @@
                         <span>💾 حفظ التعديلات (Enter)</span>
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- نافذة إدارة الألوان السريعة المخصصة (محفوظة دائماً في قاعدة البيانات) -->
+    <div id="quickColorsManagerModal" class="modal-overlay hidden"
+        onclick="if(event.target===this && typeof closeQuickColorsManager==='function') closeQuickColorsManager()"
+        style="z-index: 10050; background: rgba(15, 23, 42, 0.8); display: flex; align-items: center; justify-content: center; padding: 20px;">
+        <div class="login-box"
+            style="width: 820px; max-width: 96vw; max-height: 88vh; text-align: right; padding: 0; border: 2px solid rgba(16, 185, 129, 0.35); overflow: hidden; background: #ffffff; border-radius: 22px; box-shadow: 0 25px 60px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; direction: rtl; font-family: 'Cairo', sans-serif;">
+            <!-- Header الفاخر -->
+            <div
+                style="background: linear-gradient(135deg, #0f172a 0%, #065f46 100%); padding: 15px 24px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid rgba(16, 185, 129, 0.35);">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div
+                        style="background: rgba(255,255,255,0.14); width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.3rem;">
+                        🎨</div>
+                    <div>
+                        <h3 style="margin: 0; color: #ffffff; font-size: 1.08rem; font-weight: 900;">إدارة الألوان السريعة المحفوظة</h3>
+                        <div style="font-size: 0.76rem; color: #a7f3d0; font-weight: 700;">أضف ألوانك الخاصة لتظهر مع الألوان الأساسية بنقرة واحدة دائماً</div>
+                    </div>
+                </div>
+                <button type="button" onclick="closeQuickColorsManager()"
+                    style="background: rgba(255,255,255,0.14); border: none; width: 34px; height: 34px; border-radius: 10px; color: white; font-size: 1.25rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s;">&times;</button>
+            </div>
+
+            <!-- المحتوى: عمودان متوازنان -->
+            <div style="padding: 20px 24px; display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 18px; align-items: start; overflow-y: auto;">
+                <!-- العمود الأول: إضافة / تعديل لون -->
+                <div
+                    style="background: #f8fafc; padding: 18px; border-radius: 16px; border: 1.5px solid #e2e8f0; display: flex; flex-direction: column; gap: 12px;">
+                    <div id="quickColorFormTitle" style="font-weight: 900; color: #0f172a; font-size: 0.92rem; display: flex; align-items: center; gap: 6px;">
+                        <span>✨</span><span>إضافة لون سريع جديد</span>
+                    </div>
+                    <input type="hidden" id="editingQuickColorIdx" value="-1">
+
+                    <div>
+                        <label style="display: block; font-size: 0.8rem; font-weight: 800; color: #334155; margin-bottom: 5px;">اسم اللون:</label>
+                        <input type="text" id="newCustomQuickColorName" class="search-input"
+                            placeholder="مثال: تركواز، مستردة، أوف وايت، منت جرين..."
+                            oninput="updateQuickColorLivePreview()"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault();event.stopPropagation();saveCustomQuickColor();}"
+                            style="width: 100%; height: 42px; border-radius: 10px; border: 1.5px solid #cbd5e1; padding: 0 12px; font-weight: 800; font-size: 0.9rem; background: #ffffff; color: #0f172a; box-sizing: border-box;">
+                    </div>
+
+                    <div>
+                        <label style="display: block; font-size: 0.8rem; font-weight: 800; color: #334155; margin-bottom: 6px;">درجة اللون البصرية (اختياري):</label>
+                        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                            <input type="color" id="newCustomQuickColorHex" value="#0d9488" oninput="updateQuickColorLivePreview()"
+                                style="width: 44px; height: 36px; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 2px; cursor: pointer; background: #ffffff;">
+                            <div style="display: flex; gap: 5px; flex-wrap: wrap;">
+                                <button type="button" onclick="selectQuickColorSwatchPreset('#0d9488')" style="width:24px;height:24px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #cbd5e1;background:#0d9488;cursor:pointer;" title="تركواز"></button>
+                                <button type="button" onclick="selectQuickColorSwatchPreset('#0284c7')" style="width:24px;height:24px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #cbd5e1;background:#0284c7;cursor:pointer;" title="أزرق سماوي"></button>
+                                <button type="button" onclick="selectQuickColorSwatchPreset('#e11d48')" style="width:24px;height:24px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #cbd5e1;background:#e11d48;cursor:pointer;" title="فوشيا / أحمر"></button>
+                                <button type="button" onclick="selectQuickColorSwatchPreset('#ca8a04')" style="width:24px;height:24px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #cbd5e1;background:#ca8a04;cursor:pointer;" title="مستردة"></button>
+                                <button type="button" onclick="selectQuickColorSwatchPreset('#10b981')" style="width:24px;height:24px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #cbd5e1;background:#10b981;cursor:pointer;" title="منت جرين"></button>
+                                <button type="button" onclick="selectQuickColorSwatchPreset('#ea580c')" style="width:24px;height:24px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #cbd5e1;background:#ea580c;cursor:pointer;" title="أورانج"></button>
+                                <button type="button" onclick="selectQuickColorSwatchPreset('#f8fafc')" style="width:24px;height:24px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #94a3b8;background:#f8fafc;cursor:pointer;" title="أوف وايت"></button>
+                                <button type="button" onclick="selectQuickColorSwatchPreset('#4c1d95')" style="width:24px;height:24px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #cbd5e1;background:#4c1d95;cursor:pointer;" title="بنفسجي غامق"></button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- معاينة مباشرة لزر اللون -->
+                    <div style="display: flex; align-items: center; gap: 10px; background: #ffffff; border: 1px dashed #cbd5e1; padding: 8px 12px; border-radius: 10px;">
+                        <span style="font-size: 0.78rem; font-weight: 800; color: #64748b;">معاينة الزر:</span>
+                        <span id="quickColorLivePreview" style="padding: 4px 12px; border-radius: 8px; font-size: 0.82rem; font-weight: 800; background: #0d9488; color: #ffffff;">لون جديد</span>
+                    </div>
+
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" id="btnSaveCustomQuickColor" onclick="saveCustomQuickColor()"
+                            style="flex: 1; height: 42px; border-radius: 10px; background: linear-gradient(135deg, #059669, #047857); color: white; font-weight: 900; font-size: 0.9rem; border: none; cursor: pointer; box-shadow: 0 4px 12px rgba(5, 150, 105, 0.28);">
+                            ➕ حفظ اللون في القائمة
+                        </button>
+                        <button type="button" id="btnCancelEditQuickColor" onclick="cancelEditCustomQuickColor()" class="hidden"
+                            style="height: 42px; padding: 0 14px; border-radius: 10px; background: #f1f5f9; color: #475569; font-weight: 800; border: 1.5px solid #cbd5e1; cursor: pointer;">
+                            إلغاء
+                        </button>
+                    </div>
+                </div>
+
+                <!-- العمود الثاني: الألوان المضافة المحفوظة + نظرة على الأساسية -->
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div style="background: #f8fafc; padding: 16px; border-radius: 16px; border: 1.5px solid #e2e8f0;">
+                        <div style="font-weight: 900; color: #1e293b; margin-bottom: 10px; font-size: 0.88rem; display: flex; justify-content: space-between; align-items: center;">
+                            <span>⭐ ألوانك الإضافية المحفوظة</span>
+                            <span id="customQuickColorsCount"
+                                style="background: #059669; color: white; padding: 2px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 900;">0</span>
+                        </div>
+                        <div id="customQuickColorsList"
+                            style="max-height: 210px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 2px;">
+                            <!-- تظهر هنا ألوان العميل المخصصة مع أزرار التعديل والحذف -->
+                        </div>
+                    </div>
+
+                    <div style="background: #ffffff; padding: 12px 14px; border-radius: 14px; border: 1.5px solid #e2e8f0;">
+                        <div style="font-size: 0.78rem; font-weight: 900; color: #475569; margin-bottom: 6px;">🔒 الألوان الـ 12 الأساسية (ثابتة بالنظام دائماً):</div>
+                        <div id="defaultQuickColorsPreviewList" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                style="background: #f1f5f9; padding: 10px 24px; text-align: center; font-size: 0.78rem; color: #475569; font-weight: 800; border-top: 1px solid #e2e8f0;">
+                💾 كافة الألوان الإضافية تُحفظ تلقائياً وبشكل دائم في قاعدة البيانات ويمكن تعديلها أو حذفها في أي وقت.
             </div>
         </div>
     </div>
