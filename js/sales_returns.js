@@ -3154,7 +3154,19 @@ async function executeInvoiceSearch() {
     const tbody = document.getElementById('searchInvoiceTableBody');
     tbody.innerHTML = '';
 
-    Object.values(grouped).reverse().forEach((inv, idx) => {
+    const orderedInvoices = Object.values(grouped).reverse();
+    if (ref) {
+        const cleanRef = String(ref).trim().toLowerCase();
+        const getRefRank = (inv) => {
+            const idStr = String(inv.id || '').trim().toLowerCase();
+            if (idStr === cleanRef) return 0;
+            if (idStr.startsWith(cleanRef)) return 1;
+            return 2;
+        };
+        orderedInvoices.sort((a, b) => getRefRank(a) - getRefRank(b));
+    }
+
+    orderedInvoices.forEach((inv, idx) => {
 
         const effectiveOrigTotal = (inv.explicitGrandTotal > 0) ? inv.explicitGrandTotal : inv.originalTotal;
         const netTotal = effectiveOrigTotal - inv.returnedTotal;
