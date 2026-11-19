@@ -2616,9 +2616,9 @@ function updateSearchInvoiceDates(range) {
 }
 
 function populateSearchInvoiceDatalists() {
-    const sizeList = document.getElementById('searchInvoiceSizesList');
-    const colorList = document.getElementById('searchInvoiceColorsList');
-    if (!sizeList || !colorList) return;
+    const sizePopover = document.getElementById('searchInvoiceSizesPopover');
+    const colorPopover = document.getElementById('searchInvoiceColorsPopover');
+    if (!sizePopover && !colorPopover) return;
 
     const sizes = new Set();
     const colors = new Set();
@@ -2653,10 +2653,82 @@ function populateSearchInvoiceDatalists() {
         });
     }
 
-    sizeList.innerHTML = Array.from(sizes).map(s => `<option value="${s}"></option>`).join('');
-    colorList.innerHTML = Array.from(colors).map(c => `<option value="${c}"></option>`).join('');
+    window._searchInvoiceCachedSizes = Array.from(sizes);
+    window._searchInvoiceCachedColors = Array.from(colors);
+    if (typeof window.renderSearchInvoiceFilterChips === 'function') {
+        window.renderSearchInvoiceFilterChips('size', '');
+        window.renderSearchInvoiceFilterChips('color', '');
+    }
 }
 window.populateSearchInvoiceDatalists = populateSearchInvoiceDatalists;
+
+window.renderSearchInvoiceFilterChips = function (type, filterText = '') {
+    const isSize = (type === 'size');
+    const container = document.getElementById(isSize ? 'searchInvoiceSizesPopover' : 'searchInvoiceColorsPopover');
+    const inputId = isSize ? 'searchInvoiceSize' : 'searchInvoiceColor';
+    if (!container) return;
+
+    const items = isSize ? (window._searchInvoiceCachedSizes || []) : (window._searchInvoiceCachedColors || []);
+    const cleanFilter = String(filterText || '').trim().toLowerCase();
+    const filtered = cleanFilter ? items.filter(v => String(v).toLowerCase().includes(cleanFilter)) : items;
+
+    if (filtered.length === 0) {
+        container.innerHTML = '<div style="width:100%; text-align:center; padding:8px; color:#94a3b8; font-size:0.8rem; font-weight:700;">لا توجد قيم مطابقة</div>';
+        return;
+    }
+
+    const currentVal = (document.getElementById(inputId)?.value || '').trim();
+    container.innerHTML = filtered.map(val => {
+        const safeVal = String(val).replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const isActive = (currentVal === val);
+        const bg = isActive ? '#059669' : '#f1f5f9';
+        const clr = isActive ? '#ffffff' : '#1e293b';
+        const brd = isActive ? '#047857' : '#cbd5e1';
+        return `<button type="button" onclick="window.selectSearchInvoiceFilterChip('${type}', '${safeVal}')"
+            style="padding: 5px 11px; border-radius: 8px; border: 1.5px solid ${brd}; background: ${bg}; color: ${clr}; font-weight: 800; font-size: 0.82rem; cursor: pointer; font-family: inherit; transition: 0.15s; white-space: nowrap;">${val}</button>`;
+    }).join('');
+};
+
+window.openSearchInvoiceFilterPopover = function (type) {
+    if ((!window._searchInvoiceCachedSizes || !window._searchInvoiceCachedColors) && typeof populateSearchInvoiceDatalists === 'function') {
+        populateSearchInvoiceDatalists();
+    }
+    const sizePop = document.getElementById('searchInvoiceSizesPopover');
+    const colorPop = document.getElementById('searchInvoiceColorsPopover');
+    if (sizePop) sizePop.classList.toggle('hidden', type !== 'size');
+    if (colorPop) colorPop.classList.toggle('hidden', type !== 'color');
+    const curInput = document.getElementById(type === 'size' ? 'searchInvoiceSize' : 'searchInvoiceColor');
+    window.renderSearchInvoiceFilterChips(type, curInput ? curInput.value : '');
+};
+
+window.filterSearchInvoicePopover = function (type, text) {
+    const pop = document.getElementById(type === 'size' ? 'searchInvoiceSizesPopover' : 'searchInvoiceColorsPopover');
+    if (pop) pop.classList.remove('hidden');
+    window.renderSearchInvoiceFilterChips(type, text);
+};
+
+window.closeSearchInvoicePopovers = function () {
+    document.getElementById('searchInvoiceSizesPopover')?.classList.add('hidden');
+    document.getElementById('searchInvoiceColorsPopover')?.classList.add('hidden');
+};
+
+window.selectSearchInvoiceFilterChip = function (type, val) {
+    const input = document.getElementById(type === 'size' ? 'searchInvoiceSize' : 'searchInvoiceColor');
+    if (input) input.value = val;
+    window.closeSearchInvoicePopovers();
+    if (typeof executeInvoiceSearch === 'function') executeInvoiceSearch();
+};
+
+if (!window._searchInvoicePopoverClickBound) {
+    window._searchInvoicePopoverClickBound = true;
+    document.addEventListener('click', function (e) {
+        const t = e.target;
+        if (!t) return;
+        if (t.id === 'searchInvoiceSize' || t.id === 'searchInvoiceColor') return;
+        if (t.closest && (t.closest('#searchInvoiceSizesPopover') || t.closest('#searchInvoiceColorsPopover'))) return;
+        if (typeof window.closeSearchInvoicePopovers === 'function') window.closeSearchInvoicePopovers();
+    });
+}
 
 function resetSearchInvoiceModal() {
 
@@ -3021,10 +3093,18 @@ async function executeInvoiceSearch() {
 
         if (!grouped[t.invoiceId]) {
 
-            // حساب إجمالي المرتجعات لهذه الفاتورة (باستخدام معرف الربط)
-            const returnedVal = transactions
-                .filter(rt => rt.originalInvoiceId == t.invoiceId && rt.type.includes('مرتجع'))
-                .reduce((sum, rt) => sum + (parseFloat(rt.total) || 0), 0);
+            // حساب إجمالي المرتجعات لهذه الفاتورة (من SQLite أولاً لضمان شمول الفترات السابقة)
+            let returnedVal = 0;
+            if (window.BayanSQLite && typeof window.BayanSQLite.getTotalReturnedAmount === 'function' && window.BayanSQLite.db) {
+                try {
+                    returnedVal = Number(window.BayanSQLite.getTotalReturnedAmount(t.invoiceId)) || 0;
+                } catch (e) { returnedVal = 0; }
+            }
+            if (returnedVal === 0) {
+                returnedVal = transactions
+                    .filter(rt => rt.originalInvoiceId == t.invoiceId && rt.type && rt.type.includes('مرتجع'))
+                    .reduce((sum, rt) => sum + (parseFloat(rt.total) || 0), 0);
+            }
 
             // استخراج الوقت والتاريخ من dateISO إذا أمكن
             let timeStr = '-';
@@ -3063,6 +3143,9 @@ async function executeInvoiceSearch() {
         }
 
         grouped[t.invoiceId].originalTotal += parseFloat(t.total) || 0;
+        if (t.isInvoiceHead && parseFloat(t.invoiceGrandTotal) > 0) {
+            grouped[t.invoiceId].explicitGrandTotal = parseFloat(t.invoiceGrandTotal);
+        }
 
     });
 
@@ -3071,7 +3154,8 @@ async function executeInvoiceSearch() {
 
     Object.values(grouped).reverse().forEach((inv, idx) => {
 
-        const netTotal = inv.originalTotal - inv.returnedTotal;
+        const effectiveOrigTotal = (inv.explicitGrandTotal > 0) ? inv.explicitGrandTotal : inv.originalTotal;
+        const netTotal = effectiveOrigTotal - inv.returnedTotal;
         const isFullyReturned = netTotal <= 0.01 && inv.returnedTotal > 0;
 
         const tr = document.createElement('tr');

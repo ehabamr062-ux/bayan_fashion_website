@@ -16962,33 +16962,39 @@
                     </div>
 
                     <!-- المقاس -->
-                    <div style="width: 125px; display: flex; align-items: center; gap: 6px;">
+                    <div style="width: 125px; display: flex; align-items: center; gap: 6px; position: relative;">
                         <label style="font-size: 0.82rem; font-weight: 800; color: #475569; white-space: nowrap;">المقاس</label>
                         <div style="flex: 1; position: relative; display: flex; align-items: center;">
-                            <input type="text" id="searchInvoiceSize" list="searchInvoiceSizesList"
-                                style="width: 100%; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 0 18px 0 6px; height: 38px; font-weight: 700; font-size: 0.85rem; text-align: center; box-sizing: border-box; background: #ffffff;"
+                            <input type="text" id="searchInvoiceSize" autocomplete="off"
+                                style="width: 100%; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 0 18px 0 6px; height: 38px; font-weight: 700; font-size: 0.85rem; text-align: center; box-sizing: border-box; background: #ffffff; cursor: pointer;"
                                 placeholder="المقاس..."
-                                oninput="if(typeof debouncedExecuteInvoiceSearch==='function') debouncedExecuteInvoiceSearch();"
-                                onkeydown="if(event.key==='Enter') executeInvoiceSearch()">
-                            <span onclick="document.getElementById('searchInvoiceSize').value=''; executeInvoiceSearch();"
+                                onfocus="if(typeof window.openSearchInvoiceFilterPopover==='function') window.openSearchInvoiceFilterPopover('size');"
+                                onclick="if(typeof window.openSearchInvoiceFilterPopover==='function') window.openSearchInvoiceFilterPopover('size');"
+                                oninput="if(typeof window.filterSearchInvoicePopover==='function') window.filterSearchInvoicePopover('size', this.value); if(typeof debouncedExecuteInvoiceSearch==='function') debouncedExecuteInvoiceSearch();"
+                                onkeydown="if(event.key==='Enter') { if(typeof window.closeSearchInvoicePopovers==='function') window.closeSearchInvoicePopovers(); executeInvoiceSearch(); }">
+                            <span onclick="document.getElementById('searchInvoiceSize').value=''; if(typeof window.closeSearchInvoicePopovers==='function') window.closeSearchInvoicePopovers(); executeInvoiceSearch();"
                                 style="position: absolute; left: 4px; color: #94a3b8; cursor: pointer; font-size: 0.8rem;" title="مسح">✕</span>
                         </div>
-                        <datalist id="searchInvoiceSizesList"></datalist>
+                        <div id="searchInvoiceSizesPopover" class="hidden"
+                            style="position: absolute; top: calc(100% + 6px); right: 0; width: 380px; max-width: 85vw; max-height: 240px; overflow-y: auto; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 10px; box-shadow: 0 12px 30px rgba(15,23,42,0.18); z-index: 9999; display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start;"></div>
                     </div>
 
                     <!-- اللون -->
-                    <div style="width: 135px; display: flex; align-items: center; gap: 6px;">
+                    <div style="width: 135px; display: flex; align-items: center; gap: 6px; position: relative;">
                         <label style="font-size: 0.82rem; font-weight: 800; color: #475569; white-space: nowrap;">اللون</label>
                         <div style="flex: 1; position: relative; display: flex; align-items: center;">
-                            <input type="text" id="searchInvoiceColor" list="searchInvoiceColorsList"
-                                style="width: 100%; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 0 18px 0 6px; height: 38px; font-weight: 700; font-size: 0.85rem; text-align: center; box-sizing: border-box; background: #ffffff;"
+                            <input type="text" id="searchInvoiceColor" autocomplete="off"
+                                style="width: 100%; border: 1.5px solid #cbd5e1; border-radius: 8px; padding: 0 18px 0 6px; height: 38px; font-weight: 700; font-size: 0.85rem; text-align: center; box-sizing: border-box; background: #ffffff; cursor: pointer;"
                                 placeholder="اللون..."
-                                oninput="if(typeof debouncedExecuteInvoiceSearch==='function') debouncedExecuteInvoiceSearch();"
-                                onkeydown="if(event.key==='Enter') executeInvoiceSearch()">
-                            <span onclick="document.getElementById('searchInvoiceColor').value=''; executeInvoiceSearch();"
+                                onfocus="if(typeof window.openSearchInvoiceFilterPopover==='function') window.openSearchInvoiceFilterPopover('color');"
+                                onclick="if(typeof window.openSearchInvoiceFilterPopover==='function') window.openSearchInvoiceFilterPopover('color');"
+                                oninput="if(typeof window.filterSearchInvoicePopover==='function') window.filterSearchInvoicePopover('color', this.value); if(typeof debouncedExecuteInvoiceSearch==='function') debouncedExecuteInvoiceSearch();"
+                                onkeydown="if(event.key==='Enter') { if(typeof window.closeSearchInvoicePopovers==='function') window.closeSearchInvoicePopovers(); executeInvoiceSearch(); }">
+                            <span onclick="document.getElementById('searchInvoiceColor').value=''; if(typeof window.closeSearchInvoicePopovers==='function') window.closeSearchInvoicePopovers(); executeInvoiceSearch();"
                                 style="position: absolute; left: 4px; color: #94a3b8; cursor: pointer; font-size: 0.8rem;" title="مسح">✕</span>
                         </div>
-                        <datalist id="searchInvoiceColorsList"></datalist>
+                        <div id="searchInvoiceColorsPopover" class="hidden"
+                            style="position: absolute; top: calc(100% + 6px); right: 0; width: 400px; max-width: 85vw; max-height: 240px; overflow-y: auto; background: #ffffff; border: 1.5px solid #cbd5e1; border-radius: 12px; padding: 10px; box-shadow: 0 12px 30px rgba(15,23,42,0.18); z-index: 9999; display: flex; flex-wrap: wrap; gap: 6px; align-content: flex-start;"></div>
                     </div>
 
                     <!-- اختر الفترة -->
@@ -17103,7 +17109,7 @@
     <div id="selectReturnItemsModal" class="modal-overlay hidden"
         style="z-index: 11005; background: rgba(15, 23, 42, 0.88);">
         <div class="modal-content"
-            style="width: 1000px; max-width: 95%; max-height: 92vh; display: flex; flex-direction: column; padding: 0; border-radius: 20px; overflow: hidden; border: 1.5px solid #e2e8f0; box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);">
+            style="width: 1160px; max-width: 96vw; max-height: 92vh; display: flex; flex-direction: column; padding: 0; border-radius: 20px; overflow: hidden; border: 1.5px solid #e2e8f0; box-shadow: 0 25px 60px rgba(0, 0, 0, 0.35);">
             <div
                 style="background: linear-gradient(135deg, #065f46, #047857) !important; border-bottom: 2px solid #059669 !important; color: white; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; cursor: default !important;">
                 <div style="display: flex; align-items: center; gap: 10px;">
