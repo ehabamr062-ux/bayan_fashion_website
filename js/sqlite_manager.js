@@ -3059,9 +3059,15 @@
                     params.push('%' + String(method).trim().toLowerCase() + '%');
                 }
                 if (searchQuery) {
-                    const q = '%' + String(searchQuery).trim().toLowerCase() + '%';
-                    whereClause += " AND (LOWER(invoiceId) LIKE ? OR LOWER(partner) LIKE ? OR LOWER(raw_json) LIKE ?)";
-                    params.push(q, q, q);
+                    const sq = String(searchQuery).trim();
+                    if (/^\d+$/.test(sq)) {
+                        whereClause += " AND (invoiceId = ? OR invoiceId LIKE ? OR partner LIKE ?)";
+                        params.push(sq, `${sq}%`, `%${sq}%`);
+                    } else {
+                        const q = `%${sq}%`;
+                        whereClause += " AND (invoiceId LIKE ? OR partner LIKE ? OR raw_json LIKE ?)";
+                        params.push(q, q, q);
+                    }
                 }
 
                 const mainSql = `
@@ -3227,9 +3233,15 @@
                     params.push('%' + String(method).trim().toLowerCase() + '%');
                 }
                 if (searchQuery) {
-                    const q = '%' + String(searchQuery).trim().toLowerCase() + '%';
-                    sql += " AND (LOWER(invoiceId) LIKE ? OR LOWER(partner) LIKE ? OR LOWER(raw_json) LIKE ?)";
-                    params.push(q, q, q);
+                    const sq = String(searchQuery).trim();
+                    if (/^\d+$/.test(sq)) {
+                        sql += " AND (invoiceId = ? OR invoiceId LIKE ? OR partner LIKE ?)";
+                        params.push(sq, `${sq}%`, `%${sq}%`);
+                    } else {
+                        const q = `%${sq}%`;
+                        sql += " AND (invoiceId LIKE ? OR partner LIKE ? OR raw_json LIKE ?)";
+                        params.push(q, q, q);
+                    }
                 }
 
                 sql += " ORDER BY dateISO DESC, id DESC";
@@ -3413,8 +3425,14 @@
                 }
 
                 const lim = parseInt(limit, 10) || 5000;
-                sql += " ORDER BY dateISO DESC, id DESC LIMIT ?;";
-                params.push(lim);
+                if (searchId) {
+                    const sId = String(searchId).trim();
+                    sql += " ORDER BY CASE WHEN invoiceId = ? THEN 0 WHEN invoiceId LIKE ? THEN 1 ELSE 2 END, dateISO DESC, id DESC LIMIT ?;";
+                    params.push(sId, `${sId}%`, lim);
+                } else {
+                    sql += " ORDER BY dateISO DESC, id DESC LIMIT ?;";
+                    params.push(lim);
+                }
 
                 if (this.isNative && this.nativeDb) {
                     const rows = this.nativeDb.prepare(sql).all(...params);
