@@ -3511,7 +3511,9 @@ async function saveBill(force = false, accountChecked = false, event = null) {
 
         if (typeof invalidateStockCache === 'function') invalidateStockCache();
         if (typeof window.invalidateStockCache === 'function') window.invalidateStockCache();
-        if (typeof window.rebuildProductFastIndex === 'function') window.rebuildProductFastIndex();
+        if (typeof window.rebuildProductFastIndex === 'function') {
+            setTimeout(() => { try { window.rebuildProductFastIndex(); } catch (_) {} }, 0);
+        }
 
         if (!isEditMode && typeof window.registerTrialInvoiceCreation === 'function') {
             window.registerTrialInvoiceCreation();

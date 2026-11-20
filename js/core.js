@@ -2393,7 +2393,7 @@ window.bayanTriggerMemoryPurge = function() {
         // 2. ترشيد ذاكرة المعاملات والتخلص من السجلات القديمة المعلقة
         if (window.transactions && Array.isArray(window.transactions) && window.transactions.length > 3000) {
             try {
-                const todayStr = new Date().toISOString().split('T')[0];
+                const todayStr = new Date().toLocaleDateString('en-CA');
                 const activeDocIds = new Set();
                 if (window.openTabs && Array.isArray(window.openTabs)) {
                     window.openTabs.forEach(t => {
