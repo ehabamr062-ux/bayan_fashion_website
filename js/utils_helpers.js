@@ -1037,7 +1037,48 @@ function fillDatalist(listId, array) {
         if (list.tagName === 'SELECT') opt.innerText = item;
         list.appendChild(opt);
     });
+
+    const reasonSelectIds = ['discountReason', 'taxReason', 'purchaseDiscountReason', 'purchaseTaxReason'];
+    if (list.tagName === 'SELECT' && reasonSelectIds.includes(listId)) {
+        const addOpt = document.createElement('option');
+        addOpt.value = '__ADD_CUSTOM__';
+        addOpt.innerText = '➕ إضافة سبب جديد...';
+        list.appendChild(addOpt);
+    }
 }
+
+window.handleReasonSelectChange = function (selectEl, kind) {
+    if (!selectEl || selectEl.value !== '__ADD_CUSTOM__') return;
+    selectEl.value = '';
+    const map = {
+        discount: { arr: typeof discountReasons !== 'undefined' ? discountReasons : null, title: 'إضافة سبب خصم جديد', msg: 'اكتب سبب الخصم الجديد (مثال: خصم عميل دائم):' },
+        tax: { arr: typeof taxReasons !== 'undefined' ? taxReasons : null, title: 'إضافة بند إضافة جديد', msg: 'اكتب اسم الإضافة الجديدة (مثال: شحن فوري):' },
+        purchaseDiscount: { arr: typeof purchaseDiscountReasons !== 'undefined' ? purchaseDiscountReasons : null, title: 'إضافة سبب خصم مشتريات', msg: 'اكتب سبب الخصم الجديد:' },
+        purchaseTax: { arr: typeof purchaseTaxReasons !== 'undefined' ? purchaseTaxReasons : null, title: 'إضافة بند إضافة مشتريات', msg: 'اكتب اسم الإضافة الجديدة:' }
+    };
+    const cfg = map[kind];
+    if (!cfg || !cfg.arr) return;
+
+    const applyVal = (val) => {
+        const clean = String(val || '').trim();
+        if (!clean) return;
+        addNewReason(clean, cfg.arr, selectEl.id);
+        selectEl.value = clean;
+        if (kind === 'discount' || kind === 'tax') {
+            if (typeof calculateTotals === 'function') calculateTotals();
+        } else if (typeof calculatePurchaseTotals === 'function') {
+            calculatePurchaseTotals();
+        }
+        if (typeof showToast === 'function') showToast(`✅ تم حفظ "${clean}" في قاعدة البيانات`, 'success');
+    };
+
+    if (typeof showCustomPrompt === 'function') {
+        showCustomPrompt({ title: cfg.title, message: cfg.msg, defaultValue: '', onConfirm: applyVal });
+    } else {
+        const val = prompt(cfg.msg);
+        if (val) applyVal(val);
+    }
+};
 
 function addNewReason(value, array, listId) {
     if (value && !array.includes(value)) {

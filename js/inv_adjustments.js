@@ -1046,10 +1046,16 @@ function applyFractionalDiscount(type) {
         if (typeof showToast === 'function') showToast("🔒 الخصم غير مصرح به لهذا الحساب!", "warning");
         return;
     }
-    let currentTotal = parseFloat(totalEl.innerText || totalEl.value) || 0;
-    let fraction = currentTotal - Math.floor(currentTotal);
+    const rawTotalStr = String(totalEl.innerText || totalEl.value || '0').replace(/,/g, '').replace(/[^\d.-]/g, '');
+    let currentTotal = parseFloat(rawTotalStr) || 0;
+    let fraction = Math.round((currentTotal - Math.floor(currentTotal)) * 100) / 100;
 
     if (fraction > 0) {
+        let currentDisc = parseFloat(discInput.value) || 0;
+        if (discTypeEl && discTypeEl.value === 'perc' && currentDisc > 0 && currentDisc < 100) {
+            const baseBeforeDisc = currentTotal / (1 - currentDisc / 100);
+            currentDisc = Math.round((baseBeforeDisc - currentTotal) * 100) / 100;
+        }
         if (discTypeEl) {
             if ([...discTypeEl.options].some(o => o.value === 'val')) {
                 discTypeEl.value = 'val';
@@ -1058,8 +1064,7 @@ function applyFractionalDiscount(type) {
             }
         }
 
-        let currentDisc = parseFloat(discInput.value) || 0;
-        discInput.value = (currentDisc + fraction).toFixed(2);
+        discInput.value = (Math.round((currentDisc + fraction) * 100) / 100).toFixed(2);
 
         if (reasonsArr && !reasonsArr.includes('خصم فكة')) {
             reasonsArr.push('خصم فكة');
@@ -1082,12 +1087,8 @@ function applyFractionalDiscount(type) {
 
         calcFn();
 
-        if (typeof showCustomAlert === 'function') {
-            showCustomAlert({
-                type: 'info',
-                titleText: '🪙 تسوية الفكة',
-                msg: `تم خصم مبلغ (<b>${fraction.toFixed(2)}</b>) بنجاح لتصحيح الفاتورة إلى عدد صحيح.`
-            });
+        if (typeof showToast === 'function') {
+            showToast(`🪙 تم خصم الفكة (${fraction.toFixed(2)} ج.م) بنجاح`, 'success');
         }
     } else {
         if (typeof showCustomAlert === 'function') {
