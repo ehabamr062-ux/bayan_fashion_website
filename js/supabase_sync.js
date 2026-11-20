@@ -1600,7 +1600,34 @@
 
         // اسم مرادف لدعم استدعاء رفع كود الاقتران ومعرف المحل
         uploadPairingPinToCloud: async function (pin = null) {
+            if (typeof this.renderPairingQrCode === 'function') this.renderPairingQrCode();
             return this.syncPairingPin(pin);
+        },
+
+        renderPairingQrCode: function () {
+            const box = document.getElementById('supabaseSyncQrContainer');
+            if (!box || typeof QRCode === 'undefined') return;
+            const shopId = this.getShopId();
+            const pin = this.getPairingPin();
+            const payload = JSON.stringify({ bayan_sync: 1, shopId: shopId, password: String(pin || '') });
+            box.innerHTML = '';
+            try {
+                new QRCode(box, { text: payload, width: 104, height: 104, colorDark: '#0f172a', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+            } catch (_) {}
+        },
+
+        downloadPairingQrPng: function () {
+            this.renderPairingQrCode();
+            const box = document.getElementById('supabaseSyncQrContainer');
+            if (!box) return;
+            const canvas = box.querySelector('canvas');
+            const img = box.querySelector('img');
+            const dataUrl = canvas ? canvas.toDataURL('image/png') : (img ? img.src : '');
+            if (!dataUrl) return;
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = `bayan-sync-qr-${this.getShopId()}.png`;
+            a.click();
         },
 
         // 👥 5.1 مزامنة العملاء والموردين وبنود الصرف والقبض المخصصة
@@ -1947,6 +1974,7 @@
             }
 
             if (state === 'online') {
+                if (typeof this.renderPairingQrCode === 'function') this.renderPairingQrCode();
                 const tStr = time ? time.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '';
                 const curShopId = this.getShopId();
                 const pendingQueue = (typeof this.getPendingSyncQueue === 'function') ? await this.getPendingSyncQueue(200) : [];
