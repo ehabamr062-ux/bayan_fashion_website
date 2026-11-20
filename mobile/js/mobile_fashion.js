@@ -212,8 +212,16 @@
         openPinModal();
     }
 
-    // 🔐 آلية الإقران الصارمة بالتحقق المزدوج (Shop ID + Pairing PIN)
+    // 🔐 آلية الإقران الصارمة بالتحقق المزدوج (Shop ID + Pairing PIN + حماية ضد التخمين Rate Limit)
     async function verifyAndPairDevice(shopIdInput, pinInput) {
+        const lockUntil = parseInt(localStorage.getItem('bayan_mob_pair_lock_until') || '0', 10);
+        if (lockUntil > Date.now()) {
+            const remSec = Math.ceil((lockUntil - Date.now()) / 1000);
+            const mins = Math.floor(remSec / 60);
+            const secs = remSec % 60;
+            showToast(`🔒 تم إيقاف المحاولات مؤقتاً لحماية المحل. انتظر ${mins} د و ${secs} ث`, 'error', 5000);
+            return false;
+        }
         let cleanShopId = String(shopIdInput || '').trim();
         let cleanPin = String(pinInput || '').trim();
 
@@ -288,11 +296,21 @@
             const cloudPin = String(raw.pairingPin || '').trim();
 
             if (!cloudPin || cloudPin !== cleanPin) {
-                showToast('رمز الـ PIN غير صحيح لهذا المحل! راجع الرمز المعروض على شاشة الكمبيوتر ❌', 'error', 5000);
+                const fails = parseInt(localStorage.getItem('bayan_mob_pair_fails') || '0', 10) + 1;
+                localStorage.setItem('bayan_mob_pair_fails', String(fails));
+                if (fails >= 5) {
+                    localStorage.setItem('bayan_mob_pair_lock_until', String(Date.now() + 5 * 60 * 1000));
+                    localStorage.setItem('bayan_mob_pair_fails', '0');
+                    showToast('🔒 5 محاولات خاطئة! تم قفل الربط لمدة 5 دقائق لحماية المتجر', 'error', 6000);
+                } else {
+                    showToast(`رمز الـ PIN غير صحيح (${fails}/5)! راجع الرمز المعروض على شاشة الكمبيوتر ❌`, 'error', 5000);
+                }
                 return false;
             }
 
-            // التحقق المزدوج نجح 100%
+            // التحقق المزدوج نجح 100% — تصفير عداد المحاولات الفاشلة
+            localStorage.removeItem('bayan_mob_pair_fails');
+            localStorage.removeItem('bayan_mob_pair_lock_until');
             const matchedShopName = raw.shopName || raw.shop_name || 'بَيَان فاشون';
             State.token = 'PAIRED_' + CONFIG.DEVICE_ID;
             State.terminalLetter = 'B';
@@ -423,12 +441,13 @@
     function startAutoSyncPoll() {
         if (State.pollTimer) clearInterval(State.pollTimer);
         if (!isValidPairedShop(State.shopId)) return;
-        // ترشيد دورة الفحص الدوري كل 30 ثانية لتوفير البطارية والبيانات
+        // مزامنة سريعة كل 12 ثانية مع منع التداخل
         State.pollTimer = setInterval(() => {
-            if (navigator.onLine && isValidPairedShop(State.shopId)) {
-                pullMasterData(false);
+            if (navigator.onLine && isValidPairedShop(State.shopId) && !State.isPulling) {
+                State.isPulling = true;
+                Promise.resolve(pullMasterData(false)).finally(() => { State.isPulling = false; });
             }
-        }, 30000);
+        }, 12000);
     }
 
     // ============================================================

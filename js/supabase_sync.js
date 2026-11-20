@@ -276,17 +276,45 @@
             }
         },
 
-        // 🔐 استرجاع أو توليد رمز الاقتران PIN الفريد لهذا المحل (منع الـ 2026 الافتراضية وحفظه في SQLite)
+        // 🔐 استرجاع أو توليد رمز الاقتران PIN الفريد (صلاحية 30 دقيقة + حد أقصى مرتان لكل كود)
         getPairingPin: function () {
+            const now = Date.now();
+            let meta = null;
+            try {
+                const rawMeta = (typeof getStore === 'function' ? getStore('bayan_shop_pin_meta') : null) || localStorage.getItem('bayan_shop_pin_meta');
+                if (rawMeta) meta = JSON.parse(rawMeta);
+            } catch (e) { }
+
             let pin = (typeof getStore === 'function' ? getStore('bayan_shop_pin') : null) || localStorage.getItem('bayan_shop_pin');
-            if (!pin || pin === '2026') {
-                // توليد رمز PIN عشوائي فريد مكون من 6 أرقام يمنع تداخل المتاجر نهائياً
+            const isExpired = !meta || !meta.expiresAt || now > Number(meta.expiresAt);
+            const isExhausted = meta && Number(meta.usesCount || 0) >= Number(meta.maxUses || 2);
+
+            if (!pin || pin === '2026' || isExpired || isExhausted) {
                 pin = Math.floor(100000 + Math.random() * 900000).toString();
+                meta = {
+                    pin,
+                    createdAt: now,
+                    expiresAt: now + (30 * 60 * 1000),
+                    usesCount: 0,
+                    maxUses: 2
+                };
                 localStorage.setItem('bayan_shop_pin', pin);
-                if (typeof setStore === 'function') setStore('bayan_shop_pin', pin);
-                console.log("🔐 [SupabaseSync] تم توليد رمز PIN فريد للمحل:", pin);
+                localStorage.setItem('bayan_shop_pin_meta', JSON.stringify(meta));
+                if (typeof setStore === 'function') {
+                    setStore('bayan_shop_pin', pin);
+                    setStore('bayan_shop_pin_meta', JSON.stringify(meta));
+                }
+                console.log("🔐 [SupabaseSync] تم توليد رمز PIN جديد (صالح لـ 30 دقيقة / مرتين):", pin);
             }
             return pin;
+        },
+
+        regeneratePairingPin: function () {
+            localStorage.removeItem('bayan_shop_pin_meta');
+            if (typeof setStore === 'function') setStore('bayan_shop_pin_meta', '');
+            const newPin = this.getPairingPin();
+            this.syncPairingPin(newPin).catch(() => { });
+            return newPin;
         },
 
         // ✏️ تعيين وتحديث رمز PIN الخاص بالمحل وحفظه في SQLite والسحابة
@@ -1156,8 +1184,22 @@
                     }
 
                     const alreadyExists = alreadyExistsInMemory || alreadyExistsInDB;
+                    let isNewerRemoteRevision = false;
+                    if (alreadyExists && invId) {
+                        const remUpdatedAt = item.updated_at ? new Date(item.updated_at).getTime() : (raw.updatedAt ? new Date(raw.updatedAt).getTime() : 0);
+                        const localMatch = localTx.find(t => t && String(t.invoiceId) === String(invId));
+                        const localUpdatedAt = localMatch ? new Date(localMatch.updatedAt || localMatch.dateISO || 0).getTime() : 0;
+                        if (remUpdatedAt > (localUpdatedAt + 2000)) {
+                            isNewerRemoteRevision = true;
+                            try {
+                                if (typeof window.revertAndClearOldInvoice === 'function' && localMatch) {
+                                    window.revertAndClearOldInvoice(invId, localMatch.type || 'بيع 📤');
+                                }
+                            } catch (revErr) { console.warn('[SupabaseSync] Revert old revision notice:', revErr); }
+                        }
+                    }
 
-                    if (!alreadyExists && invId) {
+                    if ((!alreadyExists || isNewerRemoteRevision) && invId) {
                         const baseNumId = (raw.numericId && Number.isInteger(Number(raw.numericId)))
                             ? Number(raw.numericId)
                             : (Date.now() + Math.floor(Math.random() * 1000));
@@ -1916,7 +1958,60 @@
             }
         },
 
-        // ⏱️ إدارة المؤقت التلقائي للمزامنة
+        // ⚡ اشتراك لحظي عبر WebSocket (Supabase Realtime) لتحديث الأجهزة خلال 1-2 ثانية
+        startRealtimeSubscription: function () {
+            try {
+                if (this._realtimeWs) {
+                    try { this._realtimeWs.close(); } catch (_) { }
+                    this._realtimeWs = null;
+                }
+                if (this._realtimeHb) {
+                    clearInterval(this._realtimeHb);
+                    this._realtimeHb = null;
+                }
+                const cfg = this.getConfig();
+                const shopId = cfg.shopId || this.getShopId();
+                if (!this._isAllowed() || !this.isValidShopId(shopId) || !cfg.supabaseUrl || !cfg.supabaseKey || typeof WebSocket === 'undefined') {
+                    return;
+                }
+                const wsUrl = cfg.supabaseUrl.replace(/^http/, 'ws') + `/realtime/v1/websocket?apikey=${encodeURIComponent(cfg.supabaseKey)}&vsn=1.0.0`;
+                const ws = new WebSocket(wsUrl);
+                this._realtimeWs = ws;
+                ws.onopen = () => {
+                    const joinPayload = (topic) => JSON.stringify({
+                        topic,
+                        event: 'phx_join',
+                        payload: { config: { postgres_changes: [{ event: '*', schema: 'public', table: topic.split(':')[2] }] } },
+                        ref: String(Date.now())
+                    });
+                    ws.send(joinPayload('realtime:public:transactions'));
+                    ws.send(joinPayload('realtime:public:products'));
+                    this._realtimeHb = setInterval(() => {
+                        if (ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(Date.now()) }));
+                        }
+                    }, 25000);
+                };
+                ws.onmessage = (evt) => {
+                    try {
+                        const msg = JSON.parse(evt.data);
+                        if (msg && msg.event === 'postgres_changes') {
+                            const rec = msg.payload?.data?.record || msg.payload?.data?.old_record || {};
+                            if (rec.id && !String(rec.id).startsWith(shopId)) return;
+                            if (this._rtDebounce) clearTimeout(this._rtDebounce);
+                            this._rtDebounce = setTimeout(() => {
+                                if (!this._isPulling && navigator.onLine && this._isAllowed()) {
+                                    this._isPulling = true;
+                                    this.runFullSync(false).finally(() => { this._isPulling = false; });
+                                }
+                            }, 800);
+                        }
+                    } catch (_) { }
+                };
+            } catch (e) { console.warn('[SupabaseSync] Realtime notice:', e); }
+        },
+
+        // ⏱️ إدارة المؤقت التلقائي للمزامنة (احتياطي كل 12 ثانية مع قفل منع التداخل)
         restartSyncTimer: function () {
             if (this.syncTimer) clearInterval(this.syncTimer);
             if (!this._isAllowed()) {
@@ -1927,12 +2022,13 @@
             if (!this.isValidShopId(shopId)) {
                 return;
             }
+            this.startRealtimeSubscription();
             if (cfg.autoSyncEnabled && cfg.supabaseUrl && cfg.supabaseKey) {
-                // ترشيد دورة الفحص الدوري الكامل إلى 45-60 ثانية مع بقاء الرفع الفوري عبر onDeltaSaved
-                const intervalMs = Math.max(45, cfg.syncIntervalSeconds || 45) * 1000;
+                const intervalMs = Math.max(12, cfg.syncIntervalSeconds || 12) * 1000;
                 this.syncTimer = setInterval(() => {
-                    if (navigator.onLine && this._isAllowed()) {
-                        this.runFullSync(false).catch(() => { });
+                    if (navigator.onLine && this._isAllowed() && !this._isPulling) {
+                        this._isPulling = true;
+                        this.runFullSync(false).catch(() => { }).finally(() => { this._isPulling = false; });
                     }
                 }, intervalMs);
                 if (window._bayanActiveIntervals) window._bayanActiveIntervals.push(this.syncTimer);
