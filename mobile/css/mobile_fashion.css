@@ -2000,6 +2000,10 @@ body {
     padding: 10px;
 }
 
+#bayanDialogOverlay {
+    z-index: 9999 !important;
+}
+
 .vb-rows-header {
     display: grid;
     grid-template-columns: 1fr 1fr 1.1fr;

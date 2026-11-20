@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ============================================================
  * 👗 BAYAN POS FASHION - MOBILE & LIVE DASHBOARD LOGIC
  * High-Performance, Standalone Client Engine (<20KB Zero Lag)
@@ -116,8 +116,10 @@
             cancelBtn.style.display = (mode === 'alert') ? 'none' : 'block';
             okBtn.textContent = (mode === 'alert') ? 'حسناً' : 'تأكيد';
             overlay.style.display = 'flex';
+            overlay.classList.add('active');
 
             const cleanup = (val) => {
+                overlay.classList.remove('active');
                 overlay.style.display = 'none';
                 okBtn.onclick = null;
                 cancelBtn.onclick = null;
