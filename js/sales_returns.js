@@ -2673,12 +2673,19 @@ window.renderSearchInvoiceFilterChips = function (type, filterText = '') {
     if (!document.getElementById(searchInpId)) {
         const placeholder = isSize ? '🔍 ابحث عن المقاس...' : '🔍 ابحث عن اللون...';
         container.innerHTML = `
-            <div style="width: 100%; position: sticky; top: 0; background: #ffffff; padding-bottom: 8px; border-bottom: 1.5px solid #e2e8f0; margin-bottom: 6px; z-index: 2;">
+            <style>
+                .bayan-pop-chip { padding: 6px 12px; border-radius: 8px; border: 1.5px solid #cbd5e1; background: #f1f5f9; color: #0f172a; font-weight: 800; font-size: 0.84rem; cursor: pointer; font-family: inherit; white-space: nowrap; user-select: none; transition: background 0.12s, border-color 0.12s, color 0.12s; }
+                .bayan-pop-chip:hover { background: #d1fae5 !important; border-color: #059669 !important; color: #065f46 !important; opacity: 1 !important; }
+                .bayan-pop-chip.active { background: #059669 !important; border-color: #047857 !important; color: #ffffff !important; }
+                .bayan-pop-chip.active:hover { background: #047857 !important; color: #ffffff !important; }
+                #${searchInpId}:hover, #${searchInpId}:focus { background: #ffffff !important; color: #0f172a !important; opacity: 1 !important; border-color: #059669 !important; }
+            </style>
+            <div style="width: 100%; flex-shrink: 0; background: #ffffff; padding: 14px 16px 10px; border-bottom: 1.5px solid #e2e8f0; box-sizing: border-box;">
                 <input type="text" id="${searchInpId}" autocomplete="off" placeholder="${placeholder}"
-                    style="width: 100%; height: 36px; border: 1.5px solid #059669; border-radius: 8px; padding: 0 12px; font-weight: 800; font-size: 0.85rem; outline: none; box-sizing: border-box; background: #f8fafc; color: #0f172a;"
+                    style="width: 100%; height: 38px; border: 1.5px solid #059669; border-radius: 8px; padding: 0 12px; font-weight: 800; font-size: 0.9rem; outline: none; box-sizing: border-box; background: #ffffff; color: #0f172a; opacity: 1;"
                     oninput="window.renderSearchInvoiceFilterChips('${type}', this.value)">
             </div>
-            <div id="${chipsWrapId}" style="width: 100%; display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start;"></div>
+            <div id="${chipsWrapId}" style="width: 100%; flex: 1; overflow-y: auto; padding: 12px 16px 16px; box-sizing: border-box; display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start;"></div>
         `;
     }
 
@@ -2690,7 +2697,7 @@ window.renderSearchInvoiceFilterChips = function (type, filterText = '') {
     const filtered = cleanFilter ? items.filter(v => String(v).toLowerCase().includes(cleanFilter)) : items;
 
     if (filtered.length === 0) {
-        chipsWrap.innerHTML = '<div style="width:100%; text-align:center; padding:8px; color:#94a3b8; font-size:0.8rem; font-weight:700;">لا توجد قيم مطابقة</div>';
+        chipsWrap.innerHTML = '<div style="width:100%; text-align:center; padding:8px; color:#64748b; font-size:0.85rem; font-weight:800;">لا توجد قيم مطابقة</div>';
         return;
     }
 
@@ -2698,11 +2705,7 @@ window.renderSearchInvoiceFilterChips = function (type, filterText = '') {
     chipsWrap.innerHTML = filtered.map(val => {
         const safeVal = String(val).replace(/'/g, "\\'").replace(/"/g, '&quot;');
         const isActive = (currentVal === val);
-        const bg = isActive ? '#059669' : '#f1f5f9';
-        const clr = isActive ? '#ffffff' : '#1e293b';
-        const brd = isActive ? '#047857' : '#cbd5e1';
-        return `<button type="button" onclick="window.selectSearchInvoiceFilterChip('${type}', '${safeVal}')"
-            style="padding: 5px 11px; border-radius: 8px; border: 1.5px solid ${brd}; background: ${bg}; color: ${clr}; font-weight: 800; font-size: 0.82rem; cursor: pointer; font-family: inherit; transition: 0.15s; white-space: nowrap;">${val}</button>`;
+        return `<div role="button" tabindex="0" class="bayan-pop-chip${isActive ? ' active' : ''}" onclick="window.selectSearchInvoiceFilterChip('${type}', '${safeVal}')">${val}</div>`;
     }).join('');
 };
 
