@@ -1376,7 +1376,7 @@ window.renderCustomInvoiceModal = function (tx, autoPrint = false) {
     let totalItemsDiscount = 0;
     let totalItemsAddition = 0;
 
-    items.forEach(item => {
+    items.forEach((item, idx) => {
         let name = item.name || item.product || item.productName || 'صنف غير محدد';
         let qty = parseFloat(item.qty != null ? item.qty : (item.quantity || 0));
         let unit = item.selectedUnit ? (typeof item.selectedUnit === 'object' ? item.selectedUnit.unitName : item.selectedUnit) : (item.unit || '');
@@ -1436,6 +1436,7 @@ window.renderCustomInvoiceModal = function (tx, autoPrint = false) {
 
         itemsHtml += `
                     <tr style="border-bottom:1px solid #f1f5f9; transition: 0.15s;" onmouseover="this.style.background='#f8fafc';" onmouseout="this.style.background='#ffffff';">
+                        <td style="padding:11px 10px; text-align:center; font-weight:800; color:#64748b; font-size:0.85rem; width:46px;">${idx + 1}</td>
                         <td style="padding:11px 14px; text-align:right; font-weight:800; color:#0f172a; font-size:0.91rem;">${name}</td>
                         ${!isFinancial ? `
                             ${hasVariants ? `
@@ -1703,6 +1704,7 @@ window.renderCustomInvoiceModal = function (tx, autoPrint = false) {
                             <table style="width: 100%; border-collapse: collapse; font-size: 0.88rem;">
                                 <thead style="background: #f8fafc; position: sticky; top: 0; z-index: 5; border-bottom: 2px solid #e2e8f0;">
                                     <tr>
+                                        <th style="padding: 12px 10px; text-align: center; font-size: 0.83rem; color: #334155; width: 46px; font-weight: 900;">م</th>
                                         <th style="padding: 12px 14px; text-align: right; font-size: 0.83rem; color: #334155; font-weight: 900;">${isFinancial ? 'البيان' : 'الصنف'}</th>
                                         ${!isFinancial ? `
                                             ${hasVariants ? `
@@ -1720,7 +1722,7 @@ window.renderCustomInvoiceModal = function (tx, autoPrint = false) {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    ${itemsHtml || '<tr><td colspan="' + (!isFinancial ? (hasVariants ? '7' : '5') : '4') + '" style="text-align:center; padding:24px; color:#94a3b8; font-weight:bold;">لا توجد أصناف</td></tr>'}
+                                    ${itemsHtml || '<tr><td colspan="' + (!isFinancial ? (hasVariants ? '8' : '6') : '5') + '" style="text-align:center; padding:24px; color:#94a3b8; font-weight:bold;">لا توجد أصناف</td></tr>'}
                                 </tbody>
                             </table>
                         </div>

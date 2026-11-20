@@ -1572,7 +1572,7 @@
                 try {
                     const pmRaw = sObj.paymentMethods || sObj.payment_methods || JSON.parse(localStorage.getItem('bayan_payment_methods') || '[]');
                     if (Array.isArray(pmRaw)) customPayMethods = pmRaw;
-                } catch (_) {}
+                } catch (_) { }
                 const subEnd = sObj.subscription_end || cfg.subscriptionEnd || localStorage.getItem('bayan_cloud_sub_end') || '';
                 const payload = [
                     {
@@ -1621,7 +1621,7 @@
             box.innerHTML = '';
             try {
                 new QRCode(box, { text: payload, width: 104, height: 104, colorDark: '#0f172a', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
-            } catch (_) {}
+            } catch (_) { }
         },
 
         downloadPairingQrPng: function () {
@@ -1942,8 +1942,20 @@
             const badge = document.getElementById('supabaseSyncStatusBadge');
             const connText = document.getElementById('supabaseConnectionStatusText');
             const overviewBadge = document.getElementById('supabaseOverviewBadge');
+            const activeContent = document.getElementById('supabaseCloudActiveContent');
+            const lockedBanner = document.getElementById('supabaseCloudLockedBanner');
+
+            const setCloudControlsLocked = (locked) => {
+                if (activeContent) {
+                    activeContent.style.display = locked ? 'none' : 'block';
+                }
+                if (lockedBanner) {
+                    lockedBanner.style.display = locked ? 'block' : 'none';
+                }
+            };
 
             if (state === 'locked') {
+                setCloudControlsLocked(true);
                 const st = (typeof window.getCloudSyncStatus === 'function') ? window.getCloudSyncStatus() : {};
                 const curShopId = this.getShopId();
                 let badgeText = st.label || '🔒 غير مفعلة (باقة أوفلاين)';
@@ -1957,7 +1969,7 @@
                 } else if (st.reason === 'blocked') {
                     badgeText = '🔒 محظور عن بُعد';
                     descText = 'تم إيقاف المزامنة لهذا الجهاز من الإدارة 🔒';
-                } else if (!this.isValidShopId(curShopId)) {
+                } else if (st.allowed !== false && !this.isValidShopId(curShopId)) {
                     badgeText = '⚠️ معرّف المحل غير صالح';
                     descText = 'معرّف المحل غير صالح (يجب أن يبدأ بـ SHOP_) ⚠️';
                 }
@@ -1979,6 +1991,10 @@
                     overviewBadge.style.background = '#fffbeb';
                 }
                 return;
+            }
+
+            if (state !== 'locked') {
+                setCloudControlsLocked(false);
             }
 
             if (state === 'online') {
