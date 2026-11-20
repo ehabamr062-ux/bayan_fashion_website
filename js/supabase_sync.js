@@ -71,7 +71,7 @@
         },
 
         // 🛡️ دالة اتصال آمنة وذكية مزودة بـ AbortController ومهلة زمنية لمنع تجميد أو رمي أخطاء حمراء بالكونسول
-        _safeFetch: async function (url, options = {}, timeoutMs = 3000) {
+        _safeFetch: async function (url, options = {}, timeoutMs = 15000) {
             if (!navigator.onLine) {
                 return {
                     ok: false,
@@ -1816,11 +1816,22 @@
 
             if (state === 'locked') {
                 const st = (typeof window.getCloudSyncStatus === 'function') ? window.getCloudSyncStatus() : {};
-                const isServerExpired = (st.reason === 'cloud_server_expired');
-                const badgeText = isServerExpired ? '⚠️ سيرفر سحابي منتهي' : '🔒 غير مفعلة (باقة أوفلاين)';
-                const descText = isServerExpired
-                    ? 'انتهت صلاحية السيرفر السحابي (يرجى التجديد) ⚠️'
-                    : 'غير مفعلة (مقتصرة على باقات المزامنة السحابية) 🔒';
+                const curShopId = this.getShopId();
+                let badgeText = st.label || '🔒 غير مفعلة (باقة أوفلاين)';
+                let descText = 'الباقة الحالية لا تشمل السحابة 🔒';
+                if (st.reason === 'cloud_server_expired') {
+                    badgeText = '⚠️ انتهى الاشتراك السحابي';
+                    descText = 'انتهت صلاحية الاشتراك السحابي (يرجى التجديد) ⚠️';
+                } else if (st.reason === 'clock_tampered') {
+                    badgeText = '🔒 توقيت الجهاز غير مضبوط';
+                    descText = 'توقيت الجهاز غير مضبوط — يرجى ضبط الساعة ⚠️';
+                } else if (st.reason === 'blocked') {
+                    badgeText = '🔒 محظور عن بُعد';
+                    descText = 'تم إيقاف المزامنة لهذا الجهاز من الإدارة 🔒';
+                } else if (!this.isValidShopId(curShopId)) {
+                    badgeText = '⚠️ معرّف المحل غير صالح';
+                    descText = 'معرّف المحل غير صالح (يجب أن يبدأ بـ SHOP_) ⚠️';
+                }
 
                 if (badge) {
                     badge.innerHTML = badgeText;
@@ -1843,18 +1854,21 @@
 
             if (state === 'online') {
                 const tStr = time ? time.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '';
+                const curShopId = this.getShopId();
+                const pendingCnt = (typeof this.getPendingSyncQueue === 'function') ? (this.getPendingSyncQueue().length || 0) : 0;
+                const pendingLabel = pendingCnt > 0 ? ` | بانتظار: ${pendingCnt}` : '';
                 if (badge) {
-                    badge.innerHTML = `🟢 سحابي نشط (${tStr})`;
+                    badge.innerHTML = `🟢 متصل ويعمل (${curShopId})${tStr ? ' - ' + tStr : ''}${pendingLabel}`;
                     badge.style.color = '#10b981';
                     badge.style.borderColor = '#a7f3d0';
                     badge.style.background = '#ffffff';
                 }
                 if (connText) {
-                    connText.innerHTML = 'متصل ومؤمن ومشفر 🟢';
+                    connText.innerHTML = `متصل ويعمل (المحل: ${curShopId})${pendingLabel} 🟢`;
                     connText.style.color = '#059669';
                 }
                 if (overviewBadge) {
-                    overviewBadge.innerHTML = '🟢 سحابي نشط';
+                    overviewBadge.innerHTML = `🟢 متصل (${curShopId})`;
                     overviewBadge.style.color = '#047857';
                     overviewBadge.style.borderColor = '#a7f3d0';
                     overviewBadge.style.background = '#ecfdf5';
@@ -2010,7 +2024,7 @@
                         }
                         if (Array.isArray(deltaData.modifiedProducts) && deltaData.modifiedProducts.length > 0) {
                             deltaData.modifiedProducts.forEach(p => {
-                                if (p) this.addToSyncQueue('product', 'upsert', p);
+                                if (p) this.addToSyncQueue('product', 'upsert', { ...p, isStockAdjustment: true, isManualStockUpdate: true, updatedAt: p.updatedAt || new Date().toISOString() });
                             });
                         }
                     }
