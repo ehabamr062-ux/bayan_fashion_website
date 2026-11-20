@@ -70,7 +70,9 @@
 
         // Cart & Checkout
         cart: [],
-        selectedPayMethod: 'cash', // 'cash', 'vodafone', 'card'
+        editingInvoiceId: null,
+        editingOriginalTx: null,
+        selectedPayMethod: 'cash', // 'cash', 'vodafone', 'card', 'credit'
         selectedCustomer: 'عميل نقدي',
 
         // Filters
@@ -312,6 +314,22 @@
             localStorage.removeItem('bayan_mob_pair_fails');
             localStorage.removeItem('bayan_mob_pair_lock_until');
             const matchedShopName = raw.shopName || raw.shop_name || 'بَيَان فاشون';
+            localStorage.setItem('bayan_mob_shop_name', matchedShopName);
+            localStorage.setItem('bayan_mob_shop_phone', raw.phone || '');
+            localStorage.setItem('bayan_mob_shop_address', raw.address || '');
+            localStorage.setItem('bayan_mob_receipt_footer', raw.receiptFooter || '');
+            localStorage.setItem('bayan_mob_tax_rate', String(raw.taxRate || 0));
+            localStorage.setItem('bayan_mob_currency', raw.currency || 'ج.م');
+            if (raw.shopLogo) localStorage.setItem('bayan_mob_shop_logo', raw.shopLogo);
+            State.settings = Object.assign({}, State.settings || {}, {
+                shop_name: matchedShopName,
+                shop_phone: raw.phone || '',
+                shop_address: raw.address || '',
+                receipt_footer: raw.receiptFooter || '',
+                tax_rate: parseFloat(raw.taxRate || 0) || 0,
+                currency: raw.currency || 'ج.م',
+                shop_logo: raw.shopLogo || ''
+            });
             State.token = 'PAIRED_' + CONFIG.DEVICE_ID;
             State.terminalLetter = 'B';
             State.shopId = cleanShopId;
@@ -1924,16 +1942,34 @@
         const btn = document.getElementById('btnSubmitInvoice');
         if (btn) btn.disabled = true;
 
+        const isEditing = Boolean(State.editingInvoiceId);
+        const origTx = State.editingOriginalTx;
         try {
             const timestamp = Date.now();
-            const invoiceId = generateInvoiceId();
+            const invoiceId = isEditing ? State.editingInvoiceId : generateInvoiceId();
             const total = State.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
             const custName = (document.getElementById('posCustomerInput')?.value || State.selectedCustomer || 'عميل نقدي').trim() || 'عميل نقدي';
 
-            // إذا كانت طريقة الدفع آجلة (على الحساب)، يجب كتابة أو اختيار اسم العميل
             const isCredit = (State.selectedPayMethod === 'credit');
-            if (isCredit && (!custName || custName === 'عميل نقدي')) {
-                showToast('⚠️ البيع الآجل يتطلب تحديد اسم العميل أو كتابته أولاً لتسجيل المديونية', 'warning');
+            const paidInp = document.getElementById('posPaidAmountInput');
+            let payMethodArabic = 'كاش';
+            let paidAmount = total;
+            let remaining = 0;
+
+            if (isCredit) {
+                payMethodArabic = 'أجل';
+                const rawPaid = paidInp && paidInp.value !== '' ? parseFloat(paidInp.value) : 0;
+                paidAmount = Math.max(0, Math.min(total, isNaN(rawPaid) ? 0 : rawPaid));
+                remaining = Math.max(0, total - paidAmount);
+            } else if (State.selectedPayMethod === 'vodafone') {
+                payMethodArabic = 'فودافون كاش';
+            } else if (State.selectedPayMethod === 'card') {
+                payMethodArabic = 'فيزا';
+            }
+
+            // قيد أمان محاسبي صارم: منع الآجل أو السداد الجزئي (متبقي > 0) بدون عميل مسجل
+            if ((isCredit || remaining > 0.001) && (!custName || custName === 'عميل نقدي')) {
+                showToast('⚠️ البيع الآجل أو السداد الجزئي يتطلب تحديد اسم العميل أولاً لتسجيل المديونية', 'warning');
                 const custInput = document.getElementById('posCustomerInput');
                 if (custInput) {
                     custInput.focus();
@@ -1943,17 +1979,17 @@
                 return;
             }
 
-            let payMethodArabic = 'كاش';
-            let paidAmount = total;
-            let remaining = 0;
-            if (isCredit) {
-                payMethodArabic = 'أجل';
-                paidAmount = 0;
-                remaining = total;
-            } else if (State.selectedPayMethod === 'vodafone') {
-                payMethodArabic = 'فودافون كاش';
-            } else if (State.selectedPayMethod === 'card') {
-                payMethodArabic = 'فيزا';
+            // في حالة التعديل الآمن: إرجاع كميات الفاتورة القديمة للمخزون المحلي وإزالة السجل القديم من الذاكرة فقط قبل تطبيق الجديد
+            if (isEditing && origTx && Array.isArray(origTx.items)) {
+                origTx.items.forEach(oldIt => {
+                    const p = State.products.find(pr => String(pr.id) === String(oldIt.productId));
+                    if (p) {
+                        const q = parseFloat(oldIt.quantity || oldIt.qty || 0);
+                        p.quantity = (parseFloat(p.quantity !== undefined ? p.quantity : (p.stock || 0))) + q;
+                        p.stock = p.quantity;
+                    }
+                });
+                State.transactions = State.transactions.filter(t => String(t.invoiceId || t.id) !== String(invoiceId));
             }
 
             const activeWh = State.activeWarehouse || 'المخزن الرئيسي';
@@ -2082,6 +2118,10 @@
             // 3. اعتماد الفاتورة محلياً فوراً (Local-First Success) وتفريغ السلة
             State.transactions.unshift(newTx);
             State.cart = [];
+            State.editingInvoiceId = null;
+            State.editingOriginalTx = null;
+            const paidInpReset = document.getElementById('posPaidAmountInput');
+            if (paidInpReset) paidInpReset.value = '';
             try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'products', JSON.stringify(State.products)); } catch (e) { }
             try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (e) { }
 
@@ -2788,7 +2828,7 @@
         }
     }
 
-    // ✏️ تعديل فاتورة: استرجاع البضاعة ووضع الأصناف في السلة
+    // ✏️ تعديل فاتورة آمن (Safe Edit بدون حذف مسبق)
     async function editInvoice(invoiceId) {
         const tx = State.transactions.find(t => String(t.invoiceId || t.id) === String(invoiceId));
         if (!tx) {
@@ -2796,14 +2836,10 @@
             return;
         }
 
-        const ok = confirm(`هل تريد تعديل الفاتورة #${tx.invoiceId || tx.id}؟\nسيتم فتح أصنافها في السلة للتعديل وإلغاء الفاتورة القديمة.`);
-        if (!ok) return;
+        State.editingInvoiceId = tx.invoiceId || tx.id;
+        State.editingOriginalTx = JSON.parse(JSON.stringify(tx));
 
-        // حذف الفاتورة القديمة مع استرجاع رصيد المخزن أولاً
-        const deleted = await deleteInvoice(invoiceId, false);
-        if (!deleted) return;
-
-        // وضع أصناف الفاتورة السابقة في السلة
+        // وضع أصناف الفاتورة السابقة في السلة بدون حذف الفاتورة الأصلية
         State.cart = (tx.items || []).map(i => ({
             key: `${i.productId}_${i.size || 'عادي'}_${i.color || 'عام'}`,
             productId: i.productId,
@@ -2816,8 +2852,15 @@
             maxStock: 999
         }));
 
-        // ضبط وسيلة الدفع واسم العميل
-        if (tx.paymentMethod) State.selectedPayMethod = tx.paymentMethod;
+        // ضبط وسيلة الدفع واسم العميل والمبلغ المدفوع
+        const pm = String(tx.paymentMethod || 'كاش');
+        State.selectedPayMethod = (pm.includes('أجل') || pm.includes('آجل') || (parseFloat(tx.remaining || 0) > 0)) ? 'credit'
+            : (pm.includes('فودافون') ? 'vodafone' : (pm.includes('فيزا') ? 'card' : 'cash'));
+        const partialWrap = document.getElementById('posPartialPayWrap');
+        const paidInp = document.getElementById('posPaidAmountInput');
+        if (partialWrap) partialWrap.style.display = (State.selectedPayMethod === 'credit') ? 'block' : 'none';
+        if (paidInp) paidInp.value = (tx.paid !== undefined) ? tx.paid : '';
+
         if (tx.partner) {
             selectCustomer(tx.partner);
         }
@@ -2826,7 +2869,7 @@
         switchTab('pos');
         updateCartCount();
         renderCartView();
-        showToast(`تم فتح أصناف الفاتورة #${tx.invoiceId || tx.id} في السلة للتعديل 🛒`, 'info');
+        showToast(`وضع التعديل الآمن للفاتورة #${State.editingInvoiceId} ✏️`, 'info');
     }
 
     function openInvoiceSuccessModal(tx) {
@@ -5273,6 +5316,8 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                 document.querySelectorAll('.pay-btn-radio').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 State.selectedPayMethod = btn.dataset.method;
+                const partialWrap = document.getElementById('posPartialPayWrap');
+                if (partialWrap) partialWrap.style.display = (State.selectedPayMethod === 'credit') ? 'block' : 'none';
 
                 // إذا اختار آجل والعميل نقدي، نوجه المؤشر فورياً لمربع العميل ونفتح القائمة!
                 if (State.selectedPayMethod === 'credit') {

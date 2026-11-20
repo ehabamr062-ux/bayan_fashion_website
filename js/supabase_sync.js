@@ -1521,7 +1521,10 @@
 
             try {
                 const pairingPin = customPin || this.getPairingPin();
-                const shopName = cfg.shopName || (typeof settings !== 'undefined' ? (settings.shop_name || settings.shopName) : '') || 'بَيَان فاشون';
+                const sObj = (typeof settings !== 'undefined' && settings) ? settings : {};
+                const shopName = cfg.shopName || sObj.shop_name || sObj.shopName || 'بَيَان فاشون';
+                const rawLogo = sObj.shop_logo || sObj.shopLogo || sObj.logo || localStorage.getItem('bayan_shop_logo') || '';
+                const safeLogo = (typeof rawLogo === 'string' && rawLogo.length <= 120000) ? rawLogo : '';
                 const payload = [
                     {
                         id: `CONFIG_DEVICE_PAIRING_${shopId}`,
@@ -1533,6 +1536,12 @@
                         raw_json: {
                             shopId: shopId,
                             shopName: shopName,
+                            phone: sObj.shop_phone || sObj.phone || '',
+                            address: sObj.shop_address || sObj.address || '',
+                            receiptFooter: sObj.receipt_footer || sObj.receiptFooter || '',
+                            taxRate: parseFloat(sObj.tax_rate || sObj.taxRate || 0) || 0,
+                            currency: sObj.currency || 'ج.م',
+                            shopLogo: safeLogo,
                             pairingPin: String(pairingPin).trim(),
                             updatedAt: new Date().toISOString()
                         }
