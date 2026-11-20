@@ -1,4 +1,4 @@
-/* ============================================================
+﻿/* ============================================================
    👗 BAYAN POS FASHION - ULTRA-PREMIUM DUAL THEME SYSTEM
    Light Mode (Default Luxury Boutique) & Dark Mode (Midnight Obsidian)
    ============================================================ */
@@ -24,10 +24,10 @@
     --text-dim: #64748b;
     --text-light: #94a3b8;
 
-    --primary: #2563eb;
-    --primary-hover: #1d4ed8;
-    --primary-glow: rgba(37, 99, 235, 0.25);
-    --primary-subtle: #eff6ff;
+    --primary: #059669;
+    --primary-hover: #047857;
+    --primary-glow: rgba(5, 150, 105, 0.25);
+    --primary-subtle: #ecfdf5;
 
     --gold: #d97706;
     --gold-glow: rgba(217, 119, 6, 0.18);
@@ -74,10 +74,10 @@
     --text-dim: #64748b;
     --text-light: #475569;
 
-    --primary: #3b82f6;
-    --primary-hover: #2563eb;
-    --primary-glow: rgba(59, 130, 246, 0.35);
-    --primary-subtle: rgba(59, 130, 246, 0.15);
+    --primary: #10b981;
+    --primary-hover: #059669;
+    --primary-glow: rgba(16, 185, 129, 0.35);
+    --primary-subtle: rgba(16, 185, 129, 0.15);
 
     --gold: #f59e0b;
     --gold-glow: rgba(245, 158, 11, 0.3);
@@ -143,7 +143,7 @@ body {
     position: sticky;
     top: 0;
     z-index: 1000;
-    height: 60px;
+    height: 58px;
     padding: 0 12px;
     background: var(--topbar-bg);
     backdrop-filter: blur(20px);
@@ -585,11 +585,11 @@ body {
    💰 DASHBOARD & CASH HERO CARD (ROYAL VIOLET / PURPLE MESH GRADIENT)
    ============================================================ */
 .drawer-hero-card {
-    background: linear-gradient(135deg, #4c1d95 0%, #6d28d9 45%, #7c3aed 80%, #8b5cf6 100%);
+    background: linear-gradient(135deg, #065f46 0%, #059669 100%);
     border-radius: var(--radius-lg);
-    padding: 22px 20px;
+    padding: 20px;
     color: #ffffff;
-    box-shadow: 0 16px 36px -6px rgba(109, 40, 217, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.22) inset;
+    box-shadow: 0 12px 28px -6px rgba(5, 150, 105, 0.38), 0 0 0 1px rgba(255, 255, 255, 0.18) inset;
     margin-bottom: 20px;
     position: relative;
     overflow: hidden;
@@ -1398,13 +1398,13 @@ body {
     justify-content: center;
     font-size: 0.85rem;
     font-weight: 800;
-    min-height: 42px;
+    min-height: 38px;
     min-width: 42px;
     padding: 8px 14px;
     border-radius: 12px;
     background: var(--primary-subtle);
     color: var(--primary);
-    border: 1.5px solid rgba(37, 99, 235, 0.28);
+    border: 1.5px solid rgba(5, 150, 105, 0.28);
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     user-select: none;
@@ -4102,7 +4102,7 @@ body {
    🎯 MODERN FILTER DROPDOWN SELECT CARDS (PERIOD & TRANSACTIONS)
    ============================================================ */
 .filter-dropdown-card {
-    background: var(--surface);
+    background: var(--bg-card);
     border: 1.5px solid var(--border-subtle);
     border-radius: var(--radius-md);
     padding: 14px 16px;
@@ -4187,7 +4187,7 @@ body {
 .modern-select-dropdown:focus {
     border-color: #7c3aed;
     box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.18);
-    background: var(--surface);
+    background: var(--bg-card);
 }
 
 .select-arrow-icon {
@@ -4317,7 +4317,7 @@ body {
 
 /* Stocktake Modal Sheet */
 .stocktake-sheet {
-    background: var(--surface);
+    background: var(--bg-card);
     border-radius: 20px 20px 0 0;
     padding: 20px 18px 30px;
     max-width: 520px;
@@ -4359,7 +4359,7 @@ body {
 }
 
 .stocktake-wh-select {
-    background: var(--surface);
+    background: var(--bg-card);
     border: 1px solid var(--border-subtle);
     border-radius: 8px;
     padding: 6px 10px;
@@ -4377,7 +4377,7 @@ body {
 }
 
 .stocktake-suggestions-list {
-    background: var(--surface);
+    background: var(--bg-card);
     border: 1.5px solid var(--border-subtle);
     border-radius: 12px;
     max-height: 180px;
@@ -4453,7 +4453,7 @@ body {
 }
 
 .btn-step-stock {
-    background: var(--surface);
+    background: var(--bg-card);
     border: 1.5px solid var(--border-subtle);
     color: var(--text-main);
     width: 44px;
@@ -4480,7 +4480,7 @@ body {
     font-weight: 900;
     font-family: monospace;
     color: #7c3aed;
-    background: var(--surface);
+    background: var(--bg-card);
     border: 2px solid #7c3aed;
     border-radius: 12px;
     outline: none;
@@ -4573,3 +4573,4 @@ body {
     border-color: #334155;
     color: #f1f5f9;
 }
+

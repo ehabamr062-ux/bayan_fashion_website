@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 
 <head>
@@ -16,7 +16,7 @@
 
     <!-- خط القاهرة والأيقونات -->
     <link rel="stylesheet" href="../fonts/cairo.css">
-    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.6">
+    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.21">
     <style id="mobile-fashion-android-overhaul"></style>
     <script>
         // إعداد الوضع الفاتح كالوضع الافتراضي الفوري
@@ -72,7 +72,8 @@
                 title="تبديل مظهر الشاشة (فاتح / داكن)">
                 ☀️
             </button>
-            <button type="button" id="topSyncBtn" class="btn-icon-top" onclick="window.BayanMobile.reconnect()" title="تحديث ومزامنة البيانات">
+            <button type="button" id="topSyncBtn" class="btn-icon-top" onclick="window.BayanMobile.reconnect()"
+                title="تحديث ومزامنة البيانات">
                 🔄
             </button>
         </div>
@@ -87,7 +88,8 @@
         <section id="view-dashboard" class="tab-view active">
 
             <!-- 🔔 شريط تنبيه الاقتران في حال لم يتم ربط الهاتف بكود المحل بعد -->
-            <div id="dashUnpairedNotice" class="unpaired-notice-banner" style="display: none;" onclick="window.BayanMobile.openPinModal()">
+            <div id="dashUnpairedNotice" class="unpaired-notice-banner" style="display: none;"
+                onclick="window.BayanMobile.openPinModal()">
                 <div class="notice-icon">⚡</div>
                 <div class="notice-content">
                     <div class="notice-title">الهاتف غير مقترن بفرعك بعد!</div>
@@ -106,7 +108,8 @@
                     <span id="activePeriodLabel" class="active-period-badge">اليوم</span>
                 </div>
                 <div class="custom-select-wrap">
-                    <select id="dashboardPeriodSelect" class="modern-select-dropdown" onchange="window.BayanMobile.onPeriodSelectChange(this.value)">
+                    <select id="dashboardPeriodSelect" class="modern-select-dropdown"
+                        onchange="window.BayanMobile.onPeriodSelectChange(this.value)">
                         <option value="today" selected>🌟 اليوم (فواتير وحركات اليوم الحالية)</option>
                         <option value="yesterday">⏪ الأمس (حركات ومبيعات الأمس)</option>
                         <option value="week">🗓️ آخر 7 أيام (أسبوع كامل)</option>
@@ -120,7 +123,8 @@
                 <div id="customDateRangeBox" class="custom-date-box" style="display: none; margin-top: 10px;">
                     <div class="custom-date-header">
                         <span class="custom-date-title"><span>📅</span> تحديد فترة زمنية مخصصة:</span>
-                        <button type="button" class="btn-close-custom-date" onclick="window.BayanMobile.toggleCustomDateRange()">✕ إغلاق</button>
+                        <button type="button" class="btn-close-custom-date"
+                            onclick="window.BayanMobile.toggleCustomDateRange()">✕ إغلاق</button>
                     </div>
                     <div class="custom-date-inputs">
                         <div class="custom-date-field">
@@ -132,7 +136,8 @@
                             <input type="date" id="dashCustomEndDate" class="custom-date-input">
                         </div>
                     </div>
-                    <button type="button" class="btn-apply-custom-date" onclick="window.BayanMobile.applyCustomDateRange()">
+                    <button type="button" class="btn-apply-custom-date"
+                        onclick="window.BayanMobile.applyCustomDateRange()">
                         <span>⚡</span> تطبيق ومزامنة فواتير الفترة
                     </button>
                 </div>
@@ -200,7 +205,8 @@
             </div>
 
             <!-- ⚠️ تنبيه نواقص المخزن السريع -->
-            <div id="dashLowStockBanner" class="low-stock-alert-card" style="display: none;" onclick="window.BayanMobile.filterByLowStock()">
+            <div id="dashLowStockBanner" class="low-stock-alert-card" style="display: none;"
+                onclick="window.BayanMobile.filterByLowStock()">
                 <div class="low-stock-icon">⚠️</div>
                 <div class="low-stock-info">
                     <h4 id="dashLowStockTitle">تنبيه نواقص المخزن (0 أصناف)</h4>
@@ -213,7 +219,8 @@
             <div class="activity-section-header">
                 <div class="section-headline" style="margin-bottom: 8px;">
                     <h3><span>🧾</span> <span id="dashRecentInvoicesTitle">أحدث حركات اليوم</span></h3>
-                    <span id="dashRecentInvoicesSub" style="font-size: 0.72rem; color: var(--text-dim); font-weight: 700;">تحديث حي فوري ⚡</span>
+                    <span id="dashRecentInvoicesSub"
+                        style="font-size: 0.72rem; color: var(--text-dim); font-weight: 700;">تحديث حي فوري ⚡</span>
                 </div>
 
                 <div class="tx-filter-dropdown-wrap">
@@ -221,7 +228,8 @@
                         <span>🔍</span> تصفية نوع الحركة:
                     </label>
                     <div class="custom-select-wrap">
-                        <select id="txTypeFilterSelect" class="modern-select-dropdown" onchange="window.BayanMobile.setTxTypeFilter(this.value)">
+                        <select id="txTypeFilterSelect" class="modern-select-dropdown"
+                            onchange="window.BayanMobile.setTxTypeFilter(this.value)">
                             <option value="all">📋 كل الأقسام والحركات (الكل)</option>
                             <option value="sale">🛍️ فواتير البيع (مبيعات)</option>
                             <option value="purchase">📦 فواتير الشراء (مشتريات)</option>
@@ -252,7 +260,8 @@
                     <span class="search-icon">🔍</span>
                     <input type="text" id="productSearchInput" placeholder="ابحث باسم الموديل أو الكود أو الباركود..."
                         autocomplete="off">
-                    <button type="button" id="productSearchClearBtn" class="search-clear-btn" onclick="window.BayanMobile.clearProductSearch()" title="مسح النص">✕</button>
+                    <button type="button" id="productSearchClearBtn" class="search-clear-btn"
+                        onclick="window.BayanMobile.clearProductSearch()" title="مسح النص">✕</button>
                 </div>
                 <button type="button" class="btn-scan-camera" onclick="window.BayanMobile.triggerCameraScan()"
                     title="مسح الباركود بكاميرا الموبايل">
@@ -268,7 +277,8 @@
                 <div id="categoriesScroll" class="cat-chips-scroll" style="margin-bottom: 0; flex: 1;">
                     <!-- يُملأ برمجياً -->
                 </div>
-                <button type="button" class="btn-open-stocktake" onclick="window.BayanMobile.openStocktakeModal()" title="جرد سريع للمخزن">
+                <button type="button" class="btn-open-stocktake" onclick="window.BayanMobile.openStocktakeModal()"
+                    title="جرد سريع للمخزن">
                     <span>📦</span> جرد
                 </button>
                 <button type="button" class="btn-open-add-product" onclick="window.BayanMobile.openAddProductModal()">
@@ -288,8 +298,10 @@
         <section id="view-pos" class="tab-view">
             <div class="cart-header-chip">
                 <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-weight: 900; font-size: 0.95rem; color: #ffffff;">🛒 سلة البيع المباشر</span>
-                    <span id="posActiveWarehouseBadge" class="warehouse-badge" onclick="window.BayanMobile.openSettingSubPage('branch', true)" title="المخزن النشط - اضغط للتبديل">📦 المخزن الرئيسي</span>
+                    <span style="font-weight: 900; font-size: 0.95rem; color: var(--text-main);">🛒 سلة البيع المباشر</span>
+                    <span id="posActiveWarehouseBadge" class="warehouse-badge"
+                        onclick="window.BayanMobile.openSettingSubPage('branch', true)"
+                        title="المخزن النشط - اضغط للتبديل">📦 المخزن الرئيسي</span>
                 </div>
                 <span style="font-size: 0.75rem; color: var(--emerald); font-weight: 800;">⚡ ترحيل لحظي للماستر</span>
             </div>
@@ -311,15 +323,18 @@
                     </div>
                     <div class="customer-input-wrap">
                         <span class="customer-icon-left">🔍</span>
-                        <input type="text" id="posCustomerInput" placeholder="عميل نقدي (أو اكتب اسم / هاتف العميل...)" value="عميل نقدي" autocomplete="off">
-                        <button type="button" class="btn-clear-customer" onclick="window.BayanMobile.resetCustomer()" title="إعادة تعيين لعميل نقدي">✕</button>
+                        <input type="text" id="posCustomerInput" placeholder="عميل نقدي (أو اكتب اسم / هاتف العميل...)"
+                            value="عميل نقدي" autocomplete="off">
+                        <button type="button" class="btn-clear-customer" onclick="window.BayanMobile.resetCustomer()"
+                            title="إعادة تعيين لعميل نقدي">✕</button>
                         <div id="posCustomerDropdown" class="customer-dropdown"></div>
                     </div>
                     <!-- شريط تنبيه رصيد العميل المختار (له أو عليه) -->
                     <div id="posCustomerBalanceBanner" class="customer-balance-banner" style="display: none;"></div>
                 </div>
 
-                <div style="font-size: 0.85rem; font-weight: 900; color: var(--text-main); margin-bottom: 8px;">💳 وسيلة الدفع:
+                <div style="font-size: 0.85rem; font-weight: 900; color: var(--text-main); margin-bottom: 8px;">💳 وسيلة
+                    الدفع:
                 </div>
                 <div class="pay-methods-grid">
                     <div class="pay-btn-radio active" data-method="cash">
@@ -340,9 +355,13 @@
                     </div>
                 </div>
 
-                <div id="posPartialPayWrap" style="display: none; margin-bottom: 10px; background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.4); border-radius: 10px; padding: 10px;">
-                    <label for="posPaidAmountInput" style="display: block; font-size: 0.78rem; font-weight: 800; color: var(--text-main); margin-bottom: 6px;">💵 المبلغ المدفوع الآن (اتركه 0 للآجل بالكامل):</label>
-                    <input type="number" id="posPaidAmountInput" min="0" step="0.01" placeholder="0.00" style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-weight: 800; font-size: 0.95rem;" />
+                <div id="posPartialPayWrap"
+                    style="display: none; margin-bottom: 10px; background: rgba(245, 158, 11, 0.08); border: 1px dashed rgba(245, 158, 11, 0.4); border-radius: 10px; padding: 10px;">
+                    <label for="posPaidAmountInput"
+                        style="display: block; font-size: 0.78rem; font-weight: 800; color: var(--text-main); margin-bottom: 6px;">💵
+                        المبلغ المدفوع الآن (اتركه 0 للآجل بالكامل):</label>
+                    <input type="number" id="posPaidAmountInput" min="0" step="0.01" placeholder="0.00"
+                        style="width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-main); font-weight: 800; font-size: 0.95rem;" />
                 </div>
 
                 <div class="summary-row">
@@ -377,7 +396,8 @@
         <section id="view-accounts" class="tab-view">
 
             <!-- بطاقة ملخص الحسابات والديون الرئيسية -->
-            <div class="drawer-hero-card" style="background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); box-shadow: 0 12px 28px -4px rgba(14, 165, 233, 0.35); padding: 18px 20px;">
+            <div class="drawer-hero-card"
+                style="background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%); box-shadow: 0 12px 28px -4px rgba(14, 165, 233, 0.35); padding: 18px 20px;">
                 <div class="drawer-header">
                     <span class="drawer-title">
                         <span>👥</span> ملخص الحسابات والأرصدة المسجلة
@@ -386,13 +406,21 @@
                 </div>
 
                 <div class="drawer-meta-grid" style="grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 6px;">
-                    <div class="drawer-meta-item" style="background: rgba(0,0,0,0.22); padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.15);">
-                        <div class="drawer-meta-label" style="color: #fecdd3; font-weight: 800; font-size: 0.72rem;">🔴 مديونيات لنا (على العملاء)</div>
-                        <div id="statTotalClientsDebt" class="drawer-meta-val" style="color: #fff; font-size: 1.15rem; font-family: monospace; font-weight: 900;">0.00 ج.م</div>
+                    <div class="drawer-meta-item"
+                        style="background: rgba(0,0,0,0.22); padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.15);">
+                        <div class="drawer-meta-label" style="color: #fecdd3; font-weight: 800; font-size: 0.72rem;">🔴
+                            مديونيات لنا (على العملاء)</div>
+                        <div id="statTotalClientsDebt" class="drawer-meta-val"
+                            style="color: var(--text-main); font-size: 1.15rem; font-family: monospace; font-weight: 900;">0.00 ج.م
+                        </div>
                     </div>
-                    <div class="drawer-meta-item" style="background: rgba(0,0,0,0.22); padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.15);">
-                        <div class="drawer-meta-label" style="color: #fed7aa; font-weight: 800; font-size: 0.72rem;">🏢 مستحقات علينا (للموردين)</div>
-                        <div id="statTotalSuppliersCredit" class="drawer-meta-val" style="color: #fff; font-size: 1.15rem; font-family: monospace; font-weight: 900;">0.00 ج.م</div>
+                    <div class="drawer-meta-item"
+                        style="background: rgba(0,0,0,0.22); padding: 10px 12px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.15);">
+                        <div class="drawer-meta-label" style="color: #fed7aa; font-weight: 800; font-size: 0.72rem;">🏢
+                            مستحقات علينا (للموردين)</div>
+                        <div id="statTotalSuppliersCredit" class="drawer-meta-val"
+                            style="color: var(--text-main); font-size: 1.15rem; font-family: monospace; font-weight: 900;">0.00 ج.م
+                        </div>
                     </div>
                 </div>
             </div>
@@ -401,24 +429,30 @@
             <div class="accounts-search-row">
                 <div class="account-search-box-wrap">
                     <span class="account-search-icon">🔍</span>
-                    <input type="text" id="accountSearchInput" class="account-search-input" placeholder="ابحث باسم العميل أو المورد أو الهاتف..."
+                    <input type="text" id="accountSearchInput" class="account-search-input"
+                        placeholder="ابحث باسم العميل أو المورد أو الهاتف..."
                         oninput="window.BayanMobile.onAccountSearchInput(this.value)" autocomplete="off">
-                    <button type="button" id="accountSearchClear" class="account-search-clear-btn" style="display: none;"
-                        onclick="window.BayanMobile.clearAccountSearch()" aria-label="تفريغ البحث">✖</button>
+                    <button type="button" id="accountSearchClear" class="account-search-clear-btn"
+                        style="display: none;" onclick="window.BayanMobile.clearAccountSearch()"
+                        aria-label="تفريغ البحث">✖</button>
                 </div>
-                <button type="button" class="btn-add-account-top"
-                    onclick="window.BayanMobile.openAddAccountModal()">
+                <button type="button" class="btn-add-account-top" onclick="window.BayanMobile.openAddAccountModal()">
                     <span>➕</span> حساب جديد
                 </button>
             </div>
 
             <!-- أشرطة التصنيف والفلترة الكبسولية (الكل / عملاء / موردين / عليهم / لهم) -->
             <div class="accounts-pill-switcher">
-                <div class="acc-pill-btn active" id="accFilterAll" onclick="window.BayanMobile.setAccountFilter('all')">✨ كافة الحسابات</div>
-                <div class="acc-pill-btn" id="accFilterClients" onclick="window.BayanMobile.setAccountFilter('clients')">👤 العملاء</div>
-                <div class="acc-pill-btn" id="accFilterSuppliers" onclick="window.BayanMobile.setAccountFilter('suppliers')">🏢 الموردين</div>
-                <div class="acc-pill-btn debt-pill" id="accFilterDebt" onclick="window.BayanMobile.setAccountFilter('debt')">🔴 عليهم مديونية</div>
-                <div class="acc-pill-btn credit-pill" id="accFilterCredit" onclick="window.BayanMobile.setAccountFilter('credit')">🟢 لهم رصيد</div>
+                <div class="acc-pill-btn active" id="accFilterAll" onclick="window.BayanMobile.setAccountFilter('all')">
+                    ✨ كافة الحسابات</div>
+                <div class="acc-pill-btn" id="accFilterClients"
+                    onclick="window.BayanMobile.setAccountFilter('clients')">👤 العملاء</div>
+                <div class="acc-pill-btn" id="accFilterSuppliers"
+                    onclick="window.BayanMobile.setAccountFilter('suppliers')">🏢 الموردين</div>
+                <div class="acc-pill-btn debt-pill" id="accFilterDebt"
+                    onclick="window.BayanMobile.setAccountFilter('debt')">🔴 عليهم مديونية</div>
+                <div class="acc-pill-btn credit-pill" id="accFilterCredit"
+                    onclick="window.BayanMobile.setAccountFilter('credit')">🟢 لهم رصيد</div>
             </div>
 
             <!-- قائمة الحسابات والعملاء والموردين -->
@@ -441,17 +475,20 @@
                 <div class="settings-list-card">
                     <!-- 1. الفرع والمخزن النشط -->
                     <div class="settings-nav-item" onclick="window.BayanMobile.openSettingSubPage('branch')">
-                        <div class="settings-item-icon" style="background: rgba(99, 102, 241, 0.12); color: var(--primary);">🏬</div>
+                        <div class="settings-item-icon"
+                            style="background: rgba(99, 102, 241, 0.12); color: var(--primary);">🏬</div>
                         <div class="settings-item-content">
                             <div class="settings-item-title">الفرع والمخزن النشط</div>
-                            <div id="settingSnippetBranch" class="settings-item-subtitle">بَيَان فاشون • المخزن الرئيسي</div>
+                            <div id="settingSnippetBranch" class="settings-item-subtitle">بَيَان فاشون • المخزن الرئيسي
+                            </div>
                         </div>
                         <div class="settings-item-arrow">‹</div>
                     </div>
 
                     <!-- 2. مظهر وثيم التطبيق -->
                     <div class="settings-nav-item" onclick="window.BayanMobile.openSettingSubPage('theme')">
-                        <div class="settings-item-icon" style="background: rgba(245, 158, 11, 0.12); color: var(--gold);">🎨</div>
+                        <div class="settings-item-icon"
+                            style="background: rgba(245, 158, 11, 0.12); color: var(--gold);">🎨</div>
                         <div class="settings-item-content">
                             <div class="settings-item-title">مظهر وثيم التطبيق</div>
                             <div id="settingSnippetTheme" class="settings-item-subtitle">الوضع الفاتح ✨ (افتراضي)</div>
@@ -461,20 +498,24 @@
 
                     <!-- 3. بيانات المتجر وفاتورة الموبايل -->
                     <div class="settings-nav-item" onclick="window.BayanMobile.openSettingSubPage('invoice')">
-                        <div class="settings-item-icon" style="background: rgba(16, 185, 129, 0.12); color: var(--emerald);">🧾</div>
+                        <div class="settings-item-icon"
+                            style="background: rgba(16, 185, 129, 0.12); color: var(--emerald);">🧾</div>
                         <div class="settings-item-content">
                             <div class="settings-item-title">بيانات المتجر وفاتورة الموبايل</div>
-                            <div id="settingSnippetInvoice" class="settings-item-subtitle">الاسم، الهاتف، وتذييل الواتساب</div>
+                            <div id="settingSnippetInvoice" class="settings-item-subtitle">الاسم، الهاتف، وتذييل
+                                الواتساب</div>
                         </div>
                         <div class="settings-item-arrow">‹</div>
                     </div>
 
                     <!-- 4. قفل الخزينة برقم سري (PIN) -->
                     <div class="settings-nav-item" onclick="window.BayanMobile.openSettingSubPage('security')">
-                        <div class="settings-item-icon" style="background: rgba(244, 63, 94, 0.12); color: var(--rose);">🔐</div>
+                        <div class="settings-item-icon"
+                            style="background: rgba(244, 63, 94, 0.12); color: var(--rose);">🔐</div>
                         <div class="settings-item-content">
                             <div class="settings-item-title">قفل الخزينة واليومية (PIN)</div>
-                            <div id="settingSnippetSecurity" class="settings-item-subtitle">حماية رصيد الدرج من البائعين</div>
+                            <div id="settingSnippetSecurity" class="settings-item-subtitle">حماية رصيد الدرج من البائعين
+                            </div>
                         </div>
                         <div class="settings-item-arrow">‹</div>
                     </div>
@@ -484,50 +525,59 @@
                 <div class="settings-list-card">
                     <!-- 5. تفضيلات البيع السريع والماسح -->
                     <div class="settings-nav-item" onclick="window.BayanMobile.openSettingSubPage('pos_prefs')">
-                        <div class="settings-item-icon" style="background: rgba(2, 132, 199, 0.12); color: #0284c7;">📳</div>
+                        <div class="settings-item-icon" style="background: rgba(2, 132, 199, 0.12); color: #0284c7;">📳
+                        </div>
                         <div class="settings-item-content">
                             <div class="settings-item-title">تفضيلات البيع السريع والماسح</div>
-                            <div id="settingSnippetPos" class="settings-item-subtitle">الاهتزاز، الأصوات، وإخفاء النواقص</div>
+                            <div id="settingSnippetPos" class="settings-item-subtitle">الاهتزاز، الأصوات، وإخفاء النواقص
+                            </div>
                         </div>
                         <div class="settings-item-arrow">‹</div>
                     </div>
 
                     <!-- 6. إدارة البيانات والمزامنة الكاملة -->
                     <div class="settings-nav-item" onclick="window.BayanMobile.openSettingSubPage('sync_data')">
-                        <div class="settings-item-icon" style="background: rgba(16, 185, 129, 0.12); color: var(--emerald);">🔄</div>
+                        <div class="settings-item-icon"
+                            style="background: rgba(16, 185, 129, 0.12); color: var(--emerald);">🔄</div>
                         <div class="settings-item-content">
                             <div class="settings-item-title">إدارة البيانات والمزامنة الشاملة</div>
-                            <div id="settingSnippetSync" class="settings-item-subtitle">الذاكرة المؤقتة والتحديث الجذري</div>
+                            <div id="settingSnippetSync" class="settings-item-subtitle">الذاكرة المؤقتة والتحديث الجذري
+                            </div>
                         </div>
                         <div class="settings-item-arrow">‹</div>
                     </div>
 
                     <!-- 7. طابعة الفواتير البلوتوث -->
                     <div class="settings-nav-item" onclick="window.BayanMobile.openSettingSubPage('printer')">
-                        <div class="settings-item-icon" style="background: rgba(139, 92, 246, 0.12); color: #8b5cf6;">🖨️</div>
+                        <div class="settings-item-icon" style="background: rgba(139, 92, 246, 0.12); color: #8b5cf6;">
+                            🖨️</div>
                         <div class="settings-item-content">
                             <div class="settings-item-title">طابعة الفواتير البلوتوث</div>
-                            <div id="settingSnippetPrinter" class="settings-item-subtitle">الطباعة الحرارية ومقاس الورق</div>
+                            <div id="settingSnippetPrinter" class="settings-item-subtitle">الطباعة الحرارية ومقاس الورق
+                            </div>
                         </div>
                         <div class="settings-item-arrow">‹</div>
                     </div>
 
                     <!-- 8. معلومات النظام والدعم الفني -->
                     <div class="settings-nav-item" onclick="window.BayanMobile.openSettingSubPage('about')">
-                        <div class="settings-item-icon" style="background: rgba(100, 116, 139, 0.15); color: var(--text-dim);">ℹ️</div>
+                        <div class="settings-item-icon"
+                            style="background: rgba(100, 116, 139, 0.15); color: var(--text-dim);">ℹ️</div>
                         <div class="settings-item-content">
                             <div class="settings-item-title">معلومات النظام والدعم الفني</div>
-                            <div class="settings-item-subtitle">الإصدار v5.1.6 • واتساب المساعدة</div>
+                            <div class="settings-item-subtitle">الإصدار v5.1.21 • واتساب المساعدة</div>
                         </div>
                         <div class="settings-item-arrow">‹</div>
                     </div>
 
                     <!-- 9. النسخ الاحتياطي والأمان السحابي -->
                     <div class="settings-nav-item" onclick="window.BayanMobile.openSettingSubPage('backup')">
-                        <div class="settings-item-icon" style="background: rgba(124, 58, 237, 0.12); color: #7c3aed;">☁️</div>
+                        <div class="settings-item-icon" style="background: rgba(124, 58, 237, 0.12); color: #7c3aed;">☁️
+                        </div>
                         <div class="settings-item-content">
                             <div class="settings-item-title">النسخ الاحتياطي والأمان السحابي</div>
-                            <div id="settingSnippetBackup" class="settings-item-subtitle">حفظ واستعادة قاعدة البيانات بضغطة زر</div>
+                            <div id="settingSnippetBackup" class="settings-item-subtitle">حفظ واستعادة قاعدة البيانات
+                                بضغطة زر</div>
                         </div>
                         <div class="settings-item-arrow">‹</div>
                     </div>
@@ -550,8 +600,10 @@
                     <div class="settings-card branch-settings-card">
                         <div class="branch-card-header">
                             <div>
-                                <h4 class="settings-card-title" style="margin-bottom: 2px;">🏬 المتجر والفرع المرتبط (Store ID)</h4>
-                                <p class="settings-card-desc" style="margin-bottom: 0;">المحل أو الفرع الذي يتصل به هذا الهاتف لعزل المبيعات والخزينة:</p>
+                                <h4 class="settings-card-title" style="margin-bottom: 2px;">🏬 المتجر والفرع المرتبط
+                                    (Store ID)</h4>
+                                <p class="settings-card-desc" style="margin-bottom: 0;">المحل أو الفرع الذي يتصل به هذا
+                                    الهاتف لعزل المبيعات والخزينة:</p>
                             </div>
                             <span id="shopStatusBadge" class="shop-status-badge">⚡ متصل سحابياً</span>
                         </div>
@@ -567,28 +619,37 @@
                             </div>
                             <div class="branch-info-row">
                                 <span class="branch-info-label">المخزن النشط للبيع:</span>
-                                <span id="currentWarehouseDisplay" class="branch-info-val" style="color: var(--primary); font-weight: 800;">المخزن الرئيسي 📦</span>
+                                <span id="currentWarehouseDisplay" class="branch-info-val"
+                                    style="color: var(--primary); font-weight: 800;">المخزن الرئيسي 📦</span>
                             </div>
                         </div>
 
                         <div class="branch-edit-form" style="margin-top: 14px;">
                             <div class="form-group" style="margin-bottom: 12px;">
                                 <label class="form-label" for="settingShopIdInput">كود الفرع السحابي (Shop ID):</label>
-                                <input type="text" id="settingShopIdInput" class="form-input" placeholder="مثال: SHOP_CAIRO_1 أو SHOP_DEFAULT" autocomplete="off" style="font-family: monospace; font-weight: 800;">
+                                <input type="text" id="settingShopIdInput" class="form-input"
+                                    placeholder="مثال: SHOP_CAIRO_1 أو SHOP_DEFAULT" autocomplete="off"
+                                    style="font-family: monospace; font-weight: 800;">
                             </div>
 
                             <div class="form-group" style="margin-bottom: 14px;">
-                                <label class="form-label" for="settingWarehouseSelect">المخزن النشط لصرف البضاعة بالهاتف: 📦</label>
-                                <select id="settingWarehouseSelect" class="form-input" style="font-weight: 800; cursor: pointer;" onchange="window.BayanMobile.onWarehouseSelectChange(this.value)">
+                                <label class="form-label" for="settingWarehouseSelect">المخزن النشط لصرف البضاعة
+                                    بالهاتف: 📦</label>
+                                <select id="settingWarehouseSelect" class="form-input"
+                                    style="font-weight: 800; cursor: pointer;"
+                                    onchange="window.BayanMobile.onWarehouseSelectChange(this.value)">
                                     <!-- يتم ملؤه تلقائياً بالمخازن الحقيقية المسجلة على اللابتوب -->
                                     <option value="المخزن الرئيسي">المخزن الرئيسي 🏬</option>
                                 </select>
-                                <div style="font-size: 0.73rem; color: var(--text-dim); margin-top: 5px; line-height: 1.4;">
-                                    💡 يتم جلب المخازن تلقائياً عبر المزامنة من برنامج اللابتوب، وعند اختيار مخزن يتم عرض وحسم بضاعة هذا المخزن بالذات.
+                                <div
+                                    style="font-size: 0.73rem; color: var(--text-dim); margin-top: 5px; line-height: 1.4;">
+                                    💡 يتم جلب المخازن تلقائياً عبر المزامنة من برنامج اللابتوب، وعند اختيار مخزن يتم
+                                    عرض وحسم بضاعة هذا المخزن بالذات.
                                 </div>
                             </div>
 
-                            <button type="button" class="btn-complete-invoice" style="margin-bottom: 10px;" onclick="window.BayanMobile.saveShopBranch()">
+                            <button type="button" class="btn-complete-invoice" style="margin-bottom: 10px;"
+                                onclick="window.BayanMobile.saveShopBranch()">
                                 <span>💾</span> حفظ إعدادات الفرع والمخزن
                             </button>
 
@@ -603,16 +664,19 @@
                 <div id="panel_theme" class="setting-detail-panel" style="display: none;">
                     <div class="settings-card">
                         <h4 class="settings-card-title">🎨 مظهر التطبيق وثيم الألوان</h4>
-                        <p class="settings-card-desc">اختر المظهر المريح لعينك (الوضع الفاتح هو الافتراضي لعرض الفاشون بأعلى دقة):</p>
+                        <p class="settings-card-desc">اختر المظهر المريح لعينك (الوضع الفاتح هو الافتراضي لعرض الفاشون
+                            بأعلى دقة):</p>
                         <div class="theme-picker-grid">
-                            <div class="theme-choice-card active" id="themeCardLight" onclick="window.BayanMobile.setTheme('light')">
+                            <div class="theme-choice-card active" id="themeCardLight"
+                                onclick="window.BayanMobile.setTheme('light')">
                                 <div class="theme-preview light">
                                     <span class="theme-icon">☀️</span>
                                 </div>
                                 <div class="theme-name">الوضع الفاتح ✨</div>
                                 <div class="theme-check">✓</div>
                             </div>
-                            <div class="theme-choice-card" id="themeCardDark" onclick="window.BayanMobile.setTheme('dark')">
+                            <div class="theme-choice-card" id="themeCardDark"
+                                onclick="window.BayanMobile.setTheme('dark')">
                                 <div class="theme-preview dark">
                                     <span class="theme-icon">🌙</span>
                                 </div>
@@ -623,24 +687,32 @@
                     </div>
 
                     <div class="drawer-hero-card" style="padding: 18px;">
-                        <h3 style="font-size: 1rem; font-weight: 900; margin-bottom: 12px; color: #ffffff;">⚙️ حالة الربط بالسحابة</h3>
-                        <div style="margin-bottom: 14px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 12px;">
+                        <h3 style="font-size: 1rem; font-weight: 900; margin-bottom: 12px; color: var(--text-main);">⚙️ حالة
+                            الربط بالسحابة</h3>
+                        <div
+                            style="margin-bottom: 14px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 12px; padding: 12px;">
                             <div style="font-size: 0.82rem; color: #34d399; font-weight: 800; margin-bottom: 4px;">
                                 ☁️ السيرفر السحابي: متصل ومؤمن (Supabase Cloud)
                             </div>
                             <div style="font-size: 0.75rem; color: rgba(255, 255, 255, 0.8);">
-                                يعمل التطبيق عبر الإنترنت السحابي من أي مكان (واي فاي أو باقة) بدون الحاجة للتواجد على نفس الراوتر.
+                                يعمل التطبيق عبر الإنترنت السحابي من أي مكان (واي فاي أو باقة) بدون الحاجة للتواجد على
+                                نفس الراوتر.
                             </div>
                         </div>
-                        <button type="button" class="btn-complete-invoice" style="height: 42px; margin-top: 0; font-size: 0.9rem;" onclick="window.BayanMobile.reconnect()">
+                        <button type="button" class="btn-complete-invoice"
+                            style="height: 42px; margin-top: 0; font-size: 0.9rem;"
+                            onclick="window.BayanMobile.reconnect()">
                             🔄 فحص وتحديث الاتصال بالسحابة
                         </button>
                     </div>
 
                     <div class="settings-card" style="font-size: 0.82rem; color: var(--text-dim); line-height: 1.7;">
-                        <h4 style="color: var(--text-main); font-size: 0.9rem; font-weight: 800; margin-bottom: 6px;">💡 كيف يعمل بيان موبايل السحابي؟</h4>
-                        <p>• يتصل التطبيق مباشرة بالسحابة المركزية ولا يشترط نهائياً التواجد على نفس شبكة الواي فاي أو الراوتر.</p>
-                        <p>• أي فاتورة تصدر من الموبايل أو التابلت تصل فوراً لشاشة الكمبيوتر بالمحل وتخصم من المخزون.</p>
+                        <h4 style="color: var(--text-main); font-size: 0.9rem; font-weight: 800; margin-bottom: 6px;">💡
+                            كيف يعمل بيان موبايل السحابي؟</h4>
+                        <p>• يتصل التطبيق مباشرة بالسحابة المركزية ولا يشترط نهائياً التواجد على نفس شبكة الواي فاي أو
+                            الراوتر.</p>
+                        <p>• أي فاتورة تصدر من الموبايل أو التابلت تصل فوراً لشاشة الكمبيوتر بالمحل وتخصم من المخزون.
+                        </p>
                         <p>• رصيد الخزينة والدرج محدث لحظياً بحسب مبيعات ومصروفات اليوم بالكامل.</p>
                     </div>
                 </div>
@@ -649,51 +721,62 @@
                 <div id="panel_invoice" class="setting-detail-panel" style="display: none;">
                     <div class="settings-card">
                         <h4 class="settings-card-title">🧾 بيانات المتجر وتذييل الفاتورة</h4>
-                        <p class="settings-card-desc">هذه البيانات تظهر في ترويسة وتذييل الفاتورة عند مشاركتها على واتساب أو طباعتها:</p>
+                        <p class="settings-card-desc">هذه البيانات تظهر في ترويسة وتذييل الفاتورة عند مشاركتها على
+                            واتساب أو طباعتها:</p>
 
                         <div class="form-group" style="margin-bottom: 12px;">
                             <label class="form-label" for="settingShopNameInput">اسم المحل التجاري / البوتيك: *</label>
-                            <input type="text" id="settingShopNameInput" class="form-input" placeholder="مثال: بوتيك الأناقة فاشون" autocomplete="off">
+                            <input type="text" id="settingShopNameInput" class="form-input"
+                                placeholder="مثال: بوتيك الأناقة فاشون" autocomplete="off">
                         </div>
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
                             <div class="form-group">
                                 <label class="form-label" for="settingShopPhoneInput">رقم هاتف المتجر / واتساب:</label>
-                                <input type="tel" id="settingShopPhoneInput" class="form-input" placeholder="01xxxxxxxxx" autocomplete="off">
+                                <input type="tel" id="settingShopPhoneInput" class="form-input"
+                                    placeholder="01xxxxxxxxx" autocomplete="off">
                             </div>
                             <div class="form-group">
                                 <label class="form-label" for="settingShopAddressInput">العنوان / المنطقة:</label>
-                                <input type="text" id="settingShopAddressInput" class="form-input" placeholder="مثال: القاهرة، مصر الجديدة" autocomplete="off">
+                                <input type="text" id="settingShopAddressInput" class="form-input"
+                                    placeholder="مثال: القاهرة، مصر الجديدة" autocomplete="off">
                             </div>
                         </div>
 
                         <div class="form-group" style="margin-bottom: 16px;">
-                            <label class="form-label" for="settingInvoiceFooterInput">رسالة تذييل الفاتورة (ملاحظات الاستبدال):</label>
-                            <textarea id="settingInvoiceFooterInput" class="form-input" rows="3" style="height: auto; padding: 10px; resize: vertical;" placeholder="مثال: البضاعة المباعة تُستبدل خلال 14 يوماً بالفاتورة والباركود. شكراً لزيارتكم! ✨"></textarea>
+                            <label class="form-label" for="settingInvoiceFooterInput">رسالة تذييل الفاتورة (ملاحظات
+                                الاستبدال):</label>
+                            <textarea id="settingInvoiceFooterInput" class="form-input" rows="3"
+                                style="height: auto; padding: 10px; resize: vertical;"
+                                placeholder="مثال: البضاعة المباعة تُستبدل خلال 14 يوماً بالفاتورة والباركود. شكراً لزيارتكم! ✨"></textarea>
                         </div>
 
-                        <button type="button" class="btn-complete-invoice" onclick="window.BayanMobile.saveShopProfileSettings()">
+                        <button type="button" class="btn-complete-invoice"
+                            onclick="window.BayanMobile.saveShopProfileSettings()">
                             <span>💾</span> حفظ بيانات المتجر والفاتورة
                         </button>
                     </div>
 
                     <!-- بطاقة المعاينة الحية لرسالة الواتساب -->
-                    <div class="settings-card" style="background: var(--bg-card-subtle); border: 1.5px dashed var(--border-strong);">
+                    <div class="settings-card"
+                        style="background: var(--bg-card-subtle); border: 1.5px dashed var(--border-strong);">
                         <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
                             <span style="font-size: 1.3rem;">📲</span>
-                            <span style="font-weight: 900; font-size: 0.88rem; color: var(--text-main);">معاينة رسالة الفاتورة على واتساب:</span>
+                            <span style="font-weight: 900; font-size: 0.88rem; color: var(--text-main);">معاينة رسالة
+                                الفاتورة على واتساب:</span>
                         </div>
-                        <div id="invoiceWaPreviewBox" style="background: #eef8f2; border: 1px solid #c2e7d0; border-radius: 12px; padding: 12px; font-family: monospace; font-size: 0.78rem; color: #1e3a29; line-height: 1.6; white-space: pre-wrap;">
-🧾 *فاتورة مشتريات من بَيَان فاشون*
-رقم الفاتورة: #MOB-101
-العميل: عميل نقدي
-التاريخ: 2026-10-05
+                        <div id="invoiceWaPreviewBox"
+                            style="background: #eef8f2; border: 1px solid #c2e7d0; border-radius: 12px; padding: 12px; font-family: monospace; font-size: 0.78rem; color: #1e3a29; line-height: 1.6; white-space: pre-wrap;">
+                            🧾 *فاتورة مشتريات من بَيَان فاشون*
+                            رقم الفاتورة: #MOB-101
+                            العميل: عميل نقدي
+                            التاريخ: 2026-10-05
 
-*الأصناف:*
-1x فستان سهرة فاخر (L / كحلي) = 750 ج.م
+                            *الأصناف:*
+                            1x فستان سهرة فاخر (L / كحلي) = 750 ج.م
 
-💰 *الإجمالي المسدد:* 750 ج.م
-البضاعة المباعة تُستبدل خلال 14 يوماً. شكراً لزيارتكم! ✨
+                            💰 *الإجمالي المسدد:* 750 ج.م
+                            البضاعة المباعة تُستبدل خلال 14 يوماً. شكراً لزيارتكم! ✨
                         </div>
                     </div>
                 </div>
@@ -702,7 +785,8 @@
                 <div id="panel_security" class="setting-detail-panel" style="display: none;">
                     <div class="settings-card">
                         <h4 class="settings-card-title">🔐 حماية الخزينة وقفل الدرج</h4>
-                        <p class="settings-card-desc">منع البائعين والعاملين من رؤية إجمالي الأرباح ورصيد النقدية المتاح بالدرج إلا بإدخال رمز PIN السري لصاحب المحل:</p>
+                        <p class="settings-card-desc">منع البائعين والعاملين من رؤية إجمالي الأرباح ورصيد النقدية المتاح
+                            بالدرج إلا بإدخال رمز PIN السري لصاحب المحل:</p>
 
                         <div class="toggle-switch-row" style="margin-bottom: 16px;">
                             <div>
@@ -710,18 +794,24 @@
                                 <div class="switch-label-desc">طلب الرمز السري عند فتح تبويب "الخزينة واليومية"</div>
                             </div>
                             <label class="ios-switch">
-                                <input type="checkbox" id="settingTreasuryPinEnabled" onchange="window.BayanMobile.togglePinLockSection(this.checked)">
+                                <input type="checkbox" id="settingTreasuryPinEnabled"
+                                    onchange="window.BayanMobile.togglePinLockSection(this.checked)">
                                 <span class="ios-slider"></span>
                             </label>
                         </div>
 
-                        <div id="pinLockInputsSection" style="display: none; background: var(--bg-card-subtle); border-radius: var(--radius-md); padding: 14px; border: 1px solid var(--border-subtle); margin-bottom: 16px;">
+                        <div id="pinLockInputsSection"
+                            style="display: none; background: var(--bg-card-subtle); border-radius: var(--radius-md); padding: 14px; border: 1px solid var(--border-subtle); margin-bottom: 16px;">
                             <label class="form-label" for="settingNewPinInput">رمز الـ PIN السري (4 أرقام): *</label>
-                            <input type="password" id="settingNewPinInput" class="form-input" maxlength="4" placeholder="••••" style="width: 140px; font-size: 1.4rem; letter-spacing: 8px; text-align: center; font-family: monospace; font-weight: 900; margin-bottom: 8px;">
-                            <p style="font-size: 0.72rem; color: var(--text-dim); margin-bottom: 12px;">تذكر هذا الرمز جيداً، سيُطلب منك لفتح شاشة الكاش والخزينة.</p>
+                            <input type="password" id="settingNewPinInput" class="form-input" maxlength="4"
+                                placeholder="••••"
+                                style="width: 140px; font-size: 1.4rem; letter-spacing: 8px; text-align: center; font-family: monospace; font-weight: 900; margin-bottom: 8px;">
+                            <p style="font-size: 0.72rem; color: var(--text-dim); margin-bottom: 12px;">تذكر هذا الرمز
+                                جيداً، سيُطلب منك لفتح شاشة الكاش والخزينة.</p>
                         </div>
 
-                        <button type="button" class="btn-complete-invoice" onclick="window.BayanMobile.saveSecuritySettings()">
+                        <button type="button" class="btn-complete-invoice"
+                            onclick="window.BayanMobile.saveSecuritySettings()">
                             <span>💾</span> حفظ إعدادات الأمان
                         </button>
                     </div>
@@ -758,7 +848,8 @@
                         <div class="toggle-switch-row">
                             <div>
                                 <div class="switch-label-title">إخفاء الأصناف منتهية المخزون (رصيد 0) 📦</div>
-                                <div class="switch-label-desc">عدم إظهار الموديلات التي نفدت كمياتها بالكامل من شاشة البيع</div>
+                                <div class="switch-label-desc">عدم إظهار الموديلات التي نفدت كمياتها بالكامل من شاشة
+                                    البيع</div>
                             </div>
                             <label class="ios-switch">
                                 <input type="checkbox" id="settingPrefHideOutOfStock">
@@ -769,7 +860,8 @@
                         <div class="toggle-switch-row" style="margin-bottom: 16px;">
                             <div>
                                 <div class="switch-label-title">إضافة فورية للسلة بنقرة واحدة ⚡</div>
-                                <div class="switch-label-desc">إضافة المقاس الافتراضي للسلة مباشرة عند الضغط على الصنف</div>
+                                <div class="switch-label-desc">إضافة المقاس الافتراضي للسلة مباشرة عند الضغط على الصنف
+                                </div>
                             </div>
                             <label class="ios-switch">
                                 <input type="checkbox" id="settingPrefQuickAdd" checked>
@@ -777,7 +869,8 @@
                             </label>
                         </div>
 
-                        <button type="button" class="btn-complete-invoice" onclick="window.BayanMobile.savePosPreferences()">
+                        <button type="button" class="btn-complete-invoice"
+                            onclick="window.BayanMobile.savePosPreferences()">
                             <span>💾</span> حفظ التفضيلات
                         </button>
                     </div>
@@ -787,16 +880,23 @@
                 <div id="panel_sync_data" class="setting-detail-panel" style="display: none;">
                     <div class="settings-card">
                         <h4 class="settings-card-title">🔄 إدارة الذاكرة المحلية والمزامنة</h4>
-                        <p class="settings-card-desc">إحصائيات البيانات المحفوظة على هذا الهاتف للعمل حتى في حال انقطاع النت:</p>
+                        <p class="settings-card-desc">إحصائيات البيانات المحفوظة على هذا الهاتف للعمل حتى في حال انقطاع
+                            النت:</p>
 
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;">
                             <div class="branch-info-box" style="text-align: center; padding: 12px 8px;">
-                                <div style="font-size: 0.72rem; color: var(--text-dim); font-weight: 700;">الأصناف المخزنة</div>
-                                <div id="syncStatProductsCount" style="font-size: 1.4rem; font-weight: 900; color: var(--primary); font-family: monospace;">0</div>
+                                <div style="font-size: 0.72rem; color: var(--text-dim); font-weight: 700;">الأصناف
+                                    المخزنة</div>
+                                <div id="syncStatProductsCount"
+                                    style="font-size: 1.4rem; font-weight: 900; color: var(--primary); font-family: monospace;">
+                                    0</div>
                             </div>
                             <div class="branch-info-box" style="text-align: center; padding: 12px 8px;">
-                                <div style="font-size: 0.72rem; color: var(--text-dim); font-weight: 700;">العملاء والموردين</div>
-                                <div id="syncStatAccountsCount" style="font-size: 1.4rem; font-weight: 900; color: var(--emerald); font-family: monospace;">0</div>
+                                <div style="font-size: 0.72rem; color: var(--text-dim); font-weight: 700;">العملاء
+                                    والموردين</div>
+                                <div id="syncStatAccountsCount"
+                                    style="font-size: 1.4rem; font-weight: 900; color: var(--emerald); font-family: monospace;">
+                                    0</div>
                             </div>
                         </div>
 
@@ -807,7 +907,9 @@
                             </div>
                         </div>
 
-                        <button type="button" class="btn-complete-invoice" style="margin-bottom: 0; background: linear-gradient(135deg, #0284c7, #0369a1);" onclick="window.BayanMobile.forceFullSync()">
+                        <button type="button" class="btn-complete-invoice"
+                            style="margin-bottom: 0; background: linear-gradient(135deg, #0284c7, #0369a1);"
+                            onclick="window.BayanMobile.forceFullSync()">
                             <span>🔄</span> تحديث شامل وسحب أحدث البيانات الآن
                         </button>
                     </div>
@@ -817,11 +919,13 @@
                 <div id="panel_printer" class="setting-detail-panel" style="display: none;">
                     <div class="settings-card">
                         <h4 class="settings-card-title">🖨️ طابعة الإيصالات الحرارية البلوتوث</h4>
-                        <p class="settings-card-desc">ربط طابعة فواتير صغيرة محمولة تعمل بالبلوتوث (ESC/POS Thermal Printer):</p>
+                        <p class="settings-card-desc">ربط طابعة فواتير صغيرة محمولة تعمل بالبلوتوث (ESC/POS Thermal
+                            Printer):</p>
 
                         <div class="form-group" style="margin-bottom: 12px;">
                             <label class="form-label" for="settingPrinterPaperSize">مقاس ورق الطابعة:</label>
-                            <select id="settingPrinterPaperSize" class="form-input" style="font-weight: 800; cursor: pointer;">
+                            <select id="settingPrinterPaperSize" class="form-input"
+                                style="font-weight: 800; cursor: pointer;">
                                 <option value="58">ورق حراري صغير 58 مم (الأنسب للهواتف) 🧾</option>
                                 <option value="80">ورق حراري عريض 80 مم (الكاشير الكبير) 📄</option>
                             </select>
@@ -839,10 +943,14 @@
                         </div>
 
                         <div style="display: flex; gap: 8px; margin-bottom: 10px;">
-                            <button type="button" class="btn-complete-invoice" style="flex: 1; background: linear-gradient(135deg, #8b5cf6, #7c3aed);" onclick="window.BayanMobile.connectBluetoothPrinter()">
+                            <button type="button" class="btn-complete-invoice"
+                                style="flex: 1; background: linear-gradient(135deg, #8b5cf6, #7c3aed);"
+                                onclick="window.BayanMobile.connectBluetoothPrinter()">
                                 <span>🔍</span> اقتران طابعة بلوتوث
                             </button>
-                            <button type="button" class="btn-save-branch" style="background: var(--bg-card-subtle); color: var(--text-main); border: 1px solid var(--border-subtle);" onclick="window.BayanMobile.testPrintReceipt()">
+                            <button type="button" class="btn-save-branch"
+                                style="background: var(--bg-card-subtle); color: var(--text-main); border: 1px solid var(--border-subtle);"
+                                onclick="window.BayanMobile.testPrintReceipt()">
                                 <span>🖨️</span> تجربة الطباعة
                             </button>
                         </div>
@@ -853,8 +961,10 @@
                 <div id="panel_about" class="setting-detail-panel" style="display: none;">
                     <div class="settings-card" style="text-align: center; padding: 24px 18px;">
                         <div style="font-size: 3rem; margin-bottom: 8px;">👗</div>
-                        <h3 style="font-size: 1.3rem; font-weight: 900; color: var(--text-main); margin-bottom: 4px;">بَيَان فاشون كاشير كلاود</h3>
-                        <p style="font-size: 0.82rem; color: var(--text-dim); margin-bottom: 14px;">إصدار الهواتف والتابلت الفاخر • الإصدار 5.1.6</p>
+                        <h3 style="font-size: 1.3rem; font-weight: 900; color: var(--text-main); margin-bottom: 4px;">
+                            بَيَان فاشون كاشير كلاود</h3>
+                        <p style="font-size: 0.82rem; color: var(--text-dim); margin-bottom: 14px;">إصدار الهواتف
+                            والتابلت الفاخر • الإصدار 5.1.6</p>
 
                         <div class="branch-info-box" style="text-align: right; margin-bottom: 20px;">
                             <div class="branch-info-row">
@@ -863,7 +973,8 @@
                             </div>
                             <div class="branch-info-row">
                                 <span class="branch-info-label">قاعدة البيانات:</span>
-                                <span class="branch-info-val" style="color: var(--emerald);">Supabase Realtime Cloud ⚡</span>
+                                <span class="branch-info-val" style="color: var(--emerald);">Supabase Realtime Cloud
+                                    ⚡</span>
                             </div>
                             <div class="branch-info-row">
                                 <span class="branch-info-label">رقم الترخيص:</span>
@@ -871,7 +982,9 @@
                             </div>
                         </div>
 
-                        <a href="https://wa.me/201021469037?text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7%D9%8B%D8%8C%20%D9%85%D8%AD%D8%AA%D8%A7%D8%AC%20%D8%AF%D8%B9%D9%85%20%D9%81%D9%86%D9%8A%20%D9%84%D9%86%D8%B8%D8%A7%D9%85%20%D8%A8%D9%8A%D8%A7%D9%86%20%D9%81%D8%A7%D8%B4%D9%88%D9%86%20%D9%85%D9%88%D8%A8%D8%A7%D9%8A%D9%84" target="_blank" class="btn-complete-invoice" style="text-decoration: none; background: linear-gradient(135deg, #25d366, #128c7e); box-shadow: 0 6px 20px rgba(37,211,102,0.35);">
+                        <a href="https://wa.me/201021469037?text=%D9%85%D8%B1%D8%AD%D8%A8%D8%A7%D9%8B%D8%8C%20%D9%85%D8%AD%D8%AA%D8%A7%D8%AC%20%D8%AF%D8%B9%D9%85%20%D9%81%D9%86%D9%8A%20%D9%84%D9%86%D8%B8%D8%A7%D9%85%20%D8%A8%D9%8A%D8%A7%D9%86%20%D9%81%D8%A7%D8%B4%D9%88%D9%86%20%D9%85%D9%88%D8%A8%D8%A7%D9%8A%D9%84"
+                            target="_blank" class="btn-complete-invoice"
+                            style="text-decoration: none; background: linear-gradient(135deg, #25d366, #128c7e); box-shadow: 0 6px 20px rgba(37,211,102,0.35);">
                             <span>💬</span> تواصل مع الدعم الفني عبر واتساب
                         </a>
                     </div>
@@ -881,21 +994,31 @@
                 <div id="panel_backup" class="setting-detail-panel" style="display: none;">
                     <div class="settings-card">
                         <h4 class="settings-card-title">☁️ النسخ الاحتياطي السحابي والمحلي</h4>
-                        <p class="settings-card-desc">احفظ بيانات محلك (الأصناف، الفواتير، الحسابات، الإعدادات) بضغطة زر لحمايتها من أي فقدان:</p>
+                        <p class="settings-card-desc">احفظ بيانات محلك (الأصناف، الفواتير، الحسابات، الإعدادات) بضغطة زر
+                            لحمايتها من أي فقدان:</p>
 
                         <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 14px;">
-                            <button type="button" class="btn-complete-invoice" style="background: linear-gradient(135deg, #7c3aed, #6d28d9); box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35); height: 46px;" onclick="window.BayanMobile.createCloudBackup()">
+                            <button type="button" class="btn-complete-invoice"
+                                style="background: linear-gradient(135deg, #7c3aed, #6d28d9); box-shadow: 0 4px 14px rgba(124, 58, 237, 0.35); height: 46px;"
+                                onclick="window.BayanMobile.createCloudBackup()">
                                 <span>☁️</span> إنشاء نسخة احتياطية سحابية الآن
                             </button>
 
-                            <button type="button" class="btn-complete-invoice" style="background: linear-gradient(135deg, #0284c7, #0369a1); box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3); height: 46px;" onclick="window.BayanMobile.downloadLocalBackupJSON()">
+                            <button type="button" class="btn-complete-invoice"
+                                style="background: linear-gradient(135deg, #0284c7, #0369a1); box-shadow: 0 4px 14px rgba(2, 132, 199, 0.3); height: 46px;"
+                                onclick="window.BayanMobile.downloadLocalBackupJSON()">
                                 <span>💾</span> تحميل ملف النسخة الاحتياطية (JSON)
                             </button>
 
-                            <div style="border-top: 1px dashed var(--border-subtle); padding-top: 14px; margin-top: 4px;">
-                                <label class="form-label" style="margin-bottom: 8px;">📥 استعادة نسخة احتياطية سابقة:</label>
-                                <input type="file" id="restoreBackupFileInput" accept=".json" style="display: none;" onchange="window.BayanMobile.restoreBackupFromFile(event)">
-                                <button type="button" class="btn-change-image" style="width: 100%; justify-content: center; height: 44px; font-size: 0.88rem;" onclick="document.getElementById('restoreBackupFileInput').click()">
+                            <div
+                                style="border-top: 1px dashed var(--border-subtle); padding-top: 14px; margin-top: 4px;">
+                                <label class="form-label" style="margin-bottom: 8px;">📥 استعادة نسخة احتياطية
+                                    سابقة:</label>
+                                <input type="file" id="restoreBackupFileInput" accept=".json" style="display: none;"
+                                    onchange="window.BayanMobile.restoreBackupFromFile(event)">
+                                <button type="button" class="btn-change-image"
+                                    style="width: 100%; justify-content: center; height: 44px; font-size: 0.88rem;"
+                                    onclick="document.getElementById('restoreBackupFileInput').click()">
                                     <span>📂</span> اختيار ملف النسخة الاحتياطية واستعادتها
                                 </button>
                             </div>
@@ -904,7 +1027,8 @@
 
                     <div id="backupHistoryCard" class="settings-card" style="margin-top: 14px;">
                         <h4 class="settings-card-title" style="font-size: 0.88rem;">🕒 آخر عملية نسخ احتياطي:</h4>
-                        <p id="lastBackupTimeText" style="font-size: 0.82rem; color: var(--text-dim); margin-top: 4px;">لم يتم إنشاء نسخة بعد على هذا الجهاز.</p>
+                        <p id="lastBackupTimeText" style="font-size: 0.82rem; color: var(--text-dim); margin-top: 4px;">
+                            لم يتم إنشاء نسخة بعد على هذا الجهاز.</p>
                     </div>
                 </div>
 
@@ -947,32 +1071,42 @@
          ========================================== -->
 
     <!-- نافذة اختيار المقاس واللون والإضافة للسلة -->
-    <div id="addToCartModalOverlay" class="modal-overlay" onclick="if(event.target===this)window.BayanMobile.closeAddToCartModal()">
+    <div id="addToCartModalOverlay" class="modal-overlay"
+        onclick="if(event.target===this)window.BayanMobile.closeAddToCartModal()">
         <div class="bottom-sheet">
             <div class="sheet-handle"></div>
             <div class="sheet-header">
                 <div>
                     <h3 id="addModalTitle">اسم الصنف</h3>
-                    <div id="addModalPrice" style="color: var(--primary); font-size: 1.15rem; font-weight: 900; font-family: monospace;">0 ج.م</div>
+                    <div id="addModalPrice"
+                        style="color: var(--primary); font-size: 1.15rem; font-weight: 900; font-family: monospace;">0
+                        ج.م</div>
                 </div>
-                <button type="button" class="btn-close-sheet" onclick="window.BayanMobile.closeAddToCartModal()">✕</button>
+                <button type="button" class="btn-close-sheet"
+                    onclick="window.BayanMobile.closeAddToCartModal()">✕</button>
             </div>
 
             <div style="margin-bottom: 14px;">
-                <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); margin-bottom: 8px;">اختر المقاس:</div>
+                <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); margin-bottom: 8px;">اختر
+                    المقاس:</div>
                 <div id="addModalSizesBox" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
             </div>
 
             <div style="margin-bottom: 20px;">
-                <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); margin-bottom: 8px;">اختر اللون:</div>
+                <div style="font-size: 0.8rem; font-weight: 800; color: var(--text-muted); margin-bottom: 8px;">اختر
+                    اللون:</div>
                 <div id="addModalColorsBox" style="display: flex; gap: 8px; flex-wrap: wrap;"></div>
             </div>
 
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                <button type="button" class="btn-complete-invoice" style="background: linear-gradient(135deg, #059669, #10b981);" onclick="window.BayanMobile.confirmInstantSale()">
+                <button type="button" class="btn-complete-invoice"
+                    style="background: linear-gradient(135deg, #059669, #10b981);"
+                    onclick="window.BayanMobile.confirmInstantSale()">
                     <span>⚡</span> بيع كاش فوري
                 </button>
-                <button type="button" class="btn-complete-invoice" style="background: linear-gradient(135deg, #6366f1, #4f46e5);" onclick="window.BayanMobile.confirmAddToCart()">
+                <button type="button" class="btn-complete-invoice"
+                    style="background: linear-gradient(135deg, #6366f1, #4f46e5);"
+                    onclick="window.BayanMobile.confirmAddToCart()">
                     <span>🛒</span> إضافة للسلة
                 </button>
             </div>
@@ -980,45 +1114,61 @@
     </div>
 
     <!-- نافذة تفاصيل الفاتورة -->
-    <div id="invoiceDetailsModalOverlay" class="modal-overlay" onclick="if(event.target===this)window.BayanMobile.closeInvoiceDetailsModal()">
+    <div id="invoiceDetailsModalOverlay" class="modal-overlay"
+        onclick="if(event.target===this)window.BayanMobile.closeInvoiceDetailsModal()">
         <div class="bottom-sheet">
             <div class="sheet-handle"></div>
             <div class="sheet-header">
                 <h3>🧾 تفاصيل الفاتورة</h3>
-                <button type="button" class="btn-close-sheet" onclick="window.BayanMobile.closeInvoiceDetailsModal()">✕</button>
+                <button type="button" class="btn-close-sheet"
+                    onclick="window.BayanMobile.closeInvoiceDetailsModal()">✕</button>
             </div>
             <div id="invoiceDetailsContent"></div>
         </div>
     </div>
 
     <!-- نافذة نجاح الفاتورة ومشاركتها على واتساب -->
-    <div id="invoiceSuccessModalOverlay" class="modal-overlay" onclick="if(event.target===this)window.BayanMobile.closeInvoiceSuccessModal()">
+    <div id="invoiceSuccessModalOverlay" class="modal-overlay"
+        onclick="if(event.target===this)window.BayanMobile.closeInvoiceSuccessModal()">
         <div class="bottom-sheet" style="text-align: center;">
             <div class="sheet-handle"></div>
             <div style="font-size: 3.5rem; margin-bottom: 8px;">🎉</div>
-            <h3 style="font-size: 1.25rem; font-weight: 900; color: #ffffff; margin-bottom: 4px;">تم إصدار الفاتورة بنجاح!</h3>
-            <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px;">تم ترحيل الفاتورة فورياً لشاشة الكاشير بالديسك توب وحسم الكميات من المخزن</p>
+            <h3 style="font-size: 1.25rem; font-weight: 900; color: var(--text-main); margin-bottom: 4px;">تم إصدار الفاتورة
+                بنجاح!</h3>
+            <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px;">تم ترحيل الفاتورة فورياً لشاشة
+                الكاشير بالديسك توب وحسم الكميات من المخزن</p>
 
-            <div style="background: rgba(255,255,255,0.05); border-radius: 14px; padding: 14px; margin-bottom: 18px; display: flex; justify-content: space-around;">
+            <div
+                style="background: rgba(255,255,255,0.05); border-radius: 14px; padding: 14px; margin-bottom: 18px; display: flex; justify-content: space-around;">
                 <div>
                     <div style="font-size: 0.75rem; color: var(--text-dim);">رقم الفاتورة</div>
-                    <div id="successModalInvoiceNum" style="font-weight: 900; color: #ffffff; font-family: monospace; font-size: 1.1rem;">#MOB-001</div>
+                    <div id="successModalInvoiceNum"
+                        style="font-weight: 900; color: var(--text-main); font-family: monospace; font-size: 1.1rem;">#MOB-001
+                    </div>
                 </div>
                 <div>
                     <div style="font-size: 0.75rem; color: var(--text-dim);">الإجمالي المسدد</div>
-                    <div id="successModalTotal" style="font-weight: 900; color: var(--gold); font-family: monospace; font-size: 1.1rem;">0 ج.م</div>
+                    <div id="successModalTotal"
+                        style="font-weight: 900; color: var(--gold); font-family: monospace; font-size: 1.1rem;">0 ج.م
+                    </div>
                 </div>
             </div>
 
             <div style="display: flex; flex-direction: column; gap: 8px;">
-                <button type="button" id="btnSendWhatsAppDirect" class="btn-complete-invoice" style="width: 100%; height: 46px; background: linear-gradient(135deg, #25d366, #128c7e); box-shadow: 0 4px 16px rgba(37,211,102,0.35); font-size: 0.95rem;" onclick="window.BayanMobile.sendWhatsAppReceiptDirectly(window.BayanMobile.lastSuccessTx)">
+                <button type="button" id="btnSendWhatsAppDirect" class="btn-complete-invoice"
+                    style="width: 100%; height: 46px; background: linear-gradient(135deg, #25d366, #128c7e); box-shadow: 0 4px 16px rgba(37,211,102,0.35); font-size: 0.95rem;"
+                    onclick="window.BayanMobile.sendWhatsAppReceiptDirectly(window.BayanMobile.lastSuccessTx)">
                     <span>📲</span> إرسال الفاتورة لواتساب العميل مباشرة
                 </button>
                 <div style="display: flex; gap: 8px;">
-                    <button type="button" id="btnSuccessReceiptImage" class="btn-complete-invoice" style="flex: 1.2; background: linear-gradient(135deg, #0284c7, #0369a1); box-shadow: 0 4px 14px rgba(2,132,199,0.3);" onclick="window.BayanMobile.openReceiptImageModal(window.BayanMobile.lastSuccessTx)">
+                    <button type="button" id="btnSuccessReceiptImage" class="btn-complete-invoice"
+                        style="flex: 1.2; background: linear-gradient(135deg, #0284c7, #0369a1); box-shadow: 0 4px 14px rgba(2,132,199,0.3);"
+                        onclick="window.BayanMobile.openReceiptImageModal(window.BayanMobile.lastSuccessTx)">
                         <span>📸</span> كارت الإيصال
                     </button>
-                    <button type="button" class="btn-complete-invoice" style="flex: 0.8; background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); box-shadow: none;" onclick="window.BayanMobile.closeInvoiceSuccessModal()">
+                    <button type="button" class="btn-complete-invoice"
+                        style="flex: 0.8; background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); box-shadow: none;"
+                        onclick="window.BayanMobile.closeInvoiceSuccessModal()">
                         إغلاق
                     </button>
                 </div>
@@ -1027,13 +1177,16 @@
     </div>
 
     <!-- نافذة معاينة وطباعة/مشاركة كارت الإيصال كصورة لواتساب -->
-    <div id="receiptImageModalOverlay" class="modal-overlay" onclick="if(event.target===this)window.BayanMobile.closeReceiptImageModal()">
+    <div id="receiptImageModalOverlay" class="modal-overlay"
+        onclick="if(event.target===this)window.BayanMobile.closeReceiptImageModal()">
         <div class="receipt-modal-dialog">
             <div class="receipt-modal-header">
-                <div style="font-weight: 900; font-size: 0.95rem; color: #ffffff; display: flex; align-items: center; gap: 6px;">
+                <div
+                    style="font-weight: 900; font-size: 0.95rem; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
                     <span>🧾</span> إيصال الفاتورة الحراري (صورة واتساب)
                 </div>
-                <button type="button" class="btn-close-modal" onclick="window.BayanMobile.closeReceiptImageModal()">✕</button>
+                <button type="button" class="btn-close-modal"
+                    onclick="window.BayanMobile.closeReceiptImageModal()">✕</button>
             </div>
 
             <!-- الكارت الذي سيتم تحويله لصورة عالية الدقة -->
@@ -1118,13 +1271,16 @@
 
             <!-- أزرار الإجراءات السريعة -->
             <div class="receipt-modal-actions">
-                <button type="button" class="btn-receipt-action wa-image" onclick="window.BayanMobile.shareReceiptAsImage()">
+                <button type="button" class="btn-receipt-action wa-image"
+                    onclick="window.BayanMobile.shareReceiptAsImage()">
                     <span>📲</span> مشاركة واتساب (كصورة)
                 </button>
-                <button type="button" class="btn-receipt-action download" onclick="window.BayanMobile.downloadReceiptImage()">
+                <button type="button" class="btn-receipt-action download"
+                    onclick="window.BayanMobile.downloadReceiptImage()">
                     <span>💾</span> حفظ كصورة
                 </button>
-                <button type="button" class="btn-receipt-action text-wa" onclick="window.BayanMobile.shareReceiptAsText()">
+                <button type="button" class="btn-receipt-action text-wa"
+                    onclick="window.BayanMobile.shareReceiptAsText()">
                     <span>💬</span> إرسال كنص
                 </button>
             </div>
@@ -1136,28 +1292,38 @@
         <div class="bottom-sheet" style="text-align: center;">
             <div class="sheet-handle"></div>
             <div style="font-size: 2.8rem; margin-bottom: 6px;">🔐</div>
-            <h3 style="font-size: 1.2rem; font-weight: 900; color: #ffffff; margin-bottom: 4px;">إقران الهاتف بالبرنامج الرئيسي</h3>
+            <h3 style="font-size: 1.2rem; font-weight: 900; color: var(--text-main); margin-bottom: 4px;">إقران الهاتف بالبرنامج
+                الرئيسي</h3>
             <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px;">
                 أدخل كود المحل ورمز PIN المعروضين الآن في شاشة إعدادات المزامنة بالكمبيوتر
             </p>
 
             <div style="text-align: right; margin-bottom: 6px;">
-                <label style="font-size: 0.75rem; color: var(--text-dim); font-weight: 700; margin-bottom: 4px; display: block;">1. كود المحل السحابي (Shop ID):</label>
+                <label
+                    style="font-size: 0.75rem; color: var(--text-dim); font-weight: 700; margin-bottom: 4px; display: block;">1.
+                    كود المحل السحابي (Shop ID):</label>
                 <input type="text" id="directShopIdInput" placeholder="SHOP_XXXXXXXXXX"
-                    style="width: 100%; height: 44px; text-align: center; font-size: 0.95rem; font-weight: 800; font-family: monospace; background: rgba(0,0,0,0.4); border: 1.5px dashed var(--border-subtle); border-radius: 12px; color: #ffffff; outline: none; padding: 0 10px; margin-bottom: 12px;" autocomplete="off">
+                    style="width: 100%; height: 44px; text-align: center; font-size: 0.95rem; font-weight: 800; font-family: monospace; background: rgba(0,0,0,0.4); border: 1.5px dashed var(--border-subtle); border-radius: 12px; color: var(--text-main); outline: none; padding: 0 10px; margin-bottom: 12px;"
+                    autocomplete="off">
             </div>
 
             <div style="text-align: right; margin-bottom: 16px;">
-                <label style="font-size: 0.75rem; color: var(--text-dim); font-weight: 700; margin-bottom: 4px; display: block;">2. رمز الـ PIN السري للمحل:</label>
+                <label
+                    style="font-size: 0.75rem; color: var(--text-dim); font-weight: 700; margin-bottom: 4px; display: block;">2.
+                    رمز الـ PIN السري للمحل:</label>
                 <input type="text" id="pinInput" maxlength="20" placeholder="••••••"
-                    style="width: 100%; height: 50px; text-align: center; font-size: 1.5rem; font-weight: 900; letter-spacing: 6px; background: rgba(0,0,0,0.5); border: 2px solid var(--primary); border-radius: 14px; color: #ffffff; outline: none;" autocomplete="off">
+                    style="width: 100%; height: 50px; text-align: center; font-size: 1.5rem; font-weight: 900; letter-spacing: 6px; background: rgba(0,0,0,0.5); border: 2px solid var(--primary); border-radius: 14px; color: var(--text-main); outline: none;"
+                    autocomplete="off">
             </div>
 
             <div style="display: flex; gap: 10px; margin-bottom: 6px;">
-                <button type="button" class="btn-complete-invoice" style="flex: 2;" onclick="window.BayanMobile.submitPinVerification(document.getElementById('pinInput').value)">
+                <button type="button" class="btn-complete-invoice" style="flex: 2;"
+                    onclick="window.BayanMobile.submitPinVerification(document.getElementById('pinInput').value)">
                     اعتماد وإقران الجهاز 🚀
                 </button>
-                <button type="button" class="btn-complete-invoice" style="flex: 1; background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); box-shadow: none;" onclick="window.BayanMobile.closePinModal()">
+                <button type="button" class="btn-complete-invoice"
+                    style="flex: 1; background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); box-shadow: none;"
+                    onclick="window.BayanMobile.closePinModal()">
                     إلغاء
                 </button>
             </div>
@@ -1165,29 +1331,38 @@
     </div>
 
     <!-- نافذة إضافة صنف وتشكيلة ملابس جديدة -->
-    <div id="addProductModalOverlay" class="modal-overlay" onclick="if(event.target===this)window.BayanMobile.closeAddProductModal()">
+    <div id="addProductModalOverlay" class="modal-overlay"
+        onclick="if(event.target===this)window.BayanMobile.closeAddProductModal()">
         <div class="bottom-sheet" style="max-height: 90vh;">
             <div class="sheet-handle"></div>
             <div class="sheet-header">
                 <div>
-                    <h3 style="font-size: 1.15rem; font-weight: 900; color: var(--text-main);">👗 إضافة صنف وموديل جديد</h3>
-                    <div style="font-size: 0.75rem; color: var(--text-dim);">تسجيل مباشر في المخزن وترحيل فوري للماستر</div>
+                    <h3 style="font-size: 1.15rem; font-weight: 900; color: var(--text-main);">👗 إضافة صنف وموديل جديد
+                    </h3>
+                    <div style="font-size: 0.75rem; color: var(--text-dim);">تسجيل مباشر في المخزن وترحيل فوري للماستر
+                    </div>
                 </div>
-                <button type="button" class="btn-close-sheet" onclick="window.BayanMobile.closeAddProductModal()">✕</button>
+                <button type="button" class="btn-close-sheet"
+                    onclick="window.BayanMobile.closeAddProductModal()">✕</button>
             </div>
 
             <!-- نموذج بيانات الصنف -->
             <div class="add-prod-form">
                 <!-- قسم رفع واختيار صورة الموديل والفستان -->
                 <div class="prod-image-upload-wrap" style="margin-bottom: 14px;">
-                    <label class="form-label" style="display: flex; align-items: center; justify-content: space-between;">
+                    <label class="form-label"
+                        style="display: flex; align-items: center; justify-content: space-between;">
                         <span>📸 صورة الموديل / الفستان:</span>
-                        <span id="prodImageSizeHint" style="font-size: 0.72rem; color: var(--text-dim); font-weight: 700;">(تُضغط وتُرفع تلقائياً)</span>
+                        <span id="prodImageSizeHint"
+                            style="font-size: 0.72rem; color: var(--text-dim); font-weight: 700;">(تُضغط وتُرفع
+                            تلقائياً)</span>
                     </label>
                     <div class="prod-image-picker-box">
-                        <input type="file" id="newProdImageInput" accept="image/*" style="display: none;" onchange="window.BayanMobile.handleProductImageUpload(event)">
-                        
-                        <div id="prodImageEmptyState" class="prod-image-empty-state" onclick="document.getElementById('newProdImageInput').click()">
+                        <input type="file" id="newProdImageInput" accept="image/*" style="display: none;"
+                            onchange="window.BayanMobile.handleProductImageUpload(event)">
+
+                        <div id="prodImageEmptyState" class="prod-image-empty-state"
+                            onclick="document.getElementById('newProdImageInput').click()">
                             <div class="prod-img-picker-icon">📷</div>
                             <div class="prod-img-picker-text">
                                 <b>اضغط لاختيار أو تصوير الموديل</b>
@@ -1198,10 +1373,12 @@
                         <div id="prodImagePreviewState" class="prod-image-preview-state" style="display: none;">
                             <img id="newProdImagePreview" src="" alt="صورة الصنف" class="prod-preview-thumb">
                             <div class="prod-preview-actions">
-                                <button type="button" class="btn-change-image" onclick="document.getElementById('newProdImageInput').click()">
+                                <button type="button" class="btn-change-image"
+                                    onclick="document.getElementById('newProdImageInput').click()">
                                     <span>🔄</span> تغيير
                                 </button>
-                                <button type="button" class="btn-remove-image" onclick="window.BayanMobile.removeProductImage()">
+                                <button type="button" class="btn-remove-image"
+                                    onclick="window.BayanMobile.removeProductImage()">
                                     <span>🗑️</span> حذف
                                 </button>
                             </div>
@@ -1211,20 +1388,24 @@
 
                 <div class="form-group" style="margin-bottom: 12px;">
                     <label class="form-label">اسم الموديل / الصنف: *</label>
-                    <input type="text" id="newProdName" class="form-input" placeholder="مثال: ترينج ميلتون شتوي أو تيشرت بولو..." autocomplete="off">
+                    <input type="text" id="newProdName" class="form-input"
+                        placeholder="مثال: ترينج ميلتون شتوي أو تيشرت بولو..." autocomplete="off">
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
                     <div class="form-group">
                         <label class="form-label">الباركود / الكود:</label>
                         <div style="display: flex; gap: 6px;">
-                            <input type="text" id="newProdBarcode" class="form-input" placeholder="كود الصنف..." style="flex: 1;" autocomplete="off">
-                            <button type="button" class="btn-gen-code" onclick="window.BayanMobile.generateBarcode()" title="توليد كود تلقائي">⚡</button>
+                            <input type="text" id="newProdBarcode" class="form-input" placeholder="كود الصنف..."
+                                style="flex: 1;" autocomplete="off">
+                            <button type="button" class="btn-gen-code" onclick="window.BayanMobile.generateBarcode()"
+                                title="توليد كود تلقائي">⚡</button>
                         </div>
                     </div>
                     <div class="form-group">
                         <label class="form-label">القسم / التصنيف:</label>
-                        <input type="text" id="newProdCategory" class="form-input" placeholder="رجالي / أطفالي / عام..." value="عام" autocomplete="off">
+                        <input type="text" id="newProdCategory" class="form-input" placeholder="رجالي / أطفالي / عام..."
+                            value="عام" autocomplete="off">
                     </div>
                 </div>
 
@@ -1239,7 +1420,8 @@
                     </div>
                     <div class="form-group">
                         <label class="form-label">سعر الجملة:</label>
-                        <input type="number" id="newProdWholesale" class="form-input" placeholder="0.00" min="0" step="0.5">
+                        <input type="number" id="newProdWholesale" class="form-input" placeholder="0.00" min="0"
+                            step="0.5">
                     </div>
                 </div>
 
@@ -1251,7 +1433,9 @@
 
                     <!-- اختيار المقاسات الشائعة -->
                     <div style="margin-bottom: 10px;">
-                        <span style="font-size: 0.72rem; color: var(--text-dim); display: block; margin-bottom: 4px;">المقاسات المطلوبة (اضغط للاختيار):</span>
+                        <span
+                            style="font-size: 0.72rem; color: var(--text-dim); display: block; margin-bottom: 4px;">المقاسات
+                            المطلوبة (اضغط للاختيار):</span>
                         <div id="newProdSizesSelector" class="vb-chips-grid">
                             <span class="vb-chip active" onclick="this.classList.toggle('active')">M</span>
                             <span class="vb-chip active" onclick="this.classList.toggle('active')">L</span>
@@ -1265,7 +1449,9 @@
 
                     <!-- اختيار الألوان الشائعة -->
                     <div style="margin-bottom: 12px;">
-                        <span style="font-size: 0.72rem; color: var(--text-dim); display: block; margin-bottom: 4px;">الألوان المطلوبة (اضغط للاختيار):</span>
+                        <span
+                            style="font-size: 0.72rem; color: var(--text-dim); display: block; margin-bottom: 4px;">الألوان
+                            المطلوبة (اضغط للاختيار):</span>
                         <div id="newProdColorsSelector" class="vb-chips-grid">
                             <span class="vb-chip active" onclick="this.classList.toggle('active')">أسود</span>
                             <span class="vb-chip active" onclick="this.classList.toggle('active')">أبيض</span>
@@ -1277,7 +1463,8 @@
                         </div>
                     </div>
 
-                    <button type="button" class="btn-generate-matrix" onclick="window.BayanMobile.generateVariantRows()">
+                    <button type="button" class="btn-generate-matrix"
+                        onclick="window.BayanMobile.generateVariantRows()">
                         <span>⚡</span> توليد شبكة المقاسات وتوزيع الكميات
                     </button>
 
@@ -1296,7 +1483,8 @@
                 </div>
 
                 <!-- زر الحفظ النهائي -->
-                <button type="button" id="btnSaveNewProduct" class="btn-complete-invoice" style="margin-top: 18px;" onclick="window.BayanMobile.submitNewProduct()">
+                <button type="button" id="btnSaveNewProduct" class="btn-complete-invoice" style="margin-top: 18px;"
+                    onclick="window.BayanMobile.submitNewProduct()">
                     <span>💾</span> حفظ الصنف وترحيله للسحابة والماستر
                 </button>
             </div>
@@ -1304,27 +1492,33 @@
     </div>
 
     <!-- نافذة كشف الحساب وتفاصيل المعاملات -->
-    <div id="accountStatementModalOverlay" class="modal-overlay" onclick="if(event.target===this)window.BayanMobile.closeAccountStatement()">
+    <div id="accountStatementModalOverlay" class="modal-overlay"
+        onclick="if(event.target===this)window.BayanMobile.closeAccountStatement()">
         <div class="bottom-sheet" style="max-height: 90vh;">
             <div class="sheet-handle"></div>
             <div class="sheet-header">
                 <h3>🧾 كشف حساب ومعاملات تفصيلي</h3>
-                <button type="button" class="btn-close-sheet" onclick="window.BayanMobile.closeAccountStatement()">✕</button>
+                <button type="button" class="btn-close-sheet"
+                    onclick="window.BayanMobile.closeAccountStatement()">✕</button>
             </div>
             <div id="accountStatementContent"></div>
         </div>
     </div>
 
     <!-- نافذة إضافة عميل أو مورد جديد -->
-    <div id="addAccountModalOverlay" class="modal-overlay" onclick="if(event.target===this)window.BayanMobile.closeAddAccountModal()">
+    <div id="addAccountModalOverlay" class="modal-overlay"
+        onclick="if(event.target===this)window.BayanMobile.closeAddAccountModal()">
         <div class="bottom-sheet" style="max-height: 90vh;">
             <div class="sheet-handle"></div>
             <div class="sheet-header">
                 <div>
-                    <h3 style="font-size: 1.15rem; font-weight: 900; color: var(--text-main);">👥 إضافة حساب عميل أو مورد جديد</h3>
-                    <div style="font-size: 0.75rem; color: var(--text-dim);">تسجيل مباشر وترحيل فوري للسحابة وشاشة الكاشير</div>
+                    <h3 style="font-size: 1.15rem; font-weight: 900; color: var(--text-main);">👥 إضافة حساب عميل أو
+                        مورد جديد</h3>
+                    <div style="font-size: 0.75rem; color: var(--text-dim);">تسجيل مباشر وترحيل فوري للسحابة وشاشة
+                        الكاشير</div>
                 </div>
-                <button type="button" class="btn-close-sheet" onclick="window.BayanMobile.closeAddAccountModal()">✕</button>
+                <button type="button" class="btn-close-sheet"
+                    onclick="window.BayanMobile.closeAddAccountModal()">✕</button>
             </div>
 
             <div class="add-account-form">
@@ -1332,11 +1526,13 @@
                     <label class="form-label">نوع الحساب: *</label>
                     <div class="acc-type-selector-grid">
                         <label class="acc-type-radio-label active" id="accTypeLabelClient">
-                            <input type="radio" name="newAccType" value="client" checked onchange="window.BayanMobile.onAccountTypeChange('client')">
+                            <input type="radio" name="newAccType" value="client" checked
+                                onchange="window.BayanMobile.onAccountTypeChange('client')">
                             <span>👤 عميل (زبون)</span>
                         </label>
                         <label class="acc-type-radio-label" id="accTypeLabelSupplier">
-                            <input type="radio" name="newAccType" value="supplier" onchange="window.BayanMobile.onAccountTypeChange('supplier')">
+                            <input type="radio" name="newAccType" value="supplier"
+                                onchange="window.BayanMobile.onAccountTypeChange('supplier')">
                             <span>🏢 مورد (تاجر)</span>
                         </label>
                     </div>
@@ -1344,24 +1540,28 @@
 
                 <div class="form-group" style="margin-bottom: 12px;">
                     <label class="form-label">الاسم بالكامل: *</label>
-                    <input type="text" id="newAccName" class="form-input" placeholder="اسم العميل أو المورد..." autocomplete="off">
+                    <input type="text" id="newAccName" class="form-input" placeholder="اسم العميل أو المورد..."
+                        autocomplete="off">
                 </div>
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
                     <div class="form-group">
                         <label class="form-label">رقم الموبايل / واتساب:</label>
-                        <input type="tel" id="newAccMobile" class="form-input" placeholder="01xxxxxxxxx" autocomplete="off">
+                        <input type="tel" id="newAccMobile" class="form-input" placeholder="01xxxxxxxxx"
+                            autocomplete="off">
                     </div>
                     <div class="form-group">
                         <label class="form-label">العنوان / المنطقة:</label>
-                        <input type="text" id="newAccAddress" class="form-input" placeholder="المدينة أو العنوان..." autocomplete="off">
+                        <input type="text" id="newAccAddress" class="form-input" placeholder="المدينة أو العنوان..."
+                            autocomplete="off">
                     </div>
                 </div>
 
                 <div class="form-group" style="margin-bottom: 16px;">
                     <label class="form-label">الرصيد الافتتاحي (إن وجد):</label>
                     <div style="display: grid; grid-template-columns: 1fr 1.2fr; gap: 8px;">
-                        <input type="number" id="newAccBalance" class="form-input" min="0" step="0.5" placeholder="0.00" value="0">
+                        <input type="number" id="newAccBalance" class="form-input" min="0" step="0.5" placeholder="0.00"
+                            value="0">
                         <select id="newAccBalanceType" class="form-input" style="font-weight: 800; cursor: pointer;">
                             <option value="zero">متزن (صفر / خالص) ⚪</option>
                             <option value="debt">عليه دين للمحل (مدين) 🔴</option>
@@ -1370,7 +1570,8 @@
                     </div>
                 </div>
 
-                <button type="button" id="btnSaveNewAccount" class="btn-complete-invoice" onclick="window.BayanMobile.submitNewAccount()">
+                <button type="button" id="btnSaveNewAccount" class="btn-complete-invoice"
+                    onclick="window.BayanMobile.submitNewAccount()">
                     <span>💾</span> حفظ الحساب وترحيله للسحابة والماستر
                 </button>
             </div>
@@ -1378,20 +1579,23 @@
     </div>
 
     <!-- 📦 نافذة الجرد السريع بالمخزن المباشر -->
-    <div id="stocktakeModalOverlay" class="modal-overlay" onclick="if(event.target===this)window.BayanMobile.closeStocktakeModal()">
+    <div id="stocktakeModalOverlay" class="modal-overlay"
+        onclick="if(event.target===this)window.BayanMobile.closeStocktakeModal()">
         <div class="stocktake-sheet">
             <div class="sheet-handle"></div>
             <div class="stocktake-header">
                 <div class="stocktake-title">
                     <span>📦</span> جرد المخزن السريع
                 </div>
-                <button type="button" class="btn-close-modal" onclick="window.BayanMobile.closeStocktakeModal()">✕</button>
+                <button type="button" class="btn-close-modal"
+                    onclick="window.BayanMobile.closeStocktakeModal()">✕</button>
             </div>
 
             <!-- اختيار المخزن المراد جرده -->
             <div class="stocktake-wh-row">
                 <label for="stocktakeWarehouseSelect">المخزن المستهدف للجرد:</label>
-                <select id="stocktakeWarehouseSelect" class="stocktake-wh-select" onchange="window.BayanMobile.onStocktakeWarehouseChange(this.value)">
+                <select id="stocktakeWarehouseSelect" class="stocktake-wh-select"
+                    onchange="window.BayanMobile.onStocktakeWarehouseChange(this.value)">
                     <!-- يُملأ بالمخازن المتاحة -->
                 </select>
             </div>
@@ -1400,13 +1604,17 @@
             <div class="stocktake-search-wrap">
                 <div class="search-input-box" style="flex: 1;">
                     <span class="search-icon">🔍</span>
-                    <input type="text" id="stocktakeSearchInput" placeholder="امسح الباركود أو اكتب اسم الموديل..." autocomplete="off" oninput="window.BayanMobile.onStocktakeSearchInput(this.value)">
-                    <button type="button" id="stocktakeSearchClearBtn" class="search-clear-btn" style="display: none;" onclick="window.BayanMobile.clearStocktakeSearch()">✕</button>
+                    <input type="text" id="stocktakeSearchInput" placeholder="امسح الباركود أو اكتب اسم الموديل..."
+                        autocomplete="off" oninput="window.BayanMobile.onStocktakeSearchInput(this.value)">
+                    <button type="button" id="stocktakeSearchClearBtn" class="search-clear-btn" style="display: none;"
+                        onclick="window.BayanMobile.clearStocktakeSearch()">✕</button>
                 </div>
-                <button type="button" class="btn-scan-camera" onclick="window.BayanMobile.triggerStocktakeCameraScan()" title="مسح بكاميرا الهاتف">
+                <button type="button" class="btn-scan-camera" onclick="window.BayanMobile.triggerStocktakeCameraScan()"
+                    title="مسح بكاميرا الهاتف">
                     📷
                 </button>
-                <input type="file" id="stocktakeCameraInput" accept="image/*" capture="environment" style="display: none;" onchange="window.BayanMobile.handleStocktakeCameraFile(event)">
+                <input type="file" id="stocktakeCameraInput" accept="image/*" capture="environment"
+                    style="display: none;" onchange="window.BayanMobile.handleStocktakeCameraFile(event)">
             </div>
 
             <!-- قائمة الاقتراحات السريعة عند البحث بالاسم -->
@@ -1434,8 +1642,7 @@
 
     <!-- سكريبتات التشغيل والمكتبات المدمجة -->
     <script src="../lib/html2canvas.min.js"></script>
-    <script src="js/mobile_fashion.js?v=5.1.6"></script>
+    <script src="js/mobile_fashion.js?v=5.1.21"></script>
 </body>
 
 </html>
-
