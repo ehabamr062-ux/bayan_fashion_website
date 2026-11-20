@@ -3435,27 +3435,38 @@ body.dark-mode .floating-controls-box .dock-theme-capsule .active-bar {
 /* =========================================================================
    🔘 كلاسات مساعدة موحدة لهيدر الفواتير وأزرار الرجوع (Consolidated POS & Header Classes)
    ========================================================================= */
+.btn-back-home-pos,
+.btn-back-home {
+    background: linear-gradient(135deg, #059669, #047857) !important;
+    border-color: #047857 !important;
+    color: #ffffff !important;
+    box-shadow: 0 2px 8px rgba(5, 150, 105, 0.28) !important;
+}
+
+.btn-back-home-pos:hover,
+.btn-back-home:hover {
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.42) !important;
+}
+
 .btn-back-home-pos {
     margin: 0 !important;
     padding: 0 12px !important;
     height: 40px !important;
     border-radius: 8px !important;
-    background: linear-gradient(135deg, #1e293b, #0f172a) !important;
     border: none !important;
-    color: #ffffff !important;
     font-weight: 900 !important;
     cursor: pointer !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
     font-size: 1rem !important;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.25) !important;
     transition: transform 0.2s ease, box-shadow 0.2s ease !important;
 }
 
 .btn-back-home-pos:hover {
     transform: translateY(-1px) !important;
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.35) !important;
 }
 
 .btn-back-home-pos:active {
