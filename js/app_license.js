@@ -1287,6 +1287,7 @@ function closeSubscription() {
 let _isVerifyingNetworkTime = false;
 
 window.verifyAndHealClockTampering = async function () {
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return false;
     if (_isVerifyingNetworkTime) return false;
     _isVerifyingNetworkTime = true;
 
@@ -1296,7 +1297,7 @@ window.verifyAndHealClockTampering = async function () {
         // 1. المحاولة الأولى: عبر هيدر Date من سيرفر Supabase المدمج في النظام
         try {
             const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-            const timeoutId = controller ? setTimeout(() => controller.abort(), 4000) : null;
+            const timeoutId = controller ? setTimeout(() => controller.abort(), 3000) : null;
             const res = await fetch('https://kxhhdskmpaiitsojwcgu.supabase.co/rest/v1/', {
                 method: 'HEAD',
                 cache: 'no-store',
@@ -1312,7 +1313,7 @@ window.verifyAndHealClockTampering = async function () {
         if (!serverDateStr) {
             try {
                 const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-                const timeoutId = controller ? setTimeout(() => controller.abort(), 4000) : null;
+                const timeoutId = controller ? setTimeout(() => controller.abort(), 3000) : null;
                 const res = await fetch('https://www.google.com', {
                     method: 'HEAD',
                     cache: 'no-store',
@@ -1333,7 +1334,7 @@ window.verifyAndHealClockTampering = async function () {
                 serverDateStr = await new Promise((resolve) => {
                     const req = https.request('https://kxhhdskmpaiitsojwcgu.supabase.co/rest/v1/', {
                         method: 'HEAD',
-                        timeout: 3500
+                        timeout: 3000
                     }, (res) => {
                         resolve(res.headers ? (res.headers['date'] || null) : null);
                     });
@@ -1403,16 +1404,12 @@ window.verifyAndHealClockTampering = async function () {
     }
 };
 
-// فحص وإصلاح استباقي في الخلفية عند بدء تشغيل التطبيق في حال وجود تضارب سابق مسجل بالساعة
+// مزامنة وقت السيرفر وإصلاح الساعة مرة واحدة فقط عند بدء التشغيل (فقط عند توفر الإنترنت)
 setTimeout(() => {
     try {
-        const nTime = Date.now();
-        const mTimeStr = (typeof getStore === 'function' ? getStore('bayan_max_seen_timestamp') : null) || (typeof localStorage !== 'undefined' ? localStorage.getItem('bayan_max_seen_timestamp') : null);
-        const mTime = mTimeStr ? parseInt(mTimeStr, 10) : 0;
-        if (mTime > 0 && nTime < (mTime - 300000)) {
-            if (typeof window.verifyAndHealClockTampering === 'function') {
-                window.verifyAndHealClockTampering().catch(() => {});
-            }
+        if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+        if (typeof window.verifyAndHealClockTampering === 'function') {
+            window.verifyAndHealClockTampering().catch(() => {});
         }
     } catch(e) {}
 }, 3000);
@@ -1466,38 +1463,13 @@ window.isSubscriptionValid = function (actionType = 'invoice') {
     // إذا تم تأخير ساعة الجهاز للخلف بأكثر من 5 دقائق (300000 مللي ثانية)
     if (maxSeenTime > 0 && nowTime < (maxSeenTime - 300000)) {
         window.clockTampered = true;
-        // 🔄 استدعاء التحقق والإصلاح الذاتي من وقت الإنترنت تلقائياً
-        if (typeof window.verifyAndHealClockTampering === 'function') {
-            window.verifyAndHealClockTampering().catch(() => {});
-        }
         return false;
     } else {
         window.clockTampered = false;
+        // استمرار تحديث الساعة التصاعدية محلياً باستمرار دون أي قيود زمنية أو طلبات شبكة أثناء الفواتير
         if (nowTime > maxSeenTime) {
-            let shouldUpdate = true;
-            // 🛡️ حماية ضد القفزات المستقبلية الوهمية (مثل أعطال بطارية اللوحة الأم CMOS أو خطأ تاريخ يدوي)
-            const lastServerTimeStr = (typeof getStore === 'function' ? getStore('bayan_last_verified_server_time') : null) || (typeof localStorage !== 'undefined' ? localStorage.getItem('bayan_last_verified_server_time') : null);
-            if (lastServerTimeStr) {
-                const lastServerTime = parseInt(lastServerTimeStr, 10);
-                if (!isNaN(lastServerTime) && lastServerTime > 0 && (nowTime - lastServerTime) > (48 * 3600 * 1000)) {
-                    // قفزة مستقبلية شاذة بأكثر من 48 ساعة عن آخر وقت سيرفر موثوق
-                    shouldUpdate = false;
-                    if (typeof window.verifyAndHealClockTampering === 'function') {
-                        window.verifyAndHealClockTampering().catch(() => {});
-                    }
-                }
-            } else if (maxSeenTime > 0 && (nowTime - maxSeenTime) > (30 * 24 * 3600 * 1000)) {
-                // قفزة مستقبلية شاذة بأكثر من شهر دفعة واحدة
-                shouldUpdate = false;
-                if (typeof window.verifyAndHealClockTampering === 'function') {
-                    window.verifyAndHealClockTampering().catch(() => {});
-                }
-            }
-
-            if (shouldUpdate) {
-                if (typeof setStore === 'function') setStore('bayan_max_seen_timestamp', nowTime.toString());
-                if (typeof localStorage !== 'undefined') localStorage.setItem('bayan_max_seen_timestamp', nowTime.toString());
-            }
+            if (typeof setStore === 'function') setStore('bayan_max_seen_timestamp', nowTime.toString());
+            if (typeof localStorage !== 'undefined') localStorage.setItem('bayan_max_seen_timestamp', nowTime.toString());
         }
     }
 
@@ -2287,6 +2259,13 @@ window.getCloudSyncStatus = function () {
     }
     if (window.clockTampered) {
         return { allowed: false, reason: 'clock_tampered', label: '🔒 تم التلاعب بتوقيت الجهاز' };
+    }
+
+    // السماح في بيئة التطوير أو الترخيص الصريح
+    const isDev = (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production') || !window.electronAPI;
+    const isExplicitCloudLicensed = (typeof getStore === 'function') && (getStore('bayan_cloud_sync_licensed') === 'true');
+    if (isExplicitCloudLicensed || isDev) {
+        return { allowed: true, reason: 'active', label: '🟢 سحابي نشط (وضع التطوير/مرخص)' };
     }
 
     const currentPlan = (typeof window.getBayanPlan === 'function') ? window.getBayanPlan() : '';
