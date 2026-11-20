@@ -1209,7 +1209,7 @@ async function renderInvoicesTable(isLoadMore = false) {
                         <td class="col-inv-8" style="color:${isRejectedTransfer ? '#94a3b8' : 'blue'}; font-weight:bold; ${isV(8) ? '' : 'display:none;'}">${paid}</td>
                         <td class="col-inv-9" style="color:${isRejectedTransfer ? '#94a3b8' : 'red'}; font-weight:bold; ${isV(9) ? '' : 'display:none;'}">${remaining}</td>
                         <td class="col-inv-10" style="${isV(10) ? '' : 'display:none;'}">${esc(t.partner || '-')}</td>
-                        <td class="col-inv-11" style="font-size:0.8rem; ${isV(11) ? '' : 'display:none;'}">${esc(t.user || '-')}</td>
+                        <td class="col-inv-11" style="font-size:0.8rem; ${isV(11) ? '' : 'display:none;'}">${esc(t.user || t.cashier || t.userName || t.user_name || t.createdBy || '-')}</td>
                         <td class="col-inv-12" style="font-size:0.8rem; color: #888; ${isV(12) ? '' : 'display:none;'}">${esc(t.editDate || '-')}</td>
                         <td class="col-inv-13" style="${isV(13) ? '' : 'display:none;'}">${esc(t.notes || '-')}</td>
                     </tr>
