@@ -1282,6 +1282,13 @@ window.addEventListener('keydown', function (event) {
 
         let modalClosed = false;
         for (const modalId of modals) {
+            // تجاهل نوافذ التبويبات الكاملة (تحويل المخزون / تعديل الأسعار) عند وجود تبويب نشط لها ليتم إغلاق التبويب بالكامل عبر closeTab
+            if (modalId === 'transferModal' && typeof openTabs !== 'undefined' && typeof activeTabId !== 'undefined' && openTabs.some(t => t && t.id === activeTabId && t.type === 'stock-transfer')) {
+                continue;
+            }
+            if (modalId === 'priceAdjustmentModal' && typeof openTabs !== 'undefined' && typeof activeTabId !== 'undefined' && openTabs.some(t => t && t.id === activeTabId && t.type === 'price-adjustment')) {
+                continue;
+            }
             const el = document.getElementById(modalId);
             // فحص دقيق: هل العنصر موجود، وهل هو ظاهر فعلياً للمستخدم؟
             if (el && (el.offsetWidth > 0 || el.offsetHeight > 0 || el.classList.contains('visible'))) {
