@@ -1567,7 +1567,13 @@
                 const sObj = (typeof settings !== 'undefined' && settings) ? settings : {};
                 const shopName = cfg.shopName || sObj.shop_name || sObj.shopName || 'بَيَان فاشون';
                 const rawLogo = sObj.shop_logo || sObj.shopLogo || sObj.logo || localStorage.getItem('bayan_shop_logo') || '';
-                const safeLogo = (typeof rawLogo === 'string' && rawLogo.length <= 120000) ? rawLogo : '';
+                const safeLogo = (typeof rawLogo === 'string' && rawLogo.length <= 80000) ? rawLogo : '';
+                let customPayMethods = [];
+                try {
+                    const pmRaw = sObj.paymentMethods || sObj.payment_methods || JSON.parse(localStorage.getItem('bayan_payment_methods') || '[]');
+                    if (Array.isArray(pmRaw)) customPayMethods = pmRaw;
+                } catch (_) {}
+                const subEnd = sObj.subscription_end || cfg.subscriptionEnd || localStorage.getItem('bayan_cloud_sub_end') || '';
                 const payload = [
                     {
                         id: `CONFIG_DEVICE_PAIRING_${shopId}`,
@@ -1585,6 +1591,8 @@
                             taxRate: parseFloat(sObj.tax_rate || sObj.taxRate || 0) || 0,
                             currency: sObj.currency || 'ج.م',
                             shopLogo: safeLogo,
+                            paymentMethods: customPayMethods,
+                            subscription_end: subEnd,
                             pairingPin: String(pairingPin).trim(),
                             updatedAt: new Date().toISOString()
                         }
