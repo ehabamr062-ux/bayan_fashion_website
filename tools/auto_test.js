@@ -784,8 +784,64 @@ async function runAutoTest() {
 
             recordResult('8. اختبار الصمود بعد إعادة التشغيل', pass, `تم إعادة فتح البرنامج بالكامل، واسترجاع الفاتورة ذات الـ 3 أصناف (1200 ج.م)، والأصناف الثلاثة محتفظة بأرصدتها (8، 4، 4) بدقة 100%`);
 
+            // =========================================================================
+            // 9️⃣ السيناريو التاسع: البحث السريع وأولوية الفواتير في المرتجعات والفواتير
+            // =========================================================================
+            try {
+                await updateStatusBanner(page, 9, 10, '🔍 اختبار البحث السريع في SQLite (المرتجعات والفواتير)');
+                const searchCheck = await page.evaluate(() => {
+                    const t0 = performance.now();
+                    const retRes = (window.BayanSQLite && typeof window.BayanSQLite.searchReturnInvoices === 'function')
+                        ? window.BayanSQLite.searchReturnInvoices({ ref: 'INV-MULTI-01', isSalesReturn: true })
+                        : [];
+                    const invRes = (window.BayanSQLite && typeof window.BayanSQLite.queryFilteredTransactions === 'function')
+                        ? window.BayanSQLite.queryFilteredTransactions({ searchId: 'INV-MULTI-01' })
+                        : [];
+                    const ms = (performance.now() - t0).toFixed(2);
+                    return {
+                        retCount: retRes.length,
+                        retFirstId: retRes[0] ? retRes[0].invoiceId : null,
+                        invCount: invRes.length,
+                        invFirstId: invRes[0] ? invRes[0].invoiceId : null,
+                        ms
+                    };
+                });
+                const pass9 = searchCheck.retFirstId === 'INV-MULTI-01' && searchCheck.invFirstId === 'INV-MULTI-01';
+                recordResult('9. البحث السريع وأولوية الفهارس', pass9, `تم استرجاع الفاتورة INV-MULTI-01 في المرتبة #1 في المرتجعات والفواتير خلال (${searchCheck.ms} ms) بعدد (${searchCheck.invCount}) سجل مطابق`);
+            } catch (e9) {
+                recordResult('9. البحث السريع وأولوية الفهارس', false, 'فشل اختبار البحث السريع في الفهارس', e9);
+            }
+
+            // =========================================================================
+            // 🔟 السيناريو العاشر: جرد الأرصدة التفصيلي وتقرير الحركة اليومية
+            // =========================================================================
+            try {
+                await updateStatusBanner(page, 10, 10, '📊 فحص ملخص الحركة اليومية والأرصدة قبل/بعد');
+                const dailyCheck = await page.evaluate(() => {
+                    const todayISO = new Date().toLocaleDateString('en-CA');
+                    const agg = (window.BayanSQLite && typeof window.BayanSQLite.getDailyReportAggregates === 'function')
+                        ? window.BayanSQLite.getDailyReportAggregates(todayISO, todayISO, 'all', 'all')
+                        : null;
+                    const p1 = window.BayanSQLite?.nativeDb?.prepare("SELECT stock FROM products WHERE barcode='20261100'").get();
+                    const p2 = window.BayanSQLite?.nativeDb?.prepare("SELECT stock FROM products WHERE barcode='20262200'").get();
+                    const p3 = window.BayanSQLite?.nativeDb?.prepare("SELECT stock FROM products WHERE barcode='20263300'").get();
+                    return {
+                        hasAgg: Boolean(agg),
+                        netSales: agg ? Number(agg.netSales || 0) : 0,
+                        salesReturns: agg ? Number(agg.salesReturns || 0) : 0,
+                        receipts: agg ? Number(agg.receipts || 0) : 0,
+                        disbursements: agg ? Number(agg.disbursements || 0) : 0,
+                        stocks: [p1?.stock ?? 0, p2?.stock ?? 0, p3?.stock ?? 0]
+                    };
+                });
+                const pass10 = dailyCheck.hasAgg && dailyCheck.stocks[0] === 8 && dailyCheck.stocks[1] === 4 && dailyCheck.stocks[2] === 4;
+                recordResult('10. الحركة اليومية وتدقيق الأرصدة', pass10, `تقرير اليومية: صافي المبيعات (${dailyCheck.netSales} ج.م)، المرتجعات (${dailyCheck.salesReturns} ج.م)، سندات القبض (${dailyCheck.receipts} ج.م)، الصرف (${dailyCheck.disbursements} ج.م) | الأرصدة النهائية للأصناف (${dailyCheck.stocks.join('، ')})`);
+            } catch (e10) {
+                recordResult('10. الحركة اليومية وتدقيق الأرصدة', false, 'فشل تدقيق الحركة اليومية', e10);
+            }
+
             if (isWatchMode) {
-                await updateStatusBanner(page, 8, 8, '🎉 تم اجتياز كافة السيناريوهات بنجاح 100%!');
+                await updateStatusBanner(page, 10, 10, '🎉 تم اجتياز كافة السيناريوهات (10/10) بنجاح!');
                 await page.waitForTimeout(2500); // إتاحة الفرصة للمستخدم لمشاهدة النتيجة النهائية
             }
         } catch (err) {
