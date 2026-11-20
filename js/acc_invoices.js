@@ -579,7 +579,8 @@ function getGroupedTransactions(txList) {
                 toWarehouse: t.toWarehouse || t.destWarehouse || null,
                 partner: t.partner,
                 method: t.method || t.paymentMethod,
-                user: t.user,
+                user: t.user || t.cashier || t.userName || t.user_name || t.createdBy || '',
+                cashier: t.cashier || t.user || t.userName || t.user_name || t.createdBy || '',
                 itemsCount: 0,
                 total: 0,
                 profit: 0,
@@ -613,6 +614,9 @@ function getGroupedTransactions(txList) {
         if (t.method) {
             groups[key].method = t.method;
         }
+        const rowUser = t.user || t.cashier || t.userName || t.user_name || t.createdBy;
+        if (!groups[key].user && rowUser) groups[key].user = rowUser;
+        if (!groups[key].cashier && rowUser) groups[key].cashier = rowUser;
         if (t.is_returned) groups[key].is_returned = true;
         if (t.product) {
             groups[key].itemsCount++;
@@ -1466,10 +1470,10 @@ async function viewInvoiceItems(invoiceId, type = '', autoPrint = false, optTxId
         const pPrice = parseFloat(item.price != null ? item.price : 0) || 0;
         const pBarcode = (item.barcode || item.code || '').trim();
         const sig = `${pBarcode}|${pName}|${pSize}|${pColor}|${pPrice}|${pQty}`;
-        
+
         const currentSum = dedupedRawItems.reduce((s, it) => s + ((parseFloat(it.qty != null ? it.qty : it.quantity || 0) || 0) * (parseFloat(it.price || 0) || 0)), 0);
         const itemTotalVal = pQty * pPrice;
-        
+
         if (seenItemSignatures.has(sig)) {
             // إذا كان إجمالي البنود الحالية بإضافة هذا السطر سيتجاوز إجمالي الفاتورة الرسمي: نتجاهل التكرار
             if (invGrandTotal > 0 && (currentSum + itemTotalVal > invGrandTotal + 0.05)) {
@@ -1678,7 +1682,7 @@ window.editTransaction = async function (invId, type, optTxId = '') {
             window.editingInvoiceType = targetType;
             window.editingOriginalPartner = partnerName;
             window.editingOriginalMethod = paymentMethod;
-            window.editingOriginalUser = t.user || '';
+            window.editingOriginalUser = t.user || t.cashier || t.userName || t.user_name || t.createdBy || '';
             editingOriginalItems = JSON.parse(JSON.stringify(invItems)); // نسخة أصلية للعكس والمطابقة
             window.editingOriginalItems = editingOriginalItems;
 
