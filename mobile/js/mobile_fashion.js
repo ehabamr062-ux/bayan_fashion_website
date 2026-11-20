@@ -1,4 +1,4 @@
-/**
+﻿/**
  * ============================================================
  * 👗 BAYAN POS FASHION - MOBILE & LIVE DASHBOARD LOGIC
  * High-Performance, Standalone Client Engine (<20KB Zero Lag)
@@ -86,6 +86,54 @@
         txTypeFilter: 'all',
         newProductImageBase64: ''
     };
+
+    // ============================================================
+    // 💬 MODERN DIALOGS (BayanDialog: Prompt / Confirm / Alert)
+    // ============================================================
+    function openModernDialog({ mode = 'alert', title = 'تنبيه', message = '', defaultValue = '', inputType = 'text', placeholder = '' }) {
+        return new Promise((resolve) => {
+            const overlay = document.getElementById('bayanDialogOverlay');
+            const titleEl = document.getElementById('bayanDialogTitle');
+            const msgEl = document.getElementById('bayanDialogMsg');
+            const inpEl = document.getElementById('bayanDialogInput');
+            const okBtn = document.getElementById('bayanDialogOk');
+            const cancelBtn = document.getElementById('bayanDialogCancel');
+            if (!overlay || !okBtn || !cancelBtn) { resolve(mode === 'confirm' ? false : null); return; }
+
+            if (titleEl) titleEl.textContent = title;
+            if (msgEl) msgEl.textContent = message;
+            if (inpEl) {
+                if (mode === 'prompt') {
+                    inpEl.style.display = 'block';
+                    inpEl.type = inputType || 'text';
+                    inpEl.value = defaultValue || '';
+                    inpEl.placeholder = placeholder || '';
+                    setTimeout(() => { inpEl.focus(); inpEl.select(); }, 60);
+                } else {
+                    inpEl.style.display = 'none';
+                }
+            }
+            cancelBtn.style.display = (mode === 'alert') ? 'none' : 'block';
+            okBtn.textContent = (mode === 'alert') ? 'حسناً' : 'تأكيد';
+            overlay.style.display = 'flex';
+
+            const cleanup = (val) => {
+                overlay.style.display = 'none';
+                okBtn.onclick = null;
+                cancelBtn.onclick = null;
+                if (inpEl) inpEl.onkeydown = null;
+                resolve(val);
+            };
+            okBtn.onclick = () => cleanup(mode === 'prompt' ? (inpEl ? inpEl.value : '') : true);
+            cancelBtn.onclick = () => cleanup(mode === 'prompt' ? null : false);
+            if (inpEl && mode === 'prompt') {
+                inpEl.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); okBtn.click(); } };
+            }
+        });
+    }
+    const openModernPrompt = (message, defaultValue = '', inputType = 'text', title = 'إدخال بيانات') => openModernDialog({ mode: 'prompt', title, message, defaultValue, inputType });
+    const openModernConfirm = (message, title = 'تأكيد الإجراء') => openModernDialog({ mode: 'confirm', title, message });
+    const openModernAlert = (message, title = 'تنبيه') => openModernDialog({ mode: 'alert', title, message });
 
     // ============================================================
     // 🔔 TOAST NOTIFICATIONS
@@ -2750,7 +2798,7 @@
         }
 
         if (promptUser) {
-            const ok = confirm(`هل أنت متأكد من حذف الفاتورة #${tx.invoiceId || tx.id} نهائياً؟\nسيتم استرجاع جميع كميات الأصناف والمقاسات للمخزن فوراً.`);
+            const ok = await openModernConfirm(`هل أنت متأكد من حذف الفاتورة #${tx.invoiceId || tx.id} نهائياً؟\nسيتم استرجاع جميع كميات الأصناف والمقاسات للمخزن فوراً.`, 'حذف فاتورة');
             if (!ok) return false;
         }
 
@@ -2992,7 +3040,7 @@
     }
 
     // إرسال الفاتورة الرقمية الأنيقة مباشرة لواتساب العميل
-    function sendWhatsAppReceiptDirectly(tx) {
+    async function sendWhatsAppReceiptDirectly(tx) {
         if (!tx) tx = window.BayanMobile.lastSuccessTx || (State.transactions && State.transactions[0]);
         if (!tx) {
             showToast('لا توجد فاتورة محددة لإرسالها ⚠️', 'warning');
@@ -3001,7 +3049,7 @@
 
         let phone = String(tx.customerPhone || tx.phone || tx.mobile || '').replace(/\D/g, '');
         if (!phone) {
-            const entered = prompt('📱 يرجى إدخال رقم واتساب العميل لإرسال الفاتورة (مثال: 01012345678):');
+            const entered = await openModernPrompt('يرجى إدخال رقم واتساب العميل لإرسال الفاتورة (مثال: 01012345678):', '', 'tel', '📱 إرسال واتساب');
             if (!entered) return;
             phone = entered.replace(/\D/g, '');
         }
@@ -3167,9 +3215,9 @@
         barcodeInp.value = '20' + rand;
     }
 
-    function addCustomVariantChip(type, btnEl) {
+    async function addCustomVariantChip(type, btnEl) {
         const label = type === 'size' ? 'أدخل المقاس المخصص (مثل 4XL أو 40):' : 'أدخل اللون المخصص (مثل نبيتي أو مستردة):';
-        const val = prompt(label);
+        const val = await openModernPrompt(label, '', 'text', type === 'size' ? 'إضافة مقاس' : 'إضافة لون');
         if (!val || !val.trim()) return;
         const cleanVal = val.trim();
         const chip = document.createElement('span');
@@ -3444,7 +3492,7 @@
             }
         }
 
-        const manualInput = prompt('يرجى إدخال الباركود أو اسم الصنف للبحث:');
+        const manualInput = await openModernPrompt('يرجى إدخال الباركود أو اسم الصنف للبحث:', '', 'text', '🔍 بحث يدوي');
         if (manualInput && manualInput.trim()) {
             onBarcodeFound(manualInput.trim());
         } else {
@@ -3483,10 +3531,10 @@
     // ============================================================
     // 🧭 NAVIGATION & TAB SWITCHING
     // ============================================================
-    function switchTab(tabId) {
+    async function switchTab(tabId) {
         // فحص قفل الخزينة برقم سري (PIN) في حال تفعيله لحماية رصيد الدرج من البائعين
         if (tabId === 'dashboard' && localStorage.getItem('bayan_mob_treasury_pin_enabled') === 'true' && !State.treasuryUnlocked) {
-            const entered = prompt('🔐 الخزينة محمية برقم سري: يرجى إدخال رمز الـ PIN:');
+            const entered = await openModernPrompt('الخزينة محمية برقم سري: يرجى إدخال رمز الـ PIN:', '', 'password', '🔐 فتح الخزينة');
             if (!entered) return;
 
             const storedHash = localStorage.getItem('bayan_mob_treasury_pin_hash');
@@ -4101,9 +4149,29 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         if (!activeBox) return;
 
         const wh = State.stocktakeWarehouse || 'المخزن الرئيسي';
-        const whStocks = product.warehouseStocks || {};
-        const currentWhStock = parseFloat(whStocks[wh] !== undefined ? whStocks[wh] : (product.quantity !== undefined ? product.quantity : (product.stock || 0))) || 0;
+        const hasVars = Array.isArray(product.variants) && product.variants.length > 0;
+        State.stocktakeVariantIdx = (State.stocktakeVariantIdx !== undefined && hasVars && product.variants[State.stocktakeVariantIdx]) ? State.stocktakeVariantIdx : (hasVars ? 0 : -1);
+        const activeVar = (hasVars && State.stocktakeVariantIdx >= 0) ? product.variants[State.stocktakeVariantIdx] : null;
+
+        const whStocks = activeVar ? (activeVar.warehouseStocks || {}) : (product.warehouseStocks || {});
+        const currentWhStock = activeVar
+            ? (parseFloat(whStocks[wh] !== undefined ? whStocks[wh] : (activeVar.stock !== undefined ? activeVar.stock : (activeVar.quantity || 0))) || 0)
+            : (parseFloat(whStocks[wh] !== undefined ? whStocks[wh] : (product.quantity !== undefined ? product.quantity : (product.stock || 0))) || 0);
         State.stocktakeInitialQty = currentWhStock;
+
+        const varSelectorHtml = hasVars ? `
+            <div style="margin: 10px 0;">
+                <label style="font-size: 0.75rem; font-weight: 800; color: var(--text-dim); display: block; margin-bottom: 6px;">اختر المقاس واللون للجرد:</label>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                    ${product.variants.map((v, idx) => {
+                        const vWh = v.warehouseStocks || {};
+                        const vQty = parseFloat(vWh[wh] !== undefined ? vWh[wh] : (v.stock !== undefined ? v.stock : (v.quantity || 0))) || 0;
+                        const isSel = idx === State.stocktakeVariantIdx;
+                        return `<button type="button" class="vb-chip ${isSel ? 'active' : ''}" onclick="window.BayanMobile.selectStocktakeVariant(${idx})">${v.size || 'عادي'} / ${v.color || 'عام'} (${vQty})</button>`;
+                    }).join('')}
+                </div>
+            </div>
+        ` : '';
 
         activeBox.innerHTML = `
             <div class="stocktake-prod-head">
@@ -4111,9 +4179,10 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                 <div class="stocktake-prod-info">
                     <h4>${product.name || 'صنف بدون اسم'}</h4>
                     <p>🏷️ باركود: ${product.barcode || '---'} • 📁 ${product.category || 'عام'}</p>
-                    <p style="color: #7c3aed; font-weight: 800; margin-top: 2px;">📦 الرصيد المسجل بمخزن (${wh}): <b>${currentWhStock} قطعة</b></p>
+                    <p style="color: var(--primary); font-weight: 800; margin-top: 2px;">📦 الرصيد المسجل بمخزن (${wh}): <b>${currentWhStock} قطعة</b></p>
                 </div>
             </div>
+            ${varSelectorHtml}
 
             <div class="stocktake-count-stepper">
                 <button type="button" class="btn-step-stock" onclick="window.BayanMobile.stepStocktakeQty(-10)">-10</button>
@@ -4186,14 +4255,25 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         const initial = State.stocktakeInitialQty || 0;
         const diff = counted - initial;
 
-        // 1. Update product warehouseStocks and total quantity
-        if (!p.warehouseStocks) p.warehouseStocks = {};
-        p.warehouseStocks[wh] = counted;
-
-        // Recalculate total stock across warehouses
-        const total = Object.values(p.warehouseStocks).reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
-        p.stock = total;
-        p.quantity = total;
+        // 1. Update variant (if selected) and product warehouseStocks & total quantity
+        const hasVars = Array.isArray(p.variants) && p.variants.length > 0;
+        if (hasVars && State.stocktakeVariantIdx >= 0 && p.variants[State.stocktakeVariantIdx]) {
+            const v = p.variants[State.stocktakeVariantIdx];
+            if (!v.warehouseStocks) v.warehouseStocks = {};
+            v.warehouseStocks[wh] = counted;
+            v.stock = Object.values(v.warehouseStocks).reduce((s, q) => s + (parseFloat(q) || 0), 0);
+            v.quantity = v.stock;
+            if (!p.warehouseStocks) p.warehouseStocks = {};
+            p.warehouseStocks[wh] = p.variants.reduce((s, vr) => s + (parseFloat((vr.warehouseStocks && vr.warehouseStocks[wh] !== undefined) ? vr.warehouseStocks[wh] : (vr.stock || 0)) || 0), 0);
+            p.stock = p.variants.reduce((s, vr) => s + (parseFloat(vr.stock || 0) || 0), 0);
+            p.quantity = p.stock;
+        } else {
+            if (!p.warehouseStocks) p.warehouseStocks = {};
+            p.warehouseStocks[wh] = counted;
+            const total = Object.values(p.warehouseStocks).reduce((sum, v) => sum + (parseFloat(v) || 0), 0);
+            p.stock = total;
+            p.quantity = total;
+        }
 
         safelyPersistProducts(State.products);
 
@@ -4226,8 +4306,9 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         });
         renderStocktakeSessionList();
 
-        // 4. Sync product to Supabase
+        // 4. Sync product + adjustment transaction to Supabase
         const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
+        const nowIso = new Date().toISOString();
         const sbRow = {
             id: `${currentShopId}_PROD_${p.id}`,
             name: p.name,
@@ -4235,8 +4316,15 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
             category: p.category,
             stock: p.stock,
             image: p.image || null,
-            raw_json: { ...p, localId: p.id, shop_id: currentShopId },
-            updated_at: new Date().toISOString()
+            raw_json: {
+                ...p,
+                localId: p.id,
+                shop_id: currentShopId,
+                isStockAdjustment: true,
+                isManualStockUpdate: true,
+                updatedAt: nowIso
+            },
+            updated_at: nowIso
         };
 
         if (navigator.onLine) {
@@ -4244,9 +4332,28 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                 method: 'POST',
                 headers: getSupabaseHeaders(),
                 body: JSON.stringify([sbRow])
-            }).catch(() => {
-                enqueueOfflineItem({ id: 'PROD_ST_' + p.id, prodBatch: [sbRow], createdAt: new Date().toISOString() });
-            });
+            }).catch(() => {});
+
+            fetch(`${SUPABASE_CONFIG.url}/rest/v1/transactions?on_conflict=id`, {
+                method: 'POST',
+                headers: getSupabaseHeaders(),
+                body: JSON.stringify([{
+                    id: `${currentShopId}_${adjTx.invoiceId}`,
+                    invoice_id: adjTx.invoiceId,
+                    date_iso: nowIso,
+                    updated_at: nowIso,
+                    time: adjTx.timeISO,
+                    type: 'تسوية مخزنية',
+                    partner: 'جرد مخزني',
+                    total: adjTx.total,
+                    paid_amount: 0,
+                    remaining: 0,
+                    method: 'تسوية',
+                    cashier: adjTx.cashier,
+                    warehouse: wh,
+                    raw_json: { ...adjTx, shop_id: currentShopId, updatedAt: nowIso }
+                }])
+            }).catch(() => {});
         } else {
             enqueueOfflineItem({ id: 'PROD_ST_' + p.id, prodBatch: [sbRow], createdAt: new Date().toISOString() });
         }
@@ -4320,7 +4427,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                 }
             } catch (e) {}
         }
-        const manual = prompt('أدخل الباركود أو اسم الصنف للجرد:');
+        const manual = await openModernPrompt('أدخل الباركود أو اسم الصنف للجرد:', '', 'text', '📦 جرد يدوي');
         if (manual && manual.trim()) {
             onStocktakeSearchInput(manual.trim());
         }
@@ -5569,6 +5676,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         selectProductForStocktake,
         stepStocktakeQty,
         setStocktakeQty,
+        selectStocktakeVariant: (idx) => { State.stocktakeVariantIdx = idx; if (State.stocktakeActiveProduct) displayStocktakeActiveProduct(State.stocktakeActiveProduct); },
         onStocktakeQtyChange,
         submitStocktakeCount,
         triggerStocktakeCameraScan,
@@ -5614,3 +5722,4 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
     }
 
 })(window, document);
+

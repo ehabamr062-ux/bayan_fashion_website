@@ -1,4 +1,4 @@
-﻿/* ============================================================
+/* ============================================================
    👗 BAYAN POS FASHION - ULTRA-PREMIUM DUAL THEME SYSTEM
    Light Mode (Default Luxury Boutique) & Dark Mode (Midnight Obsidian)
    ============================================================ */
@@ -2002,21 +2002,28 @@ body {
 
 .vb-rows-header {
     display: grid;
-    grid-template-columns: 1fr 1fr 100px;
-    gap: 8px;
+    grid-template-columns: 1fr 1fr 1.1fr;
     align-items: center;
+    text-align: center;
     font-size: 0.72rem;
     font-weight: 800;
     color: var(--text-dim);
-    border-bottom: 1px solid var(--border-subtle);
+    border-bottom: 1.5px solid var(--border-strong);
     padding-bottom: 6px;
     margin-bottom: 8px;
 }
 
+.vb-rows-header > span:not(:last-child),
+.vb-row-item > *:not(:last-child) {
+    border-left: 1.5px solid var(--border-strong);
+    padding-left: 6px;
+}
+
 .vb-row-item {
     display: grid;
-    grid-template-columns: 1fr 1fr 100px;
+    grid-template-columns: 1fr 1fr 1.1fr;
     align-items: center;
+    text-align: center;
     gap: 8px;
     padding: 6px 0;
     border-bottom: 1px dashed var(--border-subtle);
