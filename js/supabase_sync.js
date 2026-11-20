@@ -998,8 +998,17 @@
                                     if (rj && Array.isArray(rj.variants) && rj.variants.length > 0) {
                                         localProd.variants = rj.variants;
                                     }
+                                    if (rj && rj.warehouseStocks && typeof rj.warehouseStocks === 'object') {
+                                        localProd.warehouseStocks = rj.warehouseStocks;
+                                    }
                                     changed = true;
-                                } else if (rj && Array.isArray(rj.variants) && rj.variants.length > 0) {
+                                }
+                                const remImg = remProd.image || rj.image || '';
+                                if (remImg && remImg !== localProd.image) {
+                                    localProd.image = remImg;
+                                    changed = true;
+                                }
+                                if (!(isExplicitStockAdjustment && Math.abs((parseFloat(localProd.stock) || 0) - remStock) > 0.001) && rj && Array.isArray(rj.variants) && rj.variants.length > 0) {
                                     // دمج التشكيلات الجديدة فقط إن وجدت دون تغيير أرصدة التشكيلات المحلية الحالية
                                     if (!Array.isArray(localProd.variants) || localProd.variants.length === 0) {
                                         localProd.variants = rj.variants;

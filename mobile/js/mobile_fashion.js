@@ -1537,6 +1537,32 @@
             // Variants Matrix (Sizes & Colors)
             const variantsHtml = renderProductVariantsMatrix(p);
 
+            // أرصدة الفروع / المخازن الأخرى
+            const activeWh = State.activeWarehouse || 'المخزن الرئيسي';
+            const otherWhMap = {};
+            if (p.warehouseStocks && typeof p.warehouseStocks === 'object') {
+                Object.entries(p.warehouseStocks).forEach(([wh, q]) => {
+                    const qty = parseFloat(q) || 0;
+                    if (wh && wh !== activeWh && qty > 0) otherWhMap[wh] = qty;
+                });
+            }
+            if (Array.isArray(p.variants)) {
+                p.variants.forEach(v => {
+                    if (v && v.warehouseStocks && typeof v.warehouseStocks === 'object') {
+                        Object.entries(v.warehouseStocks).forEach(([wh, q]) => {
+                            const qty = parseFloat(q) || 0;
+                            if (wh && wh !== activeWh && qty > 0 && otherWhMap[wh] === undefined) {
+                                otherWhMap[wh] = (otherWhMap[wh] || 0) + qty;
+                            }
+                        });
+                    }
+                });
+            }
+            const otherWhEntries = Object.entries(otherWhMap);
+            const otherWhHtml = otherWhEntries.length > 0
+                ? `<div class="other-branches-bar" style="margin-top: 8px; padding: 6px 10px; border-radius: 8px; background: var(--primary-subtle); color: var(--primary); font-size: 0.74rem; font-weight: 800; display: flex; flex-wrap: wrap; gap: 6px; align-items: center;">🏬 أرصدة الفروع الأخرى: ${otherWhEntries.map(([wh, q]) => `<span>${wh} (${q})</span>`).join(' • ')}</div>`
+                : '';
+
             const hasThumb = Boolean(p.image);
             const headHtml = hasThumb ? `
                 <div class="product-head-with-thumb">
@@ -1566,6 +1592,7 @@
                     ${headHtml}
 
                     ${variantsHtml}
+                    ${otherWhHtml}
 
                     <div class="product-foot">
                         <div class="stock-status ${stockStatus}">
@@ -3140,12 +3167,26 @@
         barcodeInp.value = '20' + rand;
     }
 
+    function addCustomVariantChip(type, btnEl) {
+        const label = type === 'size' ? 'أدخل المقاس المخصص (مثل 4XL أو 40):' : 'أدخل اللون المخصص (مثل نبيتي أو مستردة):';
+        const val = prompt(label);
+        if (!val || !val.trim()) return;
+        const cleanVal = val.trim();
+        const chip = document.createElement('span');
+        chip.className = 'vb-chip active';
+        chip.textContent = cleanVal;
+        chip.onclick = function () { this.classList.toggle('active'); };
+        if (btnEl && btnEl.parentNode) {
+            btnEl.parentNode.insertBefore(chip, btnEl);
+        }
+    }
+
     function generateVariantRows() {
-        const sizeChips = document.querySelectorAll('#newProdSizesSelector .vb-chip.active');
+        const sizeChips = document.querySelectorAll('#newProdSizesSelector .vb-chip.active:not(.vb-add-custom)');
         let selectedSizes = Array.from(sizeChips).map(c => c.textContent.trim()).filter(Boolean);
         if (selectedSizes.length === 0) selectedSizes = ['عادي'];
 
-        const colorChips = document.querySelectorAll('#newProdColorsSelector .vb-chip.active');
+        const colorChips = document.querySelectorAll('#newProdColorsSelector .vb-chip.active:not(.vb-add-custom)');
         let selectedColors = Array.from(colorChips).map(c => c.textContent.trim()).filter(Boolean);
         if (selectedColors.length === 0) selectedColors = ['عام'];
 
@@ -3158,10 +3199,8 @@
             selectedColors.forEach(c => {
                 rowsHtml += `
                     <div class="vb-row-item" data-size="${s}" data-color="${c}">
-                        <div class="vb-row-label">
-                            <span style="background: var(--primary-subtle); color: var(--primary); padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 800;">${s}</span>
-                            <span style="background: var(--chip-bg); color: var(--text-main); padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; border: 1px solid var(--border-subtle);">${c}</span>
-                        </div>
+                        <span style="background: var(--primary-subtle); color: var(--primary); padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; text-align: center;">${s}</span>
+                        <span style="background: var(--chip-bg); color: var(--text-main); padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; border: 1px solid var(--border-subtle); text-align: center;">${c}</span>
                         <input type="number" class="vb-row-input" min="0" value="1" placeholder="0" oninput="window.BayanMobile.onVariantRowQtyChange()">
                     </div>
                 `;
@@ -5499,6 +5538,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         closeAddProductModal,
         generateBarcode,
         generateVariantRows,
+        addCustomVariantChip,
         onVariantRowQtyChange,
         submitNewProduct,
         handleProductImageUpload,
