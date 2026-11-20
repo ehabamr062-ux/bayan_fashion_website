@@ -3120,13 +3120,13 @@ function openPriceAdjColumnModal() {
 
     modal.innerHTML = `
         <div style="width: 530px; max-width: 95vw; background: #ffffff; border-radius: 20px; box-shadow: 0 25px 70px rgba(15,23,42,0.35); border: 1.5px solid #e2e8f0; overflow: hidden; display: flex; flex-direction: column; text-align: right;">
-            <!-- هيدر النافذة الملكي -->
-            <div style="background: linear-gradient(135deg, #0f172a, #1e293b); padding: 14px 20px; border-bottom: 2px solid #3b82f6; display: flex; justify-content: space-between; align-items: center;">
+            <!-- هيدر النافذة الزمردي -->
+            <div style="background: linear-gradient(135deg, #059669, #047857); padding: 14px 20px; border-bottom: 2px solid #34d399; display: flex; justify-content: space-between; align-items: center;">
                 <div style="display: flex; align-items: center; gap: 10px;">
-                    <div style="width: 36px; height: 36px; border-radius: 9px; background: rgba(59, 130, 246, 0.15); border: 1px solid #3b82f6; display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">⚙️</div>
+                    <div style="width: 36px; height: 36px; border-radius: 9px; background: rgba(255, 255, 255, 0.16); border: 1px solid rgba(255, 255, 255, 0.35); display: flex; align-items: center; justify-content: center; font-size: 1.2rem;">⚙️</div>
                     <div>
                         <h3 style="margin: 0; color: #ffffff; font-size: 1.15rem; font-weight: 900;">تخصيص أعمدة إدارة وتسعير الموديلات</h3>
-                        <small style="color: #94a3b8; font-size: 0.75rem; font-weight: 700;">تحكم في إظهار وإخفاء الأعمدة في جدول الأسعار المجمع</small>
+                        <small style="color: #d1fae5; font-size: 0.75rem; font-weight: 700;">تحكم في إظهار وإخفاء الأعمدة في جدول الأسعار المجمع</small>
                     </div>
                 </div>
                 <button type="button" onclick="document.getElementById('priceAdjColModalOverlay')?.remove()" 
