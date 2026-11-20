@@ -5952,27 +5952,56 @@
                 tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:#888;">لا توجد فواتير سابقة لهذا العميل</td></tr>';
                 return;
             }
-            tbody.innerHTML = userTx.map(t => `
+            tbody.innerHTML = userTx.map(t => {
+                const dateTimeStr = t.date ? String(t.date).replace('T', ' ').slice(0, 22) : '-';
+                const invArg = String(t.invoiceId || t.id || '').replace(/'/g, "\\'");
+                const typeArg = String(t.type || '').replace(/'/g, "\\'");
+                const idArg = String(t.id || '').replace(/'/g, "\\'");
+                return `
                 <tr>
-                    <td style="padding:6px 8px;">${t.date ? t.date.split('T')[0] : '-'}</td>
+                    <td style="padding:6px 8px;">${dateTimeStr}</td>
                     <td style="padding:6px 8px; font-weight:bold; color:#10b981;">${parseFloat(t.total || 0).toFixed(2)}</td>
                     <td style="padding:6px 8px;">${t.type || 'فاتورة'}</td>
                     <td style="padding:6px 8px; text-align:center;">
-                        <button type="button" onclick="if(typeof viewTransactionDetails === 'function') viewTransactionDetails('${t.id}')" style="background:none; border:none; cursor:pointer; font-size:1.1rem;" title="عرض التفاصيل">👁️</button>
+                        <button type="button" onclick="if(typeof viewInvoiceItems === 'function') viewInvoiceItems('${invArg}', '${typeArg}', false, '${idArg}')" style="background:none; border:none; cursor:pointer; font-size:1.1rem;" title="عرض التفاصيل">👁️</button>
                     </td>
                 </tr>
-            `).join('');
+            `;
+            }).join('');
         };
 
         window.loadPendingBills = function() {
             const tbody = document.getElementById('pendingBillsBody') || document.getElementById('disburse-settlement');
             if (!tbody) return;
-            const supplier = document.getElementById('disburseSupplier')?.value;
+            const supplier = document.getElementById('disbursePayee')?.value || document.getElementById('disburseSupplier')?.value;
             if (!supplier || supplier.includes('اختر') || supplier === '-') {
                 if (tbody.tagName === 'TBODY') {
-                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:#888;">يرجى اختيار المورد أولاً</td></tr>';
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:#888;">يرجى اختيار المورد أو الحساب أولاً</td></tr>';
                 }
                 return;
+            }
+            const supTx = (typeof transactions !== 'undefined' ? transactions : []).filter(t => t.partner === supplier && (t.type?.includes('شراء') || t.type?.includes('مشتريات') || t.type?.includes('صرف'))).slice(-10);
+            if (tbody.tagName === 'TBODY') {
+                if (supTx.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:15px; color:#888;">لا توجد حركات سابقة لهذا الحساب</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = supTx.map(t => {
+                    const dateTimeStr = t.date ? String(t.date).replace('T', ' ').slice(0, 22) : '-';
+                    const invArg = String(t.invoiceId || t.id || '').replace(/'/g, "\\'");
+                    const typeArg = String(t.type || '').replace(/'/g, "\\'");
+                    const idArg = String(t.id || '').replace(/'/g, "\\'");
+                    return `
+                    <tr>
+                        <td style="padding:6px 8px;">${dateTimeStr}</td>
+                        <td style="padding:6px 8px; font-weight:bold; color:#e11d48;">${parseFloat(t.total || 0).toFixed(2)}</td>
+                        <td style="padding:6px 8px;">${t.type || 'سند صرف'}</td>
+                        <td style="padding:6px 8px; text-align:center;">
+                            <button type="button" onclick="if(typeof viewInvoiceItems === 'function') viewInvoiceItems('${invArg}', '${typeArg}', false, '${idArg}')" style="background:none; border:none; cursor:pointer; font-size:1.1rem;" title="عرض التفاصيل">👁️</button>
+                        </td>
+                    </tr>
+                `;
+                }).join('');
             }
         };
 
