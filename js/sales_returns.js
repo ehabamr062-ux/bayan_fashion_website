@@ -2668,17 +2668,34 @@ window.renderSearchInvoiceFilterChips = function (type, filterText = '') {
     const inputId = isSize ? 'searchInvoiceSize' : 'searchInvoiceColor';
     if (!container) return;
 
+    const searchInpId = `searchPopoverQuickInput_${type}`;
+    const chipsWrapId = `searchPopoverChipsWrap_${type}`;
+    if (!document.getElementById(searchInpId)) {
+        const placeholder = isSize ? '🔍 ابحث عن المقاس...' : '🔍 ابحث عن اللون...';
+        container.innerHTML = `
+            <div style="width: 100%; position: sticky; top: 0; background: #ffffff; padding-bottom: 8px; border-bottom: 1.5px solid #e2e8f0; margin-bottom: 6px; z-index: 2;">
+                <input type="text" id="${searchInpId}" autocomplete="off" placeholder="${placeholder}"
+                    style="width: 100%; height: 36px; border: 1.5px solid #059669; border-radius: 8px; padding: 0 12px; font-weight: 800; font-size: 0.85rem; outline: none; box-sizing: border-box; background: #f8fafc; color: #0f172a;"
+                    oninput="window.renderSearchInvoiceFilterChips('${type}', this.value)">
+            </div>
+            <div id="${chipsWrapId}" style="width: 100%; display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start;"></div>
+        `;
+    }
+
+    const chipsWrap = document.getElementById(chipsWrapId);
+    if (!chipsWrap) return;
+
     const items = isSize ? (window._searchInvoiceCachedSizes || []) : (window._searchInvoiceCachedColors || []);
     const cleanFilter = String(filterText || '').trim().toLowerCase();
     const filtered = cleanFilter ? items.filter(v => String(v).toLowerCase().includes(cleanFilter)) : items;
 
     if (filtered.length === 0) {
-        container.innerHTML = '<div style="width:100%; text-align:center; padding:8px; color:#94a3b8; font-size:0.8rem; font-weight:700;">لا توجد قيم مطابقة</div>';
+        chipsWrap.innerHTML = '<div style="width:100%; text-align:center; padding:8px; color:#94a3b8; font-size:0.8rem; font-weight:700;">لا توجد قيم مطابقة</div>';
         return;
     }
 
     const currentVal = (document.getElementById(inputId)?.value || '').trim();
-    container.innerHTML = filtered.map(val => {
+    chipsWrap.innerHTML = filtered.map(val => {
         const safeVal = String(val).replace(/'/g, "\\'").replace(/"/g, '&quot;');
         const isActive = (currentVal === val);
         const bg = isActive ? '#059669' : '#f1f5f9';
@@ -2699,6 +2716,10 @@ window.openSearchInvoiceFilterPopover = function (type) {
     if (colorPop) colorPop.classList.toggle('hidden', type !== 'color');
     const curInput = document.getElementById(type === 'size' ? 'searchInvoiceSize' : 'searchInvoiceColor');
     window.renderSearchInvoiceFilterChips(type, curInput ? curInput.value : '');
+    setTimeout(() => {
+        const qInp = document.getElementById(`searchPopoverQuickInput_${type}`);
+        if (qInp) { qInp.value = curInput ? curInput.value : ''; qInp.focus(); }
+    }, 30);
 };
 
 window.filterSearchInvoicePopover = function (type, text) {
