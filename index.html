@@ -8305,6 +8305,11 @@
                                                     style="background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; border-radius: 8px; padding: 3px 10px; font-size: 0.78rem; font-weight: 800; cursor: pointer;">
                                                     تغيير الرمز ✏️
                                                 </button>
+                                                <button type="button"
+                                                    onclick="if(window.BayanSupabaseSync && typeof window.BayanSupabaseSync.regeneratePairingPin==='function'){const np=window.BayanSupabaseSync.regeneratePairingPin(); const el=document.getElementById('supabasePairingPinCode'); if(el) el.textContent=np; if(typeof window.BayanSupabaseSync.renderPairingQrCode==='function') window.BayanSupabaseSync.renderPairingQrCode(); if(typeof showToast==='function') showToast('✅ تم توليد كود اقتران جديد وتحديث QR Code', 'success');}"
+                                                    style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; border-radius: 8px; padding: 3px 10px; font-size: 0.78rem; font-weight: 800; cursor: pointer;">
+                                                    🔄 توليد كود اقتران جديد
+                                                </button>
                                                 <span
                                                     style="font-size: 0.8rem; color: #64748b; font-weight: 700; margin-right: 12px;">معرّف
                                                     المحل السحابي (Shop ID):</span>
