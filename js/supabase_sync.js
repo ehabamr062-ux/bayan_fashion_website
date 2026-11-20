@@ -531,43 +531,66 @@
 
             this._isProcessingQueue = true;
             let processed = 0;
+            const MAX_BATCHES_PER_RUN = 10; // حتى 500 عنصر في الدورة الواحدة بدون تجميد الواجهة أو حظر Rate Limit
+            let hasMorePending = false;
             try {
-                const queue = await this.getPendingSyncQueue(50);
-                if (!queue || queue.length === 0) return 0;
+                for (let batchIdx = 0; batchIdx < MAX_BATCHES_PER_RUN; batchIdx++) {
+                    if (!navigator.onLine || !this._isAllowed()) break;
+                    const queue = await this.getPendingSyncQueue(50);
+                    if (!queue || queue.length === 0) break;
 
-                for (const qItem of queue) {
-                    let data = null;
-                    try {
-                        data = typeof qItem.raw_json === 'string' ? JSON.parse(qItem.raw_json) : qItem.raw_json;
-                    } catch (e) {
-                        // تالف: حذفه لتفادي تعليق الطابور
-                        await this.removeSyncQueueItem(qItem.id);
-                        continue;
+                    let networkFailed = false;
+                    for (const qItem of queue) {
+                        let data = null;
+                        try {
+                            data = typeof qItem.raw_json === 'string' ? JSON.parse(qItem.raw_json) : qItem.raw_json;
+                        } catch (e) {
+                            // تالف: حذفه لتفادي تعليق الطابور
+                            await this.removeSyncQueueItem(qItem.id);
+                            continue;
+                        }
+
+                        let success = false;
+                        if (qItem.type === 'transaction') {
+                            success = await this._pushSingleTransactionData(data, shopId, cfg);
+                        } else if (qItem.type === 'product') {
+                            success = await this._pushSingleProductData(data, shopId, cfg);
+                        } else if (qItem.type === 'void') {
+                            success = await this.deleteInvoiceFromCloud(data.invoiceId, data.total, data.warehouse);
+                        } else if (qItem.type === 'treasury') {
+                            success = await this.syncTreasuryAudit();
+                        }
+
+                        if (success) {
+                            await this.removeSyncQueueItem(qItem.id);
+                            processed++;
+                        } else {
+                            // توقف فوري عند أول خطأ شبكة للحفاظ على الترتيب الصارم FIFO
+                            networkFailed = true;
+                            break;
+                        }
                     }
 
-                    let success = false;
-                    if (qItem.type === 'transaction') {
-                        success = await this._pushSingleTransactionData(data, shopId, cfg);
-                    } else if (qItem.type === 'product') {
-                        success = await this._pushSingleProductData(data, shopId, cfg);
-                    } else if (qItem.type === 'void') {
-                        success = await this.deleteInvoiceFromCloud(data.invoiceId, data.total, data.warehouse);
-                    } else if (qItem.type === 'treasury') {
-                        success = await this.syncTreasuryAudit();
-                    }
-
-                    if (success) {
-                        await this.removeSyncQueueItem(qItem.id);
-                        processed++;
+                    if (networkFailed) break;
+                    if (queue.length < 50) break;
+                    if (batchIdx === MAX_BATCHES_PER_RUN - 1) {
+                        hasMorePending = true;
                     } else {
-                        // توقف فوري عند أول خطأ شبكة للحفاظ على الترتيب الصارم FIFO
-                        break;
+                        await new Promise(r => setTimeout(r, 120));
                     }
+                }
+
+                if (processed > 0 && window.sqliteManager && typeof window.sqliteManager.schedulePersist === 'function') {
+                    window.sqliteManager.schedulePersist(400);
                 }
             } catch (qErr) {
                 console.warn('[SupabaseSync] خطأ أثناء تفريغ طابور المزامنة:', qErr.message);
             } finally {
                 this._isProcessingQueue = false;
+            }
+
+            if (hasMorePending && navigator.onLine && this._isAllowed()) {
+                setTimeout(() => { this.processSyncQueue().catch(() => { }); }, 1500);
             }
             return processed;
         },
@@ -2076,7 +2099,7 @@
                 }
                 const cfg = this.getConfig();
                 const shopId = cfg.shopId || this.getShopId();
-                if (!this._isAllowed() || !this.isValidShopId(shopId) || !cfg.supabaseUrl || !cfg.supabaseKey || typeof WebSocket === 'undefined') {
+                if ((typeof navigator !== 'undefined' && navigator.onLine === false) || !this._isAllowed() || !this.isValidShopId(shopId) || !cfg.supabaseUrl || !cfg.supabaseKey || typeof WebSocket === 'undefined') {
                     return;
                 }
                 const wsUrl = cfg.supabaseUrl.replace(/^http/, 'ws') + `/realtime/v1/websocket?apikey=${encodeURIComponent(cfg.supabaseKey)}&vsn=1.0.0`;
