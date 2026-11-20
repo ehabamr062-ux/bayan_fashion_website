@@ -1098,7 +1098,6 @@
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_cashier_date ON transactions(cashier, dateISO);");
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_wh_head_date ON transactions(warehouse, isInvoiceHead, dateISO);");
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_method ON transactions(method);");
-                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_inv_date ON transactions(invoiceId, dateISO DESC);");
             } catch (e) { }
             try {
                 this.db.run("ALTER TABLE accounts ADD COLUMN debit REAL DEFAULT 0;");
@@ -1144,6 +1143,7 @@
                 CREATE INDEX IF NOT EXISTS idx_ti_productName ON transaction_items(productName);
                 CREATE INDEX IF NOT EXISTS idx_items_date_prod ON transaction_items(dateISO, productName);
                 CREATE INDEX IF NOT EXISTS idx_ti_prod_wh_date ON transaction_items(productName, warehouse, dateISO);
+                CREATE INDEX IF NOT EXISTS idx_ti_wh_date ON transaction_items(warehouse, dateISO);
                 CREATE INDEX IF NOT EXISTS idx_ti_partner_date ON transaction_items(partner, dateISO);
                 CREATE INDEX IF NOT EXISTS idx_ti_type_date ON transaction_items(type, dateISO);
                 CREATE INDEX IF NOT EXISTS idx_ti_tx_id ON transaction_items(tx_id);
@@ -3059,15 +3059,9 @@
                     params.push('%' + String(method).trim().toLowerCase() + '%');
                 }
                 if (searchQuery) {
-                    const sq = String(searchQuery).trim();
-                    if (/^\d+$/.test(sq)) {
-                        whereClause += " AND (invoiceId = ? OR invoiceId LIKE ? OR partner LIKE ?)";
-                        params.push(sq, `${sq}%`, `%${sq}%`);
-                    } else {
-                        const q = `%${sq}%`;
-                        whereClause += " AND (invoiceId LIKE ? OR partner LIKE ? OR raw_json LIKE ?)";
-                        params.push(q, q, q);
-                    }
+                    const q = '%' + String(searchQuery).trim().toLowerCase() + '%';
+                    whereClause += " AND (LOWER(invoiceId) LIKE ? OR LOWER(partner) LIKE ? OR LOWER(raw_json) LIKE ?)";
+                    params.push(q, q, q);
                 }
 
                 const mainSql = `
@@ -3233,15 +3227,9 @@
                     params.push('%' + String(method).trim().toLowerCase() + '%');
                 }
                 if (searchQuery) {
-                    const sq = String(searchQuery).trim();
-                    if (/^\d+$/.test(sq)) {
-                        sql += " AND (invoiceId = ? OR invoiceId LIKE ? OR partner LIKE ?)";
-                        params.push(sq, `${sq}%`, `%${sq}%`);
-                    } else {
-                        const q = `%${sq}%`;
-                        sql += " AND (invoiceId LIKE ? OR partner LIKE ? OR raw_json LIKE ?)";
-                        params.push(q, q, q);
-                    }
+                    const q = '%' + String(searchQuery).trim().toLowerCase() + '%';
+                    sql += " AND (LOWER(invoiceId) LIKE ? OR LOWER(partner) LIKE ? OR LOWER(raw_json) LIKE ?)";
+                    params.push(q, q, q);
                 }
 
                 sql += " ORDER BY dateISO DESC, id DESC";
@@ -3425,14 +3413,8 @@
                 }
 
                 const lim = parseInt(limit, 10) || 5000;
-                if (searchId) {
-                    const sId = String(searchId).trim();
-                    sql += " ORDER BY CASE WHEN invoiceId = ? THEN 0 WHEN invoiceId LIKE ? THEN 1 ELSE 2 END, dateISO DESC, id DESC LIMIT ?;";
-                    params.push(sId, `${sId}%`, lim);
-                } else {
-                    sql += " ORDER BY dateISO DESC, id DESC LIMIT ?;";
-                    params.push(lim);
-                }
+                sql += " ORDER BY dateISO DESC, id DESC LIMIT ?;";
+                params.push(lim);
 
                 if (this.isNative && this.nativeDb) {
                     const rows = this.nativeDb.prepare(sql).all(...params);
@@ -5470,14 +5452,8 @@
 
                 if (ref) {
                     const r = String(ref).trim();
-                    const isPureDigits = /^\d+$/.test(r);
-                    if (isPureDigits) {
-                        sql += ` AND (invoiceId = ? OR originalInvoiceId = ? OR invoiceId LIKE ? OR id IN (SELECT tx_id FROM transaction_items WHERE barcode = ? OR barcode LIKE ?))`;
-                        params.push(r, r, `${r}%`, r, `${r}%`);
-                    } else {
-                        sql += ` AND (invoiceId = ? OR originalInvoiceId = ? OR invoiceId LIKE ? OR id IN (SELECT tx_id FROM transaction_items WHERE barcode = ? OR barcode LIKE ? OR productName LIKE ?) OR raw_json LIKE ?)`;
-                        params.push(r, r, `%${r}%`, r, `%${r}%`, `%${r}%`, `%${r}%`);
-                    }
+                    sql += ` AND (invoiceId = ? OR originalInvoiceId = ? OR invoiceId LIKE ? OR id IN (SELECT tx_id FROM transaction_items WHERE barcode = ? OR barcode LIKE ? OR productName LIKE ?) OR raw_json LIKE ?)`;
+                    params.push(r, r, `%${r}%`, r, `%${r}%`, `%${r}%`, `%${r}%`);
                 }
 
                 const queryProduct = String(product || '').trim();
@@ -5530,14 +5506,8 @@
                     params.push(toVal);
                 }
 
-                if (ref) {
-                    const r = String(ref).trim();
-                    sql += ` ORDER BY CASE WHEN invoiceId = ? THEN 0 WHEN invoiceId LIKE ? THEN 1 ELSE 2 END, dateISO DESC, id DESC LIMIT ?;`;
-                    params.push(r, `${r}%`, parseInt(limit, 10) || 300);
-                } else {
-                    sql += ` ORDER BY dateISO DESC, id DESC LIMIT ?;`;
-                    params.push(parseInt(limit, 10) || 300);
-                }
+                sql += ` ORDER BY dateISO DESC, id DESC LIMIT ?;`;
+                params.push(parseInt(limit, 10) || 300);
 
                 let rows = [];
                 if (this.isNative && this.nativeDb) {

@@ -1246,6 +1246,14 @@ window.applyWarehouseReportCustomFilter = function() {
     if (typeof saveCurrentTabState === 'function') saveCurrentTabState();
 };
 
+let _wrSearchDebounceTimer = null;
+window.debouncedRenderWarehouseReport = function(delay = 150) {
+    if (_wrSearchDebounceTimer) clearTimeout(_wrSearchDebounceTimer);
+    _wrSearchDebounceTimer = setTimeout(() => {
+        renderWarehouseReportTable(true);
+    }, delay);
+};
+
 async function renderWarehouseReportTable(isSearchTrigger = false) {
     const head = document.getElementById('wrTableHead');
     const body = document.getElementById('wrTableBody');
@@ -1608,47 +1616,49 @@ async function renderWarehouseReportTable(isSearchTrigger = false) {
 
     if (summaryContainer) {
         let cardsHTML = `
-            <div class="summary-card-gold" style="min-width: 170px; padding: 12px 16px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #ffffff; border-radius: 14px; box-shadow: 0 6px 20px rgba(15,23,42,0.35); border: 1.5px solid rgba(59,130,246,0.5); border-right: 5px solid #3b82f6; display: flex; flex-direction: column; justify-content: center; transition: 0.3s;">
-                <div style="font-size: 0.85rem; font-weight: 900; color: #38bdf8 !important; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">📊 إجمالي المخزون (بكل الفروع)</div>
-                <div style="font-size: 1.4rem; font-weight: 900; color: #ffffff !important; text-shadow: 0 1px 3px rgba(0,0,0,0.6);">${totalGlobalQty.toLocaleString()} <span style="font-size: 0.8rem; color: #ffffff !important; font-weight: 800;">قطعة</span></div>
-                ${canViewCost ? `<div style="font-size: 1.05rem; font-weight: 900; border-top: 1px solid rgba(255,255,255,0.18); margin-top: 5px; padding-top: 4px; color: #4ade80 !important; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">${totalGlobalValue.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size: 0.78rem; color: #ffffff !important; font-weight: 800;">ج.م</span></div>` : ''}
+            <div class="summary-card-gold" style="padding: 10px 12px; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); color: #0f172a; border-radius: 12px; box-shadow: 0 2px 10px rgba(14,165,233,0.08); border: 1px solid #bae6fd; border-right: 4px solid #0284c7; display: flex; flex-direction: column; justify-content: space-between; gap: 3px;">
+                <div style="font-size: 12px; font-weight: 800; color: #0369a1; display: flex; align-items: center; gap: 5px;">📊 إجمالي المخزون (بكل الفروع)</div>
+                <div style="font-size: 18px; font-weight: 900; color: #0f172a; line-height: 1.2;">${totalGlobalQty.toLocaleString()} <span style="font-size: 11px; color: #475569; font-weight: 800;">قطعة</span></div>
+                ${canViewCost ? `<div style="font-size: 11px; font-weight: 800; border-top: 1px solid rgba(2,132,199,0.15); padding-top: 3px; color: #047857;">القيمة: ${totalGlobalValue.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} ج.م</div>` : `<div style="font-size: 11px; color: #475569; font-weight: 700;">إجمالي القطع المتوفرة</div>`}
             </div>
         `;
 
         if (canViewCost) {
-            const stockCostVal = (totalGlobalValue - totalGlobalProfitRT > 0) ? (totalGlobalValue - totalGlobalProfitRT) : totalGlobalValue;
+            const stockCostVal = totalGlobalValue;
             cardsHTML += `
-                <div class="summary-card-cost-wh" style="min-width: 170px; padding: 12px 16px; background: linear-gradient(135deg, #312e81 0%, #1e1b4b 100%); color: #ffffff; border-radius: 14px; box-shadow: 0 6px 20px rgba(49,46,129,0.35); border: 1.5px solid rgba(129,140,248,0.5); border-right: 5px solid #818cf8; display: flex; flex-direction: column; justify-content: center; transition: 0.3s;">
-                    <div style="font-size: 0.85rem; font-weight: 900; color: #a5b4fc !important; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">💰 إجمالي تكلفة المخزن (رأس المال)</div>
-                    <div style="font-size: 1.4rem; font-weight: 900; color: #ffffff !important; text-shadow: 0 1px 3px rgba(0,0,0,0.6);">${stockCostVal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size: 0.8rem; color: #ffffff !important; font-weight: 800;">ج.م</span></div>
-                    <div style="font-size: 0.75rem; margin-top: 4px; color: #c7d2fe !important; font-weight: 800;">(تقييم رأس المال الفعلي المربوط)</div>
+                <div class="summary-card-cost-wh" style="padding: 10px 12px; background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%); color: #0f172a; border-radius: 12px; box-shadow: 0 2px 10px rgba(99,102,241,0.08); border: 1px solid #c7d2fe; border-right: 4px solid #4f46e5; display: flex; flex-direction: column; justify-content: space-between; gap: 3px;">
+                    <div style="font-size: 12px; font-weight: 800; color: #4338ca; display: flex; align-items: center; gap: 5px;">💰 إجمالي تكلفة المخزون (رأس المال)</div>
+                    <div style="font-size: 18px; font-weight: 900; color: #0f172a; line-height: 1.2;">${stockCostVal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size: 11px; color: #475569; font-weight: 800;">ج.م</span></div>
+                    <div style="font-size: 11px; color: #4338ca; font-weight: 700; border-top: 1px solid rgba(79,70,229,0.15); padding-top: 3px;">تقييم رأس المال الفعلي</div>
                 </div>
             `;
         }
 
         if (canViewProfits) {
             cardsHTML += `
-                <div class="summary-card-profit-wh" style="min-width: 170px; padding: 12px 16px; background: linear-gradient(135deg, #064e3b 0%, #052e16 100%); color: #ffffff; border-radius: 14px; box-shadow: 0 6px 20px rgba(6,78,59,0.35); border: 1.5px solid rgba(16,185,129,0.5); border-right: 5px solid #10b981; display: flex; flex-direction: column; justify-content: center; transition: 0.3s;">
-                    <div style="font-size: 0.85rem; font-weight: 900; color: #6ee7b7 !important; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">💵 إجمالي ربح الجملة</div>
-                    <div style="font-size: 1.4rem; font-weight: 900; color: #ffffff !important; text-shadow: 0 1px 3px rgba(0,0,0,0.6);">${totalGlobalProfitWH.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size: 0.8rem; color: #ffffff !important; font-weight: 800;">ج.م</span></div>
-                    <div style="font-size: 0.75rem; margin-top: 4px; color: #a7f3d0 !important; font-weight: 800;">(بناءً على الأرصدة الحالية)</div>
+                <div class="summary-card-profit-wh" style="padding: 10px 12px; background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%); color: #0f172a; border-radius: 12px; box-shadow: 0 2px 10px rgba(16,185,129,0.08); border: 1px solid #a7f3d0; border-right: 4px solid #059669; display: flex; flex-direction: column; justify-content: space-between; gap: 3px;">
+                    <div style="font-size: 12px; font-weight: 800; color: #047857; display: flex; align-items: center; gap: 5px;">💵 إجمالي ربح الجملة</div>
+                    <div style="font-size: 18px; font-weight: 900; color: #064e3b; line-height: 1.2;">${totalGlobalProfitWH.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size: 11px; color: #047857; font-weight: 800;">ج.م</span></div>
+                    <div style="font-size: 11px; color: #065f46; font-weight: 700; border-top: 1px solid rgba(5,150,105,0.15); padding-top: 3px;">بناءً على الأرصدة المفلترة</div>
                 </div>
 
-                <div class="summary-card-profit-rt" style="min-width: 170px; padding: 12px 16px; background: linear-gradient(135deg, #1e3a8a 0%, #172554 100%); color: #ffffff; border-radius: 14px; box-shadow: 0 6px 20px rgba(30,58,138,0.35); border: 1.5px solid rgba(96,165,250,0.5); border-right: 5px solid #60a5fa; display: flex; flex-direction: column; justify-content: center; transition: 0.3s;">
-                    <div style="font-size: 0.85rem; font-weight: 900; color: #93c5fd !important; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">💎 إجمالي ربح التجزئة</div>
-                    <div style="font-size: 1.4rem; font-weight: 900; color: #ffffff !important; text-shadow: 0 1px 3px rgba(0,0,0,0.6);">${totalGlobalProfitRT.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size: 0.8rem; color: #ffffff !important; font-weight: 800;">ج.م</span></div>
-                    <div style="font-size: 0.75rem; margin-top: 4px; color: #bfdbfe !important; font-weight: 800;">(بناءً على الأرصدة الحالية)</div>
+                <div class="summary-card-profit-rt" style="padding: 10px 12px; background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); color: #0f172a; border-radius: 12px; box-shadow: 0 2px 10px rgba(37,99,235,0.08); border: 1px solid #bfdbfe; border-right: 4px solid #2563eb; display: flex; flex-direction: column; justify-content: space-between; gap: 3px;">
+                    <div style="font-size: 12px; font-weight: 800; color: #1d4ed8; display: flex; align-items: center; gap: 5px;">💎 إجمالي ربح التجزئة</div>
+                    <div style="font-size: 18px; font-weight: 900; color: #1e3a8a; line-height: 1.2;">${totalGlobalProfitRT.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size: 11px; color: #1d4ed8; font-weight: 800;">ج.م</span></div>
+                    <div style="font-size: 11px; color: #1e40af; font-weight: 700; border-top: 1px solid rgba(37,99,235,0.15); padding-top: 3px;">بناءً على الأرصدة المفلترة</div>
                 </div>
             `;
         }
 
         warehouseStats.forEach(ws => {
             cardsHTML += `
-                <div class="summary-card-white" style="min-width: 170px; padding: 12px 16px; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); color: #ffffff; border-radius: 14px; box-shadow: 0 6px 20px rgba(0,0,0,0.35); border: 1.5px solid rgba(245,158,11,0.5); border-right: 5px solid #f59e0b; display: flex; flex-direction: column; justify-content: center; transition: 0.3s;">
-                    <div style="font-size: 0.86rem; color: #fbbf24 !important; font-weight: 900; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; text-shadow: 0 1px 3px rgba(0,0,0,0.5);">🏬 كمية ${ws.name}</div>
-                    <div style="font-size: 1.35rem; font-weight: 900; color: #ffffff !important; text-shadow: 0 1px 3px rgba(0,0,0,0.6);">${ws.qty.toLocaleString()} <span style="font-size: 0.8rem; color: #ffffff !important; font-weight: 800;">قطعة</span></div>
-                    ${canViewCost ? `<div style="font-size: 1.05rem; color: #4ade80 !important; font-weight: 900; margin-top: 3px; text-shadow: 0 1px 2px rgba(0,0,0,0.5);">${ws.val.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})} <span style="font-size: 0.78rem; color: #ffffff !important; font-weight: 800;">ج.م</span></div>` : ''}
-                    <div style="font-size: 0.78rem; color: #ffffff !important; font-weight: 800; margin-top: 5px; border-top: 1px solid rgba(255,255,255,0.18); padding-top: 4px; display: flex; align-items: center; gap: 4px;"><span style="color: #38bdf8;">📦</span> (${ws.items} صنف نشط)</div>
+                <div class="summary-card-white" style="padding: 10px 12px; background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); color: #0f172a; border-radius: 12px; box-shadow: 0 2px 10px rgba(245,158,11,0.08); border: 1px solid #fde68a; border-right: 4px solid #d97706; display: flex; flex-direction: column; justify-content: space-between; gap: 3px;">
+                    <div style="font-size: 12px; color: #92400e; font-weight: 800; display: flex; align-items: center; gap: 5px;">🏬 ${ws.name}</div>
+                    <div style="font-size: 18px; font-weight: 900; color: #0f172a; line-height: 1.2;">${ws.qty.toLocaleString()} <span style="font-size: 11px; color: #78350f; font-weight: 800;">قطعة</span></div>
+                    <div style="font-size: 11px; color: #92400e; font-weight: 700; border-top: 1px solid rgba(217,119,6,0.18); padding-top: 3px; display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+                        <span>📦 ${ws.items} صنف</span>
+                        ${canViewCost ? `<span style="color: #047857; font-weight: 800;">${ws.val.toLocaleString(undefined, {minimumFractionDigits:0, maximumFractionDigits:0})} ج.م</span>` : ''}
+                    </div>
                 </div>
             `;
         });
@@ -2719,8 +2729,25 @@ function getWarehouseStock(productName, warehouseName, startDate = null, endDate
             }
         });
 
-        for (let i = 0; i < transactions.length; i++) {
-            const t = transactions[i];
+        // سحب الحركات التاريخية بعد endDate مباشرة من SQLite المفهرس عند توفره لضمان الدقة عبر كل السنوات
+        let sourceTxs = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+        try {
+            if (window.BayanSQLite && window.BayanSQLite.nativeDb) {
+                const sqlRows = window.BayanSQLite.nativeDb.prepare(
+                    "SELECT productName, warehouse, type, qty, dateISO, raw_json FROM transaction_items WHERE dateISO > ?;"
+                ).all(endDate);
+                if (Array.isArray(sqlRows) && sqlRows.length > 0) {
+                    sourceTxs = sqlRows.map(r => {
+                        let raw = {};
+                        try { raw = r.raw_json ? JSON.parse(r.raw_json) : {}; } catch (_) {}
+                        return { ...raw, product: r.productName || raw.product, warehouse: r.warehouse || raw.warehouse, type: r.type || raw.type, qty: r.qty != null ? r.qty : raw.qty, dateISO: r.dateISO || raw.dateISO };
+                    });
+                }
+            }
+        } catch (_) {}
+
+        for (let i = 0; i < sourceTxs.length; i++) {
+            const t = sourceTxs[i];
             const rawName = (t.product || t.productName || t.name || '').trim();
             if (!rawName) continue;
             const pRef = prodIndex[rawName] || prodIndex[rawName.toLowerCase()];
