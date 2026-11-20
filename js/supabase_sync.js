@@ -1419,6 +1419,40 @@
                     }
                 }
 
+                // فحص إشعارات اقتران الأجهزة (PAIR_EVENT_) لعدّ استخدامات الكود وتدويره تلقائياً عند بلوغ الحد
+                try {
+                    const pairEvRes = await this._safeFetch(
+                        `${cfg.supabaseUrl}/rest/v1/treasury_audit?id=like.PAIR_EVENT_${encodeURIComponent(shopId)}_*&category=eq.pair_event&order=created_at.desc&limit=10`,
+                        { headers: this._getHeaders() }
+                    );
+                    if (pairEvRes && pairEvRes.ok) {
+                        const pairEvRows = await pairEvRes.json();
+                        if (Array.isArray(pairEvRows) && pairEvRows.length > 0) {
+                            const seenEv = JSON.parse(localStorage.getItem('bayan_seen_pair_events') || '[]');
+                            let meta = {};
+                            try { meta = JSON.parse(localStorage.getItem('bayan_shop_pin_meta') || '{}'); } catch (_) { }
+                            const currentPin = this.getPairingPin();
+                            let rotated = false;
+                            for (const ev of pairEvRows) {
+                                if (!ev || !ev.id || seenEv.includes(ev.id)) continue;
+                                seenEv.push(ev.id);
+                                const usedPin = String(ev.raw_json?.usedPin || '').trim();
+                                if (usedPin && usedPin === String(currentPin).trim()) {
+                                    meta.usesCount = (parseInt(meta.usesCount || 0, 10) || 0) + 1;
+                                    if (meta.usesCount >= (meta.maxUses || 2)) {
+                                        rotated = true;
+                                    }
+                                }
+                            }
+                            localStorage.setItem('bayan_seen_pair_events', JSON.stringify(seenEv.slice(-30)));
+                            localStorage.setItem('bayan_shop_pin_meta', JSON.stringify(meta));
+                            if (rotated && typeof this.regeneratePairingPin === 'function') {
+                                this.regeneratePairingPin();
+                            }
+                        }
+                    }
+                } catch (_) { }
+
                 // فحص أي حركات ملغاة (void_tx)
                 try {
                     const voidRes = await this._safeFetch(
@@ -1860,7 +1894,7 @@
         },
 
         // 🖥️ تحديث حالة الاتصال في الواجهة إن وجدت
-        updateUIStatus: function (state, time = null, msg = '') {
+        updateUIStatus: async function (state, time = null, msg = '') {
             const badge = document.getElementById('supabaseSyncStatusBadge');
             const connText = document.getElementById('supabaseConnectionStatusText');
             const overviewBadge = document.getElementById('supabaseOverviewBadge');
@@ -1906,7 +1940,8 @@
             if (state === 'online') {
                 const tStr = time ? time.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }) : '';
                 const curShopId = this.getShopId();
-                const pendingCnt = (typeof this.getPendingSyncQueue === 'function') ? (this.getPendingSyncQueue().length || 0) : 0;
+                const pendingQueue = (typeof this.getPendingSyncQueue === 'function') ? await this.getPendingSyncQueue(200) : [];
+                const pendingCnt = Array.isArray(pendingQueue) ? pendingQueue.length : 0;
                 const pendingLabel = pendingCnt > 0 ? ` | بانتظار: ${pendingCnt}` : '';
                 if (badge) {
                     badge.innerHTML = `🟢 متصل ويعمل (${curShopId})${tStr ? ' - ' + tStr : ''}${pendingLabel}`;

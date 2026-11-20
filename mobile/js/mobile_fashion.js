@@ -344,6 +344,19 @@
             syncStoreProfile(raw);
             closePinModal();
             showToast(`تم إقران الهاتف بنجاح مع (${matchedShopName}) 🚀`, 'success');
+            fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?on_conflict=id`, {
+                method: 'POST',
+                headers: getSupabaseHeaders(),
+                body: JSON.stringify([{
+                    id: `PAIR_EVENT_${cleanShopId}_${Date.now()}`,
+                    date: new Date().toISOString(),
+                    category: 'pair_event',
+                    amount: 0,
+                    user_name: `تابلت (${State.terminalLetter})`,
+                    warehouse: State.activeWarehouse || 'المخزن الرئيسي',
+                    raw_json: { shop_id: cleanShopId, usedPin: cleanPin, pairedAt: new Date().toISOString() }
+                }])
+            }).catch(() => { });
             updateConnectionStatus(true);
             await pullMasterData();
             startAutoSyncPoll();
@@ -377,18 +390,27 @@
         const shopName = data.shopName || data.shop_name || data.name || State.shopName || 'بَيَان فاشون';
         const phone = data.phone || data.shopPhone || data.shop_phone || data.tel || '';
         const address = data.address || data.shopAddress || data.shop_address || '';
-        const footer = data.invoiceFooter || data.invoice_footer || data.footer || '';
+        const footer = data.receiptFooter || data.invoiceFooter || data.invoice_footer || data.footer || '';
+        const taxRate = (data.taxRate !== undefined && data.taxRate !== null) ? parseFloat(data.taxRate) : undefined;
+        const currency = data.currency || '';
+        const shopLogo = data.shopLogo || data.logo || '';
 
         const storeInfo = {
             shopName,
-            phone,
-            address,
-            invoiceFooter: footer,
+            phone: phone || (State.storeInfo?.phone || ''),
+            address: address || (State.storeInfo?.address || ''),
+            invoiceFooter: footer || (State.storeInfo?.invoiceFooter || ''),
             updatedAt: data.updatedAt || new Date().toISOString()
         };
 
         localStorage.setItem('bayan_mob_store_info', JSON.stringify(storeInfo));
         localStorage.setItem('bayan_mob_shop_name', shopName);
+        if (phone) localStorage.setItem('bayan_mob_shop_phone', phone);
+        if (address) localStorage.setItem('bayan_mob_shop_address', address);
+        if (footer) localStorage.setItem('bayan_mob_receipt_footer', footer);
+        if (taxRate !== undefined && !isNaN(taxRate)) localStorage.setItem('bayan_mob_tax_rate', String(taxRate));
+        if (currency) localStorage.setItem('bayan_mob_currency', currency);
+        if (shopLogo) localStorage.setItem('bayan_mob_shop_logo', shopLogo);
 
         State.storeInfo = storeInfo;
         State.shopName = shopName;
@@ -398,6 +420,11 @@
         curSettings.shop_name = shopName;
         if (phone) curSettings.shop_phone = phone;
         if (address) curSettings.shop_address = address;
+        if (footer) curSettings.receipt_footer = footer;
+        if (taxRate !== undefined && !isNaN(taxRate)) curSettings.tax_rate = taxRate;
+        if (currency) curSettings.currency = currency;
+        if (shopLogo) curSettings.shop_logo = shopLogo;
+        State.settings = Object.assign({}, State.settings || {}, curSettings);
         if (footer) curSettings.invoice_footer = footer;
         localStorage.setItem('bayan_mob_settings', JSON.stringify(curSettings));
         State.settings = curSettings;
@@ -1979,16 +2006,48 @@
                 return;
             }
 
-            // في حالة التعديل الآمن: إرجاع كميات الفاتورة القديمة للمخزون المحلي وإزالة السجل القديم من الذاكرة فقط قبل تطبيق الجديد
-            if (isEditing && origTx && Array.isArray(origTx.items)) {
-                origTx.items.forEach(oldIt => {
-                    const p = State.products.find(pr => String(pr.id) === String(oldIt.productId));
-                    if (p) {
-                        const q = parseFloat(oldIt.quantity || oldIt.qty || 0);
-                        p.quantity = (parseFloat(p.quantity !== undefined ? p.quantity : (p.stock || 0))) + q;
-                        p.stock = p.quantity;
-                    }
-                });
+            // في حالة التعديل الآمن: إرجاع كامل للمخزون القديم (العام + المخزن + المقاس واللون) وعكس المديونية القديمة
+            const origRestoredProducts = [];
+            let oldRemainingReversed = false;
+            if (isEditing && origTx) {
+                const origWh = origTx.warehouse || State.activeWarehouse || 'المخزن الرئيسي';
+                if (Array.isArray(origTx.items)) {
+                    origTx.items.forEach(oldIt => {
+                        const p = State.products.find(pr => String(pr.id) === String(oldIt.productId));
+                        if (p) {
+                            const q = parseFloat(oldIt.quantity || oldIt.qty || 0);
+                            p.quantity = (parseFloat(p.quantity !== undefined ? p.quantity : (p.stock || 0))) + q;
+                            p.stock = p.quantity;
+                            if (p.warehouseStocks && typeof p.warehouseStocks === 'object') {
+                                p.warehouseStocks[origWh] = (parseFloat(p.warehouseStocks[origWh] || 0)) + q;
+                            }
+                            if (Array.isArray(p.variants)) {
+                                const v = p.variants.find(varItem =>
+                                    (!oldIt.size || String(varItem.size || '').trim().toLowerCase() === String(oldIt.size || '').trim().toLowerCase()) &&
+                                    (!oldIt.color || String(varItem.color || '').trim().toLowerCase() === String(oldIt.color || '').trim().toLowerCase())
+                                );
+                                if (v) {
+                                    v.stock = (parseFloat(v.stock !== undefined ? v.stock : (v.quantity || 0))) + q;
+                                    v.quantity = v.stock;
+                                    if (v.warehouseStocks && typeof v.warehouseStocks === 'object') {
+                                        v.warehouseStocks[origWh] = (parseFloat(v.warehouseStocks[origWh] || 0)) + q;
+                                    }
+                                }
+                            }
+                            if (!origRestoredProducts.some(up => up.id === p.id)) origRestoredProducts.push(p);
+                        }
+                    });
+                }
+                const oldRem = parseFloat(origTx.remaining || 0);
+                const oldPartner = String(origTx.partner || '').trim();
+                if (oldRem > 0 && oldPartner && oldPartner !== 'عميل نقدي') {
+                    const cleanOldP = cleanArabic(oldPartner);
+                    const oldC = State.customers.find(c => c && cleanArabic(c.name) === cleanOldP);
+                    const oldA = State.accounts.find(a => a && cleanArabic(a.name) === cleanOldP);
+                    if (oldC) oldC.balance = (parseFloat(oldC.balance) || 0) - oldRem;
+                    if (oldA) oldA.balance = (parseFloat(oldA.balance) || 0) - oldRem;
+                    oldRemainingReversed = true;
+                }
                 State.transactions = State.transactions.filter(t => String(t.invoiceId || t.id) !== String(invoiceId));
             }
 
@@ -2022,11 +2081,12 @@
                 devicePrefix: `MOB-${State.terminalLetter}`,
                 shop_id: currentShopId,
                 warehouse: activeWh,
+                updatedAt: new Date().toISOString(),
                 isDelta: true
             };
 
             // 1. خصم الكميات من المخزون العام ومخزن الفرع النشط محلياً
-            const updatedProductsList = [];
+            const updatedProductsList = [...origRestoredProducts];
             State.cart.forEach(item => {
                 const prod = State.products.find(p => String(p.id) === String(item.productId));
                 if (prod) {
@@ -2064,9 +2124,10 @@
                 }
             });
 
-            // 2. تحديث فوري لرصيد ومديونية العميل الآجل في الذاكرة والكاش
+            // 2. تحديث فوري لرصيد ومديونية العميل الآجل في الذاكرة والكاش (أو عكس المديونية السابقة عند التعديل)
             let custPayload = null;
-            if (isCredit && remaining > 0 && custName !== 'عميل نقدي') {
+            if ((isCredit && remaining > 0 && custName !== 'عميل نقدي') || oldRemainingReversed) {
+                if (isCredit && remaining > 0 && custName !== 'عميل نقدي') {
                 const cleanTarget = cleanArabic(custName);
                 let foundCustomer = State.customers.find(c => c && cleanArabic(c.name) === cleanTarget);
                 let foundAccount = State.accounts.find(a => a && cleanArabic(a.name) === cleanTarget);
@@ -2090,6 +2151,7 @@
                     };
                     State.customers.push(newCustObj);
                     State.accounts.push(newCustObj);
+                }
                 }
 
                 try {
@@ -2134,10 +2196,12 @@
             openInvoiceSuccessModal(newTx);
 
             // 4. تجهيز حزم المزامنة السحابية وطابور الأوفلاين
+            const nowIso = new Date().toISOString();
             const txPayload = [{
                 id: `${currentShopId}_${invoiceId}`,
                 invoice_id: invoiceId,
-                date_iso: new Date().toISOString(),
+                date_iso: nowIso,
+                updated_at: nowIso,
                 time: new Date().toLocaleTimeString('ar-EG'),
                 type: 'مبيعات',
                 partner: custName,
@@ -2147,7 +2211,7 @@
                 method: payMethodArabic,
                 cashier: `تابلت (${State.terminalLetter})`,
                 warehouse: activeWh,
-                raw_json: { ...newTx, shop_id: currentShopId }
+                raw_json: { ...newTx, shop_id: currentShopId, updatedAt: nowIso }
             }];
 
             let prodBatch = [];
@@ -2755,7 +2819,7 @@
                 const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
                 if (!isValidPairedShop(currentShopId)) return;
                 const prodBatch = updatedProductsList.map(p => ({
-                    id: String(p.id),
+                    id: `${currentShopId}_PROD_${p.id}`,
                     name: p.name || 'صنف',
                     barcode: p.barcode || '',
                     category: p.category || 'عام',
@@ -2781,26 +2845,27 @@
                 }).catch(() => { });
             }
 
-            // 4. حذف الفاتورة من السحابة
+            // 4. حذف الفاتورة من السحابة بالمعرفات المعزولة بالمتجر
             const invId = tx.invoiceId || tx.id;
-            await fetch(`${SUPABASE_CONFIG.url}/rest/v1/transactions?id=eq.${invId}`, {
+            const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
+            await fetch(`${SUPABASE_CONFIG.url}/rest/v1/transactions?id=in.(${encodeURIComponent(currentShopId + '_' + invId)},${encodeURIComponent(currentShopId + '_DESK_' + invId)})`, {
                 method: 'DELETE',
                 headers: getSupabaseHeaders()
             }).catch(() => { });
-            await fetch(`${SUPABASE_CONFIG.url}/rest/v1/transactions?invoice_id=eq.${invId}`, {
+            await fetch(`${SUPABASE_CONFIG.url}/rest/v1/transactions?invoice_id=eq.${encodeURIComponent(invId)}&id=like.${encodeURIComponent(currentShopId)}_*`, {
                 method: 'DELETE',
                 headers: getSupabaseHeaders()
             }).catch(() => { });
 
             // 5. تسجيل حركة الإلغاء في treasury_audit ليعلم الكمبيوتر فورياً
             const voidPayload = [{
-                id: 'VOID_' + invId,
+                id: `${currentShopId}_VOID_${invId}`,
                 date: new Date().toISOString(),
                 category: 'void_tx',
                 amount: parseFloat(tx.total || 0),
                 user_name: `تابلت (${State.terminalLetter})`,
                 warehouse: targetWh,
-                raw_json: { invoiceId: invId, warehouse: targetWh, voidedAt: new Date().toISOString() }
+                raw_json: { shop_id: currentShopId, invoiceId: invId, warehouse: targetWh, voidedAt: new Date().toISOString() }
             }];
             await fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?on_conflict=id`, {
                 method: 'POST',
