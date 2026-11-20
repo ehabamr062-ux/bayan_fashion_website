@@ -88,6 +88,34 @@ body.dark-mode * {
     opacity: 0 !important;
 }
 
+/* شريط تمرير أفقي رفيع وأنيق مخصص لجدول قسم الفواتير فقط */
+#invoicesTableContainer {
+    scrollbar-width: thin !important;
+}
+#invoicesTableContainer::-webkit-scrollbar {
+    width: 7px !important;
+    height: 7px !important;
+}
+#invoicesTableContainer::-webkit-scrollbar:horizontal,
+#invoicesTableContainer::-webkit-scrollbar-horizontal {
+    display: block !important;
+    height: 7px !important;
+    width: auto !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+}
+#invoicesTableContainer::-webkit-scrollbar-track:horizontal {
+    background: #f1f5f9;
+    border-radius: 999px;
+}
+#invoicesTableContainer::-webkit-scrollbar-thumb:horizontal {
+    background: rgba(100, 116, 139, 0.55);
+    border-radius: 999px;
+}
+#invoicesTableContainer::-webkit-scrollbar-thumb:horizontal:hover {
+    background: rgba(5, 150, 105, 0.85);
+}
+
 ::-webkit-scrollbar-track {
     background: transparent;
 }
