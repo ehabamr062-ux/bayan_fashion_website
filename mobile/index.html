@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 
 <head>
@@ -30,21 +30,22 @@
         // 🚀 كسر وتحديث الكاش التلقائي لمزامنة أحدث ملفات النظام فوراً
         (function () {
             try {
-                if ('caches' in window) {
+                const isHttpOrigin = location.protocol === 'http:' || location.protocol === 'https:';
+                if (isHttpOrigin && 'caches' in window) {
                     caches.keys().then(keys => {
                         keys.forEach(key => {
                             if (key.includes('v5.0.8') || key.includes('v5.0.9') || (key.includes('bayan-') && !key.includes('v5.1.0'))) {
-                                caches.delete(key);
+                                caches.delete(key).catch(() => { });
                             }
                         });
-                    });
+                    }).catch(() => { });
                 }
-                if ('serviceWorker' in navigator) {
+                if (isHttpOrigin && 'serviceWorker' in navigator) {
                     navigator.serviceWorker.getRegistrations().then(regs => {
                         for (let reg of regs) {
-                            reg.update();
+                            reg.update().catch(() => { });
                         }
-                    });
+                    }).catch(() => { });
                 }
             } catch (e) { }
         })();
