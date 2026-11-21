@@ -2720,22 +2720,30 @@ function getWarehouseStock(productName, warehouseName, startDate = null, endDate
             }
         });
 
-        // سحب الحركات التاريخية بعد endDate مباشرة من SQLite المفهرس عند توفره لضمان الدقة عبر كل السنوات
-        let sourceTxs = (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []);
+        // ⚡ استعلام تجميعي مباشر من SQLite (Covering Index + GROUP BY بدون سحب صفوف خام أو JSON.parse)
+        let usedSqliteAggregate = false;
         try {
-            if (window.BayanSQLite && window.BayanSQLite.nativeDb) {
-                const sqlRows = window.BayanSQLite.nativeDb.prepare(
-                    "SELECT productName, warehouse, type, qty, dateISO, raw_json FROM transaction_items WHERE dateISO > ?;"
-                ).all(endDate);
-                if (Array.isArray(sqlRows) && sqlRows.length > 0) {
-                    sourceTxs = sqlRows.map(r => {
-                        let raw = {};
-                        try { raw = r.raw_json ? JSON.parse(r.raw_json) : {}; } catch (_) {}
-                        return { ...raw, product: r.productName || raw.product, warehouse: r.warehouse || raw.warehouse, type: r.type || raw.type, qty: r.qty != null ? r.qty : raw.qty, dateISO: r.dateISO || raw.dateISO };
+            if (window.BayanSQLite && typeof window.BayanSQLite.getRetroactiveStockAdjustments === 'function' && window.BayanSQLite.db) {
+                const aggDiffs = window.BayanSQLite.getRetroactiveStockAdjustments(endDate);
+                if (aggDiffs && typeof aggDiffs === 'object') {
+                    Object.keys(aggDiffs).forEach(rawName => {
+                        const pRef = prodIndex[rawName] || prodIndex[rawName.toLowerCase()];
+                        const pName = pRef ? pRef.name.trim() : rawName.trim();
+                        if (!pName) return;
+                        if (!_stockHistoryCache[pName]) _stockHistoryCache[pName] = {};
+                        const whMap = aggDiffs[rawName];
+                        Object.keys(whMap).forEach(wh => {
+                            _stockHistoryCache[pName][wh] = (_stockHistoryCache[pName][wh] || 0) + (parseFloat(whMap[wh]) || 0);
+                        });
                     });
+                    usedSqliteAggregate = true;
                 }
             }
         } catch (_) {}
+
+        let sourceTxs = usedSqliteAggregate
+            ? []
+            : ((typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : (window.transactions || []));
 
         for (let i = 0; i < sourceTxs.length; i++) {
             const t = sourceTxs[i];

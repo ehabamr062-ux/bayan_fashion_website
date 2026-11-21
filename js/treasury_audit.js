@@ -226,8 +226,34 @@ function calculateNetCashDrawerInflow(targetDate) {
     };
 
     try {
-        let allTx = (window.transactions || []);
         const cleanDate = currentDate.slice(0, 10);
+
+        // ⚡ مسار SQLite التجميعي المباشر (SUM / GROUP BY) بدون سحب 50,000 صف إلى ذاكرة JS
+        if (window.BayanSQLite && typeof window.BayanSQLite.getTreasuryCashInflowSummary === 'function' && window.BayanSQLite.db) {
+            const sqlInflow = window.BayanSQLite.getTreasuryCashInflowSummary(cleanDate, cleanDate);
+            if (sqlInflow) {
+                totalCashSales = sqlInflow.totalCashSales;
+                totalCashReceipts = sqlInflow.totalCashReceipts;
+                totalCashPurReturns = sqlInflow.totalCashPurReturns;
+                totalCashSalesReturns = sqlInflow.totalCashSalesReturns;
+                netCashInflow = sqlInflow.netCashInflow;
+
+                let partsFast = [`مبيعات كاش: ${totalCashSales.toFixed(2)}`];
+                if (totalCashSalesReturns > 0) partsFast.push(`مرتجع كاش: -${totalCashSalesReturns.toFixed(2)}`);
+                if (totalCashReceipts > 0) partsFast.push(`قبض: +${totalCashReceipts.toFixed(2)}`);
+                if (totalCashPurReturns > 0) partsFast.push(`مرتجع شراء كاش: +${totalCashPurReturns.toFixed(2)}`);
+                return {
+                    netCashInflow,
+                    totalCashSales,
+                    totalCashReceipts,
+                    totalCashPurReturns,
+                    totalCashSalesReturns,
+                    notesBreakdown: `صافي مبيعات كاش وقبض (${partsFast.join(' | ')})`
+                };
+            }
+        }
+
+        let allTx = (window.transactions || []);
         const todayISO = new Date().toLocaleDateString('en-CA');
 
         // التحقق من توفر حركات التاريخ في الذاكرة الحية وجلبها من SQLite عند استعلام تواريخ سابقة

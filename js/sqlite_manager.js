@@ -1090,6 +1090,7 @@
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_type_status ON transactions(dateISO, type, status);");
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_type_status_date ON transactions(type, status, dateISO);");
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_partner_date ON transactions(partner, dateISO);");
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_partner_date_time_id ON transactions(partner, dateISO, time, id);");
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_wh_date ON transactions(warehouse, dateISO);");
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);");
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_isHead ON transactions(isInvoiceHead);");
@@ -1098,7 +1099,86 @@
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_cashier_date ON transactions(cashier, dateISO);");
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_wh_head_date ON transactions(warehouse, isInvoiceHead, dateISO);");
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_method ON transactions(method);");
+                // ⚡ فهرس جزئي لرؤوس الفواتير لإزالة SCAN transactions و TEMP B-TREE في الأرشيف الكامل
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_inv_head_date ON transactions(dateISO DESC, id DESC) WHERE isInvoiceHead = 1;");
+                // ⚡ فهرس مركب للنوع والتاريخ (التحويلات والتقارير)
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_type_date_desc ON transactions(type, dateISO DESC);");
+                // ⚡ فهرس مركب لإدارة الأسعار والمخازن
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_products_cat_price ON products(category, price);");
             } catch (e) { }
+
+            // ⚡ تفعيل جدول البحث النصي الكامل FTS5 للأصناف (products_fts) مع Triggers المزامنة التلقائية
+            this.hasFts5 = false;
+            try {
+                this.db.run(`
+                    CREATE VIRTUAL TABLE IF NOT EXISTS products_fts USING fts5(
+                        id UNINDEXED,
+                        code,
+                        barcode,
+                        name,
+                        model,
+                        category,
+                        tokenize='unicode61'
+                    );
+                `);
+                this.db.run(`
+                    CREATE TRIGGER IF NOT EXISTS trg_products_fts_ai AFTER INSERT ON products BEGIN
+                        DELETE FROM products_fts WHERE id = NEW.id;
+                        INSERT INTO products_fts(id, code, barcode, name, model, category)
+                        VALUES (
+                            NEW.id,
+                            COALESCE(NEW.code, ''),
+                            COALESCE(NEW.barcode, ''),
+                            COALESCE(NEW.name, ''),
+                            COALESCE(json_extract(NEW.raw_json, '$.model'), ''),
+                            COALESCE(NEW.category, '')
+                        );
+                    END;
+                `);
+                this.db.run(`
+                    CREATE TRIGGER IF NOT EXISTS trg_products_fts_au AFTER UPDATE ON products BEGIN
+                        DELETE FROM products_fts WHERE id = OLD.id;
+                        INSERT INTO products_fts(id, code, barcode, name, model, category)
+                        VALUES (
+                            NEW.id,
+                            COALESCE(NEW.code, ''),
+                            COALESCE(NEW.barcode, ''),
+                            COALESCE(NEW.name, ''),
+                            COALESCE(json_extract(NEW.raw_json, '$.model'), ''),
+                            COALESCE(NEW.category, '')
+                        );
+                    END;
+                `);
+                this.db.run(`
+                    CREATE TRIGGER IF NOT EXISTS trg_products_fts_ad AFTER DELETE ON products BEGIN
+                        DELETE FROM products_fts WHERE id = OLD.id;
+                    END;
+                `);
+
+                // هجرة أولية لمرة واحدة لملء products_fts من الأصناف الموجودة
+                let ftsPopulated = false;
+                if (this.isNative && this.nativeDb) {
+                    const fRow = this.nativeDb.prepare("SELECT value FROM settings WHERE id = 'products_fts_seeded_v1'").get();
+                    if (fRow && String(fRow.value) === '1') ftsPopulated = true;
+                } else {
+                    const fRes = this.db.exec("SELECT value FROM settings WHERE id = 'products_fts_seeded_v1'");
+                    if (fRes && fRes[0] && fRes[0].values && fRes[0].values.length > 0 && String(fRes[0].values[0][0]) === '1') {
+                        ftsPopulated = true;
+                    }
+                }
+                if (!ftsPopulated) {
+                    this.db.run(`
+                        DELETE FROM products_fts;
+                        INSERT INTO products_fts(id, code, barcode, name, model, category)
+                        SELECT id, COALESCE(code, ''), COALESCE(barcode, ''), COALESCE(name, ''), COALESCE(json_extract(raw_json, '$.model'), ''), COALESCE(category, '')
+                        FROM products;
+                        INSERT OR REPLACE INTO settings (id, value) VALUES ('products_fts_seeded_v1', '1');
+                    `);
+                }
+                this.hasFts5 = true;
+            } catch (ftsErr) {
+                this.hasFts5 = false;
+            }
             try {
                 this.db.run("ALTER TABLE accounts ADD COLUMN debit REAL DEFAULT 0;");
             } catch (e) { }
@@ -1139,10 +1219,12 @@
                 CREATE INDEX IF NOT EXISTS idx_ti_invoiceId ON transaction_items(invoiceId);
                 CREATE INDEX IF NOT EXISTS idx_ti_tx_id ON transaction_items(tx_id);
                 CREATE INDEX IF NOT EXISTS idx_ti_barcode ON transaction_items(barcode);
+                CREATE INDEX IF NOT EXISTS idx_ti_barcode_date ON transaction_items(barcode, dateISO DESC, time DESC);
                 CREATE INDEX IF NOT EXISTS idx_ti_wh_barcode ON transaction_items(warehouse, barcode);
                 CREATE INDEX IF NOT EXISTS idx_ti_prod_wh_date ON transaction_items(productName, warehouse, dateISO);
                 CREATE INDEX IF NOT EXISTS idx_ti_wh_date ON transaction_items(warehouse, dateISO);
                 CREATE INDEX IF NOT EXISTS idx_ti_date_type ON transaction_items(dateISO, type);
+                CREATE INDEX IF NOT EXISTS idx_ti_date_wh_prod ON transaction_items(dateISO, warehouse, productName, type, qty);
             `);
 
             // 3. جدول الحسابات (العملاء والموردين)
@@ -2841,99 +2923,33 @@
                 if (!fDate || !tDate) return null;
 
                 let sql = `
-                    SELECT 
-                        type,
-                        COALESCE(method, 'كاش (نقدي)') AS method,
-                        COUNT(DISTINCT invoiceId) AS invCount,
-                        COUNT(*) AS rowCount,
-                        COALESCE(SUM(total), 0) AS sumTotal,
-                        COALESCE(SUM(
+                    WITH base AS (
+                        SELECT
+                            type,
+                            COALESCE(method, 'كاش (نقدي)') AS method,
+                            invoiceId,
+                            total,
                             CASE 
                                 WHEN isInvoiceHead = 1 THEN paidAmount 
                                 WHEN isInvoiceHead = 0 THEN 0
                                 WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN COALESCE(paidAmount, total)
                                 ELSE CASE WHEN paidAmount > 0 THEN paidAmount ELSE 0 END
-                            END
-                        ), 0) AS sumPaid,
-                        COALESCE(SUM(
+                            END AS effPaid,
                             CASE 
                                 WHEN isInvoiceHead = 1 THEN remaining 
                                 WHEN isInvoiceHead = 0 THEN 0
                                 ELSE remaining
-                            END
-                        ), 0) AS sumRemaining,
-                        COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND raw_json LIKE '%wholesale%' AND json_extract(raw_json, '$.priceLevel') = 'wholesale' THEN total ELSE 0 END), 0) AS wholesaleTotal,
-                        COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND raw_json LIKE '%wholesale%' AND json_extract(raw_json, '$.priceLevel') = 'wholesale' THEN (
-                            CASE 
-                                WHEN isInvoiceHead = 1 THEN paidAmount 
-                                WHEN isInvoiceHead = 0 THEN 0
-                                WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN COALESCE(paidAmount, total)
-                                ELSE CASE WHEN paidAmount > 0 THEN paidAmount ELSE 0 END
-                            END
-                        ) ELSE 0 END), 0) AS wholesalePaid,
-                        COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND raw_json LIKE '%wholesale%' AND json_extract(raw_json, '$.priceLevel') = 'wholesale' THEN (
-                            CASE 
-                                WHEN isInvoiceHead = 1 THEN remaining 
-                                WHEN isInvoiceHead = 0 THEN 0
-                                ELSE remaining
-                            END
-                        ) ELSE 0 END), 0) AS wholesaleRemaining,
-                        COUNT(DISTINCT CASE WHEN type LIKE '%بيع%' AND raw_json LIKE '%wholesale%' AND json_extract(raw_json, '$.priceLevel') = 'wholesale' THEN invoiceId END) AS wholesaleCount,
-                        COALESCE(SUM(
-                            CASE WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' AND (raw_json NOT LIKE '%wholesale%' OR json_extract(raw_json, '$.priceLevel') != 'wholesale') THEN
-                                COALESCE(
-                                    json_extract(raw_json, '$.profit'),
-                                    (COALESCE(json_extract(raw_json, '$.price'), 0) - COALESCE(json_extract(raw_json, '$.cost'), 0)) * COALESCE(json_extract(raw_json, '$.qty'), 1)
-                                )
-                            ELSE 0 END
-                        ), 0) AS retailProfit,
-                        COALESCE(SUM(
-                            CASE WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' AND raw_json LIKE '%wholesale%' AND json_extract(raw_json, '$.priceLevel') = 'wholesale' THEN
-                                COALESCE(
-                                    json_extract(raw_json, '$.profit'),
-                                    (COALESCE(json_extract(raw_json, '$.price'), 0) - COALESCE(json_extract(raw_json, '$.cost'), 0)) * COALESCE(json_extract(raw_json, '$.qty'), 1)
-                                )
-                            ELSE 0 END
-                        ), 0) AS wholesaleProfit,
-                        COALESCE(SUM(
-                            CASE WHEN type LIKE '%مرتجع بيع%' THEN
-                                ABS(COALESCE(
-                                    json_extract(raw_json, '$.profit'),
-                                    (COALESCE(json_extract(raw_json, '$.price'), 0) - COALESCE(json_extract(raw_json, '$.cost'), 0)) * COALESCE(json_extract(raw_json, '$.qty'), 1)
-                                ))
-                            ELSE 0 END
-                        ), 0) AS returnProfitLost,
-                        COALESCE(SUM(
-                            CASE WHEN type LIKE '%بيع%' THEN
-                                COALESCE(
-                                    json_extract(raw_json, '$.profit'),
-                                    (COALESCE(json_extract(raw_json, '$.price'), 0) - COALESCE(json_extract(raw_json, '$.cost'), 0)) * COALESCE(json_extract(raw_json, '$.qty'), 1)
-                                )
-                            ELSE 0 END
-                        ), 0) AS profit,
-                        COALESCE(SUM(
-                            CASE 
-                                WHEN type LIKE '%بيع%' 
-                                     AND (isInvoiceHead = 1 OR isInvoiceHead IS NULL OR invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---')
-                                     AND raw_json LIKE '%invoiceDiscount%' 
-                                     AND json_extract(raw_json, '$.invoiceDiscount') > 0 
-                                THEN json_extract(raw_json, '$.invoiceDiscount') 
-                                ELSE 0 
-                            END
-                        ), 0) AS totalDisc,
-                        COUNT(DISTINCT CASE WHEN type LIKE '%بيع%' AND raw_json LIKE '%invoiceDiscount%' AND json_extract(raw_json, '$.invoiceDiscount') > 0 THEN invoiceId END) AS discCount,
-                        COALESCE(SUM(
-                            CASE 
-                                WHEN type LIKE '%بيع%' 
-                                     AND (isInvoiceHead = 1 OR isInvoiceHead IS NULL OR invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---')
-                                     AND (raw_json LIKE '%invoiceExtra%' OR raw_json LIKE '%invoiceTax%') 
-                                THEN COALESCE(json_extract(raw_json, '$.invoiceExtra'), json_extract(raw_json, '$.invoiceTax'), 0) 
-                                ELSE 0 
-                            END
-                        ), 0) AS totalExtra,
-                        COUNT(DISTINCT CASE WHEN type LIKE '%بيع%' AND ((raw_json LIKE '%invoiceExtra%' AND json_extract(raw_json, '$.invoiceExtra') > 0) OR (raw_json LIKE '%invoiceTax%' AND json_extract(raw_json, '$.invoiceTax') > 0)) THEN invoiceId END) AS extraCount
-                    FROM transactions
-                    WHERE (status IS NULL OR status != 'void') AND dateISO >= ? AND dateISO <= ?
+                            END AS effRem,
+                            CASE WHEN isInvoiceHead = 1 OR isInvoiceHead IS NULL OR invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---' THEN 1 ELSE 0 END AS headFlag,
+                            CASE WHEN raw_json LIKE '%wholesale%' AND json_extract(raw_json, '$.priceLevel') = 'wholesale' THEN 1 ELSE 0 END AS isWholesale,
+                            COALESCE(
+                                json_extract(raw_json, '$.profit'),
+                                (COALESCE(json_extract(raw_json, '$.price'), 0) - COALESCE(json_extract(raw_json, '$.cost'), 0)) * COALESCE(json_extract(raw_json, '$.qty'), 1)
+                            ) AS calcProfit,
+                            CASE WHEN raw_json LIKE '%invoiceDiscount%' THEN COALESCE(json_extract(raw_json, '$.invoiceDiscount'), 0) ELSE 0 END AS invDisc,
+                            CASE WHEN (raw_json LIKE '%invoiceExtra%' OR raw_json LIKE '%invoiceTax%') THEN COALESCE(json_extract(raw_json, '$.invoiceExtra'), json_extract(raw_json, '$.invoiceTax'), 0) ELSE 0 END AS invExtra
+                        FROM transactions
+                        WHERE (status IS NULL OR status != 'void') AND dateISO >= ? AND dateISO <= ?
                 `;
                 const params = [fDate, tDate];
 
@@ -2946,7 +2962,31 @@
                     params.push(cashier);
                 }
 
-                sql += " GROUP BY type, method;";
+                sql += `
+                    )
+                    SELECT
+                        type,
+                        method,
+                        COUNT(DISTINCT invoiceId) AS invCount,
+                        COUNT(*) AS rowCount,
+                        COALESCE(SUM(total), 0) AS sumTotal,
+                        COALESCE(SUM(effPaid), 0) AS sumPaid,
+                        COALESCE(SUM(effRem), 0) AS sumRemaining,
+                        COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND isWholesale = 1 THEN total ELSE 0 END), 0) AS wholesaleTotal,
+                        COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND isWholesale = 1 THEN effPaid ELSE 0 END), 0) AS wholesalePaid,
+                        COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND isWholesale = 1 THEN effRem ELSE 0 END), 0) AS wholesaleRemaining,
+                        COUNT(DISTINCT CASE WHEN type LIKE '%بيع%' AND isWholesale = 1 THEN invoiceId END) AS wholesaleCount,
+                        COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' AND isWholesale = 0 THEN calcProfit ELSE 0 END), 0) AS retailProfit,
+                        COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' AND isWholesale = 1 THEN calcProfit ELSE 0 END), 0) AS wholesaleProfit,
+                        COALESCE(SUM(CASE WHEN type LIKE '%مرتجع بيع%' THEN ABS(calcProfit) ELSE 0 END), 0) AS returnProfitLost,
+                        COALESCE(SUM(CASE WHEN type LIKE '%بيع%' THEN calcProfit ELSE 0 END), 0) AS profit,
+                        COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND headFlag = 1 AND invDisc > 0 THEN invDisc ELSE 0 END), 0) AS totalDisc,
+                        COUNT(DISTINCT CASE WHEN type LIKE '%بيع%' AND invDisc > 0 THEN invoiceId END) AS discCount,
+                        COALESCE(SUM(CASE WHEN type LIKE '%بيع%' AND headFlag = 1 AND invExtra > 0 THEN invExtra ELSE 0 END), 0) AS totalExtra,
+                        COUNT(DISTINCT CASE WHEN type LIKE '%بيع%' AND invExtra > 0 THEN invoiceId END) AS extraCount
+                    FROM base
+                    GROUP BY type, method;
+                `;
 
                 if (this.isNative && this.nativeDb) {
                     return this.nativeDb.prepare(sql).all(...params);
@@ -3059,13 +3099,13 @@
                     params.push(partner);
                 }
                 if (method && method !== 'all') {
-                    whereClause += " AND LOWER(method) LIKE ?";
-                    params.push('%' + String(method).trim().toLowerCase() + '%');
+                    whereClause += " AND method = ?";
+                    params.push(String(method).trim());
                 }
                 if (searchQuery) {
-                    const q = '%' + String(searchQuery).trim().toLowerCase() + '%';
-                    whereClause += " AND (LOWER(invoiceId) LIKE ? OR LOWER(partner) LIKE ? OR LOWER(raw_json) LIKE ?)";
-                    params.push(q, q, q);
+                    const qClean = String(searchQuery).trim();
+                    whereClause += " AND (invoiceId = ? OR partner = ? OR id IN (SELECT tx_id FROM transaction_items WHERE barcode = ? OR productName = ?))";
+                    params.push(qClean, qClean, qClean, qClean);
                 }
 
                 const mainSql = `
@@ -3198,12 +3238,20 @@
                     options = limit;
                     limit = null;
                 }
-                const fDate = String(fromDate || '').trim();
-                const tDate = String(toDate || '').trim();
-                const lim = (limit !== undefined && limit !== null && parseInt(limit, 10) > 0) ? parseInt(limit, 10) : null;
-                const { partner = 'all', method = 'all', searchQuery = '' } = options || {};
+                let fDate = String(fromDate || '').trim();
+                let tDate = String(toDate || '').trim();
+                // 🛡️ حماية الرام: نطاق افتراضي آخر 90 يوماً إذا لم يُحدد تاريخ، وسقف آمن LIMIT 2000 عند عدم تمرير limit
+                if (!fDate && !tDate) {
+                    const d90 = new Date();
+                    d90.setDate(d90.getDate() - 90);
+                    fDate = d90.toLocaleDateString('en-CA');
+                    tDate = new Date().toLocaleDateString('en-CA');
+                }
+                const lim = (limit !== undefined && limit !== null && parseInt(limit, 10) > 0) ? parseInt(limit, 10) : 2000;
+                const { partner = 'all', method = 'all', searchQuery = '', offset = 0 } = options || {};
+                const off = Math.max(0, parseInt(offset, 10) || 0);
 
-                let sql = "SELECT * FROM transactions WHERE (status IS NULL OR status != 'void') AND (type LIKE '%بيع%' OR type LIKE '%مرتجع بيع%')";
+                let sql = "SELECT * FROM transactions WHERE (status IS NULL OR status != 'void') AND ((type >= 'بيع' AND type < 'بيد') OR (type >= 'فاتورة بيع' AND type < 'فاتورة بيد') OR (type >= 'مرتجع بيع' AND type < 'مرتجع بيد'))";
                 const params = [];
 
                 if (fDate) {
@@ -3227,22 +3275,17 @@
                     params.push(partner);
                 }
                 if (method && method !== 'all') {
-                    sql += " AND LOWER(method) LIKE ?";
-                    params.push('%' + String(method).trim().toLowerCase() + '%');
+                    sql += " AND method = ?";
+                    params.push(String(method).trim());
                 }
                 if (searchQuery) {
-                    const q = '%' + String(searchQuery).trim().toLowerCase() + '%';
-                    sql += " AND (LOWER(invoiceId) LIKE ? OR LOWER(partner) LIKE ? OR LOWER(raw_json) LIKE ?)";
-                    params.push(q, q, q);
+                    const qClean = String(searchQuery).trim();
+                    sql += " AND (invoiceId = ? OR partner = ? OR id IN (SELECT tx_id FROM transaction_items WHERE barcode = ? OR productName = ?))";
+                    params.push(qClean, qClean, qClean, qClean);
                 }
 
-                sql += " ORDER BY dateISO DESC, id DESC";
-                if (lim) {
-                    sql += " LIMIT ?;";
-                    params.push(lim);
-                } else {
-                    sql += ";";
-                }
+                sql += " ORDER BY dateISO DESC, id DESC LIMIT ? OFFSET ?;";
+                params.push(lim, off);
 
                 if (this.isNative && this.nativeDb) {
                     const rows = this.nativeDb.prepare(sql).all(...params);
@@ -3508,7 +3551,94 @@
                     params.push(sId, sId, sId, `%${sId}%`);
                 }
 
-                // 1. إجمالي عدد الفواتير الفريدة المطابقة
+                const canUseFastHeadIndex = Boolean(
+                    (!type || type === 'all') &&
+                    (!warehouse || warehouse === 'all') &&
+                    (!cashier || cashier === 'all') &&
+                    !partner &&
+                    !searchId
+                );
+
+                // ⚡ المسار الفائق السرعة عبر الفهرس الجزئي idx_tx_inv_head_date (Zero SCAN + Zero TEMP B-TREE)
+                if (canUseFastHeadIndex) {
+                    let headWhere = " WHERE isInvoiceHead = 1 AND (status IS NULL OR status != 'void')";
+                    const headParams = [];
+                    if (fromDate) {
+                        headWhere += " AND dateISO >= ?";
+                        headParams.push(String(fromDate).trim());
+                    }
+                    if (toDate) {
+                        headWhere += " AND dateISO <= ?";
+                        headParams.push(String(toDate).trim());
+                    }
+
+                    const fastCountSql = `SELECT COUNT(*) AS cnt FROM transactions ${headWhere};`;
+                    let fastTotal = 0;
+                    if (this.isNative && this.nativeDb) {
+                        const cRow = this.nativeDb.prepare(fastCountSql).get(...headParams);
+                        fastTotal = cRow ? (parseInt(cRow.cnt, 10) || 0) : 0;
+                    } else {
+                        const cStmt = this.db.prepare(fastCountSql);
+                        cStmt.bind(headParams);
+                        if (cStmt.step()) fastTotal = parseInt(cStmt.getAsObject().cnt, 10) || 0;
+                        cStmt.free();
+                    }
+
+                    if (fastTotal > 0) {
+                        const totalPages = Math.max(1, Math.ceil(fastTotal / safePageSize));
+                        const effectivePage = Math.min(safePage, totalPages);
+                        const effectiveOffset = (effectivePage - 1) * safePageSize;
+
+                        const fastKeysSql = `SELECT invoiceId, id FROM transactions ${headWhere} ORDER BY dateISO DESC, id DESC LIMIT ? OFFSET ?;`;
+                        let headRows = [];
+                        if (this.isNative && this.nativeDb) {
+                            headRows = this.nativeDb.prepare(fastKeysSql).all(...headParams, safePageSize, effectiveOffset);
+                        } else {
+                            const kStmt = this.db.prepare(fastKeysSql);
+                            kStmt.bind([...headParams, safePageSize, effectiveOffset]);
+                            while (kStmt.step()) headRows.push(kStmt.getAsObject());
+                            kStmt.free();
+                        }
+
+                        const invIds = [];
+                        const standaloneIds = [];
+                        for (const hr of headRows) {
+                            const inv = String(hr.invoiceId || '').trim();
+                            if (inv && inv !== '---') invIds.push(inv);
+                            else if (hr.id) standaloneIds.push(String(hr.id));
+                        }
+
+                        const conds = [];
+                        const fetchParams = [];
+                        if (invIds.length > 0) {
+                            conds.push(`invoiceId IN (${invIds.map(() => '?').join(',')})`);
+                            fetchParams.push(...invIds);
+                        }
+                        if (standaloneIds.length > 0) {
+                            conds.push(`id IN (${standaloneIds.map(() => '?').join(',')})`);
+                            fetchParams.push(...standaloneIds);
+                        }
+                        if (conds.length > 0) {
+                            const rowsSql = `SELECT * FROM transactions WHERE (status IS NULL OR status != 'void') AND (${conds.join(' OR ')}) ORDER BY dateISO DESC, id DESC;`;
+                            let rows = [];
+                            if (this.isNative && this.nativeDb) {
+                                const rawRows = this.nativeDb.prepare(rowsSql).all(...fetchParams);
+                                rows = rawRows ? rawRows.map(r => this._reconstructRow(r)).filter(Boolean) : [];
+                            } else {
+                                const rStmt = this.db.prepare(rowsSql);
+                                rStmt.bind(fetchParams);
+                                while (rStmt.step()) {
+                                    const obj = this._reconstructRow(rStmt.getAsObject());
+                                    if (obj) rows.push(obj);
+                                }
+                                rStmt.free();
+                            }
+                            return { rows, totalInvoices: fastTotal, totalPages, page: effectivePage, pageSize: safePageSize };
+                        }
+                    }
+                }
+
+                // 1. إجمالي عدد الفواتير الفريدة المطابقة (المسار المفلتر)
                 const keyExpr = "CASE WHEN invoiceId IS NOT NULL AND invoiceId != '' AND invoiceId != '---' THEN invoiceId || '||' || COALESCE(type, '') ELSE 'ROW||' || id END";
                 const countSql = `SELECT COUNT(DISTINCT ${keyExpr}) AS cnt FROM transactions ${whereClause};`;
                 let totalInvoices = 0;
@@ -3760,18 +3890,35 @@
                     if (cleanFilter) matchedBarcodes.add(cleanFilter);
                     const matchedNames = new Set(productName ? [String(productName).trim()] : []);
 
-                    // البحث السريع في المنتجات عبر SQLite
+                    // البحث السريع في المنتجات عبر الفهرس الدقيق + FTS5 (بدون SCAN products)
                     try {
-                        const pSql = "SELECT name, barcode, code, variants FROM products WHERE barcode = ? OR code = ? OR name = ? OR name LIKE ? LIMIT 50;";
                         let pRows = [];
+                        const exactSql = "SELECT id, name, barcode, code, raw_json FROM products WHERE barcode = ? OR code = ? OR name = ? LIMIT 30;";
                         if (this.isNative && this.nativeDb) {
-                            pRows = this.nativeDb.prepare(pSql).all(cleanFilter, cleanFilter, cleanFilter, `%${cleanFilter}%`);
+                            pRows = this.nativeDb.prepare(exactSql).all(cleanFilter, cleanFilter, cleanFilter);
                         } else {
-                            const pStmt = this.db.prepare(pSql);
-                            pStmt.bind([cleanFilter, cleanFilter, cleanFilter, `%${cleanFilter}%`]);
+                            const pStmt = this.db.prepare(exactSql);
+                            pStmt.bind([cleanFilter, cleanFilter, cleanFilter]);
                             while (pStmt.step()) pRows.push(pStmt.getAsObject());
                             pStmt.free();
                         }
+
+                        if (pRows.length === 0 && this.hasFts5) {
+                            const ftsIds = this._searchProductIdsFts(cleanFilter, 50);
+                            if (ftsIds.length > 0) {
+                                const ph = ftsIds.map(() => '?').join(',');
+                                const ftsFetchSql = `SELECT id, name, barcode, code, raw_json FROM products WHERE id IN (${ph});`;
+                                if (this.isNative && this.nativeDb) {
+                                    pRows = this.nativeDb.prepare(ftsFetchSql).all(...ftsIds);
+                                } else {
+                                    const fStmt = this.db.prepare(ftsFetchSql);
+                                    fStmt.bind(ftsIds);
+                                    while (fStmt.step()) pRows.push(fStmt.getAsObject());
+                                    fStmt.free();
+                                }
+                            }
+                        }
+
                         pRows.forEach(pr => {
                             if (pr.name) {
                                 matchedNames.add(pr.name);
@@ -3779,11 +3926,11 @@
                             }
                             if (pr.barcode) matchedBarcodes.add(pr.barcode);
                             if (pr.code) matchedBarcodes.add(pr.code);
-                            if (pr.variants) {
+                            if (pr.raw_json) {
                                 try {
-                                    const vars = typeof pr.variants === 'string' ? JSON.parse(pr.variants) : pr.variants;
-                                    if (Array.isArray(vars)) {
-                                        vars.forEach(v => {
+                                    const rj = typeof pr.raw_json === 'string' ? JSON.parse(pr.raw_json) : pr.raw_json;
+                                    if (rj && Array.isArray(rj.variants)) {
+                                        rj.variants.forEach(v => {
                                             if (v && v.barcode) matchedBarcodes.add(v.barcode);
                                         });
                                     }
@@ -3806,10 +3953,15 @@
                         itemConds.push(`ti.productName IN (${qm})`);
                         params.push(...nArr);
                     }
-                    itemConds.push("ti.productName LIKE ?");
-                    params.push(`%${cleanFilter}%`);
-                    itemConds.push("ti.invoiceId = ?");
-                    params.push(cleanFilter);
+                    // 🛡️ لا نستخدم LIKE '%...%' إذا وجدنا تطابقاً مفهرساً في products/FTS5 (تجنباً لتعطيل الفهارس)
+                    if (bArr.length === 0 && nArr.length === 0 && cleanFilter) {
+                        itemConds.push("ti.productName LIKE ?");
+                        params.push(`%${cleanFilter}%`);
+                    }
+                    if (cleanFilter) {
+                        itemConds.push("ti.invoiceId = ?");
+                        params.push(cleanFilter);
+                    }
 
                     conditions.push(`(${itemConds.join(' OR ')})`);
                 }
@@ -4275,203 +4427,130 @@
         /**
          * ⚡ بحث سريع في الأصناف بالاسم أو الباركود بالاعتماد على SQLite
          */
+        /**
+         * ⚡ بحث نصي فائق السرعة (< 1ms) في جدول الفهرسة النصية الكاملة products_fts (FTS5)
+         */
+        _searchProductIdsFts(searchTerm, limit = 50) {
+            if (!this.db || !this.hasFts5 || !searchTerm) return [];
+            const tokens = String(searchTerm)
+                .replace(/["'*^(){}\[\]:;~\\]/g, ' ')
+                .trim()
+                .split(/\s+/)
+                .filter(Boolean);
+            if (tokens.length === 0) return [];
+            const ftsExpr = tokens.map(t => `"${t}"*`).join(' ');
+            const lim = parseInt(limit, 10) || 50;
+            try {
+                const sql = "SELECT id FROM products_fts WHERE products_fts MATCH ? LIMIT ?;";
+                if (this.isNative && this.nativeDb) {
+                    const rows = this.nativeDb.prepare(sql).all(ftsExpr, lim);
+                    return rows ? rows.map(r => r.id) : [];
+                }
+                const stmt = this.db.prepare(sql);
+                stmt.bind([ftsExpr, lim]);
+                const ids = [];
+                while (stmt.step()) {
+                    const r = stmt.getAsObject();
+                    if (r && r.id !== undefined) ids.push(r.id);
+                }
+                stmt.free();
+                return ids;
+            } catch (e) {
+                return [];
+            }
+        }
+
+        _rankAndMergeProducts(rows, q, limit) {
+            const qLow = String(q || '').trim().toLowerCase();
+            const seen = new Set();
+            const unique = [];
+            for (const r of rows) {
+                if (!r || seen.has(String(r.id))) continue;
+                seen.add(String(r.id));
+                unique.push(r);
+            }
+            const scoreOf = (p) => {
+                const bc = String(p.barcode || '').trim().toLowerCase();
+                const cd = String(p.code || '').trim().toLowerCase();
+                const md = String(p.model || '').trim().toLowerCase();
+                const nm = String(p.name || '').trim().toLowerCase();
+                if (bc === qLow) return 1;
+                if (cd === qLow) return 2;
+                if (md === qLow) return 3;
+                if (nm === qLow) return 4;
+                if (bc.startsWith(qLow)) return 5;
+                if (cd.startsWith(qLow)) return 6;
+                if (md.startsWith(qLow)) return 7;
+                if (nm.startsWith(qLow)) return 8;
+                return 9;
+            };
+            unique.sort((a, b) => (scoreOf(a) - scoreOf(b)) || ((Number(a.id) || 0) - (Number(b.id) || 0)));
+            return unique.slice(0, limit);
+        }
+
         searchProducts(query, limit = 50) {
             if (!this.db || !query) return [];
             const q = String(query).trim();
             if (!q) return [];
             const lim = parseInt(limit, 10) || 50;
-            const prefix = `${q}%`;
-            const like = `%${q}%`;
-            try {
-                const sql = `
-                    SELECT * FROM products 
-                    WHERE barcode = ? 
-                       OR code = ? 
-                       OR name = ?
-                       OR barcode LIKE ? 
-                       OR code LIKE ? 
-                       OR name LIKE ? 
-                       OR json_extract(raw_json, '$.model') LIKE ? 
-                    ORDER BY 
-                       CASE 
-                           WHEN barcode = ? THEN 1
-                           WHEN code = ? THEN 2
-                           WHEN name = ? THEN 3
-                           WHEN barcode LIKE ? THEN 4
-                           WHEN code LIKE ? THEN 5
-                           WHEN name LIKE ? THEN 6
-                           ELSE 7
-                       END ASC,
-                       id ASC
-                    LIMIT ?;
-                `;
-                const params = [
-                    q, q, q, prefix, prefix, like, like,
-                    q, q, q, prefix, prefix, prefix,
-                    lim
-                ];
-                if (this.isNative && this.nativeDb) {
-                    const rows = this.nativeDb.prepare(sql).all(...params);
-                    return rows ? rows.map(r => this._reconstructRow(r)) : [];
-                }
-                const stmt = this.db.prepare(sql);
-                stmt.bind(params);
-                const items = [];
-                while (stmt.step()) {
-                    items.push(this._reconstructRow(stmt.getAsObject()));
-                }
-                stmt.free();
-                return items;
-            } catch (e) {
-                console.warn("[SQLite] searchProducts notice:", e.message);
-                try {
-                    const fallbackSql = "SELECT * FROM products WHERE barcode = ? OR name LIKE ? LIMIT ?;";
-                    const fallbackParams = [q, like, lim];
-                    if (this.isNative && this.nativeDb) {
-                        const rows = this.nativeDb.prepare(fallbackSql).all(...fallbackParams);
-                        return rows ? rows.map(r => this._reconstructRow(r)) : [];
-                    }
-                    const stmt = this.db.prepare(fallbackSql);
-                    stmt.bind(fallbackParams);
-                    const items = [];
-                    while (stmt.step()) {
-                        items.push(this._reconstructRow(stmt.getAsObject()));
-                    }
-                    stmt.free();
-                    return items;
-                } catch (e2) { }
-            }
-            return [];
-        }
+            const collected = [];
 
-        /**
-         * ⚡ استعلام سريع ومباشر ومفهرس للبحث عن الأصناف بـ (LIMIT 30) مع ترتيب صارم للأولوية
-         * يضمن ظهور التطابق التام بالباركود ثم الكود أولاً بلا منازع
-         */
-        searchProductsFast(searchTerm, limit = 30) {
-            if (!this.db || !searchTerm) return [];
-            const term = String(searchTerm).trim();
-            if (!term) return [];
-            const cleanTerm = term.replace(/[^a-zA-Z0-9\u0600-\u06FF]/g, ' ').trim() || term;
-            const lim = parseInt(limit, 10) || 30;
-            const prefixTerm = `${term}%`;
-            const likeTerm = `%${term}%`;
-            const cleanLike = `%${cleanTerm}%`;
-            try {
-                const sql = `
-                    SELECT * FROM products 
-                    WHERE barcode = ? 
-                       OR code = ? 
-                       OR json_extract(raw_json, '$.model') = ?
-                       OR name = ? 
-                       OR barcode LIKE ? 
-                       OR code LIKE ? 
-                       OR json_extract(raw_json, '$.model') LIKE ? 
-                       OR name LIKE ?
-                       OR name LIKE ? 
-                    ORDER BY 
-                       CASE 
-                           WHEN barcode = ? THEN 1
-                           WHEN code = ? THEN 2
-                           WHEN json_extract(raw_json, '$.model') = ? THEN 3
-                           WHEN name = ? THEN 4
-                           WHEN name LIKE '% ' || ? || ' %' OR name LIKE '%#' || ? || ' %' OR name LIKE '% ' || ? OR name LIKE '%#' || ?
-                             OR name LIKE '% ' || ? || ' %' OR name LIKE '%#' || ? || ' %' OR name LIKE '% ' || ? OR name LIKE '%#' || ? THEN 5
-                           WHEN name LIKE '% ' || ? || '%' OR name LIKE '%#' || ? || '%'
-                             OR name LIKE '% ' || ? || '%' OR name LIKE '%#' || ? || '%' THEN 6
-                           WHEN barcode LIKE ? THEN 7
-                           WHEN code LIKE ? THEN 8
-                           WHEN json_extract(raw_json, '$.model') LIKE ? THEN 9
-                           WHEN name LIKE ? THEN 10
-                           WHEN name LIKE ? OR name LIKE ? THEN 11
-                           ELSE 12
-                       END ASC,
-                       id ASC
-                    LIMIT ?;
-                `;
-                const params = [
-                    term, term, term, term, prefixTerm, prefixTerm, likeTerm, likeTerm, cleanLike,
-                    term, term, term, term,
-                    term, term, term, term, cleanTerm, cleanTerm, cleanTerm, cleanTerm,
-                    term, term, cleanTerm, cleanTerm,
-                    prefixTerm, prefixTerm, prefixTerm, prefixTerm,
-                    likeTerm, cleanLike,
-                    lim
-                ];
+            const runFetch = (sql, params) => {
                 if (this.isNative && this.nativeDb) {
                     const rows = this.nativeDb.prepare(sql).all(...params);
                     return rows ? rows.map(r => this._reconstructRow(r)).filter(Boolean) : [];
                 }
                 const stmt = this.db.prepare(sql);
                 stmt.bind(params);
-                const items = [];
+                const out = [];
                 while (stmt.step()) {
                     const r = this._reconstructRow(stmt.getAsObject());
-                    if (r) items.push(r);
+                    if (r) out.push(r);
                 }
                 stmt.free();
-                return items;
-            } catch (err) {
-                console.warn("[SQLite] searchProductsFast fallback:", err.message);
-                // 🛡️ استعلام احتياطي سريع ومتوافق بالكامل في حال تعذر عمود code
-                try {
-                    const fallbackSql = `
-                        SELECT * FROM products 
-                        WHERE barcode = ? 
-                           OR json_extract(raw_json, '$.code') = ? 
-                           OR json_extract(raw_json, '$.model') = ? 
-                           OR name = ? 
-                           OR barcode LIKE ? 
-                           OR json_extract(raw_json, '$.code') LIKE ? 
-                           OR json_extract(raw_json, '$.model') LIKE ? 
-                           OR name LIKE ?
-                           OR name LIKE ? 
-                        ORDER BY 
-                           CASE 
-                               WHEN barcode = ? THEN 1
-                               WHEN json_extract(raw_json, '$.code') = ? THEN 2
-                               WHEN json_extract(raw_json, '$.model') = ? THEN 3
-                               WHEN name = ? THEN 4
-                               WHEN name LIKE '% ' || ? || ' %' OR name LIKE '%#' || ? || ' %' OR name LIKE '% ' || ? OR name LIKE '%#' || ?
-                                 OR name LIKE '% ' || ? || ' %' OR name LIKE '%#' || ? || ' %' OR name LIKE '% ' || ? OR name LIKE '%#' || ? THEN 5
-                               WHEN name LIKE '% ' || ? || '%' OR name LIKE '%#' || ? || '%'
-                                 OR name LIKE '% ' || ? || '%' OR name LIKE '%#' || ? || '%' THEN 6
-                               WHEN barcode LIKE ? THEN 7
-                               WHEN json_extract(raw_json, '$.code') LIKE ? THEN 8
-                               WHEN json_extract(raw_json, '$.model') LIKE ? THEN 9
-                               WHEN name LIKE ? THEN 10
-                               WHEN name LIKE ? OR name LIKE ? THEN 11
-                               ELSE 12
-                           END ASC,
-                           id ASC
-                        LIMIT ?;
-                    `;
-                    const fallbackParams = [
-                        term, term, term, term, prefixTerm, prefixTerm, likeTerm, likeTerm, cleanLike,
-                        term, term, term, term,
-                        term, term, term, term, cleanTerm, cleanTerm, cleanTerm, cleanTerm,
-                        term, term, cleanTerm, cleanTerm,
-                        prefixTerm, prefixTerm, prefixTerm, prefixTerm,
-                        likeTerm, cleanLike,
-                        lim
-                    ];
-                    if (this.isNative && this.nativeDb) {
-                        const rows = this.nativeDb.prepare(fallbackSql).all(...fallbackParams);
-                        return rows ? rows.map(r => this._reconstructRow(r)).filter(Boolean) : [];
+                return out;
+            };
+
+            try {
+                // 1. مطابقة تامة فورية عبر فهارس B-Tree (Zero SCAN products)
+                const exactRows = runFetch(
+                    "SELECT * FROM products WHERE barcode = ? OR code = ? OR name = ? LIMIT ?;",
+                    [q, q, q, lim]
+                );
+                collected.push(...exactRows);
+
+                // 2. بحث FTS5 الفوري بالاسم/الكود/الباركود/الموديل (< 1ms)
+                if (collected.length < lim && this.hasFts5) {
+                    const ftsIds = this._searchProductIdsFts(q, lim * 2);
+                    if (ftsIds.length > 0) {
+                        const ph = ftsIds.map(() => '?').join(',');
+                        const ftsRows = runFetch(`SELECT * FROM products WHERE id IN (${ph});`, ftsIds);
+                        collected.push(...ftsRows);
                     }
-                    const stmt = this.db.prepare(fallbackSql);
-                    stmt.bind(fallbackParams);
-                    const items = [];
-                    while (stmt.step()) {
-                        const r = this._reconstructRow(stmt.getAsObject());
-                        if (r) items.push(r);
-                    }
-                    stmt.free();
-                    return items;
-                } catch (fallbackErr) {
-                    return [];
                 }
+
+                // 3. مسار احتياطي فقط عند عدم توفر FTS5 أو عدم وجود نتائج كافية (مثلاً بحث بوسط الكلمة)
+                if (collected.length === 0) {
+                    const like = `%${q}%`;
+                    const fbRows = runFetch(
+                        "SELECT * FROM products WHERE barcode LIKE ? OR code LIKE ? OR name LIKE ? LIMIT ?;",
+                        [`${q}%`, `${q}%`, like, lim]
+                    );
+                    collected.push(...fbRows);
+                }
+
+                return this._rankAndMergeProducts(collected, q, lim);
+            } catch (e) {
+                console.warn("[SQLite] searchProducts notice:", e.message);
+                return [];
             }
+        }
+
+        /**
+         * ⚡ استعلام سريع ومباشر ومفهرس (B-Tree + FTS5) للبحث عن الأصناف بـ (LIMIT 30) مع ترتيب صارم للأولوية
+         */
+        searchProductsFast(searchTerm, limit = 30) {
+            return this.searchProducts(searchTerm, limit);
         }
 
         /**
@@ -4627,119 +4706,214 @@
         getAllAccountsWithBalances(typeFilter = null) {
             if (!this.db) return [];
             try {
-                let sql = `
-                    WITH tx_summary AS (
-                        SELECT 
-                            partner,
-                            ROUND(COALESCE(SUM(
-                                CASE 
-                                    WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN (
-                                        CASE 
-                                            WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) 
-                                                  AND (COALESCE(remaining, 0) = 0 OR COALESCE(paidAmount, 0) >= total)) THEN 0 
-                                            ELSE (total - COALESCE(paidAmount, 0)) 
-                                        END
-                                    )
-                                    WHEN type LIKE '%مرتجع بيع%' THEN -(
-                                        CASE 
-                                            WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) 
-                                                  AND (COALESCE(remaining, 0) = 0 OR COALESCE(paidAmount, 0) >= total)) THEN 0 
-                                            ELSE (total - COALESCE(paidAmount, 0)) 
-                                        END
-                                    )
-                                    WHEN type LIKE '%شراء%' AND type NOT LIKE '%مرتجع%' THEN -(
-                                        CASE 
-                                            WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) 
-                                                  AND (COALESCE(remaining, 0) = 0 OR COALESCE(paidAmount, 0) >= total)) THEN 0 
-                                            ELSE (total - COALESCE(paidAmount, 0)) 
-                                        END
-                                    )
-                                    WHEN type LIKE '%مرتجع شراء%' THEN (
-                                        CASE 
-                                            WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) 
-                                                  AND (COALESCE(remaining, 0) = 0 OR COALESCE(paidAmount, 0) >= total)) THEN 0 
-                                            ELSE (total - COALESCE(paidAmount, 0)) 
-                                        END
-                                    )
-                                    WHEN (type LIKE '%قبض%' OR type LIKE '%توريد%') THEN -total
-                                    WHEN (type LIKE '%صرف%' OR type LIKE '%مصروف%' OR type LIKE '%مسحوبات%' OR type LIKE '%دفع%') THEN total
-                                    ELSE 0 
-                                END
-                            ), 0), 2) AS netBalance,
-                            ROUND(COALESCE(SUM(
-                                CASE 
-                                    WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN total 
-                                    ELSE 0 
-                                END
-                            ), 0), 2) AS totalSales,
-                            MAX(CASE WHEN (type LIKE '%قبض%' OR type LIKE '%توريد%') THEN dateISO ELSE NULL END) AS lastReceiptDate,
-                            MAX(dateISO) AS lastTxDate
-                        FROM transactions
-                        WHERE (status IS NULL OR status != 'void') AND partner IS NOT NULL AND partner != ''
-                        GROUP BY partner
-                    )
+                // ⚡ خطوة 1: تجميع حركات الشركاء عبر الفهرس idx_tx_partner_date_time_id (تجميع خطي O(N) بلا OR-JOIN تربيعي)
+                const txSummarySql = `
                     SELECT 
-                        a.id,
-                        a.name,
-                        a.code,
-                        a.type,
-                        a.mobile,
-                        a.address,
-                        a.raw_json,
-                        ROUND(
+                        partner,
+                        ROUND(COALESCE(SUM(
                             CASE 
-                                WHEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) != 0 
-                                   OR COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0) != 0)
-                                THEN (COALESCE(a.debit, CAST(json_extract(a.raw_json, '$.debit') AS REAL), 0) - COALESCE(a.credit, CAST(json_extract(a.raw_json, '$.credit') AS REAL), 0))
-                                ELSE COALESCE(a.balance, CAST(json_extract(a.raw_json, '$.balance') AS REAL), 0)
-                            END + COALESCE(s.netBalance, 0)
-                        , 2) AS currentBalance,
-                        COALESCE(s.totalSales, 0) AS totalSales,
-                        s.lastReceiptDate,
-                        s.lastTxDate
-                    FROM accounts a
-                    LEFT JOIN tx_summary s ON (a.name = s.partner OR (a.code IS NOT NULL AND a.code != '' AND a.code = s.partner))
+                                WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN (
+                                    CASE 
+                                        WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) 
+                                              AND (COALESCE(remaining, 0) = 0 OR COALESCE(paidAmount, 0) >= total)) THEN 0 
+                                        ELSE (total - COALESCE(paidAmount, 0)) 
+                                    END
+                                )
+                                WHEN type LIKE '%مرتجع بيع%' THEN -(
+                                    CASE 
+                                        WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) 
+                                              AND (COALESCE(remaining, 0) = 0 OR COALESCE(paidAmount, 0) >= total)) THEN 0 
+                                        ELSE (total - COALESCE(paidAmount, 0)) 
+                                    END
+                                )
+                                WHEN type LIKE '%شراء%' AND type NOT LIKE '%مرتجع%' THEN -(
+                                    CASE 
+                                        WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) 
+                                              AND (COALESCE(remaining, 0) = 0 OR COALESCE(paidAmount, 0) >= total)) THEN 0 
+                                        ELSE (total - COALESCE(paidAmount, 0)) 
+                                    END
+                                )
+                                WHEN type LIKE '%مرتجع شراء%' THEN (
+                                    CASE 
+                                        WHEN ((method IS NULL OR (method NOT LIKE '%اجل%' AND method NOT LIKE '%آجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%')) 
+                                              AND (COALESCE(remaining, 0) = 0 OR COALESCE(paidAmount, 0) >= total)) THEN 0 
+                                        ELSE (total - COALESCE(paidAmount, 0)) 
+                                    END
+                                )
+                                WHEN (type LIKE '%قبض%' OR type LIKE '%توريد%') THEN -total
+                                WHEN (type LIKE '%صرف%' OR type LIKE '%مصروف%' OR type LIKE '%مسحوبات%' OR type LIKE '%دفع%') THEN total
+                                ELSE 0 
+                            END
+                        ), 0), 2) AS netBalance,
+                        ROUND(COALESCE(SUM(
+                            CASE 
+                                WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%' THEN total 
+                                ELSE 0 
+                            END
+                        ), 0), 2) AS totalSales,
+                        MAX(CASE WHEN (type LIKE '%قبض%' OR type LIKE '%توريد%') THEN dateISO ELSE NULL END) AS lastReceiptDate,
+                        MAX(dateISO) AS lastTxDate
+                    FROM transactions
+                    WHERE (status IS NULL OR status != 'void') AND partner IS NOT NULL AND partner != ''
+                    GROUP BY partner;
                 `;
 
-                const params = [];
-                let whereClauses = [
-                    "(json_extract(a.raw_json, '$.isDeleted') IS NULL OR json_extract(a.raw_json, '$.isDeleted') = 0 OR json_extract(a.raw_json, '$.isDeleted') = 'false')"
-                ];
-
-                if (typeFilter && typeFilter !== 'all') {
-                    whereClauses.push("(a.type = ? OR a.type LIKE ?)");
-                    params.push(typeFilter, `%${typeFilter}%`);
-                }
-
-                if (whereClauses.length > 0) {
-                    sql += ` WHERE ` + whereClauses.join(' AND ');
-                }
-
-                sql += ` ORDER BY a.name ASC;`;
-
-                let rows = [];
+                let summaryRows = [];
                 if (this.isNative && this.nativeDb) {
-                    rows = this.nativeDb.prepare(sql).all(...params);
+                    summaryRows = this.nativeDb.prepare(txSummarySql).all();
                 } else {
-                    const stmt = this.db.prepare(sql);
-                    if (params.length > 0) stmt.bind(params);
-                    while (stmt.step()) rows.push(stmt.getAsObject());
-                    stmt.free();
+                    const sStmt = this.db.prepare(txSummarySql);
+                    while (sStmt.step()) summaryRows.push(sStmt.getAsObject());
+                    sStmt.free();
                 }
 
-                if (!rows) return [];
+                // بناء خريطة بحث فورية O(1) للقضاء نهائياً على O(A × P)
+                const summaryMap = new Map();
+                for (let i = 0; i < summaryRows.length; i++) {
+                    const sr = summaryRows[i];
+                    if (sr && sr.partner) summaryMap.set(String(sr.partner), sr);
+                }
 
-                return rows.map(r => {
+                // ⚡ خطوة 2: جلب الحسابات المرتبة مباشرة عبر الفهرس idx_acc_name
+                let accSql = `
+                    SELECT id, name, code, type, mobile, address, debit, credit, balance, raw_json
+                    FROM accounts
+                `;
+                const accParams = [];
+                if (typeFilter && typeFilter !== 'all') {
+                    accSql += ` WHERE (type = ? OR type LIKE ?)`;
+                    accParams.push(typeFilter, `%${typeFilter}%`);
+                }
+                accSql += ` ORDER BY name ASC;`;
+
+                let accRows = [];
+                if (this.isNative && this.nativeDb) {
+                    accRows = this.nativeDb.prepare(accSql).all(...accParams);
+                } else {
+                    const aStmt = this.db.prepare(accSql);
+                    if (accParams.length > 0) aStmt.bind(accParams);
+                    while (aStmt.step()) accRows.push(aStmt.getAsObject());
+                    aStmt.free();
+                }
+
+                if (!accRows || accRows.length === 0) return [];
+
+                const results = [];
+                for (let i = 0; i < accRows.length; i++) {
+                    const r = accRows[i];
                     const obj = (typeof this._reconstructRow === 'function') ? this._reconstructRow(r) : { ...r };
-                    obj.currentBalance = parseFloat(r.currentBalance) || 0;
-                    obj.totalSales = parseFloat(r.totalSales) || 0;
-                    obj.lastReceiptDate = r.lastReceiptDate || '-';
-                    obj.lastTxDate = r.lastTxDate || '-';
-                    return obj;
-                });
+                    if (obj.isDeleted === true || obj.isDeleted === 1 || obj.isDeleted === 'true') continue;
+
+                    const sByName = obj.name ? summaryMap.get(String(obj.name)) : null;
+                    const sByCode = (obj.code && String(obj.code).trim() && String(obj.code) !== String(obj.name))
+                        ? summaryMap.get(String(obj.code))
+                        : null;
+
+                    const txNet = (sByName ? (parseFloat(sByName.netBalance) || 0) : 0) + (sByCode ? (parseFloat(sByCode.netBalance) || 0) : 0);
+                    const txSales = (sByName ? (parseFloat(sByName.totalSales) || 0) : 0) + (sByCode ? (parseFloat(sByCode.totalSales) || 0) : 0);
+                    const lastRec = [sByName?.lastReceiptDate, sByCode?.lastReceiptDate].filter(Boolean).sort().pop() || '-';
+                    const lastTx = [sByName?.lastTxDate, sByCode?.lastTxDate].filter(Boolean).sort().pop() || '-';
+
+                    const dVal = parseFloat(r.debit != null ? r.debit : obj.debit) || 0;
+                    const cVal = parseFloat(r.credit != null ? r.credit : obj.credit) || 0;
+                    const openBal = (dVal !== 0 || cVal !== 0) ? (dVal - cVal) : (parseFloat(r.balance != null ? r.balance : obj.balance) || 0);
+
+                    obj.currentBalance = Math.round((openBal + txNet) * 100) / 100;
+                    obj.totalSales = Math.round(txSales * 100) / 100;
+                    obj.lastReceiptDate = lastRec;
+                    obj.lastTxDate = lastTx;
+                    results.push(obj);
+                }
+
+                return results;
             } catch (err) {
                 console.warn("[SQLite] getAllAccountsWithBalances error:", err.message);
                 return [];
+            }
+        }
+
+        /**
+         * ⚡ تجميع صافي التدفق النقدي بالخزينة في SQL مباشرة (بدون سحب 50,000 صف للذاكرة)
+         */
+        getTreasuryCashInflowSummary(startDate, endDate) {
+            if (!this.db || !startDate) return null;
+            const sDate = String(startDate).slice(0, 10);
+            const eDate = String(endDate || startDate).slice(0, 10);
+            try {
+                const sql = `
+                    WITH inv_grouped AS (
+                        SELECT
+                            COALESCE(NULLIF(invoiceId, ''), 'ROW_' || id) AS invKey,
+                            type,
+                            MAX(COALESCE(method, '')) AS method,
+                            SUM(COALESCE(total, 0)) AS sumTotal,
+                            MAX(CASE WHEN isInvoiceHead = 1 OR paidAmount > 0 THEN COALESCE(paidAmount, 0) ELSE 0 END) AS maxPaid
+                        FROM transactions
+                        WHERE (status IS NULL OR status != 'void')
+                          AND dateISO >= ? AND dateISO <= ?
+                        GROUP BY invKey, type
+                    )
+                    SELECT
+                        COALESCE(SUM(CASE
+                            WHEN type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%'
+                                 AND method NOT LIKE '%فيزا%' AND method NOT LIKE '%فودافون%' AND method NOT LIKE '%إنستا%' AND method NOT LIKE '%انستا%' AND method NOT LIKE '%بنك%' AND method NOT LIKE '%تحويل%' AND method NOT LIKE '%محفظة%' AND method NOT LIKE '%كارت%' AND method NOT LIKE '%شيك%'
+                            THEN CASE
+                                WHEN (method LIKE '%آجل%' OR method LIKE '%اجل%' OR method LIKE '%ذمم%' OR method LIKE '%تقسيط%' OR method LIKE '%حساب%') THEN maxPaid
+                                ELSE CASE WHEN maxPaid > 0 THEN maxPaid ELSE sumTotal END
+                            END
+                            ELSE 0
+                        END), 0) AS totalCashSales,
+                        COALESCE(SUM(CASE
+                            WHEN type LIKE '%قبض%'
+                                 AND method NOT LIKE '%فيزا%' AND method NOT LIKE '%فودافون%' AND method NOT LIKE '%إنستا%' AND method NOT LIKE '%انستا%' AND method NOT LIKE '%بنك%' AND method NOT LIKE '%تحويل%' AND method NOT LIKE '%محفظة%' AND method NOT LIKE '%كارت%' AND method NOT LIKE '%شيك%'
+                                 AND method NOT LIKE '%آجل%' AND method NOT LIKE '%اجل%' AND method NOT LIKE '%ذمم%' AND method NOT LIKE '%تقسيط%' AND method NOT LIKE '%حساب%'
+                            THEN CASE WHEN sumTotal > 0 THEN sumTotal ELSE maxPaid END
+                            ELSE 0
+                        END), 0) AS totalCashReceipts,
+                        COALESCE(SUM(CASE
+                            WHEN type LIKE '%مرتجع شراء%'
+                                 AND method NOT LIKE '%فيزا%' AND method NOT LIKE '%فودافون%' AND method NOT LIKE '%إنستا%' AND method NOT LIKE '%انستا%' AND method NOT LIKE '%بنك%' AND method NOT LIKE '%تحويل%' AND method NOT LIKE '%محفظة%' AND method NOT LIKE '%كارت%' AND method NOT LIKE '%شيك%'
+                            THEN CASE
+                                WHEN (method LIKE '%آجل%' OR method LIKE '%اجل%' OR method LIKE '%ذمم%' OR method LIKE '%تقسيط%' OR method LIKE '%حساب%') THEN maxPaid
+                                ELSE CASE WHEN maxPaid > 0 THEN maxPaid ELSE sumTotal END
+                            END
+                            ELSE 0
+                        END), 0) AS totalCashPurReturns,
+                        COALESCE(SUM(CASE
+                            WHEN type LIKE '%مرتجع بيع%'
+                                 AND method NOT LIKE '%فيزا%' AND method NOT LIKE '%فودافون%' AND method NOT LIKE '%إنستا%' AND method NOT LIKE '%انستا%' AND method NOT LIKE '%بنك%' AND method NOT LIKE '%تحويل%' AND method NOT LIKE '%محفظة%' AND method NOT LIKE '%كارت%' AND method NOT LIKE '%شيك%'
+                            THEN CASE
+                                WHEN (method LIKE '%آجل%' OR method LIKE '%اجل%' OR method LIKE '%ذمم%' OR method LIKE '%تقسيط%' OR method LIKE '%حساب%') THEN maxPaid
+                                ELSE CASE WHEN maxPaid > 0 THEN maxPaid ELSE sumTotal END
+                            END
+                            ELSE 0
+                        END), 0) AS totalCashSalesReturns
+                    FROM inv_grouped;
+                `;
+                let row = null;
+                if (this.isNative && this.nativeDb) {
+                    row = this.nativeDb.prepare(sql).get(sDate, eDate);
+                } else {
+                    const stmt = this.db.prepare(sql);
+                    stmt.bind([sDate, eDate]);
+                    if (stmt.step()) row = stmt.getAsObject();
+                    stmt.free();
+                }
+                if (!row) return null;
+                const totalCashSales = parseFloat(row.totalCashSales) || 0;
+                const totalCashReceipts = parseFloat(row.totalCashReceipts) || 0;
+                const totalCashPurReturns = parseFloat(row.totalCashPurReturns) || 0;
+                const totalCashSalesReturns = parseFloat(row.totalCashSalesReturns) || 0;
+                return {
+                    totalCashSales,
+                    totalCashReceipts,
+                    totalCashPurReturns,
+                    totalCashSalesReturns,
+                    netCashInflow: (totalCashSales + totalCashReceipts + totalCashPurReturns) - totalCashSalesReturns
+                };
+            } catch (err) {
+                console.warn("[SQLite] getTreasuryCashInflowSummary notice:", err.message);
+                return null;
             }
         }
 
@@ -5038,7 +5212,7 @@
                 const params = [p];
 
                 if (c && c !== p) {
-                    sql = "SELECT * FROM transactions WHERE (partner = ? OR partner = ?) AND (status IS NULL OR status != 'void')";
+                    sql = "SELECT * FROM transactions WHERE partner IN (?, ?) AND (status IS NULL OR status != 'void')";
                     params.push(c);
                 }
 
@@ -5406,16 +5580,16 @@
                         };
                     }
 
-                    // 2. تجميع التحويلات المخزنية المعتمدة مباشرة بدون JSON.parse ثقيل
+                    // 2. تجميع التحويلات المخزنية المعتمدة عبر فهرس idx_tx_type_date_desc (بدون SCAN transactions)
                     try {
                         const trSql = `
                             SELECT 
                                 partner, 
-                                qty, 
+                                json_extract(raw_json, '$.qty') AS qty, 
                                 json_extract(raw_json, '$.transferStatus') AS status, 
                                 json_extract(raw_json, '$.product') AS product 
                             FROM transactions 
-                            WHERE type LIKE '%تحويل%' AND json_extract(raw_json, '$.transferStatus') = 'received';
+                            WHERE (type >= 'تحويل' AND type < 'تحويم') AND json_extract(raw_json, '$.transferStatus') = 'received';
                         `;
                         let trRows = [];
                         if (this.isNative && this.nativeDb) trRows = this.nativeDb.prepare(trSql).all();
@@ -5574,13 +5748,14 @@
         }
 
         /**
-         * ⚡ استعلام تجميعي مفهرس لحساب التعديلات التاريخية للأرصدة بأثر رجعي لما بعد تاريخ النهاية (endDate)
+         * ⚡ استعلام تجميعي مغطّى بالكامل (Covering Index: idx_ti_date_wh_prod) لحساب التعديلات التاريخية للأرصدة بعد endDate
          */
         getRetroactiveStockAdjustments(endDate) {
             if (!this.db || !endDate) return {};
+            const cleanEnd = String(endDate).slice(0, 10);
             try {
                 const query = `
-                    SELECT productName, warehouse,
+                    SELECT productName, COALESCE(warehouse, 'المخزن الرئيسي') AS warehouse,
                            SUM(CASE 
                                WHEN type LIKE '%شراء%' AND type NOT LIKE '%مرتجع%' THEN qty
                                WHEN type LIKE '%مرتجع بيع%' THEN qty
@@ -5592,19 +5767,64 @@
                            END) as netChange
                     FROM transaction_items
                     WHERE dateISO > ?
-                    GROUP BY productName, warehouse;
+                    GROUP BY warehouse, productName;
                 `;
-                const stmt = this.db.prepare(query);
-                stmt.bind([endDate]);
-                const diffs = {};
-                while (stmt.step()) {
-                    const row = stmt.getAsObject();
-                    const p = row.productName;
-                    const wh = row.warehouse || 'المخزن الرئيسي';
-                    if (!diffs[p]) diffs[p] = {};
-                    diffs[p][wh] = parseFloat(row.netChange) || 0;
+                let rows = [];
+                if (this.isNative && this.nativeDb) {
+                    rows = this.nativeDb.prepare(query).all(cleanEnd);
+                } else {
+                    const stmt = this.db.prepare(query);
+                    stmt.bind([cleanEnd]);
+                    while (stmt.step()) rows.push(stmt.getAsObject());
+                    stmt.free();
                 }
-                stmt.free();
+
+                const diffs = {};
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i];
+                    const p = String(row.productName || '').trim();
+                    if (!p) continue;
+                    const wh = String(row.warehouse || 'المخزن الرئيسي').trim();
+                    if (!diffs[p]) diffs[p] = {};
+                    diffs[p][wh] = (diffs[p][wh] || 0) + (parseFloat(row.netChange) || 0);
+                }
+
+                // احتساب التحويلات المستلمة بعد endDate عبر الفهرس المفهرس idx_tx_type_date_desc
+                try {
+                    const trSql = `
+                        SELECT partner,
+                               COALESCE(json_extract(raw_json, '$.qty'), 0) AS qty,
+                               json_extract(raw_json, '$.product') AS product
+                        FROM transactions
+                        WHERE (type >= 'تحويل' AND type < 'تحويم')
+                          AND dateISO > ?
+                          AND (status IS NULL OR status != 'void')
+                          AND json_extract(raw_json, '$.transferStatus') = 'received';
+                    `;
+                    let trRows = [];
+                    if (this.isNative && this.nativeDb) {
+                        trRows = this.nativeDb.prepare(trSql).all(cleanEnd);
+                    } else {
+                        const trStmt = this.db.prepare(trSql);
+                        trStmt.bind([cleanEnd]);
+                        while (trStmt.step()) trRows.push(trStmt.getAsObject());
+                        trStmt.free();
+                    }
+                    for (let k = 0; k < trRows.length; k++) {
+                        const tr = trRows[k];
+                        const p = String(tr.product || '').trim();
+                        const qty = parseFloat(tr.qty) || 0;
+                        const parts = String(tr.partner || '').split(' -> ');
+                        if (p && qty && parts.length === 2) {
+                            const wFrom = parts[0].trim();
+                            const wTo = parts[1].trim();
+                            if (!diffs[p]) diffs[p] = {};
+                            diffs[p][wTo] = (diffs[p][wTo] || 0) + qty;
+                            diffs[p][wFrom] = (diffs[p][wFrom] || 0) - qty;
+                        }
+                    }
+                } catch (_) { }
+
                 return diffs;
             } catch (e) {
                 console.warn("[SQLite] getRetroactiveStockAdjustments notice:", e.message);
