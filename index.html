@@ -8250,89 +8250,114 @@
                                         </div>
                                     </div>
 
-                                    <!-- تفاصيل الاتصال والأزرار -->
-                                    <div
-                                        style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; background: #ffffff; padding: 16px 18px; border-radius: 14px; border: 1px solid #d1fae5; margin-bottom: 8px;">
-                                        <div>
-                                            <div
-                                                style="font-size: 0.88rem; font-weight: 900; color: #064e3b; margin-bottom: 4px;">
-                                                🛡️ حالة الاتصال السحابي: <span id="supabaseConnectionStatusText"
-                                                    style="color: #d97706; font-weight: 800; transition: color 0.3s ease;">غير
-                                                    مفعلة (مقتصرة على باقات المزامنة السحابية) 🔒</span>
-                                            </div>
-                                            <div style="font-size: 0.82rem; color: #4b5563; font-weight: 700;">
-                                                🔒 أمان السيرفر: <span
-                                                    style="background: #ecfdf5; color: #047857; padding: 2px 7px; border-radius: 6px; font-weight: 800;">محمي
-                                                    بتشفير Supabase RLS</span>
-                                            </div>
+                                    <!-- 🔒 بانر القفل في الباقة الأوفلاين (يظهر فقط عند عدم تفعيل المزامنة السحابية) -->
+                                    <div id="supabaseCloudLockedBanner"
+                                        style="display: block; background: #fffbeb; border: 1.5px solid #fcd34d; border-radius: 14px; padding: 18px 20px; text-align: center; margin-top: 6px;">
+                                        <div style="font-size: 1.7rem; margin-bottom: 6px;">🔒</div>
+                                        <div style="font-size: 0.96rem; font-weight: 900; color: #92400e; margin-bottom: 4px;">
+                                            المزامنة السحابية غير مفعّلة في هذه الباقة
                                         </div>
-                                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-                                            <button type="button"
-                                                onclick="if(window.BayanSupabaseSync){window.BayanSupabaseSync.testConnection().then(res => { if(typeof showToast==='function') showToast(res.message, res.success ? 'success' : 'error'); else if(typeof showCustomAlert==='function') showCustomAlert({ type: res.success ? 'success' : 'error', msg: res.message }); else alert(res.message); });}"
-                                                style="background: #059669; color: #ffffff; border: 1.5px solid #047857; border-radius: 10px; padding: 8px 18px; font-size: 0.88rem; font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(5,150,105,0.25); transition: 0.2s;">
-                                                <span>⚡</span> اختبار الاتصال بالسحابة
-                                            </button>
-                                            <button type="button"
-                                                onclick="if(window.BayanSupabaseSync){window.BayanSupabaseSync.runFullSync(true);}"
-                                                style="background: #0284c7; color: #ffffff; border: 1.5px solid #0369a1; border-radius: 10px; padding: 8px 18px; font-size: 0.88rem; font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(2,132,199,0.25); transition: 0.2s;">
-                                                <span>🔄</span> مزامنة يدوية الآن
-                                            </button>
+                                        <div style="font-size: 0.82rem; font-weight: 700; color: #b45309;">
+                                            باقتك الحالية تعمل بنظام محلي (أوفلاين 100%). للربط بين الأجهزة والتابلت، يرجى الترقية إلى إحدى باقات الاشتراك السحابي.
                                         </div>
                                     </div>
 
-                                    <!-- قسم إقران التابلت والأجهزة الإضافية -->
-                                    <div
-                                        style="display: flex; align-items: center; gap: 14px; background: #f8fafc; padding: 14px 18px; border-radius: 12px; border: 1.5px dashed #cbd5e1; margin-top: 10px; flex-wrap: wrap;">
-                                        <div style="font-size: 1.8rem;">📱</div>
-                                        <div style="flex: 1; min-width: 250px;">
-                                            <div
-                                                style="font-size: 0.92rem; font-weight: 900; color: #1e293b; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px;">
-                                                <span>رمز PIN لإقران التابلت بمحلك:</span>
-                                                <code id="supabasePairingPinCode"
-                                                    style="background: #0f172a; color: #38bdf8; font-size: 1.15rem; padding: 3px 12px; border-radius: 8px; font-weight: 900; letter-spacing: 2px;">2026</code>
-                                                <button type="button"
-                                                    onclick="if(window.BayanSupabaseSync){const cur=window.BayanSupabaseSync.getPairingPin(); const doChange=(np)=>{ if(np && np.trim().length>=4){ window.BayanSupabaseSync.setPairingPin(np.trim()); const el=document.getElementById('supabasePairingPinCode'); if(el) el.textContent=np.trim(); if(typeof showToast==='function') showToast('✅ تم تحديث رمز PIN ورفعه للسحابة', 'success'); } }; if(typeof showCustomPrompt==='function'){ showCustomPrompt({ title:'تغيير رمز PIN', message:'أدخل رمز PIN جديد لإقران أجهزة التابلت (4 أرقام):', defaultValue:cur, onConfirm:doChange }); }else{ const np=prompt('أدخل رمز PIN جديد لإقران أجهزة التابلت (4 أرقام):', cur); doChange(np); } }"
-                                                    style="background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; border-radius: 8px; padding: 3px 10px; font-size: 0.78rem; font-weight: 800; cursor: pointer;">
-                                                    تغيير الرمز ✏️
-                                                </button>
-                                                <button type="button"
-                                                    onclick="if(window.BayanSupabaseSync && typeof window.BayanSupabaseSync.regeneratePairingPin==='function'){const np=window.BayanSupabaseSync.regeneratePairingPin(); const el=document.getElementById('supabasePairingPinCode'); if(el) el.textContent=np; if(typeof window.BayanSupabaseSync.renderPairingQrCode==='function') window.BayanSupabaseSync.renderPairingQrCode(); if(typeof showToast==='function') showToast('✅ تم توليد كود اقتران جديد وتحديث QR Code', 'success');}"
-                                                    style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; border-radius: 8px; padding: 3px 10px; font-size: 0.78rem; font-weight: 800; cursor: pointer;">
-                                                    🔄 توليد كود اقتران جديد
-                                                </button>
-                                                <span
-                                                    style="font-size: 0.8rem; color: #64748b; font-weight: 700; margin-right: 12px;">معرّف
-                                                    المحل السحابي (Shop ID):</span>
-                                                <code id="supabaseShopIdBadge"
-                                                    style="background: #f1f5f9; color: #059669; font-size: 0.82rem; padding: 2px 8px; border-radius: 6px; font-weight: 800; border: 1px solid #cbd5e1;">-</code>
-                                                <button type="button"
-                                                    onclick="if(window.BayanSupabaseSync){window.BayanSupabaseSync.copyShopId();}"
-                                                    title="نسخ كود المحل السحابي للمشاركة"
-                                                    style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; border-radius: 8px; padding: 3px 8px; font-size: 0.78rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-                                                    📋 نسخ الكود
-                                                </button>
-                                                <button type="button"
-                                                    onclick="if(window.BayanSupabaseSync){window.BayanSupabaseSync.promptLinkShopId();}"
-                                                    title="ربط هذا الجهاز بجهاز رئيسي آخر عبر كود المحل"
-                                                    style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; border-radius: 8px; padding: 3px 10px; font-size: 0.78rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
-                                                    🔗 ربط بجهاز آخر / إدخال كود محل
-                                                </button>
-                                            </div>
-                                            <div id="supabaseSyncQrBox" style="margin-top: 10px; padding: 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; display: inline-flex; align-items: center; gap: 14px;">
-                                                <div id="supabaseSyncQrContainer" style="width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-radius: 8px;"></div>
-                                                <div style="display: flex; flex-direction: column; gap: 6px;">
-                                                    <div style="font-size: 0.85rem; font-weight: 900; color: #0f172a;">📷 QR Code الربط السريع للموبايل</div>
-                                                    <div style="font-size: 0.76rem; color: #64748b;">امسح هذا الكود من تطبيق الموبايل للربط الفوري</div>
-                                                    <button type="button" onclick="if(window.BayanSupabaseSync){window.BayanSupabaseSync.downloadPairingQrPng();}" style="background: #059669; color: #ffffff; border: none; border-radius: 8px; padding: 6px 12px; font-size: 0.78rem; font-weight: 800; cursor: pointer; width: fit-content;">
-                                                        💾 حفظ صورة الباركود (PNG)
-                                                    </button>
+                                    <!-- ⚡ أدوات التحكم السحابي والإقران (مخفية تماماً في الباقة الأوفلاين) -->
+                                    <div id="supabaseCloudActiveContent" style="display: none;">
+                                        <!-- تفاصيل الاتصال والأزرار -->
+                                        <div
+                                            style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; background: #ffffff; padding: 16px 18px; border-radius: 14px; border: 1px solid #d1fae5; margin-bottom: 8px;">
+                                            <div>
+                                                <div
+                                                    style="font-size: 0.88rem; font-weight: 900; color: #064e3b; margin-bottom: 4px;">
+                                                    🛡️ حالة الاتصال السحابي: <span id="supabaseConnectionStatusText"
+                                                        style="color: #d97706; font-weight: 800; transition: color 0.3s ease;">غير
+                                                        مفعلة (مقتصرة على باقات المزامنة السحابية) 🔒</span>
+                                                </div>
+                                                <div style="font-size: 0.82rem; color: #4b5563; font-weight: 700;">
+                                                    🔒 أمان السيرفر: <span
+                                                        style="background: #ecfdf5; color: #047857; padding: 2px 7px; border-radius: 6px; font-weight: 800;">محمي
+                                                        بتشفير Supabase RLS</span>
                                                 </div>
                                             </div>
-                                            <span
-                                                style="font-size: 0.8rem; color: #64748b; font-weight: 700; display: block;">
-                                                🔒 معزول جدارياً: لا يمكن لأي تابلت أو محل خارجي رؤية بياناتك أو فواتيرك
-                                                مطلقاً
-                                            </span>
+                                            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                                                <button type="button"
+                                                    onclick="if(window.BayanSupabaseSync){window.BayanSupabaseSync.testConnection().then(res => { if(typeof showToast==='function') showToast(res.message, res.success ? 'success' : 'error'); else if(typeof showCustomAlert==='function') showCustomAlert({ type: res.success ? 'success' : 'error', msg: res.message }); else alert(res.message); });}"
+                                                    style="background: #059669; color: #ffffff; border: 1.5px solid #047857; border-radius: 10px; padding: 8px 18px; font-size: 0.88rem; font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(5,150,105,0.25); transition: 0.2s;">
+                                                    <span>⚡</span> اختبار الاتصال بالسحابة
+                                                </button>
+                                                <button type="button"
+                                                    onclick="if(window.BayanSupabaseSync){window.BayanSupabaseSync.runFullSync(true);}"
+                                                    style="background: #0284c7; color: #ffffff; border: 1.5px solid #0369a1; border-radius: 10px; padding: 8px 18px; font-size: 0.88rem; font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(2,132,199,0.25); transition: 0.2s;">
+                                                    <span>🔄</span> مزامنة يدوية الآن
+                                                </button>
+                                                <button type="button"
+                                                    onclick="if(window.BayanSupabaseSync && typeof window.BayanSupabaseSync.checkCloudUsage==='function'){window.BayanSupabaseSync.checkCloudUsage();}"
+                                                    style="background: #f8fafc; color: #0f172a; border: 1.5px solid #cbd5e1; border-radius: 10px; padding: 8px 16px; font-size: 0.86rem; font-weight: 900; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: 0.2s;">
+                                                    <span>📊</span> فحص استهلاك السحابة
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <!-- صندوق عرض استهلاك السحابة للمحل الحالي -->
+                                        <div id="supabaseUsageSummaryBox"
+                                            style="display: none; background: #eff6ff; border: 1.5px solid #bfdbfe; border-radius: 12px; padding: 12px 16px; margin-bottom: 10px; font-size: 0.84rem; font-weight: 800; color: #1e3a8a;">
+                                        </div>
+
+                                        <!-- قسم إقران التابلت والأجهزة الإضافية -->
+                                        <div
+                                            style="display: flex; align-items: center; gap: 14px; background: #f8fafc; padding: 14px 18px; border-radius: 12px; border: 1.5px dashed #cbd5e1; margin-top: 10px; flex-wrap: wrap;">
+                                            <div style="font-size: 1.8rem;">📱</div>
+                                            <div style="flex: 1; min-width: 250px;">
+                                                <div
+                                                    style="font-size: 0.92rem; font-weight: 900; color: #1e293b; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px;">
+                                                    <span>رمز PIN لإقران التابلت بمحلك:</span>
+                                                    <code id="supabasePairingPinCode"
+                                                        style="background: #0f172a; color: #38bdf8; font-size: 1.15rem; padding: 3px 12px; border-radius: 8px; font-weight: 900; letter-spacing: 2px;">2026</code>
+                                                    <button type="button"
+                                                        onclick="if(window.BayanSupabaseSync && typeof window.BayanSupabaseSync.promptChangePairingPin==='function'){window.BayanSupabaseSync.promptChangePairingPin();}"
+                                                        style="background: #e0f2fe; color: #0284c7; border: 1px solid #bae6fd; border-radius: 8px; padding: 3px 10px; font-size: 0.78rem; font-weight: 800; cursor: pointer;">
+                                                        تغيير الرمز ✏️
+                                                    </button>
+                                                    <button type="button"
+                                                        onclick="if(window.BayanSupabaseSync && typeof window.BayanSupabaseSync.regeneratePairingPin==='function'){const np=window.BayanSupabaseSync.regeneratePairingPin(); if(np){ const el=document.getElementById('supabasePairingPinCode'); if(el) el.textContent=np; if(typeof window.BayanSupabaseSync.renderPairingQrCode==='function') window.BayanSupabaseSync.renderPairingQrCode(); if(typeof showToast==='function') showToast('✅ تم توليد كود اقتران جديد وتحديث QR Code', 'success'); }}"
+                                                        style="background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; border-radius: 8px; padding: 3px 10px; font-size: 0.78rem; font-weight: 800; cursor: pointer;">
+                                                        🔄 توليد كود اقتران جديد
+                                                    </button>
+                                                    <span
+                                                        style="font-size: 0.8rem; color: #64748b; font-weight: 700; margin-right: 12px;">معرّف
+                                                        المحل السحابي (Shop ID):</span>
+                                                    <code id="supabaseShopIdBadge"
+                                                        style="background: #f1f5f9; color: #059669; font-size: 0.82rem; padding: 2px 8px; border-radius: 6px; font-weight: 800; border: 1px solid #cbd5e1;">-</code>
+                                                    <button type="button"
+                                                        onclick="if(window.BayanSupabaseSync){window.BayanSupabaseSync.copyShopId();}"
+                                                        title="نسخ كود المحل السحابي للمشاركة"
+                                                        style="background: #f1f5f9; color: #334155; border: 1px solid #cbd5e1; border-radius: 8px; padding: 3px 8px; font-size: 0.78rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                                                        📋 نسخ الكود
+                                                    </button>
+                                                    <button type="button"
+                                                        onclick="if(window.BayanSupabaseSync){window.BayanSupabaseSync.promptLinkShopId();}"
+                                                        title="ربط هذا الجهاز بجهاز رئيسي آخر عبر كود المحل"
+                                                        style="background: #fef3c7; color: #92400e; border: 1px solid #fde68a; border-radius: 8px; padding: 3px 10px; font-size: 0.78rem; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 4px;">
+                                                        🔗 ربط بجهاز آخر / إدخال كود محل
+                                                    </button>
+                                                </div>
+                                                <div id="supabaseSyncQrBox" style="margin-top: 10px; padding: 12px; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; display: inline-flex; align-items: center; gap: 14px;">
+                                                    <div id="supabaseSyncQrContainer" style="width: 110px; height: 110px; display: flex; align-items: center; justify-content: center; background: #f8fafc; border-radius: 8px;"></div>
+                                                    <div style="display: flex; flex-direction: column; gap: 6px;">
+                                                        <div style="font-size: 0.85rem; font-weight: 900; color: #0f172a;">📷 QR Code الربط السريع للموبايل</div>
+                                                        <div style="font-size: 0.76rem; color: #64748b;">امسح هذا الكود من تطبيق الموبايل للربط الفوري</div>
+                                                        <button type="button" onclick="if(window.BayanSupabaseSync){window.BayanSupabaseSync.downloadPairingQrPng();}" style="background: #059669; color: #ffffff; border: none; border-radius: 8px; padding: 6px 12px; font-size: 0.78rem; font-weight: 800; cursor: pointer; width: fit-content;">
+                                                            💾 حفظ صورة الباركود (PNG)
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                                <span
+                                                    style="font-size: 0.8rem; color: #64748b; font-weight: 700; display: block;">
+                                                    🔒 معزول جدارياً: لا يمكن لأي تابلت أو محل خارجي رؤية بياناتك أو فواتيرك
+                                                    مطلقاً
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>

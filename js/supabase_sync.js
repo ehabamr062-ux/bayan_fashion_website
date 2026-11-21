@@ -187,48 +187,96 @@
             return finalId;
         },
 
-        // 📋 نسخ كود المحل السحابي إلى الحافظة
-        copyShopId: function () {
+        // 💾 دوال مساعدة لقراءة وكتابة مؤشرات المزامنة في SQLite (getStore/setStore) مع fallback لـ localStorage
+        _readMeta: function (key) {
+            try {
+                if (typeof getStore === 'function') {
+                    const v = getStore(key);
+                    if (v !== null && v !== undefined && v !== '') return v;
+                }
+            } catch (_) { }
+            try {
+                if (typeof localStorage !== 'undefined') return localStorage.getItem(key);
+            } catch (_) { }
+            return null;
+        },
+
+        _writeMeta: function (key, val) {
+            const s = (val === null || val === undefined) ? '' : String(val);
+            try {
+                if (typeof setStore === 'function') setStore(key, s);
+            } catch (_) { }
+            try {
+                if (typeof localStorage !== 'undefined') {
+                    if (s === '') localStorage.removeItem(key);
+                    else localStorage.setItem(key, s);
+                }
+            } catch (_) { }
+        },
+
+        // 📋 نسخ كود المحل السحابي إلى الحافظة (محمي للباقة السحابية فقط)
+        copyShopId: async function () {
+            if (!this._isAllowed()) return;
             const id = this.getShopId();
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(id).then(() => {
                     if (typeof showToast === 'function') {
                         showToast(`📋 تم نسخ كود المحل السحابي (${id}) بنجاح!`, 'success');
                     } else if (typeof showCustomAlert === 'function') {
-                        showCustomAlert({ title: 'نسخ كود المحل', message: `📋 تم نسخ كود المحل السحابي:\n${id}` });
+                        showCustomAlert({ titleText: 'نسخ كود المحل', msg: `📋 تم نسخ كود المحل السحابي:\n${id}` });
                     } else {
                         alert(`📋 تم نسخ كود المحل السحابي:\n${id}`);
                     }
-                }).catch(() => {
+                }).catch(async () => {
                     if (typeof showCustomPrompt === 'function') {
-                        showCustomPrompt({ title: 'كود المحل السحابي', message: 'انسخ كود المحل السحابي الخاص بهذا الجهاز:', defaultValue: id });
+                        await showCustomPrompt('📋 انسخ كود المحل السحابي الخاص بهذا الجهاز:', id);
                     } else {
                         prompt('انسخ كود المحل السحابي الخاص بهذا الجهاز:', id);
                     }
                 });
             } else {
                 if (typeof showCustomPrompt === 'function') {
-                    showCustomPrompt({ title: 'كود المحل السحابي', message: 'انسخ كود المحل السحابي الخاص بهذا الجهاز:', defaultValue: id });
+                    await showCustomPrompt('📋 انسخ كود المحل السحابي الخاص بهذا الجهاز:', id);
                 } else {
                     prompt('انسخ كود المحل السحابي الخاص بهذا الجهاز:', id);
                 }
             }
         },
 
+        // ✏️ نافذة تغيير رمز PIN بتوقيع showCustomPrompt الصحيح (بدون [object Object])
+        promptChangePairingPin: async function () {
+            if (!this._isAllowed()) return;
+            const cur = this.getPairingPin();
+            let np = null;
+            if (typeof showCustomPrompt === 'function') {
+                np = await showCustomPrompt('🔐 أدخل رمز PIN جديد لإقران أجهزة التابلت (4 أرقام على الأقل):', cur);
+            } else {
+                np = prompt('أدخل رمز PIN جديد لإقران أجهزة التابلت (4 أرقام على الأقل):', cur);
+            }
+            if (!np || String(np).trim().length < 4) return;
+            const cleanPin = String(np).trim();
+            this.setPairingPin(cleanPin);
+            const el = document.getElementById('supabasePairingPinCode');
+            if (el) el.textContent = cleanPin;
+            if (typeof this.renderPairingQrCode === 'function') this.renderPairingQrCode();
+            if (typeof showToast === 'function') showToast('✅ تم تحديث رمز PIN وتحديث QR Code ورفعه للسحابة', 'success');
+        },
+
         // 🔗 نافذة تفاعلية لإدخال كود محل وربط هذا الجهاز بجهاز رئيسي آخر فوراً
         promptLinkShopId: async function () {
+            if (!this._isAllowed()) return;
             const current = this.getShopId();
             const self = this;
             const handleInput = async (input) => {
-                if (!input || !input.trim()) return;
-                const clean = input.trim();
+                if (!input || !String(input).trim()) return;
+                const clean = String(input).trim();
                 if (clean === current) {
                     if (typeof showToast === 'function') showToast('ℹ️ هذا الجهاز مرتبط بالفعل بهذا الكود.', 'info');
                     return;
                 }
                 if (clean.length < 5) {
                     if (typeof showCustomAlert === 'function') {
-                        showCustomAlert({ title: 'تنبيه', message: '⚠️ كود المحل غير صالح. يرجى التأكد من كتابة الكود بشكل صحيح.' });
+                        showCustomAlert({ titleText: 'تنبيه', msg: '⚠️ كود المحل غير صالح. يرجى التأكد من كتابة الكود بشكل صحيح.' });
                     } else {
                         alert('⚠️ كود المحل غير صالح. يرجى التأكد من كتابة الكود بشكل صحيح.');
                     }
@@ -236,6 +284,10 @@
                 }
                 const doLink = async () => {
                     self.setShopId(clean);
+                    // تصفير مؤشرات المزامنة التفاضلية لسحب كامل بيانات المحل المرتبط الجديد
+                    self._writeMeta('bayan_sb_last_prod_sync_time', '');
+                    self._writeMeta('bayan_sb_last_tx_sync_time', '');
+                    if (typeof self.renderPairingQrCode === 'function') self.renderPairingQrCode();
                     if (typeof showToast === 'function') {
                         showToast(`🔗 تم ربط الجهاز بكود المحل (${clean}) بنجاح! جاري سحب البيانات كمرآة سحابية...`, 'success', 6000);
                     }
@@ -244,8 +296,8 @@
 
                 if (typeof showCustomAlert === 'function') {
                     showCustomAlert({
-                        title: 'تأكيد الربط السحابي',
-                        message: `هل أنت متأكد من ربط هذا الجهاز بكود المحل (${clean})؟\n\nسيتم توحيد قاعدة البيانات السحابية وسحب كافة أصناف وحسابات وفواتير المحل المرتبط فوراً.`,
+                        titleText: 'تأكيد الربط السحابي',
+                        msg: `هل أنت متأكد من ربط هذا الجهاز بكود المحل (${clean})؟\n\nسيتم توحيد قاعدة البيانات السحابية وسحب كافة أصناف وحسابات وفواتير المحل المرتبط فوراً.`,
                         type: 'question',
                         showCancel: true,
                         confirmText: 'نعم، اربط الآن',
@@ -260,20 +312,19 @@
                 }
             };
 
+            let input = null;
             if (typeof showCustomPrompt === 'function') {
-                showCustomPrompt({
-                    title: 'ربط الجهاز سحابياً',
-                    message: `🔗 ربط هذا الجهاز بجهاز آخر كمرآة سحابية موحدة:\n\nأدخل كود المحل السحابي (Shop ID) الخاص بالجهاز الرئيسي:\n(يبدأ بـ SHOP_):`,
-                    defaultValue: current,
-                    onConfirm: handleInput
-                });
+                input = await showCustomPrompt(
+                    '🔗 أدخل كود المحل السحابي (Shop ID) الخاص بالجهاز الرئيسي (يبدأ بـ SHOP_):',
+                    current
+                );
             } else {
-                const input = prompt(
+                input = prompt(
                     `🔗 ربط هذا الجهاز بجهاز آخر كمرآة سحابية موحدة:\n\nأدخل كود المحل السحابي (Shop ID) الخاص بالجهاز الرئيسي:\n(يبدأ بـ SHOP_):`,
                     current
                 );
-                await handleInput(input);
             }
+            await handleInput(input);
         },
 
         // 🔐 استرجاع أو توليد رمز الاقتران PIN الفريد (صلاحية 30 دقيقة + حد أقصى مرتان لكل كود)
@@ -281,11 +332,11 @@
             const now = Date.now();
             let meta = null;
             try {
-                const rawMeta = (typeof getStore === 'function' ? getStore('bayan_shop_pin_meta') : null) || localStorage.getItem('bayan_shop_pin_meta');
+                const rawMeta = this._readMeta('bayan_shop_pin_meta');
                 if (rawMeta) meta = JSON.parse(rawMeta);
             } catch (e) { }
 
-            let pin = (typeof getStore === 'function' ? getStore('bayan_shop_pin') : null) || localStorage.getItem('bayan_shop_pin');
+            let pin = this._readMeta('bayan_shop_pin');
             const isExpired = !meta || !meta.expiresAt || now > Number(meta.expiresAt);
             const isExhausted = meta && Number(meta.usesCount || 0) >= Number(meta.maxUses || 2);
 
@@ -298,20 +349,16 @@
                     usesCount: 0,
                     maxUses: 2
                 };
-                localStorage.setItem('bayan_shop_pin', pin);
-                localStorage.setItem('bayan_shop_pin_meta', JSON.stringify(meta));
-                if (typeof setStore === 'function') {
-                    setStore('bayan_shop_pin', pin);
-                    setStore('bayan_shop_pin_meta', JSON.stringify(meta));
-                }
+                this._writeMeta('bayan_shop_pin', pin);
+                this._writeMeta('bayan_shop_pin_meta', JSON.stringify(meta));
                 console.log("🔐 [SupabaseSync] تم توليد رمز PIN جديد (صالح لـ 30 دقيقة / مرتين):", pin);
             }
             return pin;
         },
 
         regeneratePairingPin: function () {
-            localStorage.removeItem('bayan_shop_pin_meta');
-            if (typeof setStore === 'function') setStore('bayan_shop_pin_meta', '');
+            if (!this._isAllowed()) return null;
+            this._writeMeta('bayan_shop_pin_meta', '');
             const newPin = this.getPairingPin();
             this.syncPairingPin(newPin).catch(() => { });
             return newPin;
@@ -319,10 +366,13 @@
 
         // ✏️ تعيين وتحديث رمز PIN الخاص بالمحل وحفظه في SQLite والسحابة
         setPairingPin: function (newPin) {
+            if (!this._isAllowed()) return false;
             const clean = String(newPin || '').trim();
             if (clean && clean.length >= 4) {
-                localStorage.setItem('bayan_shop_pin', clean);
-                if (typeof setStore === 'function') setStore('bayan_shop_pin', clean);
+                const now = Date.now();
+                const meta = { pin: clean, createdAt: now, expiresAt: now + (30 * 60 * 1000), usesCount: 0, maxUses: 5 };
+                this._writeMeta('bayan_shop_pin', clean);
+                this._writeMeta('bayan_shop_pin_meta', JSON.stringify(meta));
                 this.syncPairingPin(clean).catch(() => { });
                 return true;
             }
@@ -1197,19 +1247,23 @@
                         await new Promise(r => setTimeout(r, 60));
                     }
                 }
-                localStorage.setItem('bayan_sb_last_prod_sync_time', String(Date.now()));
+                this._writeMeta('bayan_sb_last_prod_sync_time', String(Date.now()));
             }
 
-            // 📥 استيراد وتحديث الأصناف (Pull & Apply Updates)
+            // 📥 استيراد وتحديث الأصناف بالمزامنة التفاضلية (Delta Sync: updated_at > lastProductsSync - 10s)
             let hasUpdatedLocalProducts = false;
             let newImportedCount = 0;
             let updatedLocalCount = 0;
 
             try {
-                // ⚡ سحب الأصناف بتقسيم صفحات حقيقي (Range Pagination) لتفادي حد 1000 صف في Supabase
                 const remoteRows = [];
                 const PAGE_SIZE = 1000;
-                const prodUrl = `${cfg.supabaseUrl}/rest/v1/products?id=like.${encodeURIComponent(shopId + '_PROD_%')}&select=*&order=id.asc`;
+                const lastProdTsRaw = Number(this._readMeta('bayan_sb_last_prod_sync_time') || 0);
+                const useDeltaProd = (!forceAll && lastProdTsRaw > 0 && pList.length > 0);
+                const deltaFilter = useDeltaProd
+                    ? `&updated_at=gt.${encodeURIComponent(new Date(Math.max(0, lastProdTsRaw - 10000)).toISOString())}`
+                    : '';
+                const prodUrl = `${cfg.supabaseUrl}/rest/v1/products?id=like.${encodeURIComponent(shopId + '_PROD_%')}${deltaFilter}&select=*&order=id.asc`;
                 for (let page = 0; page < 50; page++) {
                     const from = page * PAGE_SIZE;
                     const to = from + PAGE_SIZE - 1;
@@ -1224,6 +1278,7 @@
                     remoteRows.push(...batchRows);
                     if (batchRows.length < PAGE_SIZE) break;
                 }
+                this._writeMeta('bayan_sb_last_prod_sync_time', String(Date.now()));
 
                 if (remoteRows.length > 0) {
                     // فهارس بحث فورية O(1) لمنع البحث الخطي O(R × P)
@@ -1414,14 +1469,38 @@
             if (!this.isValidShopId(shopId)) return 0;
 
             try {
-                // استعلام شامل لكافة حركات المتجر الصادرة من أي تابلت أو كمبيوتر كاشير آخر
-                const res = await this._safeFetch(
-                    `${cfg.supabaseUrl}/rest/v1/transactions?id=like.${encodeURIComponent(shopId)}_*&order=created_at.desc&limit=100`,
-                    { method: 'GET', headers: this._getHeaders() }
-                );
+                // ⚡ مزامنة تفاضلية للحركات (Delta Sync) مع تقسيم صفحات Range (500 سجل/دفعة) للجهاز الجديد
+                const lastTxTsRaw = Number(this._readMeta('bayan_sb_last_tx_sync_time') || 0);
+                const useDeltaTx = (lastTxTsRaw > 0);
+                const txDeltaFilter = useDeltaTx
+                    ? `&created_at=gt.${encodeURIComponent(new Date(Math.max(0, lastTxTsRaw - 10000)).toISOString())}`
+                    : '';
+                const txUrl = `${cfg.supabaseUrl}/rest/v1/transactions?id=like.${encodeURIComponent(shopId)}_*${txDeltaFilter}&order=created_at.desc`;
+                const TX_PAGE_SIZE = 500;
+                const maxPages = useDeltaTx ? 4 : 20;
+                let remoteList = [];
+                let fetchedOk = false;
 
-                if (!res.ok) return 0;
-                let remoteList = await res.json();
+                for (let page = 0; page < maxPages; page++) {
+                    const from = page * TX_PAGE_SIZE;
+                    const to = from + TX_PAGE_SIZE - 1;
+                    const pageHeaders = Object.assign({}, this._getHeaders(), {
+                        'Range': `${from}-${to}`,
+                        'Range-Unit': 'items'
+                    });
+                    const res = await this._safeFetch(txUrl, { method: 'GET', headers: pageHeaders });
+                    if (res.status === 416) { fetchedOk = true; break; }
+                    if (!res.ok) break;
+                    fetchedOk = true;
+                    const batch = await res.json();
+                    if (!Array.isArray(batch) || batch.length === 0) break;
+                    remoteList.push(...batch);
+                    if (batch.length < TX_PAGE_SIZE) break;
+                }
+
+                if (fetchedOk) {
+                    this._writeMeta('bayan_sb_last_tx_sync_time', String(Date.now()));
+                }
                 if (!Array.isArray(remoteList) || remoteList.length === 0) return 0;
 
                 const localTx = (typeof transactions !== 'undefined' && Array.isArray(transactions))
@@ -2286,6 +2365,8 @@
                 const auditCount = await this.syncTreasuryAudit().catch(() => 0);
                 const custCount = await this.syncCustomers().catch(() => 0);
                 const whCount = await this.syncWarehouses().catch(() => 0);
+                // مزامنة تفاضلية آمنة لجدولي accounts و warehouses على Supabase (تتجاهل بصمت إن لم يُنشآ بعد)
+                await this.syncDedicatedAccountsAndWarehouses().catch(() => 0);
 
                 this.lastSyncTime = new Date();
                 this.lastError = null;
@@ -2437,6 +2518,110 @@
             }
         },
 
+        // ⚡ دفع فوري خفيف عند الحفظ بـ Debounce 300ms دون انتظار المؤقت الدوري
+        triggerInstantPush: function () {
+            if (!this._isAllowed() || !navigator.onLine) return;
+            if (this._instantPushTimer) clearTimeout(this._instantPushTimer);
+            this._instantPushTimer = setTimeout(() => {
+                if (!this.isSyncing && navigator.onLine && this._isAllowed()) {
+                    this.processSyncQueue().catch(() => { });
+                    this.syncTransactions().catch(() => { });
+                }
+            }, 300);
+        },
+
+        // 📊 فحص استهلاك السحابة الفعلي للمحل الحالي (عدد الصفوف والحجم التقديري)
+        checkCloudUsage: async function () {
+            if (!this._isAllowed()) return null;
+            const cfg = this.getConfig();
+            const shopId = cfg.shopId || this.getShopId();
+            if (!this.isValidShopId(shopId) || !cfg.supabaseUrl || !cfg.supabaseKey) return null;
+
+            const box = document.getElementById('supabaseUsageSummaryBox');
+            if (box) {
+                box.style.display = 'block';
+                box.innerHTML = '⏳ جاري فحص استهلاك السحابة للمحل الحالي...';
+            }
+
+            const countTable = async (table, filter) => {
+                try {
+                    const headers = Object.assign({}, this._getHeaders(), { 'Prefer': 'count=exact' });
+                    const res = await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/${table}?${filter}&select=id`, {
+                        method: 'HEAD',
+                        headers
+                    });
+                    if (!res || !res.ok) return 0;
+                    const cr = res.headers && res.headers.get ? res.headers.get('content-range') : '';
+                    const m = String(cr || '').match(/\/(\d+)$/);
+                    return m ? parseInt(m[1], 10) : 0;
+                } catch (_) {
+                    return 0;
+                }
+            };
+
+            const [prodCnt, txCnt, auditCnt] = await Promise.all([
+                countTable('products', `id=like.${encodeURIComponent(shopId + '_PROD_%')}`),
+                countTable('transactions', `id=like.${encodeURIComponent(shopId)}_*`),
+                countTable('treasury_audit', `id=like.${encodeURIComponent(shopId)}_*`)
+            ]);
+
+            const totalRows = prodCnt + txCnt + auditCnt;
+            const estKb = Math.round((prodCnt * 1.4) + (txCnt * 1.8) + (auditCnt * 0.8));
+            const estMb = (estKb / 1024).toFixed(2);
+
+            const summaryHtml = `📊 <b>استهلاك السحابة لمحلك (${shopId}):</b> الأصناف: <b>${prodCnt.toLocaleString()}</b> | الفواتير والحركات: <b>${txCnt.toLocaleString()}</b> | سجلات الخزينة: <b>${auditCnt.toLocaleString()}</b> | الإجمالي: <b>${totalRows.toLocaleString()}</b> صف (الحجم التقديري: <b>~${estMb} MB</b>)`;
+            if (box) {
+                box.style.display = 'block';
+                box.innerHTML = summaryHtml;
+            }
+            if (typeof showToast === 'function') {
+                showToast(`📊 استهلاك السحابة: ${prodCnt} صنف | ${txCnt} حركة (~${estMb} MB)`, 'info');
+            }
+            return { prodCnt, txCnt, auditCnt, totalRows, estMb };
+        },
+
+        // 🏢 مزامنة تفاضلية آمنة لجدولي accounts و warehouses على Supabase (تتجاهل بصمت إن لم يُنشآ بعد)
+        syncDedicatedAccountsAndWarehouses: async function () {
+            if (!this._isAllowed() || !navigator.onLine) return 0;
+            const cfg = this.getConfig();
+            const shopId = cfg.shopId || this.getShopId();
+            if (!this.isValidShopId(shopId) || !cfg.supabaseUrl || !cfg.supabaseKey) return 0;
+
+            const trySyncTable = async (tableName, localArr, prefix) => {
+                if (this._missingRemoteTables && this._missingRemoteTables.has(tableName)) return;
+                if (!Array.isArray(localArr) || localArr.length === 0) return;
+                try {
+                    const probe = await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/${tableName}?select=id&limit=1`, {
+                        method: 'GET',
+                        headers: this._getHeaders()
+                    });
+                    if (!probe || probe.status === 404 || probe.status === 400) {
+                        if (!this._missingRemoteTables) this._missingRemoteTables = new Set();
+                        this._missingRemoteTables.add(tableName);
+                        return;
+                    }
+                    const payload = localArr.slice(0, 500).map(item => ({
+                        id: `${shopId}_${prefix}_${item.id || item.name}`,
+                        shop_id: shopId,
+                        name: String(item.name || '').trim(),
+                        updated_at: new Date().toISOString(),
+                        raw_json: Object.assign({}, item, { shop_id: shopId })
+                    }));
+                    await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/${tableName}?on_conflict=id`, {
+                        method: 'POST',
+                        headers: Object.assign({}, this._getHeaders(), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+                        body: JSON.stringify(payload)
+                    });
+                } catch (_) { }
+            };
+
+            const accList = (typeof accounts !== 'undefined' && Array.isArray(accounts)) ? accounts : (window.accounts || []);
+            const whList = (typeof warehouses !== 'undefined' && Array.isArray(warehouses)) ? warehouses : (window.warehouses || []);
+            await trySyncTable('accounts', accList, 'ACC');
+            await trySyncTable('warehouses', whList, 'WH');
+            return 1;
+        },
+
         // ⚡ اشتراك لحظي عبر WebSocket (Supabase Realtime) لتحديث الأجهزة خلال 1-2 ثانية
         startRealtimeSubscription: function () {
             try {
@@ -2465,6 +2650,7 @@
                     });
                     ws.send(joinPayload('realtime:public:transactions'));
                     ws.send(joinPayload('realtime:public:products'));
+                    ws.send(joinPayload('realtime:public:treasury_audit'));
                     this._realtimeHb = setInterval(() => {
                         if (ws.readyState === WebSocket.OPEN) {
                             ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(Date.now()) }));
@@ -2483,14 +2669,14 @@
                                     this._isPulling = true;
                                     this.runFullSync(false).finally(() => { this._isPulling = false; });
                                 }
-                            }, 800);
+                            }, 600);
                         }
                     } catch (_) { }
                 };
             } catch (e) { console.warn('[SupabaseSync] Realtime notice:', e); }
         },
 
-        // ⏱️ إدارة المؤقت التلقائي للمزامنة (احتياطي كل 12 ثانية مع قفل منع التداخل)
+        // ⏱️ إدارة المؤقت التلقائي للمزامنة (شبكة أمان كل 60 ثانية مع الاعتماد الأساسي على Realtime والدفع الفوري)
         restartSyncTimer: function () {
             if (this.syncTimer) clearInterval(this.syncTimer);
             if (!this._isAllowed()) {
@@ -2503,7 +2689,7 @@
             }
             this.startRealtimeSubscription();
             if (cfg.autoSyncEnabled && cfg.supabaseUrl && cfg.supabaseKey) {
-                const intervalMs = Math.max(12, cfg.syncIntervalSeconds || 12) * 1000;
+                const intervalMs = Math.max(60, cfg.syncIntervalSeconds || 60) * 1000;
                 this.syncTimer = setInterval(() => {
                     if (navigator.onLine && this._isAllowed() && !this._isPulling) {
                         this._isPulling = true;
