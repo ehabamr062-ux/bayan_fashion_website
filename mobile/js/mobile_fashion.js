@@ -1832,6 +1832,40 @@
             elNetProfit.style.color = np >= 0 ? 'var(--emerald)' : 'var(--rose)';
         }
 
+        // 🏆 حساب وعرض أكثر 3 أصناف مبيعاً في الفترة (تُخفى تلقائياً إذا لم توجد مبيعات)
+        const topCard = document.getElementById('dashTopProductsCard');
+        const topList = document.getElementById('dashTopProductsList');
+        if (topCard && topList) {
+            const salesMap = new Map();
+            (stats.periodTxs || []).forEach(t => {
+                if (classifyTransaction(t).key !== 'sale') return;
+                const items = Array.isArray(t.items) && t.items.length > 0 ? t.items : [];
+                items.forEach(it => {
+                    const pName = String(it.name || it.product || '').trim();
+                    if (!pName) return;
+                    const q = parseFloat(it.quantity || it.qty || 1) || 1;
+                    const tot = parseFloat(it.total || (parseFloat(it.price || 0) * q) || 0) || 0;
+                    const cur = salesMap.get(pName) || { name: pName, qty: 0, total: 0 };
+                    cur.qty += q;
+                    cur.total += tot;
+                    salesMap.set(pName, cur);
+                });
+            });
+            const top3 = Array.from(salesMap.values()).sort((a, b) => b.qty - a.qty || b.total - a.total).slice(0, 3);
+            if (top3.length > 0) {
+                const medals = ['🥇', '🥈', '🥉'];
+                topList.innerHTML = top3.map((item, idx) => `
+                    <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; padding: 6px 8px; background: var(--bg-card-subtle); border-radius: 8px; border: 1px solid var(--border-subtle);">
+                        <span style="font-weight: 800; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">${medals[idx]} ${escapeHtml(item.name)}</span>
+                        <span style="font-weight: 900; color: var(--primary); font-family: monospace; white-space: nowrap; margin-right: 8px;">${item.qty} ق • ${item.total.toLocaleString('ar-EG')} ج.م</span>
+                    </div>
+                `).join('');
+                topCard.style.display = 'block';
+            } else {
+                topCard.style.display = 'none';
+            }
+        }
+
         // تنبيه النواقص السريع في الداشبورد
         const lowStockBanner = document.getElementById('dashLowStockBanner');
         const lowStockTitle = document.getElementById('dashLowStockTitle');
@@ -3726,10 +3760,12 @@
         const titleEl = document.getElementById('addProdModalTitle');
         const subEl = document.getElementById('addProdModalSub');
         const restoreBtn = document.getElementById('btnRestoreProductOriginal');
+        const deleteBtn = document.getElementById('btnDeleteEditingProduct');
         const btnSave = document.getElementById('btnSaveNewProduct');
         if (titleEl) titleEl.textContent = '👗 إضافة صنف وموديل جديد';
         if (subEl) subEl.textContent = 'تسجيل مباشر في المخزن وترحيل فوري للماستر';
         if (restoreBtn) restoreBtn.style.display = 'none';
+        if (deleteBtn) deleteBtn.style.display = 'none';
         if (btnSave) btnSave.innerHTML = '<span>💾</span> حفظ الصنف وترحيله للسحابة والماستر';
 
         // Reset inputs
@@ -3844,14 +3880,43 @@
         const titleEl = document.getElementById('addProdModalTitle');
         const subEl = document.getElementById('addProdModalSub');
         const restoreBtn = document.getElementById('btnRestoreProductOriginal');
+        const deleteBtn = document.getElementById('btnDeleteEditingProduct');
         const btnSave = document.getElementById('btnSaveNewProduct');
         if (titleEl) titleEl.textContent = '✏️ تعديل بيانات ومقاسات الصنف';
         if (subEl) subEl.textContent = 'عدّل الاسم، الأسعار، المقاسات والألوان أو استرجع البيانات الأصلية';
         if (restoreBtn) restoreBtn.style.display = 'flex';
+        if (deleteBtn) deleteBtn.style.display = 'flex';
         if (btnSave) btnSave.innerHTML = '<span>💾</span> حفظ التعديلات وترحيلها للسحابة';
 
         populateEditProductFields(product);
         modal.classList.add('active');
+    }
+
+    async function deleteEditingProduct() {
+        if (!State.editingProductId) return;
+        const prod = State.products.find(p => String(p.id) === String(State.editingProductId));
+        const prodName = prod ? prod.name : 'هذا الصنف';
+        const ok = await openModernConfirm(`هل أنت متأكد من حذف الصنف (${prodName}) نهائياً من الموبايل والسحابة؟`, '🗑️ حذف صنف نهائياً');
+        if (!ok) return;
+
+        const targetId = String(State.editingProductId);
+        const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
+
+        State.products = State.products.filter(p => String(p.id) !== targetId);
+        safelyPersistProducts(State.products);
+
+        if (navigator.onLine && isValidPairedShop(currentShopId)) {
+            fetch(`${SUPABASE_CONFIG.url}/rest/v1/products?id=eq.${encodeURIComponent(currentShopId + '_PROD_' + targetId)}`, {
+                method: 'DELETE',
+                headers: getSupabaseHeaders()
+            }).catch(() => { });
+        }
+
+        closeAddProductModal();
+        updateCategoriesList();
+        renderProducts();
+        renderDashboard();
+        showToast(`تم حذف الصنف (${prodName}) بنجاح 🗑️✅`, 'success');
     }
 
     async function restoreEditingProductOriginal() {
@@ -5997,6 +6062,9 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                         <button type="button" class="btn-acc-action statement" onclick="window.BayanMobile.openAccountStatement('${a.id || safeName}')">
                             <span>🧾</span> كشف الحساب
                         </button>
+                        <button type="button" class="btn-acc-action" onclick="window.BayanMobile.openEditAccountModal('${a.id || safeName}')">
+                            <span>✏️</span> تعديل
+                        </button>
                         ${!isSupp && bal > 0 ? `
                         <button type="button" class="btn-acc-action" style="background: rgba(16, 185, 129, 0.14); color: var(--emerald); border-color: rgba(16, 185, 129, 0.35);" onclick="window.BayanMobile.collectCustomerPayment('${a.id || safeName}')">
                             <span>💵</span> تحصيل
@@ -6208,6 +6276,12 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
     function openAddAccountModal() {
         const modal = document.getElementById('addAccountModalOverlay');
         if (!modal) return;
+        State.editingAccountId = null;
+        const titleEl = document.getElementById('addAccountModalTitle');
+        const btnSave = document.getElementById('btnSaveNewAccount');
+        if (titleEl) titleEl.textContent = '👥 إضافة حساب عميل أو مورد جديد';
+        if (btnSave) btnSave.innerHTML = '<span>💾</span> حفظ الحساب وترحيله للسحابة والماستر';
+
         const nameInp = document.getElementById('newAccName');
         const mobileInp = document.getElementById('newAccMobile');
         const addressInp = document.getElementById('newAccAddress');
@@ -6220,9 +6294,72 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         if (balInp) balInp.value = '0';
         if (balType) balType.value = 'zero';
 
+        const clientRadio = document.querySelector('input[name="newAccType"][value="client"]');
+        if (clientRadio) clientRadio.checked = true;
         onAccountTypeChange('client');
         modal.classList.add('active');
         if (nameInp) setTimeout(() => nameInp.focus(), 250);
+    }
+
+    function openEditAccountModal(accIdentifier) {
+        const allAccs = Array.isArray(State.accounts) && State.accounts.length > 0 ? State.accounts : (State.customers || []);
+        const cleanId = String(accIdentifier || '').trim();
+        const acc = allAccs.find(a => String(a.id) === cleanId || cleanArabic(a.name) === cleanArabic(cleanId));
+        if (!acc) return;
+
+        const modal = document.getElementById('addAccountModalOverlay');
+        if (!modal) return;
+        State.editingAccountId = String(acc.id);
+
+        const titleEl = document.getElementById('addAccountModalTitle');
+        const btnSave = document.getElementById('btnSaveNewAccount');
+        if (titleEl) titleEl.textContent = '✏️ تعديل بيانات الحساب';
+        if (btnSave) btnSave.innerHTML = '<span>💾</span> حفظ تعديلات الحساب';
+
+        const nameInp = document.getElementById('newAccName');
+        const mobileInp = document.getElementById('newAccMobile');
+        const addressInp = document.getElementById('newAccAddress');
+        const balInp = document.getElementById('newAccBalance');
+        const balType = document.getElementById('newAccBalanceType');
+
+        if (nameInp) nameInp.value = acc.name || '';
+        if (mobileInp) mobileInp.value = acc.mobile || acc.phone || '';
+        if (addressInp) addressInp.value = acc.address || '';
+
+        const bal = parseFloat(acc.balance) || 0;
+        if (balInp) balInp.value = String(Math.abs(bal));
+        if (balType) balType.value = bal > 0 ? 'debt' : (bal < 0 ? 'credit' : 'zero');
+
+        const isSupp = String(acc.type || '').toLowerCase() === 'supplier' || String(acc.typeLabel || '').includes('مورد');
+        const radio = document.querySelector(`input[name="newAccType"][value="${isSupp ? 'supplier' : 'client'}"]`);
+        if (radio) radio.checked = true;
+        onAccountTypeChange(isSupp ? 'supplier' : 'client');
+
+        modal.classList.add('active');
+    }
+
+    function shareDailySummaryWhatsApp() {
+        const period = State.dashboardPeriod || 'today';
+        const range = getPeriodDateRange(period);
+        const stats = calculatePeriodDrawerStats(range);
+        const shopName = State.settings?.shop_name || State.shopName || 'بَيَان فاشون';
+        const fmt = (n) => (parseFloat(n) || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const msg = `📊 *ملخص يومية ${shopName}* ✨%0A` +
+            `📅 الفترة: *${range.label}* (${range.chipText})%0A` +
+            `-----------------------------------%0A` +
+            `🛍️ إجمالي المبيعات: *${fmt(stats.totalSales)} ج.م*%0A` +
+            `🧾 عدد الفواتير: *${stats.invoiceCount} فاتورة* (${stats.itemsCount} قطعة)%0A` +
+            `💵 كاش نقدي: *${fmt(stats.cashSales)} ج.م*%0A` +
+            `📱 فودافون كاش: *${fmt(stats.vodafoneSales)} ج.م*%0A` +
+            `💳 فيزا / شبكة: *${fmt(stats.cardSales)} ج.م*%0A` +
+            `📤 مصروفات وسحوبات: *${fmt(stats.expenses)} ج.م*%0A` +
+            `💰 صافي كاش الدرج: *${fmt(stats.netDrawerCash)} ج.م*%0A` +
+            `📈 صافي الربح التقديري: *${fmt(stats.netProfit)} ج.م*%0A` +
+            `-----------------------------------%0A` +
+            `بَيَان POS فاشون لايت 👗`;
+        window.open(`https://wa.me/?text=${msg}`, '_blank');
+        showToast('تم تجهيز ملخص اليومية لواتساب 📲✅', 'success');
     }
 
     function closeAddAccountModal() {
@@ -6264,16 +6401,20 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
             finalBal = Math.abs(rawBal);
         }
 
+        const isEditAcc = Boolean(State.editingAccountId);
+        const existingAcc = isEditAcc ? State.accounts.find(a => String(a.id) === String(State.editingAccountId)) : null;
+
         const newAcc = {
-            id: String(Date.now()),
+            id: isEditAcc ? String(State.editingAccountId) : String(Date.now()),
             name: name,
-            code: String(Math.floor(1000 + Math.random() * 9000)),
+            code: existingAcc?.code || String(Math.floor(1000 + Math.random() * 9000)),
             type: type,
             typeLabel: type === 'supplier' ? 'مورد' : 'عميل',
             mobile: mobile,
             address: address,
             balance: finalBal,
-            created_at: new Date().toISOString()
+            created_at: existingAcc?.created_at || new Date().toISOString(),
+            updated_at: new Date().toISOString()
         };
 
         if (btnSave) {
@@ -6282,8 +6423,15 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         }
 
         try {
-            // 1. إضافة الحساب محلياً فوراً
-            State.accounts.unshift(newAcc);
+            // 1. إضافة أو تعديل الحساب محلياً فوراً
+            if (isEditAcc) {
+                const idx = State.accounts.findIndex(a => String(a.id) === newAcc.id);
+                if (idx >= 0) State.accounts[idx] = newAcc;
+                else State.accounts.unshift(newAcc);
+            } else {
+                State.accounts.unshift(newAcc);
+            }
+            State.editingAccountId = null;
             State.customers = State.accounts;
             try {
                 localStorage.setItem(CONFIG.STORAGE_PREFIX + 'accounts', JSON.stringify(State.accounts));
@@ -6891,6 +7039,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         openAddProductModal,
         openEditProductModal,
         restoreEditingProductOriginal,
+        deleteEditingProduct,
         closeAddProductModal,
         generateBarcode,
         generateVariantRows,
@@ -6914,7 +7063,9 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         shareAccountStatementWhatsApp,
         quickSaleForAccount,
         openAddAccountModal,
+        openEditAccountModal,
         closeAddAccountModal,
+        shareDailySummaryWhatsApp,
         onAccountTypeChange,
         submitNewAccount,
         playBarcodeBeepAndVibrate,
