@@ -2172,9 +2172,14 @@
                         <div class="stock-status ${stockStatus}">
                             <span>${stockText}</span>
                         </div>
-                        <button class="btn-add-cart-quick" onclick="event.stopPropagation(); window.BayanMobile.openAddToCartModal('${p.id}')">
-                            <span>🛒</span> بيع سريع
-                        </button>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <button type="button" class="btn-add-cart-quick" style="background: var(--chip-bg); color: var(--text-main); border: 1.5px solid var(--border-subtle); box-shadow: none; padding: 8px 12px;" onclick="event.stopPropagation(); window.BayanMobile.openEditProductModal('${p.id}')">
+                                <span>✏️</span> تعديل
+                            </button>
+                            <button type="button" class="btn-add-cart-quick" onclick="event.stopPropagation(); window.BayanMobile.openAddToCartModal('${p.id}')">
+                                <span>🛒</span> بيع سريع
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
@@ -3720,6 +3725,18 @@
         const modal = document.getElementById('addProductModalOverlay');
         if (!modal) return;
 
+        State.editingProductId = null;
+        State.editingProductSnapshot = null;
+
+        const titleEl = document.getElementById('addProdModalTitle');
+        const subEl = document.getElementById('addProdModalSub');
+        const restoreBtn = document.getElementById('btnRestoreProductOriginal');
+        const btnSave = document.getElementById('btnSaveNewProduct');
+        if (titleEl) titleEl.textContent = '👗 إضافة صنف وموديل جديد';
+        if (subEl) subEl.textContent = 'تسجيل مباشر في المخزن وترحيل فوري للماستر';
+        if (restoreBtn) restoreBtn.style.display = 'none';
+        if (btnSave) btnSave.innerHTML = '<span>💾</span> حفظ الصنف وترحيله للسحابة والماستر';
+
         // Reset inputs
         const nameInp = document.getElementById('newProdName');
         const priceInp = document.getElementById('newProdPrice');
@@ -3754,7 +3771,105 @@
         if (nameInp) setTimeout(() => nameInp.focus(), 250);
     }
 
+    function buildVariantRowHtml(size, color, qty) {
+        return `
+            <div class="vb-row-item" style="grid-template-columns: 1fr 1fr 1fr 0.6fr;" data-size="${escapeHtml(size)}" data-color="${escapeHtml(color)}">
+                <span style="background: var(--primary-subtle); color: var(--primary); padding: 4px 6px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; text-align: center;">${escapeHtml(size)}</span>
+                <span style="background: var(--chip-bg); color: var(--text-main); padding: 4px 6px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; border: 1px solid var(--border-subtle); text-align: center;">${escapeHtml(color)}</span>
+                <input type="number" class="vb-row-input" style="width: 58px; margin: 0 auto;" min="0" value="${qty}" placeholder="0" oninput="window.BayanMobile.onVariantRowQtyChange()">
+                <button type="button" onclick="window.BayanMobile.removeVariantRow(this)" title="حذف هذا الصف"
+                    style="background: var(--rose-subtle); color: var(--rose); border: 1px solid rgba(225,29,72,0.3); border-radius: 8px; width: 32px; height: 32px; margin: 0 auto; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; justify-content: center;">🗑️</button>
+            </div>
+        `;
+    }
+
+    function populateEditProductFields(product) {
+        const nameInp = document.getElementById('newProdName');
+        const barcodeInp = document.getElementById('newProdBarcode');
+        const priceInp = document.getElementById('newProdPrice');
+        const costInp = document.getElementById('newProdCost');
+        const wholesaleInp = document.getElementById('newProdWholesale');
+
+        if (nameInp) nameInp.value = product.name || '';
+        if (barcodeInp) barcodeInp.value = product.barcode || product.code || '';
+        if (priceInp) priceInp.value = product.price || 0;
+        if (wholesaleInp) wholesaleInp.value = product.wholesale || product.price || 0;
+        if (costInp) costInp.value = product.cost || 0;
+
+        populateNewProductCategories(product.category || 'عام');
+
+        // Image preview
+        if (product.image) {
+            State.newProductImageBase64 = product.image;
+            const preview = document.getElementById('newProdImagePreview');
+            const emptyBox = document.getElementById('prodImageEmptyState');
+            const previewBox = document.getElementById('prodImagePreviewState');
+            if (preview) preview.src = product.image;
+            if (emptyBox) emptyBox.style.display = 'none';
+            if (previewBox) previewBox.style.display = 'flex';
+        } else {
+            removeProductImage();
+        }
+
+        // Load existing variants into table
+        document.querySelectorAll('#newProdSizesSelector .vb-chip.active, #newProdColorsSelector .vb-chip.active').forEach(c => c.classList.remove('active'));
+        const rowsContainer = document.getElementById('newProdVariantRowsContainer');
+        const rowsList = document.getElementById('newProdVariantRowsList');
+        const vars = Array.isArray(product.variants) ? product.variants : [];
+        if (rowsList) {
+            if (vars.length > 0) {
+                rowsList.innerHTML = vars.map(v => {
+                    const q = parseFloat(v.stock !== undefined ? v.stock : (v.quantity || 0)) || 0;
+                    return buildVariantRowHtml(v.size || 'عادي', v.color || 'عام', q);
+                }).join('');
+                if (rowsContainer) rowsContainer.style.display = 'block';
+                toggleVariantBuilder(true);
+            } else {
+                const q = parseFloat(product.quantity !== undefined ? product.quantity : (product.stock || 0)) || 0;
+                rowsList.innerHTML = buildVariantRowHtml('عادي', 'عام', q);
+                if (rowsContainer) rowsContainer.style.display = 'block';
+                toggleVariantBuilder(true);
+            }
+        }
+        onVariantRowQtyChange();
+    }
+
+    function openEditProductModal(productId) {
+        const product = State.products.find(p => String(p.id) === String(productId));
+        if (!product) {
+            showToast('الصنف غير موجود ⚠️', 'error');
+            return;
+        }
+        const modal = document.getElementById('addProductModalOverlay');
+        if (!modal) return;
+
+        State.editingProductId = String(product.id);
+        State.editingProductSnapshot = JSON.parse(JSON.stringify(product));
+
+        const titleEl = document.getElementById('addProdModalTitle');
+        const subEl = document.getElementById('addProdModalSub');
+        const restoreBtn = document.getElementById('btnRestoreProductOriginal');
+        const btnSave = document.getElementById('btnSaveNewProduct');
+        if (titleEl) titleEl.textContent = '✏️ تعديل بيانات ومقاسات الصنف';
+        if (subEl) subEl.textContent = 'عدّل الاسم، الأسعار، المقاسات والألوان أو استرجع البيانات الأصلية';
+        if (restoreBtn) restoreBtn.style.display = 'flex';
+        if (btnSave) btnSave.innerHTML = '<span>💾</span> حفظ التعديلات وترحيلها للسحابة';
+
+        populateEditProductFields(product);
+        modal.classList.add('active');
+    }
+
+    async function restoreEditingProductOriginal() {
+        if (!State.editingProductSnapshot) return;
+        const ok = await openModernConfirm('هل تريد استرجاع جميع بيانات ومقاسات وألوان الصنف الأصلية والتراجع عن كل التعديلات الحالية؟', '↩️ استرجاع البيانات الأصلية');
+        if (!ok) return;
+        populateEditProductFields(State.editingProductSnapshot);
+        showToast('تم استرجاع جميع بيانات ومقاسات الصنف الأصلية بنجاح ↩️✅', 'success');
+    }
+
     function closeAddProductModal() {
+        State.editingProductId = null;
+        State.editingProductSnapshot = null;
         const modal = document.getElementById('addProductModalOverlay');
         if (modal) modal.classList.remove('active');
         removeProductImage();
@@ -3877,22 +3992,31 @@
         const list = document.getElementById('newProdVariantRowsList');
         if (!list) return;
 
+        let addedCount = 0;
+        const existingKeys = new Set(
+            Array.from(list.querySelectorAll('.vb-row-item')).map(r => `${r.dataset.size}__${r.dataset.color}`)
+        );
+
         let rowsHtml = '';
         finalSizes.forEach(s => {
             finalColors.forEach(c => {
-                rowsHtml += `
-                    <div class="vb-row-item" style="grid-template-columns: 1fr 1fr 1fr 0.6fr;" data-size="${escapeHtml(s)}" data-color="${escapeHtml(c)}">
-                        <span style="background: var(--primary-subtle); color: var(--primary); padding: 4px 6px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; text-align: center;">${escapeHtml(s)}</span>
-                        <span style="background: var(--chip-bg); color: var(--text-main); padding: 4px 6px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; border: 1px solid var(--border-subtle); text-align: center;">${escapeHtml(c)}</span>
-                        <input type="number" class="vb-row-input" style="width: 58px; margin: 0 auto;" min="0" value="1" placeholder="0" oninput="window.BayanMobile.onVariantRowQtyChange()">
-                        <button type="button" onclick="window.BayanMobile.removeVariantRow(this)" title="حذف هذا الصف"
-                            style="background: var(--rose-subtle); color: var(--rose); border: 1px solid rgba(225,29,72,0.3); border-radius: 8px; width: 32px; height: 32px; margin: 0 auto; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; justify-content: center;">🗑️</button>
-                    </div>
-                `;
+                const key = `${s}__${c}`;
+                if (State.editingProductId && existingKeys.has(key)) return;
+                rowsHtml += buildVariantRowHtml(s, c, 1);
+                addedCount++;
             });
         });
 
-        list.innerHTML = rowsHtml;
+        if (State.editingProductId && list.children.length > 0) {
+            if (addedCount > 0) {
+                list.insertAdjacentHTML('beforeend', rowsHtml);
+                showToast(`تمت إضافة (${addedCount}) مقاس/لون جديد للجدول ✅`, 'success');
+            } else {
+                showToast('المقاسات والألوان المختارة موجودة بالفعل في الجدول ℹ️', 'info');
+            }
+        } else {
+            list.innerHTML = rowsHtml;
+        }
         if (container) container.style.display = 'block';
 
         onVariantRowQtyChange();
@@ -3993,8 +4117,9 @@
             });
         }
 
-        // Construct Product Object
-        const newProdId = String(Date.now());
+        // Construct Product Object (جديد أو تعديل صنف قائم)
+        const isEditMode = Boolean(State.editingProductId);
+        const newProdId = isEditMode ? String(State.editingProductId) : String(Date.now());
         const newProduct = {
             id: newProdId,
             name: name,
@@ -4010,7 +4135,8 @@
             variants: variantsList,
             image: State.newProductImageBase64 || '',
             shop_id: currentShopId,
-            created_at: new Date().toISOString()
+            created_at: (isEditMode && State.editingProductSnapshot?.created_at) ? State.editingProductSnapshot.created_at : new Date().toISOString(),
+            updated_at: new Date().toISOString()
         };
 
         if (btnSave) {
@@ -4019,9 +4145,16 @@
         }
 
         try {
-            // 1. Add locally to mobile state immediately
-            State.products.unshift(newProduct);
+            // 1. Add or update locally in mobile state immediately
+            if (isEditMode) {
+                const idx = State.products.findIndex(p => String(p.id) === newProdId);
+                if (idx >= 0) State.products[idx] = newProduct;
+                else State.products.unshift(newProduct);
+            } else {
+                State.products.unshift(newProduct);
+            }
             safelyPersistProducts(State.products);
+            MobileIDB.putMany('products', [newProduct], currentShopId).catch(() => { });
 
             // Update UI immediately
             updateCategoriesList();
@@ -6761,6 +6894,8 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         printReceipt,
         testPrintReceipt,
         openAddProductModal,
+        openEditProductModal,
+        restoreEditingProductOriginal,
         closeAddProductModal,
         generateBarcode,
         generateVariantRows,
