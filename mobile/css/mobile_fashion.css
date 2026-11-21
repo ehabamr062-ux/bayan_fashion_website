@@ -24,10 +24,6 @@
     --text-dim: #64748b;
     --text-light: #94a3b8;
 
-    --primary: #2563eb;
-    --primary-hover: #1d4ed8;
-    --primary-glow: rgba(37, 99, 235, 0.25);
-    --primary-subtle: #eff6ff;
     --primary: #059669;
     --primary-hover: #047857;
     --primary-glow: rgba(5, 150, 105, 0.25);
@@ -69,23 +65,19 @@
     --bg-card: rgba(17, 24, 39, 0.9);
     --bg-card-subtle: rgba(30, 41, 59, 0.5);
 
-    --border-subtle: rgba(255, 255, 255, 0.08);
-    --border-strong: rgba(255, 255, 255, 0.15);
-    --border-glass: rgba(255, 255, 255, 0.1);
+    --border-subtle: rgba(255, 255, 255, 0.12);
+    --border-strong: rgba(255, 255, 255, 0.22);
+    --border-glass: rgba(255, 255, 255, 0.14);
 
     --text-main: #f8fafc;
-    --text-muted: #94a3b8;
-    --text-dim: #64748b;
-    --text-light: #475569;
+    --text-muted: #cbd5e1;
+    --text-dim: #94a3b8;
+    --text-light: #64748b;
 
-    --primary: #3b82f6;
-    --primary-hover: #2563eb;
-    --primary-glow: rgba(59, 130, 246, 0.35);
-    --primary-subtle: rgba(59, 130, 246, 0.15);
     --primary: #10b981;
     --primary-hover: #059669;
     --primary-glow: rgba(16, 185, 129, 0.35);
-    --primary-subtle: rgba(16, 185, 129, 0.15);
+    --primary-subtle: rgba(16, 185, 129, 0.16);
 
     --gold: #f59e0b;
     --gold-glow: rgba(245, 158, 11, 0.3);
@@ -107,9 +99,9 @@
     --topbar-bg: rgba(11, 15, 25, 0.9);
     --bottom-nav-bg: rgba(17, 24, 39, 0.95);
     --modal-bg: #111827;
-    --input-bg: rgba(0, 0, 0, 0.4);
-    --chip-bg: rgba(255, 255, 255, 0.06);
-    --chip-text: #94a3b8;
+    --input-bg: #1e293b;
+    --chip-bg: rgba(255, 255, 255, 0.09);
+    --chip-text: #cbd5e1;
 }
 
 :root {
@@ -4622,4 +4614,59 @@ body {
     background: #1e293b;
     border-color: #334155;
     color: #f1f5f9;
+}
+
+/* ============================================================
+   🌙 DARK MODE VISIBILITY & CONTRAST POLISH
+   ============================================================ */
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+    color: #94a3b8 !important;
+    opacity: 0.85;
+}
+
+[data-theme="dark"] select option {
+    background-color: #1e293b;
+    color: #f8fafc;
+}
+
+[data-theme="dark"] .btn-acc-action.whatsapp {
+    background: rgba(34, 197, 94, 0.16);
+    color: #4ade80;
+    border-color: rgba(34, 197, 94, 0.35);
+}
+
+[data-theme="dark"] .btn-acc-action.call,
+[data-theme="dark"] .btn-close-sheet,
+[data-theme="dark"] .btn-close-modal {
+    color: #e2e8f0;
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+[data-theme="dark"] #invoiceWaPreviewBox {
+    background: #0f2922 !important;
+    border-color: #1e4d3f !important;
+    color: #d1fae5 !important;
+}
+
+[data-theme="dark"] .size-pill {
+    color: #34d399;
+    border-color: rgba(52, 211, 153, 0.35);
+}
+
+[data-theme="dark"] .size-pill.low {
+    color: #fbbf24;
+    border-color: rgba(251, 191, 36, 0.4);
+}
+
+[data-theme="dark"] .acc-type-pill.supplier {
+    color: #38bdf8;
+    border-color: rgba(56, 189, 248, 0.35);
+}
+
+[data-theme="dark"] .warehouse-badge {
+    color: #a5b4fc;
+    background: rgba(99, 102, 241, 0.2);
+    border-color: rgba(129, 140, 248, 0.4);
 }

@@ -3009,7 +3009,7 @@
                         </div>
                         <div class="receipt-row">
                             <span class="label">العميل / المشتري:</span>
-                            <span class="value" style="color: #fff;">👤 ${partnerName}</span>
+                            <span class="value" style="color: var(--text-main);">👤 ${escapeHtml(partnerName)}</span>
                         </div>
                         ${custBalHtml}
                         <div class="receipt-row" style="margin-top: 4px;">
@@ -3029,7 +3029,7 @@
 
                     <div class="receipt-card" style="border-top: 2px dashed var(--border-strong);">
                         <div class="receipt-row">
-                            <span class="label" style="font-size: 0.95rem; font-weight: 900; color: #fff;">إجمالي الفاتورة:</span>
+                            <span class="label" style="font-size: 0.95rem; font-weight: 900; color: var(--text-main);">إجمالي الفاتورة:</span>
                             <span class="value" style="font-size: 1.15rem; font-weight: 900; color: var(--gold); font-family: monospace;">${total.toLocaleString('ar-EG')} ج.م</span>
                         </div>
                         ${remaining > 0 ? `
@@ -5610,7 +5610,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                 <button type="button" class="btn-complete-invoice" style="flex: 1.2; background: linear-gradient(135deg, #25d366, #128c7e); box-shadow: 0 4px 14px rgba(37,211,102,0.3); font-size: 0.88rem;" onclick="window.BayanMobile.shareAccountStatementWhatsApp('${acc.name.replace(/'/g, "\\'")}', '${absBal}', '${balStatus}')">
                     <span>📲</span> مشاركة على واتساب
                 </button>
-                <button type="button" class="btn-complete-invoice" style="flex: 0.6; background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); box-shadow: none;" onclick="window.BayanMobile.closeAccountStatement()">
+                <button type="button" class="btn-complete-invoice" style="flex: 0.6; background: var(--chip-bg); color: var(--text-main); border: 1.5px solid var(--border-subtle); box-shadow: none;" onclick="window.BayanMobile.closeAccountStatement()">
                     إغلاق
                 </button>
             </div>
