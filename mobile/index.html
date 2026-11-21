@@ -18,7 +18,7 @@
 
     <!-- خط القاهرة والأيقونات -->
     <link rel="stylesheet" href="../fonts/cairo.css">
-    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.29">
+    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.30">
     <!-- 📷 محرك قراءة QR العالمي لهواتف أندرويد وآيفون -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" defer></script>
     <style id="mobile-fashion-android-overhaul"></style>
@@ -346,25 +346,33 @@
                     <div id="posCustomerBalanceBanner" class="customer-balance-banner" style="display: none;"></div>
                 </div>
 
-                <div style="font-size: 0.85rem; font-weight: 900; color: var(--text-main); margin-bottom: 8px;">💳 وسيلة
+                <div style="font-size: 0.98rem; font-weight: 900; color: var(--text-main); margin-bottom: 8px;">💳 وسيلة
                     الدفع:
                 </div>
-                <div class="pay-methods-grid">
-                    <div class="pay-btn-radio active" data-method="cash">
-                        <div class="pay-icon">💵</div>
-                        <div class="pay-name">نقدي (كاش)</div>
+                <div class="custom-select-wrap" style="margin-bottom: 14px;">
+                    <select id="posPayMethodSelect" class="modern-select-dropdown"
+                        onchange="window.BayanMobile.onPayMethodChange(this.value)">
+                        <option value="cash" selected>💵 نقدي (كاش)</option>
+                        <option value="vodafone">📱 فودافون كاش</option>
+                        <option value="card">💳 فيزا / شبكة</option>
+                        <option value="credit">⏳ أجل / سداد جزئي</option>
+                    </select>
+                    <span class="select-arrow-icon">▼</span>
+                </div>
+
+                <!-- 🏷️ خانات الخصم والإضافة على الفاتورة -->
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+                    <div class="form-group">
+                        <label for="posDiscountInput" class="form-label" style="font-size: 0.8rem; color: var(--rose);">🏷️ خصم (ج.م):</label>
+                        <input type="number" id="posDiscountInput" class="form-input" min="0" step="0.5" placeholder="0"
+                            oninput="window.BayanMobile.onDiscountOrExtraChange()"
+                            style="font-family: monospace; font-weight: 900; text-align: center;">
                     </div>
-                    <div class="pay-btn-radio" data-method="vodafone">
-                        <div class="pay-icon">📱</div>
-                        <div class="pay-name">فودافون كاش</div>
-                    </div>
-                    <div class="pay-btn-radio" data-method="card">
-                        <div class="pay-icon">💳</div>
-                        <div class="pay-name">فيزا / شبكة</div>
-                    </div>
-                    <div class="pay-btn-radio" data-method="credit">
-                        <div class="pay-icon">⏳</div>
-                        <div class="pay-name">أجل / سداد جزئي</div>
+                    <div class="form-group">
+                        <label for="posExtraInput" class="form-label" style="font-size: 0.8rem; color: var(--emerald);">➕ إضافة (ج.م):</label>
+                        <input type="number" id="posExtraInput" class="form-input" min="0" step="0.5" placeholder="0"
+                            oninput="window.BayanMobile.onDiscountOrExtraChange()"
+                            style="font-family: monospace; font-weight: 900; text-align: center;">
                     </div>
                 </div>
 
@@ -378,8 +386,16 @@
                 </div>
 
                 <div class="summary-row">
-                    <span id="cartSubtotalLabel">قيمة الفاتورة الحالية:</span>
+                    <span id="cartSubtotalLabel">قيمة الأصناف قبل الخصم:</span>
                     <span id="cartSubtotalAmount">0.00 ج.م</span>
+                </div>
+                <div id="cartDiscountSummaryRow" class="summary-row" style="display: none; color: var(--rose);">
+                    <span>🏷️ الخصم الممنوح:</span>
+                    <span id="cartDiscountSummaryAmount">-0.00 ج.م</span>
+                </div>
+                <div id="cartExtraSummaryRow" class="summary-row" style="display: none; color: var(--emerald);">
+                    <span>➕ الإضافة:</span>
+                    <span id="cartExtraSummaryAmount">+0.00 ج.م</span>
                 </div>
                 <!-- سطر الرصيد السابق للعميل (خصم إذا كان له رصيد، أو إضافة إذا كان عليه دين) -->
                 <div id="cartPrevBalanceRow" class="summary-row prev-balance-row" style="display: none;">
@@ -1732,7 +1748,7 @@
         </div>
     </div>
 
-    <script src="js/mobile_fashion.js?v=5.1.29"></script>
+    <script src="js/mobile_fashion.js?v=5.1.30"></script>
 </body>
 
 </html>

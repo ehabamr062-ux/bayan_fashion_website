@@ -70,6 +70,8 @@
 
         // Cart & Checkout
         cart: [],
+        cartDiscount: 0,
+        cartExtra: 0,
         editingInvoiceId: null,
         editingOriginalTx: null,
         selectedPayMethod: 'cash', // 'cash', 'vodafone', 'card', 'credit'
@@ -2327,7 +2329,42 @@
         renderCartView();
     }
 
-    function renderCartView() {
+    function modifyCartPrice(key, newPriceVal) {
+        const item = State.cart.find(i => i.key === key);
+        if (!item) return;
+        const parsed = parseFloat(newPriceVal);
+        item.price = (!isNaN(parsed) && parsed >= 0) ? parsed : 0;
+        renderCartView(true);
+    }
+
+    function onDiscountOrExtraChange() {
+        const discInp = document.getElementById('posDiscountInput');
+        const extInp = document.getElementById('posExtraInput');
+        State.cartDiscount = Math.max(0, parseFloat(discInp?.value || 0) || 0);
+        State.cartExtra = Math.max(0, parseFloat(extInp?.value || 0) || 0);
+        renderCartView(true);
+    }
+
+    function onPayMethodChange(method) {
+        State.selectedPayMethod = method || 'cash';
+        const sel = document.getElementById('posPayMethodSelect');
+        if (sel && sel.value !== State.selectedPayMethod) sel.value = State.selectedPayMethod;
+        const partialWrap = document.getElementById('posPartialPayWrap');
+        if (partialWrap) partialWrap.style.display = (State.selectedPayMethod === 'credit') ? 'block' : 'none';
+
+        if (State.selectedPayMethod === 'credit') {
+            const custInp = document.getElementById('posCustomerInput');
+            if (custInp && (custInp.value.trim() === 'عميل نقدي' || !custInp.value.trim())) {
+                custInp.value = '';
+                custInp.focus();
+                renderCustomerDropdown('');
+                showToast('👇 اختر اسم العميل من القائمة بالأسفل أو اكتب اسمه لتسجيل الآجل 👤', 'info');
+            }
+        }
+        renderCartView(true);
+    }
+
+    function renderCartView(skipItemsRebuild = false) {
         const itemsContainer = document.getElementById('cartItemsContainer');
         const subtotalEl = document.getElementById('cartSubtotalAmount');
         const totalEl = document.getElementById('cartFinalTotalAmount');
@@ -2361,27 +2398,59 @@
             return;
         }
 
-        let total = 0;
-        itemsContainer.innerHTML = State.cart.map(item => {
-            const lineTotal = item.price * item.qty;
-            total += lineTotal;
-            return `
-                <div class="cart-item-card">
-                    <div class="cart-item-info">
-                        <div class="cart-item-name">${item.name}</div>
-                        <div class="cart-item-meta">المقاس: ${item.size} • اللون: ${item.color}</div>
+        let subtotal = 0;
+        if (!skipItemsRebuild) {
+            itemsContainer.innerHTML = State.cart.map(item => {
+                const lineTotal = item.price * item.qty;
+                subtotal += lineTotal;
+                const safeKey = String(item.key).replace(/'/g, "\\'");
+                return `
+                    <div class="cart-item-card" style="flex-direction: column; align-items: stretch; gap: 10px;">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;">
+                            <div class="cart-item-info">
+                                <div class="cart-item-name">${escapeHtml(item.name)}</div>
+                                <div class="cart-item-meta">المقاس: ${escapeHtml(item.size)} • اللون: ${escapeHtml(item.color)}</div>
+                            </div>
+                            <div class="cart-item-total" data-line-total="${safeKey}">${lineTotal.toLocaleString('ar-EG')} ج.م</div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 8px; border-top: 1px dashed var(--border-subtle);">
+                            <div style="display: flex; align-items: center; gap: 6px;">
+                                <span style="font-size: 0.72rem; font-weight: 800; color: var(--text-dim);">السعر:</span>
+                                <input type="number" min="0" step="0.5" value="${item.price}"
+                                    oninput="window.BayanMobile.modifyCartPrice('${safeKey}', this.value)"
+                                    style="width: 82px; height: 32px; border-radius: 8px; border: 1.5px solid var(--border-subtle); background: var(--input-bg); color: var(--text-main); text-align: center; font-weight: 900; font-family: monospace; font-size: 0.85rem;">
+                            </div>
+                            <div class="cart-item-qty-stepper">
+                                <button class="btn-stepper" onclick="window.BayanMobile.modifyCartQty('${safeKey}', -1)">-</button>
+                                <span class="cart-item-qty">${item.qty}</span>
+                                <button class="btn-stepper" onclick="window.BayanMobile.modifyCartQty('${safeKey}', 1)">+</button>
+                            </div>
+                        </div>
                     </div>
-                    <div class="cart-item-qty-stepper">
-                        <button class="btn-stepper" onclick="window.BayanMobile.modifyCartQty('${item.key}', -1)">-</button>
-                        <span class="cart-item-qty">${item.qty}</span>
-                        <button class="btn-stepper" onclick="window.BayanMobile.modifyCartQty('${item.key}', 1)">+</button>
-                    </div>
-                    <div class="cart-item-total">${lineTotal.toLocaleString('ar-EG')} ج.م</div>
-                </div>
-            `;
-        }).join('');
+                `;
+            }).join('');
+        } else {
+            State.cart.forEach(item => {
+                const lineTotal = item.price * item.qty;
+                subtotal += lineTotal;
+                const lineEl = itemsContainer.querySelector(`[data-line-total="${CSS.escape(String(item.key))}"]`);
+                if (lineEl) lineEl.textContent = lineTotal.toLocaleString('ar-EG') + ' ج.م';
+            });
+        }
 
-        if (subtotalEl) subtotalEl.textContent = total.toLocaleString('ar-EG') + ' ج.م';
+        const discount = Math.max(0, Math.min(subtotal, parseFloat(State.cartDiscount) || 0));
+        const extra = Math.max(0, parseFloat(State.cartExtra) || 0);
+        const total = Math.max(0, subtotal - discount + extra);
+
+        if (subtotalEl) subtotalEl.textContent = subtotal.toLocaleString('ar-EG') + ' ج.م';
+        const discRow = document.getElementById('cartDiscountSummaryRow');
+        const discAmtEl = document.getElementById('cartDiscountSummaryAmount');
+        const extRow = document.getElementById('cartExtraSummaryRow');
+        const extAmtEl = document.getElementById('cartExtraSummaryAmount');
+        if (discRow) discRow.style.display = discount > 0 ? 'flex' : 'none';
+        if (discAmtEl) discAmtEl.textContent = `-${discount.toLocaleString('ar-EG')} ج.م`;
+        if (extRow) extRow.style.display = extra > 0 ? 'flex' : 'none';
+        if (extAmtEl) extAmtEl.textContent = `+${extra.toLocaleString('ar-EG')} ج.م`;
 
         // 💳 حساب دقيق للمقاصة مع رصيد العميل السابق
         const currentCustName = (document.getElementById('posCustomerInput')?.value || State.selectedCustomer || 'عميل نقدي').trim();
@@ -2555,7 +2624,10 @@
         try {
             const timestamp = Date.now();
             const invoiceId = isEditing ? State.editingInvoiceId : generateInvoiceId();
-            const total = State.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            const subtotal = State.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            const discount = Math.max(0, Math.min(subtotal, parseFloat(State.cartDiscount) || 0));
+            const extra = Math.max(0, parseFloat(State.cartExtra) || 0);
+            const total = Math.max(0, subtotal - discount + extra);
             const custName = (document.getElementById('posCustomerInput')?.value || State.selectedCustomer || 'عميل نقدي').trim() || 'عميل نقدي';
 
             const isCredit = (State.selectedPayMethod === 'credit');
@@ -2758,13 +2830,22 @@
                 ];
             }
 
-            // 3. اعتماد الفاتورة محلياً فوراً (Local-First Success) وتفريغ السلة
+            // 3. اعتماد الفاتورة محلياً فوراً (Local-First Success) وتفريغ السلة والخصم والإضافة
+            newTx.subtotal = subtotal;
+            newTx.discount = discount;
+            newTx.extra = extra;
             State.transactions.unshift(newTx);
             State.cart = [];
+            State.cartDiscount = 0;
+            State.cartExtra = 0;
             State.editingInvoiceId = null;
             State.editingOriginalTx = null;
             const paidInpReset = document.getElementById('posPaidAmountInput');
             if (paidInpReset) paidInpReset.value = '';
+            const discInpReset = document.getElementById('posDiscountInput');
+            if (discInpReset) discInpReset.value = '';
+            const extInpReset = document.getElementById('posExtraInput');
+            if (extInpReset) extInpReset.value = '';
             try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'products', JSON.stringify(State.products)); } catch (e) { }
             try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (e) { }
 
@@ -3445,14 +3526,23 @@
             maxStock: 999
         }));
 
-        // ضبط وسيلة الدفع واسم العميل والمبلغ المدفوع
+        // ضبط وسيلة الدفع واسم العميل والمبلغ المدفوع والخصم والإضافة
         const pm = String(tx.paymentMethod || 'كاش');
         State.selectedPayMethod = (pm.includes('أجل') || pm.includes('آجل') || (parseFloat(tx.remaining || 0) > 0)) ? 'credit'
             : (pm.includes('فودافون') ? 'vodafone' : (pm.includes('فيزا') ? 'card' : 'cash'));
+        const pmSel = document.getElementById('posPayMethodSelect');
+        if (pmSel) pmSel.value = State.selectedPayMethod;
         const partialWrap = document.getElementById('posPartialPayWrap');
         const paidInp = document.getElementById('posPaidAmountInput');
         if (partialWrap) partialWrap.style.display = (State.selectedPayMethod === 'credit') ? 'block' : 'none';
         if (paidInp) paidInp.value = (tx.paid !== undefined) ? tx.paid : '';
+
+        State.cartDiscount = parseFloat(tx.discount || 0) || 0;
+        State.cartExtra = parseFloat(tx.extra || 0) || 0;
+        const discInp = document.getElementById('posDiscountInput');
+        const extInp = document.getElementById('posExtraInput');
+        if (discInp) discInp.value = State.cartDiscount > 0 ? State.cartDiscount : '';
+        if (extInp) extInp.value = State.cartExtra > 0 ? State.cartExtra : '';
 
         if (tx.partner) {
             selectCustomer(tx.partner);
@@ -5190,7 +5280,13 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         }
 
         const totalVal = parseFloat(tx.total || tx.finalTotal || 0);
-        if (rcSubtotal) rcSubtotal.textContent = totalVal.toLocaleString('ar-EG') + ' ج.م';
+        const discVal = parseFloat(tx.discount || 0) || 0;
+        const subVal = parseFloat(tx.subtotal || (totalVal + discVal)) || totalVal;
+        if (rcSubtotal) rcSubtotal.textContent = subVal.toLocaleString('ar-EG') + ' ج.م';
+        const rcDiscountRow = document.getElementById('rcDiscountRow');
+        const rcDiscount = document.getElementById('rcDiscount');
+        if (rcDiscountRow) rcDiscountRow.style.display = discVal > 0 ? 'flex' : 'none';
+        if (rcDiscount) rcDiscount.textContent = `-${discVal.toLocaleString('ar-EG')} ج.م`;
         if (rcGrandTotal) rcGrandTotal.textContent = totalVal.toLocaleString('ar-EG') + ' ج.م';
 
         const method = tx.paymentMethod || tx.method || 'كاش';
@@ -6187,6 +6283,9 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         setTheme,
         toggleTheme,
         modifyCartQty,
+        modifyCartPrice,
+        onDiscountOrExtraChange,
+        onPayMethodChange,
         submitMobileInvoice,
         processOfflineQueue,
         openInvoiceDetails,
