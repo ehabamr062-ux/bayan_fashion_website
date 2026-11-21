@@ -1322,6 +1322,40 @@
                 }
             } catch (tiPruneErr) { }
 
+            // ⚡ هجرة سريعة لمرة واحدة لتعبئة originalInvoiceId الصريح لأي مرتجع قديم (لتفعيل فهرس idx_tx_orig_inv بنسبة 100%)
+            try {
+                let origInvBackfilled = false;
+                if (this.isNative && this.nativeDb) {
+                    const obRow = this.nativeDb.prepare("SELECT value FROM settings WHERE id = 'orig_inv_backfilled_v1'").get();
+                    if (obRow && String(obRow.value) === '1') origInvBackfilled = true;
+                } else {
+                    const obRes = this.db.exec("SELECT value FROM settings WHERE id = 'orig_inv_backfilled_v1'");
+                    if (obRes && obRes[0] && obRes[0].values && obRes[0].values.length > 0 && String(obRes[0].values[0][0]) === '1') {
+                        origInvBackfilled = true;
+                    }
+                }
+                if (!origInvBackfilled) {
+                    this.db.run(`
+                        UPDATE transactions
+                        SET originalInvoiceId = CAST(json_extract(raw_json, '$.originalInvoiceId') AS TEXT)
+                        WHERE (originalInvoiceId IS NULL OR originalInvoiceId = '')
+                          AND type LIKE 'مرتجع%'
+                          AND raw_json IS NOT NULL
+                          AND json_extract(raw_json, '$.originalInvoiceId') IS NOT NULL
+                          AND TRIM(CAST(json_extract(raw_json, '$.originalInvoiceId') AS TEXT)) != '';
+                    `);
+                    this.db.run(`
+                        UPDATE transactions
+                        SET isInvoiceHead = CASE
+                            WHEN json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' THEN 1
+                            ELSE 0
+                        END
+                        WHERE isInvoiceHead IS NULL AND raw_json IS NOT NULL;
+                    `);
+                    this.db.run("INSERT OR REPLACE INTO settings (id, value) VALUES ('orig_inv_backfilled_v1', '1');");
+                }
+            } catch (origMigErr) { }
+
             // 🛡️ عزل استعلامات الترقية الثقيلة لتعمل مرة واحدة فقط داخل معاملة Transaction
             if (!isV3Migrated) {
                 try {
@@ -2700,17 +2734,15 @@
 
         /**
          * ⚡ جلب حركات المرتجع السابقة المرتبطة بفاتورة أصلية محددة
-         * (محصن بنسبة 100% ضد خلط الفواتير المتشابهة مثل 5 مع 50 و 500)
+         * (مفهرس 100% عبر idx_tx_orig_inv دون SCAN TABLE ومحصن ضد خلط 5 مع 50 و 500)
          */
         getInvoiceReturns(invoiceId, targetType = '') {
             if (!this.db || !invoiceId) return [];
             const sId = String(invoiceId).trim();
             const cleanType = String(targetType || '').trim();
             try {
-                let sql = "SELECT * FROM transactions WHERE (originalInvoiceId = ? OR (raw_json IS NOT NULL AND (raw_json LIKE ? OR raw_json LIKE ?))) AND (type LIKE 'مرتجع%')";
-                const jsonPatternQuote = `%"originalInvoiceId":"${sId}"%`;
-                const jsonPatternNum = `%"originalInvoiceId":${sId},%`;
-                let params = [sId, jsonPatternQuote, jsonPatternNum];
+                let sql = "SELECT * FROM transactions WHERE originalInvoiceId = ? AND type LIKE 'مرتجع%'";
+                let params = [sId];
 
                 if (cleanType) {
                     if (cleanType.includes('بيع') || cleanType.includes('مبيعات')) {
@@ -5919,15 +5951,113 @@
 
                 const finalRows = rows ? rows.map(r => this._reconstructRow(r)) : [];
 
-                // إرفاق أصناف كل فاتورة مسترجعة لتمكين العرض الفوري للأصناف والموديلات المطابقة في جدول البحث
+                // ⚡ إرفاق أصناف الفواتير المسترجعة باستعلام واحد مجمّع IN (...) بدلاً من حلقة N+1
                 if (finalRows.length > 0) {
-                    finalRows.forEach(inv => {
-                        try {
-                            if (inv && inv.invoiceId) {
-                                inv.items = this.getInvoiceItems(inv.invoiceId, inv.type || (isSalesReturn ? 'بيع' : 'شراء'));
+                    const invIdSet = new Set();
+                    for (const inv of finalRows) {
+                        if (inv && inv.invoiceId) {
+                            let sId = String(inv.invoiceId).trim();
+                            if (sId.includes('_item_')) sId = sId.split('_item_')[0];
+                            if (sId) invIdSet.add(sId);
+                        }
+                    }
+                    const invIds = Array.from(invIdSet);
+                    if (invIds.length > 0) {
+                        const itemsByInvId = new Map();
+                        const seenByInvId = new Map();
+                        const typeCond = isSalesReturn
+                            ? "((type LIKE 'بيع%' OR type LIKE 'فاتورة بيع%' OR type = 'sale' OR type IN ('بيع', 'بيع 📤', 'فاتورة بيع')) AND type NOT LIKE 'مرتجع%')"
+                            : "((type LIKE 'شراء%' OR type LIKE 'فاتورة شراء%' OR type = 'purchase' OR type IN ('شراء', 'شراء 📥', 'فاتورة شراء')) AND type NOT LIKE 'مرتجع%')";
+
+                        // تقسيم قائمة IN إلى شرائح آمنة (حد أقصى 400 معرف لكل استعلام) لتجاوز قيود SQLite variable limit
+                        for (let cStart = 0; cStart < invIds.length; cStart += 400) {
+                            const chunkIds = invIds.slice(cStart, cStart + 400);
+                            const placeholders = chunkIds.map(() => '?').join(',');
+                            const batchSql = `SELECT * FROM transaction_items WHERE invoiceId IN (${placeholders}) AND ${typeCond} ORDER BY id ASC;`;
+                            let tiBatchRows = [];
+                            try {
+                                if (this.isNative && this.nativeDb) {
+                                    tiBatchRows = this.nativeDb.prepare(batchSql).all(...chunkIds);
+                                } else {
+                                    const stTi = this.db.prepare(batchSql);
+                                    stTi.bind(chunkIds);
+                                    while (stTi.step()) tiBatchRows.push(stTi.getAsObject());
+                                    stTi.free();
+                                }
+                            } catch (tiBatchErr) { }
+
+                            for (const r of tiBatchRows) {
+                                if (!r) continue;
+                                const rec = this._reconstructRow(r);
+                                if (!rec) continue;
+                                let keyId = String(r.invoiceId || rec.invoiceId || '').trim();
+                                if (keyId.includes('_item_')) keyId = keyId.split('_item_')[0];
+                                if (!keyId) continue;
+                                if (!itemsByInvId.has(keyId)) {
+                                    itemsByInvId.set(keyId, []);
+                                    seenByInvId.set(keyId, new Set());
+                                }
+                                const pName = (rec.product || rec.productName || rec.name || '').trim();
+                                const pSize = (rec.size || rec.selectedSize || '').trim();
+                                const pColor = (rec.color || rec.selectedColor || '').trim();
+                                const pQty = parseFloat(rec.qty != null ? rec.qty : (rec.quantity || 0)) || 0;
+                                const pPrice = parseFloat(rec.price != null ? rec.price : 0) || 0;
+                                const sig = `${rec.id || ''}|${pName}|${pSize}|${pColor}|${pQty}|${pPrice}`;
+                                const seenSet = seenByInvId.get(keyId);
+                                if (!seenSet.has(sig)) {
+                                    seenSet.add(sig);
+                                    itemsByInvId.get(keyId).push(rec);
+                                }
                             }
-                        } catch (itemErr) { }
-                    });
+                        }
+
+                        // خطة بديلة مجمعة واحدة فقط للفواتير التاريخية القديمة التي لم تُفصل بنودها في transaction_items
+                        const missingIds = invIds.filter(id => !itemsByInvId.has(id) || itemsByInvId.get(id).length === 0);
+                        if (missingIds.length > 0) {
+                            const txTypeCond = isSalesReturn
+                                ? "((type LIKE '%بيع%' OR type LIKE '%مبيعات%' OR type = 'sale') AND type NOT LIKE '%مرتجع%')"
+                                : "((type LIKE '%شراء%' OR type LIKE '%مشتريات%' OR type = 'purchase') AND type NOT LIKE '%مرتجع%')";
+                            for (let mStart = 0; mStart < missingIds.length; mStart += 400) {
+                                const mChunk = missingIds.slice(mStart, mStart + 400);
+                                const mPlaceholders = mChunk.map(() => '?').join(',');
+                                const fbSql = `SELECT * FROM transactions WHERE invoiceId IN (${mPlaceholders}) AND ${txTypeCond} ORDER BY id ASC;`;
+                                let fbRows = [];
+                                try {
+                                    if (this.isNative && this.nativeDb) {
+                                        fbRows = this.nativeDb.prepare(fbSql).all(...mChunk);
+                                    } else {
+                                        const stFb = this.db.prepare(fbSql);
+                                        stFb.bind(mChunk);
+                                        while (stFb.step()) fbRows.push(stFb.getAsObject());
+                                        stFb.free();
+                                    }
+                                } catch (fbErr) { }
+
+                                for (const r of fbRows) {
+                                    const rec = this._reconstructRow(r);
+                                    if (!rec) continue;
+                                    let keyId = String(r.invoiceId || rec.invoiceId || '').trim();
+                                    if (keyId.includes('_item_')) keyId = keyId.split('_item_')[0];
+                                    if (!keyId) continue;
+                                    if (!itemsByInvId.has(keyId)) itemsByInvId.set(keyId, []);
+                                    if (Array.isArray(rec.items) && rec.items.length > 0) {
+                                        itemsByInvId.get(keyId).push(...rec.items);
+                                    } else if (rec.product || rec.productName || rec.name) {
+                                        itemsByInvId.get(keyId).push(rec);
+                                    }
+                                }
+                            }
+                        }
+
+                        // توزيع البنود على كل فاتورة عبر Map بسرعة O(1)
+                        for (const inv of finalRows) {
+                            if (inv && inv.invoiceId) {
+                                let sId = String(inv.invoiceId).trim();
+                                if (sId.includes('_item_')) sId = sId.split('_item_')[0];
+                                inv.items = itemsByInvId.get(sId) || [];
+                            }
+                        }
+                    }
                 }
 
                 return finalRows;
@@ -5939,6 +6069,7 @@
 
         /**
          * ⚡ إجماليات مالية مجمعة لفترة محددة مباشرة من SQLite C++ لتسريع التقارير
+         * (تعتمد مباشرةً على العمود الصريح المفهرس isInvoiceHead بدون json_extract)
          */
         getFinancialPeriodTotals(fromDate, toDate, warehouse = null, cashier = null) {
             if (!this.db) return null;
@@ -5951,21 +6082,18 @@
                         COALESCE(SUM(total), 0) as sumTotal,
                         COALESCE(SUM(
                             CASE 
-                                WHEN isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' THEN paidAmount 
-                                WHEN (isInvoiceHead = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 'false') THEN 0
+                                WHEN isInvoiceHead = 1 THEN paidAmount 
+                                WHEN isInvoiceHead = 0 THEN 0
                                 WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN COALESCE(paidAmount, total)
-                                WHEN isInvoiceHead IS NULL AND json_extract(raw_json, '$.isInvoiceHead') IS NULL THEN 
-                                    CASE WHEN paidAmount > 0 THEN paidAmount ELSE 0 END
-                                ELSE 0 
+                                ELSE CASE WHEN paidAmount > 0 THEN paidAmount ELSE 0 END
                             END
                         ), 0) as sumPaid,
                         COALESCE(SUM(
                             CASE 
-                                WHEN isInvoiceHead = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 1 OR json_extract(raw_json, '$.isInvoiceHead') = 'true' THEN remaining 
-                                WHEN (isInvoiceHead = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 0 OR json_extract(raw_json, '$.isInvoiceHead') = 'false') THEN 0
+                                WHEN isInvoiceHead = 1 THEN remaining 
+                                WHEN isInvoiceHead = 0 THEN 0
                                 WHEN (invoiceId IS NULL OR invoiceId = '' OR invoiceId = '---') THEN remaining
-                                WHEN isInvoiceHead IS NULL AND json_extract(raw_json, '$.isInvoiceHead') IS NULL THEN remaining
-                                ELSE 0 
+                                ELSE remaining
                             END
                         ), 0) as sumRemaining
                     FROM transactions
@@ -5996,6 +6124,71 @@
             } catch (err) {
                 console.warn("[SQLite] getFinancialPeriodTotals error:", err.message);
                 return null;
+            }
+        }
+
+        /**
+         * ⚡ جلب صفحة محددة من سلة المحذوفات عبر الفهرس idx_trash_deletedAt دون تحميل السلة كاملة بالرام
+         */
+        getTrashPage(limit = 200, offset = 0) {
+            if (!this.db) return { rows: [], total: 0 };
+            const lim = Math.max(1, Math.min(parseInt(limit, 10) || 200, 1000));
+            const off = Math.max(0, parseInt(offset, 10) || 0);
+            try {
+                let total = 0;
+                let rawRows = [];
+                const sqlPage = "SELECT * FROM trash ORDER BY deletedAt DESC, id DESC LIMIT ? OFFSET ?;";
+                if (this.isNative && this.nativeDb) {
+                    const cnt = this.nativeDb.prepare("SELECT COUNT(*) AS c FROM trash;").get();
+                    total = (cnt && cnt.c) ? cnt.c : 0;
+                    rawRows = this.nativeDb.prepare(sqlPage).all(lim, off);
+                } else {
+                    const cntRes = this.db.exec("SELECT COUNT(*) FROM trash;");
+                    if (cntRes && cntRes[0] && cntRes[0].values && cntRes[0].values[0]) {
+                        total = cntRes[0].values[0][0] || 0;
+                    }
+                    const stmt = this.db.prepare(sqlPage);
+                    stmt.bind([lim, off]);
+                    while (stmt.step()) rawRows.push(stmt.getAsObject());
+                    stmt.free();
+                }
+                return {
+                    rows: rawRows.map(r => this._reconstructRow(r)).filter(Boolean),
+                    total
+                };
+            } catch (e) {
+                console.warn("[SQLite] getTrashPage error:", e.message);
+                return { rows: [], total: 0 };
+            }
+        }
+
+        /**
+         * ⚡ قراءة أي جدول على دفعات متدفقة (Chunked Read) لحماية الرام عند تصدير JSON
+         */
+        getTableChunk(tableName, limit = 1000, offset = 0) {
+            if (!this.db) return [];
+            const safeTable = this._sanitizeTableName(tableName);
+            if (!safeTable) return [];
+            const lim = Math.max(1, Math.min(parseInt(limit, 10) || 1000, 5000));
+            const off = Math.max(0, parseInt(offset, 10) || 0);
+            try {
+                const sql = `SELECT * FROM "${safeTable}" LIMIT ? OFFSET ?;`;
+                if (this.isNative && this.nativeDb) {
+                    const rows = this.nativeDb.prepare(sql).all(lim, off);
+                    return rows ? rows.map(r => this._reconstructRow(r)).filter(Boolean) : [];
+                }
+                const stmt = this.db.prepare(sql);
+                stmt.bind([lim, off]);
+                const items = [];
+                while (stmt.step()) {
+                    const rec = this._reconstructRow(stmt.getAsObject());
+                    if (rec) items.push(rec);
+                }
+                stmt.free();
+                return items;
+            } catch (e) {
+                console.warn(`[SQLite] getTableChunk error on ${safeTable}:`, e.message);
+                return [];
             }
         }
 

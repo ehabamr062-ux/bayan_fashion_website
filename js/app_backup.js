@@ -1292,67 +1292,99 @@ window.optimizeAllProductImagesInDB = async function() {
 };
 
 window.compileBayanBackupPayload = async function() {
-    // 1. قراءة كافة الجداول الأساسية من SQLite مباشرة لضمان أعلى دقة وشمولية
-    let productsData = [];
-    try {
-        if (typeof db !== 'undefined' && db && db.products) productsData = await db.products.toArray();
-    } catch(e) {}
-    if (productsData.length === 0 && typeof productsDB !== 'undefined' && Array.isArray(productsDB)) {
-        productsData = productsDB;
-    }
+    // ⚡ قراءة متدفقة بالدفعات (Chunked 1,000 سجل لكل دفعة) لحماية الرام ومنع تجميد الواجهة عند تصدير JSON صريح
+    const _readTableChunked = async (tableName, dexieTable, fallbackArr, chunkSize = 1000) => {
+        const result = [];
+        try {
+            if (window.BayanSQLite && typeof window.BayanSQLite.getTableChunk === 'function' && window.BayanSQLite.db) {
+                let offset = 0;
+                while (true) {
+                    const batch = window.BayanSQLite.getTableChunk(tableName, chunkSize, offset);
+                    if (!Array.isArray(batch) || batch.length === 0) break;
+                    for (let i = 0; i < batch.length; i++) result.push(batch[i]);
+                    offset += batch.length;
+                    if (batch.length < chunkSize) break;
+                    // إتاحة الفرصة لدورة الأحداث (Event Loop) وتنظيف الذاكرة المؤقتة بين الدفعات
+                    await new Promise(resolve => setTimeout(resolve, 0));
+                }
+                if (result.length > 0) return result;
+            }
+            if (dexieTable) {
+                if (typeof dexieTable.offset === 'function' && typeof dexieTable.limit === 'function') {
+                    let offset = 0;
+                    while (true) {
+                        const batch = await dexieTable.offset(offset).limit(chunkSize).toArray();
+                        if (!Array.isArray(batch) || batch.length === 0) break;
+                        for (let i = 0; i < batch.length; i++) result.push(batch[i]);
+                        offset += batch.length;
+                        if (batch.length < chunkSize) break;
+                        await new Promise(resolve => setTimeout(resolve, 0));
+                    }
+                    if (result.length > 0) return result;
+                } else if (typeof dexieTable.toArray === 'function') {
+                    const arr = await dexieTable.toArray();
+                    if (Array.isArray(arr) && arr.length > 0) return arr;
+                }
+            }
+        } catch (e) {
+            console.warn(`[Backup] Chunked read notice on ${tableName}:`, e && e.message ? e.message : e);
+        }
+        if (Array.isArray(fallbackArr) && fallbackArr.length > 0) return fallbackArr;
+        return result;
+    };
+
+    // 1. قراءة كافة الجداول الأساسية من SQLite بدفعات متدفقة (1,000 سجل) لضمان أعلى دقة دون استنزاف الرام
+    let productsData = await _readTableChunked(
+        'products',
+        (typeof db !== 'undefined' && db) ? db.products : null,
+        (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : []
+    );
     productsData = (productsData || []).filter(p => p && typeof p === 'object' && p.id != null);
 
     // تم تخطي إعادة ضغط الصور الدورية هنا لمنع أي تجميد للواجهة مع قواعد البيانات الكبيرة (50 ألف صنف)
 
-    let transactionsData = [];
-    try {
-        if (typeof db !== 'undefined' && db && db.transactions) transactionsData = await db.transactions.toArray();
-    } catch(e) {}
-    if (transactionsData.length === 0 && typeof transactions !== 'undefined' && Array.isArray(transactions)) {
-        transactionsData = transactions;
-    }
+    let transactionsData = await _readTableChunked(
+        'transactions',
+        (typeof db !== 'undefined' && db) ? db.transactions : null,
+        (typeof transactions !== 'undefined' && Array.isArray(transactions)) ? transactions : []
+    );
     transactionsData = (transactionsData || []).filter(t => t && typeof t === 'object' && t.id != null);
 
-    let accountsData = [];
-    try {
-        if (typeof db !== 'undefined' && db && db.accounts) accountsData = await db.accounts.toArray();
-    } catch(e) {}
-    if (accountsData.length === 0 && typeof accounts !== 'undefined' && Array.isArray(accounts)) {
-        accountsData = accounts;
-    }
+    let accountsData = await _readTableChunked(
+        'accounts',
+        (typeof db !== 'undefined' && db) ? db.accounts : null,
+        (typeof accounts !== 'undefined' && Array.isArray(accounts)) ? accounts : []
+    );
     accountsData = (accountsData || []).filter(a => a && typeof a === 'object' && a.id != null);
 
-    let trashData = [];
-    try {
-        if (typeof db !== 'undefined' && db && db.trash) trashData = await db.trash.toArray();
-    } catch(e) {}
-    if (trashData.length === 0 && typeof trashBin !== 'undefined' && Array.isArray(trashBin)) {
-        trashData = trashBin;
-    }
+    let trashData = await _readTableChunked(
+        'trash',
+        (typeof db !== 'undefined' && db) ? db.trash : null,
+        (typeof trashBin !== 'undefined' && Array.isArray(trashBin)) ? trashBin : []
+    );
     trashData = (trashData || []).filter(t => t && typeof t === 'object');
 
-    // 2. جلب كافة الجداول الإضافية من SQLite (سجلات الخزينة، التدقيق، المخازن، والخلفيات المخصصة)
-    let treasuryData = [];
-    let auditLogData = [];
-    let warehousesData = [];
-    let wallpapersData = [];
-    try {
-        if (db && db.treasuryAudit) treasuryData = await db.treasuryAudit.toArray();
-        if (db && db.auditLogs) auditLogData = await db.auditLogs.toArray();
-        if (db && db.warehouses) warehousesData = await db.warehouses.toArray();
-        if (db && db.wallpapers) wallpapersData = await db.wallpapers.toArray();
-    } catch(e) {
-        console.warn("Error reading secondary tables for backup:", e);
-    }
-    if (treasuryData.length === 0 && typeof treasuryAuditRecords !== 'undefined' && Array.isArray(treasuryAuditRecords)) {
-        treasuryData = treasuryAuditRecords;
-    }
-    if (auditLogData.length === 0 && typeof auditLogs !== 'undefined' && Array.isArray(auditLogs)) {
-        auditLogData = auditLogs;
-    }
-    if (warehousesData.length === 0 && typeof warehouses !== 'undefined' && Array.isArray(warehouses) && warehouses.length > 0) {
-        warehousesData = warehouses;
-    }
+    // 2. جلب كافة الجداول الإضافية من SQLite بدفعات متدفقة (سجلات الخزينة، التدقيق، المخازن، والخلفيات المخصصة)
+    let treasuryData = await _readTableChunked(
+        'treasuryAudit',
+        (typeof db !== 'undefined' && db) ? db.treasuryAudit : null,
+        (typeof treasuryAuditRecords !== 'undefined' && Array.isArray(treasuryAuditRecords)) ? treasuryAuditRecords : []
+    );
+    let auditLogData = await _readTableChunked(
+        'auditLogs',
+        (typeof db !== 'undefined' && db) ? db.auditLogs : null,
+        (typeof auditLogs !== 'undefined' && Array.isArray(auditLogs)) ? auditLogs : []
+    );
+    let warehousesData = await _readTableChunked(
+        'warehouses',
+        (typeof db !== 'undefined' && db) ? db.warehouses : null,
+        (typeof warehouses !== 'undefined' && Array.isArray(warehouses)) ? warehouses : []
+    );
+    let wallpapersData = await _readTableChunked(
+        'wallpapers',
+        (typeof db !== 'undefined' && db) ? db.wallpapers : null,
+        []
+    );
     if (warehousesData.length === 0) {
         try {
             warehousesData = JSON.parse(getStore('pos_warehouses') || '[]');
@@ -1360,13 +1392,11 @@ window.compileBayanBackupPayload = async function() {
     }
 
     // 🔒 قراءة وتأمين وتشفير رموز الـ PIN للمستخدمين في ملف النسخة الاحتياطية
-    let usersList = [];
-    try {
-        if (typeof db !== 'undefined' && db && db.users) usersList = await db.users.toArray();
-    } catch(e) {}
-    if ((!usersList || usersList.length === 0) && typeof users !== 'undefined' && Array.isArray(users)) {
-        usersList = users;
-    }
+    let usersList = await _readTableChunked(
+        'users',
+        (typeof db !== 'undefined' && db) ? db.users : null,
+        (typeof users !== 'undefined' && Array.isArray(users)) ? users : []
+    );
     const securedUsers = (usersList || []).filter(u => u && typeof u === 'object').map(u => {
         if (!u) return u;
         const copy = { ...u };
@@ -1585,18 +1615,29 @@ window.executeAutoBackupToFile = async function(silent = false, isManual = false
                     console.warn("[Backup] wal_checkpoint notice:", walErr.message);
                 }
 
-                // 🧹 إنشاء تفريغ نظيف بدون مساحات ميتة (VACUUM INTO) لتقليص الحجم من 184MB إلى ~6MB
+                // 🧹 إنشاء نسخة ثنائية نظيفة مباشرة من SQLite (VACUUM INTO أو nativeDb.backup) بدون تحميل الجداول في الرام
                 let cleanDbPath = null;
                 try {
                     const os = (typeof window !== 'undefined' && window.require) ? window.require('os') : null;
                     const path = (typeof window !== 'undefined' && window.require) ? window.require('path') : null;
-                    if (os && path && window.BayanSQLite && typeof window.BayanSQLite.vacuumInto === 'function') {
+                    if (os && path && window.BayanSQLite) {
                         const tmpFile = path.join(os.tmpdir(), `bayan_clean_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.db`);
-                        const vacSuccess = window.BayanSQLite.vacuumInto(tmpFile);
-                        if (vacSuccess) cleanDbPath = tmpFile;
+                        let binaryOk = false;
+                        if (typeof window.BayanSQLite.vacuumInto === 'function') {
+                            binaryOk = window.BayanSQLite.vacuumInto(tmpFile);
+                        }
+                        if (!binaryOk && window.BayanSQLite.nativeDb && typeof window.BayanSQLite.nativeDb.backup === 'function') {
+                            try {
+                                await window.BayanSQLite.nativeDb.backup(tmpFile);
+                                binaryOk = true;
+                            } catch (nbErr) {
+                                console.warn("[Backup] nativeDb.backup notice:", nbErr.message);
+                            }
+                        }
+                        if (binaryOk) cleanDbPath = tmpFile;
                     }
                 } catch (vacErr) {
-                    console.warn("[Backup] Client vacuumInto notice:", vacErr.message);
+                    console.warn("[Backup] Client binary backup notice:", vacErr.message);
                 }
 
                 const directRes = await ipc.invoke('save-sqlite-direct-backup', { isManual, targetPath, cleanDbPath });
@@ -1692,8 +1733,54 @@ window.executeAutoBackupToFile = async function(silent = false, isManual = false
                     savedFilePath = path.join(backupDir, finalFileName);
                     backupDirDisplay = backupDir;
 
-                    fs.writeFileSync(savedFilePath, JSON.stringify(data), 'utf8');
-                    console.log("Backup successfully saved to local fs path:", savedFilePath);
+                    // ⚡ كتابة متدفقة (Streaming Write) لتجنب تجميع نص JSON ضخم بالكامل في الرام دفعة واحدة
+                    await new Promise((resolve, reject) => {
+                        const ws = fs.createWriteStream(savedFilePath, { encoding: 'utf8' });
+                        ws.on('finish', resolve);
+                        ws.on('error', reject);
+                        ws.write('{');
+                        const keys = Object.keys(data);
+                        const CHUNK = 1000;
+                        let ki = 0;
+                        const writeNextKey = () => {
+                            if (ki >= keys.length) {
+                                ws.end('}');
+                                return;
+                            }
+                            const k = keys[ki];
+                            const v = data[k];
+                            const prefix = (ki === 0 ? '' : ',') + JSON.stringify(k) + ':';
+                            ki++;
+                            if (Array.isArray(v) && v.length > CHUNK) {
+                                ws.write(prefix + '[');
+                                let idx = 0;
+                                const writeSlice = () => {
+                                    const end = Math.min(idx + CHUNK, v.length);
+                                    let buf = '';
+                                    for (let j = idx; j < end; j++) {
+                                        buf += (j === 0 ? '' : ',') + JSON.stringify(v[j]);
+                                    }
+                                    idx = end;
+                                    const ok = ws.write(buf);
+                                    if (idx >= v.length) {
+                                        ws.write(']');
+                                        setTimeout(writeNextKey, 0);
+                                    } else if (!ok) {
+                                        ws.once('drain', writeSlice);
+                                    } else {
+                                        setTimeout(writeSlice, 0);
+                                    }
+                                };
+                                writeSlice();
+                            } else {
+                                const ok = ws.write(prefix + JSON.stringify(v));
+                                if (!ok) ws.once('drain', writeNextKey);
+                                else writeNextKey();
+                            }
+                        };
+                        writeNextKey();
+                    });
+                    console.log("Backup successfully saved to local fs path (streaming):", savedFilePath);
                     success = true;
                 }
             } catch (fsErr) {

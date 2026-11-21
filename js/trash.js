@@ -30,13 +30,29 @@ function registerPurgedTrashId(id) {
 }
 
 const trashManager = {
-    // جلب كافة المحذوفات من قاعدة البيانات
-    async loadTrash() {
+    // ⚡ جلب صفحة محددة ومفهرسة من المحذوفات لحماية الرامات (أحدث 200 سجل افتراضياً مع دعم تحميل المزيد)
+    async loadTrash(limit = 200, offset = 0, append = false) {
         try {
-            window.trashBin = await db.trash.toArray();
+            const pageLimit = Math.max(50, Math.min(parseInt(limit, 10) || 200, 1000));
+            const pageOffset = Math.max(0, parseInt(offset, 10) || 0);
+            let fetchedRows = [];
+            let totalCount = null;
+
+            if (window.BayanSQLite && typeof window.BayanSQLite.getTrashPage === 'function' && window.BayanSQLite.db) {
+                const pageRes = window.BayanSQLite.getTrashPage(pageLimit, pageOffset);
+                fetchedRows = Array.isArray(pageRes.rows) ? pageRes.rows : [];
+                totalCount = typeof pageRes.total === 'number' ? pageRes.total : fetchedRows.length;
+            } else if (typeof db !== 'undefined' && db && db.trash) {
+                if (typeof db.trash.limit === 'function') {
+                    fetchedRows = await db.trash.limit(pageLimit).toArray();
+                } else {
+                    fetchedRows = await db.trash.toArray();
+                }
+                totalCount = fetchedRows.length;
+            }
 
             // 🧹 تنظيف فوري وصامت لأي بنود مسودات فواتير قديمة دخلت السلة بالخطأ
-            const legacyDraftIds = (window.trashBin || [])
+            const legacyDraftIds = (fetchedRows || [])
                 .filter(t => t && (t.type === 'draft_item' || String(t.label || '').includes('مسودة')))
                 .map(t => Number(t.id) || t.id);
 
@@ -44,20 +60,35 @@ const trashManager = {
                 try {
                     await window.db.trash.bulkDelete(legacyDraftIds);
                     const legacyDraftSet = new Set(legacyDraftIds.map(String));
-                    window.trashBin = window.trashBin.filter(t => !legacyDraftSet.has(String(t.id)));
+                    fetchedRows = fetchedRows.filter(t => !legacyDraftSet.has(String(t.id)));
+                    if (totalCount !== null) totalCount = Math.max(0, totalCount - legacyDraftIds.length);
                 } catch(cleanErr) {}
             }
 
             // Parse originalData if it's stringified
-            window.trashBin = window.trashBin.map(t => {
+            fetchedRows = fetchedRows.map(t => {
                 if (typeof t.originalData === 'string') {
-                    t.originalData = JSON.parse(t.originalData);
+                    try { t.originalData = JSON.parse(t.originalData); } catch (_) {}
                 }
                 return t;
             });
+
+            if (append && Array.isArray(window.trashBin)) {
+                const existingIds = new Set(window.trashBin.map(x => String(x.id)));
+                for (const row of fetchedRows) {
+                    if (!existingIds.has(String(row.id))) {
+                        window.trashBin.push(row);
+                        existingIds.add(String(row.id));
+                    }
+                }
+            } else {
+                window.trashBin = fetchedRows;
+            }
+
+            window.trashTotalCount = (totalCount !== null) ? totalCount : window.trashBin.length;
             window.trash = window.trashBin;
             if (typeof trashBin !== 'undefined') trashBin = window.trashBin;
-            this.renderTrashTable();
+            this.renderTrashTable(append);
         } catch (error) {
             console.error("خطأ في تحميل سلة المحذوفات:", error);
         }
@@ -165,7 +196,8 @@ const trashManager = {
         
         const badge = document.getElementById('trashCountBadge');
         if (badge) {
-            const count = (window.trashBin && Array.isArray(window.trashBin)) ? window.trashBin.length : 0;
+            const loadedCount = (window.trashBin && Array.isArray(window.trashBin)) ? window.trashBin.length : 0;
+            const count = Math.max(loadedCount, parseInt(window.trashTotalCount, 10) || 0);
             badge.innerText = `${count} عنصر محذوف`;
             badge.style.display = count > 0 ? 'inline-block' : 'none';
         }
@@ -265,19 +297,20 @@ const trashManager = {
             tbody.appendChild(tr);
         });
 
-        if (totalItems > itemsToDisplay.length) {
+        const dbTotalItems = query ? totalItems : Math.max(totalItems, parseInt(window.trashTotalCount, 10) || totalItems);
+        if (dbTotalItems > itemsToDisplay.length) {
             const loadMoreTr = document.createElement('tr');
             loadMoreTr.id = 'trashLoadMoreRow';
             loadMoreTr.style.cssText = "background: #f8fafc; text-align: center;";
             loadMoreTr.innerHTML = `
                 <td colspan="6" style="padding: 16px; border-top: 2px solid #e2e8f0;">
                     <div style="display: flex; align-items: center; justify-content: center; gap: 15px; font-weight: 900; font-size: 1.05rem; flex-wrap: wrap;">
-                        <span style="color: #000000;">تم عرض <b>${itemsToDisplay.length}</b> من أصل <b>${totalItems}</b> عنصر محذوف</span>
+                        <span style="color: #000000;">تم عرض <b>${itemsToDisplay.length}</b> من أصل <b>${dbTotalItems}</b> عنصر محذوف</span>
                         <button type="button" onclick="window.loadMoreTrash(50)" class="tool-btn" style="background: #fee2e2; color: #000000; border: 2.5px solid #dc2626; border-radius: 10px; padding: 10px 22px; cursor: pointer; font-weight: 900; font-size: 1.05rem; font-family: 'Cairo', sans-serif; display: inline-flex; align-items: center; gap: 6px;">
                             ⬇️ عرض المزيد (+50 عنصر)
                         </button>
                         <button type="button" onclick="window.loadMoreTrash(0)" class="tool-btn" style="background: #ffffff; color: #000000; border: 2.5px solid #475569; border-radius: 10px; padding: 10px 22px; cursor: pointer; font-weight: 900; font-size: 1.05rem; font-family: 'Cairo', sans-serif;">
-                            ⚡ عرض الكل (${totalItems})
+                            ⚡ عرض حتى 300 (${dbTotalItems})
                         </button>
                     </div>
                 </td>
@@ -632,20 +665,29 @@ const trashManager = {
 // جعل الوظائف متاحة عالمياً للأزرار في HTML
 window.emptyTrash = () => trashManager.emptyTrash();
 window.trashRenderLimit = 50;
-window.loadMoreTrash = function(step) {
+window.loadMoreTrash = async function(step) {
+    const MAX_SAFE_CEILING = 300;
+    const loaded = (typeof window.trashBin !== 'undefined' && Array.isArray(window.trashBin)) ? window.trashBin.length : 0;
+    const dbTotal = Math.max(loaded, parseInt(window.trashTotalCount, 10) || loaded);
+
     if (step === 0) {
-        const MAX_SAFE_CEILING = 300;
-        const total = (typeof window.trashBin !== 'undefined' && Array.isArray(window.trashBin)) ? window.trashBin.length : ((typeof trashBin !== 'undefined' && Array.isArray(trashBin)) ? trashBin.length : 0);
-        if (total > MAX_SAFE_CEILING) {
+        if (dbTotal > MAX_SAFE_CEILING) {
             window.trashRenderLimit = MAX_SAFE_CEILING;
             if (typeof showToast === 'function') {
                 showToast(`⚡ تم عرض أول ${MAX_SAFE_CEILING} عنصر محذوف لحماية سرعة جهازك.`, 'info');
             }
         } else {
-            window.trashRenderLimit = Infinity;
+            window.trashRenderLimit = dbTotal;
         }
     } else {
         window.trashRenderLimit = (window.trashRenderLimit || 50) + step;
+    }
+
+    // ⚡ إذا احتجنا عناصر أكثر مما تم جلبه حالياً من SQLite، نجلب الصفحة التالية فقط من القاعدة
+    const needed = Math.min(window.trashRenderLimit, dbTotal);
+    if (needed > loaded && window.BayanSQLite && typeof window.BayanSQLite.getTrashPage === 'function' && window.BayanSQLite.db) {
+        await trashManager.loadTrash(Math.max(100, needed - loaded), loaded, true);
+        return;
     }
     trashManager.renderTrashTable(true);
 };

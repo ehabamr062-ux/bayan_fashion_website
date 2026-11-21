@@ -10,7 +10,7 @@ window.treasuryAuditRecords = [];
 // 1. تهيئة قسم مراجعة الخزينة مع استرجاع مضمون من SQLite
 async function initTreasuryAuditSection() {
     console.log("🔄 جاري تهيئة وتحميل بيانات قسم مراجعة الخزينة من SQLite...");
-    
+
     // ضبط تاريخ اليوم المحلي تلقائياً عند الدخول
     const dateInput = document.getElementById('trDate');
     if (dateInput && !dateInput.value) {
@@ -42,7 +42,7 @@ function handleTreasuryQuickJump(val) {
     if (!dateInput) return;
 
     const now = new Date();
-    
+
     if (val === 'today') {
         dateInput.value = now.toLocaleDateString('en-CA');
     } else if (val === 'yesterday') {
@@ -104,7 +104,7 @@ function handleTreasuryDateInputChange() {
 function getTreasuryDateRange() {
     const quickJump = document.getElementById('trQuickJump') ? document.getElementById('trQuickJump').value : 'custom';
     const dateInputVal = document.getElementById('trDate') ? document.getElementById('trDate').value : new Date().toLocaleDateString('en-CA');
-    
+
     const now = new Date();
 
     if (quickJump === 'today') {
@@ -176,7 +176,7 @@ async function handleTreasuryCategoryChange(val) {
         if (currentDate < todayISO && typeof window.loadTransactionsForDateRange === 'function') {
             try {
                 await window.loadTransactionsForDateRange(currentDate, currentDate);
-            } catch (e) {}
+            } catch (e) { }
         }
 
         const res = calculateNetCashDrawerInflow(currentDate);
@@ -283,7 +283,7 @@ function calculateNetCashDrawerInflow(targetDate) {
                     console.warn("[TreasuryAudit] getTransactionsForPeriod notice:", e);
                 }
             } else if (typeof window.loadTransactionsForDateRange === 'function') {
-                window.loadTransactionsForDateRange(cleanDate, cleanDate).catch(() => {});
+                window.loadTransactionsForDateRange(cleanDate, cleanDate).catch(() => { });
             }
         }
 
@@ -412,35 +412,27 @@ async function updateTreasuryAuditStats() {
     const range = getTreasuryDateRange();
     const todayISO = new Date().toLocaleDateString('en-CA');
 
-    // التحقق من توفر حركات الفترة المحددة في الذاكرة وجلبها عند الاستعلام عن فترات سابقة
-    if (range.start < todayISO || range.end < todayISO) {
+    // ⚡ استخدام التجميع المباشر في SQLite عبر getTreasuryCashInflowSummary بدلاً من سحب 50,000 حركة إلى الرام
+    const hasDirectSqlSummary = !!(window.BayanSQLite && typeof window.BayanSQLite.getTreasuryCashInflowSummary === 'function' && window.BayanSQLite.db);
+    if (hasDirectSqlSummary) {
+        try {
+            window._lastTreasurySqlInflow = window.BayanSQLite.getTreasuryCashInflowSummary(range.start, range.end);
+        } catch (sqlSumErr) {
+            console.warn("[TreasuryAudit] getTreasuryCashInflowSummary notice:", sqlSumErr);
+        }
+    } else if (range.start < todayISO || range.end < todayISO) {
+        // مسار بديل فقط عند عدم توفر محرك SQLite المباشر (بيئة الويب القديمة)
         if (typeof window.loadTransactionsForDateRange === 'function') {
             try {
                 await window.loadTransactionsForDateRange(range.start, range.end);
             } catch (err) {
                 console.warn("[TreasuryAudit] loadTransactionsForDateRange error:", err);
             }
-        } else if (window.BayanSQLite && typeof window.BayanSQLite.getTransactionsForPeriod === 'function' && window.BayanSQLite.db) {
-            try {
-                const sqTx = window.BayanSQLite.getTransactionsForPeriod(range.start, range.end, 50000, 'all', 'all');
-                if (sqTx && sqTx.length > 0 && Array.isArray(window.transactions)) {
-                    const existingIds = new Set(window.transactions.map(t => t.id || t.invoiceId));
-                    sqTx.forEach(t => {
-                        const tId = t.id || t.invoiceId;
-                        if (!existingIds.has(tId)) {
-                            window.transactions.push(t);
-                            existingIds.add(tId);
-                        }
-                    });
-                }
-            } catch (err) {
-                console.warn("[TreasuryAudit] SQLite getTransactionsForPeriod error:", err);
-            }
         }
     }
 
     const records = window.treasuryAuditRecords || [];
-    
+
     // فلترة عمليات الفترة المحددة
     const filteredRecords = records.filter(r => r.date >= range.start && r.date <= range.end);
 
@@ -575,7 +567,7 @@ async function updateTreasuryAuditStats() {
     if (expensesEl) {
         expensesEl.innerText = expensesTotal.toFixed(2);
     }
-    
+
     const diffEl = document.getElementById('trSumDiff');
     if (diffEl) {
         if (Math.abs(netDiff) < 0.001) {
@@ -760,7 +752,7 @@ async function handleEditModalCategoryChange(val) {
         if (targetDate && targetDate < todayISO && typeof window.loadTransactionsForDateRange === 'function') {
             try {
                 await window.loadTransactionsForDateRange(targetDate, targetDate);
-            } catch (e) {}
+            } catch (e) { }
         }
 
         const res = calculateNetCashDrawerInflow(targetDate);
@@ -964,7 +956,7 @@ function toggleTreasuryTableOptionsModal() {
 // 12. دالة التحكم بفيزيائية الأعمدة وإظهارها/إخفائها
 function toggleTreasuryColumn(colIndex, isVisible) {
     const displayStyle = isVisible ? '' : 'none';
-    
+
     // رأس الجدول
     const th = document.querySelector(`#trTableHeadRow th:nth-child(${colIndex + 1})`);
     if (th) th.style.display = displayStyle;
@@ -1009,7 +1001,7 @@ function openTreasuryGuideModal() {
     modal.style.setProperty('display', 'flex', 'important');
     switchTreasuryGuideTab(1);
 
-    modal.onclick = function(e) {
+    modal.onclick = function (e) {
         if (e.target === modal) {
             closeTreasuryGuideModal();
         }
@@ -1026,7 +1018,7 @@ function closeTreasuryGuideModal() {
 
 function switchTreasuryGuideTab(tabIdx) {
     currentTreasuryGuideTab = tabIdx;
-    
+
     // إخفاء كافة التبويبات وتفعيل التبويب المختار
     for (let i = 1; i <= 5; i++) {
         const panel = document.getElementById(`trGuideTab${i}`);
@@ -1105,12 +1097,12 @@ function toggleTreasuryNotesSettings() {
 function updateTreasuryNotesCustomTitle(newTitle) {
     const titleVal = newTitle ? newTitle.trim() : '';
     setStore('tr_notes_custom_title', titleVal);
-    
+
     const displayTitle = titleVal || 'الملاحظات اليومية والمفكرة';
-    
+
     const modalTitleEl = document.getElementById('trNotesModalTitleText');
     if (modalTitleEl) modalTitleEl.innerText = displayTitle;
-    
+
     const cardTitleEl = document.getElementById('trNotesTitleCardText');
     if (cardTitleEl) cardTitleEl.innerText = displayTitle;
 }
@@ -1120,7 +1112,7 @@ function loadTreasuryNotesContent() {
     const customTitle = getStore('tr_notes_custom_title') || '';
     const titleInput = document.getElementById('trNotesCustomTitleInput');
     if (titleInput) titleInput.value = customTitle;
-    
+
     const displayTitle = customTitle || 'الملاحظات اليومية والمفكرة';
     const modalTitleEl = document.getElementById('trNotesModalTitleText');
     if (modalTitleEl) modalTitleEl.innerText = displayTitle;
@@ -1484,13 +1476,13 @@ async function exportTreasuryAuditPDF() {
         if (typeof html2canvas !== 'undefined') {
             const canvas = await html2canvas(pdfContainer, { scale: 2, useCORS: true });
             const imgData = canvas.toDataURL('image/png');
-            
+
             // إنشاء نافذة حفظ/تنزيل مباشرة للملف
             const link = document.createElement('a');
             link.download = `تقرير_الخزينة_${range.start}_إلى_${range.end}.png`;
             link.href = imgData;
             link.click();
-            
+
             if (typeof showCustomAlert === 'function') {
                 showCustomAlert({
                     type: 'success',
@@ -1542,8 +1534,8 @@ function shareTreasuryAuditWhatsApp() {
     const diffTotal = (salesTotal + sumTop) - sumBottom;
     const now = new Date().toLocaleString('ar-EG');
 
-    const msgText = 
-`📊 *تقرير مراجعة الخزينة - ${shopName}*
+    const msgText =
+        `📊 *تقرير مراجعة الخزينة - ${shopName}*
 📅 *الفترة:* من ${range.start} إلى ${range.end}
 ⏰ *وقت التقرير:* ${now}
 
@@ -1598,8 +1590,8 @@ function shareTreasuryAuditTelegram() {
     const diffTotal = (salesTotal + sumTop) - sumBottom;
     const now = new Date().toLocaleString('ar-EG');
 
-    const msgText = 
-`📊 *تقرير مراجعة الخزينة - ${shopName}*
+    const msgText =
+        `📊 *تقرير مراجعة الخزينة - ${shopName}*
 📅 *الفترة:* من ${range.start} إلى ${range.end}
 ⏰ *وقت التقرير:* ${now}
 

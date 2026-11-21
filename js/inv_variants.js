@@ -261,7 +261,18 @@ async function executePrinting(modeOrTargets, copies = 1) {
         if (targets.length === 0 && typeof db !== 'undefined' && db.products) {
             try {
                 for (const id of selectedIds) {
-                    const dbP = await db.products.get(Number(id)) || await db.products.get(String(id));
+                    let dbP = null;
+                    if (window.BayanSQLite && window.BayanSQLite.db) {
+                        if (typeof window.BayanSQLite.getById === 'function') {
+                            dbP = window.BayanSQLite.getById('products', Number(id)) || window.BayanSQLite.getById('products', String(id));
+                        }
+                        if (!dbP && typeof window.BayanSQLite.getProductByCode === 'function') {
+                            dbP = window.BayanSQLite.getProductByCode(String(id));
+                        }
+                    }
+                    if (!dbP) {
+                        dbP = await db.products.get(Number(id)) || await db.products.get(String(id));
+                    }
                     if (dbP) targets.push(dbP);
                 }
             } catch (e) { }
@@ -269,14 +280,25 @@ async function executePrinting(modeOrTargets, copies = 1) {
 
         if (targets.length === 0) return showToast("⚠️ لم يتم العثور على بيانات الصنف المحدد للطباعة!", "error");
     } else {
-        // وضع كافة الأصناف: استخدام الأصناف المحملة بالذاكرة أو جلبها عند الحاجة فقط
+        // وضع كافة الأصناف: استخدام الأصناف المحملة بالذاكرة أو جلب شريحة محدودة من SQLite لحماية الرام
         if (typeof productsDB !== 'undefined' && Array.isArray(productsDB) && productsDB.length > 0) {
             targets = productsDB;
         } else if (typeof window.productsDB !== 'undefined' && Array.isArray(window.productsDB) && window.productsDB.length > 0) {
             targets = window.productsDB;
+        } else if (window.BayanSQLite && typeof window.BayanSQLite.getProductsChunk === 'function' && window.BayanSQLite.db) {
+            try {
+                const dbProds = window.BayanSQLite.getProductsChunk(500, 0);
+                if (Array.isArray(dbProds) && dbProds.length > 0) {
+                    targets = dbProds;
+                }
+            } catch (e) {
+                console.warn("SQLite chunk load in executePrinting error:", e);
+            }
         } else if (typeof db !== 'undefined' && db.products) {
             try {
-                const dbProds = await db.products.toArray();
+                const dbProds = (typeof db.products.limit === 'function')
+                    ? await db.products.limit(500).toArray()
+                    : await db.products.toArray();
                 if (Array.isArray(dbProds) && dbProds.length > 0) {
                     targets = dbProds;
                 }
@@ -737,7 +759,18 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
         if (targets.length === 0 && typeof db !== 'undefined' && db.products) {
             try {
                 for (const id of selectedIds) {
-                    const dbP = await db.products.get(Number(id)) || await db.products.get(String(id));
+                    let dbP = null;
+                    if (window.BayanSQLite && window.BayanSQLite.db) {
+                        if (typeof window.BayanSQLite.getById === 'function') {
+                            dbP = window.BayanSQLite.getById('products', Number(id)) || window.BayanSQLite.getById('products', String(id));
+                        }
+                        if (!dbP && typeof window.BayanSQLite.getProductByCode === 'function') {
+                            dbP = window.BayanSQLite.getProductByCode(String(id));
+                        }
+                    }
+                    if (!dbP) {
+                        dbP = await db.products.get(Number(id)) || await db.products.get(String(id));
+                    }
                     if (dbP) targets.push(dbP);
                 }
             } catch (e) { }
@@ -748,9 +781,16 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
             targets = productsDB;
         } else if (typeof window.productsDB !== 'undefined' && Array.isArray(window.productsDB) && window.productsDB.length > 0) {
             targets = window.productsDB;
+        } else if (window.BayanSQLite && typeof window.BayanSQLite.getProductsChunk === 'function' && window.BayanSQLite.db) {
+            try {
+                const dbProds = window.BayanSQLite.getProductsChunk(500, 0);
+                if (Array.isArray(dbProds) && dbProds.length > 0) targets = dbProds;
+            } catch (e) { }
         } else if (typeof db !== 'undefined' && db.products) {
             try {
-                const dbProds = await db.products.toArray();
+                const dbProds = (typeof db.products.limit === 'function')
+                    ? await db.products.limit(500).toArray()
+                    : await db.products.toArray();
                 if (Array.isArray(dbProds) && dbProds.length > 0) targets = dbProds;
             } catch (e) { }
         }
