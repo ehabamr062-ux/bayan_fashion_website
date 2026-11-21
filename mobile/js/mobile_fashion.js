@@ -1049,9 +1049,19 @@
                 safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/shop_settings?shop_id=eq.${encodeURIComponent(currentShopId)}&select=*&limit=5`)
             ]);
 
-            // 0.1 مزامنة طرق الدفع وإعدادات المحل من shop_settings تلقائياً
+            // 0.1 مزامنة طرق الدفع واسم وهوية المحل الحقيقية من shop_settings تلقائياً
             if (Array.isArray(settingsRes) && settingsRes.length > 0) {
-                const sRaw = settingsRes[0].raw_json || {};
+                const sRow = settingsRes[0];
+                const sRaw = sRow.raw_json || {};
+                const detectedShopName = sRow.shop_name || sRaw.shopName || sRaw.shop_name || sRaw.storeName || sRaw.name || '';
+                if (detectedShopName && detectedShopName !== 'بَيَان فاشون') {
+                    syncStoreProfile({
+                        shopName: detectedShopName,
+                        phone: sRaw.phone || sRaw.shop_phone || '',
+                        address: sRaw.address || sRaw.shop_address || '',
+                        receiptFooter: sRaw.receiptFooter || sRaw.invoice_footer || ''
+                    });
+                }
                 if (Array.isArray(sRaw.payment_methods) && sRaw.payment_methods.length > 0) {
                     State.paymentMethods = sRaw.payment_methods;
                     try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'payment_methods', JSON.stringify(sRaw.payment_methods)); } catch (_) { }
