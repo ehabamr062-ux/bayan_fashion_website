@@ -503,23 +503,209 @@
             }
         },
 
-        removeSyncQueueItem: async function (id) {
-            if (!id) return;
+        addToSyncQueueBulk: async function (type, action, payloads) {
+            if (!Array.isArray(payloads) || payloads.length === 0) return false;
+            const ts = new Date().toISOString();
+            const baseId = Date.now();
+            const items = payloads.map((payload, idx) => ({
+                id: baseId + idx,
+                timestamp: ts,
+                action: action || 'upsert',
+                type: type || 'transaction',
+                status: 'pending',
+                raw_json: JSON.stringify(payload || {})
+            }));
+
+            // 1. إدراج دفعي داخل معاملة SQLite واحدة (Zero N+1)
             if (window.sqliteManager && window.sqliteManager.db) {
                 try {
-                    window.sqliteManager.db.run(`DELETE FROM syncQueue WHERE id = ?;`, [id]);
-                } catch (e) { }
+                    const insertAll = () => {
+                        if (window.sqliteManager.nativeDb) {
+                            const stmt = window.sqliteManager.nativeDb.prepare(
+                                `INSERT INTO syncQueue (timestamp, action, type, status, raw_json) VALUES (?, ?, ?, ?, ?);`
+                            );
+                            for (const it of items) {
+                                stmt.run(it.timestamp, it.action, it.type, it.status, it.raw_json);
+                            }
+                        } else {
+                            for (const it of items) {
+                                window.sqliteManager.db.run(
+                                    `INSERT INTO syncQueue (timestamp, action, type, status, raw_json) VALUES (?, ?, ?, ?, ?);`,
+                                    [it.timestamp, it.action, it.type, it.status, it.raw_json]
+                                );
+                            }
+                        }
+                    };
+                    if (typeof window.sqliteManager.runInTransaction === 'function') {
+                        window.sqliteManager.runInTransaction(insertAll);
+                    } else {
+                        insertAll();
+                    }
+                    if (typeof window.sqliteManager.schedulePersist === 'function') {
+                        window.sqliteManager.schedulePersist(400);
+                    }
+                    return true;
+                } catch (e) {
+                    console.warn('[SupabaseSync] خطأ الإدراج الدفعي في طابور SQLite:', e.message);
+                }
             }
-            if (window.db && window.db.syncQueue && typeof window.db.syncQueue.delete === 'function') {
+
+            // 2. Dexie / DB Adapter bulkAdd
+            if (window.db && window.db.syncQueue) {
                 try {
-                    await window.db.syncQueue.delete(id);
+                    if (typeof window.db.syncQueue.bulkAdd === 'function') {
+                        await window.db.syncQueue.bulkAdd(items);
+                        return true;
+                    }
                 } catch (e) { }
             }
+
+            // 3. احتياطي فردي
+            for (const p of payloads) {
+                await this.addToSyncQueue(type, action, p);
+            }
+            return true;
+        },
+
+        removeSyncQueueItemsBulk: async function (ids) {
+            if (!Array.isArray(ids) || ids.length === 0) return;
+            const validIds = ids.filter(id => id !== undefined && id !== null);
+            if (validIds.length === 0) return;
+
+            if (window.sqliteManager && window.sqliteManager.db) {
+                try {
+                    const deleteAll = () => {
+                        const CHUNK = 200;
+                        for (let i = 0; i < validIds.length; i += CHUNK) {
+                            const sub = validIds.slice(i, i + CHUNK);
+                            const placeholders = sub.map(() => '?').join(',');
+                            if (window.sqliteManager.nativeDb) {
+                                window.sqliteManager.nativeDb.prepare(`DELETE FROM syncQueue WHERE id IN (${placeholders});`).run(...sub);
+                            } else {
+                                window.sqliteManager.db.run(`DELETE FROM syncQueue WHERE id IN (${placeholders});`, sub);
+                            }
+                        }
+                    };
+                    if (typeof window.sqliteManager.runInTransaction === 'function') {
+                        window.sqliteManager.runInTransaction(deleteAll);
+                    } else {
+                        deleteAll();
+                    }
+                } catch (e) { }
+            }
+
+            if (window.db && window.db.syncQueue) {
+                try {
+                    if (typeof window.db.syncQueue.bulkDelete === 'function') {
+                        await window.db.syncQueue.bulkDelete(validIds);
+                    } else if (typeof window.db.syncQueue.delete === 'function') {
+                        for (const id of validIds) await window.db.syncQueue.delete(id);
+                    }
+                } catch (e) { }
+            }
+
             try {
+                const idSet = new Set(validIds.map(String));
                 let memQ = JSON.parse(localStorage.getItem('bayan_sync_queue_fallback') || '[]');
-                memQ = memQ.filter(i => String(i.id) !== String(id));
-                localStorage.setItem('bayan_sync_queue_fallback', JSON.stringify(memQ));
+                if (Array.isArray(memQ) && memQ.length > 0) {
+                    memQ = memQ.filter(i => !idSet.has(String(i.id)));
+                    localStorage.setItem('bayan_sync_queue_fallback', JSON.stringify(memQ));
+                }
             } catch (e) { }
+        },
+
+        _buildTransactionCloudRow: function (data, shopId) {
+            if (!data) return null;
+            if (data.id && data.invoice_id && data.raw_json) return data;
+
+            const rows = Array.isArray(data) ? data : [data];
+            const headRow = rows.find(r => r && r.isInvoiceHead) || rows[0];
+            if (!headRow) return null;
+
+            const localInvId = String(headRow.invoiceId || headRow.id || '')
+                .replace(new RegExp(`^${shopId}_(DESK_|MOB_)?`, 'i'), '')
+                .replace(/^#/, '')
+                .trim();
+            if (!localInvId) return null;
+
+            const isVoucher = (headRow.type || '').includes('قبض') || (headRow.type || '').includes('صرف');
+            const itemsList = rows.map(r => ({
+                productId: r.productId || r.id || '',
+                id: r.productId || r.id || '',
+                name: r.product || r.name || (isVoucher ? headRow.type : 'صنف'),
+                product: r.product || r.name || (isVoucher ? headRow.type : 'صنف'),
+                quantity: parseFloat(r.qty !== undefined ? r.qty : (r.quantity || 1)),
+                qty: parseFloat(r.qty !== undefined ? r.qty : (r.quantity || 1)),
+                price: parseFloat(r.price || 0),
+                total: parseFloat(r.total || 0),
+                cost: parseFloat(r.cost || 0),
+                profit: parseFloat(r.profit || 0),
+                unit: r.unit || 'قطعة',
+                unitFactor: parseFloat(r.unitFactor) || 1,
+                size: r.size || r.selectedSize || '',
+                color: r.color || r.selectedColor || '',
+                barcode: r.barcode || r.code || '',
+                code: r.code || r.barcode || '',
+                discount: parseFloat(r.itemDiscount != null ? r.itemDiscount : (r.discount != null && !r.distributedDiscount ? r.discount : 0)) || 0,
+                itemDiscount: parseFloat(r.itemDiscount != null ? r.itemDiscount : (r.discount != null && !r.distributedDiscount ? r.discount : 0)) || 0,
+                distributedDiscount: parseFloat(r.distributedDiscount || 0) || 0,
+                addition: parseFloat(r.addition != null ? r.addition : (r.extra != null ? r.extra : 0)) || 0,
+                notes: r.notes || ''
+            }));
+
+            const calcTotal = rows.reduce((sum, r) => sum + (parseFloat(r.total) || 0), 0);
+            const grandTotal = (headRow.invoiceGrandTotal !== undefined && headRow.invoiceGrandTotal !== 0)
+                ? parseFloat(headRow.invoiceGrandTotal)
+                : (parseFloat(headRow.total) || calcTotal);
+
+            return {
+                id: `${shopId}_DESK_${localInvId}`,
+                invoice_id: localInvId,
+                date_iso: headRow.dateISO || headRow.date || new Date().toISOString(),
+                time: headRow.time || headRow.timeISO || '',
+                type: headRow.type || 'مبيعات',
+                partner: headRow.partner || 'عميل نقدي',
+                total: grandTotal,
+                paid_amount: parseFloat(headRow.paidAmount !== undefined ? headRow.paidAmount : (headRow.isInvoiceHead ? grandTotal : 0)) || 0,
+                remaining: parseFloat(headRow.remaining !== undefined ? headRow.remaining : 0) || 0,
+                method: headRow.method || 'كاش',
+                cashier: headRow.cashier || headRow.user || 'المدير',
+                warehouse: headRow.warehouse || 'المخزن الرئيسي',
+                raw_json: {
+                    ...headRow,
+                    items: itemsList,
+                    shop_id: shopId,
+                    invoiceId: localInvId,
+                    total: grandTotal,
+                    invoiceGrandTotal: grandTotal,
+                    voucherCategory: headRow.voucherCategory || headRow.category || null,
+                    source: 'desktop',
+                    terminalLetter: 'D'
+                }
+            };
+        },
+
+        _buildProductCloudRow: function (p, shopId) {
+            if (!p) return null;
+            if (p.id && String(p.id).startsWith(`${shopId}_PROD_`) && p.raw_json) return p;
+            const localProdId = String(p.id || p.barcode || Math.random().toString(36).substring(2, 9));
+            return {
+                id: `${shopId}_PROD_${localProdId}`,
+                name: p.name || 'صنف',
+                barcode: p.barcode || '',
+                category: p.category || 'عام',
+                unit: p.unit || 'قطعة',
+                cost: parseFloat(p.cost) || 0,
+                price: parseFloat(p.price) || 0,
+                wholesale: parseFloat(p.wholesale) || 0,
+                stock: parseFloat(p.stock) || 0,
+                raw_json: { ...p, localId: p.id, shop_id: shopId },
+                updated_at: new Date().toISOString()
+            };
+        },
+
+        removeSyncQueueItem: async function (id) {
+            return this.removeSyncQueueItemsBulk(id ? [id] : []);
         },
 
         processSyncQueue: async function () {
@@ -531,52 +717,128 @@
 
             this._isProcessingQueue = true;
             let processed = 0;
-            const MAX_BATCHES_PER_RUN = 10; // حتى 500 عنصر في الدورة الواحدة بدون تجميد الواجهة أو حظر Rate Limit
+            const BATCH_SIZE = 100;
+            const MAX_BATCHES_PER_RUN = 10; // حتى 1000 عنصر عبر 10 طلبات Batch فقط بدون N+1
             let hasMorePending = false;
             try {
                 for (let batchIdx = 0; batchIdx < MAX_BATCHES_PER_RUN; batchIdx++) {
                     if (!navigator.onLine || !this._isAllowed()) break;
-                    const queue = await this.getPendingSyncQueue(50);
+                    const queue = await this.getPendingSyncQueue(BATCH_SIZE);
                     if (!queue || queue.length === 0) break;
 
-                    let networkFailed = false;
+                    const invalidIds = [];
+                    const txBatchMap = new Map();
+                    const txQueueIds = [];
+                    const prodBatchMap = new Map();
+                    const prodQueueIds = [];
+                    const voidItems = [];
+                    const treasuryIds = [];
+
                     for (const qItem of queue) {
                         let data = null;
                         try {
                             data = typeof qItem.raw_json === 'string' ? JSON.parse(qItem.raw_json) : qItem.raw_json;
                         } catch (e) {
-                            // تالف: حذفه لتفادي تعليق الطابور
-                            await this.removeSyncQueueItem(qItem.id);
+                            invalidIds.push(qItem.id);
                             continue;
                         }
 
-                        let success = false;
                         if (qItem.type === 'transaction') {
-                            success = await this._pushSingleTransactionData(data, shopId, cfg);
+                            const row = this._buildTransactionCloudRow(data, shopId);
+                            if (row) {
+                                txBatchMap.set(String(row.id), row);
+                                txQueueIds.push(qItem.id);
+                            } else {
+                                invalidIds.push(qItem.id);
+                            }
                         } else if (qItem.type === 'product') {
-                            success = await this._pushSingleProductData(data, shopId, cfg);
+                            const row = this._buildProductCloudRow(data, shopId);
+                            if (row) {
+                                prodBatchMap.set(String(row.id), row);
+                                prodQueueIds.push(qItem.id);
+                            } else {
+                                invalidIds.push(qItem.id);
+                            }
                         } else if (qItem.type === 'void') {
-                            success = await this.deleteInvoiceFromCloud(data.invoiceId, data.total, data.warehouse);
+                            voidItems.push({ id: qItem.id, data });
                         } else if (qItem.type === 'treasury') {
-                            success = await this.syncTreasuryAudit();
-                        }
-
-                        if (success) {
-                            await this.removeSyncQueueItem(qItem.id);
-                            processed++;
+                            treasuryIds.push(qItem.id);
                         } else {
-                            // توقف فوري عند أول خطأ شبكة للحفاظ على الترتيب الصارم FIFO
-                            networkFailed = true;
-                            break;
+                            invalidIds.push(qItem.id);
                         }
                     }
 
+                    const succeededIds = [...invalidIds];
+                    let networkFailed = false;
+
+                    // 1. Batch Upsert للفواتير (حتى 100 فاتورة في طلب HTTP واحد)
+                    if (txBatchMap.size > 0) {
+                        const txRows = Array.from(txBatchMap.values());
+                        const res = await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/transactions?on_conflict=id`, {
+                            method: 'POST',
+                            headers: this._getHeaders(),
+                            body: JSON.stringify(txRows)
+                        });
+                        if (res.ok || res.status === 201 || res.status === 200) {
+                            succeededIds.push(...txQueueIds);
+                            processed += txQueueIds.length;
+                        } else {
+                            networkFailed = true;
+                        }
+                    }
+
+                    // 2. Batch Upsert للأصناف (حتى 100 صنف في طلب HTTP واحد)
+                    if (!networkFailed && prodBatchMap.size > 0) {
+                        const prodRows = Array.from(prodBatchMap.values());
+                        const res = await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/products?on_conflict=id`, {
+                            method: 'POST',
+                            headers: this._getHeaders(),
+                            body: JSON.stringify(prodRows)
+                        });
+                        if (res.ok || res.status === 201 || res.status === 200) {
+                            succeededIds.push(...prodQueueIds);
+                            processed += prodQueueIds.length;
+                        } else {
+                            networkFailed = true;
+                        }
+                    }
+
+                    // 3. تنفيذ عمليات الإلغاء (void)
+                    if (!networkFailed && voidItems.length > 0) {
+                        for (const v of voidItems) {
+                            const ok = await this.deleteInvoiceFromCloud(v.data.invoiceId, v.data.total, v.data.warehouse);
+                            if (ok) {
+                                succeededIds.push(v.id);
+                                processed++;
+                            } else {
+                                networkFailed = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    // 4. توحيد طلبات الخزينة المكررة في الدفعة لطلب واحد فقط
+                    if (!networkFailed && treasuryIds.length > 0) {
+                        const ok = await this.syncTreasuryAudit();
+                        if (ok) {
+                            succeededIds.push(...treasuryIds);
+                            processed += treasuryIds.length;
+                        } else {
+                            networkFailed = true;
+                        }
+                    }
+
+                    // حذف كافة العناصر الناجحة بعملية SQLite مجمّعة واحدة
+                    if (succeededIds.length > 0) {
+                        await this.removeSyncQueueItemsBulk(succeededIds);
+                    }
+
                     if (networkFailed) break;
-                    if (queue.length < 50) break;
+                    if (queue.length < BATCH_SIZE) break;
                     if (batchIdx === MAX_BATCHES_PER_RUN - 1) {
                         hasMorePending = true;
                     } else {
-                        await new Promise(r => setTimeout(r, 120));
+                        await new Promise(r => setTimeout(r, 100));
                     }
                 }
 
@@ -853,10 +1115,8 @@
                 if (res.ok || res.status === 201 || res.status === 200) {
                     totalSent += chunk.length;
                 } else {
-                    // في حال فشل الإرسال المباشر لأي دفعة، يتم إدراجها فوراً في طابور FIFO للحفاظ عليها
-                    for (const item of chunk) {
-                        await this.addToSyncQueue('transaction', 'upsert', item);
-                    }
+                    // في حال فشل الإرسال المباشر لأي دفعة، يتم إدراجها دفعة واحدة في طابور FIFO (بدون N+1)
+                    await this.addToSyncQueueBulk('transaction', 'upsert', chunk);
                 }
 
                 if (i + CHUNK_SIZE < toSend.length) {
@@ -946,128 +1206,161 @@
             let updatedLocalCount = 0;
 
             try {
-                const remoteRes = await this._safeFetch(
-                    `${cfg.supabaseUrl}/rest/v1/products?id=like.${encodeURIComponent(shopId + '_PROD_%')}&select=*`,
-                    { headers: this._getHeaders() }
-                );
+                // ⚡ سحب الأصناف بتقسيم صفحات حقيقي (Range Pagination) لتفادي حد 1000 صف في Supabase
+                const remoteRows = [];
+                const PAGE_SIZE = 1000;
+                const prodUrl = `${cfg.supabaseUrl}/rest/v1/products?id=like.${encodeURIComponent(shopId + '_PROD_%')}&select=*&order=id.asc`;
+                for (let page = 0; page < 50; page++) {
+                    const from = page * PAGE_SIZE;
+                    const to = from + PAGE_SIZE - 1;
+                    const pageHeaders = Object.assign({}, this._getHeaders(), {
+                        'Range': `${from}-${to}`,
+                        'Range-Unit': 'items'
+                    });
+                    const remoteRes = await this._safeFetch(prodUrl, { headers: pageHeaders });
+                    if (remoteRes.status === 416 || !remoteRes.ok) break;
+                    const batchRows = await remoteRes.json();
+                    if (!Array.isArray(batchRows) || batchRows.length === 0) break;
+                    remoteRows.push(...batchRows);
+                    if (batchRows.length < PAGE_SIZE) break;
+                }
 
-                if (remoteRes.ok) {
-                    const remoteRows = await remoteRes.json();
-                    if (Array.isArray(remoteRows) && remoteRows.length > 0) {
-                        for (const remProd of remoteRows) {
-                            const rj = remProd.raw_json || {};
-                            const rowShopId = rj.shop_id || (remProd.id.startsWith(shopId + '_') ? shopId : null);
-                            if (rowShopId !== shopId) continue;
+                if (remoteRows.length > 0) {
+                    // فهارس بحث فورية O(1) لمنع البحث الخطي O(R × P)
+                    const pById = new Map();
+                    const pByBarcode = new Map();
+                    for (let idx = 0; idx < pList.length; idx++) {
+                        const lp = pList[idx];
+                        if (!lp) continue;
+                        pById.set(String(lp.id), lp);
+                        if (lp.barcode && String(lp.barcode).trim()) {
+                            pByBarcode.set(String(lp.barcode).trim(), lp);
+                        }
+                    }
 
-                            const rawLocalId = String(rj.localId || rj.id || remProd.id.replace(`${shopId}_PROD_`, ''));
-                            const remBarcode = String(remProd.barcode || '').trim();
+                    const productsToPersist = [];
 
-                            let localProd = pList.find(p => String(p.id) === rawLocalId);
-                            if (!localProd && remBarcode) {
-                                localProd = pList.find(p => p.barcode && String(p.barcode).trim() === remBarcode);
-                            }
+                    for (const remProd of remoteRows) {
+                        const rj = remProd.raw_json || {};
+                        const rowShopId = rj.shop_id || (remProd.id.startsWith(shopId + '_') ? shopId : null);
+                        if (rowShopId !== shopId) continue;
 
-                            // أ) صنف جديد غير موجود محلياً: إضافة فورية
-                            if (!localProd) {
-                                const numId = Number(rawLocalId) || (Date.now() + Math.floor(Math.random() * 1000));
-                                const mappedProd = {
-                                    id: numId,
-                                    name: remProd.name || rj.name || 'صنف جديد',
-                                    barcode: remProd.barcode || rj.barcode || String(numId),
-                                    category: remProd.category || rj.category || 'عام',
-                                    unit: remProd.unit || rj.unit || 'قطعة',
-                                    cost: parseFloat(remProd.cost || rj.cost || 0),
-                                    price: parseFloat(remProd.price || rj.price || 0),
-                                    wholesale: parseFloat(remProd.wholesale || rj.wholesale || 0),
-                                    stock: parseFloat(remProd.stock || rj.stock || 0),
-                                    variants: Array.isArray(rj.variants) ? rj.variants : [],
-                                    ...rj
-                                };
-                                pList.unshift(mappedProd);
-                                prodFps.set(String(mappedProd.id), getProdFp(mappedProd));
-                                if (window.sqliteManager && typeof window.sqliteManager.put === 'function') {
-                                    try { window.sqliteManager.put('products', mappedProd); } catch (e) { }
-                                }
-                                hasUpdatedLocalProducts = true;
-                                newImportedCount++;
-                            }
-                            // ب) صنف موجود محلياً: فحص وتحديث بياناته الأساسية مع حماية رصيد المخزن من التضارب والدبلرة
-                            else {
-                                const remPrice = parseFloat(remProd.price || 0);
-                                const remCost = parseFloat(remProd.cost || 0);
-                                const remStock = parseFloat(remProd.stock || 0);
-                                const remWholesale = parseFloat(remProd.wholesale || 0);
-                                const remName = remProd.name || localProd.name;
+                        const rawLocalId = String(rj.localId || rj.id || remProd.id.replace(`${shopId}_PROD_`, ''));
+                        const remBarcode = String(remProd.barcode || '').trim();
 
-                                let changed = false;
-                                if (localProd.name !== remName && remName) { localProd.name = remName; changed = true; }
-                                if (Math.abs((parseFloat(localProd.price) || 0) - remPrice) > 0.001 && remPrice > 0) { localProd.price = remPrice; changed = true; }
-                                if (Math.abs((parseFloat(localProd.cost) || 0) - remCost) > 0.001) { localProd.cost = remCost; changed = true; }
-                                if (Math.abs((parseFloat(localProd.wholesale) || 0) - remWholesale) > 0.001) { localProd.wholesale = remWholesale; changed = true; }
-
-                                // 🛡️ حماية المخزون من التضارب (Stock Protection & Anti-Overwrite):
-                                // لا يتم استبدال رصيد المخزن عشوائياً إذا كانت المبيعات تخصم عبر pullRemoteTransactions،
-                                // بل يتم تطبيق رصيد السحابة فقط في حالة التسويات الجردية المعتمدة الصريحة
-                                const remUpdatedAt = remProd.updated_at ? new Date(remProd.updated_at).getTime() : 0;
-                                const localUpdatedAt = localProd.updatedAt ? new Date(localProd.updatedAt).getTime() : 0;
-                                const isExplicitStockAdjustment = Boolean(
-                                    rj.isStockAdjustment ||
-                                    rj.isInventoryAudit ||
-                                    (remUpdatedAt > (localUpdatedAt + 60000) && rj.isManualStockUpdate)
-                                );
-
-                                if (isExplicitStockAdjustment && Math.abs((parseFloat(localProd.stock) || 0) - remStock) > 0.001) {
-                                    localProd.stock = remStock;
-                                    if (rj && Array.isArray(rj.variants) && rj.variants.length > 0) {
-                                        localProd.variants = rj.variants;
-                                    }
-                                    if (rj && rj.warehouseStocks && typeof rj.warehouseStocks === 'object') {
-                                        localProd.warehouseStocks = rj.warehouseStocks;
-                                    }
-                                    changed = true;
-                                }
-                                const remImg = remProd.image || rj.image || '';
-                                if (remImg && remImg !== localProd.image) {
-                                    localProd.image = remImg;
-                                    changed = true;
-                                }
-                                if (!(isExplicitStockAdjustment && Math.abs((parseFloat(localProd.stock) || 0) - remStock) > 0.001) && rj && Array.isArray(rj.variants) && rj.variants.length > 0) {
-                                    // دمج التشكيلات الجديدة فقط إن وجدت دون تغيير أرصدة التشكيلات المحلية الحالية
-                                    if (!Array.isArray(localProd.variants) || localProd.variants.length === 0) {
-                                        localProd.variants = rj.variants;
-                                        changed = true;
-                                    } else {
-                                        const cleanV = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
-                                        rj.variants.forEach(rv => {
-                                            const rvSize = cleanV(rv.size);
-                                            const rvColor = cleanV(rv.color);
-                                            const exists = localProd.variants.some(lv => cleanV(lv.size) === rvSize && cleanV(lv.color) === rvColor);
-                                            if (!exists) {
-                                                localProd.variants.push(rv);
-                                                changed = true;
-                                            }
-                                        });
-                                    }
-                                }
-
-                                if (changed) {
-                                    localProd.updatedAt = remProd.updated_at || new Date().toISOString();
-                                    if (window.sqliteManager && typeof window.sqliteManager.put === 'function') {
-                                        try { window.sqliteManager.put('products', localProd); } catch (e) { }
-                                    }
-                                    prodFps.set(String(localProd.id), getProdFp(localProd));
-                                    hasUpdatedLocalProducts = true;
-                                    updatedLocalCount++;
-                                }
-                            }
+                        let localProd = pById.get(rawLocalId);
+                        if (!localProd && remBarcode) {
+                            localProd = pByBarcode.get(remBarcode);
                         }
 
-                        if (hasUpdatedLocalProducts) {
-                            if (typeof renderProductsTable === 'function') renderProductsTable();
-                            if (typeof updateDashboardStats === 'function') updateDashboardStats();
-                            if (typeof showToast === 'function' && (newImportedCount > 0 || updatedLocalCount > 0)) {
-                                showToast(`👗 مزامنة الأصناف: تم استلام (${newImportedCount}) جديد وتحديث (${updatedLocalCount}) صنف بنجاح!`, 'info');
+                        // أ) صنف جديد غير موجود محلياً: إضافة فورية
+                        if (!localProd) {
+                            const numId = Number(rawLocalId) || (Date.now() + Math.floor(Math.random() * 1000));
+                            const mappedProd = {
+                                id: numId,
+                                name: remProd.name || rj.name || 'صنف جديد',
+                                barcode: remProd.barcode || rj.barcode || String(numId),
+                                category: remProd.category || rj.category || 'عام',
+                                unit: remProd.unit || rj.unit || 'قطعة',
+                                cost: parseFloat(remProd.cost || rj.cost || 0),
+                                price: parseFloat(remProd.price || rj.price || 0),
+                                wholesale: parseFloat(remProd.wholesale || rj.wholesale || 0),
+                                stock: parseFloat(remProd.stock || rj.stock || 0),
+                                variants: Array.isArray(rj.variants) ? rj.variants : [],
+                                ...rj
+                            };
+                            pList.unshift(mappedProd);
+                            pById.set(String(mappedProd.id), mappedProd);
+                            if (mappedProd.barcode) pByBarcode.set(String(mappedProd.barcode).trim(), mappedProd);
+                            prodFps.set(String(mappedProd.id), getProdFp(mappedProd));
+                            productsToPersist.push(mappedProd);
+                            hasUpdatedLocalProducts = true;
+                            newImportedCount++;
+                        }
+                        // ب) صنف موجود محلياً: فحص وتحديث بياناته الأساسية مع حماية رصيد المخزن من التضارب والدبلرة
+                        else {
+                            const remPrice = parseFloat(remProd.price || 0);
+                            const remCost = parseFloat(remProd.cost || 0);
+                            const remStock = parseFloat(remProd.stock || 0);
+                            const remWholesale = parseFloat(remProd.wholesale || 0);
+                            const remName = remProd.name || localProd.name;
+
+                            let changed = false;
+                            if (localProd.name !== remName && remName) { localProd.name = remName; changed = true; }
+                            if (Math.abs((parseFloat(localProd.price) || 0) - remPrice) > 0.001 && remPrice > 0) { localProd.price = remPrice; changed = true; }
+                            if (Math.abs((parseFloat(localProd.cost) || 0) - remCost) > 0.001) { localProd.cost = remCost; changed = true; }
+                            if (Math.abs((parseFloat(localProd.wholesale) || 0) - remWholesale) > 0.001) { localProd.wholesale = remWholesale; changed = true; }
+
+                            const remUpdatedAt = remProd.updated_at ? new Date(remProd.updated_at).getTime() : 0;
+                            const localUpdatedAt = localProd.updatedAt ? new Date(localProd.updatedAt).getTime() : 0;
+                            const isExplicitStockAdjustment = Boolean(
+                                rj.isStockAdjustment ||
+                                rj.isInventoryAudit ||
+                                (remUpdatedAt > (localUpdatedAt + 60000) && rj.isManualStockUpdate)
+                            );
+
+                            if (isExplicitStockAdjustment && Math.abs((parseFloat(localProd.stock) || 0) - remStock) > 0.001) {
+                                localProd.stock = remStock;
+                                if (rj && Array.isArray(rj.variants) && rj.variants.length > 0) {
+                                    localProd.variants = rj.variants;
+                                }
+                                if (rj && rj.warehouseStocks && typeof rj.warehouseStocks === 'object') {
+                                    localProd.warehouseStocks = rj.warehouseStocks;
+                                }
+                                changed = true;
                             }
+                            const remImg = remProd.image || rj.image || '';
+                            if (remImg && remImg !== localProd.image) {
+                                localProd.image = remImg;
+                                changed = true;
+                            }
+                            if (!(isExplicitStockAdjustment && Math.abs((parseFloat(localProd.stock) || 0) - remStock) > 0.001) && rj && Array.isArray(rj.variants) && rj.variants.length > 0) {
+                                if (!Array.isArray(localProd.variants) || localProd.variants.length === 0) {
+                                    localProd.variants = rj.variants;
+                                    changed = true;
+                                } else {
+                                    const cleanV = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+                                    rj.variants.forEach(rv => {
+                                        const rvSize = cleanV(rv.size);
+                                        const rvColor = cleanV(rv.color);
+                                        const exists = localProd.variants.some(lv => cleanV(lv.size) === rvSize && cleanV(lv.color) === rvColor);
+                                        if (!exists) {
+                                            localProd.variants.push(rv);
+                                            changed = true;
+                                        }
+                                    });
+                                }
+                            }
+
+                            if (changed) {
+                                localProd.updatedAt = remProd.updated_at || new Date().toISOString();
+                                productsToPersist.push(localProd);
+                                prodFps.set(String(localProd.id), getProdFp(localProd));
+                                hasUpdatedLocalProducts = true;
+                                updatedLocalCount++;
+                            }
+                        }
+                    }
+
+                    // ⚡ حفظ كافة الأصناف المحدثة والجديدة في معاملة SQLite واحدة (Zero N+1)
+                    if (productsToPersist.length > 0 && window.sqliteManager && typeof window.sqliteManager.put === 'function') {
+                        const saveAllProds = () => {
+                            for (const prodObj of productsToPersist) {
+                                try { window.sqliteManager.put('products', prodObj); } catch (e) { }
+                            }
+                        };
+                        if (typeof window.sqliteManager.runInTransaction === 'function') {
+                            window.sqliteManager.runInTransaction(saveAllProds);
+                        } else {
+                            saveAllProds();
+                        }
+                    }
+
+                    if (hasUpdatedLocalProducts) {
+                        if (typeof renderProductsTable === 'function') renderProductsTable();
+                        if (typeof updateDashboardStats === 'function') updateDashboardStats();
+                        if (typeof showToast === 'function' && (newImportedCount > 0 || updatedLocalCount > 0)) {
+                            showToast(`👗 مزامنة الأصناف: تم استلام (${newImportedCount}) جديد وتحديث (${updatedLocalCount}) صنف بنجاح!`, 'info');
                         }
                     }
                 }
@@ -1143,17 +1436,78 @@
                 const modifiedProductsList = [];
                 const affectedAccountsList = [];
 
+                // ⚡ فهرسة الذاكرة المحلية مرة واحدة O(N) + استعلام SQLite واحد مجمع لمنع N+1 تماماً
+                const shopPrefixRe = new RegExp(`^${shopId}_(DESK_|MOB_)?`, 'i');
+                const cleanInvId = (id) => String(id || '').replace(shopPrefixRe, '').replace(/^#/, '').trim();
+
+                const localByInvId = new Map();
+                const localByIdOrRemote = new Map();
+                const localFingerprints = new Set();
+
+                for (let idx = 0; idx < localTx.length; idx++) {
+                    const t = localTx[idx];
+                    if (!t) continue;
+                    if (t.remoteId) localByIdOrRemote.set(String(t.remoteId), t);
+                    if (t.id) localByIdOrRemote.set(String(t.id), t);
+                    const tInv = cleanInvId(t.invoiceId || t.id);
+                    if (tInv && !localByInvId.has(tInv)) localByInvId.set(tInv, t);
+
+                    const tDate = t.dateISO || (t.date ? String(t.date).slice(0, 10) : '');
+                    const tTotal = Math.round((parseFloat(t.invoiceGrandTotal || t.total) || 0) * 100);
+                    if (tDate && tTotal > 0) {
+                        const tPartner = String(t.partner || '').trim().toLowerCase();
+                        const tType = String(t.type || '').trim();
+                        localFingerprints.add(`${tDate}|${tTotal}|${tPartner}|${tType}`);
+                    }
+                }
+
+                // استعلام SQLite واحد فقط لفحص كل معرفات الفواتير السحابية دفعة واحدة بدلاً من N استعلام
+                const existingInDbSet = new Set();
+                if (window.sqliteManager && window.sqliteManager.db) {
+                    const lookupKeys = new Set();
+                    for (const it of remoteList) {
+                        if (!it) continue;
+                        const raw = it.raw_json || {};
+                        const cId = cleanInvId(it.invoice_id || raw.invoiceId || it.id);
+                        if (cId) lookupKeys.add(cId);
+                        if (it.id) lookupKeys.add(String(it.id));
+                        if (it.invoice_id) lookupKeys.add(String(it.invoice_id));
+                    }
+                    const keyArr = Array.from(lookupKeys);
+                    if (keyArr.length > 0) {
+                        try {
+                            const CHUNK = 200;
+                            for (let ci = 0; ci < keyArr.length; ci += CHUNK) {
+                                const sub = keyArr.slice(ci, ci + CHUNK);
+                                const ph = sub.map(() => '?').join(',');
+                                const sql = `SELECT invoiceId, id FROM transactions WHERE invoiceId IN (${ph}) OR id IN (${ph});`;
+                                const params = [...sub, ...sub];
+                                if (window.sqliteManager.nativeDb) {
+                                    const dbRows = window.sqliteManager.nativeDb.prepare(sql).all(...params);
+                                    for (const r of dbRows) {
+                                        if (r.invoiceId) existingInDbSet.add(String(r.invoiceId));
+                                        if (r.id) existingInDbSet.add(String(r.id));
+                                    }
+                                } else {
+                                    const stmt = window.sqliteManager.db.prepare(sql);
+                                    stmt.bind(params);
+                                    while (stmt.step()) {
+                                        const r = stmt.getAsObject();
+                                        if (r.invoiceId) existingInDbSet.add(String(r.invoiceId));
+                                        if (r.id) existingInDbSet.add(String(r.id));
+                                    }
+                                    stmt.free();
+                                }
+                            }
+                        } catch (dbChkErr) { }
+                    }
+                }
+
                 remoteList.forEach(item => {
                     const raw = item.raw_json || {};
                     const itemShopId = raw.shop_id || (item.id && item.id.startsWith(shopId + '_') ? shopId : null);
                     // 🔒 عزل المتاجر الصارم: رفض أي حركة لا تنتمي للمحل
                     if (itemShopId !== shopId || (raw.shop_id && raw.shop_id !== shopId)) return;
-
-                    // استخراج معرف الفاتورة النظيف ومقارنته بالمحلي
-                    const cleanInvId = (id) => String(id || '')
-                        .replace(new RegExp(`^${shopId}_(DESK_|MOB_)?`, 'i'), '')
-                        .replace(/^#/, '')
-                        .trim();
 
                     const invId = cleanInvId(item.invoice_id || raw.invoiceId || item.id);
                     if (!invId) return;
@@ -1161,65 +1515,34 @@
                     // 🔒 تخطي الحركات الصادرة من هذا الجهاز إذا كانت مسجلة بالفعل محلياً
                     const isDeskRemote = String(item.id).includes('_DESK_');
                     if (isDeskRemote && (raw.source === 'desktop' || raw.terminalLetter === 'D')) {
-                        const isOwnTx = localTx.some(t => {
-                            const tInv = cleanInvId(t.invoiceId || t.id);
-                            return tInv === invId || (t.id && String(t.id) === String(item.id));
-                        });
-                        if (isOwnTx) return;
+                        if (localByInvId.has(invId) || localByIdOrRemote.has(String(item.id))) return;
                     }
 
-                    // 🛡️ فحص عدم التكرار المتقدم (Multi-Layer De-Duplication)
-                    // 1. الفحص في الذاكرة الحية (مع تطابق البصمة المالية)
-                    const alreadyExistsInMemory = localTx.some(t => {
-                        if (!t) return false;
-                        if (t.remoteId && String(t.remoteId) === String(item.id)) return true;
-                        if (t.id && String(t.id) === String(item.id)) return true;
+                    // 🛡️ فحص عدم التكرار الفوري O(1) بالذاكرة ونتائج استعلام SQLite المجمّع
+                    const rDate = item.date_iso ? String(item.date_iso).slice(0, 10) : (raw.dateISO || (raw.date ? String(raw.date).slice(0, 10) : ''));
+                    const rTotal = Math.round((parseFloat(item.total !== undefined ? item.total : raw.total) || 0) * 100);
+                    const rPartner = String(item.partner || raw.partner || '').trim().toLowerCase();
+                    const rType = String(item.type || raw.type || '').trim();
+                    const fp = (rDate && rTotal > 0) ? `${rDate}|${rTotal}|${rPartner}|${rType}` : '';
 
-                        const tInv = cleanInvId(t.invoiceId || t.id);
-                        if (tInv && tInv === invId) return true;
-                        if (item.invoice_id && cleanInvId(item.invoice_id) === tInv) return true;
+                    const alreadyExistsInMemory = Boolean(
+                        localByIdOrRemote.has(String(item.id)) ||
+                        localByInvId.has(invId) ||
+                        (item.invoice_id && localByInvId.has(cleanInvId(item.invoice_id))) ||
+                        (fp && localFingerprints.has(fp))
+                    );
 
-                        // مطابقة البصمة المالية (Financial Fingerprint Matching)
-                        const tDate = t.dateISO || (t.date ? String(t.date).slice(0, 10) : '');
-                        const rDate = item.date_iso ? String(item.date_iso).slice(0, 10) : (raw.dateISO || (raw.date ? String(raw.date).slice(0, 10) : ''));
-                        const tTotal = Math.round((parseFloat(t.invoiceGrandTotal || t.total) || 0) * 100);
-                        const rTotal = Math.round((parseFloat(item.total !== undefined ? item.total : raw.total) || 0) * 100);
-                        const tPartner = String(t.partner || '').trim().toLowerCase();
-                        const rPartner = String(item.partner || raw.partner || '').trim().toLowerCase();
-                        const tType = String(t.type || '').trim();
-                        const rType = String(item.type || raw.type || '').trim();
-
-                        if (tDate && rDate && tDate === rDate && tTotal === rTotal && tTotal > 0 && tPartner === rPartner && tType === rType) {
-                            return true;
-                        }
-                        return false;
-                    });
-
-                    // 2. الفحص المباشر في قاعدة بيانات SQLite لتفادي أي فواتير غير محملة في الذاكرة
-                    let alreadyExistsInDB = false;
-                    if (!alreadyExistsInMemory && window.sqliteManager && window.sqliteManager.db) {
-                        try {
-                            if (window.sqliteManager.nativeDb) {
-                                const row = window.sqliteManager.nativeDb.prepare(
-                                    `SELECT 1 FROM transactions WHERE invoiceId = ? OR id = ? OR invoiceId = ? LIMIT 1;`
-                                ).get(invId, item.id, item.invoice_id || '');
-                                if (row) alreadyExistsInDB = true;
-                            } else {
-                                const stmt = window.sqliteManager.db.prepare(
-                                    `SELECT 1 FROM transactions WHERE invoiceId = ? OR id = ? OR invoiceId = ? LIMIT 1;`
-                                );
-                                stmt.bind([invId, item.id, item.invoice_id || '']);
-                                if (stmt.step()) alreadyExistsInDB = true;
-                                stmt.free();
-                            }
-                        } catch (dbChkErr) { }
-                    }
+                    const alreadyExistsInDB = Boolean(
+                        existingInDbSet.has(invId) ||
+                        existingInDbSet.has(String(item.id)) ||
+                        (item.invoice_id && existingInDbSet.has(String(item.invoice_id)))
+                    );
 
                     const alreadyExists = alreadyExistsInMemory || alreadyExistsInDB;
                     let isNewerRemoteRevision = false;
                     if (alreadyExists && invId) {
                         const remUpdatedAt = item.updated_at ? new Date(item.updated_at).getTime() : (raw.updatedAt ? new Date(raw.updatedAt).getTime() : 0);
-                        const localMatch = localTx.find(t => t && String(t.invoiceId) === String(invId));
+                        const localMatch = localByInvId.get(invId) || localByIdOrRemote.get(String(item.id));
                         const localUpdatedAt = localMatch ? new Date(localMatch.updatedAt || localMatch.dateISO || 0).getTime() : 0;
                         if (remUpdatedAt > (localUpdatedAt + 2000)) {
                             isNewerRemoteRevision = true;
@@ -1695,6 +2018,13 @@
                             : (Array.isArray(shopRow.raw_json.customers) ? shopRow.raw_json.customers : []);
 
                         const cleanArFn = (s) => String(s || '').trim().toLowerCase().replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/[ىي]/g, 'ي').replace(/\s+/g, ' ');
+                        const accByCleanName = new Map();
+                        for (let idx = 0; idx < accList.length; idx++) {
+                            const a = accList[idx];
+                            if (a && a.name) accByCleanName.set(cleanArFn(a.name), a);
+                        }
+
+                        const accountsToPersist = [];
                         let accChanges = false;
 
                         for (const rAcc of remoteAccs) {
@@ -1703,7 +2033,8 @@
                             if (typeof window.isDemoAccount === 'function' && window.isDemoAccount(rAcc.name, rAcc.code)) {
                                 continue;
                             }
-                            const existing = accList.find(a => cleanArFn(a.name) === cleanArFn(rAcc.name));
+                            const key = cleanArFn(rAcc.name);
+                            const existing = accByCleanName.get(key);
                             if (!existing) {
                                 const newId = Number(rAcc.id) || (Date.now() + Math.floor(Math.random() * 1000));
                                 const toAdd = {
@@ -1718,9 +2049,8 @@
                                     balance: rAcc.balance || 0
                                 };
                                 accList.push(toAdd);
-                                if (window.db && window.db.accounts) {
-                                    try { await window.db.accounts.put(toAdd); } catch (e) { }
-                                }
+                                accByCleanName.set(key, toAdd);
+                                accountsToPersist.push(toAdd);
                                 accChanges = true;
                             } else {
                                 // تحديث الهاتف أو العنوان أو الكود إذا كان أحدث بالسحابة
@@ -1729,11 +2059,32 @@
                                 if (rAcc.address && rAcc.address !== existing.address) { existing.address = rAcc.address; updated = true; }
                                 if (rAcc.code && !existing.code) { existing.code = rAcc.code; updated = true; }
                                 if (updated) {
-                                    if (window.db && window.db.accounts) {
-                                        try { await window.db.accounts.put(existing); } catch (e) { }
-                                    }
+                                    accountsToPersist.push(existing);
                                     accChanges = true;
                                 }
+                            }
+                        }
+
+                        // ⚡ حفظ كافة العملاء المضافين/المحدثين في معاملة مجمّعة واحدة (Zero N+1)
+                        if (accountsToPersist.length > 0) {
+                            if (window.sqliteManager && typeof window.sqliteManager.runInTransaction === 'function' && typeof window.sqliteManager.put === 'function') {
+                                try {
+                                    window.sqliteManager.runInTransaction(() => {
+                                        for (const accObj of accountsToPersist) {
+                                            window.sqliteManager.put('accounts', accObj);
+                                        }
+                                    });
+                                } catch (e) { }
+                            } else if (window.db && window.db.accounts) {
+                                try {
+                                    if (typeof window.db.accounts.bulkPut === 'function') {
+                                        await window.db.accounts.bulkPut(accountsToPersist);
+                                    } else {
+                                        for (const accObj of accountsToPersist) {
+                                            await window.db.accounts.put(accObj);
+                                        }
+                                    }
+                                } catch (e) { }
                             }
                         }
 
