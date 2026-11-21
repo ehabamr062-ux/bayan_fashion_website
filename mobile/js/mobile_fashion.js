@@ -1556,14 +1556,9 @@
             return d && d >= startISO && d <= endISO;
         });
 
-        // احتساب الكاش المعروض:
-        // لليوم: كاش الدرج الفعلي التراكمي
-        // للفترات السابقة: صافي النقدية المتحصلة خلال الفترة نفسها
-        const isTodayPeriod = (State.dashboardPeriod === 'today');
+        // احتساب الكاش المعروض: صافي النقدية المتحصلة خلال الفترة المحددة فقط (اليوم بيومه)
         const netCashPeriod = (cashSales - cashReturns - expenses);
-        const displayedDrawerCash = isTodayPeriod
-            ? (netDrawerCashAllTime !== 0 ? netDrawerCashAllTime : Math.max(0, netCashPeriod))
-            : netCashPeriod;
+        const displayedDrawerCash = netCashPeriod;
 
         return {
             netDrawerCash: displayedDrawerCash,
