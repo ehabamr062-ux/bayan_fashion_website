@@ -566,11 +566,11 @@
     }
 
     // ============================================================
-    // 🗄️ INDEXEDDB ENGINE WITH HIGH-SPEED INDEXES (MobileIDB)
+    // 🗄️ INDEXEDDB ENGINE WITH HIGH-SPEED INDEXES (MobileIDB v3)
     // ============================================================
     const MobileIDB = {
         dbName: 'BayanMobilePOS_DB',
-        version: 2,
+        version: 3,
         _db: null,
         open: function () {
             if (this._db) return Promise.resolve(this._db);
@@ -593,11 +593,41 @@
                                 }
                             });
                         };
-                        ensureStore('products', [['idx_shop_id', 'shop_id'], ['idx_updated_at', 'updated_at'], ['idx_barcode', 'barcode'], ['idx_name', 'name']]);
-                        ensureStore('transactions', [['idx_shop_id', 'shop_id'], ['idx_updated_at', 'updated_at'], ['idx_invoiceId', 'invoiceId'], ['idx_dateISO', 'dateISO']]);
-                        ensureStore('accounts', [['idx_shop_id', 'shop_id'], ['idx_updated_at', 'updated_at'], ['idx_name', 'name']]);
-                        ensureStore('warehouses', [['idx_shop_id', 'shop_id'], ['idx_updated_at', 'updated_at'], ['idx_name', 'name']]);
-                        ensureStore('treasury_audit', [['idx_shop_id', 'shop_id'], ['idx_updated_at', 'updated_at'], ['idx_date', 'date']]);
+                        ensureStore('products', [
+                            ['idx_shop_id', 'shop_id'],
+                            ['idx_updated_at', 'updated_at'],
+                            ['idx_barcode', 'barcode'],
+                            ['idx_name', 'name'],
+                            ['idx_category', 'category']
+                        ]);
+                        ensureStore('transactions', [
+                            ['idx_shop_id', 'shop_id'],
+                            ['idx_updated_at', 'updated_at'],
+                            ['idx_invoiceId', 'invoiceId'],
+                            ['idx_dateISO', 'dateISO'],
+                            ['idx_partner', 'partner'],
+                            ['idx_type', 'type']
+                        ]);
+                        ensureStore('accounts', [
+                            ['idx_shop_id', 'shop_id'],
+                            ['idx_updated_at', 'updated_at'],
+                            ['idx_name', 'name'],
+                            ['idx_mobile', 'mobile'],
+                            ['idx_type', 'type']
+                        ]);
+                        ensureStore('warehouses', [
+                            ['idx_shop_id', 'shop_id'],
+                            ['idx_updated_at', 'updated_at'],
+                            ['idx_name', 'name']
+                        ]);
+                        ensureStore('treasury_audit', [
+                            ['idx_shop_id', 'shop_id'],
+                            ['idx_updated_at', 'updated_at'],
+                            ['idx_date', 'date']
+                        ]);
+                        ensureStore('offline_queue', [
+                            ['idx_createdAt', 'createdAt']
+                        ]);
                     };
                     req.onsuccess = (ev) => { this._db = ev.target.result; resolve(this._db); };
                     req.onerror = () => resolve(null);
@@ -622,8 +652,115 @@
                     tx.onerror = () => resolve(false);
                 } catch (_) { resolve(false); }
             });
+        },
+        getAll: async function (storeName, shopId) {
+            const db = await this.open();
+            if (!db) return [];
+            return new Promise((resolve) => {
+                try {
+                    const tx = db.transaction(storeName, 'readonly');
+                    const store = tx.objectStore(storeName);
+                    let req;
+                    if (shopId && store.indexNames.contains('idx_shop_id')) {
+                        req = store.index('idx_shop_id').getAll(IDBKeyRange.only(String(shopId)));
+                    } else {
+                        req = store.getAll();
+                    }
+                    req.onsuccess = () => resolve(Array.isArray(req.result) ? req.result : []);
+                    req.onerror = () => resolve([]);
+                } catch (_) { resolve([]); }
+            });
+        },
+        getByIndex: async function (storeName, indexName, value) {
+            const db = await this.open();
+            if (!db) return [];
+            return new Promise((resolve) => {
+                try {
+                    const tx = db.transaction(storeName, 'readonly');
+                    const store = tx.objectStore(storeName);
+                    if (!store.indexNames.contains(indexName)) return resolve([]);
+                    const req = store.index(indexName).getAll(IDBKeyRange.only(value));
+                    req.onsuccess = () => resolve(Array.isArray(req.result) ? req.result : []);
+                    req.onerror = () => resolve([]);
+                } catch (_) { resolve([]); }
+            });
         }
     };
+
+    // 🧩 دوال مساعدة موحدة (DRY) لتحويل الفواتير وحساب سعر المتغير وتجهيز صفوف الأصناف
+    function mapSupabaseTxRow(row, currentShopId) {
+        const raw = row.raw_json || {};
+        const fallbackDate = row.created_at ? parseDateToISO(row.created_at) : getTodayISO();
+        const txDate = row.date_iso || raw.dateISO || raw.date || fallbackDate;
+        const parsedDateISO = parseDateToISO(txDate) || fallbackDate;
+        const txTime = row.time || raw.time || (row.created_at ? new Date(row.created_at).toTimeString().slice(0, 5) : '12:00');
+        const totVal = parseFloat(row.total !== undefined ? row.total : (raw.total !== undefined ? raw.total : (raw.invoiceGrandTotal || 0))) || 0;
+        const paidVal = parseFloat(row.paid_amount !== undefined ? row.paid_amount : (raw.paidAmount !== undefined ? raw.paidAmount : (raw.paid || totVal))) || 0;
+        const cleanInvId = String(row.invoice_id || raw.invoiceId || row.id || '').replace(`${currentShopId}_`, '');
+
+        return {
+            id: String(row.id || raw.id || Math.random().toString(36).substring(2, 9)),
+            invoiceId: cleanInvId,
+            dateISO: parsedDateISO,
+            timeISO: txTime,
+            type: row.type || raw.type || 'مبيعات',
+            partner: row.partner || raw.partner || 'عميل نقدي',
+            total: totVal,
+            invoiceGrandTotal: totVal,
+            paidAmount: paidVal,
+            remaining: parseFloat(row.remaining !== undefined ? row.remaining : (raw.remaining || 0)) || 0,
+            method: row.method || raw.method || 'كاش',
+            cashier: row.cashier || raw.cashier || 'المدير',
+            items: Array.isArray(raw.items) ? raw.items : [],
+            isInvoiceHead: (raw.isInvoiceHead !== undefined ? Boolean(raw.isInvoiceHead) : true),
+            ...raw
+        };
+    }
+
+    function getVariantPrice(product, size = '', color = '', customPrice) {
+        let finalPrice = (customPrice !== undefined && !isNaN(customPrice) && customPrice > 0)
+            ? customPrice
+            : parseFloat(product.price || product.salePrice || 0);
+        if ((customPrice === undefined || customPrice <= 0) && Array.isArray(product.variants) && product.variants.length > 0) {
+            const v = product.variants.find(item =>
+                (!size || String(item.size || '').trim().toLowerCase() === String(size || '').trim().toLowerCase()) &&
+                (!color || String(item.color || '').trim().toLowerCase() === String(color || '').trim().toLowerCase())
+            );
+            if (v) {
+                const vPrice = parseFloat(v.price !== undefined ? v.price : (v.salePrice || 0));
+                if (!isNaN(vPrice) && vPrice > 0) finalPrice = vPrice;
+            }
+        }
+        return finalPrice;
+    }
+
+    function buildSupabaseProductRow(p, currentShopId, extraRaw = {}) {
+        const nowIso = new Date().toISOString();
+        const stockVal = parseFloat(p.stock !== undefined ? p.stock : (p.quantity || 0));
+        return {
+            id: `${currentShopId}_PROD_${p.id}`,
+            name: p.name || 'صنف',
+            barcode: p.barcode || '',
+            category: p.category || 'عام',
+            unit: p.unit || 'قطعة',
+            price: parseFloat(p.price || 0),
+            cost: parseFloat(p.cost || 0),
+            wholesale: parseFloat(p.wholesale || 0),
+            stock: stockVal,
+            image: p.image || null,
+            raw_json: {
+                ...(p.raw_json || {}),
+                ...p,
+                localId: p.id,
+                shop_id: currentShopId,
+                stock: stockVal,
+                variants: p.variants || [],
+                warehouseStocks: p.warehouseStocks || {},
+                ...extraRaw
+            },
+            updated_at: nowIso
+        };
+    }
 
     // 📷 محلل مرن لجميع صيغ QR الاقتران (URL / JSON / SHOP_ID|PIN / SHOP_ID:PIN)
     function parsePairingQrPayload(rawText) {
@@ -887,34 +1024,7 @@
                     return rowShopId === currentShopId;
                 });
 
-                State.transactions = myTxs.map(row => {
-                    const raw = row.raw_json || {};
-                    const fallbackDate = row.created_at ? parseDateToISO(row.created_at) : getTodayISO();
-                    const txDate = row.date_iso || raw.dateISO || raw.date || fallbackDate;
-                    const parsedDateISO = parseDateToISO(txDate) || fallbackDate;
-                    const txTime = row.time || raw.time || (row.created_at ? new Date(row.created_at).toTimeString().slice(0, 5) : '12:00');
-                    const totVal = parseFloat(row.total !== undefined ? row.total : (raw.total !== undefined ? raw.total : (raw.invoiceGrandTotal || 0))) || 0;
-                    const paidVal = parseFloat(row.paid_amount !== undefined ? row.paid_amount : (raw.paidAmount !== undefined ? raw.paidAmount : (raw.paid || totVal))) || 0;
-                    const cleanInvId = String(row.invoice_id || raw.invoiceId || row.id || '').replace(`${currentShopId}_`, '');
-
-                    return {
-                        id: String(row.id || raw.id || Math.random().toString(36).substring(2, 9)),
-                        invoiceId: cleanInvId,
-                        dateISO: parsedDateISO,
-                        timeISO: txTime,
-                        type: row.type || raw.type || 'مبيعات',
-                        partner: row.partner || raw.partner || 'عميل نقدي',
-                        total: totVal,
-                        invoiceGrandTotal: totVal,
-                        paidAmount: paidVal,
-                        remaining: parseFloat(row.remaining !== undefined ? row.remaining : (raw.remaining || 0)) || 0,
-                        method: row.method || raw.method || 'كاش',
-                        cashier: row.cashier || raw.cashier || 'المدير',
-                        items: Array.isArray(raw.items) ? raw.items : [],
-                        isInvoiceHead: (raw.isInvoiceHead !== undefined ? Boolean(raw.isInvoiceHead) : true),
-                        ...raw
-                    };
-                });
+                State.transactions = myTxs.map(row => mapSupabaseTxRow(row, currentShopId));
                 try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (e) { }
                 MobileIDB.putMany('transactions', State.transactions, currentShopId).catch(() => { });
 
@@ -1374,34 +1484,7 @@
                         return rowShopId === currentShopId;
                     });
 
-                    const mapped = shopRows.map(row => {
-                        const raw = row.raw_json || {};
-                        const fallbackDate = row.created_at ? parseDateToISO(row.created_at) : getTodayISO();
-                        const txDate = row.date_iso || raw.dateISO || raw.date || fallbackDate;
-                        const parsedDateISO = parseDateToISO(txDate) || fallbackDate;
-                        const txTime = row.time || raw.time || (row.created_at ? new Date(row.created_at).toTimeString().slice(0, 5) : '12:00');
-                        const totVal = parseFloat(row.total !== undefined ? row.total : (raw.total !== undefined ? raw.total : (raw.invoiceGrandTotal || 0))) || 0;
-                        const paidVal = parseFloat(row.paid_amount !== undefined ? row.paid_amount : (raw.paidAmount !== undefined ? raw.paidAmount : (raw.paid || totVal))) || 0;
-                        const cleanInvId = String(row.invoice_id || raw.invoiceId || row.id || '').replace(`${currentShopId}_`, '');
-
-                        return {
-                            id: String(row.id || raw.id),
-                            invoiceId: cleanInvId,
-                            dateISO: parsedDateISO,
-                            timeISO: txTime,
-                            type: row.type || raw.type || 'مبيعات',
-                            partner: row.partner || raw.partner || 'عميل نقدي',
-                            total: totVal,
-                            invoiceGrandTotal: totVal,
-                            paidAmount: paidVal,
-                            remaining: parseFloat(row.remaining !== undefined ? row.remaining : (raw.remaining || 0)) || 0,
-                            method: row.method || raw.method || 'كاش',
-                            cashier: row.cashier || raw.cashier || 'المدير',
-                            items: Array.isArray(raw.items) ? raw.items : [],
-                            isInvoiceHead: (raw.isInvoiceHead !== undefined ? Boolean(raw.isInvoiceHead) : true),
-                            ...raw
-                        };
-                    });
+                    const mapped = shopRows.map(row => mapSupabaseTxRow(row, currentShopId));
 
                     const existingIds = new Set(State.transactions.map(t => String(t.invoiceId || t.id)));
                     let newCount = 0;
@@ -2046,22 +2129,7 @@
             return;
         }
 
-        let itemPrice = (customPrice !== undefined && !isNaN(customPrice) && customPrice > 0)
-            ? customPrice
-            : parseFloat(product.price || product.salePrice || 0);
-
-        if ((customPrice === undefined || customPrice <= 0) && Array.isArray(product.variants) && product.variants.length > 0) {
-            const v = product.variants.find(item =>
-                (!size || String(item.size || '').trim().toLowerCase() === String(size || '').trim().toLowerCase()) &&
-                (!color || String(item.color || '').trim().toLowerCase() === String(color || '').trim().toLowerCase())
-            );
-            if (v) {
-                const vPrice = parseFloat(v.price !== undefined ? v.price : (v.salePrice || 0));
-                if (!isNaN(vPrice) && vPrice > 0) {
-                    itemPrice = vPrice;
-                }
-            }
-        }
+        let itemPrice = getVariantPrice(product, size, color, customPrice);
 
         const cartKey = `${product.id}_${size}_${color}`;
         const existing = State.cart.find(item => item.key === cartKey);
@@ -2595,27 +2663,7 @@
 
             let prodBatch = [];
             if (updatedProductsList.length > 0) {
-                prodBatch = updatedProductsList.map(p => ({
-                    id: `${currentShopId}_PROD_${p.id}`,
-                    name: p.name || 'صنف',
-                    barcode: p.barcode || '',
-                    category: p.category || 'عام',
-                    unit: p.unit || 'قطعة',
-                    price: parseFloat(p.price || 0),
-                    cost: parseFloat(p.cost || 0),
-                    wholesale: parseFloat(p.wholesale || 0),
-                    stock: parseFloat(p.stock !== undefined ? p.stock : (p.quantity || 0)),
-                    raw_json: {
-                        ...(p.raw_json || {}),
-                        ...p,
-                        localId: p.id,
-                        shop_id: currentShopId,
-                        stock: parseFloat(p.stock !== undefined ? p.stock : (p.quantity || 0)),
-                        variants: p.variants || [],
-                        warehouseStocks: p.warehouseStocks || {}
-                    },
-                    updated_at: new Date().toISOString()
-                }));
+                prodBatch = updatedProductsList.map(p => buildSupabaseProductRow(p, currentShopId));
             }
 
             const queueItem = {
@@ -2846,20 +2894,7 @@
             return;
         }
 
-        // إذا كان المقاس المختار له سعر مخصص في التشكيلة (variant.price > 0) يتم اعتماده
-        let finalPrice = parseFloat(prod.price || prod.salePrice || 0);
-        if (Array.isArray(prod.variants) && prod.variants.length > 0) {
-            const v = prod.variants.find(item =>
-                (!size || String(item.size || '').trim().toLowerCase() === String(size || '').trim().toLowerCase()) &&
-                (!color || String(item.color || '').trim().toLowerCase() === String(color || '').trim().toLowerCase())
-            );
-            if (v) {
-                const vPrice = parseFloat(v.price !== undefined ? v.price : (v.salePrice || 0));
-                if (!isNaN(vPrice) && vPrice > 0) {
-                    finalPrice = vPrice;
-                }
-            }
-        }
+        const finalPrice = getVariantPrice(prod, size, color);
 
         addToCart(prod, size, color, 1, finalPrice);
         closeAddToCartModal();
@@ -2877,20 +2912,7 @@
             return;
         }
 
-        // إذا كان المقاس المختار له سعر مخصص في التشكيلة (variant.price > 0) يتم اعتماده
-        let finalPrice = parseFloat(prod.price || prod.salePrice || 0);
-        if (Array.isArray(prod.variants) && prod.variants.length > 0) {
-            const v = prod.variants.find(item =>
-                (!size || String(item.size || '').trim().toLowerCase() === String(size || '').trim().toLowerCase()) &&
-                (!color || String(item.color || '').trim().toLowerCase() === String(color || '').trim().toLowerCase())
-            );
-            if (v) {
-                const vPrice = parseFloat(v.price !== undefined ? v.price : (v.salePrice || 0));
-                if (!isNaN(vPrice) && vPrice > 0) {
-                    finalPrice = vPrice;
-                }
-            }
-        }
+        const finalPrice = getVariantPrice(prod, size, color);
 
         closeAddToCartModal();
 
@@ -3209,26 +3231,7 @@
             if (updatedProductsList.length > 0) {
                 const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
                 if (!isValidPairedShop(currentShopId)) return;
-                const prodBatch = updatedProductsList.map(p => ({
-                    id: `${currentShopId}_PROD_${p.id}`,
-                    name: p.name || 'صنف',
-                    barcode: p.barcode || '',
-                    category: p.category || 'عام',
-                    unit: p.unit || 'قطعة',
-                    price: parseFloat(p.price || 0),
-                    cost: parseFloat(p.cost || 0),
-                    wholesale: parseFloat(p.wholesale || 0),
-                    stock: parseFloat(p.stock !== undefined ? p.stock : (p.quantity || 0)),
-                    raw_json: {
-                        ...(p.raw_json || {}),
-                        ...p,
-                        shop_id: currentShopId,
-                        stock: parseFloat(p.stock !== undefined ? p.stock : (p.quantity || 0)),
-                        variants: p.variants || [],
-                        warehouseStocks: p.warehouseStocks || {}
-                    },
-                    updated_at: new Date().toISOString()
-                }));
+                const prodBatch = updatedProductsList.map(p => buildSupabaseProductRow(p, currentShopId));
                 await fetch(`${SUPABASE_CONFIG.url}/rest/v1/products?on_conflict=id`, {
                     method: 'POST',
                     headers: getSupabaseHeaders(),
@@ -5792,6 +5795,21 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                     enqueueOfflineItem({ id: 'CONFIG_CUSTOMERS_' + Date.now(), custPayload: payload, createdAt: new Date().toISOString() });
                     showToast(`✅ تم حفظ ${type === 'supplier' ? 'المورد' : 'العميل'} (${name}) محلياً وفي طابور المزامنة التلقائية ⚡`, 'info');
                 } else {
+                    // ترحيل لجدول accounts المخصص بجانب treasury_audit لتوحيد المزامنة
+                    const accRow = [{
+                        id: `${currentShopId}_ACC_${newAcc.id}`,
+                        shop_id: currentShopId,
+                        name: newAcc.name,
+                        raw_json: { ...newAcc, shop_id: currentShopId },
+                        updated_at: new Date().toISOString()
+                    }];
+                    fetch(`${SUPABASE_CONFIG.url}/rest/v1/accounts?on_conflict=id`, {
+                        method: 'POST',
+                        headers: getSupabaseHeaders(),
+                        body: JSON.stringify(accRow)
+                    }).catch(() => { });
+                    MobileIDB.putMany('accounts', [newAcc], currentShopId).catch(() => { });
+
                     fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?on_conflict=id`, {
                         method: 'POST',
                         headers: getSupabaseHeaders(),
@@ -5907,12 +5925,34 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
             });
         }
 
-        // Connect & Pull Initial Data مع حارس الإقران الصارم
+        // Connect & Pull Initial Data مع حارس الإقران الصارم + تحميل فوري من IndexedDB (Zero-Lag)
         if (!isValidPairedShop(State.shopId)) {
             updateConnectionStatus(false, 'في انتظار الاقتران بكود المحل 🟡');
             applyStoreProfileToUI();
             openPinModal();
         } else {
+            // تحميل فوري من IndexedDB قبل انتظار الشبكة لسرعة إقلاع لحظية
+            try {
+                const [idbProds, idbTxs, idbAccs] = await Promise.all([
+                    MobileIDB.getAll('products', State.shopId),
+                    MobileIDB.getAll('transactions', State.shopId),
+                    MobileIDB.getAll('accounts', State.shopId)
+                ]);
+                if (idbProds.length > 0 && State.products.length === 0) {
+                    State.products = idbProds;
+                    window.allProducts = idbProds;
+                }
+                if (idbTxs.length > 0 && State.transactions.length === 0) State.transactions = idbTxs;
+                if (idbAccs.length > 0 && State.accounts.length === 0) {
+                    State.accounts = idbAccs;
+                    State.customers = idbAccs;
+                }
+                if (State.products.length > 0 || State.transactions.length > 0) {
+                    updateCategoriesList();
+                    renderCurrentView();
+                }
+            } catch (_) { }
+
             const isOnline = await checkServerInfo();
             if (isOnline) {
                 await pullMasterData();
