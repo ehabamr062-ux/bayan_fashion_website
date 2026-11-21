@@ -330,7 +330,7 @@
                 const reconstruct = (row) => {
                     if (!row) return null;
                     if (typeof row === 'string') {
-                        try { return JSON.parse(row); } catch(e) { return null; }
+                        try { return JSON.parse(row); } catch (e) { return null; }
                     }
                     if (window.BayanSQLite && typeof window.BayanSQLite._reconstructRow === 'function') {
                         return window.BayanSQLite._reconstructRow(row);
@@ -342,7 +342,7 @@
                             if (extra && typeof extra === 'object') {
                                 return Object.assign(row, extra);
                             }
-                        } catch(e) {}
+                        } catch (e) { }
                     }
                     delete row.raw_json;
                     return row;
@@ -477,7 +477,7 @@
                         stmt.free();
                         return cnt;
                     }
-                } catch (e) {}
+                } catch (e) { }
             }
 
             const items = await this.toArray();
@@ -514,7 +514,7 @@
                         stmt.free();
                         return total;
                     }
-                } catch (e) {}
+                } catch (e) { }
             }
 
             const items = await this.toArray();
@@ -684,13 +684,23 @@
 
                 async put(item) {
                     await self._ensureReady();
+                    let res = null;
                     if (window.BayanSQLite && window.BayanSQLite.db) {
-                        return window.BayanSQLite.put(tableName, item);
+                        res = window.BayanSQLite.put(tableName, item);
+                    } else if (self.activeDriver && self.activeDriver[tableName] && typeof self.activeDriver[tableName].put === 'function') {
+                        res = await self.activeDriver[tableName].put(item);
                     }
-                    if (self.activeDriver && self.activeDriver[tableName] && typeof self.activeDriver[tableName].put === 'function') {
-                        return await self.activeDriver[tableName].put(item);
-                    }
-                    return null;
+                    // ⚡ خطاف الدفع السحابي الفوري (يغطي كافة الأقسام تلقائياً بـ Debounce 300ms دون تداخل)
+                    try {
+                        const syncEngine = window.SupabaseSync || window.BayanSupabaseSync;
+                        if (syncEngine && typeof syncEngine.triggerInstantPush === 'function' && !syncEngine.isSyncing) {
+                            const isSyncMetaSetting = (tableName === 'settings' && item && typeof item.id === 'string' && (item.id.startsWith('bayan_sb_') || item.id === 'bayan_shop_pin_meta'));
+                            if (!isSyncMetaSetting && ['transactions', 'products', 'accounts', 'warehouses', 'treasuryAudit', 'settings'].includes(tableName)) {
+                                syncEngine.triggerInstantPush(tableName);
+                            }
+                        }
+                    } catch (_) { }
+                    return res;
                 },
 
                 async add(item) {
@@ -700,35 +710,58 @@
                 async bulkPut(items, options) {
                     if (!Array.isArray(items) || items.length === 0) return [];
                     await self._ensureReady();
+                    let res = [];
                     if (window.BayanSQLite && window.BayanSQLite.db) {
-                        return window.BayanSQLite.bulkPut(tableName, items);
+                        res = window.BayanSQLite.bulkPut(tableName, items);
+                    } else if (self.activeDriver && self.activeDriver[tableName] && typeof self.activeDriver[tableName].bulkPut === 'function') {
+                        res = await self.activeDriver[tableName].bulkPut(items, options);
                     }
-                    if (self.activeDriver && self.activeDriver[tableName] && typeof self.activeDriver[tableName].bulkPut === 'function') {
-                        return await self.activeDriver[tableName].bulkPut(items, options);
-                    }
-                    return [];
+                    try {
+                        const syncEngine = window.SupabaseSync || window.BayanSupabaseSync;
+                        if (syncEngine && typeof syncEngine.triggerInstantPush === 'function' && !syncEngine.isSyncing) {
+                            if (['transactions', 'products', 'accounts', 'warehouses', 'treasuryAudit', 'settings'].includes(tableName)) {
+                                syncEngine.triggerInstantPush(tableName);
+                            }
+                        }
+                    } catch (_) { }
+                    return res;
                 },
 
                 async delete(id) {
                     await self._ensureReady();
+                    let res = null;
                     if (window.BayanSQLite && window.BayanSQLite.db) {
-                        return window.BayanSQLite.delete(tableName, id);
+                        res = window.BayanSQLite.delete(tableName, id);
+                    } else if (self.activeDriver && self.activeDriver[tableName] && typeof self.activeDriver[tableName].delete === 'function') {
+                        res = await self.activeDriver[tableName].delete(id);
                     }
-                    if (self.activeDriver && self.activeDriver[tableName] && typeof self.activeDriver[tableName].delete === 'function') {
-                        return await self.activeDriver[tableName].delete(id);
-                    }
-                    return null;
+                    try {
+                        const syncEngine = window.SupabaseSync || window.BayanSupabaseSync;
+                        if (syncEngine && typeof syncEngine.triggerInstantPush === 'function' && !syncEngine.isSyncing) {
+                            if (['transactions', 'products', 'accounts', 'warehouses', 'treasuryAudit'].includes(tableName)) {
+                                syncEngine.triggerInstantPush(tableName);
+                            }
+                        }
+                    } catch (_) { }
+                    return res;
                 },
 
                 async bulkDelete(ids) {
                     if (!Array.isArray(ids) || ids.length === 0) return;
                     await self._ensureReady();
                     if (window.BayanSQLite && window.BayanSQLite.db) {
-                        return window.BayanSQLite.bulkDelete(tableName, ids);
+                        window.BayanSQLite.bulkDelete(tableName, ids);
+                    } else if (self.activeDriver && self.activeDriver[tableName] && typeof self.activeDriver[tableName].bulkDelete === 'function') {
+                        await self.activeDriver[tableName].bulkDelete(ids);
                     }
-                    if (self.activeDriver && self.activeDriver[tableName] && typeof self.activeDriver[tableName].bulkDelete === 'function') {
-                        return await self.activeDriver[tableName].bulkDelete(ids);
-                    }
+                    try {
+                        const syncEngine = window.SupabaseSync || window.BayanSupabaseSync;
+                        if (syncEngine && typeof syncEngine.triggerInstantPush === 'function' && !syncEngine.isSyncing) {
+                            if (['transactions', 'products', 'accounts', 'warehouses', 'treasuryAudit'].includes(tableName)) {
+                                syncEngine.triggerInstantPush(tableName);
+                            }
+                        }
+                    } catch (_) { }
                 },
 
                 async count() {

@@ -2518,14 +2518,23 @@
             }
         },
 
-        // ⚡ دفع فوري خفيف عند الحفظ بـ Debounce 300ms دون انتظار المؤقت الدوري
-        triggerInstantPush: function () {
-            if (!this._isAllowed() || !navigator.onLine) return;
+        // ⚡ دفع فوري خفيف عند الحفظ بـ Debounce 300ms يدعم كافة الجداول والأقسام دون انتظار المؤقت الدوري
+        triggerInstantPush: function (entityType = 'all') {
+            if (!this._isAllowed() || !navigator.onLine || this.isSyncing) return;
+            if (!this._pendingPushEntities) this._pendingPushEntities = new Set();
+            this._pendingPushEntities.add(String(entityType || 'all'));
             if (this._instantPushTimer) clearTimeout(this._instantPushTimer);
             this._instantPushTimer = setTimeout(() => {
-                if (!this.isSyncing && navigator.onLine && this._isAllowed()) {
-                    this.processSyncQueue().catch(() => { });
-                    this.syncTransactions().catch(() => { });
+                if (this.isSyncing || !navigator.onLine || !this._isAllowed()) return;
+                const entities = Array.from(this._pendingPushEntities || []);
+                this._pendingPushEntities.clear();
+                const all = entities.includes('all');
+                this.processSyncQueue().catch(() => { });
+                if (all || entities.includes('transactions')) this.syncTransactions().catch(() => { });
+                if (all || entities.includes('products')) this.syncProducts(false).catch(() => { });
+                if (all || entities.includes('treasuryAudit')) this.syncTreasuryAudit().catch(() => { });
+                if (all || entities.includes('accounts') || entities.includes('warehouses') || entities.includes('settings') || entities.includes('shop_settings')) {
+                    this.syncDedicatedAccountsAndWarehouses().catch(() => { });
                 }
             }, 300);
         },
@@ -2619,6 +2628,33 @@
             const whList = (typeof warehouses !== 'undefined' && Array.isArray(warehouses)) ? warehouses : (window.warehouses || []);
             await trySyncTable('accounts', accList, 'ACC');
             await trySyncTable('warehouses', whList, 'WH');
+
+            // مزامنة إعدادات المحل وطرق الدفع عبر جدول shop_settings (مع تجاهل آمن إن لم يُنشأ بعد)
+            try {
+                if (!(this._missingRemoteTables && this._missingRemoteTables.has('shop_settings'))) {
+                    const probe = await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/shop_settings?select=id&limit=1`, {
+                        method: 'GET',
+                        headers: this._getHeaders()
+                    });
+                    if (!probe || probe.status === 404 || probe.status === 400) {
+                        if (!this._missingRemoteTables) this._missingRemoteTables = new Set();
+                        this._missingRemoteTables.add('shop_settings');
+                    } else {
+                        const posSettings = JSON.parse(this._readMeta('pos_settings') || '{}');
+                        const paymentMethods = JSON.parse(this._readMeta('bayan_payment_methods') || '[]');
+                        await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/shop_settings?on_conflict=id`, {
+                            method: 'POST',
+                            headers: Object.assign({}, this._getHeaders(), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+                            body: JSON.stringify([{
+                                id: `${shopId}_SETTINGS`,
+                                shop_id: shopId,
+                                updated_at: new Date().toISOString(),
+                                raw_json: { shop_id: shopId, pos_settings: posSettings, payment_methods: paymentMethods }
+                            }])
+                        });
+                    }
+                }
+            } catch (_) { }
             return 1;
         },
 
@@ -2651,6 +2687,9 @@
                     ws.send(joinPayload('realtime:public:transactions'));
                     ws.send(joinPayload('realtime:public:products'));
                     ws.send(joinPayload('realtime:public:treasury_audit'));
+                    ws.send(joinPayload('realtime:public:accounts'));
+                    ws.send(joinPayload('realtime:public:warehouses'));
+                    ws.send(joinPayload('realtime:public:shop_settings'));
                     this._realtimeHb = setInterval(() => {
                         if (ws.readyState === WebSocket.OPEN) {
                             ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(Date.now()) }));
@@ -2823,6 +2862,7 @@
     };
 
     window.BayanSupabaseSync = BayanSupabaseSync;
+    window.SupabaseSync = BayanSupabaseSync;
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', () => BayanSupabaseSync.init());
