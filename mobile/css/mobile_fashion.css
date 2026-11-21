@@ -255,37 +255,36 @@ body {
     flex-shrink: 0;
 }
 
-/* Status Pill */
+/* Status Pill (Compact Glowing Dot Indicator) */
 .status-pill {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
     background: var(--emerald-subtle);
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    padding: 4px 9px;
-    border-radius: 999px;
-    font-size: 0.70rem;
-    font-weight: 800;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    padding: 0;
+    border-radius: 10px;
     color: var(--emerald);
     cursor: pointer;
     transition: all 0.2s ease;
-    white-space: nowrap;
     user-select: none;
-    line-height: 1;
     flex-shrink: 0;
 }
 
 .status-pill:active {
-    transform: scale(0.94);
+    transform: scale(0.92);
 }
 
 .status-dot {
-    width: 6.5px;
-    height: 6.5px;
-    min-width: 6.5px;
+    width: 10px;
+    height: 10px;
+    min-width: 10px;
     border-radius: 50%;
     background: var(--emerald);
-    box-shadow: 0 0 6px var(--emerald);
+    box-shadow: 0 0 8px var(--emerald);
     flex-shrink: 0;
 }
 

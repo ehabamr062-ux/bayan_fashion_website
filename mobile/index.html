@@ -19,7 +19,7 @@
 
     <!-- خط القاهرة والأيقونات -->
     <link rel="stylesheet" href="../fonts/cairo.css">
-    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.32">
+    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.36">
     <!-- 📷 محرك قراءة QR العالمي لهواتف أندرويد وآيفون -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" defer></script>
     <style id="mobile-fashion-android-overhaul"></style>
@@ -64,9 +64,8 @@
             <div class="brand-info">
                 <h1 id="topbarShopName">
                     <span class="shop-title-text">بيان فاشون</span>
-                    <span class="badge-tag">موبايل</span>
                 </h1>
-                <p id="topbarShopSub">متابعة الخزينة والبيع السريع</p>
+                <p id="topbarShopSub" style="display: block;"><span class="badge-tag">بيان فاشون لايت</span></p>
             </div>
         </div>
 
@@ -74,7 +73,7 @@
             <div id="connectionStatusPill" class="status-pill unpaired" onclick="window.BayanMobile.handleStatusClick()"
                 title="اضغط لإدخال كود المحل والاقتران">
                 <span class="status-dot"></span>
-                <span id="connectionStatusText">غير مقترن</span>
+                <span id="connectionStatusText" style="display: none;">غير مقترن</span>
             </div>
             <button type="button" id="topThemeToggleBtn" class="btn-icon-top" onclick="window.BayanMobile.toggleTheme()"
                 title="تبديل مظهر الشاشة (فاتح / داكن)">
@@ -1802,7 +1801,7 @@
         </div>
     </div>
 
-    <script src="js/mobile_fashion.js?v=5.1.35"></script>
+    <script src="js/mobile_fashion.js?v=5.1.36"></script></script>
 </body>
 
 </html>

@@ -642,20 +642,15 @@
         const sPhone = storeInfo.phone || '';
         const sAddr = storeInfo.address || '';
 
-        // 1. تحديث الهيدر العلوي للموبايل
+        // 1. تحديث الهيدر العلوي للموبايل (الاسم + شارة لايت تحته)
         const topbarNameEl = document.getElementById('topbarShopName');
         const topbarSubEl = document.getElementById('topbarShopSub');
         if (topbarNameEl) {
-            topbarNameEl.innerHTML = `<span class="shop-title-text">${escapeHtml(sName)}</span> <span class="badge-tag">موبايل</span>`;
+            topbarNameEl.innerHTML = `<span class="shop-title-text">${escapeHtml(sName)}</span>`;
         }
         if (topbarSubEl) {
-            if (sPhone) {
-                topbarSubEl.textContent = `📞 ${sPhone} ${sAddr ? '• ' + sAddr : ''}`;
-            } else if (sAddr) {
-                topbarSubEl.textContent = `📍 ${sAddr}`;
-            } else {
-                topbarSubEl.textContent = 'متابعة الخزينة والبيع السريع 👗';
-            }
+            topbarSubEl.style.display = 'block';
+            topbarSubEl.innerHTML = `<span class="badge-tag">بيان فاشون لايت</span>`;
         }
 
         // 2. تحديث حقول شاشة الإعدادات
