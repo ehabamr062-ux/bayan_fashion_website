@@ -18,7 +18,7 @@
 
     <!-- خط القاهرة والأيقونات -->
     <link rel="stylesheet" href="../fonts/cairo.css">
-    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.31">
+    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.32">
     <!-- 📷 محرك قراءة QR العالمي لهواتف أندرويد وآيفون -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" defer></script>
     <style id="mobile-fashion-android-overhaul"></style>
@@ -308,15 +308,12 @@
              3️⃣ شاشة نقطة البيع السريعة ("ممكن يبيع ولا حاجة")
              ========================================== -->
         <section id="view-pos" class="tab-view">
-            <div class="cart-header-chip">
-                <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-weight: 900; font-size: 0.95rem; color: var(--text-main);">🛒 سلة البيع
-                        المباشر</span>
-                    <span id="posActiveWarehouseBadge" class="warehouse-badge"
-                        onclick="window.BayanMobile.openSettingSubPage('branch', true)"
-                        title="المخزن النشط - اضغط للتبديل">📦 المخزن الرئيسي</span>
-                </div>
-                <span style="font-size: 0.75rem; color: var(--emerald); font-weight: 800;">⚡ ترحيل لحظي للماستر</span>
+            <div class="cart-header-chip" style="padding: 10px 14px; gap: 10px;">
+                <span style="font-weight: 900; font-size: 0.92rem; color: var(--text-main); white-space: nowrap;">🛒 سلة البيع</span>
+                <span id="posActiveWarehouseBadge" class="warehouse-badge"
+                    style="white-space: nowrap; padding: 4px 10px;"
+                    onclick="window.BayanMobile.openSettingSubPage('branch', true)"
+                    title="المخزن النشط - اضغط للتبديل">📦 المخزن الرئيسي</span>
             </div>
 
             <!-- قائمة أصناف السلة -->
@@ -1754,7 +1751,7 @@
         </div>
     </div>
 
-    <script src="js/mobile_fashion.js?v=5.1.31"></script>
+    <script src="js/mobile_fashion.js?v=5.1.32"></script>
 </body>
 
 </html>
