@@ -78,6 +78,7 @@
         // Filters
         searchQuery: '',
         selectedCategory: 'all',
+        productsDisplayLimit: 30,
         accountSearchQuery: '',
         accountFilter: 'all',
         dashboardPeriod: 'today',
@@ -1857,7 +1858,11 @@
             return;
         }
 
-        listEl.innerHTML = filtered.slice(0, 30).map(p => {
+        const limit = State.productsDisplayLimit || 30;
+        const visibleProducts = filtered.slice(0, limit);
+        const remainingCount = filtered.length - visibleProducts.length;
+
+        let html = visibleProducts.map(p => {
             const price = parseFloat(p.price || p.salePrice || 0).toLocaleString('ar-EG');
             const totalStock = parseFloat(p.quantity !== undefined ? p.quantity : (p.stock || 0));
             const stockStatus = totalStock <= 0 ? 'out-of-stock' : (totalStock <= 3 ? 'low-stock' : 'in-stock');
@@ -1937,6 +1942,21 @@
                 </div>
             `;
         }).join('');
+
+        if (remainingCount > 0) {
+            html += `
+                <button type="button" class="btn-complete-invoice" style="margin: 6px 0 12px; height: 44px; font-size: 0.88rem; background: var(--bg-card); color: var(--primary); border: 1.5px dashed var(--primary); box-shadow: none;" onclick="window.BayanMobile.loadMoreProducts()">
+                    <span>⬇️</span> عرض المزيد من الأصناف (متبقي ${remainingCount} صنف)
+                </button>
+            `;
+        }
+
+        listEl.innerHTML = html;
+    }
+
+    function loadMoreProducts() {
+        State.productsDisplayLimit = (State.productsDisplayLimit || 30) + 30;
+        renderProducts();
     }
 
     function getVariantStock(product, size = '', color = '') {
@@ -4120,6 +4140,21 @@
         if (snippetSync) {
             snippetSync.textContent = `${pCount} صنف • ${aCount} حساب • متزامن ⚡`;
         }
+
+        // 7. Printer Preferences
+        let printerPrefs = {};
+        try {
+            printerPrefs = JSON.parse(localStorage.getItem('bayan_mob_printer_prefs') || '{}');
+        } catch (e) { }
+        const paperSelect = document.getElementById('settingPrinterPaperSize');
+        const autoPrintCheck = document.getElementById('settingPrinterAutoPrint');
+        const snippetPrinter = document.getElementById('settingSnippetPrinter');
+        if (paperSelect && printerPrefs.paperSize) paperSelect.value = String(printerPrefs.paperSize);
+        if (autoPrintCheck) autoPrintCheck.checked = printerPrefs.autoPrint === true;
+        if (snippetPrinter) {
+            const pSize = printerPrefs.paperSize || '58';
+            snippetPrinter.textContent = `ورق حراري ${pSize} مم${printerPrefs.autoPrint ? ' • طباعة تلقائية ⚡' : ''}`;
+        }
     }
 
     function updateInvoiceWaPreview(shopName, footer) {
@@ -4312,6 +4347,14 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         localStorage.setItem('bayan_mob_pos_prefs', JSON.stringify(prefs));
         showToast('تم حفظ تفضيلات البيع والماسح بنجاح! 📳', 'success');
         renderSettingsView();
+    }
+
+    function savePrinterSettings() {
+        const paperSize = document.getElementById('settingPrinterPaperSize')?.value || '58';
+        const autoPrint = document.getElementById('settingPrinterAutoPrint')?.checked === true;
+        localStorage.setItem('bayan_mob_printer_prefs', JSON.stringify({ paperSize, autoPrint }));
+        renderSettingsView();
+        showToast(`تم حفظ إعدادات الطابعة (${paperSize} مم) 🖨️✅`, 'success');
     }
 
     async function forceFullSync() {
@@ -5148,10 +5191,11 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
             const trimmedQuery = query.trim();
             const exactMatch = allCustomers.some(c => cleanArabic(c.name) === cleanQ);
             if (!exactMatch) {
+                const safeTrimmed = escapeHtml(trimmedQuery);
                 html += `
                     <div class="customer-dropdown-item" style="background: rgba(99, 102, 241, 0.08); border-right: 4px solid var(--primary);" onclick="window.BayanMobile.selectCustomer('${trimmedQuery.replace(/'/g, "\\'")}')">
                         <div>
-                            <div class="c-name" style="color: var(--primary);">➕ بيع باسم: "${trimmedQuery}"</div>
+                            <div class="c-name" style="color: var(--primary);">➕ بيع باسم: "${safeTrimmed}"</div>
                             <div class="c-meta">تسجيل هذا الاسم على الفاتورة الحالية مباشرة</div>
                         </div>
                         <span style="font-size: 0.72rem; color: var(--primary); font-weight: 800;">تسجيل سريع ✨</span>
@@ -5184,8 +5228,8 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                 return `
                     <div class="customer-dropdown-item" onclick="window.BayanMobile.selectCustomer('${c.name.replace(/'/g, "\\'")}')">
                         <div>
-                            <div class="c-name">👤 ${c.name}</div>
-                            <div class="c-meta">${c.mobile ? '📱 ' + c.mobile : (c.code ? 'كود: ' + c.code : 'عميل مسجل بالبرنامج')}</div>
+                            <div class="c-name">👤 ${escapeHtml(c.name)}</div>
+                            <div class="c-meta">${c.mobile ? '📱 ' + escapeHtml(c.mobile) : (c.code ? 'كود: ' + escapeHtml(c.code) : 'عميل مسجل بالبرنامج')}</div>
                         </div>
                         <div style="font-size: 0.72rem; font-weight: 800; text-align: left;">
                             ${balBadge}
@@ -5194,9 +5238,10 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                 `;
             }).join('');
         } else if (!isDefault && query.trim()) {
+            const safeQ = escapeHtml(query.trim());
             html += `
                 <div style="padding: 10px 14px; text-align: center; color: var(--text-dim); font-size: 0.78rem;">
-                    لا يوجد عميل مسجل باسم "${query}"، يمكنك الضغط على "بيع باسم: ${query}" بالأعلى ☝️
+                    لا يوجد عميل مسجل باسم "${safeQ}"، يمكنك الضغط على "بيع باسم: ${safeQ}" بالأعلى ☝️
                 </div>
             `;
         }
@@ -5574,11 +5619,11 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
             <div class="statement-header-card ${balClass}">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                     <div style="font-size: 1.1rem; font-weight: 900; color: var(--text-main);">
-                        ${isSupp ? '🏢' : '👤'} ${acc.name}
+                        ${isSupp ? '🏢' : '👤'} ${escapeHtml(acc.name)}
                     </div>
                     <span class="acc-type-pill ${isSupp ? 'supplier' : 'client'}">${isSupp ? 'مورد' : 'عميل'}</span>
                 </div>
-                ${acc.mobile ? `<div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 10px;">📱 ${acc.mobile}</div>` : ''}
+                ${acc.mobile ? `<div style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 10px;">📱 ${escapeHtml(acc.mobile)}</div>` : ''}
 
                 <div class="statement-balance-box ${balClass}">
                     <div style="font-size: 0.8rem; font-weight: 800;">${balStatus}:</div>
@@ -5890,7 +5935,8 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
     // Public API
     window.BayanMobile = {
         switchTab,
-        setCategory: (cat) => { State.selectedCategory = cat; updateCategoriesList(); renderProducts(); },
+        setCategory: (cat) => { State.selectedCategory = cat; State.productsDisplayLimit = 30; updateCategoriesList(); renderProducts(); },
+        loadMoreProducts,
         openAddToCartModal,
         closeAddToCartModal,
         quickAddVariant: (productId, size = '', color = '') => {
@@ -5953,6 +5999,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         togglePinLockSection,
         saveSecuritySettings,
         savePosPreferences,
+        savePrinterSettings,
         forceFullSync,
         connectBluetoothPrinter,
         testPrintReceipt,

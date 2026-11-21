@@ -18,7 +18,7 @@
 
     <!-- خط القاهرة والأيقونات -->
     <link rel="stylesheet" href="../fonts/cairo.css">
-    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.5">
+    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.26">
     <!-- 📷 محرك قراءة QR العالمي لهواتف أندرويد وآيفون -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" defer></script>
     <style id="mobile-fashion-android-overhaul"></style>
@@ -575,7 +575,7 @@
                             style="background: rgba(100, 116, 139, 0.15); color: var(--text-dim);">ℹ️</div>
                         <div class="settings-item-content">
                             <div class="settings-item-title">معلومات النظام والدعم الفني</div>
-                            <div class="settings-item-subtitle">الإصدار v5.1.25 • واتساب المساعدة</div>
+                            <div class="settings-item-subtitle">الإصدار v5.1.26 • واتساب المساعدة</div>
                         </div>
                         <div class="settings-item-arrow">‹</div>
                     </div>
@@ -936,7 +936,8 @@
                         <div class="form-group" style="margin-bottom: 12px;">
                             <label class="form-label" for="settingPrinterPaperSize">مقاس ورق الطابعة:</label>
                             <select id="settingPrinterPaperSize" class="form-input"
-                                style="font-weight: 800; cursor: pointer;">
+                                style="font-weight: 800; cursor: pointer;"
+                                onchange="window.BayanMobile.savePrinterSettings()">
                                 <option value="58">ورق حراري صغير 58 مم (الأنسب للهواتف) 🧾</option>
                                 <option value="80">ورق حراري عريض 80 مم (الكاشير الكبير) 📄</option>
                             </select>
@@ -948,7 +949,8 @@
                                 <div class="switch-label-desc">إرسال الفاتورة للطابعة فور الضغط على تأكيد البيع</div>
                             </div>
                             <label class="ios-switch">
-                                <input type="checkbox" id="settingPrinterAutoPrint">
+                                <input type="checkbox" id="settingPrinterAutoPrint"
+                                    onchange="window.BayanMobile.savePrinterSettings()">
                                 <span class="ios-slider"></span>
                             </label>
                         </div>
@@ -978,7 +980,7 @@
                         <h3 style="font-size: 1.3rem; font-weight: 900; color: var(--text-main); margin-bottom: 4px;">
                             بَيَان فاشون كاشير كلاود</h3>
                         <p style="font-size: 0.82rem; color: var(--text-dim); margin-bottom: 14px;">إصدار الهواتف
-                            والتابلت الفاخر • الإصدار 5.1.6</p>
+                            والتابلت الفاخر • الإصدار 5.1.26</p>
 
                         <div class="branch-info-box" style="text-align: right; margin-bottom: 20px;">
                             <div class="branch-info-row">
@@ -1682,7 +1684,7 @@
         </div>
     </div>
 
-    <script src="js/mobile_fashion.js?v=5.1.25"></script>
+    <script src="js/mobile_fashion.js?v=5.1.26"></script>
 </body>
 
 </html>
