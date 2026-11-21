@@ -616,9 +616,11 @@ async function printInvoice(invoiceData, options = {}) {
             const electron = window.require('electron');
             if (electron && electron.ipcRenderer) {
                 const targetPrinter = (typeof getStore === 'function' ? getStore('bayan_receipt_printer') : '') || '';
+                const excludedBarcodePrinter = (typeof getStore === 'function' ? (getStore('bayan_barcode_printer') || getStore('barcode_printer_name') || '') : '') || '';
                 const printPromise = electron.ipcRenderer.invoke('print-receipt-silent', {
                     html: fullHtml,
                     printerName: targetPrinter,
+                    excludedBarcodePrinter: excludedBarcodePrinter,
                     pageWidth: pageWidth
                 });
                 const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 25000));
@@ -643,10 +645,16 @@ async function printInvoice(invoiceData, options = {}) {
                         showToast('🖨️ جاري الطباعة، لو لم تخرج الورقة اضغط F4', 'info');
                     }
                     return true;
+                } else if (result && result.error === 'BARCODE_PRINTER_BLOCKED') {
+                    console.warn('🛡️ [Print Silent] تم حظر إرسال فاتورة البيع تلقائياً لطابعة الباركود.');
+                    if (typeof showToast === 'function') {
+                        showToast('🛡️ تم منع طباعة الفاتورة على طابعة الباركود — أوقف الطباعة التلقائية 🖨️ أو حدد طابعة فواتير', 'warning');
+                    }
+                    return false;
                 } else if (result && result.error === 'NO_PRINTER') {
                     console.warn('⚠️ [Print Silent] لا توجد طابعة فواتير متصلة أو محددة.');
                     if (typeof showToast === 'function') {
-                        showToast('⚠️ اختر طابعة الفواتير من الإعدادات', 'warning');
+                        showToast('⚠️ اختر طابعة الفواتير من الإعدادات أو أوقف الطباعة التلقائية 🖨️', 'warning');
                     } else if (typeof showCustomAlert === 'function') {
                         showCustomAlert({
                             type: 'warning',

@@ -725,7 +725,7 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
         }, 20000);
 
         try {
-            const { html, printerName, pageWidth } = payload || {};
+            const { html, printerName, pageWidth, excludedBarcodePrinter } = payload || {};
             if (!html || typeof html !== 'string' || !html.trim()) {
                 logPrintOperation({
                     printer: 'NONE',
@@ -821,8 +821,29 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                     renderEndTime = Date.now();
                     const renderMs = renderEndTime - startTime;
 
-                    const thermalRegex = /XP-80|80C|Xprinter|RP80|TM-T\d+|Bixolon|Thermal|Receipt|POS|Cashier/i;
-                    const virtualRegex = /PDF|OneNote|XPS|Fax/i;
+                    // 🛡️ فصل صارم بين طابعات الفواتير الحرارية (80mm/58mm) وطابعات الباركود والملصقات والطابعات الوهمية
+                    const thermalRegex = /XP-?80|80C|XP-?58|XP-?Q\d+|XP-?C\d+|XP-?N\d+|XP-?A\d+|XP-?S\d+|XP-?V\d+|RP-?80|RP-?58|TM-?T\d+|Bixolon\s*SRP|SRP-?\d+|Thermal|Receipt|POS-?80|POS-?58|Cashier|Epson.*TM/i;
+                    const barcodeRegex = /XP-?2\d{2}|XP-?3\d{2}|XP-?4\d{2}|XP-?D\d+|XP-?DT\d+|XP-?TT\d+|XP-?H\d+|XP-?T\d+|350B|360B|365B|370B|235B|236B|420B|460B|470B|490B|Barcode|Label|Sticker|Zebra|ZD\d+|GK\d+|GX\d+|LP\s?28\d+|TLP|TSC|TTP-|TE\d+|DA\d+|Gprinter|GP-?[123]\d+|4BARCODE|4B-\d+|Godex|Argox|Bixolon\s*SLP|SLP-|RP4\d{2}|HPRT\s*N\d+|Niimbot|Dymo|Brother\s*QL/i;
+                    const virtualRegex = /PDF|OneNote|XPS|Fax|AnyDesk|TeamViewer|Snagit|Send To/i;
+                    const excludedBcLower = (excludedBarcodePrinter && String(excludedBarcodePrinter).trim().toLowerCase()) || '';
+
+                    const getPrinterSig = (p) => [
+                        p && p.name,
+                        p && p.displayName,
+                        p && p.description,
+                        p && p.options && p.options['printer-make-and-model']
+                    ].filter(Boolean).join(' ');
+
+                    const isBlockedPrinter = (p) => {
+                        if (!p || !p.name) return true;
+                        const sig = getPrinterSig(p);
+                        if (virtualRegex.test(sig)) return true;
+                        if (barcodeRegex.test(sig)) return true;
+                        if (excludedBcLower && p.name.toLowerCase() === excludedBcLower) return true;
+                        return false;
+                    };
+
+                    let skippedBarcodePrinter = false;
 
                     try {
                         const printers = await printWin.webContents.getPrintersAsync();
@@ -833,12 +854,19 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                             targetDevice = found ? found.name : pNameInput;
                             selectedReason = 'settings';
                         } else {
-                            const thermalMatch = printers.find(p => thermalRegex.test(p.name) && !virtualRegex.test(p.name));
+                            // رصد وجود طابعة باركود لتقديم رسالة توضيحية دقيقة عند رفض الطباعة عليها
+                            skippedBarcodePrinter = printers.some(p => {
+                                if (!p || !p.name) return false;
+                                const sig = getPrinterSig(p);
+                                return barcodeRegex.test(sig) || (excludedBcLower && p.name.toLowerCase() === excludedBcLower);
+                            });
+
+                            const thermalMatch = printers.find(p => !isBlockedPrinter(p) && thermalRegex.test(getPrinterSig(p)));
                             if (thermalMatch) {
                                 targetDevice = thermalMatch.name;
                                 selectedReason = 'thermal_regex';
                             } else {
-                                const defaultMatch = printers.find(p => p.isDefault && !virtualRegex.test(p.name));
+                                const defaultMatch = printers.find(p => p.isDefault && !isBlockedPrinter(p));
                                 if (defaultMatch) {
                                     targetDevice = defaultMatch.name;
                                     selectedReason = 'default_not_virtual';
@@ -850,17 +878,18 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                     }
 
                     if (!targetDevice) {
+                        const failCode = skippedBarcodePrinter ? 'BARCODE_PRINTER_BLOCKED' : 'NO_PRINTER';
                         logPrintOperation({
                             printer: 'NONE',
-                            reason: 'NO_PRINTER',
+                            reason: failCode,
                             totalMs: Date.now() - startTime,
                             renderMs: renderMs,
                             printMs: 0,
                             usedFallback: false,
-                            failureReason: 'NO_PRINTER',
+                            failureReason: failCode,
                             success: false
                         });
-                        return cleanup({ success: false, error: 'NO_PRINTER' }, false);
+                        return cleanup({ success: false, error: failCode }, false);
                     }
 
                     const isA4 = (pageWidth === 'A4' || pageWidth === '210mm');
