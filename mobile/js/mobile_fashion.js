@@ -5369,37 +5369,74 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
     }
 
     // ============================================================
-    // ☁️ CLOUD & LOCAL BACKUP ENGINE
+    // ☁️ CLOUD & LOCAL BACKUP ENGINE (v5.1.40 Full State Backup & Restore)
     // ============================================================
+    function buildFullBackupObject() {
+        const shopId = State.shopId || CONFIG.SHOP_ID || localStorage.getItem('bayan_mob_shop_id') || '';
+        let customCats = [];
+        let posPrefs = {};
+        let printerPrefs = {};
+        try { customCats = JSON.parse(localStorage.getItem('bayan_mob_custom_categories') || '[]'); } catch (_) { }
+        try { posPrefs = JSON.parse(localStorage.getItem('bayan_mob_pos_prefs') || '{}'); } catch (_) { }
+        try { printerPrefs = JSON.parse(localStorage.getItem('bayan_mob_printer_prefs') || '{}'); } catch (_) { }
+
+        return {
+            system: 'BAYAN POS FASHION',
+            version: '5.1.40',
+            shop_id: shopId,
+            shop_name: State.shopName || CONFIG.SHOP_NAME || 'بَيَان فاشون',
+            active_warehouse: State.activeWarehouse || 'المخزن الرئيسي',
+            warehouses: Array.isArray(State.warehouses) ? State.warehouses : ['المخزن الرئيسي'],
+            exported_at: new Date().toISOString(),
+            products: State.products || [],
+            transactions: State.transactions || [],
+            accounts: State.accounts || [],
+            vouchers: State.vouchers || [],
+            settings: State.settings || {},
+            custom_categories: customCats,
+            pos_prefs: posPrefs,
+            printer_prefs: printerPrefs
+        };
+    }
+
     async function createCloudBackup() {
-        const shopId = State.shopId || CONFIG.SHOP_ID || 'SHOP_DEFAULT';
+        const shopId = State.shopId || CONFIG.SHOP_ID || '';
+        if (!isValidPairedShop(shopId)) {
+            showToast('يرجى إقران الهاتف بكود المحل أولاً قبل إنشاء نسخة سحابية ⚠️', 'warning');
+            openPinModal();
+            return;
+        }
         const timestamp = new Date().toISOString();
-        const backupData = {
-            version: '5.1.6',
+        const backupSummary = {
+            version: '5.1.40',
             shop_id: shopId,
             shop_name: State.shopName || CONFIG.SHOP_NAME,
+            active_warehouse: State.activeWarehouse || 'المخزن الرئيسي',
+            warehouses: State.warehouses || ['المخزن الرئيسي'],
             timestamp: timestamp,
-            productsCount: State.products.length,
-            transactionsCount: State.transactions.length,
-            accountsCount: State.accounts.length
+            productsCount: (State.products || []).length,
+            transactionsCount: (State.transactions || []).length,
+            accountsCount: (State.accounts || []).length
         };
 
         showToast('جاري إنشاء ورفع النسخة الاحتياطية للسحابة ⏳...', 'info');
 
         try {
-            await fetch(`${SUPABASE_CONFIG.url}/rest/v1/store_profiles?on_conflict=shop_id`, {
+            const res = await fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?on_conflict=id`, {
                 method: 'POST',
                 headers: getSupabaseHeaders(),
                 body: JSON.stringify([{
-                    shop_id: shopId,
-                    shop_name: State.shopName || CONFIG.SHOP_NAME,
-                    raw_json: {
-                        lastBackup: timestamp,
-                        backupSummary: backupData
-                    },
-                    updated_at: timestamp
+                    id: `BACKUP_SNAPSHOT_${shopId}`,
+                    date: timestamp,
+                    category: 'cloud_backup',
+                    amount: (State.products || []).length,
+                    user_name: `تابلت (${State.terminalLetter})`,
+                    warehouse: State.activeWarehouse || 'المخزن الرئيسي',
+                    raw_json: backupSummary
                 }])
             });
+
+            if (!res.ok) throw new Error('HTTP ' + res.status);
 
             const backupTimeStr = new Date().toLocaleString('ar-EG');
             localStorage.setItem('bayan_mob_last_backup_time', backupTimeStr);
@@ -5410,25 +5447,14 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         } catch (err) {
             console.error('[CloudBackup] Error:', err);
             downloadLocalBackupJSON();
-            showToast('تم تحميل النسخة الاحتياطية محلياً على هاتفك ✅', 'info');
+            showToast('تعذر الاتصال بالسحابة، تم تحميل النسخة الاحتياطية محلياً على هاتفك ✅', 'info');
         }
     }
 
     function downloadLocalBackupJSON() {
-        const shopId = State.shopId || CONFIG.SHOP_ID || 'SHOP';
+        const backupData = buildFullBackupObject();
+        const shopId = backupData.shop_id || 'SHOP';
         const dateStr = getTodayISO();
-        const backupData = {
-            system: 'BAYAN POS FASHION',
-            version: '5.1.6',
-            shop_id: shopId,
-            shop_name: State.shopName || CONFIG.SHOP_NAME,
-            exported_at: new Date().toISOString(),
-            products: State.products,
-            transactions: State.transactions,
-            accounts: State.accounts,
-            vouchers: State.vouchers,
-            settings: State.settings
-        };
 
         const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
@@ -5445,15 +5471,16 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         const labelEl = document.getElementById('lastBackupTimeText');
         if (labelEl) labelEl.textContent = `آخر تحميل محلي: ${backupTimeStr} 💾`;
 
-        showToast('تم تنزيل ملف النسخة الاحتياطية الكامل بنجاح 💾✨', 'success');
+        showToast('تم تنزيل ملف النسخة الاحتياطية الكامل (شاملاً الفرع والمخازن والإعدادات) 💾✨', 'success');
     }
 
     function restoreBackupFromFile(event) {
         const file = event.target.files && event.target.files[0];
+        if (event.target) event.target.value = '';
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = async function(e) {
+        reader.onload = async function (e) {
             try {
                 const parsed = JSON.parse(e.target.result);
                 if (!parsed || (!parsed.products && !parsed.transactions && !parsed.accounts)) {
@@ -5461,16 +5488,67 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                     return;
                 }
 
-                const confirmRestore = await openModernConfirm(`هل أنت متأكد من استعادة هذه النسخة الاحتياطية؟\nتحتوي على (${(parsed.products||[]).length}) أصناف، و(${(parsed.transactions||[]).length}) حركات.`, '📥 استعادة نسخة احتياطية');
+                const confirmRestore = await openModernConfirm(
+                    `هل أنت متأكد من استعادة هذه النسخة الاحتياطية؟\n• الأصناف: ${(parsed.products || []).length}\n• الحركات: ${(parsed.transactions || []).length}\n• الحسابات: ${(parsed.accounts || []).length}` +
+                    (parsed.shop_id && isValidPairedShop(parsed.shop_id) ? `\n• كود الفرع: ${parsed.shop_id}` : ''),
+                    '📥 استعادة نسخة احتياطية كاملة'
+                );
                 if (!confirmRestore) return;
 
+                // 1. استعادة كود الفرع السحابي واسم المحل والمخازن والإعدادات
+                if (parsed.shop_id && isValidPairedShop(parsed.shop_id)) {
+                    State.shopId = parsed.shop_id;
+                    CONFIG.SHOP_ID = parsed.shop_id;
+                    localStorage.setItem('bayan_mob_shop_id', parsed.shop_id);
+                    if (!State.token) {
+                        State.token = 'PAIRED_' + CONFIG.DEVICE_ID;
+                        localStorage.setItem(CONFIG.STORAGE_PREFIX + 'token', State.token);
+                    }
+                }
+                if (parsed.shop_name) {
+                    State.shopName = parsed.shop_name;
+                    CONFIG.SHOP_NAME = parsed.shop_name;
+                    localStorage.setItem('bayan_mob_shop_name', parsed.shop_name);
+                }
+                if (Array.isArray(parsed.warehouses) && parsed.warehouses.length > 0) {
+                    State.warehouses = parsed.warehouses;
+                    try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'warehouses', JSON.stringify(State.warehouses)); } catch (_) { }
+                }
+                if (parsed.active_warehouse) {
+                    State.activeWarehouse = parsed.active_warehouse;
+                    localStorage.setItem('bayan_mob_active_warehouse', parsed.active_warehouse);
+                }
+                if (parsed.settings && typeof parsed.settings === 'object') {
+                    State.settings = Object.assign({}, State.settings || {}, parsed.settings);
+                    try { localStorage.setItem('bayan_mob_settings', JSON.stringify(State.settings)); } catch (_) { }
+                    syncStoreProfile({
+                        shopName: parsed.shop_name || parsed.settings.shop_name,
+                        phone: parsed.settings.shop_phone || '',
+                        address: parsed.settings.shop_address || '',
+                        invoiceFooter: parsed.settings.invoice_footer || parsed.settings.receipt_footer || ''
+                    });
+                }
+                if (Array.isArray(parsed.custom_categories)) {
+                    try { localStorage.setItem('bayan_mob_custom_categories', JSON.stringify(parsed.custom_categories)); } catch (_) { }
+                }
+                if (parsed.pos_prefs && typeof parsed.pos_prefs === 'object') {
+                    try { localStorage.setItem('bayan_mob_pos_prefs', JSON.stringify(parsed.pos_prefs)); } catch (_) { }
+                }
+                if (parsed.printer_prefs && typeof parsed.printer_prefs === 'object') {
+                    try { localStorage.setItem('bayan_mob_printer_prefs', JSON.stringify(parsed.printer_prefs)); } catch (_) { }
+                }
+
+                // 2. استعادة الأصناف والفواتير والحسابات والسندات في الذاكرة و localStorage و IndexedDB
+                const activeShopId = State.shopId || CONFIG.SHOP_ID || '';
                 if (Array.isArray(parsed.products) && parsed.products.length > 0) {
                     State.products = parsed.products;
                     safelyPersistProducts(State.products);
+                    MobileIDB.putMany('products', State.products, activeShopId).catch(() => { });
                 }
                 if (Array.isArray(parsed.transactions) && parsed.transactions.length > 0) {
                     State.transactions = parsed.transactions;
-                    try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (err) {}
+                    try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (_) { }
+                    MobileIDB.putMany('transactions', State.transactions, activeShopId).catch(() => { });
                 }
                 if (Array.isArray(parsed.accounts) && parsed.accounts.length > 0) {
                     State.accounts = parsed.accounts;
@@ -5478,15 +5556,27 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                     try {
                         localStorage.setItem(CONFIG.STORAGE_PREFIX + 'accounts', JSON.stringify(State.accounts));
                         localStorage.setItem(CONFIG.STORAGE_PREFIX + 'customers', JSON.stringify(State.customers));
-                    } catch (err) {}
+                    } catch (_) { }
+                    MobileIDB.putMany('accounts', State.accounts, activeShopId).catch(() => { });
+                }
+                if (Array.isArray(parsed.vouchers)) {
+                    State.vouchers = parsed.vouchers;
                 }
 
+                // 3. تحديث حالة الاتصال والاقتران وكافة الشاشات فوراً
+                updateConnectionStatus(navigator.onLine && isValidPairedShop(State.shopId));
+                applyStoreProfileToUI();
                 updateCategoriesList();
                 renderProducts();
                 renderDashboard();
                 renderAccountsView();
+                renderSettingsView();
 
-                showToast('تمت استعادة كافة البيانات وتحديث الشاشات بنجاح! 🎉📦', 'success');
+                if (navigator.onLine && isValidPairedShop(State.shopId)) {
+                    startAutoSyncPoll();
+                }
+
+                showToast('تمت استعادة النسخة الاحتياطية بالكامل (البيانات، الفرع، المخازن والإعدادات) 🎉📦', 'success');
             } catch (err) {
                 console.error('[RestoreBackup] Error:', err);
                 showToast('حدث خطأ أثناء قراءة ملف النسخة الاحتياطية ❌', 'error');
