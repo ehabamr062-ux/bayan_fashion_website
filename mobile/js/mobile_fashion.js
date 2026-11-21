@@ -533,16 +533,193 @@
         }
     }
 
+    // ============================================================
+    // 🗄️ INDEXEDDB ENGINE WITH HIGH-SPEED INDEXES (MobileIDB)
+    // ============================================================
+    const MobileIDB = {
+        dbName: 'BayanMobilePOS_DB',
+        version: 2,
+        _db: null,
+        open: function () {
+            if (this._db) return Promise.resolve(this._db);
+            return new Promise((resolve) => {
+                if (typeof indexedDB === 'undefined') return resolve(null);
+                try {
+                    const req = indexedDB.open(this.dbName, this.version);
+                    req.onupgradeneeded = (ev) => {
+                        const db = ev.target.result;
+                        const ensureStore = (name, indexes) => {
+                            let store;
+                            if (!db.objectStoreNames.contains(name)) {
+                                store = db.createObjectStore(name, { keyPath: 'id' });
+                            } else {
+                                store = ev.target.transaction.objectStore(name);
+                            }
+                            indexes.forEach(([idxName, keyPath]) => {
+                                if (!store.indexNames.contains(idxName)) {
+                                    store.createIndex(idxName, keyPath, { unique: false });
+                                }
+                            });
+                        };
+                        ensureStore('products', [['idx_shop_id', 'shop_id'], ['idx_updated_at', 'updated_at'], ['idx_barcode', 'barcode'], ['idx_name', 'name']]);
+                        ensureStore('transactions', [['idx_shop_id', 'shop_id'], ['idx_updated_at', 'updated_at'], ['idx_invoiceId', 'invoiceId'], ['idx_dateISO', 'dateISO']]);
+                        ensureStore('accounts', [['idx_shop_id', 'shop_id'], ['idx_updated_at', 'updated_at'], ['idx_name', 'name']]);
+                        ensureStore('warehouses', [['idx_shop_id', 'shop_id'], ['idx_updated_at', 'updated_at'], ['idx_name', 'name']]);
+                        ensureStore('treasury_audit', [['idx_shop_id', 'shop_id'], ['idx_updated_at', 'updated_at'], ['idx_date', 'date']]);
+                    };
+                    req.onsuccess = (ev) => { this._db = ev.target.result; resolve(this._db); };
+                    req.onerror = () => resolve(null);
+                } catch (_) { resolve(null); }
+            });
+        },
+        putMany: async function (storeName, items, shopId) {
+            if (!Array.isArray(items) || items.length === 0) return;
+            const db = await this.open();
+            if (!db) return;
+            return new Promise((resolve) => {
+                try {
+                    const tx = db.transaction(storeName, 'readwrite');
+                    const store = tx.objectStore(storeName);
+                    const nowIso = new Date().toISOString();
+                    for (let i = 0; i < items.length; i++) {
+                        const it = items[i];
+                        if (!it || it.id == null) continue;
+                        store.put(Object.assign({ shop_id: shopId || State.shopId || '', updated_at: it.updated_at || it.updatedAt || nowIso }, it, { id: String(it.id) }));
+                    }
+                    tx.oncomplete = () => resolve(true);
+                    tx.onerror = () => resolve(false);
+                } catch (_) { resolve(false); }
+            });
+        }
+    };
+
+    // 📷 محلل مرن لجميع صيغ QR الاقتران (URL / JSON / SHOP_ID|PIN / SHOP_ID:PIN)
+    function parsePairingQrPayload(rawText) {
+        const text = String(rawText || '').trim();
+        if (!text) return null;
+        try {
+            if (text.startsWith('{')) {
+                const obj = JSON.parse(text);
+                const shopId = obj.shopId || obj.shop_id || obj.s || '';
+                const pin = obj.pin || obj.pairingPin || obj.p || '';
+                if (shopId && pin) return { shopId: String(shopId).trim(), pin: String(pin).trim() };
+            }
+        } catch (_) { }
+        try {
+            if (/^https?:\/\//i.test(text) || text.includes('shop_id=') || text.includes('shopId=')) {
+                const u = new URL(text.startsWith('http') ? text : 'https://bayan.local/?' + text.replace(/^\?/, ''));
+                const shopId = u.searchParams.get('shop_id') || u.searchParams.get('shopId') || u.searchParams.get('s') || '';
+                const pin = u.searchParams.get('pin') || u.searchParams.get('pairingPin') || u.searchParams.get('p') || '';
+                if (shopId && pin) return { shopId: shopId.trim(), pin: pin.trim() };
+            }
+        } catch (_) { }
+        const sepMatch = text.match(/(SHOP_[A-Za-z0-9_]+)\s*[\|:,;\s]\s*(\d{4,10})/i);
+        if (sepMatch) {
+            return { shopId: sepMatch[1].trim(), pin: sepMatch[2].trim() };
+        }
+        return null;
+    }
+
+    // 📷 فك تشفير QR عالمي من ملف صورة (BarcodeDetector + jsQR fallback لأندرويد وآيفون)
+    async function decodeQrUniversalFromFile(file) {
+        if (!file) return null;
+        if ('BarcodeDetector' in window) {
+            try {
+                const detector = new window.BarcodeDetector({ formats: ['qr_code', 'code_128', 'ean_13', 'ean_8', 'upc_a'] });
+                const bitmap = await createImageBitmap(file);
+                const found = await detector.detect(bitmap);
+                if (found && found.length > 0 && found[0].rawValue) return String(found[0].rawValue).trim();
+            } catch (_) { }
+        }
+        if (typeof window.jsQR === 'function') {
+            try {
+                const imgUrl = URL.createObjectURL(file);
+                const img = await new Promise((res, rej) => {
+                    const im = new Image();
+                    im.onload = () => res(im);
+                    im.onerror = rej;
+                    im.src = imgUrl;
+                });
+                URL.revokeObjectURL(imgUrl);
+                const maxW = 1024;
+                const scale = img.width > maxW ? (maxW / img.width) : 1;
+                const canvas = document.createElement('canvas');
+                canvas.width = Math.max(1, Math.round(img.width * scale));
+                canvas.height = Math.max(1, Math.round(img.height * scale));
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const decoded = window.jsQR(imgData.data, imgData.width, imgData.height);
+                if (decoded && decoded.data) return String(decoded.data).trim();
+            } catch (_) { }
+        }
+        return null;
+    }
+
+    // ⚡ اشتراك Supabase Realtime WebSocket عبر الجداول الستة لتحديث الموبايل خلال 1-2 ثانية
+    function startMobileRealtimeSubscription() {
+        try {
+            if (State._realtimeWs) {
+                try { State._realtimeWs.close(); } catch (_) { }
+                State._realtimeWs = null;
+            }
+            if (State._realtimeHb) {
+                clearInterval(State._realtimeHb);
+                State._realtimeHb = null;
+            }
+            const shopId = State.shopId || CONFIG.SHOP_ID;
+            if (!navigator.onLine || !isValidPairedShop(shopId) || typeof WebSocket === 'undefined') return;
+
+            const wsUrl = SUPABASE_CONFIG.url.replace(/^http/, 'ws') + `/realtime/v1/websocket?apikey=${encodeURIComponent(SUPABASE_CONFIG.key)}&vsn=1.0.0`;
+            const ws = new WebSocket(wsUrl);
+            State._realtimeWs = ws;
+            ws.onopen = () => {
+                const tables = ['products', 'transactions', 'treasury_audit', 'accounts', 'warehouses', 'shop_settings'];
+                tables.forEach(tbl => {
+                    ws.send(JSON.stringify({
+                        topic: `realtime:public:${tbl}`,
+                        event: 'phx_join',
+                        payload: { config: { postgres_changes: [{ event: '*', schema: 'public', table: tbl }] } },
+                        ref: String(Date.now())
+                    }));
+                });
+                State._realtimeHb = setInterval(() => {
+                    if (ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(Date.now()) }));
+                    }
+                }, 25000);
+            };
+            ws.onmessage = (evt) => {
+                try {
+                    const msg = JSON.parse(evt.data);
+                    if (msg && msg.event === 'postgres_changes') {
+                        const rec = msg.payload?.data?.record || msg.payload?.data?.old_record || {};
+                        const recShop = rec.shop_id || (rec.raw_json && rec.raw_json.shop_id) || '';
+                        if (rec.id && !String(rec.id).includes(shopId) && recShop !== shopId) return;
+                        if (State._rtDebounce) clearTimeout(State._rtDebounce);
+                        State._rtDebounce = setTimeout(() => {
+                            if (navigator.onLine && isValidPairedShop(State.shopId) && !State.isPulling) {
+                                State.isPulling = true;
+                                Promise.resolve(pullMasterData(false)).finally(() => { State.isPulling = false; });
+                            }
+                        }, 600);
+                    }
+                } catch (_) { }
+            };
+        } catch (_) { }
+    }
+
     function startAutoSyncPoll() {
         if (State.pollTimer) clearInterval(State.pollTimer);
         if (!isValidPairedShop(State.shopId)) return;
-        // مزامنة سريعة كل 12 ثانية مع منع التداخل
+        startMobileRealtimeSubscription();
+        // مؤقت احتياطي خفيف كل 60 ثانية كشبكة أمان بجانب Realtime WebSocket
         State.pollTimer = setInterval(() => {
             if (navigator.onLine && isValidPairedShop(State.shopId) && !State.isPulling) {
                 State.isPulling = true;
                 Promise.resolve(pullMasterData(false)).finally(() => { State.isPulling = false; });
             }
-        }, 12000);
+        }, 60000);
     }
 
     // ============================================================
@@ -579,11 +756,60 @@
                 }
             };
 
-            const [pRes, tRes, cRes] = await Promise.all([
+            const prevTxIds = new Set((State.transactions || []).map(t => String(t.invoiceId || t.id || '')));
+
+            const [pRes, tRes, cRes, accRes, whRes, settingsRes] = await Promise.all([
                 safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/products?id=like.${encodeURIComponent(currentShopId)}_PROD_*&select=*`),
-                safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/transactions?or=(id.like.${encodeURIComponent(currentShopId)}_*,raw_json->>shop_id.eq.${encodeURIComponent(currentShopId)})&select=*&order=created_at.desc&limit=150`),
-                safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?or=(id.like.*${encodeURIComponent(currentShopId)}*,id.like.${encodeURIComponent(currentShopId)}_*)&select=*&order=date.desc&limit=100`)
+                safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/transactions?or=(id.like.${encodeURIComponent(currentShopId)}_*,raw_json->>shop_id.eq.${encodeURIComponent(currentShopId)})&select=*&order=created_at.desc&limit=500`),
+                safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?or=(id.like.*${encodeURIComponent(currentShopId)}*,id.like.${encodeURIComponent(currentShopId)}_*)&select=*&order=date.desc&limit=150`),
+                safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/accounts?shop_id=eq.${encodeURIComponent(currentShopId)}&select=*&limit=1000`),
+                safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/warehouses?shop_id=eq.${encodeURIComponent(currentShopId)}&select=*&limit=50`),
+                safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/shop_settings?shop_id=eq.${encodeURIComponent(currentShopId)}&select=*&limit=5`)
             ]);
+
+            // 0.1 مزامنة طرق الدفع وإعدادات المحل من shop_settings تلقائياً
+            if (Array.isArray(settingsRes) && settingsRes.length > 0) {
+                const sRaw = settingsRes[0].raw_json || {};
+                if (Array.isArray(sRaw.payment_methods) && sRaw.payment_methods.length > 0) {
+                    State.paymentMethods = sRaw.payment_methods;
+                    try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'payment_methods', JSON.stringify(sRaw.payment_methods)); } catch (_) { }
+                    const pmSelect = document.getElementById('posPaymentMethod') || document.getElementById('paymentMethodSelect');
+                    if (pmSelect) {
+                        const curPm = pmSelect.value;
+                        const activeMethods = sRaw.payment_methods.filter(m => m && m.active !== false);
+                        if (activeMethods.length > 0) {
+                            pmSelect.innerHTML = activeMethods.map(m => `<option value="${String(m.name || m).replace(/"/g, '&quot;')}">${m.name || m}</option>`).join('');
+                            if (curPm) pmSelect.value = curPm;
+                        }
+                    }
+                }
+            }
+
+            // 0.2 مزامنة العملاء والموردين من جدول accounts المخصص (بجانب النسخة الاحتياطية)
+            if (Array.isArray(accRes) && accRes.length > 0) {
+                const mappedAccs = accRes.map(r => Object.assign({ id: r.id, name: r.name || '' }, r.raw_json || {}));
+                State.accounts = mappedAccs;
+                State.customers = mappedAccs;
+                try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'accounts', JSON.stringify(mappedAccs)); } catch (_) { }
+                MobileIDB.putMany('accounts', mappedAccs, currentShopId).catch(() => { });
+            }
+
+            // 0.3 مزامنة جدول المخازن المخصص (يدعم حتى 10 مخازن وأكثر)
+            if (Array.isArray(whRes) && whRes.length > 0) {
+                const whNames = whRes.map(r => String(r.name || (r.raw_json && r.raw_json.name) || '').trim()).filter(Boolean);
+                if (whNames.length > 0) {
+                    State.warehouses = Array.from(new Set(['المخزن الرئيسي', ...whNames]));
+                    MobileIDB.putMany('warehouses', whRes.map(r => Object.assign({ id: r.id, name: r.name }, r.raw_json || {})), currentShopId).catch(() => { });
+                }
+            }
+
+            // حفظ الفواتير والأصناف في IndexedDB المفهرس للبحث السريع
+            if (Array.isArray(pRes) && pRes.length > 0) {
+                MobileIDB.putMany('products', pRes.map(r => Object.assign({ id: r.id, barcode: r.barcode || '', name: r.name || '' }, r.raw_json || {})), currentShopId).catch(() => { });
+            }
+            if (Array.isArray(cRes) && cRes.length > 0) {
+                MobileIDB.putMany('treasury_audit', cRes, currentShopId).catch(() => { });
+            }
 
             // 0. مزامنة بيانات المتجر التلقائية (Store Profile Sync)
             if (Array.isArray(cRes) && cRes.length > 0) {
@@ -656,6 +882,15 @@
                     };
                 });
                 try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (e) { }
+                MobileIDB.putMany('transactions', State.transactions, currentShopId).catch(() => { });
+
+                // 🔔 إشعار ذكي غير مزعج فقط عند وصول حركة جديدة فعلياً لم تكن مسجلة محلياً
+                if (!showIndicator && prevTxIds.size > 0) {
+                    const trulyNew = State.transactions.filter(t => !prevTxIds.has(String(t.invoiceId || t.id || '')));
+                    if (trulyNew.length > 0 && trulyNew.length <= 20) {
+                        showToast(`⚡ وصلت (${trulyNew.length}) حركة جديدة من بيان الكبير`, 'info');
+                    }
+                }
             }
 
             // 2. استخراج قائمة المخازن الحقيقية المعتمدة المسجلة على اللابتوب
@@ -3476,22 +3711,19 @@
 
         showToast('جاري قراءة الباركود من الصورة...', 'warning');
 
-        // Check if BarcodeDetector is natively supported
-        if ('BarcodeDetector' in window) {
-            try {
-                const detector = new window.BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8', 'qr_code', 'upc_a'] });
-                const bitmap = await createImageBitmap(file);
-                const barcodes = await detector.detect(bitmap);
-                if (barcodes && barcodes.length > 0) {
-                    const rawVal = barcodes[0].rawValue;
-                    playBarcodeBeepAndVibrate();
-                    showToast(`تم مسح الباركود: ${rawVal} 🏷️`, 'success');
-                    onBarcodeFound(rawVal);
-                    return;
-                }
-            } catch (err) {
-                console.warn('BarcodeDetector error:', err);
+        // قراءة عالمية عبر BarcodeDetector + jsQR (تعمل على أندرويد وآيفون)
+        const decodedVal = await decodeQrUniversalFromFile(file);
+        if (decodedVal) {
+            const pairInfo = parsePairingQrPayload(decodedVal);
+            if (pairInfo) {
+                playBarcodeBeepAndVibrate();
+                await verifyAndPairDevice(pairInfo.shopId, pairInfo.pin);
+                return;
             }
+            playBarcodeBeepAndVibrate();
+            showToast(`تم مسح الباركود: ${decodedVal} 🏷️`, 'success');
+            onBarcodeFound(decodedVal);
+            return;
         }
 
         const manualInput = await openModernPrompt('يرجى إدخال الباركود أو اسم الصنف للبحث:', '', 'text', '🔍 بحث يدوي');
@@ -4415,19 +4647,12 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         if (!file) return;
 
         showToast('جاري قراءة الباركود بكاميرا الهاتف 📷...', 'info');
-        if ('BarcodeDetector' in window) {
-            try {
-                const detector = new window.BarcodeDetector({ formats: ['code_128', 'ean_13', 'ean_8', 'qr_code', 'upc_a'] });
-                const bitmap = await createImageBitmap(file);
-                const barcodes = await detector.detect(bitmap);
-                if (barcodes && barcodes.length > 0) {
-                    const rawVal = barcodes[0].rawValue;
-                    playBarcodeBeepAndVibrate();
-                    showToast(`تم التقاط الباركود: ${rawVal} 🎯`, 'success');
-                    onStocktakeSearchInput(rawVal);
-                    return;
-                }
-            } catch (e) {}
+        const decodedVal = await decodeQrUniversalFromFile(file);
+        if (decodedVal) {
+            playBarcodeBeepAndVibrate();
+            showToast(`تم التقاط الباركود: ${decodedVal} 🎯`, 'success');
+            onStocktakeSearchInput(decodedVal);
+            return;
         }
         const manual = await openModernPrompt('أدخل الباركود أو اسم الصنف للجرد:', '', 'text', '📦 جرد يدوي');
         if (manual && manual.trim()) {
