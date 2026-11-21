@@ -267,9 +267,14 @@ function renderDualQrCodesHtml(d, size = 80, isNarrow = false) {
  */
 function buildInvoiceDocumentHTML(invoiceData) {
     if (!invoiceData) invoiceData = {};
-    // قراءة القالب المحفوظ
-    const savedSettings  = JSON.parse(getStore('bayan_print_template_choice') || '{}');
-    const templateChoice = invoiceData.template || savedSettings.template || '80mm Standard';
+    // قراءة القوالب المحفوظة (مفصولة حسب نوع المستند مع fallback للمفتاح القديم)
+    let savedSettings = {};
+    let savedByType = {};
+    try { savedSettings = JSON.parse(getStore('bayan_print_template_choice') || '{}'); } catch (e) {}
+    try { savedByType = JSON.parse(getStore('bayan_print_templates_by_type') || '{}'); } catch (e) {}
+    if ((!savedByType || Object.keys(savedByType).length === 0) && savedSettings.byType && typeof savedSettings.byType === 'object') {
+        savedByType = savedSettings.byType;
+    }
 
     // بيانات المتجر والمؤسسة (جلب موثوق من pos_settings وحقول الشاشة)
     let savedPosSettings = {};
@@ -286,10 +291,29 @@ function buildInvoiceDocumentHTML(invoiceData) {
         || savedPosSettings.address 
         || (document.getElementById('shopAddress') ? document.getElementById('shopAddress').value.trim() : '');
 
-    const defaultPhone = (savedPosSettings.phones && savedPosSettings.phones.find(p => p && p.trim() !== '')) || '';
-    const shopPhone   = invoiceData.shopPhone   
-        || defaultPhone 
-        || (document.getElementById('shopPhone1') ? document.getElementById('shopPhone1').value.trim() : '');
+    // ⚡ جمع وطباعة جميع أرقام الهواتف غير الفارغة (shopPhone1 إلى shopPhone4) مفصولة بفاصل واضح
+    const collectAllPhones = () => {
+        const list = [];
+        const addIfUnique = (val) => {
+            const clean = String(val || '').trim();
+            if (clean && !list.includes(clean)) list.push(clean);
+        };
+        if (Array.isArray(savedPosSettings.phones)) {
+            savedPosSettings.phones.forEach(addIfUnique);
+        }
+        if (list.length === 0) {
+            ['shopPhone1', 'shopPhone2', 'shopPhone3', 'shopPhone4'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) addIfUnique(el.value);
+            });
+        }
+        return list.join(' | ');
+    };
+    const defaultPhone = collectAllPhones();
+    const shopPhone   = invoiceData.shopPhone || defaultPhone;
+
+    const tplHeaderFontSize = savedPosSettings.tplHeaderFontSize || savedSettings.tplHeaderFontSize || '';
+    const tplBodyFontSize   = savedPosSettings.tplBodyFontSize   || savedSettings.tplBodyFontSize   || '';
 
     const footerMsg   = invoiceData.footerMsg   
         || savedPosSettings.printFooterMsg 
@@ -361,6 +385,13 @@ function buildInvoiceDocumentHTML(invoiceData) {
                   invoiceData.docType === 'return_purchase';
 
     const docType = invoiceData.docType || (isRet ? (isPur ? 'return_purchase' : 'return_sales') : (isPur ? 'purchase' : 'sales'));
+
+    // اختيار القالب المخصص لنوع المستند (بيع / شراء / سندات / مخزون) مع fallback للمفتاح القديم
+    const tplLookupKey = (docType === 'purchase' || docType === 'return_purchase') ? 'purchase'
+                       : (docType === 'financial') ? 'financial'
+                       : (docType === 'inventory') ? 'inventory'
+                       : 'sales';
+    const templateChoice = invoiceData.template || (savedByType && savedByType[tplLookupKey]) || savedSettings.template || '80mm Standard';
 
     // عناوين المستندات الرسمية
     const docTitles = {
@@ -508,6 +539,8 @@ function buildInvoiceDocumentHTML(invoiceData) {
         pageWidth,
         docTitle,
         shopName,
+        tplHeaderFontSize,
+        tplBodyFontSize,
         data: d
     };
 }
@@ -519,6 +552,8 @@ async function printInvoice(invoiceData, options = {}) {
     const pageWidth = rendered.pageWidth;
     const docTitle = rendered.docTitle;
     const shopName = rendered.shopName;
+    const customHeaderFontCss = rendered.tplHeaderFontSize ? `.shop-name, h1, h2 { font-size: ${rendered.tplHeaderFontSize} !important; }` : '';
+    const customBodyFontCss = rendered.tplBodyFontSize ? `body, table, td, th, .info-row, .totals-row { font-size: ${rendered.tplBodyFontSize} !important; }` : '';
     const isSilent = (options && options.silent === true);
 
     const baseUrl = (typeof window !== 'undefined' && window.location && window.location.href)
@@ -558,6 +593,8 @@ async function printInvoice(invoiceData, options = {}) {
             color: #000000 !important;
             font-weight: 900 !important;
         }
+        ${customHeaderFontCss}
+        ${customBodyFontCss}
         table {
             box-sizing: border-box !important;
             border-collapse: collapse !important;

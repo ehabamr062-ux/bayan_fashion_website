@@ -4165,6 +4165,7 @@ function applyFontSize(size) {
     if (size > 24) size = 24;
     currentFontSize = size;
 
+    // تطبيق فوري بصرياً بدون أي تأخير
     document.documentElement.style.setProperty('--app-font-size', size + 'px');
     const display = document.getElementById('currentFontSizeDisplay');
     if (display) display.innerText = size + 'px';
@@ -4172,10 +4173,19 @@ function applyFontSize(size) {
     const slider = document.getElementById('globalScaleSlider');
     if (slider) slider.value = size;
 
-    // حفظ الإعداد مباشرة
-    const settings = JSON.parse(getStore('pos_settings') || '{}');
-    settings.fontSize = size;
-    setStore('pos_settings', JSON.stringify(settings));
+    // ⚡ تأجيل الكتابة في SQLite عبر Debounce 400ms لمنع عشرات الكتابات المتتالية أثناء سحب الـ Slider
+    if (window._fontSizeSaveTimer) {
+        clearTimeout(window._fontSizeSaveTimer);
+    }
+    window._fontSizeSaveTimer = setTimeout(() => {
+        try {
+            const settings = JSON.parse(getStore('pos_settings') || '{}');
+            if (settings.fontSize !== currentFontSize) {
+                settings.fontSize = currentFontSize;
+                setStore('pos_settings', JSON.stringify(settings));
+            }
+        } catch (e) { }
+    }, 400);
 }
 
 function openSettingsTab(tabName, btn) {

@@ -551,9 +551,6 @@ window.restoreDataFromContent = async function (jsonContent, fileName = '', isEm
                 if (data.barcodeLabelSettings && Object.keys(data.barcodeLabelSettings).length > 0) {
                     setStore('bayan_barcode_label_settings', JSON.stringify(data.barcodeLabelSettings));
                 }
-                if (data.barcodeCenterSettings && Object.keys(data.barcodeCenterSettings).length > 0) {
-                    setStore('bayan_barcode_center_settings', JSON.stringify(data.barcodeCenterSettings));
-                }
                 if (data.paymentMethods && Array.isArray(data.paymentMethods) && data.paymentMethods.length > 0) {
                     setStore('bayan_payment_methods', JSON.stringify(data.paymentMethods));
                 }
@@ -1464,7 +1461,6 @@ window.compileBayanBackupPayload = async function() {
         wallpapers: wallpapersData,
         inventoryCategories: (window.inventoryCategories && window.inventoryCategories.length > 0) ? window.inventoryCategories : _safeParse(getStore('bayan_inventory_categories'), []),
         barcodeLabelSettings: _safeParse(getStore('bayan_barcode_label_settings'), {}),
-        barcodeCenterSettings: _safeParse(getStore('bayan_barcode_center_settings'), {}),
         paymentMethods: _safeParse(getStore('bayan_payment_methods'), []),
         globalUnits: _safeParse(getStore('bayan_global_units'), []),
         businessLogo: getStore('bayan_business_logo') || '',

@@ -12,19 +12,26 @@
     // قائمة الأصناف المجهزة للطباعة (Print Queue)
     let bpQueue = [];
 
-    // الإعدادات الافتراضية للملصق
+    // الإعدادات الافتراضية الموحدة للملصق والميزان (متطابقة مع inv_variants.js لمنع أي تصادم)
     const DEFAULT_BP_SETTINGS = {
         width: 50,
         height: 25,
+        offsetX: 0,
         barcodeHeight: 20,
         barcodeWidth: 1.3,
         showShopName: true,
         shopName: '',
         showItemName: true,
         showPrice: true,
+        showCode: true,
         showVariant: true,
         showBarcodeText: true,
-        fontSize: 8.5
+        fontSize: 8.5,
+        scaleEnabled: true,
+        scalePrefix: '2',
+        scaleType: 'weight',
+        scalePluLength: 6,
+        scaleValueLength: 5
     };
 
     let bpCurrentSettings = Object.assign({}, DEFAULT_BP_SETTINGS);
@@ -160,14 +167,25 @@
     }
 
     /**
-     * حفظ إعدادات الملصق في التخزين المحلي
+     * حفظ إعدادات الملصق في التخزين المحلي بدمج ذكي مع الإعدادات القائمة لحماية إعدادات الميزان والإزاحة
      */
+    function persistMergedBpSettings() {
+        let existing = {};
+        try {
+            const raw = (typeof getStore === 'function') ? getStore('bayan_barcode_label_settings') : null;
+            if (raw) existing = typeof raw === 'object' ? raw : JSON.parse(raw);
+        } catch (e) { }
+        const merged = Object.assign({}, DEFAULT_BP_SETTINGS, existing, bpCurrentSettings);
+        bpCurrentSettings = merged;
+        if (typeof setStore === 'function') {
+            setStore('bayan_barcode_label_settings', JSON.stringify(merged));
+        }
+    }
+
     function saveBpSettings() {
         try {
             readBpSettingsFromUI();
-            if (typeof setStore === 'function') {
-                setStore('bayan_barcode_label_settings', JSON.stringify(bpCurrentSettings));
-            }
+            persistMergedBpSettings();
             renderBpPreview();
             if (typeof showToast === 'function') {
                 showToast("✅ تم حفظ إعدادات ملصق الباركود بنجاح", "success");
@@ -1248,9 +1266,7 @@
         }
 
         readBpSettingsFromUI();
-        if (typeof setStore === 'function') {
-            setStore('bayan_barcode_label_settings', JSON.stringify(bpCurrentSettings));
-        }
+        persistMergedBpSettings();
 
         openBpPrintChoiceModal();
     }
@@ -1444,14 +1460,17 @@
         } catch (e) { }
         toggleBpPreviewColumn(savedPreview);
 
-        // إغلاق القائمة المنسدلة للبحث عند النقر خارجها
-        document.addEventListener('click', function (e) {
-            const dropdown = document.getElementById('bpSearchResultsDropdown');
-            const searchWrap = document.querySelector('.bp-search-input-wrap');
-            if (dropdown && searchWrap && !searchWrap.contains(e.target)) {
-                dropdown.classList.remove('active');
-            }
-        });
+        // إغلاق القائمة المنسدلة للبحث عند النقر خارجها (محمي بحارس لمنع تسريب وتراكم المستمعات)
+        if (!window._barcodeDocClickBound) {
+            window._barcodeDocClickBound = true;
+            document.addEventListener('click', function (e) {
+                const dropdown = document.getElementById('bpSearchResultsDropdown');
+                const searchWrap = document.querySelector('.bp-search-input-wrap');
+                if (dropdown && searchWrap && !searchWrap.contains(e.target)) {
+                    dropdown.classList.remove('active');
+                }
+            });
+        }
 
         // اختصارات الكيبورد داخل قسم طباعة الباركود
         if (!window._bpKeydownBound) {

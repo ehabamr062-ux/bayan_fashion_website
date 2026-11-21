@@ -26,62 +26,80 @@ function addToTrash(type, data, desc) {
 async function saveSettings() {
     const currentSettings = JSON.parse(getStore('pos_settings') || '{}');
 
-    // 1. Phone Validation Logic
-    const p1 = document.getElementById('shopPhone1').value.trim();
-    const p2 = document.getElementById('shopPhone2').value.trim();
-    const p3 = document.getElementById('shopPhone3').value.trim();
-    const p4 = document.getElementById('shopPhone4').value.trim();
+    // 1. Phone Validation Logic (مرن يقبل الأرقام المحلية والدولية من 7 إلى 15 رقماً، ولا يعطّل حفظ التبويبات الأخرى)
+    const rawPhones = [
+        (document.getElementById('shopPhone1')?.value || '').trim(),
+        (document.getElementById('shopPhone2')?.value || '').trim(),
+        (document.getElementById('shopPhone3')?.value || '').trim(),
+        (document.getElementById('shopPhone4')?.value || '').trim()
+    ];
+    const normalizePhoneDigits = (str) => String(str || '').replace(/[\s\-\(\)\+]/g, '');
+    const isValidFlexiblePhone = (str) => {
+        if (!str) return true;
+        const digits = normalizePhoneDigits(str);
+        return /^\d{7,15}$/.test(digits);
+    };
 
-    const isNumeric = (str) => /^\d+$/.test(str);
+    const businessTabEl = document.getElementById('set-tab-business');
+    const isBusinessTabVisible = !!(businessTabEl && !businessTabEl.classList.contains('hidden'));
+    const prevPhones = Array.isArray(currentSettings.phones) ? currentSettings.phones : ['', '', '', ''];
+    const finalPhones = ['', '', '', ''];
+    let invalidPhoneFound = false;
 
-    // Validate Mobile 1 (Primary)
-    if (p1 && (p1.length !== 11 || !isNumeric(p1))) {
-        return showToast("⚠️ الموبايل الأساسي يجب أن يكون 11 رقم بالضبط", "error");
+    for (let i = 0; i < 4; i++) {
+        const val = rawPhones[i];
+        if (isValidFlexiblePhone(val)) {
+            finalPhones[i] = val;
+        } else {
+            invalidPhoneFound = true;
+            // إذا كان المستخدم في تبويب آخر غير بيانات المؤسسة، نحتفظ بالقيمة السابقة الصالحة ولا نمنع حفظ التبويب الحالي
+            finalPhones[i] = isValidFlexiblePhone(prevPhones[i]) ? (prevPhones[i] || '') : '';
+        }
     }
-    // Validate WhatsApp
-    if (p4 && (p4.length !== 11 || !isNumeric(p4))) {
-        return showToast("⚠️ رقم واتساب يجب أن يكون 11 رقم بالضبط", "error");
+
+    if (invalidPhoneFound && isBusinessTabVisible) {
+        return showToast("⚠️ يرجى إدخال أرقام هواتف صالحة (من 7 إلى 15 رقماً محلياً أو دولياً)", "error");
     }
-    // Validate Additional Phone
-    if (p2 && (p2.length !== 11 || !isNumeric(p2))) {
-        return showToast("⚠️ الهاتف الإضافي يجب أن يكون 11 رقم بالضبط", "error");
-    }
-    // Validate Landline
-    if (p3 && (p3.length !== 10 || !isNumeric(p3))) {
-        return showToast("⚠️ الخط الأرضي يجب أن يكون 10 أرقام بالضبط (كود المحافظة + الرقم)", "error");
-    }
+
+    const getVal = (id, fallback) => {
+        const el = document.getElementById(id);
+        return el ? el.value : fallback;
+    };
+    const getChk = (id, fallback) => {
+        const el = document.getElementById(id);
+        return el ? el.checked : fallback;
+    };
 
     const settings = {
         ...currentSettings,
-        name: document.getElementById('shopName').value,
-        phones: [p1, p2, p3, p4],
-        address: document.getElementById('shopAddress').value,
-        autoBackup: document.getElementById('autoBackupSetting').checked,
-        autoBackupInterval: document.getElementById('autoBackupInterval').value,
-        gdriveAutoShiftBackup: document.getElementById('gdriveAutoShiftCheck') ? document.getElementById('gdriveAutoShiftCheck').checked : true,
-        printFooterMsg: document.getElementById('printFooterMsg').value,
-        printInvoiceQrEnabled: document.getElementById('printInvoiceQrEnabled') ? document.getElementById('printInvoiceQrEnabled').checked : true,
-        printSocialQrEnabled: document.getElementById('printSocialQrEnabled') ? document.getElementById('printSocialQrEnabled').checked : true,
-        printSocialQrLink: document.getElementById('printSocialQrLink') ? document.getElementById('printSocialQrLink').value.trim() : '',
-        printSocialQr2Enabled: document.getElementById('printSocialQr2Enabled') ? document.getElementById('printSocialQr2Enabled').checked : false,
-        printSocialQr2Link: document.getElementById('printSocialQr2Link') ? document.getElementById('printSocialQr2Link').value.trim() : '',
+        name: getVal('shopName', currentSettings.name || ''),
+        phones: finalPhones,
+        address: getVal('shopAddress', currentSettings.address || ''),
+        autoBackup: getChk('autoBackupSetting', currentSettings.autoBackup || false),
+        autoBackupInterval: getVal('autoBackupInterval', currentSettings.autoBackupInterval || 'close'),
+        gdriveAutoShiftBackup: getChk('gdriveAutoShiftCheck', currentSettings.gdriveAutoShiftBackup !== undefined ? currentSettings.gdriveAutoShiftBackup : true),
+        printFooterMsg: getVal('printFooterMsg', currentSettings.printFooterMsg || ''),
+        printInvoiceQrEnabled: getChk('printInvoiceQrEnabled', currentSettings.printInvoiceQrEnabled !== undefined ? currentSettings.printInvoiceQrEnabled : true),
+        printSocialQrEnabled: getChk('printSocialQrEnabled', currentSettings.printSocialQrEnabled !== undefined ? currentSettings.printSocialQrEnabled : true),
+        printSocialQrLink: String(getVal('printSocialQrLink', currentSettings.printSocialQrLink || '')).trim(),
+        printSocialQr2Enabled: getChk('printSocialQr2Enabled', currentSettings.printSocialQr2Enabled !== undefined ? currentSettings.printSocialQr2Enabled : false),
+        printSocialQr2Link: String(getVal('printSocialQr2Link', currentSettings.printSocialQr2Link || '')).trim(),
         // Financial Settings
-        currencySymbol: document.getElementById('appCurrencySymbol').value || "ج.م",
-        currencyName: document.getElementById('appCurrencyName').value || "جنيه مصري",
-        taxPercent: parseFloat(document.getElementById('appTaxPercent').value) || 0,
-        taxEnabled: document.getElementById('appTaxEnabled').checked,
-        dailyTaxSeqEnabled: document.getElementById('dailyTaxSeqEnabled') ? document.getElementById('dailyTaxSeqEnabled').checked : false,
-        dailyTaxSeqLimit: document.getElementById('dailyTaxSeqLimit') ? (parseInt(document.getElementById('dailyTaxSeqLimit').value, 10) || 0) : 0,
-        allowBackdating: document.getElementById('allowBackdating').checked,
-        allowHistoryEdit: document.getElementById('allowHistoryEdit').checked,
-        showInquiryCostPrice: document.getElementById('showInquiryCostPrice') ? document.getElementById('showInquiryCostPrice').checked : false,
-        requireOriginalInvoiceForReturn: document.getElementById('requireOriginalInvoiceForReturn') ? document.getElementById('requireOriginalInvoiceForReturn').checked : true,
+        currencySymbol: getVal('appCurrencySymbol', currentSettings.currencySymbol || 'ج.م') || 'ج.م',
+        currencyName: getVal('appCurrencyName', currentSettings.currencyName || 'جنيه مصري') || 'جنيه مصري',
+        taxPercent: parseFloat(getVal('appTaxPercent', currentSettings.taxPercent || 0)) || 0,
+        taxEnabled: getChk('appTaxEnabled', currentSettings.taxEnabled || false),
+        dailyTaxSeqEnabled: getChk('dailyTaxSeqEnabled', currentSettings.dailyTaxSeqEnabled || false),
+        dailyTaxSeqLimit: parseInt(getVal('dailyTaxSeqLimit', currentSettings.dailyTaxSeqLimit || 0), 10) || 0,
+        allowBackdating: getChk('allowBackdating', currentSettings.allowBackdating !== undefined ? currentSettings.allowBackdating : true),
+        allowHistoryEdit: getChk('allowHistoryEdit', currentSettings.allowHistoryEdit !== undefined ? currentSettings.allowHistoryEdit : true),
+        showInquiryCostPrice: getChk('showInquiryCostPrice', currentSettings.showInquiryCostPrice || false),
+        requireOriginalInvoiceForReturn: getChk('requireOriginalInvoiceForReturn', currentSettings.requireOriginalInvoiceForReturn !== undefined ? currentSettings.requireOriginalInvoiceForReturn : true),
         // Business Profile & UI Customization Settings
-        businessType: (document.getElementById('appBusinessTypeSelect') ? document.getElementById('appBusinessTypeSelect').value : null) || (document.getElementById('appBusinessType') ? document.getElementById('appBusinessType').value : "clothing"),
-        directToSalesOnLogin: document.getElementById('directToSalesOnLogin') ? document.getElementById('directToSalesOnLogin').checked : true,
-        enableVariantsMatrix: document.getElementById('enableVariantsMatrix') ? document.getElementById('enableVariantsMatrix').checked : true,
-        splitWholesaleRetailReports: document.getElementById('splitWholesaleRetailReports') ? document.getElementById('splitWholesaleRetailReports').checked : true,
-        enableSimpleStaffDashboard: document.getElementById('enableSimpleStaffDashboard') ? document.getElementById('enableSimpleStaffDashboard').checked : true,
+        businessType: (document.getElementById('appBusinessTypeSelect')?.value) || (document.getElementById('appBusinessType')?.value) || currentSettings.businessType || "clothing",
+        directToSalesOnLogin: getChk('directToSalesOnLogin', currentSettings.directToSalesOnLogin !== undefined ? currentSettings.directToSalesOnLogin : true),
+        enableVariantsMatrix: getChk('enableVariantsMatrix', currentSettings.enableVariantsMatrix !== undefined ? currentSettings.enableVariantsMatrix : true),
+        splitWholesaleRetailReports: getChk('splitWholesaleRetailReports', currentSettings.splitWholesaleRetailReports !== undefined ? currentSettings.splitWholesaleRetailReports : true),
         visibleDashboardSections: getDashboardSectionsVisibilityState()
     };
     setStore('pos_settings', JSON.stringify(settings));
@@ -343,13 +361,8 @@ function applyBusinessTypeUI() {
         }
     });
 
-    // 4. التحكم في الواجهة الرئيسية المبسطة
-    const simpleDashboard = settings.enableSimpleStaffDashboard !== undefined ? !!settings.enableSimpleStaffDashboard : true;
-    if (simpleDashboard) {
-        document.body.classList.add('bayan-simple-dashboard-mode');
-    } else {
-        document.body.classList.remove('bayan-simple-dashboard-mode');
-    }
+    // 4. التحكم في الواجهة الرئيسية المبسطة (الافتراضي مفعّل لتنسيق لوحة الموظفين)
+    document.body.classList.add('bayan-simple-dashboard-mode');
 
     // 5. تحديث كارت نوع النشاط في أعلى يسار شاشة تسجيل الدخول فورياً
     const loginBadge = document.getElementById('loginBusinessTypeBadge');
@@ -534,10 +547,6 @@ function loadSettings() {
             setStore('pos_settings', JSON.stringify(currentSettings));
             if (typeof generateDailyReport === 'function') generateDailyReport();
         });
-    }
-
-    if (settings.enableSimpleStaffDashboard !== undefined && document.getElementById('enableSimpleStaffDashboard')) {
-        document.getElementById('enableSimpleStaffDashboard').checked = settings.enableSimpleStaffDashboard;
     }
 
     // Load Checkboxes for Dashboard Sections
@@ -1341,59 +1350,48 @@ function onUserWarehouseScopeChange(scope) {
 }
 window.onUserWarehouseScopeChange = onUserWarehouseScopeChange;
 
-// 🔒 حفظ وتثبيت جدول المستخدمين مباشرة وفورياً في SQLite وكاش التخزين المحلي لمنع أي فقدان أو حفظ مؤقت
+// 🔒 حفظ وتثبيت جدول المستخدمين في SQLite مرة واحدة فقط بشكل ذري لمنع الكتابة المكررة
 async function saveUsersDirectlyToDb() {
     if (!Array.isArray(users)) return;
     window.users = users;
+    const secureUsers = users.map(u => {
+        let userPin = u.pin;
+        if (userPin === '••••') userPin = '1234';
+        return {
+            ...u,
+            pin: (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
+                ? window.BayanSecurity.encryptPin(userPin)
+                : userPin
+        };
+    });
+
     try {
-        if (typeof db !== 'undefined' && db && db.users) {
-            const secureUsers = users.map(u => {
-                let userPin = u.pin;
-                if (userPin === '••••') userPin = '1234';
-                return {
-                    ...u,
-                    pin: (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
-                        ? window.BayanSecurity.encryptPin(userPin)
-                        : userPin
-                };
+        if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
+            const dbNative = window.BayanSQLite.nativeDb;
+            const saveTx = dbNative.transaction((rows) => {
+                dbNative.prepare("DELETE FROM users;").run();
+                const ins = dbNative.prepare("INSERT OR REPLACE INTO users (id, name, pin, role, raw_json) VALUES (?, ?, ?, ?, ?);");
+                for (const u of rows) {
+                    const rawJson = (typeof window.BayanSQLite._extractExtraFields === 'function')
+                        ? window.BayanSQLite._extractExtraFields(u, ['id', 'name', 'pin', 'role'])
+                        : JSON.stringify(u);
+                    const sRaw = typeof rawJson === 'object' ? JSON.stringify(rawJson) : String(rawJson || '{}');
+                    ins.run(u.id, u.name || '', u.pin || '', u.role || '', sRaw);
+                }
             });
+            saveTx(secureUsers);
+            console.log("🔒 [SQLite Users] تم حفظ وتثبيت كافة المستخدمين في SQLite مرة واحدة بنجاح.");
+        } else if (typeof db !== 'undefined' && db && db.users) {
             await db.users.clear();
             await db.users.bulkPut(secureUsers);
-            if (window.BayanSQLite && window.BayanSQLite.isNative && window.BayanSQLite.nativeDb) {
-                try {
-                    for (const u of secureUsers) {
-                        const rawJson = (window.BayanSQLite && typeof window.BayanSQLite._extractExtraFields === 'function')
-                            ? window.BayanSQLite._extractExtraFields(u, ['id', 'name', 'pin', 'role'])
-                            : JSON.stringify(u);
-                        const sRaw = typeof rawJson === 'object' ? JSON.stringify(rawJson) : String(rawJson || '{}');
-                        window.BayanSQLite.nativeDb.prepare("INSERT OR REPLACE INTO users (id, name, pin, role, raw_json) VALUES (?, ?, ?, ?, ?);").run(u.id, u.name || '', u.pin || '', u.role || '', sRaw);
-                    }
-                } catch (ne) { }
-            }
             if (window.BayanSQLite && typeof window.BayanSQLite.schedulePersist === 'function') {
                 window.BayanSQLite.schedulePersist(100);
             }
-            console.log("🔒 [SQLite Users] تم حفظ وتثبيت بيانات وصلاحيات كافة المستخدمين في SQLite بنجاح.");
+            console.log("🔒 [SQLite Users] تم حفظ وتثبيت كافة المستخدمين عبر db.users بنجاح.");
         }
     } catch (e) {
         console.error("❌ فشل الحفظ المباشر للمستخدمين في SQLite:", e);
     }
-
-    try {
-        if (typeof setStore === 'function') {
-            const secureUsersCache = users.map(u => {
-                let userPin = u.pin;
-                if (userPin === '••••') userPin = '1234';
-                return {
-                    ...u,
-                    pin: (window.BayanSecurity && typeof window.BayanSecurity.encryptPin === 'function')
-                        ? window.BayanSecurity.encryptPin(userPin)
-                        : userPin
-                };
-            });
-            setStore('bayan_pos_users_secure_cache', JSON.stringify(secureUsersCache));
-        }
-    } catch (ce) { }
 }
 window.saveUsersDirectlyToDb = saveUsersDirectlyToDb;
 
@@ -3671,28 +3669,72 @@ function updateWarehousesSummaryBoard() {
 
     board.innerHTML = '';
 
-    warehouses.forEach(w => {
-        let itemsCount = 0;
-        let totalQty = 0;
-        let totalValue = 0;
+    // ⚡ تحسين من O(W×P) إلى تمريرة واحدة O(P) باستخدام Map لكل المخازن
+    const statsByWh = new Map();
+    const whNames = [];
+    (warehouses || []).forEach(w => {
+        if (w && w.name) {
+            statsByWh.set(w.name, { itemsCount: 0, totalQty: 0, totalValue: 0 });
+            whNames.push(w.name);
+        }
+    });
 
-        productsDB.forEach(p => {
-            if (typeof getWarehouseStock === 'function') {
-                const stockInWarehouse = getWarehouseStock(p.name, w.name);
-                if (stockInWarehouse !== 0) {
-                    itemsCount++;
-                    totalQty += stockInWarehouse;
+    const prods = Array.isArray(productsDB) ? productsDB : [];
+    const defaultWh = whNames.includes('المخزن الرئيسي') ? 'المخزن الرئيسي' : (whNames[0] || 'المخزن الرئيسي');
 
-                    let factor = 1;
-                    if (p.units && p.units.length > 0) {
-                        const mainU = p.units[0];
-                        if (mainU && mainU.factor) factor = parseFloat(mainU.factor) || 1;
+    for (let i = 0; i < prods.length; i++) {
+        const p = prods[i];
+        if (!p) continue;
+
+        let factor = 1;
+        if (p.units && p.units.length > 0 && p.units[0] && p.units[0].factor) {
+            factor = parseFloat(p.units[0].factor) || 1;
+        }
+        const costPerUnit = (parseFloat(p.cost) || 0) / factor;
+
+        // تجميع رصيد هذا الصنف لكل مخزن في تمريرة واحدة
+        const prodWhTotals = new Map();
+        if (Array.isArray(p.variants) && p.variants.length > 0) {
+            for (let vIdx = 0; vIdx < p.variants.length; vIdx++) {
+                const v = p.variants[vIdx];
+                if (!v) continue;
+                if (v.warehouseStocks && typeof v.warehouseStocks === 'object') {
+                    const vKeys = Object.keys(v.warehouseStocks);
+                    for (let k = 0; k < vKeys.length; k++) {
+                        const whKey = vKeys[k];
+                        const q = parseFloat(v.warehouseStocks[whKey]) || 0;
+                        if (q !== 0) prodWhTotals.set(whKey, (prodWhTotals.get(whKey) || 0) + q);
                     }
-                    totalValue += ((stockInWarehouse / factor) * (parseFloat(p.cost) || 0));
+                } else {
+                    const q = parseFloat(v.stock) || 0;
+                    if (q !== 0) prodWhTotals.set(defaultWh, (prodWhTotals.get(defaultWh) || 0) + q);
                 }
             }
-        });
+        } else if (p.warehouseStocks && typeof p.warehouseStocks === 'object') {
+            const pKeys = Object.keys(p.warehouseStocks);
+            for (let k = 0; k < pKeys.length; k++) {
+                const whKey = pKeys[k];
+                const q = parseFloat(p.warehouseStocks[whKey]) || 0;
+                if (q !== 0) prodWhTotals.set(whKey, (prodWhTotals.get(whKey) || 0) + q);
+            }
+        } else {
+            const q = parseFloat(p.stock) || 0;
+            if (q !== 0) prodWhTotals.set(defaultWh, q);
+        }
 
+        prodWhTotals.forEach((qty, whKey) => {
+            const bucket = statsByWh.get(whKey);
+            if (bucket && qty !== 0) {
+                bucket.itemsCount++;
+                bucket.totalQty += qty;
+                bucket.totalValue += (qty * costPerUnit);
+            }
+        });
+    }
+
+    const frag = document.createDocumentFragment();
+    (warehouses || []).forEach(w => {
+        const st = statsByWh.get(w.name) || { itemsCount: 0, totalQty: 0, totalValue: 0 };
         const div = document.createElement('div');
         const isCurrentWH = currentUser && currentUser.warehouseName === w.name;
         div.style = `background: ${isCurrentWH ? '#fffdf0' : 'white'}; padding: 15px; border-radius: 12px; border: ${isCurrentWH ? '2px solid #f59e0b' : '1px solid rgba(201,168,76,0.2)'}; box-shadow: 0 4px 10px rgba(0,0,0,0.05); transition: 0.3s; cursor: pointer; border-right: 5px solid ${isCurrentWH ? '#f59e0b' : 'var(--gold)'};`;
@@ -3706,54 +3748,72 @@ function updateWarehousesSummaryBoard() {
             <div style="display: flex; flex-direction: column; gap: 6px;">
                 <div style="font-size: 0.85rem; color: #666; display: flex; justify-content: space-between;">
                     <span> عدد الأصناف:</span>
-                    <span style="font-weight: bold; color:#000;">${itemsCount}</span>
+                    <span style="font-weight: bold; color:#000;">${st.itemsCount}</span>
                 </div>
                 <div style="font-size: 0.85rem; color: #666; display: flex; justify-content: space-between;">
                     <span> إجمالي الكمية:</span>
-                    <span style="font-weight: bold; color:#2ecc71;">${totalQty.toFixed(2)}</span>
+                    <span style="font-weight: bold; color:#2ecc71;">${st.totalQty.toFixed(2)}</span>
                 </div>
                 <div style="font-size: 0.85rem; color: #666; display: flex; justify-content: space-between; border-top: 1px dashed #eee; padding-top: 5px; margin-top: 5px;">
                     <span> قيمة المخزن (تكلفة):</span>
-                    <span style="font-weight: bold; color:var(--main-blue);">${totalValue.toFixed(2)} ج.م</span>
+                    <span style="font-weight: bold; color:var(--main-blue);">${st.totalValue.toFixed(2)} ج.م</span>
                 </div>
             </div>
         `;
-        board.appendChild(div);
+        frag.appendChild(div);
     });
+    board.appendChild(frag);
 }
 
 // --- 4. Aesthetics & Theme Logic ---
 
 function changeLanguage(lang) {
-    window.currentLanguage = lang;
+    const targetLang = String(lang || 'ar').trim();
+    const select = document.getElementById('appLanguageSelect');
+
+    // 🛡️ حماية الواجهة: إذا لم يكن قاموس الترجمة مكتملاً للغة غير العربية، لا نقلب الاتجاه إلى LTR
+    if (targetLang !== 'ar') {
+        const dict = (window.translations && window.translations[targetLang]) ? window.translations[targetLang] : null;
+        if (!dict || Object.keys(dict).length < 10) {
+            if (select) select.value = 'ar';
+            document.documentElement.dir = 'rtl';
+            document.documentElement.lang = 'ar';
+            window.currentLanguage = 'ar';
+            if (typeof showToast === 'function') {
+                showToast("ℹ️ الواجهة الإنجليزية قيد التطوير حالياً — تم الإبقاء على اللغة العربية لحماية تنسيق الشاشات.", "info");
+            }
+            return;
+        }
+    }
+
+    window.currentLanguage = targetLang;
     const settings = JSON.parse(getStore('pos_settings') || '{}');
 
-    if (lang === 'ar') {
+    if (targetLang === 'ar') {
         document.documentElement.dir = 'rtl';
         document.documentElement.lang = 'ar';
     } else {
         document.documentElement.dir = 'ltr';
-        document.documentElement.lang = lang;
+        document.documentElement.lang = targetLang;
     }
 
     document.querySelectorAll('[data-i18n]').forEach(el => {
         const key = el.getAttribute('data-i18n');
         if (key === 'app_title' && settings.name) return;
 
-        if (window.translations && window.translations[lang] && window.translations[lang][key]) {
+        if (window.translations && window.translations[targetLang] && window.translations[targetLang][key]) {
             if (el.tagName === 'INPUT' && el.getAttribute('placeholder')) {
-                el.placeholder = window.translations[lang][key];
+                el.placeholder = window.translations[targetLang][key];
             } else {
-                el.innerText = window.translations[lang][key];
+                el.innerText = window.translations[targetLang][key];
             }
         }
     });
 
-    settings.language = lang;
+    settings.language = targetLang;
     setStore('pos_settings', JSON.stringify(settings));
 
-    const select = document.getElementById('appLanguageSelect');
-    if (select) select.value = lang;
+    if (select) select.value = targetLang;
 }
 
 async function toggleTheme() {
@@ -3773,9 +3833,27 @@ async function toggleTheme() {
 }
 
 function changeAppColor(color) {
-    document.documentElement.style.setProperty('--main-green', color);
+    let resolvedColor = String(color || '').trim();
+    // 🛡️ منع دورة CSS الذاتية القاتلة (--main-green: var(--main-green)) وحل أي متغير CSS لقيمته اللونية الفعلية
+    const varMatch = resolvedColor.match(/^var\(\s*(--[a-zA-Z0-9_-]+)\s*\)$/);
+    if (varMatch) {
+        const varName = varMatch[1];
+        if (varName === '--main-green') {
+            resolvedColor = '#16a34a';
+        } else {
+            try {
+                const computed = getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+                resolvedColor = (computed && !computed.startsWith('var(')) ? computed : '#16a34a';
+            } catch (e) {
+                resolvedColor = '#16a34a';
+            }
+        }
+    }
+    if (!resolvedColor) resolvedColor = '#16a34a';
+
+    document.documentElement.style.setProperty('--main-green', resolvedColor);
     const settings = JSON.parse(getStore('pos_settings') || '{}');
-    settings.mainColor = color;
+    settings.mainColor = resolvedColor;
     setStore('pos_settings', JSON.stringify(settings));
 }
 

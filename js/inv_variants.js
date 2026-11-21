@@ -35,60 +35,54 @@ async function requestCopiesAndPrint(mode) {
 }
 
 function getBarcodeLabelSettings() {
-    try {
-        const stored = typeof getStore === 'function' ? getStore('bayan_barcode_label_settings') : null;
-        if (stored) {
-            const parsed = JSON.parse(stored);
-            return Object.assign({
-                width: 50,
-                height: 25,
-                offsetX: 0,
-                barcodeHeight: 24,
-                showShopName: true,
-                showItemName: true,
-                showPrice: true,
-                showCode: true,
-                scaleEnabled: true,
-                scalePrefix: '2',
-                scaleType: 'weight',
-                scalePluLength: 6,
-                scaleValueLength: 5
-            }, parsed);
-        }
-    } catch (e) { }
-    return {
+    const defaults = {
         width: 50,
         height: 25,
         offsetX: 0,
         barcodeHeight: 24,
+        barcodeWidth: 1.3,
         showShopName: true,
+        shopName: '',
         showItemName: true,
         showPrice: true,
         showCode: true,
+        showVariant: true,
+        showBarcodeText: true,
+        fontSize: 8.5,
         scaleEnabled: true,
         scalePrefix: '2',
         scaleType: 'weight',
         scalePluLength: 6,
         scaleValueLength: 5
     };
+    try {
+        const stored = typeof getStore === 'function' ? getStore('bayan_barcode_label_settings') : null;
+        if (stored) {
+            const parsed = typeof stored === 'object' ? stored : JSON.parse(stored);
+            return Object.assign({}, defaults, parsed);
+        }
+    } catch (e) { }
+    return defaults;
 }
 
 function saveBarcodeLabelSettings() {
-    const s = {
+    // ⚡ دمج ذكي مع القيم المحفوظة حالياً لحماية إعدادات مركز الباركود (fontSize / showVariant / showBarcodeText) من المسح
+    const existing = getBarcodeLabelSettings();
+    const s = Object.assign({}, existing, {
         width: parseFloat(document.getElementById('bcLabelWidth')?.value) || 50,
         height: parseFloat(document.getElementById('bcLabelHeight')?.value) || 25,
         offsetX: parseFloat(document.getElementById('bcLabelOffsetX')?.value) || 0,
         barcodeHeight: parseFloat(document.getElementById('bcBarcodeHeight')?.value) || 24,
-        showShopName: document.getElementById('bcShowShopName')?.checked ?? true,
-        showItemName: document.getElementById('bcShowItemName')?.checked ?? true,
-        showPrice: document.getElementById('bcShowPrice')?.checked ?? true,
-        showCode: document.getElementById('bcShowCode')?.checked ?? true,
-        scaleEnabled: document.getElementById('scaleBarcodeEnabled')?.checked ?? true,
+        showShopName: document.getElementById('bcShowShopName')?.checked ?? existing.showShopName,
+        showItemName: document.getElementById('bcShowItemName')?.checked ?? existing.showItemName,
+        showPrice: document.getElementById('bcShowPrice')?.checked ?? existing.showPrice,
+        showCode: document.getElementById('bcShowCode')?.checked ?? existing.showCode,
+        scaleEnabled: document.getElementById('scaleBarcodeEnabled')?.checked ?? existing.scaleEnabled,
         scalePrefix: document.getElementById('scaleBarcodePrefix')?.value || '2',
         scaleType: document.getElementById('scaleBarcodeType')?.value || 'weight',
         scalePluLength: parseInt(document.getElementById('scalePluLength')?.value, 10) || 6,
         scaleValueLength: parseInt(document.getElementById('scaleValueLength')?.value, 10) || 5
-    };
+    });
     if (typeof setStore === 'function') {
         setStore('bayan_barcode_label_settings', JSON.stringify(s));
     }

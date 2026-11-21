@@ -899,30 +899,75 @@ async function uploadCustomWallpaper(event) {
     const file = event.target.files[0];
     if (!file) return;
 
-    // التحقق من حجم الملف (يفضل أقل من 2 ميجا لتجنب مشاكل الذاكرة)
-    if (file.size > 2 * 1024 * 1024) {
-        return showToast("⚠️ حجم الصورة كبير جداً، يرجى اختيار صورة أقل من 2 ميجابايت.", "error");
+    // السماح بملفات حتى 10MB قبل الضغط لأننا سنضغطها تلقائياً إلى WebP خفيفة
+    if (file.size > 10 * 1024 * 1024) {
+        return showToast("⚠️ حجم الصورة كبير جداً، يرجى اختيار صورة أقل من 10 ميجابايت.", "error");
     }
 
     const reader = new FileReader();
     reader.onload = async (e) => {
-        const base64Data = e.target.result;
-        try {
-            // حفظ في SQLite مع الاحتفاظ بالخلفيات السابقة
-            const customId = 'custom_' + Date.now();
-            await db.wallpapers.add({ name: customId, data: base64Data });
+        const rawBase64 = e.target.result;
+        const persistCompressed = async (finalData) => {
+            try {
+                // حفظ في SQLite مع الاحتفاظ بالخلفيات السابقة
+                const customId = 'custom_' + Date.now();
+                await db.wallpapers.add({ name: customId, data: finalData });
 
-            // إضافة للمظهر فوراً باستخدام الـ ID وليس الـ Base64
-            changeWallpaper(customId, true);
+                // إضافة للمظهر فوراً باستخدام الـ ID وليس الـ Base64
+                changeWallpaper(customId, true);
 
-            // تحديث قائمة الخلفيات المخصصة
-            await loadCustomWallpapersToGallery();
+                // تحديث قائمة الخلفيات المخصصة
+                await loadCustomWallpapersToGallery();
 
-            showToast("✅ تم رفع وحفظ الخلفية المخصصة بنجاح", "success");
-        } catch (err) {
-            console.error("فشل حفظ الخلفية:", err);
-            showToast("❌ حدث خطأ أثناء حفظ الصورة محلياً.", "error");
-        }
+                showToast("✅ تم ضغط ورفع الخلفية المخصصة بصيغة WebP بنجاح", "success");
+            } catch (err) {
+                console.error("فشل حفظ الخلفية:", err);
+                showToast("❌ حدث خطأ أثناء حفظ الصورة محلياً.", "error");
+            }
+        };
+
+        // ⚡ ضغط الخلفية المخصصة إلى WebP بأبعاد قصوى 1920px وجودة 0.80 لحماية الرام و SQLite
+        const img = new Image();
+        img.onload = async () => {
+            let finalWp = rawBase64;
+            try {
+                const maxDim = 1920;
+                let w = img.width;
+                let h = img.height;
+                if (w > maxDim || h > maxDim) {
+                    if (w >= h) {
+                        h = Math.round((h * maxDim) / w);
+                        w = maxDim;
+                    } else {
+                        w = Math.round((w * maxDim) / h);
+                        h = maxDim;
+                    }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, 0, 0, w, h);
+                let webpWp = canvas.toDataURL('image/webp', 0.80);
+                if (!webpWp || !webpWp.startsWith('data:image/webp')) {
+                    webpWp = canvas.toDataURL('image/jpeg', 0.80);
+                }
+                if (webpWp.length > 480000) {
+                    const lower = canvas.toDataURL('image/webp', 0.68);
+                    if (lower && lower.startsWith('data:image/webp')) webpWp = lower;
+                }
+                finalWp = webpWp;
+            } catch (_) {
+                finalWp = rawBase64;
+            }
+            await persistCompressed(finalWp);
+        };
+        img.onerror = async () => {
+            await persistCompressed(rawBase64);
+        };
+        img.src = rawBase64;
     };
     reader.readAsDataURL(file);
 }
@@ -1451,7 +1496,43 @@ function updateActiveTabTitle(nameValue, baseLabel) {
 
 // --- نظام تصميم نماذج الطباعة الاحترافي ---
 let currentSelectedTemplateType = 'فاتورة المبيعات';
-let currentSelectedTemplateId = '0010 - 80mm';
+let currentSelectedTemplateId = '80mm Standard';
+
+const SAMPLE_QR_INLINE_SVG = "data:image/svg+xml;utf8," + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">' +
+    '<rect width="64" height="64" fill="#ffffff"/>' +
+    '<rect x="4" y="4" width="18" height="18" fill="none" stroke="#0f172a" stroke-width="4"/>' +
+    '<rect x="9" y="9" width="8" height="8" fill="#0f172a"/>' +
+    '<rect x="42" y="4" width="18" height="18" fill="none" stroke="#0f172a" stroke-width="4"/>' +
+    '<rect x="47" y="9" width="8" height="8" fill="#0f172a"/>' +
+    '<rect x="4" y="42" width="18" height="18" fill="none" stroke="#0f172a" stroke-width="4"/>' +
+    '<rect x="9" y="47" width="8" height="8" fill="#0f172a"/>' +
+    '<rect x="28" y="8" width="4" height="4" fill="#0f172a"/><rect x="34" y="14" width="4" height="4" fill="#0f172a"/>' +
+    '<rect x="28" y="24" width="8" height="8" fill="#0f172a"/><rect x="40" y="28" width="6" height="6" fill="#0f172a"/>' +
+    '<rect x="52" y="28" width="8" height="4" fill="#0f172a"/><rect x="28" y="40" width="6" height="6" fill="#0f172a"/>' +
+    '<rect x="40" y="42" width="8" height="8" fill="#0f172a"/><rect x="52" y="46" width="8" height="14" fill="#0f172a"/>' +
+    '<rect x="28" y="52" width="8" height="8" fill="#0f172a"/><rect x="40" y="54" width="8" height="6" fill="#0f172a"/>' +
+    '</svg>'
+);
+
+function mapPrintDocTypeKey(typeName) {
+    const t = String(typeName || '').trim();
+    if (t.includes('شراء') || t.includes('مشتريات') || t === 'purchase') return 'purchase';
+    if (t.includes('سند') || t.includes('قبض') || t.includes('صرف') || t === 'financial') return 'financial';
+    if (t.includes('جرد') || t.includes('مخزن') || t.includes('أرصدة') || t === 'inventory') return 'inventory';
+    return 'sales';
+}
+
+function getSavedTemplatesByTypeMap() {
+    try {
+        const raw = typeof getStore === 'function' ? getStore('bayan_print_templates_by_type') : null;
+        if (raw) {
+            const parsed = typeof raw === 'object' ? raw : JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') return parsed;
+        }
+    } catch (e) { }
+    return {};
+}
 
 function selectTemplateType(el, typeName) {
     document.querySelectorAll('.template-type-item').forEach(item => {
@@ -1463,6 +1544,21 @@ function selectTemplateType(el, typeName) {
     el.style.background = '#3498db';
     el.style.color = 'white';
     currentSelectedTemplateType = typeName;
+
+    // تحميل القالب المحفوظ لهذا المستند تلقائياً إن وجد
+    const byType = getSavedTemplatesByTypeMap();
+    const docKey = mapPrintDocTypeKey(typeName);
+    if (byType[docKey]) {
+        currentSelectedTemplateId = byType[docKey];
+        document.querySelectorAll('.template-item').forEach(item => {
+            const oc = item.getAttribute('onclick') || '';
+            const isMatch = oc.includes("'" + currentSelectedTemplateId + "'") || oc.includes('"' + currentSelectedTemplateId + '"');
+            item.classList.toggle('active', isMatch);
+            item.style.background = isMatch ? '#3498db' : 'transparent';
+            item.style.color = isMatch ? 'white' : 'inherit';
+        });
+    }
+    refreshPinnedVisuals();
     updatePrintPreview();
 }
 
@@ -1484,35 +1580,28 @@ function updatePrintPreview() {
     if (!preview) return;
 
     // 1. تحديث مقاس المعاينة (العرض)
-    const tid = currentSelectedTemplateId.toLowerCase();
+    const tid = String(currentSelectedTemplateId || '80mm Standard').toLowerCase();
     if (tid.includes('a4')) preview.style.width = '450px';
     else if (tid.includes('a5')) preview.style.width = '380px';
     else if (tid.includes('57mm')) preview.style.width = '240px';
     else preview.style.width = '320px'; // الافتراضي 80mm
 
-    // 2. تطبيق سمات التصميم بناءاً على الرقم (0010, 0020, إلخ)
-    preview.style.border = '1px solid #ddd'; // تصفير افتراضي
-    preview.style.borderRadius = '0';
-    preview.style.boxShadow = 'none';
+    // 2. تطبيق سمات التصميم بناءاً على القالب الفعلي
+    preview.style.border = '1.5px solid #cbd5e1';
+    preview.style.borderRadius = '6px';
+    preview.style.boxShadow = '0 6px 18px rgba(0,0,0,0.06)';
+    preview.style.padding = tid.includes('compact') || tid.includes('57mm') ? '8px 6px' : '12px';
 
-    const headerBox = preview.querySelector('div[style*="border-bottom"]');
-    if (currentSelectedTemplateId.includes('0020')) {
-        preview.style.border = '2px double #333';
-        if (headerBox) headerBox.style.borderBottom = '5px double #333';
-    } else if (currentSelectedTemplateId.includes('0030')) {
-        preview.style.padding = '8px 4px';
-        if (headerBox) headerBox.style.borderBottom = '1px solid #999';
-    } else if (currentSelectedTemplateId.includes('0050')) {
-        preview.style.borderRadius = '15px';
-        preview.style.boxShadow = '0 10px 30px rgba(0,0,0,0.1)';
-        if (headerBox) headerBox.style.background = '#fcfcfc';
+    if (tid.includes('a4')) {
+        preview.style.border = '2px double #334155';
+    } else if (tid.includes('a5')) {
+        preview.style.borderRadius = '12px';
+        preview.style.boxShadow = '0 10px 26px rgba(0,0,0,0.1)';
     }
 
-    // 3. تحديث محتوى المعاينة حسب النوع
-    const contentArea = preview.querySelector('div:last-child'); // منطقة المحتوى المتغيرة (فوق التذييل أو الجدول)
-    const dynamicContent = preview.querySelector('div[style*="border-bottom-style: dashed"], table, div[style*="border-top: 1.5px solid"], div[style*="border-top: 1.5px solid #333"]');
+    const docKey = mapPrintDocTypeKey(currentSelectedTemplateType);
 
-    if (currentSelectedTemplateType === 'أرصدة المخازن') {
+    if (docKey === 'inventory') {
         // عرض معاينة مبسطة لتقرير المخازن
         preview.innerHTML = `
                     <div style="padding: 15px;">
@@ -1541,7 +1630,7 @@ function updatePrintPreview() {
 
                         <div style="text-align: center; border-top: 1px dashed #ddd; padding-top: 10px;">
                             <div id="prevFooterMsg" style="font-size: 0.75rem; color: #555; white-space: pre-wrap;">رسالة تذييل التقرير...</div>
-                            <img src="media/sample-qr.svg" style="margin-top: 10px; width: 50px;">
+                            <img src="${SAMPLE_QR_INLINE_SVG}" alt="QR" style="margin-top: 10px; width: 50px; height: 50px;">
                         </div>
                     </div>
                 `;
@@ -1551,11 +1640,11 @@ function updatePrintPreview() {
                     <div style="padding: 15px;">
                         <div style="border-bottom: 2px solid #333; text-align: center; padding-bottom: 10px; margin-bottom: 15px;">
                             <h2 style="margin: 0; font-size: 1.2rem;" id="prevShopName">بَيَان POS</h2>
-                            <div style="font-size: 0.8rem; opacity: 0.7;">نموذج معاينة المستندات</div>
+                            <div style="font-size: 0.8rem; opacity: 0.7;">${currentSelectedTemplateType} (${currentSelectedTemplateId})</div>
                         </div>
 
                         <div style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-bottom: 12px; border-bottom: 1px dashed #eee; padding-bottom: 8px;">
-                            <div>التاريخ: 2024-03-25<br>الوقت: 04:23 PM</div>
+                            <div>التاريخ: 2026-04-01<br>الوقت: 04:23 PM</div>
                             <div style="text-align: left;">رقم المستند: 1001<br>المستخدم: مدير النظام</div>
                         </div>
 
@@ -1585,13 +1674,13 @@ function updatePrintPreview() {
 
                         <div style="text-align: center; margin-top: 15px; border-top: 1px dashed #ddd; padding-top: 10px;">
                             <div id="prevFooterMsg" style="font-size: 0.75rem; color: #555; white-space: pre-wrap;">رسالة تذييل الفاتورة تظهر هنا...</div>
-                            <img src="media/sample-qr.svg" style="margin-top: 10px; width: 50px;">
+                            <img src="${SAMPLE_QR_INLINE_SVG}" alt="QR" style="margin-top: 10px; width: 50px; height: 50px;">
                         </div>
                     </div>
                 `;
     }
 
-    // 4. تحديث البيانات (الاسم والرسائل)
+    // 4. تحديث البيانات (الاسم والرسائل وأحجام الخطوط المحفوظة)
     const shopNameVal = document.getElementById('shopName') ? document.getElementById('shopName').value : '';
     const prevShopName = document.getElementById('prevShopName');
     if (prevShopName) prevShopName.innerText = shopNameVal || 'بَيَان POS لخدمات المنشآت';
@@ -1600,15 +1689,25 @@ function updatePrintPreview() {
     const prevFooter = document.getElementById('prevFooterMsg');
     if (prevFooter) prevFooter.innerText = footerVal || 'سيتم طباعة رسالتك هنا في تذييل الفاتورة';
 
+    try {
+        const posS = JSON.parse(getStore('pos_settings') || '{}');
+        if (posS.tplHeaderFontSize && prevShopName) prevShopName.style.fontSize = posS.tplHeaderFontSize;
+        if (posS.tplBodyFontSize) preview.style.fontSize = posS.tplBodyFontSize;
+    } catch (e) { }
+
     if (typeof showToast === 'function') showToast(`جاري معاينة: ${currentSelectedTemplateType} ✅`);
 }
 
 function refreshPinnedVisuals() {
+    const byType = getSavedTemplatesByTypeMap();
+    const docKey = mapPrintDocTypeKey(currentSelectedTemplateType);
     const saved = getStore('bayan_print_template_choice');
-    let pinnedTemplate = '80mm Standard';
-    if (saved) {
-        const s = JSON.parse(saved);
-        pinnedTemplate = s.template || '80mm Standard';
+    let pinnedTemplate = byType[docKey] || '80mm Standard';
+    if (!byType[docKey] && saved) {
+        try {
+            const s = JSON.parse(saved);
+            pinnedTemplate = s.template || '80mm Standard';
+        } catch (e) { }
     }
     document.querySelectorAll('.template-item').forEach(item => {
         item.innerHTML = item.innerHTML.replace(' <span class="pinned-icon">📌</span>', '');
@@ -1620,13 +1719,22 @@ function refreshPinnedVisuals() {
 }
 
 function savePrintTemplateSettings() {
-    const settings = {
+    const docKey = mapPrintDocTypeKey(currentSelectedTemplateType);
+    const byType = getSavedTemplatesByTypeMap();
+    byType[docKey] = currentSelectedTemplateId;
+    setStore('bayan_print_templates_by_type', JSON.stringify(byType));
+
+    // الإبقاء على المفتاح القديم كـ fallback متوافق مع جميع الأجزاء الأخرى
+    let prevChoice = {};
+    try { prevChoice = JSON.parse(getStore('bayan_print_template_choice') || '{}'); } catch (e) { }
+    const settings = Object.assign({}, prevChoice, {
         type: currentSelectedTemplateType,
-        template: currentSelectedTemplateId
-    };
+        template: currentSelectedTemplateId,
+        byType: byType
+    });
     setStore('bayan_print_template_choice', JSON.stringify(settings));
     refreshPinnedVisuals();
-    showToast("تم تثبيت التصميم المختار بنجاح 📌", "success");
+    showToast(`تم تثبيت قالب (${currentSelectedTemplateId}) لمستند [${currentSelectedTemplateType}] بنجاح 📌`, "success");
 }
 
 // --- وظائف Sidebar التصميم ---
@@ -1717,6 +1825,15 @@ function toggleTemplateEditor(show) {
         const tplFooter = document.getElementById('tplFooterText');
         if (tplFooter && !tplFooter.value) tplFooter.value = footerVal;
 
+        // استرجاع أحجام خطوط الطباعة المحفوظة سابقاً في SQLite
+        try {
+            const posS = JSON.parse(getStore('pos_settings') || '{}');
+            const hdrEl = document.getElementById('tplHeaderFontSize');
+            const bodyEl = document.getElementById('tplBodyFontSize');
+            if (hdrEl && posS.tplHeaderFontSize) hdrEl.value = posS.tplHeaderFontSize;
+            if (bodyEl && posS.tplBodyFontSize) bodyEl.value = posS.tplBodyFontSize;
+        } catch (e) { }
+
         editor.classList.remove('hidden');
     } else {
         editor.classList.add('hidden');
@@ -1734,15 +1851,29 @@ function applyCustomTemplateChanges() {
     }
 
     const prevShopName = document.getElementById('prevShopName');
-    const headerSize = document.getElementById('tplHeaderFontSize')?.value || '1.15rem';
-    if (prevShopName) prevShopName.style.fontSize = headerSize;
+    const headerSize = document.getElementById('tplHeaderFontSize')?.value || '';
+    if (prevShopName && headerSize) prevShopName.style.fontSize = headerSize;
 
     const livePreview = document.getElementById('invoiceLivePreview');
-    const bodySize = document.getElementById('tplBodyFontSize')?.value || '0.8rem';
-    if (livePreview) livePreview.style.fontSize = bodySize;
+    const bodySize = document.getElementById('tplBodyFontSize')?.value || '';
+    if (livePreview && bodySize) livePreview.style.fontSize = bodySize;
 
     const prevFooter = document.getElementById('prevFooterMsg');
     if (prevFooter && tplFooter) prevFooter.innerText = tplFooter;
+
+    // ⚡ حفظ أحجام خطوط الفاتورة في SQLite لتسمّع فعلياً وقت الطباعة في print.js
+    try {
+        const posS = JSON.parse(getStore('pos_settings') || '{}');
+        if (headerSize) posS.tplHeaderFontSize = headerSize;
+        if (bodySize) posS.tplBodyFontSize = bodySize;
+        if (tplFooter !== undefined) posS.printFooterMsg = tplFooter;
+        setStore('pos_settings', JSON.stringify(posS));
+
+        const choice = JSON.parse(getStore('bayan_print_template_choice') || '{}');
+        if (headerSize) choice.tplHeaderFontSize = headerSize;
+        if (bodySize) choice.tplBodyFontSize = bodySize;
+        setStore('bayan_print_template_choice', JSON.stringify(choice));
+    } catch (e) { }
 
     if (typeof saveSettings === 'function') {
         saveSettings();
@@ -1753,7 +1884,7 @@ function applyCustomTemplateChanges() {
     const editor = document.getElementById('quickTemplateEditor');
     if (editor) editor.classList.add('hidden');
 
-    if (typeof showToast === 'function') showToast("تم تطبيق وحفظ مظهر الفاتورة بنجاح ✨", "success");
+    if (typeof showToast === 'function') showToast("تم تطبيق وحفظ مظهر الفاتورة وأحجام الخطوط بنجاح ✨", "success");
 }
 window.applyCustomTemplateChanges = applyCustomTemplateChanges;
 
