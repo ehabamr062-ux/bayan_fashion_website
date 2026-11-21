@@ -1623,84 +1623,84 @@ function setAutoUpdatesFrozenOnDisk(disabled) {
 // 🚀 2. نظام التحديثات التلقائية المباشرة بالخلفية (Electron Auto Updater)
 // =========================================================================
 if (!isTestMode) {
-try {
-    const { autoUpdater: updater } = require('electron-updater');
-    autoUpdater = updater;
-    autoUpdater.autoDownload = false; // التنزيل بالخلفية عند طلب المستخدم فقط
-    autoUpdater.autoInstallOnAppQuit = true;
-    autoUpdater.allowDowngrade = false;
+    try {
+        const { autoUpdater: updater } = require('electron-updater');
+        autoUpdater = updater;
+        autoUpdater.autoDownload = false; // التنزيل بالخلفية عند طلب المستخدم فقط
+        autoUpdater.autoInstallOnAppQuit = true;
+        autoUpdater.allowDowngrade = false;
 
-    autoUpdater.on('checking-for-update', () => {
-        console.log('[Updater] Checking for updates...');
-        if (mainWindow) mainWindow.webContents.send('update-checking');
-    });
+        autoUpdater.on('checking-for-update', () => {
+            console.log('[Updater] Checking for updates...');
+            if (mainWindow) mainWindow.webContents.send('update-checking');
+        });
 
-    autoUpdater.on('update-available', (info) => {
-        if (isAutoUpdatesFrozenOnDisk()) {
-            console.log('[Updater] 🔒 تم حجب إشعار توفر التحديث لأن التحديثات التلقائية مجمدة ومقفولة.');
-            return;
-        }
-        console.log('[Updater] Update available:', info ? info.version : 'unknown');
-        if (mainWindow && !mainWindow.isDestroyed()) {
-            if (mainWindow.isMinimized()) mainWindow.restore();
-            mainWindow.show();
-            mainWindow.focus();
-            mainWindow.webContents.send('update-available', {
-                currentVersion: app.getVersion(),
-                newVersion: info ? info.version : '',
-                releaseNotes: info ? (info.releaseNotes || 'تحسينات جديدة وتحديثات أمان مستقرة.') : '',
-                releaseDate: info ? (info.releaseDate || '') : '',
-                files: info ? (info.files || []) : []
-            });
-        }
-    });
+        autoUpdater.on('update-available', (info) => {
+            if (isAutoUpdatesFrozenOnDisk()) {
+                console.log('[Updater] 🔒 تم حجب إشعار توفر التحديث لأن التحديثات التلقائية مجمدة ومقفولة.');
+                return;
+            }
+            console.log('[Updater] Update available:', info ? info.version : 'unknown');
+            if (mainWindow && !mainWindow.isDestroyed()) {
+                if (mainWindow.isMinimized()) mainWindow.restore();
+                mainWindow.show();
+                mainWindow.focus();
+                mainWindow.webContents.send('update-available', {
+                    currentVersion: app.getVersion(),
+                    newVersion: info ? info.version : '',
+                    releaseNotes: info ? (info.releaseNotes || 'تحسينات جديدة وتحديثات أمان مستقرة.') : '',
+                    releaseDate: info ? (info.releaseDate || '') : '',
+                    files: info ? (info.files || []) : []
+                });
+            }
+        });
 
-    autoUpdater.on('update-not-available', (info) => {
-        console.log('[Updater] Update not available. Current app version is latest:', info ? info.version : app.getVersion());
-        if (mainWindow) mainWindow.webContents.send('update-not-available');
-    });
+        autoUpdater.on('update-not-available', (info) => {
+            console.log('[Updater] Update not available. Current app version is latest:', info ? info.version : app.getVersion());
+            if (mainWindow) mainWindow.webContents.send('update-not-available');
+        });
 
-    autoUpdater.on('error', (err) => {
-        const errorMsg = err ? (err.message || String(err)) : 'Unknown updater error';
-        console.error('[Updater] Error:', errorMsg);
-        if (mainWindow) mainWindow.webContents.send('update-error', errorMsg);
-    });
+        autoUpdater.on('error', (err) => {
+            const errorMsg = err ? (err.message || String(err)) : 'Unknown updater error';
+            console.error('[Updater] Error:', errorMsg);
+            if (mainWindow) mainWindow.webContents.send('update-error', errorMsg);
+        });
 
-    autoUpdater.on('download-progress', (progressObj) => {
-        const pct = Math.round(progressObj.percent || 0);
-        console.log(`[Updater] Download progress: ${pct}% | Transferred: ${progressObj.transferred} / ${progressObj.total}`);
-        if (mainWindow) {
-            mainWindow.webContents.send('update-download-progress', {
-                percent: pct,
-                transferred: progressObj.transferred || 0,
-                total: progressObj.total || 0,
-                bytesPerSecond: progressObj.bytesPerSecond || 0
-            });
-        }
-    });
+        autoUpdater.on('download-progress', (progressObj) => {
+            const pct = Math.round(progressObj.percent || 0);
+            console.log(`[Updater] Download progress: ${pct}% | Transferred: ${progressObj.transferred} / ${progressObj.total}`);
+            if (mainWindow) {
+                mainWindow.webContents.send('update-download-progress', {
+                    percent: pct,
+                    transferred: progressObj.transferred || 0,
+                    total: progressObj.total || 0,
+                    bytesPerSecond: progressObj.bytesPerSecond || 0
+                });
+            }
+        });
 
-    autoUpdater.on('update-downloaded', (info) => {
-        console.log('[Updater] Download completed. Update downloaded successfully:', info ? info.version : '');
-        if (mainWindow) {
-            mainWindow.webContents.send('update-downloaded', {
-                version: info ? info.version : '',
-                releaseNotes: info ? info.releaseNotes : ''
-            });
-        }
-    });
+        autoUpdater.on('update-downloaded', (info) => {
+            console.log('[Updater] Download completed. Update downloaded successfully:', info ? info.version : '');
+            if (mainWindow) {
+                mainWindow.webContents.send('update-downloaded', {
+                    version: info ? info.version : '',
+                    releaseNotes: info ? info.releaseNotes : ''
+                });
+            }
+        });
 
-    autoUpdater.on('before-quit-for-update', () => {
-        console.log('[Updater] 🛡️ before-quit-for-update event fired: Enforcing mandatory dual pre-update backup shield...');
-        try {
-            createPreUpdateDualBackup();
-        } catch (e) {
-            console.error('[Updater] before-quit-for-update backup error:', e);
-        }
-    });
+        autoUpdater.on('before-quit-for-update', () => {
+            console.log('[Updater] 🛡️ before-quit-for-update event fired: Enforcing mandatory dual pre-update backup shield...');
+            try {
+                createPreUpdateDualBackup();
+            } catch (e) {
+                console.error('[Updater] before-quit-for-update backup error:', e);
+            }
+        });
 
-} catch (e) {
-    console.warn('[Updater] electron-updater not loaded:', e.message);
-}
+    } catch (e) {
+        console.warn('[Updater] electron-updater not loaded:', e.message);
+    }
 }
 
 // =========================================================================
@@ -1894,7 +1894,7 @@ ipcMain.handle('quit-and-install-update', async () => {
 
 try { ipcMain.removeHandler('get-app-version'); } catch (e) { }
 ipcMain.handle('get-app-version', () => {
-    return app.getVersion() || '5.1.4';
+    return app.getVersion() || '5.1.5';
 });
 
 // =========================================================================

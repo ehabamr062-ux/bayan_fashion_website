@@ -73,11 +73,11 @@ window.BayanNetworkHub = {
 // 🔢 المزامنة التلقائية لرقم الإصدار الموحد (Single Source of Truth Unification)
 // المصدر الرسمي الوحيد هو package.json عبر app.getVersion()
 // =========================================================================
-window.appVersion = '5.1.4';
-window.APP_VERSION = '5.1.4';
+window.appVersion = '5.1.5';
+window.APP_VERSION = '5.1.5';
 
 async function fetchAppVersion() {
-    let version = '5.1.4';
+    let version = '5.1.5';
     try {
         if (typeof window !== 'undefined' && window.require) {
             const electron = window.require('electron');
@@ -97,13 +97,16 @@ async function fetchAppVersion() {
 }
 
 function syncAppVersionUI(version) {
-    if (!version) version = window.appVersion || '5.1.4';
+    if (!version) version = window.appVersion || '5.1.5';
     window.appVersion = version;
     window.APP_VERSION = version;
 
     // 1. تحديث كافة العناصر التي تحمل الأصناف أو الخصائص المخصصة لرقم الإصدار
     document.querySelectorAll('.dynamic-app-version, .app-version, [data-app-version]').forEach(el => {
         el.innerText = `v${version}`;
+    });
+    document.querySelectorAll('.dynamic-app-version-badge:not(#aboutAppVersionBadge)').forEach(el => {
+        el.innerText = `V${version} ⚡`;
     });
 
     // 2. تحديث شاشة "حول البرنامج" ومركز التحديثات
@@ -2393,7 +2396,7 @@ window.bayanTriggerMemoryPurge = function() {
         // 2. ترشيد ذاكرة المعاملات والتخلص من السجلات القديمة المعلقة
         if (window.transactions && Array.isArray(window.transactions) && window.transactions.length > 3000) {
             try {
-                const todayStr = new Date().toLocaleDateString('en-CA');
+                const todayStr = new Date().toISOString().split('T')[0];
                 const activeDocIds = new Set();
                 if (window.openTabs && Array.isArray(window.openTabs)) {
                     window.openTabs.forEach(t => {

@@ -98,7 +98,7 @@
                 triggerSource: triggerSource,
                 installDate: installDate ? new Date(installDate).toLocaleDateString('ar-EG') : '---',
                 lastActive: new Date().toLocaleString('ar-EG'),
-                appVersion: window.appVersion || 'V5.1.4'
+                appVersion: window.appVersion || 'V5.1.5'
             };
         },
 
@@ -459,7 +459,7 @@
                 try {
                     if (typeof getStore === 'function') shop = getStore('shopName') || 'غير محدد';
                 } catch(e) {}
-                const version = (typeof window.APP_VERSION !== 'undefined') ? window.APP_VERSION : '5.1.4';
+                const version = (typeof window.APP_VERSION !== 'undefined') ? window.APP_VERSION : '5.1.5';
 
                 const msg = `⚠️ <b>تنبيه خطأ برمجي - بَيَان POS (v${version})</b>\n` +
                             `🏢 <b>المحل:</b> ${escapeHtml(shop)}\n` +
@@ -491,7 +491,7 @@
                     try {
                         if (typeof getStore === 'function') shop = getStore('shopName') || 'جديد';
                     } catch(e) {}
-                    const version = (typeof window.APP_VERSION !== 'undefined') ? window.APP_VERSION : '5.1.4';
+                    const version = (typeof window.APP_VERSION !== 'undefined') ? window.APP_VERSION : '5.1.5';
 
                     const msg = `🎉 <b>تثبيت وتشغيل جديد للمنظومة!</b>\n` +
                                 `📦 <b>الإصدار:</b> v${version}\n` +
