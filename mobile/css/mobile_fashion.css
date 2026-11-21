@@ -3732,7 +3732,7 @@ body {
 
 /* Receipt Modal & Canvas Container */
 .receipt-modal-dialog {
-    background: #0f172a;
+    background: var(--modal-bg);
     border-radius: 20px;
     width: 95%;
     max-width: 390px;
@@ -3740,8 +3740,8 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+    border: 1px solid var(--border-subtle);
     animation: modalSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -3750,8 +3750,8 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: rgba(255, 255, 255, 0.05);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: var(--bg-card-subtle);
+    border-bottom: 1px solid var(--border-subtle);
 }
 
 .receipt-card-wrapper {
@@ -3760,7 +3760,8 @@ body {
     flex: 1;
     display: flex;
     justify-content: center;
-    background: #090d16;
+    align-items: flex-start;
+    background: var(--bg-body);
 }
 
 /* The actual paper card captured to image */
@@ -3925,25 +3926,27 @@ body {
 
 .receipt-modal-actions {
     padding: 12px 14px;
-    background: #0f172a;
+    background: var(--modal-bg);
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid var(--border-subtle);
 }
 
 .btn-receipt-action {
     flex: 1;
-    height: 44px;
+    min-width: 90px;
+    height: 42px;
     border-radius: 10px;
     border: none;
     font-family: inherit;
     font-weight: 800;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 5px;
     transition: all 0.2s ease;
 }
 
@@ -3951,19 +3954,25 @@ body {
     background: linear-gradient(135deg, #25d366 0%, #128c7e 100%);
     color: #ffffff;
     box-shadow: 0 4px 12px rgba(37, 211, 102, 0.3);
-    flex: 1.3;
+    flex: 1.4;
+}
+
+.btn-receipt-action.print-btn {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
 }
 
 .btn-receipt-action.download {
-    background: rgba(255, 255, 255, 0.1);
-    color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    background: var(--chip-bg);
+    color: var(--text-main);
+    border: 1px solid var(--border-subtle);
 }
 
 .btn-receipt-action.text-wa {
-    background: rgba(255, 255, 255, 0.05);
-    color: #94a3b8;
-    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: var(--chip-bg);
+    color: var(--text-muted);
+    border: 1px solid var(--border-subtle);
 }
 
 .btn-receipt-action:hover {

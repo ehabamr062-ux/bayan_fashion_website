@@ -3351,6 +3351,14 @@
         }
 
         if (modal) modal.classList.add('active');
+
+        // 🖨️ الطباعة التلقائية فور البيع إذا كانت مفعّلة في إعدادات الطابعة
+        try {
+            const pPrefs = JSON.parse(localStorage.getItem('bayan_mob_printer_prefs') || '{}');
+            if (pPrefs.autoPrint === true) {
+                setTimeout(() => printReceipt(tx), 350);
+            }
+        } catch (_) { }
     }
 
     function closeInvoiceSuccessModal() {
@@ -4386,17 +4394,58 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         });
     }
 
-    function testPrintReceipt() {
-        const shop = State.shopName || 'بَيَان فاشون';
-        const sampleText = `==============================\n      ${shop}\n==============================\nرقم الفاتورة: #TEST-001\nالتاريخ: ${new Date().toLocaleDateString('ar-EG')}\n\nالصنف: فستان كلاسيك 1x\nالسعر: 450 ج.م\n==============================\nالإجمالي: 450 ج.م\nشكراً لزيارتكم!\n==============================\n\n\n`;
-        const win = window.open('', '_blank');
-        if (win) {
-            win.document.write(`<pre style="font-size:16px; font-weight:bold; font-family:monospace; text-align:center;">${sampleText}</pre>`);
-            win.document.close();
-            win.print();
-        } else {
-            showToast('تم تجهيز إيصال الاختبار بنجاح 🖨️', 'success');
+    function printReceipt(txArg) {
+        const tx = txArg || window._currentReceiptTx || window.BayanMobile.lastSuccessTx;
+        if (!tx) {
+            showToast('لا توجد فاتورة محددة للطباعة ⚠️', 'warning');
+            return;
         }
+        let printerPrefs = {};
+        let storedSettings = {};
+        try { printerPrefs = JSON.parse(localStorage.getItem('bayan_mob_printer_prefs') || '{}'); } catch (_) { }
+        try { storedSettings = JSON.parse(localStorage.getItem('bayan_mob_settings') || '{}'); } catch (_) { }
+
+        const paperMm = String(printerPrefs.paperSize || '58') === '80' ? '80mm' : '58mm';
+        const shopName = escapeHtml(storedSettings.shop_name || State.shopName || 'بَيَان فاشون');
+        const shopPhone = escapeHtml(storedSettings.shop_phone || '');
+        const shopAddr = escapeHtml(storedSettings.shop_address || '');
+        const footerMsg = escapeHtml(storedSettings.invoice_footer || 'الاستبدال والاسترجاع خلال 14 يوماً بالفاتورة. شكراً لزيارتكم!');
+        const invId = escapeHtml(tx.invoiceId || tx.id || '---');
+        const partner = escapeHtml(tx.partner || 'عميل نقدي');
+        const dateStr = tx.date ? new Date(tx.date).toLocaleString('ar-EG') : new Date().toLocaleString('ar-EG');
+        const items = (Array.isArray(tx.items) && tx.items.length > 0) ? tx.items : [tx];
+        const totalVal = parseFloat(tx.total || tx.finalTotal || tx.invoiceGrandTotal || 0).toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const remVal = parseFloat(tx.remaining || 0);
+
+        const rowsHtml = items.map(it => {
+            const name = escapeHtml(it.name || it.product || 'صنف');
+            const meta = [it.size && it.size !== 'عادي' ? it.size : '', it.color && it.color !== 'عام' ? it.color : ''].filter(Boolean).join(' / ');
+            const qty = parseFloat(it.quantity || it.qty || 1);
+            const price = parseFloat(it.price || 0);
+            const lineTot = parseFloat(it.total || (qty * price) || 0);
+            return `<tr><td style="text-align:right;padding:3px 0;"><b>${name}</b>${meta ? `<div style="font-size:10px;color:#444;">${escapeHtml(meta)}</div>` : ''}</td><td style="text-align:center;">${qty}</td><td style="text-align:left;">${lineTot.toFixed(1)}</td></tr>`;
+        }).join('');
+
+        const win = window.open('', '_blank', 'width=360,height=600');
+        if (!win) {
+            showToast('يرجى السماح بالنوافذ المنبثقة للطباعة 🖨️', 'warning');
+            return;
+        }
+        win.document.write(`<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><title>فاتورة #${invId}</title><style>@page{size:${paperMm} auto;margin:0;}body{margin:0;padding:8px;width:${paperMm};box-sizing:border-box;font-family:'Cairo',Tahoma,Arial,sans-serif;background:#fff;color:#000;font-size:12px;direction:rtl;}h2{margin:0 0 2px;font-size:15px;text-align:center;}.sub{text-align:center;font-size:10px;color:#333;margin-bottom:6px;}.div{border-top:1px dashed #000;margin:6px 0;}table{width:100%;border-collapse:collapse;font-size:11px;}th{border-bottom:1px solid #000;padding:3px 0;font-size:10px;}.tot{display:flex;justify-content:space-between;font-weight:900;font-size:14px;margin:4px 0;}.foot{text-align:center;font-size:10px;margin-top:8px;line-height:1.4;}</style></head><body><h2>${shopName}</h2><div class="sub">${[shopPhone, shopAddr].filter(Boolean).join(' • ')}</div><div class="div"></div><div style="font-size:11px;"><div><b>الفاتورة:</b> #${invId}</div><div><b>العميل:</b> ${partner}</div><div><b>التاريخ:</b> ${escapeHtml(dateStr)}</div></div><div class="div"></div><table><thead><tr><th style="text-align:right;">الصنف</th><th style="text-align:center;">ع</th><th style="text-align:left;">الإجمالي</th></tr></thead><tbody>${rowsHtml}</tbody></table><div class="div"></div><div class="tot"><span>الإجمالي:</span><span>${totalVal} ج.م</span></div>${remVal > 0 ? `<div style="display:flex;justify-content:space-between;font-size:11px;"><span>المتبقي (آجل):</span><b>${remVal.toLocaleString('ar-EG')} ج.م</b></div>` : ''}<div class="div"></div><div class="foot">${footerMsg}<br><b>بَيَان POS فاشون</b></div></body></html>`);
+        win.document.close();
+        win.focus();
+        setTimeout(() => { win.print(); }, 250);
+    }
+
+    function testPrintReceipt() {
+        printReceipt({
+            invoiceId: 'TEST-001',
+            partner: 'عميل تجريبي',
+            date: new Date().toISOString(),
+            total: 450,
+            remaining: 0,
+            items: [{ name: 'فستان كلاسيك فاخر', size: 'L', color: 'كحلي', quantity: 1, price: 450, total: 450 }]
+        });
     }
 
     // ============================================================
@@ -6042,6 +6091,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         savePrinterSettings,
         forceFullSync,
         connectBluetoothPrinter,
+        printReceipt,
         testPrintReceipt,
         openAddProductModal,
         closeAddProductModal,

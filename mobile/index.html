@@ -18,7 +18,7 @@
 
     <!-- خط القاهرة والأيقونات -->
     <link rel="stylesheet" href="../fonts/cairo.css">
-    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.26">
+    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.27">
     <!-- 📷 محرك قراءة QR العالمي لهواتف أندرويد وآيفون -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" defer></script>
     <style id="mobile-fashion-android-overhaul"></style>
@@ -1294,15 +1294,19 @@
             <div class="receipt-modal-actions">
                 <button type="button" class="btn-receipt-action wa-image"
                     onclick="window.BayanMobile.shareReceiptAsImage()">
-                    <span>📲</span> مشاركة واتساب (كصورة)
+                    <span>📲</span> واتساب (صورة)
+                </button>
+                <button type="button" class="btn-receipt-action print-btn"
+                    onclick="window.BayanMobile.printReceipt()">
+                    <span>🖨️</span> طباعة
                 </button>
                 <button type="button" class="btn-receipt-action download"
                     onclick="window.BayanMobile.downloadReceiptImage()">
-                    <span>💾</span> حفظ كصورة
+                    <span>💾</span> حفظ
                 </button>
                 <button type="button" class="btn-receipt-action text-wa"
                     onclick="window.BayanMobile.shareReceiptAsText()">
-                    <span>💬</span> إرسال كنص
+                    <span>💬</span> نص
                 </button>
             </div>
         </div>
@@ -1684,7 +1688,7 @@
         </div>
     </div>
 
-    <script src="js/mobile_fashion.js?v=5.1.26"></script>
+    <script src="js/mobile_fashion.js?v=5.1.27"></script>
 </body>
 
 </html>
