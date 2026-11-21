@@ -18,7 +18,7 @@
 
     <!-- خط القاهرة والأيقونات -->
     <link rel="stylesheet" href="../fonts/cairo.css">
-    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.28">
+    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.29">
     <!-- 📷 محرك قراءة QR العالمي لهواتف أندرويد وآيفون -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" defer></script>
     <style id="mobile-fashion-android-overhaul"></style>
@@ -279,10 +279,15 @@
                     onchange="window.BayanMobile.handleCameraFile(event)">
             </div>
 
-            <!-- شريط فئات وأقسام الأصناف مع زر إضافة صنف جديد وزر جرد المخزن -->
+            <!-- شريط فئات وأقسام الأصناف (قائمة منسدلة أنيقة) مع زر إضافة صنف جديد وزر جرد المخزن -->
             <div class="products-top-row">
-                <div id="categoriesScroll" class="cat-chips-scroll" style="margin-bottom: 0; flex: 1;">
-                    <!-- يُملأ برمجياً -->
+                <div class="custom-select-wrap" style="flex: 1; min-width: 0;">
+                    <select id="productCategorySelect" class="modern-select-dropdown"
+                        style="padding: 8px 12px 8px 30px; font-size: 0.82rem; height: 40px;"
+                        onchange="window.BayanMobile.setCategory(this.value)">
+                        <option value="all">✨ كل التصنيفات (الكل)</option>
+                    </select>
+                    <span class="select-arrow-icon" style="left: 11px;">▼</span>
                 </div>
                 <button type="button" class="btn-open-stocktake" onclick="window.BayanMobile.openStocktakeModal()"
                     title="جرد سريع للمخزن">
@@ -1727,7 +1732,7 @@
         </div>
     </div>
 
-    <script src="js/mobile_fashion.js?v=5.1.28"></script>
+    <script src="js/mobile_fashion.js?v=5.1.29"></script>
 </body>
 
 </html>

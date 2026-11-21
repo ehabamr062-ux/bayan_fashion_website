@@ -1985,12 +1985,13 @@
     // 🔍 PRODUCT LOOKUP & STOCK ("يجيب صنف")
     // ============================================================
     function updateCategoriesList() {
+        const selectEl = document.getElementById('productCategorySelect');
         const container = document.getElementById('categoriesScroll');
-        if (!container) return;
+        if (!selectEl && !container) return;
 
         const cats = new Set(['all']);
         State.products.forEach(p => {
-            if (p.category) cats.add(p.category.trim());
+            if (p.category && p.category.trim()) cats.add(p.category.trim());
         });
 
         const lowCount = (State.products || []).filter(p => {
@@ -1998,18 +1999,35 @@
             return s <= 2;
         }).length;
 
-        let chipsHtml = Array.from(cats).map(cat => {
-            const label = cat === 'all' ? '✨ الكل' : cat;
-            const isActive = State.selectedCategory === cat ? 'active' : '';
-            return `<div class="cat-chip ${isActive}" onclick="window.BayanMobile.setCategory('${cat}')">${label}</div>`;
-        }).join('');
+        if (selectEl) {
+            let optsHtml = Array.from(cats).map(cat => {
+                const label = cat === 'all' ? `✨ كل التصنيفات (${State.products.length})` : `📁 ${escapeHtml(cat)}`;
+                const safeVal = escapeHtml(cat);
+                return `<option value="${safeVal}">${label}</option>`;
+            }).join('');
 
-        if (lowCount > 0) {
-            const isLowActive = State.selectedCategory === 'low-stock' ? 'active' : '';
-            chipsHtml += `<div class="cat-chip ${isLowActive}" style="border-color: rgba(245, 158, 11, 0.4); color: #d97706; font-weight: 800;" onclick="window.BayanMobile.setCategory('low-stock')">⚠️ النواقص (${lowCount})</div>`;
+            if (lowCount > 0) {
+                optsHtml += `<option value="low-stock">⚠️ النواقص فقط (${lowCount} موديل)</option>`;
+            }
+
+            selectEl.innerHTML = optsHtml;
+            selectEl.value = State.selectedCategory || 'all';
         }
 
-        container.innerHTML = chipsHtml;
+        if (container) {
+            let chipsHtml = Array.from(cats).map(cat => {
+                const label = cat === 'all' ? '✨ الكل' : escapeHtml(cat);
+                const isActive = State.selectedCategory === cat ? 'active' : '';
+                return `<div class="cat-chip ${isActive}" onclick="window.BayanMobile.setCategory('${cat.replace(/'/g, "\\'")}')">${label}</div>`;
+            }).join('');
+
+            if (lowCount > 0) {
+                const isLowActive = State.selectedCategory === 'low-stock' ? 'active' : '';
+                chipsHtml += `<div class="cat-chip ${isLowActive}" style="border-color: rgba(245, 158, 11, 0.4); color: #d97706; font-weight: 800;" onclick="window.BayanMobile.setCategory('low-stock')">⚠️ النواقص (${lowCount})</div>`;
+            }
+
+            container.innerHTML = chipsHtml;
+        }
     }
 
     function filterByLowStock() {
