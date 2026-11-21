@@ -1,4 +1,3 @@
-
 .hidden {
     display: none !important;
     pointer-events: none !important;
@@ -29,14 +28,18 @@
 }
 
 /* 🔒 منع التحديد بالماوس في كامل واجهة البرنامج لتجربة تطبيق سطح مكتب وكاشير احترافية */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
     user-select: none !important;
     -webkit-user-select: none !important;
     -moz-user-select: none !important;
     -ms-user-select: none !important;
 }
 
-input, textarea, [contenteditable="true"] {
+input,
+textarea,
+[contenteditable="true"] {
     user-select: text !important;
     -webkit-user-select: text !important;
     -moz-user-select: text !important;
@@ -46,7 +49,11 @@ input, textarea, [contenteditable="true"] {
 /* ==========================================================================
    ⚡ Hardware Acceleration & Performance Optimizations
    ========================================================================== */
-.section-view, .modal, .modal-content, .card, .app-tab-item {
+.section-view,
+.modal,
+.modal-content,
+.card,
+.app-tab-item {
     backface-visibility: hidden;
     -webkit-backface-visibility: hidden;
     transform: translateZ(0);
@@ -59,1817 +66,1947 @@ input, textarea, [contenteditable="true"] {
    ========================================================================== */
 
 :root {
-            --header-height: 48px;
-            /* --- Premium Light Mode Palette (Modern Slate-Gold) --- */
-            --bg-color: #f8fafc;
-            --surface-color: #ffffff;
-            --text-primary: #090d16;
-            --text-secondary: #1e293b;
-            --accent-gold: #c5a059;
-            --accent-gold-light: #e2c08d;
-            --border-color: #e2e8f0;
-            --shadow-soft: 0 4px 15px -1px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
-            --shadow-medium: 0 10px 30px -5px rgba(0, 0, 0, 0.1), 0 4px 12px -5px rgba(0, 0, 0, 0.04);
+    --header-height: 48px;
+    /* --- Premium Light Mode Palette (Modern Slate-Gold) --- */
+    --bg-color: #f8fafc;
+    --surface-color: #ffffff;
+    --text-primary: #090d16;
+    --text-secondary: #1e293b;
+    --accent-gold: #c5a059;
+    --accent-gold-light: #e2c08d;
+    --border-color: #e2e8f0;
+    --shadow-soft: 0 4px 15px -1px rgba(0, 0, 0, 0.05), 0 2px 6px -1px rgba(0, 0, 0, 0.03);
+    --shadow-medium: 0 10px 30px -5px rgba(0, 0, 0, 0.1), 0 4px 12px -5px rgba(0, 0, 0, 0.04);
 
-            --main-green: #10b981;
-            /* Emerald */
-            --main-blue: #3b82f6;
-            /* Royal Blue */
-            --box-red: #ef4444;
-            /* Rose Red */
-            --main-orange: #f59e0b;
-            /* Amber/Orange */
-            --main-purple: #8b5cf6;
-            /* Violet */
+    --main-green: #10b981;
+    /* Emerald */
+    --main-blue: #3b82f6;
+    /* Royal Blue */
+    --box-red: #ef4444;
+    /* Rose Red */
+    --main-orange: #f59e0b;
+    /* Amber/Orange */
+    --main-purple: #8b5cf6;
+    /* Violet */
 
-            --dashboard-bg: #f8fafc;
-            --gold: #c5a059;
-            --gold-light: #f1c40f;
-            --card-bg: #ffffff;
-            --table-header-bg: #f1f5f9;
-            --bayan-green: #075e54;
-            --bayan-green-soft: #128c7e;
-            --bayan-green-light: #25d366;
-            --bayan-header-bg: #1e8449;
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 20px;
-        }
+    --dashboard-bg: #f8fafc;
+    --gold: #c5a059;
+    --gold-light: #f1c40f;
+    --card-bg: #ffffff;
+    --table-header-bg: #f1f5f9;
+    --bayan-green: #075e54;
+    --bayan-green-soft: #128c7e;
+    --bayan-green-light: #25d366;
+    --bayan-header-bg: #1e8449;
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 20px;
+}
 
-        body.dark-mode {
-            /* --- Premium Dark Mode Palette (Obsidian-Gold) --- */
-            --bg-color: #0c0c0e;
-            --surface-color: #1a1a1c;
-            --text-primary: #ffffff;
-            --text-secondary: #e2e8f0;
-            --accent-gold: #d4af37;
-            --accent-gold-light: #ffdb58;
-            --border-color: rgba(212, 175, 55, 0.2);
-            --shadow-soft: 0 10px 40px rgba(0, 0, 0, 0.7);
-            --shadow-medium: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(212, 175, 55, 0.05);
+body.dark-mode {
+    /* --- Premium Dark Mode Palette (Obsidian-Gold) --- */
+    --bg-color: #0c0c0e;
+    --surface-color: #1a1a1c;
+    --text-primary: #ffffff;
+    --text-secondary: #e2e8f0;
+    --accent-gold: #d4af37;
+    --accent-gold-light: #ffdb58;
+    --border-color: rgba(212, 175, 55, 0.2);
+    --shadow-soft: 0 10px 40px rgba(0, 0, 0, 0.7);
+    --shadow-medium: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(212, 175, 55, 0.05);
 
-            --main-green: #34d399;
-            /* Soft Emerald */
-            --main-blue: #60a5fa;
-            /* Soft Blue */
-            --box-red: #fb7185;
-            /* Soft Red */
-            --main-orange: #fbbf24;
-            /* Soft Amber */
-            --main-purple: #a78bfa;
-            /* Soft Purple */
+    --main-green: #34d399;
+    /* Soft Emerald */
+    --main-blue: #60a5fa;
+    /* Soft Blue */
+    --box-red: #fb7185;
+    /* Soft Red */
+    --main-orange: #fbbf24;
+    /* Soft Amber */
+    --main-purple: #a78bfa;
+    /* Soft Purple */
 
-            --dashboard-bg: #0c0c0e;
-            --gold: #d4af37;
-            --gold-light: #ffdb58;
-            --card-bg: #1a1a1c;
-            --table-header-bg: #111113;
-            --bayan-green: #0b2e13;
-            --bayan-green-soft: #1a4d2e;
-            --bayan-green-light: #d4af37;
-            --bayan-header-bg: #0b2e13;
-        }
+    --dashboard-bg: #0c0c0e;
+    --gold: #d4af37;
+    --gold-light: #ffdb58;
+    --card-bg: #1a1a1c;
+    --table-header-bg: #111113;
+    --bayan-green: #0b2e13;
+    --bayan-green-soft: #1a4d2e;
+    --bayan-green-light: #d4af37;
+    --bayan-header-bg: #0b2e13;
+}
 
-        /* Purchase Section Gold & Black Theme Styles */
-        .purchase-theme .panel-header {
-            background: linear-gradient(135deg, #1e293b, #0c0c0e) !important;
-            border-bottom: 3px solid var(--accent-gold) !important;
-            padding: 8px 15px !important;
-        }
-        .purchase-theme .invoice-table thead th {
-            background: linear-gradient(135deg, var(--accent-gold), #8c6d31) !important;
-            color: #000 !important;
-            font-weight: 900 !important;
-        }
-        .purchase-theme .amount-box.box-gold-premium {
-            background: #111113 !important;
-            border: 2px solid var(--accent-gold) !important;
-        }
-        .purchase-theme .dt-badge-id {
-            background: var(--accent-gold) !important;
-            color: #000 !important;
-        }
+/* Purchase Section Gold & Black Theme Styles */
+.purchase-theme .panel-header {
+    background: linear-gradient(135deg, #1e293b, #0c0c0e) !important;
+    border-bottom: 3px solid var(--accent-gold) !important;
+    padding: 8px 15px !important;
+}
 
-        /* 🛒 Premium Sales Theme (Emerald-Gold) */
-        .sales-theme .panel-header {
-            background: linear-gradient(135deg, #064e3b, #065f46) !important;
-            border-bottom: 3.5px solid var(--accent-gold) !important;
-            padding: 8px 20px !important;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
-        }
-        .sales-theme .invoice-table thead th {
-            background: linear-gradient(135deg, #059669, #047857) !important;
-            color: #fff !important;
-            font-weight: 800 !important;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            border-bottom: 2px solid rgba(255,255,255,0.1);
-        }
-        .sales-theme .checkout-panel {
-            background: rgba(255, 255, 255, 0.95) !important;
-            border-top: 5px solid #059669 !important;
-            box-shadow: -10px 0 30px rgba(0,0,0,0.05);
-        }
-        .sales-theme .amount-box.box-green {
-            background: linear-gradient(135deg, #059669, #047857) !important;
-            box-shadow: 0 3px 8px rgba(5,150,105,0.1);
-        }
-        .sales-theme .amount-box.box-gold-premium {
-            background: #ffffff !important;
-            border: 2.5px solid var(--accent-gold) !important;
-            color: var(--text-primary) !important;
-        }
-        .sales-theme .amount-box.box-gold-premium .amount-label {
-            color: #000 !important;
-            font-weight: 900;
-        }
-        .sales-theme .amount-box.box-gold-premium .amount-value {
-            color: #000 !important;
-            font-weight: 900;
-        }
-        .sales-theme .dt-badge-id {
-            background: var(--accent-gold) !important;
-            color: #000 !important;
-            font-weight: 900;
-        }
-        .sales-theme .btn-save {
-            background: linear-gradient(135deg, #059669, #047857) !important;
-            box-shadow: 0 8px 15px rgba(5, 150, 105, 0.3) !important;
-        }
-        .sales-theme .btn-save:hover {
-            transform: translateY(-3px) scale(1.02);
-            box-shadow: 0 12px 25px rgba(5, 150, 105, 0.4) !important;
-        }
-        .sales-theme .search-input:focus {
-            border-color: #059669 !important;
-            box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.15) !important;
-        }
+.purchase-theme .invoice-table thead th {
+    background: linear-gradient(135deg, var(--accent-gold), #8c6d31) !important;
+    color: #000 !important;
+    font-weight: 900 !important;
+}
 
-        /* 🚩 أصناف نفد رصيدها (Out of Stock Row) */
-        .out-of-stock-row {
-            position: relative;
-            background: rgba(254, 226, 226, 0.3) !important; /* خلفية محمرة خفيفة */
-        }
-        .out-of-stock-row:hover {
-            background: #fee2e2 !important; /* أحمر أوضح عند الهوفر */
-            outline: 2px solid #ef4444;
-            z-index: 1;
-        }
-        .out-of-stock-row td:nth-child(3) {
-            color: #b91c1c !important; /* اسم الصنف بالأحمر */
-            font-weight: 900 !important;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .out-of-stock-row td:nth-child(3)::before {
-            content: '🚫';
-            font-size: 0.9rem;
-        }
+.purchase-theme .amount-box.box-gold-premium {
+    background: #111113 !important;
+    border: 2px solid var(--accent-gold) !important;
+}
 
-        /* 📦 Global Box-Sizing Fix */
-        * { box-sizing: border-box; }
+.purchase-theme .dt-badge-id {
+    background: var(--accent-gold) !important;
+    color: #000 !important;
+}
+
+/* 🛒 Premium Sales Theme (Emerald-Gold) */
+.sales-theme .panel-header {
+    background: linear-gradient(135deg, #064e3b, #065f46) !important;
+    border-bottom: 3.5px solid var(--accent-gold) !important;
+    padding: 8px 20px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.sales-theme .invoice-table thead th {
+    background: linear-gradient(135deg, #059669, #047857) !important;
+    color: #fff !important;
+    font-weight: 800 !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.sales-theme .checkout-panel {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border-top: 5px solid #059669 !important;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.05);
+}
+
+.sales-theme .amount-box.box-green {
+    background: linear-gradient(135deg, #059669, #047857) !important;
+    box-shadow: 0 3px 8px rgba(5, 150, 105, 0.1);
+}
+
+.sales-theme .amount-box.box-gold-premium {
+    background: #ffffff !important;
+    border: 2.5px solid var(--accent-gold) !important;
+    color: var(--text-primary) !important;
+}
+
+.sales-theme .amount-box.box-gold-premium .amount-label {
+    color: #000 !important;
+    font-weight: 900;
+}
+
+.sales-theme .amount-box.box-gold-premium .amount-value {
+    color: #000 !important;
+    font-weight: 900;
+}
+
+.sales-theme .dt-badge-id {
+    background: var(--accent-gold) !important;
+    color: #000 !important;
+    font-weight: 900;
+}
+
+.sales-theme .btn-save {
+    background: linear-gradient(135deg, #059669, #047857) !important;
+    box-shadow: 0 8px 15px rgba(5, 150, 105, 0.3) !important;
+}
+
+.sales-theme .btn-save:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 12px 25px rgba(5, 150, 105, 0.4) !important;
+}
+
+.sales-theme .search-input:focus {
+    border-color: #059669 !important;
+    box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.15) !important;
+}
+
+/* 🚩 أصناف نفد رصيدها (Out of Stock Row) */
+.out-of-stock-row {
+    position: relative;
+    background: rgba(254, 226, 226, 0.3) !important;
+    /* خلفية محمرة خفيفة */
+}
+
+.out-of-stock-row:hover {
+    background: #fee2e2 !important;
+    /* أحمر أوضح عند الهوفر */
+    outline: 2px solid #ef4444;
+    z-index: 1;
+}
+
+.out-of-stock-row td:nth-child(3) {
+    color: #b91c1c !important;
+    /* اسم الصنف بالأحمر */
+    font-weight: 900 !important;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.out-of-stock-row td:nth-child(3)::before {
+    content: '🚫';
+    font-size: 0.9rem;
+}
+
+/* 📦 Global Box-Sizing Fix */
+* {
+    box-sizing: border-box;
+}
 
 
 /* ========================================== */
 
-        /* --- 🎨 Premium Wallpaper & Glassmorphism --- */
-        body.has-wallpaper {
-            background-color: #0d0d0f; /* Fallback */
-            background-image: radial-gradient(circle at center, #1b1b1f 0%, #0d0d0f 100%);
-        }
-
-        body.has-wallpaper .main-container,
-        body.has-wallpaper .section-view {
-            background: transparent !important;
-        }
-
-        /* جعل الكروت والبانلات شفافة عند وجود خلفية */
-        body.has-wallpaper .products-panel,
-        body.has-wallpaper .checkout-panel,
-        body.has-wallpaper .table-container,
-        body.has-wallpaper .panel-header,
-        body.has-wallpaper .inv-filters,
-        body.has-wallpaper .accounts-sidebar,
-        body.has-wallpaper .dm-header {
-            background: rgba(255, 255, 255, 0.95) !important;
-            /* backdrop-filter disabled */
-            /* -webkit-backdrop-filter disabled */
-            border: 1px solid rgba(255, 255, 255, 0.3) !important;
-            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07) !important;
-        }
-
-        body.dark-mode.has-wallpaper .products-panel,
-        body.dark-mode.has-wallpaper .checkout-panel,
-        body.dark-mode.has-wallpaper .table-container,
-        body.dark-mode.has-wallpaper .panel-header,
-        body.dark-mode.has-wallpaper .inv-filters,
-        body.dark-mode.has-wallpaper .accounts-sidebar,
-        body.dark-mode.has-wallpaper .dm-header {
-            background: rgba(15, 15, 20, 0.96) !important;
-            /* backdrop-filter disabled */
-            /* -webkit-backdrop-filter disabled */
-            border: 1px solid rgba(255, 255, 255, 0.1) !important;
-            color: #fff !important;
-        }
-
-        /* توحيد مظهر الهيدر مع الزجاجية */
-        body.has-wallpaper .app-header {
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
-        }
-
-        /* تحسين الألوان لجميع العناصر النصية والمدخلات */
-        p,
-        span,
-        label,
-        td,
-        th,
-        h1,
-        h2,
-        h3,
-        h4,
-        h5,
-        h6,
-        select,
-        textarea,
-        option {
-            color: inherit;
-        }
-
-        input {
-            background-color: var(--surface-color);
-            color: var(--text-primary);
-            border: 1px solid var(--border-color);
-        }
-
-        /* جعل نصوص الأزرار والـ Placeholder متناسقة */
-        button {
-            color: inherit;
-        }
-
-        input::placeholder,
-        textarea::placeholder {
-            color: var(--text-secondary);
-            opacity: 0.7;
-        }
-
-        /* شريط العنوان العلوي */
-        .sticky-top-wrapper {
-            position: sticky;
-            top: 0;
-            z-index: 10001;
-            margin: 0;
-            /* Sitting flush at edge */
-        }
-
-        /* شريط العنوان العلوي */
-        .app-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: linear-gradient(135deg, #022c22 0%, #064e3b 60%, #047857 100%) !important;
-            /* خلفية أخضر زمردي غامق ثقيل وفخم (Premium Heavy Dark Green) */
-            padding: 3px 10px;
-            /* تم تقليل الحشوة للتصغير */
-            border-radius: 0;
-            border-bottom: 3px solid #10b981;
-            box-shadow: 0 4px 15px rgba(2, 44, 34, 0.4);
-            transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            min-height: fit-content;
-            color: #ffffff;
-        }
-
-        body.dark-mode .app-header {
-            background: linear-gradient(135deg, #022c22 0%, #064e3b 60%, #047857 100%) !important;
-            /* خلفية أخضر غامق ثقيل موحدة للدارك مود */
-            border-color: #10b981;
-        }
-
-        .app-title {
-            font-size: 1rem;
-            /* تصغير الخط */
-            font-weight: 900;
-            color: #ffffff;
-            /* أبيض دائماً مع الخلفية الزرقاء */
-            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        body.dark-mode .app-title {
-            text-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
-        }
-
-        .app-title span {
-            color: var(--accent-gold) !important;
-        }
-
-        .connection-status {
-            background: var(--main-green) !important;
-            padding: 2px 6px;
-            /* تقليل الحشوة */
-            border-radius: 6px;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #ffffff !important;
-            font-weight: bold;
-            font-size: 0.7rem;
-            /* تصغير الخط */
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            box-shadow: 0 0 15px rgba(39, 174, 96, 0.3);
-            animation: pulse-green 2s infinite;
-        }
-
-        /* قفل تبديل المستودع للموظفين والكاشير مع إظهار علامة الفاي/المنع 🚫 */
-        .connection-status.warehouse-locked,
-        .connection-status.warehouse-locked * {
-            cursor: not-allowed !important;
-        }
-
-        .connection-status.warehouse-locked select,
-        #headerActiveWarehouseSelect:disabled {
-            cursor: not-allowed !important;
-            pointer-events: none !important;
-            opacity: 0.92 !important;
-            user-select: none !important;
-        }
-
-        .connection-status.warehouse-locked #warehouseLockBadge {
-            display: inline-block !important;
-            cursor: not-allowed !important;
-            filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.8));
-            animation: pulse-wh-lock 2s infinite ease-in-out;
-        }
-
-        @keyframes pulse-wh-lock {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.18); }
-        }
-
-        /* Utility Classes for Theme Adaptation */
-        .color-success {
-            color: var(--main-green) !important;
-        }
-
-        .color-danger {
-            color: var(--box-red) !important;
-        }
-
-        .color-warning {
-            color: var(--accent-gold) !important;
-        }
-
-        .color-info {
-            color: var(--main-blue) !important;
-        }
-
-        .bg-subtle-green {
-            background-color: rgba(39, 174, 96, 0.1) !important;
-        }
-
-        .bg-subtle-red {
-            background: rgba(231, 76, 60, 0.1) !important;
-        }
-
-        .bg-subtle-gold {
-            background: rgba(212, 175, 55, 0.1) !important;
-        }
-
-        .bg-adaptive {
-            background-color: var(--surface-color) !important;
-            color: var(--text-primary) !important;
-        }
-
-        .card-green {
-            background: linear-gradient(135deg, var(--main-green), #219150);
-            color: white !important;
-            border-bottom: 5px solid #1a7440;
-            box-shadow: 0 0 15px rgba(39, 174, 96, 0.3);
-            animation: pulse-green 2s infinite;
-        }
-
-        body.dark-mode .card-green {
-            background: linear-gradient(135deg, #d4af37, #aa8d2d);
-            border-bottom-color: #8e6c00;
-        }
-
-        @keyframes pulse-green {
-            0%, 100% {
-                transform: scale(1);
-                opacity: 1;
-            }
-            50% {
-                transform: scale(1.02);
-                opacity: 0.92;
-            }
-        }
-
-        #currentUserDisplay {
-            background: var(--bg-color);
-            padding: 2px 6px;
-            /* تقليل الحشوة */
-            border-radius: 6px;
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            font-weight: 800;
-            font-size: 0.72rem;
-            /* تصغير الخط */
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            transition: 0.3s;
-        }
-
-        #currentUserDisplay:hover {
-            border-color: var(--accent-gold);
-            background: var(--surface-color);
-        }
-
-        #currentUserDisplay span {
-            color: var(--accent-gold) !important;
-        }
-
-        /* --- Live Clock Styles --- */
-        .live-clock-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: var(--bg-color);
-            padding: 3px 10px;
-            /* تقليل الحشوة */
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
-            border-left: 2px solid var(--accent-gold);
-            font-family: inherit;
-            box-shadow: var(--shadow-soft);
-            transition: 0.3s ease;
-        }
-
-        .live-clock-wrapper:hover {
-            border-color: var(--accent-gold);
-            transform: translateY(-1px);
-        }
-
-        .live-clock-time {
-            font-weight: 900;
-            color: var(--accent-gold);
-            font-size: 0.9rem;
-            /* تصغير الخط */
-            letter-spacing: 0.5px;
-            display: flex;
-            align-items: center;
-            gap: 3px;
-        }
-
-        .live-clock-date {
-            font-size: 0.7rem;
-            /* تصغير الخط */
-            color: var(--text-secondary);
-            font-weight: 500;
-            border-right: 1px solid var(--border-color);
-            padding-right: 10px;
-            margin-right: 0;
-            white-space: nowrap;
-        }
-
-        body.dark-mode .live-clock-wrapper {
-            background: rgba(0, 0, 0, 0.3);
-            border-color: #333;
-        }
-
-        body.dark-mode .live-clock-date {
-            color: #aaa;
-        }
-
-        .notification-bell,
-        .theme-toggle-btn {
-            background: var(--surface-color) !important;
-            width: 28px;
-            height: 28px;
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 1px solid var(--border-color) !important;
-            cursor: pointer;
-            transition: 0.3s;
-            position: relative;
-            font-size: 0.9rem;
-            color: var(--text-primary) !important;
-        }
-
-        .notification-bell:hover,
-        .theme-toggle-btn:hover {
-            border-color: var(--accent-gold) !important;
-            transform: translateY(-2px);
-            background: var(--bg-color) !important;
-        }
-
-        .compact-header-info {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            margin-right: auto;
-            margin-left: 10px;
-            font-size: 0.72rem;
-        }
-
-        .compact-header-info .info-item {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            background: rgba(0, 0, 0, 0.03);
-            padding: 2px 6px;
-            border-radius: 6px;
-            border: 1px solid var(--border-color);
-            white-space: nowrap;
-            color: var(--text-secondary);
-        }
-
-        body.dark-mode .compact-header-info .info-item {
-            background: rgba(255, 255, 255, 0.05);
-        }
-
-        .compact-header-info .info-item b,
-        .compact-header-info .info-item .timeLabel {
-            color: var(--accent-gold);
-            font-weight: bold;
-        }
-
-        .compact-header-info .status-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            background: var(--main-green);
-            box-shadow: 0 0 5px var(--main-green);
-        }
-
-        @media (max-width: 1000px) {
-            .compact-header-info {
-                display: none;
-            }
-        }
-
-        .btn-logout {
-            background: #1e3a8a !important; /* Dark Blue */
-            color: #ffffff !important;
-            border: none !important;
-            padding: 6px 16px !important;
-            border-radius: 10px !important;
-            font-weight: 900 !important;
-            font-size: 0.85rem !important;
-            cursor: pointer;
-            transition: 0.3s;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            box-shadow: 0 4px 10px rgba(30, 58, 138, 0.2);
-        }
-
-        .btn-logout:hover {
-            transform: scale(1.05);
-            box-shadow: 0 3px 8px rgba(231,76,60,0.25);
-        }
-
-        .bell-badge {
-            position: absolute;
-            top: -5px;
-            right: -5px;
-            background: var(--box-red);
-            color: white;
-            font-size: 0.7rem;
-            padding: 2px 6px;
-            border-radius: 10px;
-            font-weight: bold;
-            box-shadow: 0 0 6px rgba(231,76,60,0.25);
-        }
-
-        /* الحاوية الرئيسية */
-        .main-container {
-            flex: 1;
-            /* Take remaining space */
-            position: relative;
-            z-index: 1;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-start;
-            align-items: stretch;
-            margin: 0;
-            padding: 0;
-        }
-
-        .section-view {
-            display: flex;
-            gap: 6px; /* تم تصغير الفراغ من 10px */
-            width: 100%;
-            flex: 1; /* Stretch to fill all available space */
-            min-height: 100%; /* Ensure it takes full height of container */
-            position: relative;
-            z-index: 1;
-            margin: 0; /* Remove negative margin that causes top gap */
-            align-items: flex-start;
-            overflow: visible !important; /* السماح للقوائم بالخروج من إطار القسم */
-        }
-
-        /* اللوحات الرئيسية */
-        .products-panel {
-            flex: 1;
-            background: var(--surface-color);
-            padding: 2px 8px;
-            border-radius: 10px;
-            box-shadow: var(--shadow-soft);
-            display: flex;
-            flex-direction: column;
-            border: 1px solid var(--border-color);
-            border-top: 4px solid var(--main-green);
-            transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
-            overflow: visible !important; /* لضمان ظهور نتائج البحث المنبثقة */
-            min-width: 0; /* منع تمدد اللوحة أفقياً وتجنب دفع القائمة اليسرى خارج الشاشة */
-        }
-
-        .checkout-panel {
-            flex: 0 0 350px !important;
-            min-width: 340px !important;
-            /* Fixed width sidebar feel with elegant padding and margins */
-            background: white !important;
-            padding: 10px 12px !important;
-            border-radius: 14px !important;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06) !important;
-            display: flex;
-            flex-direction: column;
-            border: 1px solid var(--border-color);
-            border-top: 5px solid var(--gold) !important;
-            align-self: stretch;
-            /* Force stretch to full height */
-            height: auto;
-            margin: 6px 12px 6px 6px !important;
-            box-sizing: border-box !important;
-        }
-
-        /* تصحيح اتجاه الأقسام لضمان ظهور اللوحات جنباً لجنب وتمتد للأسفل */
-        #sales-section,
-        #purchase-section,
-        #sales-return-section,
-        #purchase-return-section,
-        #receipt-section,
-        #disbursement-section,
-        #accounts-section {
-            flex-direction: row !important;
-            align-items: stretch !important;
-            justify-content: flex-start !important;
-        }
-
-        /* جعل products-panel يملأ الحاوية كاملاً */
-        #sales-section .products-panel,
-        #purchase-section .products-panel,
-        #sales-return-section .products-panel,
-        #purchase-return-section .products-panel,
-        #receipt-section .products-panel,
-        #disbursement-section .products-panel {
-            height: 100%;
-            min-height: 0;
-        }
-
-        body.dark-mode .checkout-panel,
-        body.dark-mode .products-panel,
-        body.dark-mode .section-view,
-        body.dark-mode .card-group {
-            background: #1a1a1a !important;
-            border: 1px solid #f1c40f !important;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-
-        /* توحيد نصوص الجداول في الوضع الليلي */
-        body.dark-mode table td,
-        body.dark-mode table span,
-        body.dark-mode table b,
-        body.dark-mode table th {
-            color: #ffffff !important;
-            text-shadow: 0px 0px 2px rgba(0, 0, 0, 0.8);
-        }
-
-        /* --- 🎨 تصميم الواجهة الملكية الحديثة (Royal Modern Grid) --- */
-        #dashboard-section {
-            background: radial-gradient(circle at 50% 20%, #1e1b4b 0%, #0f172a 60%, #090d16 100%);
-            padding: 4px 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            overflow: hidden !important;
-            color: white;
-            height: 100vh;
-            max-height: 100vh;
-            box-sizing: border-box;
-        }
-
-        body.has-wallpaper #dashboard-section {
-            background: rgba(0, 0, 0, 0.5) !important;
-            /* backdrop-filter disabled */
-        }
-
-        .dm-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: stretch;
-            gap: 10px;
-            background: rgba(255, 255, 255, 0.02);
-            padding: 5px 10px;
-            border-radius: 12px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .dm-header-right {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 0 15px;
-        }
-
-        .dm-logo-box {
-            background: #27ae60;
-            border-radius: 10px;
-            width: 65px;
-            height: 65px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 8px rgba(39,174,96,0.2);
-        }
-
-        .dm-logo-box .icon {
-            font-size: 2rem;
-        }
-
-        .dm-logo-box .name {
-            font-size: 0.9rem;
-            font-weight: 900;
-            margin-top: -5px;
-        }
-
-        .dm-app-info h1 {
-            margin: 0;
-            font-size: 1.6rem;
-            font-weight: 900;
-            color: #fff;
-        }
-
-        .dm-app-info p {
-            margin: 2px 0 0;
-            font-size: 0.85rem;
-            color: #aaa;
-        }
-
-        .dashboard-theme {
-            overflow-x: hidden !important;
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            padding: 2px 8px;
-            box-sizing: border-box;
-        }
-
-        .dm-header-left {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-            width: 100%;
-            justify-content: space-between;
-            padding: 5px 0;
-        }
-
-        .dm-top-tile {
-            flex: 1;
-            min-width: 80px;
-            height: 75px;
-            background: #27ae60;
-            border-radius: 12px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            cursor: pointer;
-            transition: 0.3s;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-        }
-
-        .dm-top-tile:hover {
-            transform: translateY(-4px);
-            background: #2ecc71;
-        }
-
-        .dm-top-tile .icon {
-            font-size: 1.2rem;
-        }
-
-        .dm-top-tile .label {
-            font-size: 0.75rem;
-            font-weight: bold;
-        }
-
-        .dm-section-title {
-            font-size: 1rem;
-            color: #f1c40f;
-            border-bottom: 2px solid rgba(241, 196, 15, 0.3);
-            padding-bottom: 5px;
-            margin: 15px 0 8px 0;
-            width: 100%;
-            text-align: center;
-            font-weight: 900;
-        }
-
-        /* الصفوف الوسطى - تمتد لتملأ عرض الصف كاملاً */
-        .dm-mid-grid {
-            display: flex;
-            gap: 15px;
-            justify-content: space-between;
-            width: 100%;
-            align-items: stretch;
-            box-sizing: border-box;
-        }
-
-        .dm-mid-group {
-            display: flex;
-            gap: 10px;
-            align-items: stretch;
-            min-width: 0;
-            flex: 1;
-        }
-
-        .dm-mid-tile {
-            flex: 1 1 0;
-            width: 100%;
-            min-width: 0;
-            height: 95px;
-            background: #0b314b;
-            border-radius: 15px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            gap: 4px;
-            cursor: pointer;
-            transition: 0.3s;
-            padding: 5px;
-            box-sizing: border-box;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 3px 8px rgba(0,0,0,0.2);
-        }
-
-        .dm-mid-tile:hover {
-            background: #13466a;
-            transform: scale(1.03);
-        }
-
-        .dm-mid-tile.blue {
-            background: #2196f3;
-        }
-
-        .dm-mid-tile.blue:hover {
-            background: #42a5f5;
-        }
-
-        .dm-mid-tile .icon {
-            font-size: 1.2rem;
-        }
-
-        .dm-mid-tile .label {
-            font-size: 0.75rem;
-            font-weight: bold;
-            text-align: center;
-        }
-
-        /* الشبكة الكبيرة السفلية - تصميم 9 أعمدة مطابق للصورة الأصلية تماماً */
-        .dm-main-grid {
-            display: grid;
-            grid-template-columns: repeat(9, 1fr);
-            gap: 10px;
-            width: 100%;
-            margin-top: 10px;
-            box-sizing: border-box;
-        }
-
-        .dm-main-grid .dm-action-tile {
-            width: 100%;
-            max-width: 100%;
-            min-width: 0;
-            height: 120px;
-            box-sizing: border-box;
-        }
-
-        /* تثبيت كروت الشبكة السفلية في مواقعها الأصلية المحددة بدقة لمنع الترحيل أو القفز عند إخفاء الأقسام */
-        .dm-main-grid .dm-sec-receipt          { grid-row: 1; grid-column: 1; }
-        .dm-main-grid .dm-sec-sales            { grid-row: 1; grid-column: 2; }
-        .dm-main-grid .dm-sec-disbursement     { grid-row: 1; grid-column: 3; }
-        .dm-main-grid .dm-sec-sales-return     { grid-row: 1; grid-column: 4; }
-        .dm-main-grid .dm-sec-purchase-return  { grid-row: 1; grid-column: 5; }
-        .dm-main-grid .dm-sec-purchase         { grid-row: 1; grid-column: 6; }
-        .dm-main-grid .dm-sec-adjustment       { grid-row: 1; grid-column: 7; }
-        .dm-main-grid .dm-sec-history          { grid-row: 1; grid-column: 8; }
-        .dm-main-grid .dm-sec-warehouse-report { grid-row: 1; grid-column: 9; }
-
-        .dm-main-grid .dm-sec-statement        { grid-row: 2; grid-column: 1; }
-        .dm-main-grid .dm-sec-shortcuts        { grid-row: 2; grid-column: 2; }
-        .dm-main-grid .dm-sec-transfer         { grid-row: 2; grid-column: 3; }
-        .dm-main-grid .dm-sec-calculator       { grid-row: 2; grid-column: 4; }
-        .dm-main-grid .dm-sec-treasury         { grid-row: 2; grid-column: 5; }
-
-        .dm-action-tile {
-            border-radius: 15px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .dm-action-tile:hover {
-            transform: translateY(-8px) scale(1.02);
-            filter: brightness(1.2);
-            box-shadow: 0 6px 14px rgba(0,0,0,0.25);
-        }
-
-        .dm-action-tile .icon {
-            font-size: 1.8rem;
-            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
-        }
-
-        /* Permissions Tabs System */
-        .permissions-container {
-            background: rgba(0,0,0,0.02);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            margin-top: 15px;
-            padding: 15px;
-            width: 100%;
-        }
-        .permissions-tabs {
-            display: flex;
-            gap: 5px;
-            border-bottom: 2px solid var(--border-color);
-            margin-bottom: 15px;
-            padding-bottom: 0;
-            overflow-x: auto;
-        }
-        .perm-tab {
-            padding: 10px 20px;
-            border: none;
-            background: transparent;
-            cursor: pointer;
-            font-weight: bold;
-            color: var(--text-secondary);
-            border-radius: 8px 8px 0 0;
-            transition: 0.3s;
-            white-space: nowrap;
-        }
-        .perm-tab.active {
-            color: var(--main-green);
-            border-bottom: 3px solid var(--main-green);
-            background: rgba(16, 185, 129, 0.05);
-        }
-        .perm-panel {
-            display: none;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 12px;
-            animation: fadeIn 0.3s ease;
-        }
-        .perm-panel.active {
-            display: grid;
-        }
-        .perm-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            background: var(--surface-color);
-            padding: 12px;
-            border-radius: 10px;
-            border: 1px solid var(--border-color);
-            cursor: pointer;
-            transition: 0.2s;
-            user-select: none;
-        }
-        .perm-item:hover {
-            border-color: var(--main-green);
-            background: rgba(16, 185, 129, 0.02);
-        }
-        .perm-item input {
-            width: 20px;
-            height: 20px;
-            margin: 0;
-            accent-color: var(--main-green);
-        }
-        .perm-item span {
-            font-size: 0.9rem;
-            font-weight: bold;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(5px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .dm-action-tile .label {
-            font-size: 0.9rem;
-            font-weight: 900;
-            margin-top: 8px;
-        }
-
-        /* الألوان المحددة للأزرار */
-        .dm-btn-sale {
-            background: #27ae60;
-        }
-
-        /* أخضر بيع */
-        .dm-btn-pur {
-            background: #e67e22;
-        }
-
-        /* برتقالي شراء */
-        .dm-btn-pay {
-            background: #e74c3c;
-        }
-
-        /* أحمر صرف */
-        .dm-btn-audit {
-            background: #008080;
-        }
-
-        /* تيل جرد */
-
-        .dm-btn-rsell {
-            background: #2ecc71;
-        }
-
-        /* أخضر فاتح مرتجع بيع */
-        .dm-btn-quto {
-            background: #2980b9;
-        }
-
-        /* أزرق عرض سعر */
-        .dm-btn-rpur {
-            background: #8b2e3c;
-        }
-
-        /* عنابي مرتجع شراء */
-
-        .dm-btn-receipt {
-            background: #27ae60;
-        }
-
-        /* أخضر قبض */
-        .dm-btn-transfer {
-            background: #138d75;
-        }
-
-        /* تيل غامق تحويل */
-        .dm-btn-adjust {
-            background: #1abc9c;
-        }
-
-        /* بنفسجي حركة الأصناف */
-        .dm-btn-history {
-            background: #8e44ad;
-        }
-
-        /* تيل فاتح تسوية */
-
-        /* تعديلات شاشة الموبايل */
-        @media (max-width: 1024px) {
-            .dm-main-grid {
-                grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-            }
-            .dm-main-grid .dm-action-tile {
-                min-width: 90px;
-            }
-
-            .dm-header {
-                flex-direction: column-reverse;
-            }
-        }
-
-        /* --- الأنماط القديمة (Dashboard Tiles) --- */
-        .dashboard-container {
-            display: flex;
-            flex-direction: row;
-            overflow-x: auto;
-            gap: 15px;
-            padding: 10px;
-            height: 100%;
-        }
-
-        .card-group {
-            flex: 1;
-            min-width: 280px;
-            display: flex;
-            flex-direction: column;
-            background: var(--surface-color);
-            padding: 15px;
-            border-radius: 15px;
-            box-shadow: var(--shadow-soft);
-            border: 1px solid var(--border-color);
-        }
-
-        /* تم الدمج مع الأعلى */
-
-        .card-group-title {
-            font-size: 1rem;
-            color: var(--accent-gold);
-            margin-bottom: 15px;
-            border-bottom: 2px solid var(--border-color);
-            padding-bottom: 5px;
-            font-weight: 800;
-            text-transform: uppercase;
-        }
-
-        .cards-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 12px;
-            flex: 1;
-        }
-
-        .nav-card {
-            background: var(--surface-color);
-            padding: 24px 15px;
-            border-radius: 18px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: background-color 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            border: 1px solid var(--border-color);
-            box-shadow: var(--shadow-soft);
-            position: relative;
-            overflow: hidden;
-            z-index: 1;
-        }
-
-        .nav-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 4px;
-            background: var(--border-color);
-            transition: 0.3s;
-        }
-
-        body.dark-mode .nav-card {
-            background: var(--card-bg);
-            border-color: rgba(255, 255, 255, 0.05);
-        }
-
-        .nav-card:hover {
-            transform: translateY(-8px);
-            box-shadow: var(--shadow-medium);
-            background: var(--surface-color);
-        }
-
-        body.dark-mode .nav-card:hover {
-            background: #252528;
-        }
-
-        .nav-card:hover .nav-icon {
-            transform: scale(1.1) rotate(-5deg);
-        }
-
-        .nav-icon {
-            font-size: 2.5rem;
-            margin-bottom: 12px;
-            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
-        }
-
-        .nav-title {
-            font-size: 0.95rem;
-            font-weight: 750;
-            color: var(--text-primary);
-            text-align: center;
-            letter-spacing: -0.2px;
-        }
-
-        /* --- Dynamic Card Group Colors --- */
-        .card-green::before {
-            background: var(--main-green) !important;
-        }
-
-        .card-green:hover {
-            border-color: var(--main-green) !important;
-            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
-        }
-
-        .card-blue::before {
-            background: var(--main-blue) !important;
-        }
-
-        .card-blue:hover {
-            border-color: var(--main-blue) !important;
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-        }
-
-        .card-red::before {
-            background: var(--box-red) !important;
-        }
-
-        .card-red:hover {
-            border-color: var(--box-red) !important;
-            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
-        }
-
-        .card-orange::before {
-            background: #f59e0b !important;
-        }
-
-        .card-orange:hover {
-            border-color: #f59e0b !important;
-            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
-        }
-
-        .card-purple::before {
-            background: #8b5cf6 !important;
-        }
-
-        .card-purple:hover {
-            border-color: #8b5cf6 !important;
-            box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
-        }
-
-        .card-return-sell::before {
-            background: #f97316 !important;
-        }
-
-        .card-return-sell:hover {
-            border-color: #f97316 !important;
-            box-shadow: 0 4px 12px rgba(249, 115, 22, 0.15);
-        }
-
-        .card-return-buy::before {
-            background: #ea580c !important;
-        }
-
-        .card-return-buy:hover {
-            border-color: #ea580c !important;
-            box-shadow: 0 4px 12px rgba(234, 88, 12, 0.15);
-        }
-
-        .card-gray::before {
-            background: var(--text-secondary) !important;
-        }
-
-        .card-gray:hover {
-            border-color: var(--text-secondary) !important;
-            box-shadow: 0 4px 12px rgba(100, 116, 139, 0.15);
-        }
-
-        /* زر الرجوع للقائمة الرئيسية - تصميم مطور فاخر */
-        .btn-back-home {
-            background: var(--surface-color) !important;
-            color: var(--accent-gold) !important;
-            padding: 10px 22px !important;
-            border-radius: 14px !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            gap: 10px;
-            cursor: pointer;
-            font-size: 0.95rem !important;
-            font-weight: 800;
-            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            box-shadow: var(--shadow-soft);
-            position: relative;
-            z-index: 10;
-            margin: 0 !important;
-            border: 2px solid var(--accent-gold) !important;
-            white-space: nowrap;
-        }
-
-        body.dark-mode .btn-back-home {
-            background: #1a1a1c !important;
-            border-color: var(--accent-gold) !important;
-        }
-
-        .btn-back-home:hover {
-            transform: translateY(-3px) scale(1.02);
-            background: var(--accent-gold) !important;
-            color: #000 !important;
-            box-shadow: 0 4px 10px rgba(197,160,89,0.2);
-        }
-
-        .btn-back-home .icon {
-            font-size: 1.3rem;
-        }
-
-        .btn-back-home:hover .icon {
-            transform: translateX(-4px);
-        }
-
-        /* 1. منطقة المبالغ والحسابات */
-        .amounts-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-bottom: 20px;
-            justify-content: center;
-        }
-
-        .amount-box {
-            background: var(--surface-color);
-            padding: 10px 15px;
-            border-radius: 16px;
-            box-shadow: var(--shadow-soft);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-            border: 1px solid var(--border-color);
-            transition: transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease, border-color 0.3s ease;
-            min-width: 120px;
-            width: auto;
-            flex: 1;
-        }
-
-        .amount-box:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-medium);
-            border-color: rgba(0, 0, 0, 0.1);
-        }
-
-        .amount-label {
-            font-size: 0.85rem;
-            font-weight: 700;
-            color: var(--text-secondary);
-            margin-bottom: 5px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .amount-value {
-            font-size: clamp(14px, 2.5vw, 1.8rem);
-            font-weight: 900;
-            color: var(--text-primary);
-            font-family: 'Cairo', sans-serif;
-            font-weight: 600;
-            letter-spacing: -0.5px;
-            white-space: nowrap;
-        }
-
-        .box-green {
-            background: linear-gradient(135deg, #10b981, #059669) !important;
-            color: #ffffff !important;
-            border: none !important;
-        }
-        .box-green * { color: #ffffff !important; }
-
-        .box-red {
-            background: linear-gradient(135deg, #f43f5e, #e11d48) !important;
-            color: #ffffff !important;
-            border: none !important;
-        }
-        .box-red * { color: #ffffff !important; }
-
-        .box-blue {
-            background: linear-gradient(135deg, #0ea5e9, #0284c7) !important;
-            color: #ffffff !important;
-            border: none !important;
-        }
-        .box-blue * { color: #ffffff !important; }
-
-        .box-gold-premium {
-            background: linear-gradient(135deg, #422006, #713f12) !important;
-            border: 2px solid var(--gold) !important;
-            color: #fff !important;
-            box-shadow: 0 4px 20px rgba(184, 134, 11, 0.3) !important;
-        }
-        .box-gold-premium * { color: #ffffff !important; }
-
-        /* تخصيص إجمالي المطلوب باللون البنفسجي الملكي */
-        #grandDebtBox {
-            background: linear-gradient(135deg, #4c1d95, #6d28d9) !important;
-            border: 2px solid #8b5cf6 !important;
-            box-shadow: 0 4px 25px rgba(139, 92, 246, 0.4) !important;
-        }
-        #grandDebtBox .amount-label { color: inherit; }
-        #grandDebtBox .amount-value { color: inherit; }
-
-        body.dark-mode .amount-box {
-            background: var(--card-bg);
-            border-color: rgba(255, 255, 255, 0.05);
-        }
-
-        body.dark-mode .amount-box .amount-label {
-            color: var(--text-secondary);
-        }
+/* --- 🎨 Premium Wallpaper & Glassmorphism --- */
+body.has-wallpaper {
+    background-color: #0d0d0f;
+    /* Fallback */
+    background-image: radial-gradient(circle at center, #1b1b1f 0%, #0d0d0f 100%);
+}
+
+body.has-wallpaper .main-container,
+body.has-wallpaper .section-view {
+    background: transparent !important;
+}
+
+/* جعل الكروت والبانلات شفافة عند وجود خلفية */
+body.has-wallpaper .products-panel,
+body.has-wallpaper .checkout-panel,
+body.has-wallpaper .table-container,
+body.has-wallpaper .panel-header,
+body.has-wallpaper .inv-filters,
+body.has-wallpaper .accounts-sidebar,
+body.has-wallpaper .dm-header {
+    background: rgba(255, 255, 255, 0.95) !important;
+    /* backdrop-filter disabled */
+    /* -webkit-backdrop-filter disabled */
+    border: 1px solid rgba(255, 255, 255, 0.3) !important;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07) !important;
+}
+
+body.dark-mode.has-wallpaper .products-panel,
+body.dark-mode.has-wallpaper .checkout-panel,
+body.dark-mode.has-wallpaper .table-container,
+body.dark-mode.has-wallpaper .panel-header,
+body.dark-mode.has-wallpaper .inv-filters,
+body.dark-mode.has-wallpaper .accounts-sidebar,
+body.dark-mode.has-wallpaper .dm-header {
+    background: rgba(15, 15, 20, 0.96) !important;
+    /* backdrop-filter disabled */
+    /* -webkit-backdrop-filter disabled */
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+}
+
+/* توحيد مظهر الهيدر مع الزجاجية */
+body.has-wallpaper .app-header {
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* تحسين الألوان لجميع العناصر النصية والمدخلات */
+p,
+span,
+label,
+td,
+th,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+select,
+textarea,
+option {
+    color: inherit;
+}
+
+input {
+    background-color: var(--surface-color);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+/* جعل نصوص الأزرار والـ Placeholder متناسقة */
+button {
+    color: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.7;
+}
+
+/* شريط العنوان العلوي */
+.sticky-top-wrapper {
+    position: sticky;
+    top: 0;
+    z-index: 10001;
+    margin: 0;
+    /* Sitting flush at edge */
+}
+
+/* شريط العنوان العلوي */
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #022c22 0%, #064e3b 60%, #047857 100%) !important;
+    /* خلفية أخضر زمردي غامق ثقيل وفخم (Premium Heavy Dark Green) */
+    padding: 3px 10px;
+    /* تم تقليل الحشوة للتصغير */
+    border-radius: 0;
+    border-bottom: 3px solid #10b981;
+    box-shadow: 0 4px 15px rgba(2, 44, 34, 0.4);
+    transition: background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    min-height: fit-content;
+    color: #ffffff;
+}
+
+body.dark-mode .app-header {
+    background: linear-gradient(135deg, #022c22 0%, #064e3b 60%, #047857 100%) !important;
+    /* خلفية أخضر غامق ثقيل موحدة للدارك مود */
+    border-color: #10b981;
+}
+
+.app-title {
+    font-size: 1rem;
+    /* تصغير الخط */
+    font-weight: 900;
+    color: #ffffff;
+    /* أبيض دائماً مع الخلفية الزرقاء */
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+body.dark-mode .app-title {
+    text-shadow: 0 0 15px rgba(212, 175, 55, 0.4);
+}
+
+.app-title span {
+    color: var(--accent-gold) !important;
+}
+
+.connection-status {
+    background: var(--main-green) !important;
+    padding: 2px 6px;
+    /* تقليل الحشوة */
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #ffffff !important;
+    font-weight: bold;
+    font-size: 0.7rem;
+    /* تصغير الخط */
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 0 15px rgba(39, 174, 96, 0.3);
+    animation: pulse-green 2s infinite;
+}
+
+/* قفل تبديل المستودع للموظفين والكاشير مع إظهار علامة الفاي/المنع 🚫 */
+.connection-status.warehouse-locked,
+.connection-status.warehouse-locked * {
+    cursor: not-allowed !important;
+}
+
+.connection-status.warehouse-locked select,
+#headerActiveWarehouseSelect:disabled {
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    opacity: 0.92 !important;
+    user-select: none !important;
+}
+
+.connection-status.warehouse-locked #warehouseLockBadge {
+    display: inline-block !important;
+    cursor: not-allowed !important;
+    filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.8));
+    animation: pulse-wh-lock 2s infinite ease-in-out;
+}
+
+@keyframes pulse-wh-lock {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.18);
+    }
+}
+
+/* Utility Classes for Theme Adaptation */
+.color-success {
+    color: var(--main-green) !important;
+}
+
+.color-danger {
+    color: var(--box-red) !important;
+}
+
+.color-warning {
+    color: var(--accent-gold) !important;
+}
+
+.color-info {
+    color: var(--main-blue) !important;
+}
+
+.bg-subtle-green {
+    background-color: rgba(39, 174, 96, 0.1) !important;
+}
+
+.bg-subtle-red {
+    background: rgba(231, 76, 60, 0.1) !important;
+}
+
+.bg-subtle-gold {
+    background: rgba(212, 175, 55, 0.1) !important;
+}
+
+.bg-adaptive {
+    background-color: var(--surface-color) !important;
+    color: var(--text-primary) !important;
+}
+
+.card-green {
+    background: linear-gradient(135deg, var(--main-green), #219150);
+    color: white !important;
+    border-bottom: 5px solid #1a7440;
+    box-shadow: 0 0 15px rgba(39, 174, 96, 0.3);
+    animation: pulse-green 2s infinite;
+}
+
+body.dark-mode .card-green {
+    background: linear-gradient(135deg, #d4af37, #aa8d2d);
+    border-bottom-color: #8e6c00;
+}
+
+@keyframes pulse-green {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(1.02);
+        opacity: 0.92;
+    }
+}
+
+#currentUserDisplay {
+    background: var(--bg-color);
+    padding: 2px 6px;
+    /* تقليل الحشوة */
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    color: var(--text-primary);
+    font-weight: 800;
+    font-size: 0.72rem;
+    /* تصغير الخط */
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: 0.3s;
+}
+
+#currentUserDisplay:hover {
+    border-color: var(--accent-gold);
+    background: var(--surface-color);
+}
+
+#currentUserDisplay span {
+    color: var(--accent-gold) !important;
+}
+
+/* --- Live Clock Styles --- */
+.live-clock-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-color);
+    padding: 3px 10px;
+    /* تقليل الحشوة */
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    border-left: 2px solid var(--accent-gold);
+    font-family: inherit;
+    box-shadow: var(--shadow-soft);
+    transition: 0.3s ease;
+}
+
+.live-clock-wrapper:hover {
+    border-color: var(--accent-gold);
+    transform: translateY(-1px);
+}
+
+.live-clock-time {
+    font-weight: 900;
+    color: var(--accent-gold);
+    font-size: 0.9rem;
+    /* تصغير الخط */
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.live-clock-date {
+    font-size: 0.7rem;
+    /* تصغير الخط */
+    color: var(--text-secondary);
+    font-weight: 500;
+    border-right: 1px solid var(--border-color);
+    padding-right: 10px;
+    margin-right: 0;
+    white-space: nowrap;
+}
+
+body.dark-mode .live-clock-wrapper {
+    background: rgba(0, 0, 0, 0.3);
+    border-color: #333;
+}
+
+body.dark-mode .live-clock-date {
+    color: #aaa;
+}
+
+.notification-bell,
+.theme-toggle-btn {
+    background: var(--surface-color) !important;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--border-color) !important;
+    cursor: pointer;
+    transition: 0.3s;
+    position: relative;
+    font-size: 0.9rem;
+    color: var(--text-primary) !important;
+}
+
+.notification-bell:hover,
+.theme-toggle-btn:hover {
+    border-color: var(--accent-gold) !important;
+    transform: translateY(-2px);
+    background: var(--bg-color) !important;
+}
+
+.compact-header-info {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: auto;
+    margin-left: 10px;
+    font-size: 0.72rem;
+}
+
+.compact-header-info .info-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.03);
+    padding: 2px 6px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    white-space: nowrap;
+    color: var(--text-secondary);
+}
+
+body.dark-mode .compact-header-info .info-item {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.compact-header-info .info-item b,
+.compact-header-info .info-item .timeLabel {
+    color: var(--accent-gold);
+    font-weight: bold;
+}
+
+.compact-header-info .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--main-green);
+    box-shadow: 0 0 5px var(--main-green);
+}
+
+@media (max-width: 1000px) {
+    .compact-header-info {
+        display: none;
+    }
+}
+
+.btn-logout {
+    background: #1e3a8a !important;
+    /* Dark Blue */
+    color: #ffffff !important;
+    border: none !important;
+    padding: 6px 16px !important;
+    border-radius: 10px !important;
+    font-weight: 900 !important;
+    font-size: 0.85rem !important;
+    cursor: pointer;
+    transition: 0.3s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 4px 10px rgba(30, 58, 138, 0.2);
+}
+
+.btn-logout:hover {
+    transform: scale(1.05);
+    box-shadow: 0 3px 8px rgba(231, 76, 60, 0.25);
+}
+
+.bell-badge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background: var(--box-red);
+    color: white;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-weight: bold;
+    box-shadow: 0 0 6px rgba(231, 76, 60, 0.25);
+}
+
+/* الحاوية الرئيسية */
+.main-container {
+    flex: 1;
+    /* Take remaining space */
+    position: relative;
+    z-index: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    margin: 0;
+    padding: 0;
+}
+
+.section-view {
+    display: flex;
+    gap: 6px;
+    /* تم تصغير الفراغ من 10px */
+    width: 100%;
+    flex: 1;
+    /* Stretch to fill all available space */
+    min-height: 100%;
+    /* Ensure it takes full height of container */
+    position: relative;
+    z-index: 1;
+    margin: 0;
+    /* Remove negative margin that causes top gap */
+    align-items: flex-start;
+    overflow: visible !important;
+    /* السماح للقوائم بالخروج من إطار القسم */
+}
+
+/* اللوحات الرئيسية */
+.products-panel {
+    flex: 1;
+    background: var(--surface-color);
+    padding: 2px 8px;
+    border-radius: 10px;
+    box-shadow: var(--shadow-soft);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-color);
+    border-top: 4px solid var(--main-green);
+    transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
+    overflow: visible !important;
+    /* لضمان ظهور نتائج البحث المنبثقة */
+    min-width: 0;
+    /* منع تمدد اللوحة أفقياً وتجنب دفع القائمة اليسرى خارج الشاشة */
+}
+
+.checkout-panel {
+    flex: 0 0 350px !important;
+    min-width: 340px !important;
+    /* Fixed width sidebar feel with elegant padding and margins */
+    background: white !important;
+    padding: 10px 12px !important;
+    border-radius: 14px !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06) !important;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border-color);
+    border-top: 5px solid var(--gold) !important;
+    align-self: stretch;
+    /* Force stretch to full height */
+    height: auto;
+    margin: 6px 12px 6px 6px !important;
+    box-sizing: border-box !important;
+}
+
+/* تصحيح اتجاه الأقسام لضمان ظهور اللوحات جنباً لجنب وتمتد للأسفل */
+#sales-section,
+#purchase-section,
+#sales-return-section,
+#purchase-return-section,
+#receipt-section,
+#disbursement-section,
+#accounts-section {
+    flex-direction: row !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+}
+
+/* جعل products-panel يملأ الحاوية كاملاً */
+#sales-section .products-panel,
+#purchase-section .products-panel,
+#sales-return-section .products-panel,
+#purchase-return-section .products-panel,
+#receipt-section .products-panel,
+#disbursement-section .products-panel {
+    height: 100%;
+    min-height: 0;
+}
+
+body.dark-mode .checkout-panel,
+body.dark-mode .products-panel,
+body.dark-mode .section-view,
+body.dark-mode .card-group {
+    background: #1a1a1a !important;
+    border: 1px solid #f1c40f !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* توحيد نصوص الجداول في الوضع الليلي */
+body.dark-mode table td,
+body.dark-mode table span,
+body.dark-mode table b,
+body.dark-mode table th {
+    color: #ffffff !important;
+    text-shadow: 0px 0px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* --- 🎨 تصميم الواجهة الملكية الحديثة (Royal Modern Grid) --- */
+#dashboard-section {
+    background: radial-gradient(circle at 50% 20%, #1e1b4b 0%, #0f172a 60%, #090d16 100%);
+    padding: 4px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    overflow: hidden !important;
+    color: white;
+    height: 100vh;
+    max-height: 100vh;
+    box-sizing: border-box;
+}
+
+body.has-wallpaper #dashboard-section {
+    background: rgba(0, 0, 0, 0.5) !important;
+    /* backdrop-filter disabled */
+}
+
+.dm-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: stretch;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.02);
+    padding: 5px 10px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dm-header-right {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 0 15px;
+}
+
+.dm-logo-box {
+    background: #27ae60;
+    border-radius: 10px;
+    width: 65px;
+    height: 65px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(39, 174, 96, 0.2);
+}
+
+.dm-logo-box .icon {
+    font-size: 2rem;
+}
+
+.dm-logo-box .name {
+    font-size: 0.9rem;
+    font-weight: 900;
+    margin-top: -5px;
+}
+
+.dm-app-info h1 {
+    margin: 0;
+    font-size: 1.6rem;
+    font-weight: 900;
+    color: #fff;
+}
+
+.dm-app-info p {
+    margin: 2px 0 0;
+    font-size: 0.85rem;
+    color: #aaa;
+}
+
+.dashboard-theme {
+    overflow-x: hidden !important;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 2px 8px;
+    box-sizing: border-box;
+}
+
+.dm-header-left {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    width: 100%;
+    justify-content: space-between;
+    padding: 5px 0;
+}
+
+.dm-top-tile {
+    flex: 1;
+    min-width: 80px;
+    height: 75px;
+    background: #27ae60;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: 0.3s;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.dm-top-tile:hover {
+    transform: translateY(-4px);
+    background: #2ecc71;
+}
+
+.dm-top-tile .icon {
+    font-size: 1.2rem;
+}
+
+.dm-top-tile .label {
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.dm-section-title {
+    font-size: 1rem;
+    color: #f1c40f;
+    border-bottom: 2px solid rgba(241, 196, 15, 0.3);
+    padding-bottom: 5px;
+    margin: 15px 0 8px 0;
+    width: 100%;
+    text-align: center;
+    font-weight: 900;
+}
+
+/* الصفوف الوسطى - تمتد لتملأ عرض الصف كاملاً */
+.dm-mid-grid {
+    display: flex;
+    gap: 15px;
+    justify-content: space-between;
+    width: 100%;
+    align-items: stretch;
+    box-sizing: border-box;
+}
+
+.dm-mid-group {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+    min-width: 0;
+    flex: 1;
+}
+
+.dm-mid-tile {
+    flex: 1 1 0;
+    width: 100%;
+    min-width: 0;
+    height: 95px;
+    background: #0b314b;
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: 0.3s;
+    padding: 5px;
+    box-sizing: border-box;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
+}
+
+.dm-mid-tile:hover {
+    background: #13466a;
+    transform: scale(1.03);
+}
+
+.dm-mid-tile.blue {
+    background: #2196f3;
+}
+
+.dm-mid-tile.blue:hover {
+    background: #42a5f5;
+}
+
+.dm-mid-tile .icon {
+    font-size: 1.2rem;
+}
+
+.dm-mid-tile .label {
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-align: center;
+}
+
+/* الشبكة الكبيرة السفلية - تصميم 9 أعمدة مطابق للصورة الأصلية تماماً */
+.dm-main-grid {
+    display: grid;
+    grid-template-columns: repeat(9, 1fr);
+    gap: 10px;
+    width: 100%;
+    margin-top: 10px;
+    box-sizing: border-box;
+}
+
+.dm-main-grid .dm-action-tile {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    height: 120px;
+    box-sizing: border-box;
+}
+
+/* تثبيت كروت الشبكة السفلية في مواقعها الأصلية المحددة بدقة لمنع الترحيل أو القفز عند إخفاء الأقسام */
+.dm-main-grid .dm-sec-receipt {
+    grid-row: 1;
+    grid-column: 1;
+}
+
+.dm-main-grid .dm-sec-sales {
+    grid-row: 1;
+    grid-column: 2;
+}
+
+.dm-main-grid .dm-sec-disbursement {
+    grid-row: 1;
+    grid-column: 3;
+}
+
+.dm-main-grid .dm-sec-sales-return {
+    grid-row: 1;
+    grid-column: 4;
+}
+
+.dm-main-grid .dm-sec-purchase-return {
+    grid-row: 1;
+    grid-column: 5;
+}
+
+.dm-main-grid .dm-sec-purchase {
+    grid-row: 1;
+    grid-column: 6;
+}
+
+.dm-main-grid .dm-sec-adjustment {
+    grid-row: 1;
+    grid-column: 7;
+}
+
+.dm-main-grid .dm-sec-history {
+    grid-row: 1;
+    grid-column: 8;
+}
+
+.dm-main-grid .dm-sec-warehouse-report {
+    grid-row: 1;
+    grid-column: 9;
+}
+
+.dm-main-grid .dm-sec-statement {
+    grid-row: 2;
+    grid-column: 1;
+}
+
+.dm-main-grid .dm-sec-shortcuts {
+    grid-row: 2;
+    grid-column: 2;
+}
+
+.dm-main-grid .dm-sec-transfer {
+    grid-row: 2;
+    grid-column: 3;
+}
+
+.dm-main-grid .dm-sec-calculator {
+    grid-row: 2;
+    grid-column: 4;
+}
+
+.dm-main-grid .dm-sec-treasury {
+    grid-row: 2;
+    grid-column: 5;
+}
+
+.dm-action-tile {
+    border-radius: 15px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.3s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dm-action-tile:hover {
+    transform: translateY(-8px) scale(1.02);
+    filter: brightness(1.2);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.25);
+}
+
+.dm-action-tile .icon {
+    font-size: 1.8rem;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.4));
+}
+
+/* Permissions Tabs System */
+.permissions-container {
+    background: rgba(0, 0, 0, 0.02);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    margin-top: 15px;
+    padding: 15px;
+    width: 100%;
+}
+
+.permissions-tabs {
+    display: flex;
+    gap: 5px;
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 15px;
+    padding-bottom: 0;
+    overflow-x: auto;
+}
+
+.perm-tab {
+    padding: 10px 20px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-weight: bold;
+    color: var(--text-secondary);
+    border-radius: 8px 8px 0 0;
+    transition: 0.3s;
+    white-space: nowrap;
+}
+
+.perm-tab.active {
+    color: var(--main-green);
+    border-bottom: 3px solid var(--main-green);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.perm-panel {
+    display: none;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    animation: fadeIn 0.3s ease;
+}
+
+.perm-panel.active {
+    display: grid;
+}
+
+.perm-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: var(--surface-color);
+    padding: 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border-color);
+    cursor: pointer;
+    transition: 0.2s;
+    user-select: none;
+}
+
+.perm-item:hover {
+    border-color: var(--main-green);
+    background: rgba(16, 185, 129, 0.02);
+}
+
+.perm-item input {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    accent-color: var(--main-green);
+}
+
+.perm-item span {
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.dm-action-tile .label {
+    font-size: 0.9rem;
+    font-weight: 900;
+    margin-top: 8px;
+}
+
+/* الألوان المحددة للأزرار */
+.dm-btn-sale {
+    background: #27ae60;
+}
+
+/* أخضر بيع */
+.dm-btn-pur {
+    background: #e67e22;
+}
+
+/* برتقالي شراء */
+.dm-btn-pay {
+    background: #e74c3c;
+}
+
+/* أحمر صرف */
+.dm-btn-audit {
+    background: #008080;
+}
+
+/* تيل جرد */
+
+.dm-btn-rsell {
+    background: #2ecc71;
+}
+
+/* أخضر فاتح مرتجع بيع */
+.dm-btn-quto {
+    background: #2980b9;
+}
+
+/* أزرق عرض سعر */
+.dm-btn-rpur {
+    background: #8b2e3c;
+}
+
+/* عنابي مرتجع شراء */
+
+.dm-btn-receipt {
+    background: #27ae60;
+}
+
+/* أخضر قبض */
+.dm-btn-transfer {
+    background: #138d75;
+}
+
+/* تيل غامق تحويل */
+.dm-btn-adjust {
+    background: #1abc9c;
+}
+
+/* بنفسجي حركة الأصناف */
+.dm-btn-history {
+    background: #8e44ad;
+}
+
+/* تيل فاتح تسوية */
+
+/* تعديلات شاشة الموبايل */
+@media (max-width: 1024px) {
+    .dm-main-grid {
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    }
+
+    .dm-main-grid .dm-action-tile {
+        min-width: 90px;
+    }
+
+    .dm-header {
+        flex-direction: column-reverse;
+    }
+}
+
+/* --- الأنماط القديمة (Dashboard Tiles) --- */
+.dashboard-container {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 15px;
+    padding: 10px;
+    height: 100%;
+}
+
+.card-group {
+    flex: 1;
+    min-width: 280px;
+    display: flex;
+    flex-direction: column;
+    background: var(--surface-color);
+    padding: 15px;
+    border-radius: 15px;
+    box-shadow: var(--shadow-soft);
+    border: 1px solid var(--border-color);
+}
+
+/* تم الدمج مع الأعلى */
+
+.card-group-title {
+    font-size: 1rem;
+    color: var(--accent-gold);
+    margin-bottom: 15px;
+    border-bottom: 2px solid var(--border-color);
+    padding-bottom: 5px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 12px;
+    flex: 1;
+}
+
+.nav-card {
+    background: var(--surface-color);
+    padding: 24px 15px;
+    border-radius: 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-soft);
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.nav-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: var(--border-color);
+    transition: 0.3s;
+}
+
+body.dark-mode .nav-card {
+    background: var(--card-bg);
+    border-color: rgba(255, 255, 255, 0.05);
+}
+
+.nav-card:hover {
+    transform: translateY(-8px);
+    box-shadow: var(--shadow-medium);
+    background: var(--surface-color);
+}
+
+body.dark-mode .nav-card:hover {
+    background: #252528;
+}
+
+.nav-card:hover .nav-icon {
+    transform: scale(1.1) rotate(-5deg);
+}
+
+.nav-icon {
+    font-size: 2.5rem;
+    margin-bottom: 12px;
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
+}
+
+.nav-title {
+    font-size: 0.95rem;
+    font-weight: 750;
+    color: var(--text-primary);
+    text-align: center;
+    letter-spacing: -0.2px;
+}
+
+/* --- Dynamic Card Group Colors --- */
+.card-green::before {
+    background: var(--main-green) !important;
+}
+
+.card-green:hover {
+    border-color: var(--main-green) !important;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
+.card-blue::before {
+    background: var(--main-blue) !important;
+}
+
+.card-blue:hover {
+    border-color: var(--main-blue) !important;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+}
+
+.card-red::before {
+    background: var(--box-red) !important;
+}
+
+.card-red:hover {
+    border-color: var(--box-red) !important;
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.15);
+}
+
+.card-orange::before {
+    background: #f59e0b !important;
+}
+
+.card-orange:hover {
+    border-color: #f59e0b !important;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+}
+
+.card-purple::before {
+    background: #8b5cf6 !important;
+}
+
+.card-purple:hover {
+    border-color: #8b5cf6 !important;
+    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.15);
+}
+
+.card-return-sell::before {
+    background: #f97316 !important;
+}
+
+.card-return-sell:hover {
+    border-color: #f97316 !important;
+    box-shadow: 0 4px 12px rgba(249, 115, 22, 0.15);
+}
+
+.card-return-buy::before {
+    background: #ea580c !important;
+}
+
+.card-return-buy:hover {
+    border-color: #ea580c !important;
+    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.15);
+}
+
+.card-gray::before {
+    background: var(--text-secondary) !important;
+}
+
+.card-gray:hover {
+    border-color: var(--text-secondary) !important;
+    box-shadow: 0 4px 12px rgba(100, 116, 139, 0.15);
+}
+
+/* زر الرجوع للقائمة الرئيسية - تصميم مطور فاخر */
+.btn-back-home {
+    background: var(--surface-color) !important;
+    color: var(--accent-gold) !important;
+    padding: 10px 22px !important;
+    border-radius: 14px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 0.95rem !important;
+    font-weight: 800;
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), background-color 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), color 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), border-color 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: var(--shadow-soft);
+    position: relative;
+    z-index: 10;
+    margin: 0 !important;
+    border: 2px solid var(--accent-gold) !important;
+    white-space: nowrap;
+}
+
+body.dark-mode .btn-back-home {
+    background: #1a1a1c !important;
+    border-color: var(--accent-gold) !important;
+}
+
+.btn-back-home:hover {
+    transform: translateY(-3px) scale(1.02);
+    background: var(--accent-gold) !important;
+    color: #000 !important;
+    box-shadow: 0 4px 10px rgba(197, 160, 89, 0.2);
+}
+
+.btn-back-home .icon {
+    font-size: 1.3rem;
+}
+
+.btn-back-home:hover .icon {
+    transform: translateX(-4px);
+}
+
+/* 1. منطقة المبالغ والحسابات */
+.amounts-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+    justify-content: center;
+}
+
+.amount-box {
+    background: var(--surface-color);
+    padding: 10px 15px;
+    border-radius: 16px;
+    box-shadow: var(--shadow-soft);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+    transition: transform 0.3s ease, background-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+    min-width: 120px;
+    width: auto;
+    flex: 1;
+}
+
+.amount-box:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-medium);
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+.amount-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.amount-value {
+    font-size: clamp(14px, 2.5vw, 1.8rem);
+    font-weight: 900;
+    color: var(--text-primary);
+    font-family: 'Cairo', sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.5px;
+    white-space: nowrap;
+}
+
+.box-green {
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+
+.box-green * {
+    color: #ffffff !important;
+}
+
+.box-red {
+    background: linear-gradient(135deg, #f43f5e, #e11d48) !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+
+.box-red * {
+    color: #ffffff !important;
+}
+
+.box-blue {
+    background: linear-gradient(135deg, #0ea5e9, #0284c7) !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+
+.box-blue * {
+    color: #ffffff !important;
+}
+
+.box-gold-premium {
+    background: linear-gradient(135deg, #422006, #713f12) !important;
+    border: 2px solid var(--gold) !important;
+    color: #fff !important;
+    box-shadow: 0 4px 20px rgba(184, 134, 11, 0.3) !important;
+}
+
+.box-gold-premium * {
+    color: #ffffff !important;
+}
+
+/* تخصيص إجمالي المطلوب باللون البنفسجي الملكي */
+#grandDebtBox {
+    background: linear-gradient(135deg, #4c1d95, #6d28d9) !important;
+    border: 2px solid #8b5cf6 !important;
+    box-shadow: 0 4px 25px rgba(139, 92, 246, 0.4) !important;
+}
+
+#grandDebtBox .amount-label {
+    color: inherit;
+}
+
+#grandDebtBox .amount-value {
+    color: inherit;
+}
+
+body.dark-mode .amount-box {
+    background: var(--card-bg);
+    border-color: rgba(255, 255, 255, 0.05);
+}
+
+body.dark-mode .amount-box .amount-label {
+    color: var(--text-secondary);
+}
 
 
 /* ========================================== */
 
-        /* --- نظام مغير الخلفيات الشامل (Wallpaper Suite) --- */
-        .wallpaper-trigger {
-            position: fixed;
-            top: 25px;
-            left: 25px;
-            width: 55px;
-            height: 55px;
-            background: var(--accent-gold);
-            color: #000;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.6rem;
-            cursor: pointer;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-            z-index: 10001;
-            transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            border: 3px solid rgba(255, 255, 255, 0.2);
-        }
+/* --- نظام مغير الخلفيات الشامل (Wallpaper Suite) --- */
+.wallpaper-trigger {
+    position: fixed;
+    top: 25px;
+    left: 25px;
+    width: 55px;
+    height: 55px;
+    background: var(--accent-gold);
+    color: #000;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    cursor: pointer;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    z-index: 10001;
+    transition: 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border: 3px solid rgba(255, 255, 255, 0.2);
+}
 
-        .wallpaper-trigger:hover {
-            transform: scale(1.1) rotate(45deg);
-        }
+.wallpaper-trigger:hover {
+    transform: scale(1.1) rotate(45deg);
+}
 
-        .wallpaper-menu {
-            position: fixed;
-            top: 90px;
-            left: 25px;
-            bottom: auto;
-            background: rgba(255, 255, 255, 0.95);
-            /* backdrop-filter disabled */
-            padding: 15px;
-            border-radius: 20px;
-            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
-            display: none;
-            grid-template-columns: repeat(3, 60px);
-            gap: 10px;
-            z-index: 10000;
-            border: 1px solid #ddd;
-            animation: slideUp 0.3s ease-out;
-        }
+.wallpaper-menu {
+    position: fixed;
+    top: 90px;
+    left: 25px;
+    bottom: auto;
+    background: rgba(255, 255, 255, 0.95);
+    /* backdrop-filter disabled */
+    padding: 15px;
+    border-radius: 20px;
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+    display: none;
+    grid-template-columns: repeat(3, 60px);
+    gap: 10px;
+    z-index: 10000;
+    border: 1px solid #ddd;
+    animation: slideUp 0.3s ease-out;
+}
 
-        @keyframes slideUp {
-            from {
-                transform: translateY(20px);
-                opacity: 0;
-            }
+@keyframes slideUp {
+    from {
+        transform: translateY(20px);
+        opacity: 0;
+    }
 
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
 
-        .wp-option {
-            width: 60px;
-            height: 60px;
-            border-radius: 12px;
-            cursor: pointer;
-            background-size: cover;
-            background-position: center;
-            border: 2px solid transparent;
-            transition: 0.2s;
-        }
+.wp-option {
+    width: 60px;
+    height: 60px;
+    border-radius: 12px;
+    cursor: pointer;
+    background-size: cover;
+    background-position: center;
+    border: 2px solid transparent;
+    transition: 0.2s;
+}
 
-        .wp-option:hover {
-            transform: scale(1.1);
-            border-color: var(--accent-gold);
-        }
+.wp-option:hover {
+    transform: scale(1.1);
+    border-color: var(--accent-gold);
+}
 
-        .wp-option.active {
-            border-color: #2ecc71;
-            box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
-        }
+.wp-option.active {
+    border-color: #2ecc71;
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+}
 
-        /* تغيير خلفية الصفحة بالكامل */
-        body.has-wallpaper {
-            background-attachment: fixed !important;
-            background-size: cover !important;
-            background-position: center !important;
-        }
+/* تغيير خلفية الصفحة بالكامل */
+body.has-wallpaper {
+    background-attachment: fixed !important;
+    background-size: cover !important;
+    background-position: center !important;
+}
 
-        /* تحسين الوضوح فوق الخلفيات للمربعات في الشاشة الرئيسية */
-        body.has-wallpaper .dm-top-tile,
-        body.has-wallpaper .dm-mid-tile,
-        body.has-wallpaper .dm-action-tile {
-            /* backdrop-filter disabled */
-            border: 1px solid rgba(255, 255, 255, 0.2) !important;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5) !important;
-            opacity: 0.9;
-        }
+/* تحسين الوضوح فوق الخلفيات للمربعات في الشاشة الرئيسية */
+body.has-wallpaper .dm-top-tile,
+body.has-wallpaper .dm-mid-tile,
+body.has-wallpaper .dm-action-tile {
+    /* backdrop-filter disabled */
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5) !important;
+    opacity: 0.9;
+}
 
-        body.has-wallpaper .dm-main-grid,
-        body.has-wallpaper .dm-header,
-        body.has-wallpaper .dm-mid-grid {
-            padding: 15px;
-            border-radius: 20px;
-            background: rgba(255, 255, 255, 0.05);
-            /* طيف خفيف جداً لإبراز العناصر */
-        }
+body.has-wallpaper .dm-main-grid,
+body.has-wallpaper .dm-header,
+body.has-wallpaper .dm-mid-grid {
+    padding: 15px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    /* طيف خفيف جداً لإبراز العناصر */
+}
 
-        body.dark-mode.has-wallpaper .dm-mid-tile,
-        body.dark-mode.has-wallpaper .dm-action-tile {
-            background-color: rgba(26, 26, 26, 0.4) !important;
-        }
+body.dark-mode.has-wallpaper .dm-mid-tile,
+body.dark-mode.has-wallpaper .dm-action-tile {
+    background-color: rgba(26, 26, 26, 0.4) !important;
+}
 
-        /* تحسين الوضوح فوق الخلفيات */
-        body.has-wallpaper .section-view,
-        body.has-wallpaper .card-group {
-            /* backdrop-filter disabled */
-            background: rgba(255, 255, 255, 0.7) !important;
-        }
+/* تحسين الوضوح فوق الخلفيات */
+body.has-wallpaper .section-view,
+body.has-wallpaper .card-group {
+    /* backdrop-filter disabled */
+    background: rgba(255, 255, 255, 0.7) !important;
+}
 
-        body.dark-mode.has-wallpaper .section-view,
-        body.dark-mode.has-wallpaper .card-group {
-            background: rgba(26, 26, 26, 0.85) !important;
-        }
+body.dark-mode.has-wallpaper .section-view,
+body.dark-mode.has-wallpaper .card-group {
+    background: rgba(26, 26, 26, 0.85) !important;
+}
 
-        body.dark-mode .share-item:hover {
-            background-color: rgba(212, 175, 55, 0.15);
-        }
+body.dark-mode .share-item:hover {
+    background-color: rgba(212, 175, 55, 0.15);
+}
 
-        .btn-share-trigger {
-            background: linear-gradient(135deg, #64748b, #475569) !important;
-            box-shadow: 0 4px 12px rgba(71, 85, 105, 0.2);
-        }
+.btn-share-trigger {
+    background: linear-gradient(135deg, #64748b, #475569) !important;
+    box-shadow: 0 4px 12px rgba(71, 85, 105, 0.2);
+}
 
-        .btn-share-trigger:hover {
-            background: linear-gradient(135deg, #475569, #334155) !important;
-            transform: translateY(-2px);
-        }
+.btn-share-trigger:hover {
+    background: linear-gradient(135deg, #475569, #334155) !important;
+    transform: translateY(-2px);
+}
 
-        .btn-hold {
-            background-color: #7f8c8d;
-            color: white;
-            border: none;
-            padding: 10px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: bold;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            transition: background 0.2s;
-        }
+.btn-hold {
+    background-color: #7f8c8d;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: background 0.2s;
+}
 
-        .btn-hold:hover {
-            background-color: #95a5a6;
-        }
+.btn-hold:hover {
+    background-color: #95a5a6;
+}
 
-        .btn-detail {
-            flex: 1;
-            padding: 10px;
-            background-color: #f39c12;
-            color: #ffffff !important;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: opacity 0.2s;
-        }
+.btn-detail {
+    flex: 1;
+    padding: 10px;
+    background-color: #f39c12;
+    color: #ffffff !important;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: opacity 0.2s;
+}
 
-        .btn-cancel-all {
-            flex: 1;
-            padding: 10px;
-            background-color: var(--box-red);
-            color: #ffffff !important;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: opacity 0.2s;
-            font-weight: bold;
-        }
+.btn-cancel-all {
+    flex: 1;
+    padding: 10px;
+    background-color: var(--box-red);
+    color: #ffffff !important;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    font-weight: bold;
+}
 
-        .btn-hold:hover,
-        .btn-cancel-all:hover {
-            opacity: 0.9;
-        }
+.btn-hold:hover,
+.btn-cancel-all:hover {
+    opacity: 0.9;
+}
 
 
 /* ========================================== */
 
-        /* --- تحويل الوضع الليلي إلى "الوضع الذهبي الملكي" --- */
-        /* --- الوضع الذهبي الملكي المطور (Premium Royal Gold Mode) --- */
-        body.dark-mode {
-            --bg-color: #0c0c0e;
-            --surface-color: #1a1a1c;
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --accent-gold: #c5a059;
-            --accent-gold-light: #f0d080;
-            --border-color: rgba(197, 160, 89, 0.25);
-            background-color: var(--bg-color);
-            color: var(--text-primary);
-        }
+/* --- تحويل الوضع الليلي إلى "الوضع الذهبي الملكي" --- */
+/* --- الوضع الذهبي الملكي المطور (Premium Royal Gold Mode) --- */
+body.dark-mode {
+    --bg-color: #0c0c0e;
+    --surface-color: #1a1a1c;
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --accent-gold: #c5a059;
+    --accent-gold-light: #f0d080;
+    --border-color: rgba(197, 160, 89, 0.25);
+    background-color: var(--bg-color);
+    color: var(--text-primary);
+}
 
-        body.dark-mode .main-container {
-            background-color: var(--bg-color);
-        }
+body.dark-mode .main-container {
+    background-color: var(--bg-color);
+}
 
-        body.dark-mode .checkout-panel,
-        body.dark-mode .products-panel,
-        body.dark-mode .stat-card,
-        body.dark-mode .method-btn,
-        body.dark-mode .search-results,
-        body.dark-mode .report-filter-bar,
-        body.dark-mode .settings-group,
-        body.dark-mode .nav-card,
-        body.dark-mode .inv-main,
-        body.dark-mode .inv-sidebar,
-        body.dark-mode .add-item-box,
-        body.dark-mode .panel-header,
-        body.dark-mode .modal-content,
-        body.dark-mode .account-card,
-        body.dark-mode .premium-input-field {
-            background: linear-gradient(145deg, #1a1a1c, #141416) !important;
-            color: #f1f5f9 !important;
-            border: 1px solid var(--border-color) !important;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
-        }
+body.dark-mode .checkout-panel,
+body.dark-mode .products-panel,
+body.dark-mode .stat-card,
+body.dark-mode .method-btn,
+body.dark-mode .search-results,
+body.dark-mode .report-filter-bar,
+body.dark-mode .settings-group,
+body.dark-mode .nav-card,
+body.dark-mode .inv-main,
+body.dark-mode .inv-sidebar,
+body.dark-mode .add-item-box,
+body.dark-mode .panel-header,
+body.dark-mode .modal-content,
+body.dark-mode .account-card,
+body.dark-mode .premium-input-field {
+    background: linear-gradient(145deg, #1a1a1c, #141416) !important;
+    color: #f1f5f9 !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4) !important;
+}
 
-        body.dark-mode .app-header {
-            background: linear-gradient(135deg, #022c22 0%, #064e3b 60%, #047857 100%) !important;
-            border-bottom: 2px solid #10b981;
-        }
+body.dark-mode .app-header {
+    background: linear-gradient(135deg, #022c22 0%, #064e3b 60%, #047857 100%) !important;
+    border-bottom: 2px solid #10b981;
+}
 
-        body.dark-mode .app-title,
-        body.dark-mode .info-item,
-        body.dark-mode th,
-        body.dark-mode .total-value {
-            color: var(--accent-gold) !important;
-        }
+body.dark-mode .app-title,
+body.dark-mode .info-item,
+body.dark-mode th,
+body.dark-mode .total-value {
+    color: var(--accent-gold) !important;
+}
 
-        body.dark-mode .method-btn.selected {
-            background: var(--accent-gold) !important;
-            color: #000 !important;
-        }
+body.dark-mode .method-btn.selected {
+    background: var(--accent-gold) !important;
+    color: #000 !important;
+}
 
-        body.dark-mode .search-input,
-        body.dark-mode .customer-input,
-        body.dark-mode input,
-        body.dark-mode select,
-        body.dark-mode textarea {
-            background: #242426 !important;
-            color: #fff !important;
-            border: 1px solid var(--border-color) !important;
-        }
+body.dark-mode .search-input,
+body.dark-mode .customer-input,
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+    background: #242426 !important;
+    color: #fff !important;
+    border: 1px solid var(--border-color) !important;
+}
 
-        .premium-input-field {
-            width: 100% !important;
-            padding: 12px 15px;
-            background: #ffffff;
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            font-size: 1rem;
-            transition: border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
-            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
-            margin: 0;
-            box-sizing: border-box;
-        }
+.premium-input-field {
+    width: 100% !important;
+    padding: 12px 15px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.02);
+    margin: 0;
+    box-sizing: border-box;
+}
 
-        .premium-input-field:focus {
-            border-color: var(--accent-gold);
-            outline: none;
-            box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.1);
-        }
+.premium-input-field:focus {
+    border-color: var(--accent-gold);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.1);
+}
 
-        body.dark-mode .result-item {
-            color: #ffffff !important;
-            border-bottom: 1px solid rgba(201, 168, 76, 0.2) !important;
-        }
+body.dark-mode .result-item {
+    color: #ffffff !important;
+    border-bottom: 1px solid rgba(201, 168, 76, 0.2) !important;
+}
 
-        body.dark-mode .result-item:hover {
-            background-color: #332b00 !important;
-            color: var(--gold) !important;
-        }
+body.dark-mode .result-item:hover {
+    background-color: #332b00 !important;
+    color: var(--gold) !important;
+}
 
-        body.dark-mode .search-input,
-        body.dark-mode .customer-input,
-        body.dark-mode textarea,
-        body.dark-mode select,
-        body.dark-mode .qty-input,
-        body.dark-mode .discount-input,
-        body.dark-mode .adj-input-premium,
-        body.dark-mode .input-search-inv,
-        body.dark-mode .inv-input-group input,
-        body.dark-mode .inv-input-group select,
-        body.dark-mode .report-filter-bar input,
-        body.dark-mode .report-filter-bar select,
-        body.dark-mode input[type="text"],
-        body.dark-mode input[type="number"],
-        body.dark-mode input[type="date"],
-        body.dark-mode input[type="time"] {
-            background-color: #262200 !important;
-            color: #ffffff !important;
-            border: 1px solid var(--gold) !important;
-        }
+body.dark-mode .search-input,
+body.dark-mode .customer-input,
+body.dark-mode textarea,
+body.dark-mode select,
+body.dark-mode .qty-input,
+body.dark-mode .discount-input,
+body.dark-mode .adj-input-premium,
+body.dark-mode .input-search-inv,
+body.dark-mode .inv-input-group input,
+body.dark-mode .inv-input-group select,
+body.dark-mode .report-filter-bar input,
+body.dark-mode .report-filter-bar select,
+body.dark-mode input[type="text"],
+body.dark-mode input[type="number"],
+body.dark-mode input[type="date"],
+body.dark-mode input[type="time"] {
+    background-color: #262200 !important;
+    color: #ffffff !important;
+    border: 1px solid var(--gold) !important;
+}
 
-        /* تحسين لون الـ Placeholder في الوضع الليلي */
-        body.dark-mode ::placeholder {
-            color: rgba(255, 255, 255, 0.5) !important;
-        }
+/* تحسين لون الـ Placeholder في الوضع الليلي */
+body.dark-mode ::placeholder {
+    color: rgba(255, 255, 255, 0.5) !important;
+}
 
-        body.dark-mode .invoice-table {
-            background-color: #1a1600;
-            color: #f0d080;
-        }
+body.dark-mode .invoice-table {
+    background-color: #1a1600;
+    color: #f0d080;
+}
 
-        body.dark-mode .invoice-table th {
-            background: linear-gradient(180deg, #c9a84c, #8e6c00) !important;
-            color: #ffffff !important;
-            border-color: #444;
-        }
+body.dark-mode .invoice-table th {
+    background: linear-gradient(180deg, #c9a84c, #8e6c00) !important;
+    color: #ffffff !important;
+    border-color: #444;
+}
 
-        body.dark-mode .invoice-table td {
-            border-color: rgba(201, 168, 76, 0.2) !important;
-            color: #ffffff !important;
-        }
+body.dark-mode .invoice-table td {
+    border-color: rgba(201, 168, 76, 0.2) !important;
+    color: #ffffff !important;
+}
 
-        body.dark-mode .invoice-table tr:nth-child(even) {
-            background-color: rgba(201, 168, 76, 0.05);
-        }
+body.dark-mode .invoice-table tr:nth-child(even) {
+    background-color: rgba(201, 168, 76, 0.05);
+}
 
-        body.dark-mode .invoice-summary {
-            background-color: #111 !important;
-            border-top: 3px solid var(--gold);
-        }
+body.dark-mode .invoice-summary {
+    background-color: #111 !important;
+    border-top: 3px solid var(--gold);
+}
 
-        body.dark-mode .section-header-box {
-            background: linear-gradient(135deg, #c9a84c, #8e6c00) !important;
-            border: 1px solid #ffffff;
-        }
+body.dark-mode .section-header-box {
+    background: linear-gradient(135deg, #c9a84c, #8e6c00) !important;
+    border: 1px solid #ffffff;
+}
 
-        body.dark-mode .sub-tab {
-            color: #f0d080;
-            border-bottom-color: transparent;
-        }
+body.dark-mode .sub-tab {
+    color: #f0d080;
+    border-bottom-color: transparent;
+}
 
-        body.dark-mode .sub-tab.active {
-            color: var(--gold);
-            border-bottom-color: var(--gold);
-        }
+body.dark-mode .sub-tab.active {
+    color: var(--gold);
+    border-bottom-color: var(--gold);
+}
 
-        body.dark-mode .total-label,
-        body.dark-mode .total-value {
-            color: var(--gold) !important;
-        }
+body.dark-mode .total-label,
+body.dark-mode .total-value {
+    color: var(--gold) !important;
+}
 
-        body.dark-mode .btn-back-home {
-            background: #262200 !important;
-            border: 1px solid var(--gold) !important;
-            color: var(--gold) !important;
-        }
+body.dark-mode .btn-back-home {
+    background: #262200 !important;
+    border: 1px solid var(--gold) !important;
+    color: var(--gold) !important;
+}
 
-        /* تأثير التوهج في الوضع الليلي */
-        body.dark-mode .card-green:hover {
-            box-shadow: 0 0 15px var(--main-green);
+/* تأثير التوهج في الوضع الليلي */
+body.dark-mode .card-green:hover {
+    box-shadow: 0 0 15px var(--main-green);
 
-            border-color: var(--main-green);
-        }
+    border-color: var(--main-green);
+}
 
-        body.dark-mode .card-blue:hover {
-            box-shadow: 0 0 15px var(--main-blue);
-            border-color: var(--main-blue);
-        }
+body.dark-mode .card-blue:hover {
+    box-shadow: 0 0 15px var(--main-blue);
+    border-color: var(--main-blue);
+}
 
-        body.dark-mode .card-red:hover {
-            box-shadow: 0 0 15px var(--box-red);
-            border-color: var(--box-red);
-        }
+body.dark-mode .card-red:hover {
+    box-shadow: 0 0 15px var(--box-red);
+    border-color: var(--box-red);
+}
 
-        body.dark-mode .card-orange:hover {
-            box-shadow: 0 0 15px #f39c12;
-            border-color: #f39c12;
-        }
+body.dark-mode .card-orange:hover {
+    box-shadow: 0 0 15px #f39c12;
+    border-color: #f39c12;
+}
 
-        body.dark-mode .card-purple:hover {
-            box-shadow: 0 0 15px var(--main-purple);
-            border-color: var(--main-purple);
-        }
+body.dark-mode .card-purple:hover {
+    box-shadow: 0 0 15px var(--main-purple);
+    border-color: var(--main-purple);
+}
 
-        body.dark-mode .card-return:hover {
-            box-shadow: 0 0 15px var(--main-orange);
-            border-color: var(--main-orange);
-        }
+body.dark-mode .card-return:hover {
+    box-shadow: 0 0 15px var(--main-orange);
+    border-color: var(--main-orange);
+}
 
-        body.dark-mode .card-return-buy:hover {
-            box-shadow: 0 0 15px #c0392b;
-            border-color: #c0392b;
-        }
+body.dark-mode .card-return-buy:hover {
+    box-shadow: 0 0 15px #c0392b;
+    border-color: #c0392b;
+}
 
-        body.dark-mode .app-header {
-            background: linear-gradient(135deg, #022c22 0%, #064e3b 60%, #047857 100%) !important;
-        }
+body.dark-mode .app-header {
+    background: linear-gradient(135deg, #022c22 0%, #064e3b 60%, #047857 100%) !important;
+}
 
 
 /* ========================================== */
@@ -1884,7 +2021,8 @@ input, textarea, [contenteditable="true"] {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(10, 10, 12, 0.6); /* غطاء مظلم خفيف بدون ضبابية ليظهر المظهر بوضوح */
+    background: rgba(10, 10, 12, 0.6);
+    /* غطاء مظلم خفيف بدون ضبابية ليظهر المظهر بوضوح */
     z-index: 99999;
     display: flex;
     justify-content: center;
@@ -1893,7 +2031,8 @@ input, textarea, [contenteditable="true"] {
 }
 
 body.has-wallpaper .login-overlay {
-    background: rgba(0, 0, 0, 0.5); /* تعتيم بسيط للصورة عشان كارت اللوجين يبقى واضح */
+    background: rgba(0, 0, 0, 0.5);
+    /* تعتيم بسيط للصورة عشان كارت اللوجين يبقى واضح */
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
 }
@@ -1907,10 +2046,13 @@ body.has-wallpaper .login-overlay {
 }
 
 @keyframes loginBackupPulse {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: translateY(0);
         opacity: 0.85;
     }
+
     50% {
         transform: translateY(3px);
         opacity: 1;
@@ -1929,8 +2071,15 @@ body.has-wallpaper .login-overlay {
 }
 
 @keyframes loginBackupAttention {
-    0% { transform: scale(1) translateY(0); opacity: 0.85; }
-    100% { transform: scale(1.2) translateY(3px); opacity: 1; }
+    0% {
+        transform: scale(1) translateY(0);
+        opacity: 0.85;
+    }
+
+    100% {
+        transform: scale(1.2) translateY(3px);
+        opacity: 1;
+    }
 }
 
 /* مؤشر وحركة استرداد النسخة الاحتياطية بشاشة الدخول */
@@ -1942,10 +2091,13 @@ body.has-wallpaper .login-overlay {
 }
 
 @keyframes loginRestorePulse {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1) rotate(0deg);
         opacity: 0.85;
     }
+
     50% {
         transform: scale(1.1) rotate(180deg);
         opacity: 1;
@@ -1955,7 +2107,8 @@ body.has-wallpaper .login-overlay {
 .login-container {
     position: relative;
     width: 100%;
-    max-width: 520px; /* توسيع العرض الأفقي بشكل متناسق ومريح للعين */
+    max-width: 520px;
+    /* توسيع العرض الأفقي بشكل متناسق ومريح للعين */
     padding: 15px;
     display: flex;
     flex-direction: column;
@@ -1985,8 +2138,15 @@ body.has-wallpaper .login-overlay {
 }
 
 @keyframes loginFadeIn {
-    from { opacity: 0; transform: translateY(20px) scale(0.95); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
 }
 
 .login-header {
@@ -2008,7 +2168,7 @@ body.has-wallpaper .login-overlay {
     font-size: 0.85rem;
     font-weight: 800;
     margin-top: 4px;
-    text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.6);
 }
 
 .login-input-group {
@@ -2017,7 +2177,8 @@ body.has-wallpaper .login-overlay {
 }
 
 /* تصميم رشيق وفائق الوضوح والنقاء للكتابة (Ultra-Clear Typography) */
-.login-select, .login-password-wrapper input {
+.login-select,
+.login-password-wrapper input {
     width: 100%;
     height: 48px;
     background: rgba(15, 23, 42, 0.82);
@@ -2033,7 +2194,7 @@ body.has-wallpaper .login-overlay {
     appearance: none;
     -webkit-appearance: none;
     box-sizing: border-box;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 /* توضيح نصوص الـ Placeholder لتكون ناصعة وصافية */
@@ -2043,13 +2204,15 @@ body.has-wallpaper .login-overlay {
     opacity: 0.9;
 }
 
-.login-select:hover, .login-password-wrapper input:hover {
+.login-select:hover,
+.login-password-wrapper input:hover {
     background: rgba(15, 23, 42, 0.95);
     border-color: #38bdf8;
     box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
 }
 
-.login-select:focus, .login-password-wrapper input:focus {
+.login-select:focus,
+.login-password-wrapper input:focus {
     background: #0f172a;
     border-color: #00f2fe;
     box-shadow: 0 0 16px rgba(0, 242, 254, 0.45);
@@ -2066,7 +2229,8 @@ body.has-wallpaper .login-overlay {
     letter-spacing: 3px;
     font-size: 1.15rem;
     font-weight: 900;
-    color: #38bdf8 !important; /* لون سماوي مضيء واضح جداً */
+    color: #38bdf8 !important;
+    /* لون سماوي مضيء واضح جداً */
 }
 
 .login-eye-icon {
@@ -2105,7 +2269,7 @@ body.has-wallpaper .login-overlay {
     align-items: center;
     justify-content: center;
     gap: 8px;
-    text-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .login-btn-glow:hover {
@@ -2157,12 +2321,12 @@ body.has-wallpaper .login-overlay {
 }
 
 /* --- 📊 Global Table Dark Mode Fixes --- */
-body.dark-mode table td, 
+body.dark-mode table td,
 body.dark-mode table th {
     color: var(--text-primary) !important;
 }
 
-body.dark-mode table tr:nth-child(even), 
+body.dark-mode table tr:nth-child(even),
 body.dark-mode table tbody tr:nth-child(even) {
     background-color: rgba(255, 255, 255, 0.03) !important;
 }
@@ -2238,7 +2402,8 @@ body.dark-mode .panel-header {
     justify-content: center;
 }
 
-.sun-icon, .moon-icon {
+.sun-icon,
+.moon-icon {
     font-size: 0.95rem;
     position: absolute;
     transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), opacity 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), background-color 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
@@ -2249,6 +2414,7 @@ body.dark-mode .panel-header {
     transform: translateY(0) scale(1);
     opacity: 1;
 }
+
 .moon-icon {
     transform: translateY(30px) scale(0);
     opacity: 0;
@@ -2259,6 +2425,7 @@ body.dark-mode .sun-icon {
     transform: translateY(-30px) scale(0);
     opacity: 0;
 }
+
 body.dark-mode .moon-icon {
     transform: translateY(0) scale(1);
     opacity: 1;
@@ -2268,10 +2435,25 @@ body.dark-mode .moon-icon {
 /* ========================================== */
 
 /* --- تحسينات الأداء والسرعة (Performance & Speed Optimizations) --- */
-.section-view.hidden { content-visibility: hidden; }
-.section-view:not(.hidden) { content-visibility: auto; contain-intrinsic-size: 1px 1000px; }
-.modal, .search-results, .accounts-sidebar { will-change: transform, opacity; }
-.table-container, .table-responsive, .table-wrapper, .stmt-table-wrapper {
+.section-view.hidden {
+    content-visibility: hidden;
+}
+
+.section-view:not(.hidden) {
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 1000px;
+}
+
+.modal,
+.search-results,
+.accounts-sidebar {
+    will-change: transform, opacity;
+}
+
+.table-container,
+.table-responsive,
+.table-wrapper,
+.stmt-table-wrapper {
     contain: layout style paint;
     content-visibility: auto;
 }
@@ -2282,506 +2464,598 @@ body.dark-mode .moon-icon {
 /* ======================================================== */
 
 /* 🔒 منع التحديد بالماوس في كامل البرنامج */
-        html, body, div, span, applet, object, iframe, h1, h2, h3, h4, h5, h6, p, blockquote, pre, a, abbr, acronym, address, big, cite, code, del, dfn, em, img, ins, kbd, q, s, samp, small, strike, strong, sub, sup, tt, var, b, u, i, center, dl, dt, dd, ol, ul, li, fieldset, form, label, legend, table, caption, tbody, tfoot, thead, tr, th, td, article, aside, canvas, details, embed, figure, figcaption, footer, header, hgroup, menu, nav, output, ruby, section, summary, time, mark, audio, video, button, select {
-            user-select: none !important;
-            -webkit-user-select: none !important;
-            -moz-user-select: none !important;
-            -ms-user-select: none !important;
-        }
-        input, textarea, [contenteditable="true"] {
-            user-select: text !important;
-            -webkit-user-select: text !important;
-            -moz-user-select: text !important;
-            -ms-user-select: text !important;
-        }
-        /* 🙈 إخفاء وتعتيم المبالغ في تقرير الحركة اليومية للحفاظ على السرية والخصوصية الكاملة */
-        body.daily-amounts-hidden #daily-report-section #dailyTotalVal,
-        body.daily-amounts-hidden #daily-report-section #dailyAdditionsVal,
-        body.daily-amounts-hidden #daily-report-section .daily-method-val,
-        body.daily-amounts-hidden #daily-report-section .report-summary-box .value,
-        body.daily-amounts-hidden #daily-report-section .summary-val,
-        body.daily-amounts-hidden #daily-report-section .stat-value,
-        body.daily-amounts-hidden #daily-report-section .finance-num,
-        body.daily-amounts-hidden #daily-report-section #opsSummaryBody td:nth-child(3),
-        body.daily-amounts-hidden #daily-report-section #opsSummaryBody td:nth-child(4),
-        body.daily-amounts-hidden #daily-report-section #opsSummaryBody td:nth-child(5),
-        body.daily-amounts-hidden #daily-report-section #treasurySummaryBody td:nth-child(2),
-        body.daily-amounts-hidden #daily-report-section #profitSummaryBody td:nth-child(2) {
-            filter: blur(8px) !important;
-            user-select: none !important;
-            pointer-events: none !important;
-            transition: filter 0.2s ease;
-        }
+html,
+body,
+div,
+span,
+applet,
+object,
+iframe,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+blockquote,
+pre,
+a,
+abbr,
+acronym,
+address,
+big,
+cite,
+code,
+del,
+dfn,
+em,
+img,
+ins,
+kbd,
+q,
+s,
+samp,
+small,
+strike,
+strong,
+sub,
+sup,
+tt,
+var,
+b,
+u,
+i,
+center,
+dl,
+dt,
+dd,
+ol,
+ul,
+li,
+fieldset,
+form,
+label,
+legend,
+table,
+caption,
+tbody,
+tfoot,
+thead,
+tr,
+th,
+td,
+article,
+aside,
+canvas,
+details,
+embed,
+figure,
+figcaption,
+footer,
+header,
+hgroup,
+menu,
+nav,
+output,
+ruby,
+section,
+summary,
+time,
+mark,
+audio,
+video,
+button,
+select {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+}
 
-        /* 🔒 تأكيد استمرار إخفاء المبالغ حتى مع مرور الماوس فوق الصفوف أو الخلايا */
-        body.daily-amounts-hidden #daily-report-section #opsSummaryBody tr:hover td:nth-child(3),
-        body.daily-amounts-hidden #daily-report-section #opsSummaryBody tr:hover td:nth-child(4),
-        body.daily-amounts-hidden #daily-report-section #opsSummaryBody tr:hover td:nth-child(5),
-        body.daily-amounts-hidden #daily-report-section #treasurySummaryBody tr:hover td:nth-child(2),
-        body.daily-amounts-hidden #daily-report-section #profitSummaryBody tr:hover td:nth-child(2),
-        body.daily-amounts-hidden #daily-report-section #dailyTotalSalesReceipts:hover #dailyTotalVal,
-        body.daily-amounts-hidden #daily-report-section #dailyTotalAdditionsBadge:hover #dailyAdditionsVal,
-        body.daily-amounts-hidden #daily-report-section .daily-method-badge:hover .daily-method-val {
-            filter: blur(8px) !important;
-            user-select: none !important;
-            pointer-events: none !important;
-        }
+input,
+textarea,
+[contenteditable="true"] {
+    user-select: text !important;
+    -webkit-user-select: text !important;
+    -moz-user-select: text !important;
+    -ms-user-select: text !important;
+}
 
-        @keyframes golden-glow {
-            0%, 100% {
-                transform: scale(1);
-                opacity: 0.95;
-            }
-            50% {
-                transform: scale(1.04);
-                opacity: 1;
-            }
-        }
+/* 🙈 إخفاء وتعتيم المبالغ في تقرير الحركة اليومية للحفاظ على السرية والخصوصية الكاملة */
+body.daily-amounts-hidden #daily-report-section #dailyTotalVal,
+body.daily-amounts-hidden #daily-report-section #dailyAdditionsVal,
+body.daily-amounts-hidden #daily-report-section .daily-method-val,
+body.daily-amounts-hidden #daily-report-section .report-summary-box .value,
+body.daily-amounts-hidden #daily-report-section .summary-val,
+body.daily-amounts-hidden #daily-report-section .stat-value,
+body.daily-amounts-hidden #daily-report-section .finance-num,
+body.daily-amounts-hidden #daily-report-section #opsSummaryBody td:nth-child(3),
+body.daily-amounts-hidden #daily-report-section #opsSummaryBody td:nth-child(4),
+body.daily-amounts-hidden #daily-report-section #opsSummaryBody td:nth-child(5),
+body.daily-amounts-hidden #daily-report-section #treasurySummaryBody td:nth-child(2),
+body.daily-amounts-hidden #daily-report-section #profitSummaryBody td:nth-child(2) {
+    filter: blur(8px) !important;
+    user-select: none !important;
+    pointer-events: none !important;
+    transition: filter 0.2s ease;
+}
 
-        .animated-dev-name {
-            display: inline-block;
-            animation: golden-glow 3s infinite ease-in-out;
-            font-weight: 900;
-            cursor: pointer;
-        }
+/* 🔒 تأكيد استمرار إخفاء المبالغ حتى مع مرور الماوس فوق الصفوف أو الخلايا */
+body.daily-amounts-hidden #daily-report-section #opsSummaryBody tr:hover td:nth-child(3),
+body.daily-amounts-hidden #daily-report-section #opsSummaryBody tr:hover td:nth-child(4),
+body.daily-amounts-hidden #daily-report-section #opsSummaryBody tr:hover td:nth-child(5),
+body.daily-amounts-hidden #daily-report-section #treasurySummaryBody tr:hover td:nth-child(2),
+body.daily-amounts-hidden #daily-report-section #profitSummaryBody tr:hover td:nth-child(2),
+body.daily-amounts-hidden #daily-report-section #dailyTotalSalesReceipts:hover #dailyTotalVal,
+body.daily-amounts-hidden #daily-report-section #dailyTotalAdditionsBadge:hover #dailyAdditionsVal,
+body.daily-amounts-hidden #daily-report-section .daily-method-badge:hover .daily-method-val {
+    filter: blur(8px) !important;
+    user-select: none !important;
+    pointer-events: none !important;
+}
 
-        /* ================= 💎 تصميم وتطوير قسم البضاعة والجرد الفاخر (Ultra-Premium Inventory Theme) ================= */
-        #inventory-section {
-            background: #f8fafc !important;
-            font-family: 'Cairo', sans-serif !important;
-        }
+@keyframes golden-glow {
 
-        #inventory-section .inv-sidebar {
-            background: #1e1b4b !important;
-            border: 1.5px solid rgba(192, 132, 252, 0.3) !important;
-            border-radius: 18px !important;
-        }
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 0.95;
+    }
 
-        /* 🎨 ألوان فاخرة ومتميزة لكل مربعات الجانب */
-        #inventory-section .inv-sidebar .btn-back-home-inv {
-            background: linear-gradient(135deg, #4f46e5, #4338ca) !important;
-            color: white !important;
-            border: 1px solid #6366f1 !important;
-            border-radius: 14px !important;
-            font-weight: 900 !important;
-            box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3) !important;
-        }
+    50% {
+        transform: scale(1.04);
+        opacity: 1;
+    }
+}
 
-        #inventory-section .btn-add-item {
-            background: linear-gradient(135deg, #10b981, #059669) !important;
-            color: white !important;
-            border: 1px solid #34d399 !important;
-            border-radius: 16px !important;
-            font-weight: 900 !important;
-            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4) !important;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        }
+.animated-dev-name {
+    display: inline-block;
+    animation: golden-glow 3s infinite ease-in-out;
+    font-weight: 900;
+    cursor: pointer;
+}
 
-        #inventory-section .btn-add-item:hover {
-            transform: translateY(-3px) scale(1.02) !important;
-            box-shadow: 0 12px 30px rgba(16, 185, 129, 0.5) !important;
-            background: linear-gradient(135deg, #059669, #047857) !important;
-        }
+/* ================= 💎 تصميم وتطوير قسم البضاعة والجرد الفاخر (Ultra-Premium Inventory Theme) ================= */
+#inventory-section {
+    background: #f8fafc !important;
+    font-family: 'Cairo', sans-serif !important;
+}
 
-        #inventory-section .btn-inv-barcode {
-            background: linear-gradient(135deg, #d97706, #b45309) !important;
-            color: white !important;
-            border: 1px solid #fbbf24 !important;
-            border-radius: 14px !important;
-            font-weight: 900 !important;
-            box-shadow: 0 4px 15px rgba(217, 119, 6, 0.3) !important;
-        }
+#inventory-section .inv-sidebar {
+    background: #1e1b4b !important;
+    border: 1.5px solid rgba(192, 132, 252, 0.3) !important;
+    border-radius: 18px !important;
+}
 
-        #inventory-section .btn-inv-transfer {
-            background: linear-gradient(135deg, #0284c7, #0369a1) !important;
-            color: white !important;
-            border: 1px solid #38bdf8 !important;
-            border-radius: 14px !important;
-            font-weight: 900 !important;
-            box-shadow: 0 4px 15px rgba(2, 132, 199, 0.3) !important;
-        }
+/* 🎨 ألوان فاخرة ومتميزة لكل مربعات الجانب */
+#inventory-section .inv-sidebar .btn-back-home-inv {
+    background: linear-gradient(135deg, #4f46e5, #4338ca) !important;
+    color: white !important;
+    border: 1px solid #6366f1 !important;
+    border-radius: 14px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 4px 15px rgba(79, 70, 229, 0.3) !important;
+}
 
-        #inventory-section .btn-inv-adjust {
-            background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
-            color: white !important;
-            border: 1px solid #a78bfa !important;
-            border-radius: 14px !important;
-            font-weight: 900 !important;
-            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3) !important;
-        }
+#inventory-section .btn-add-item {
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+    color: white !important;
+    border: 1px solid #34d399 !important;
+    border-radius: 16px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4) !important;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
 
-        #inventory-section .btn-inv-history {
-            background: linear-gradient(135deg, #ec4899, #db2777) !important;
-            color: white !important;
-            border: 1px solid #f472b6 !important;
-            border-radius: 14px !important;
-            font-weight: 900 !important;
-            box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3) !important;
-        }
+#inventory-section .btn-add-item:hover {
+    transform: translateY(-3px) scale(1.02) !important;
+    box-shadow: 0 12px 30px rgba(16, 185, 129, 0.5) !important;
+    background: linear-gradient(135deg, #059669, #047857) !important;
+}
 
-        #inventory-section .btn-inv-prices {
-            background: linear-gradient(135deg, #ca8a04, #a16207) !important;
-            color: white !important;
-            border: 1px solid #fde047 !important;
-            border-radius: 14px !important;
-            font-weight: 900 !important;
-            box-shadow: 0 4px 15px rgba(202, 138, 4, 0.3) !important;
-        }
+#inventory-section .btn-inv-barcode {
+    background: linear-gradient(135deg, #d97706, #b45309) !important;
+    color: white !important;
+    border: 1px solid #fbbf24 !important;
+    border-radius: 14px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 4px 15px rgba(217, 119, 6, 0.3) !important;
+}
 
-        #inventory-section .btn-inv-excel {
-            background: linear-gradient(135deg, #16a34a, #15803d) !important;
-            color: white !important;
-            border: 1px solid #4ade80 !important;
-            border-radius: 14px !important;
-            font-weight: 900 !important;
-            box-shadow: 0 4px 15px rgba(22, 163, 74, 0.3) !important;
-        }
+#inventory-section .btn-inv-transfer {
+    background: linear-gradient(135deg, #0284c7, #0369a1) !important;
+    color: white !important;
+    border: 1px solid #38bdf8 !important;
+    border-radius: 14px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 4px 15px rgba(2, 132, 199, 0.3) !important;
+}
 
-        #inventory-section .btn-inv-template {
-            background: linear-gradient(135deg, #475569, #334155) !important;
-            color: white !important;
-            border: 1px solid #94a3b8 !important;
-            border-radius: 14px !important;
-            font-weight: 900 !important;
-            box-shadow: 0 4px 15px rgba(71, 85, 105, 0.3) !important;
-        }
+#inventory-section .btn-inv-adjust {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed) !important;
+    color: white !important;
+    border: 1px solid #a78bfa !important;
+    border-radius: 14px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3) !important;
+}
 
-        #inventory-section .inv-sidebar button:hover {
-            transform: translateY(-2px) scale(1.02) !important;
-            filter: brightness(1.15) !important;
-        }
+#inventory-section .btn-inv-history {
+    background: linear-gradient(135deg, #ec4899, #db2777) !important;
+    color: white !important;
+    border: 1px solid #f472b6 !important;
+    border-radius: 14px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 4px 15px rgba(236, 72, 153, 0.3) !important;
+}
 
-        #inventory-section .inv-filters .filter-btn {
-            border-radius: 12px !important;
-            font-weight: 800 !important;
-            padding: 8px 18px !important;
-            border: 1px solid #e2e8f0 !important;
-            background: #ffffff !important;
-            color: #475569 !important;
-            transition: all 0.25s ease !important;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03) !important;
-        }
+#inventory-section .btn-inv-prices {
+    background: linear-gradient(135deg, #ca8a04, #a16207) !important;
+    color: white !important;
+    border: 1px solid #fde047 !important;
+    border-radius: 14px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 4px 15px rgba(202, 138, 4, 0.3) !important;
+}
 
-        #inventory-section .inv-filters .filter-btn:hover {
-            background: #f1f5f9 !important;
-            transform: translateY(-1px) !important;
-        }
+#inventory-section .btn-inv-excel {
+    background: linear-gradient(135deg, #16a34a, #15803d) !important;
+    color: white !important;
+    border: 1px solid #4ade80 !important;
+    border-radius: 14px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 4px 15px rgba(22, 163, 74, 0.3) !important;
+}
 
-        #inventory-section .inv-filters .filter-btn.active {
-            background: linear-gradient(135deg, #064e3b, #047857) !important;
-            color: #ffffff !important;
-            border-color: #059669 !important;
-            box-shadow: 0 4px 15px rgba(6, 78, 59, 0.3) !important;
-        }
+#inventory-section .btn-inv-template {
+    background: linear-gradient(135deg, #475569, #334155) !important;
+    color: white !important;
+    border: 1px solid #94a3b8 !important;
+    border-radius: 14px !important;
+    font-weight: 900 !important;
+    box-shadow: 0 4px 15px rgba(71, 85, 105, 0.3) !important;
+}
 
-        #inventory-section table.invoice-table {
-            border-collapse: separate !important;
-            border-spacing: 0 !important;
-            border-radius: 14px !important;
-        }
+#inventory-section .inv-sidebar button:hover {
+    transform: translateY(-2px) scale(1.02) !important;
+    filter: brightness(1.15) !important;
+}
 
-        #inventory-section table.invoice-table thead tr th {
-            position: -webkit-sticky !important;
-            position: sticky !important;
-            top: 0 !important;
-            z-index: 100 !important;
-            background: linear-gradient(135deg, #022c22 0%, #064e3b 60%, #047857 100%) !important;
-            color: #ffffff !important;
-            font-weight: 900 !important;
-            font-size: 0.9rem !important;
-            padding: 14px 10px !important;
-            border-bottom: 2px solid #059669 !important;
-            text-align: center !important;
-            white-space: nowrap !important;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
-        }
+#inventory-section .inv-filters .filter-btn {
+    border-radius: 12px !important;
+    font-weight: 800 !important;
+    padding: 8px 18px !important;
+    border: 1px solid #e2e8f0 !important;
+    background: #ffffff !important;
+    color: #475569 !important;
+    transition: all 0.25s ease !important;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.03) !important;
+}
 
-        #inventory-section table.invoice-table tbody tr {
-            transition: background-color 0.15s ease, color 0.15s ease !important;
-        }
+#inventory-section .inv-filters .filter-btn:hover {
+    background: #f1f5f9 !important;
+    transform: translateY(-1px) !important;
+}
 
-        #accounts-section table.invoice-table tbody tr {
-            transition: background-color 0.15s ease, color 0.15s ease !important;
-        }
+#inventory-section .inv-filters .filter-btn.active {
+    background: linear-gradient(135deg, #064e3b, #047857) !important;
+    color: #ffffff !important;
+    border-color: #059669 !important;
+    box-shadow: 0 4px 15px rgba(6, 78, 59, 0.3) !important;
+}
 
-        #accounts-section table.invoice-table tbody tr:hover,
-        #accounts-section table.invoice-table tbody tr.acc-selected-row {
-            background-color: #065f46 !important; /* أخضر غامق تقيل وواضح جداً */
-            color: #ffffff !important;
-        }
+#inventory-section table.invoice-table {
+    border-collapse: separate !important;
+    border-spacing: 0 !important;
+    border-radius: 14px !important;
+}
 
-        #accounts-section table.invoice-table tbody tr:hover td,
-        #accounts-section table.invoice-table tbody tr:hover span,
-        #accounts-section table.invoice-table tbody tr:hover b,
-        #accounts-section table.invoice-table tbody tr.acc-selected-row td,
-        #accounts-section table.invoice-table tbody tr.acc-selected-row span,
-        #accounts-section table.invoice-table tbody tr.acc-selected-row b {
-            color: #ffffff !important;
-        }
+#inventory-section table.invoice-table thead tr th {
+    position: -webkit-sticky !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+    background: linear-gradient(135deg, #022c22 0%, #064e3b 60%, #047857 100%) !important;
+    color: #ffffff !important;
+    font-weight: 900 !important;
+    font-size: 0.9rem !important;
+    padding: 14px 10px !important;
+    border-bottom: 2px solid #059669 !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3) !important;
+}
 
-        #accounts-section table.invoice-table tbody tr:hover td span.color-danger,
-        #accounts-section table.invoice-table tbody tr.acc-selected-row td span.color-danger {
-            color: #fca5a5 !important;
-            font-weight: 900 !important;
-        }
+#inventory-section table.invoice-table tbody tr {
+    transition: background-color 0.15s ease, color 0.15s ease !important;
+}
 
-        #accounts-section table.invoice-table tbody tr:hover td span.color-success,
-        #accounts-section table.invoice-table tbody tr.acc-selected-row td span.color-success {
-            color: #86efac !important;
-            font-weight: 900 !important;
-        }
+#accounts-section table.invoice-table tbody tr {
+    transition: background-color 0.15s ease, color 0.15s ease !important;
+}
 
-        #inventory-section table.invoice-table tbody tr td,
-        #accounts-section table.invoice-table tbody tr td {
-            padding: 10px 8px !important;
-            border-bottom: 1px solid #f1f5f9 !important;
-            font-size: 0.9rem !important;
-            vertical-align: middle !important;
-        }
+#accounts-section table.invoice-table tbody tr:hover,
+#accounts-section table.invoice-table tbody tr.acc-selected-row {
+    background-color: #065f46 !important;
+    /* أخضر غامق تقيل وواضح جداً */
+    color: #ffffff !important;
+}
 
-        /* ====== تمييز التحديد الفعلي بالضغط في قسم البضاعة / الأصناف (بنفسجي ملكي داكن وفخم للصنف المحدد فقط) ====== */
-        #inventory-section table.invoice-table tbody tr,
-        #inventoryTableBody tr {
-            transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease !important;
-        }
+#accounts-section table.invoice-table tbody tr:hover td,
+#accounts-section table.invoice-table tbody tr:hover span,
+#accounts-section table.invoice-table tbody tr:hover b,
+#accounts-section table.invoice-table tbody tr.acc-selected-row td,
+#accounts-section table.invoice-table tbody tr.acc-selected-row span,
+#accounts-section table.invoice-table tbody tr.acc-selected-row b {
+    color: #ffffff !important;
+}
 
-        /* التحديد الفعلي بالضغط فقط - صنف محدد ومفعل عليه الاختيار */
-        #inventoryTableBody tr.selected-row-gold,
-        #inventory-section table.invoice-table tbody tr.selected-row-gold {
-            background: linear-gradient(90deg, #2e1065 0%, #4c1d95 60%, #581c87 100%) !important;
-            /* بنفسجي ملكي فاخر وداكن جداً */
-            color: #ffffff !important;
-            box-shadow: 0 4px 18px rgba(124, 58, 237, 0.45) !important;
-        }
+#accounts-section table.invoice-table tbody tr:hover td span.color-danger,
+#accounts-section table.invoice-table tbody tr.acc-selected-row td span.color-danger {
+    color: #fca5a5 !important;
+    font-weight: 900 !important;
+}
 
-        #inventoryTableBody tr.selected-row-gold td,
-        #inventoryTableBody tr.selected-row-gold span,
-        #inventoryTableBody tr.selected-row-gold b,
-        #inventory-section table.invoice-table tbody tr.selected-row-gold td,
-        #inventory-section table.invoice-table tbody tr.selected-row-gold span,
-        #inventory-section table.invoice-table tbody tr.selected-row-gold b {
-            color: #ffffff !important;
-        }
+#accounts-section table.invoice-table tbody tr:hover td span.color-success,
+#accounts-section table.invoice-table tbody tr.acc-selected-row td span.color-success {
+    color: #86efac !important;
+    font-weight: 900 !important;
+}
 
-        #inventoryTableBody tr.selected-row-gold td.num-cell,
-        #inventory-section table.invoice-table tbody tr.selected-row-gold td.num-cell {
-            color: #ffffff !important;
-        }
+#inventory-section table.invoice-table tbody tr td,
+#accounts-section table.invoice-table tbody tr td {
+    padding: 10px 8px !important;
+    border-bottom: 1px solid #f1f5f9 !important;
+    font-size: 0.9rem !important;
+    vertical-align: middle !important;
+}
 
-        #inventoryTableBody tr.selected-row-gold td.col-inv-margin,
-        #inventory-section table.invoice-table tbody tr.selected-row-gold td.col-inv-margin {
-            background: rgba(255, 255, 255, 0.22) !important;
-            color: #ffffff !important;
-            border-radius: 6px !important;
-            font-weight: 900 !important;
-        }
+/* ====== تمييز التحديد الفعلي بالضغط في قسم البضاعة / الأصناف (بنفسجي ملكي داكن وفخم للصنف المحدد فقط) ====== */
+#inventory-section table.invoice-table tbody tr,
+#inventoryTableBody tr {
+    transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease !important;
+}
 
-        /* 🖼️ تناسق صورة الموديل والأيقونة البديلة مع التحديد البنفسجي الملكي */
-        #inventoryTableBody tr.selected-row-gold td.col-inv-image img,
-        #inventory-section table.invoice-table tbody tr.selected-row-gold td.col-inv-image img {
-            border-color: #ffffff !important;
-            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
-        }
+/* التحديد الفعلي بالضغط فقط - صنف محدد ومفعل عليه الاختيار */
+#inventoryTableBody tr.selected-row-gold,
+#inventory-section table.invoice-table tbody tr.selected-row-gold {
+    background: linear-gradient(90deg, #2e1065 0%, #4c1d95 60%, #581c87 100%) !important;
+    /* بنفسجي ملكي فاخر وداكن جداً */
+    color: #ffffff !important;
+    box-shadow: 0 4px 18px rgba(124, 58, 237, 0.45) !important;
+}
 
-        #inventoryTableBody tr.selected-row-gold td.col-inv-image span,
-        #inventory-section table.invoice-table tbody tr.selected-row-gold td.col-inv-image span {
-            background: rgba(255, 255, 255, 0.15) !important;
-            border-color: rgba(255, 255, 255, 0.35) !important;
-        }
+#inventoryTableBody tr.selected-row-gold td,
+#inventoryTableBody tr.selected-row-gold span,
+#inventoryTableBody tr.selected-row-gold b,
+#inventory-section table.invoice-table tbody tr.selected-row-gold td,
+#inventory-section table.invoice-table tbody tr.selected-row-gold span,
+#inventory-section table.invoice-table tbody tr.selected-row-gold b {
+    color: #ffffff !important;
+}
 
-        /* ====== شريط تمرير مخصص - قسم متابعة الأسعار والحسابات ====== */
-        #accounts-section .table-container::-webkit-scrollbar,
-        #pt-content-area::-webkit-scrollbar,
-        #price-tracking-section::-webkit-scrollbar {
-            width: 10px;
-        }
+#inventoryTableBody tr.selected-row-gold td.num-cell,
+#inventory-section table.invoice-table tbody tr.selected-row-gold td.num-cell {
+    color: #ffffff !important;
+}
 
-        #accounts-section .table-container::-webkit-scrollbar-track,
-        #pt-content-area::-webkit-scrollbar-track,
-        #price-tracking-section::-webkit-scrollbar-track {
-            background: linear-gradient(180deg, #fff7ed, #fef3c7);
-            border-radius: 10px;
-            margin: 4px 0;
-        }
+#inventoryTableBody tr.selected-row-gold td.col-inv-margin,
+#inventory-section table.invoice-table tbody tr.selected-row-gold td.col-inv-margin {
+    background: rgba(255, 255, 255, 0.22) !important;
+    color: #ffffff !important;
+    border-radius: 6px !important;
+    font-weight: 900 !important;
+}
 
-        #accounts-section .table-container::-webkit-scrollbar-thumb,
-        #pt-content-area::-webkit-scrollbar-thumb,
-        #price-tracking-section::-webkit-scrollbar-thumb {
-            background: linear-gradient(180deg, #f59e0b, #d97706);
-            border-radius: 10px;
-            border: 2px solid #fef3c7;
-        }
+/* 🖼️ تناسق صورة الموديل والأيقونة البديلة مع التحديد البنفسجي الملكي */
+#inventoryTableBody tr.selected-row-gold td.col-inv-image img,
+#inventory-section table.invoice-table tbody tr.selected-row-gold td.col-inv-image img {
+    border-color: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35) !important;
+}
 
-        #accounts-section .table-container::-webkit-scrollbar-thumb:hover,
-        #pt-content-area::-webkit-scrollbar-thumb:hover,
-        #price-tracking-section::-webkit-scrollbar-thumb:hover {
-            background: linear-gradient(180deg, #fbbf24, #b45309);
-        }
+#inventoryTableBody tr.selected-row-gold td.col-inv-image span,
+#inventory-section table.invoice-table tbody tr.selected-row-gold td.col-inv-image span {
+    background: rgba(255, 255, 255, 0.15) !important;
+    border-color: rgba(255, 255, 255, 0.35) !important;
+}
 
-        #accounts-section .table-container,
-        #pt-content-area,
-        #price-tracking-section {
-            scrollbar-width: thin;
-            scrollbar-color: #f59e0b #fff7ed;
-        }
+/* ====== شريط تمرير مخصص - قسم متابعة الأسعار والحسابات ====== */
+#accounts-section .table-container::-webkit-scrollbar,
+#pt-content-area::-webkit-scrollbar,
+#price-tracking-section::-webkit-scrollbar {
+    width: 10px;
+}
+
+#accounts-section .table-container::-webkit-scrollbar-track,
+#pt-content-area::-webkit-scrollbar-track,
+#price-tracking-section::-webkit-scrollbar-track {
+    background: linear-gradient(180deg, #fff7ed, #fef3c7);
+    border-radius: 10px;
+    margin: 4px 0;
+}
+
+#accounts-section .table-container::-webkit-scrollbar-thumb,
+#pt-content-area::-webkit-scrollbar-thumb,
+#price-tracking-section::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #f59e0b, #d97706);
+    border-radius: 10px;
+    border: 2px solid #fef3c7;
+}
+
+#accounts-section .table-container::-webkit-scrollbar-thumb:hover,
+#pt-content-area::-webkit-scrollbar-thumb:hover,
+#price-tracking-section::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #fbbf24, #b45309);
+}
+
+#accounts-section .table-container,
+#pt-content-area,
+#price-tracking-section {
+    scrollbar-width: thin;
+    scrollbar-color: #f59e0b #fff7ed;
+}
 
 @keyframes premiumShine {
-                    0% {
-                        background-position: -200% center;
-                    }
+    0% {
+        background-position: -200% center;
+    }
 
-                    100% {
-                        background-position: 200% center;
-                    }
-                }
+    100% {
+        background-position: 200% center;
+    }
+}
 
-                @keyframes premiumFloat {
-                    0%,
-                    100% {
-                        transform: translateY(0);
-                    }
-                    50% {
-                        transform: translateY(-6px);
-                    }
-                }
+@keyframes premiumFloat {
+
+    0%,
+    100% {
+        transform: translateY(0);
+    }
+
+    50% {
+        transform: translateY(-6px);
+    }
+}
 
 @keyframes pulseNewBadge {
-                        0% {
-                            transform: scale(1);
-                            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
-                        }
+    0% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+    }
 
-                        70% {
-                            transform: scale(1.1);
-                            box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
-                        }
+    70% {
+        transform: scale(1.1);
+        box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+    }
 
-                        100% {
-                            transform: scale(1);
-                            box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
-                        }
-                    }
+    100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
 
 details>summary {
-                                            list-style: none;
-                                        }
+    list-style: none;
+}
 
-                                        details>summary::-webkit-details-marker {
-                                            display: none;
-                                        }
+details>summary::-webkit-details-marker {
+    display: none;
+}
 
-                                        .custom-chevron {
-                                            display: inline-block;
-                                            transition: transform 0.3s ease;
-                                            margin-left: 10px;
-                                            font-size: 0.8rem;
-                                        }
+.custom-chevron {
+    display: inline-block;
+    transition: transform 0.3s ease;
+    margin-left: 10px;
+    font-size: 0.8rem;
+}
 
-                                        details[open]>summary .custom-chevron {
-                                            transform: rotate(180deg);
-                                        }
+details[open]>summary .custom-chevron {
+    transform: rotate(180deg);
+}
 
 @keyframes pulse-gold {
-                            0% {
-                                transform: scale(1);
-                                opacity: 1;
-                            }
+    0% {
+        transform: scale(1);
+        opacity: 1;
+    }
 
-                            50% {
-                                transform: scale(1.1);
-                                opacity: 0.8;
-                            }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.8;
+    }
 
-                            100% {
-                                transform: scale(1);
-                                opacity: 1;
-                            }
-                        }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
 
 @keyframes slideLeft {
-            0% {
-                transform: translateX(-5px);
-                opacity: 0.5;
-            }
+    0% {
+        transform: translateX(-5px);
+        opacity: 0.5;
+    }
 
-            50% {
-                transform: translateX(5px);
-                opacity: 1;
-            }
+    50% {
+        transform: translateX(5px);
+        opacity: 1;
+    }
 
-            100% {
-                transform: translateX(-5px);
-                opacity: 0.5;
-            }
-        }
+    100% {
+        transform: translateX(-5px);
+        opacity: 0.5;
+    }
+}
 
 .header-label-badge {
-            font-size: 0.65rem;
-            font-weight: 800;
-            padding: 0 8px;
-            border-radius: 4px;
-            border: 1px solid #cbd5e1;
-            width: fit-content;
-            white-space: nowrap;
-            height: 22px !important;
-            display: flex;
-            align-items: center;
-            box-sizing: border-box;
-        }
+    font-size: 0.65rem;
+    font-weight: 800;
+    padding: 0 8px;
+    border-radius: 4px;
+    border: 1px solid #cbd5e1;
+    width: fit-content;
+    white-space: nowrap;
+    height: 22px !important;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+}
 
-        .header-input-unified {
-            height: 40px !important;
-            border-radius: 8px !important;
-            border-width: 2px !important;
-            font-weight: 900 !important;
-            outline: none !important;
-            margin: 0 !important;
-            box-sizing: border-box;
-        }
+.header-input-unified {
+    height: 40px !important;
+    border-radius: 8px !important;
+    border-width: 2px !important;
+    font-weight: 900 !important;
+    outline: none !important;
+    margin: 0 !important;
+    box-sizing: border-box;
+}
 
-        @keyframes pulseBorder {
-            0% {
-                border-color: #ef4444;
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
-            }
+@keyframes pulseBorder {
+    0% {
+        border-color: #ef4444;
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+    }
 
-            70% {
-                border-color: #ef4444;
-                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
-            }
+    70% {
+        border-color: #ef4444;
+        box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+    }
 
-            100% {
-                border-color: #ef4444;
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
-            }
-        }
+    100% {
+        border-color: #ef4444;
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    }
+}
 
-        .header-column {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            justify-content: flex-end;
-            height: 66px;
-            /* 22px label + 4px gap + 40px input */
-            flex-shrink: 0;
-        }
+.header-column {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    justify-content: flex-end;
+    height: 66px;
+    /* 22px label + 4px gap + 40px input */
+    flex-shrink: 0;
+}
 
-        .package-tab {
-            transition: all 0.3s ease;
-            border: 1px solid transparent !important;
-        }
+.package-tab {
+    transition: all 0.3s ease;
+    border: 1px solid transparent !important;
+}
 
-        .package-tab:hover {
-            background: rgba(16, 185, 129, 0.1) !important;
-            color: var(--primary-color) !important;
-            transform: translateY(-2px);
-            border-color: var(--primary-color) !important;
-        }
+.package-tab:hover {
+    background: rgba(16, 185, 129, 0.1) !important;
+    color: var(--primary-color) !important;
+    transform: translateY(-2px);
+    border-color: var(--primary-color) !important;
+}
 
-        .package-tab.active {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
-        }
+.package-tab.active {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1) !important;
+}
 
 .quick-wp-bar {
     position: fixed;
@@ -2803,6 +3077,7 @@ details>summary {
     overflow-y: auto;
     scrollbar-width: none;
 }
+
 .quick-wp-bar::-webkit-scrollbar {
     display: none;
 }
@@ -2843,110 +3118,111 @@ details>summary {
     overflow: hidden;
 }
 
-        .wp-swatch:hover {
-            transform: scale(1.25) translateY(-5px) rotate(5deg);
-            border-color: #fff;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-            z-index: 10;
-        }
+.wp-swatch:hover {
+    transform: scale(1.25) translateY(-5px) rotate(5deg);
+    border-color: #fff;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    z-index: 10;
+}
 
-        /* توهج مخصص لكل لون لزيادة الوضوح */
-        .wp-swatch[style*="#a855f7"] {
-            box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
-        }
+/* توهج مخصص لكل لون لزيادة الوضوح */
+.wp-swatch[style*="#a855f7"] {
+    box-shadow: 0 0 15px rgba(168, 85, 247, 0.4);
+}
 
-        .wp-swatch[style*="#0ea5e9"] {
-            box-shadow: 0 0 15px rgba(14, 165, 233, 0.4);
-        }
+.wp-swatch[style*="#0ea5e9"] {
+    box-shadow: 0 0 15px rgba(14, 165, 233, 0.4);
+}
 
-        .wp-swatch[style*="photo-1516550893923-42d28e5677af"] {
-            box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
-        }
+.wp-swatch[style*="photo-1516550893923-42d28e5677af"] {
+    box-shadow: 0 0 15px rgba(255, 255, 255, 0.4);
+}
 
-        .wp-swatch[style*="dark-luxury-design"] {
-            box-shadow: 0 0 15px rgba(0, 0, 0, 0.6), 0 0 5px rgba(212, 175, 55, 0.3);
-        }
+.wp-swatch[style*="dark-luxury-design"] {
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.6), 0 0 5px rgba(212, 175, 55, 0.3);
+}
 
-        .wp-swatch.swatch-default {
-            background: #fff;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            color: #333;
-        }
+.wp-swatch.swatch-default {
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    color: #333;
+}
 
-        .wp-swatch.active {
-            transform: scale(1.25) !important;
-            border: 2px solid #00f2fe !important;
-            box-shadow: 0 0 14px #00f2fe, 0 0 24px rgba(0, 242, 254, 0.75) !important;
-            z-index: 25 !important;
-        }
+.wp-swatch.active {
+    transform: scale(1.25) !important;
+    border: 2px solid #00f2fe !important;
+    box-shadow: 0 0 14px #00f2fe, 0 0 24px rgba(0, 242, 254, 0.75) !important;
+    z-index: 25 !important;
+}
 
-        .widget-date {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 0.85rem;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-            text-transform: capitalize;
-        }
+.widget-date {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: capitalize;
+}
 
-        .widget-time span {
-            color: #00e5ff;
-            font-size: 2rem;
-            font-weight: 900;
-            font-family: 'Cairo', sans-serif;
-            text-shadow: 0 0 15px rgba(0, 229, 255, 0.6);
-            line-height: 1;
-        }
+.widget-time span {
+    color: #00e5ff;
+    font-size: 2rem;
+    font-weight: 900;
+    font-family: 'Cairo', sans-serif;
+    text-shadow: 0 0 15px rgba(0, 229, 255, 0.6);
+    line-height: 1;
+}
 
-        /* ========================================================
+/* ========================================================
            📖 تصميم نافذة الدليل التفاعلي لقسم مراجعة الخزينة
            ======================================================== */
-        .tr-guide-tab-btn {
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            color: #94a3b8;
-            padding: 8px 16px;
-            border-radius: 12px;
-            font-size: 0.9rem;
-            font-weight: 800;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            white-space: nowrap;
-            transition: all 0.2s ease;
-        }
+.tr-guide-tab-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: #94a3b8;
+    padding: 8px 16px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    font-weight: 800;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
 
-        .tr-guide-tab-btn:hover {
-            background: rgba(56, 189, 248, 0.15);
-            color: #38bdf8;
-            border-color: #38bdf8;
-            transform: translateY(-1px);
-        }
+.tr-guide-tab-btn:hover {
+    background: rgba(56, 189, 248, 0.15);
+    color: #38bdf8;
+    border-color: #38bdf8;
+    transform: translateY(-1px);
+}
 
-        .tr-guide-tab-btn.active {
-            background: linear-gradient(135deg, #0284c7, #0369a1) !important;
-            color: #ffffff !important;
-            border-color: #38bdf8 !important;
-            box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
-        }
+.tr-guide-tab-btn.active {
+    background: linear-gradient(135deg, #0284c7, #0369a1) !important;
+    color: #ffffff !important;
+    border-color: #38bdf8 !important;
+    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
+}
 
-        .tr-guide-tab-panel {
-            animation: fadeInGuideTab 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        }
+.tr-guide-tab-panel {
+    animation: fadeInGuideTab 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
-        @keyframes fadeInGuideTab {
-            from {
-                opacity: 0;
-                transform: translateY(6px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+@keyframes fadeInGuideTab {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
 
 /* =========================================================================
    ✨ التنسيقات العامة وأزرار الإغلاق والمؤثرات (General Theme Utilities)
@@ -3061,7 +3337,9 @@ body.is-logged-out .main-container {
    🎛️ صندوق التحكم العائم المطور (Floating Controls Dock)
    ========================================================================= */
 @keyframes pulseLiveGreen {
-    0%, 100% {
+
+    0%,
+    100% {
         transform: scale(1);
         opacity: 1;
     }
@@ -3422,6 +3700,7 @@ body.dark-mode .floating-controls-box .dock-theme-capsule .active-bar {
 }
 
 @keyframes premiumFloat {
+
     0%,
     100% {
         transform: translateY(0);
@@ -4445,16 +4724,22 @@ body.dark-mode #purchase-section {
  * 🖨️ القواعد العامة والموحدة للطباعة وتفادي تسريب الخلفيات والوضع الليلي
  * ============================================================ */
 @media print {
-    *, *::before, *::after {
+
+    *,
+    *::before,
+    *::after {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
         text-shadow: none !important;
         box-shadow: none !important;
     }
 
-    html, body,
-    html.has-wallpaper, body.has-wallpaper,
-    body.dark-mode, body.dark-mode.has-wallpaper,
+    html,
+    body,
+    html.has-wallpaper,
+    body.has-wallpaper,
+    body.dark-mode,
+    body.dark-mode.has-wallpaper,
     body:not(.dark-mode) {
         background: #ffffff !important;
         background-color: #ffffff !important;
@@ -4467,7 +4752,7 @@ body.dark-mode #purchase-section {
         min-height: 0 !important;
     }
 
-    body > *:not(#receipt-area):not(.print-container):not(iframe) {
+    body>*:not(#receipt-area):not(.print-container):not(iframe) {
         display: none !important;
     }
 
@@ -4523,10 +4808,12 @@ body.dark-mode #purchase-section {
     overflow-x: hidden !important;
     overflow-y: auto !important;
 }
+
 #warehouse-report-section .table-container::-webkit-scrollbar:horizontal {
     display: none !important;
     height: 0 !important;
 }
+
 #warehouse-report-section table,
 #warehouse-report-section .invoice-table {
     width: 100% !important;
@@ -4617,4 +4904,47 @@ body.is-logged-out #transferModal {
     text-shadow: none !important;
 }
 
+/* =========================================================================
+   ✨ شاشات التحميل الهيكلية الانسيابية (Skeleton Loaders — Non-Blocking UI)
+   ========================================================================= */
+@keyframes bayanSkelShimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
 
+.bayan-skeleton {
+    display: inline-block;
+    border-radius: 6px;
+    background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+    background-size: 200% 100%;
+    animation: bayanSkelShimmer 1.35s ease-in-out infinite;
+    min-height: 14px;
+    width: 100%;
+}
+
+.bayan-skel-row td {
+    padding: 10px 8px !important;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.bayan-skel-card {
+    border-radius: 14px;
+    padding: 14px 16px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+body.dark-mode .bayan-skeleton,
+[data-theme="dark"] .bayan-skeleton {
+    background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+    background-size: 200% 100%;
+}
+
+body.dark-mode .bayan-skel-card,
+[data-theme="dark"] .bayan-skel-card {
+    background: #0f172a;
+    border-color: #1e293b;
+}

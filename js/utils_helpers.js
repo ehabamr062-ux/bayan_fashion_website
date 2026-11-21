@@ -76,6 +76,42 @@ window.getActiveProductsCount = function () {
     return 0;
 };
 
+window.renderTableSkeleton = function (tbodyOrId, rowCount = 8, colCount = 10) {
+    try {
+        const tbody = typeof tbodyOrId === 'string' ? document.getElementById(tbodyOrId) : tbodyOrId;
+        if (!tbody) return;
+        const rows = Math.max(1, Math.min(20, parseInt(rowCount, 10) || 8));
+        const cols = Math.max(1, Math.min(20, parseInt(colCount, 10) || 10));
+        let html = '';
+        for (let r = 0; r < rows; r++) {
+            html += '<tr class="bayan-skel-row">';
+            for (let c = 0; c < cols; c++) {
+                const w = c === 0 ? '28px' : (c % 3 === 0 ? '60%' : '82%');
+                html += `<td><span class="bayan-skeleton" style="width:${w}; height:14px;"></span></td>`;
+            }
+            html += '</tr>';
+        }
+        tbody.innerHTML = html;
+    } catch (e) { }
+};
+
+window.renderKpiSkeleton = function (containerOrId, cardCount = 4) {
+    try {
+        const el = typeof containerOrId === 'string' ? document.getElementById(containerOrId) : containerOrId;
+        if (!el) return;
+        const cnt = Math.max(1, Math.min(12, parseInt(cardCount, 10) || 4));
+        let html = '';
+        for (let i = 0; i < cnt; i++) {
+            html += `<div class="bayan-skel-card">
+                <span class="bayan-skeleton" style="width:55%; height:12px;"></span>
+                <span class="bayan-skeleton" style="width:75%; height:22px;"></span>
+                <span class="bayan-skeleton" style="width:45%; height:11px;"></span>
+            </div>`;
+        }
+        el.innerHTML = html;
+    } catch (e) { }
+};
+
 window.showSectionLoader = function (targetIdOrEl, title = 'جاري معالجة وتجهيز البيانات...', subtitle = null, itemsCount = null) {
     // استخراج عدد الأصناف النشطة الفعلي في النظام ديناميكياً
     let count = (typeof itemsCount === 'number' && itemsCount >= 0) ? itemsCount : null;

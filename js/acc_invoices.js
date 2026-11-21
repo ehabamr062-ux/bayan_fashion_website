@@ -694,8 +694,10 @@ function getGroupedTransactions(txList) {
 }
 window.getGroupedTransactions = getGroupedTransactions;
 
-// نظام التصفح والتحميل الذكي لفواتير العمليات
-window.invoicesRenderLimit = 100;
+// نظام التصفح الحقيقي بالصفحات (SQLite LIMIT + OFFSET Pagination) لفواتير العمليات
+window.invoicesRenderLimit = 50;
+window.invoicesCurrentPage = 1;
+window.invoicesPageSize = 50;
 
 // ⚡ محرك تأخير ذكي للبحث فائق السرعة (Search Debounce) لمنع أي بطء أو تكرار عمليات الفلترة مع البيانات الضخمة
 let _invoicesSearchDebounceTimer = null;
@@ -705,21 +707,33 @@ window.debouncedRenderInvoicesTable = function (delay = 240) {
     }
     _invoicesSearchDebounceTimer = setTimeout(() => {
         _invoicesSearchDebounceTimer = null;
-        renderInvoicesTable();
+        window.invoicesCurrentPage = 1;
+        renderInvoicesTable(false);
     }, delay);
 };
 
-window.loadMoreInvoices = function (step) {
-    const MAX_SAFE_CEILING = 250;
-    if (step === 0) {
-        window.invoicesRenderLimit = MAX_SAFE_CEILING;
-        if (typeof showToast === 'function') {
-            showToast(`⚡ تم تحديد سقف العرض بـ ${MAX_SAFE_CEILING} فاتورة لحماية أداء جهازك. استخدم فلتر التاريخ أو البحث السريع للوصول الفوري.`, 'info');
-        }
-    } else {
-        window.invoicesRenderLimit = Math.min(MAX_SAFE_CEILING, (window.invoicesRenderLimit || 100) + step);
-    }
+window.goToInvoicesPage = function (pageNum) {
+    window.invoicesCurrentPage = Math.max(1, parseInt(pageNum, 10) || 1);
     renderInvoicesTable(true);
+};
+
+window.changeInvoicesPageSize = function (newSize) {
+    const parsed = parseInt(newSize, 10);
+    window.invoicesPageSize = (parsed === 100 || parsed === 50) ? parsed : 50;
+    window.invoicesRenderLimit = window.invoicesPageSize;
+    window.invoicesCurrentPage = 1;
+    renderInvoicesTable(true);
+};
+
+window.loadMoreInvoices = function (step) {
+    if (step === 0) {
+        window.changeInvoicesPageSize(100);
+        if (typeof showToast === 'function') {
+            showToast('⚡ تم تفعيل العرض بـ 100 فاتورة لكل صفحة لحماية سرعة النظام. تنقّل بين الصفحات بسلاسة عبر أزرار السابق / التالي.', 'info');
+        }
+        return;
+    }
+    window.goToInvoicesPage((window.invoicesCurrentPage || 1) + 1);
 };
 
 async function renderInvoicesTable(isLoadMore = false) {
@@ -729,19 +743,20 @@ async function renderInvoicesTable(isLoadMore = false) {
         _invoicesSearchDebounceTimer = null;
     }
 
-    // ⏳ إظهار مؤشر التحميل المركزي الموحد (الساعة الرملية) عند تحميل أو تصفية الفواتير
+    // ✨ إظهار هيكل التحميل الانسيابي (Skeleton Loader) بدون حجب الشاشة بالكامل
     const invSec = document.getElementById('invoices-section');
     const isInvActive = !invSec || !invSec.classList.contains('hidden');
     const tbody = document.getElementById('invoicesTableBody');
-    const showLoader = (typeof window.showSectionLoader === 'function' && !isLoadMore && isInvActive && (!tbody || !tbody.children || tbody.children.length === 0));
-    if (showLoader) {
-        window.showSectionLoader(null, 'جاري تحميل وتصفية الفواتير...', 'معالجة السجلات المالية وتحديث الفهرس');
-        await new Promise(r => setTimeout(r, 45));
+    const showLoader = false;
+    if (isInvActive && tbody && !isLoadMore && (!tbody.children || tbody.children.length === 0) && typeof window.renderTableSkeleton === 'function') {
+        window.renderTableSkeleton(tbody, 8, 12);
     }
     try {
         if (!isLoadMore) {
-            window.invoicesRenderLimit = 100;
+            window.invoicesCurrentPage = 1;
         }
+        const pageSize = Math.max(25, Math.min(100, parseInt(window.invoicesPageSize, 10) || 50));
+        let currentPage = Math.max(1, parseInt(window.invoicesCurrentPage, 10) || 1);
 
         const searchId = (document.getElementById('invoicesSearchId')?.value || '').toLowerCase();
         const fromDate = document.getElementById('invoicesDateFrom')?.value || '';
@@ -757,8 +772,63 @@ async function renderInvoicesTable(isLoadMore = false) {
             await window.ensureInvoiceLoaded(searchId);
         }
 
+        const activeUserEarly = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : window.currentUser;
+        const isScopedNonAdmin = Boolean(activeUserEarly && activeUserEarly.role !== 'admin');
+        const canUseSqlPagination = Boolean(
+            window.BayanSQLite &&
+            typeof window.BayanSQLite.queryFilteredInvoicePage === 'function' &&
+            window.BayanSQLite.db &&
+            !searchProduct &&
+            searchMethod === 'all' &&
+            !isScopedNonAdmin
+        );
+
+        let sqlPageMeta = null;
+        let sqlSummaryStats = null;
         let rawData = transactions;
-        if (window.BayanSQLite && typeof window.BayanSQLite.queryFilteredTransactions === 'function' && window.BayanSQLite.db) {
+
+        if (canUseSqlPagination) {
+            const pageFilters = {
+                fromDate,
+                toDate,
+                type: typeFilter,
+                warehouse: whFilterVal,
+                partner: searchPartner,
+                searchId: searchId,
+                page: currentPage,
+                pageSize: pageSize
+            };
+            const pageRes = window.BayanSQLite.queryFilteredInvoicePage(pageFilters);
+            sqlPageMeta = {
+                totalInvoices: pageRes.totalInvoices || 0,
+                totalPages: pageRes.totalPages || 1,
+                page: pageRes.page || 1,
+                pageSize: pageRes.pageSize || pageSize
+            };
+            window.invoicesCurrentPage = sqlPageMeta.page;
+            currentPage = sqlPageMeta.page;
+
+            if (typeof window.BayanSQLite.getInvoicesSummary === 'function') {
+                sqlSummaryStats = window.BayanSQLite.getInvoicesSummary(pageFilters);
+            }
+
+            if (pageRes.rows && pageRes.rows.length > 0) {
+                const existingMap = new Map((window.transactions || []).map(t => [t.id, t]));
+                pageRes.rows.forEach(t => { if (t && t.id) existingMap.set(t.id, t); });
+                let mergedList = Array.from(existingMap.values());
+                if (mergedList.length > 4000) {
+                    const keepMap = new Map();
+                    pageRes.rows.forEach(t => { if (t && t.id) keepMap.set(t.id, t); });
+                    mergedList.slice(-2000).forEach(t => { if (t && t.id) keepMap.set(t.id, t); });
+                    mergedList = Array.from(keepMap.values());
+                }
+                window.transactions = mergedList;
+                if (typeof transactions !== 'undefined') transactions = window.transactions;
+                rawData = pageRes.rows;
+            } else {
+                rawData = [];
+            }
+        } else if (window.BayanSQLite && typeof window.BayanSQLite.queryFilteredTransactions === 'function' && window.BayanSQLite.db) {
             const sqlFiltered = window.BayanSQLite.queryFilteredTransactions({
                 fromDate,
                 toDate,
@@ -766,21 +836,18 @@ async function renderInvoicesTable(isLoadMore = false) {
                 warehouse: whFilterVal,
                 partner: searchPartner,
                 searchId: searchId,
-                limit: 5000
+                limit: 5000,
+                offset: 0
             });
             if (sqlFiltered && sqlFiltered.length > 0) {
                 const existingMap = new Map((window.transactions || []).map(t => [t.id, t]));
                 sqlFiltered.forEach(t => { if (t && t.id) existingMap.set(t.id, t); });
 
                 let mergedList = Array.from(existingMap.values());
-                // سقف أمان لمنع تضخم الرام: إذا تجاوزت السجلات 6000 سجل، نحتفظ بآخر 3000 سجل + سجلات الفلتر الحالي فقط
                 if (mergedList.length > 6000) {
                     const keepMap = new Map();
-                    // 1. الاحتفاظ بكافة سجلات الفلتر الحالي
                     sqlFiltered.forEach(t => { if (t && t.id) keepMap.set(t.id, t); });
-                    // 2. الاحتفاظ بآخر 3000 سجل من السجلات المدمجة
-                    const recentSlice = mergedList.slice(-3000);
-                    recentSlice.forEach(t => { if (t && t.id) keepMap.set(t.id, t); });
+                    mergedList.slice(-3000).forEach(t => { if (t && t.id) keepMap.set(t.id, t); });
                     mergedList = Array.from(keepMap.values());
                 }
 
@@ -1021,14 +1088,27 @@ async function renderInvoicesTable(isLoadMore = false) {
 
         });
 
-        const totalMatchingInvoices = finalData.length;
-        const limit = window.invoicesRenderLimit || 500;
-        const displayedInvoices = finalData.slice(0, limit);
-        const hasMore = totalMatchingInvoices > displayedInvoices.length;
+        const totalMatchingInvoices = sqlPageMeta ? sqlPageMeta.totalInvoices : finalData.length;
+        const totalPages = sqlPageMeta ? sqlPageMeta.totalPages : Math.max(1, Math.ceil(finalData.length / pageSize));
+        const activePage = Math.min(currentPage, totalPages);
+        window.invoicesCurrentPage = activePage;
+
+        const displayedInvoices = sqlPageMeta
+            ? finalData
+            : finalData.slice((activePage - 1) * pageSize, activePage * pageSize);
+
+        const hasPagination = totalPages > 1 || totalMatchingInvoices > pageSize;
+
+        if (sqlSummaryStats && sqlPageMeta && totalPages > 1) {
+            sumTotal = parseFloat(sqlSummaryStats.sumTotal) || sumTotal;
+            sumPaid = parseFloat(sqlSummaryStats.sumPaid) || sumPaid;
+            sumDebt = parseFloat(sqlSummaryStats.sumRemaining) || sumDebt;
+            sumProfit = parseFloat(sqlSummaryStats.sumProfit) || sumProfit;
+        }
 
         if (document.getElementById('invSumCount')) {
-            document.getElementById('invSumCount').innerHTML = hasMore
-                ? `${displayedInvoices.length} <small style="font-size:0.7rem; opacity:0.85;">من ${totalMatchingInvoices}</small>`
+            document.getElementById('invSumCount').innerHTML = totalPages > 1
+                ? `${totalMatchingInvoices} <small style="font-size:0.7rem; opacity:0.85;">(صفحة ${activePage}/${totalPages})</small>`
                 : totalMatchingInvoices;
         }
 
@@ -1220,20 +1300,30 @@ async function renderInvoicesTable(isLoadMore = false) {
                 `;
         });
 
-        if (hasMore) {
+        if (hasPagination) {
+            const startIdx = totalMatchingInvoices === 0 ? 0 : ((activePage - 1) * pageSize) + 1;
+            const endIdx = Math.min(totalMatchingInvoices, startIdx + displayedInvoices.length - 1);
+            const prevDisabled = activePage <= 1 ? 'disabled style="opacity:0.45; cursor:not-allowed; background:#e2e8f0; color:#64748b; border:none; padding:7px 14px; border-radius:8px; font-weight:800; font-family:\'Cairo\', sans-serif;"' : 'style="background: linear-gradient(135deg, #059669, #047857); color: white; border: none; padding: 7px 16px; border-radius: 8px; font-weight: 800; cursor: pointer; font-family:\'Cairo\', sans-serif;"';
+            const nextDisabled = activePage >= totalPages ? 'disabled style="opacity:0.45; cursor:not-allowed; background:#e2e8f0; color:#64748b; border:none; padding:7px 14px; border-radius:8px; font-weight:800; font-family:\'Cairo\', sans-serif;"' : 'style="background: linear-gradient(135deg, #059669, #047857); color: white; border: none; padding: 7px 16px; border-radius: 8px; font-weight: 800; cursor: pointer; font-family:\'Cairo\', sans-serif;"';
+
             rowsHtml += `
-                    <tr id="invoicesLoadMoreRow" style="background: linear-gradient(135deg, #f8fafc, #f1f5f9); text-align: center;">
-                        <td colspan="15" style="padding: 16px; border-top: 2px dashed #cbd5e1;">
-                            <div style="display: flex; align-items: center; justify-content: center; gap: 14px; flex-wrap: wrap;">
-                                <span style="font-weight: 800; color: #475569; font-size: 0.92rem;">
-                                    📊 تم عرض <strong style="color: #2563eb; font-size: 1.05rem;">${displayedInvoices.length}</strong> من إجمالي <strong style="color: #1e293b; font-size: 1.05rem;">${totalMatchingInvoices}</strong> فاتورة
+                    <tr id="invoicesPaginationRow" style="background: linear-gradient(135deg, #f8fafc, #f1f5f9); text-align: center;">
+                        <td colspan="15" style="padding: 14px 16px; border-top: 2px solid #cbd5e1;">
+                            <div style="display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;">
+                                <span style="font-weight: 800; color: #334155; font-size: 0.88rem;">
+                                    📄 عرض <strong style="color: #059669;">${startIdx}–${endIdx}</strong> من إجمالي <strong style="color: #0f172a;">${totalMatchingInvoices}</strong> فاتورة
                                 </span>
-                                <button type="button" onclick="loadMoreInvoices(500)" style="background: linear-gradient(135deg, #2563eb, #1d4ed8); color: white; border: none; padding: 7px 18px; border-radius: 8px; font-weight: 800; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 2px 6px rgba(37,99,235,0.3); font-family: 'Cairo', sans-serif; transition: 0.2s;">
-                                    ➕ عرض 500 أخرى
-                                </button>
-                                <button type="button" onclick="loadMoreInvoices(0)" style="background: white; color: #475569; border: 1.5px solid #cbd5e1; padding: 7px 16px; border-radius: 8px; font-weight: 800; cursor: pointer; font-family: 'Cairo', sans-serif; transition: 0.2s;">
-                                    ⚡ عرض الكل (${totalMatchingInvoices})
-                                </button>
+                                <button type="button" onclick="goToInvoicesPage(1)" ${prevDisabled}>⏮️ الأولى</button>
+                                <button type="button" onclick="goToInvoicesPage(${activePage - 1})" ${prevDisabled}>▶️ السابق</button>
+                                <span style="background: #ffffff; border: 1.5px solid #cbd5e1; color: #0f172a; padding: 6px 14px; border-radius: 8px; font-weight: 900; font-size: 0.88rem;">
+                                    صفحة ${activePage} من ${totalPages}
+                                </span>
+                                <button type="button" onclick="goToInvoicesPage(${activePage + 1})" ${nextDisabled}>التالي ◀️</button>
+                                <button type="button" onclick="goToInvoicesPage(${totalPages})" ${nextDisabled}>الأخيرة ⏭️</button>
+                                <select onchange="changeInvoicesPageSize(this.value)" style="padding: 6px 10px; border-radius: 8px; border: 1.5px solid #cbd5e1; font-weight: 800; font-family: 'Cairo', sans-serif; background: #ffffff; color: #0f172a; cursor: pointer;">
+                                    <option value="50" ${pageSize === 50 ? 'selected' : ''}>50 فاتورة / صفحة</option>
+                                    <option value="100" ${pageSize === 100 ? 'selected' : ''}>100 فاتورة / صفحة</option>
+                                </select>
                             </div>
                         </td>
                     </tr>`;

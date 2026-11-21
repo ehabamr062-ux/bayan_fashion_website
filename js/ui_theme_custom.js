@@ -527,16 +527,64 @@ function handleLogoUpload(input) {
 
     const reader = new FileReader();
     reader.onload = function (e) {
-        const base64 = e.target.result;
-        try {
-            setStore('bayan_business_logo', base64);
-            setStore('bayan_user_confirmed_custom_logo', 'true');
-            updateLogoDisplays(base64);
-            // عرض تنبيه نجاح (إذا كانت الدالة موجودة)
-            showToast("تم تحديث الشعار بنجاح ✅", "success");
-        } catch (err) {
-            showToast("⚠️ عذراً، مساحة التخزين ممتلئة. حاول استخدام صورة أصغر حجماً.", "error");
-        }
+        const rawBase64 = e.target.result;
+        const img = new Image();
+        img.onload = function () {
+            let finalLogo = rawBase64;
+            try {
+                // ⚡ ضغط اللوجو تلقائياً إلى WebP بأبعاد قصوى 300x300 وحجم < 50KB بدلاً من 2MB
+                const maxDim = 300;
+                let w = img.width;
+                let h = img.height;
+                if (w > maxDim || h > maxDim) {
+                    if (w > h) {
+                        h = Math.round((h * maxDim) / w);
+                        w = maxDim;
+                    } else {
+                        w = Math.round((w * maxDim) / h);
+                        h = maxDim;
+                    }
+                }
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, 0, 0, w, h);
+                let webpLogo = canvas.toDataURL('image/webp', 0.78);
+                if (!webpLogo || !webpLogo.startsWith('data:image/webp')) {
+                    webpLogo = canvas.toDataURL('image/jpeg', 0.78);
+                }
+                // في حال كان الملف لا يزال أكبر من 50KB نضغطه بجودة أقل تلقائياً
+                if (webpLogo.length > 68000) {
+                    webpLogo = canvas.toDataURL('image/webp', 0.62);
+                }
+                finalLogo = webpLogo;
+            } catch (_) {
+                finalLogo = rawBase64;
+            }
+
+            try {
+                setStore('bayan_business_logo', finalLogo);
+                setStore('bayan_user_confirmed_custom_logo', 'true');
+                updateLogoDisplays(finalLogo);
+                showToast("تم ضغط وتحديث الشعار بصيغة WebP الخفيفة بنجاح ✅", "success");
+            } catch (err) {
+                showToast("⚠️ عذراً، مساحة التخزين ممتلئة. حاول استخدام صورة أصغر حجماً.", "error");
+            }
+        };
+        img.onerror = function () {
+            try {
+                setStore('bayan_business_logo', rawBase64);
+                setStore('bayan_user_confirmed_custom_logo', 'true');
+                updateLogoDisplays(rawBase64);
+                showToast("تم تحديث الشعار بنجاح ✅", "success");
+            } catch (err) {
+                showToast("⚠️ عذراً، مساحة التخزين ممتلئة.", "error");
+            }
+        };
+        img.src = rawBase64;
     };
     reader.readAsDataURL(file);
 }

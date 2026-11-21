@@ -570,19 +570,15 @@ window.handleInventorySearchKeyDown = function(e) {
 
 window.inventoryRenderLimit = 100;
 window.loadMoreInventory = function(step) {
+    const MAX_SAFE_CEILING = 500;
     if (step === 0) {
-        const MAX_SAFE_CEILING = 300;
         const total = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB.length : 0;
-        if (total > MAX_SAFE_CEILING) {
-            window.inventoryRenderLimit = MAX_SAFE_CEILING;
-            if (typeof showToast === 'function') {
-                showToast(`⚡ تم عرض أول ${MAX_SAFE_CEILING} صنف لحماية سرعة جهازك. استخدم شريط البحث للوصول الفوري لأي صنف.`, 'info');
-            }
-        } else {
-            window.inventoryRenderLimit = Infinity;
+        window.inventoryRenderLimit = Math.min(MAX_SAFE_CEILING, Math.max(100, total));
+        if (total > MAX_SAFE_CEILING && typeof showToast === 'function') {
+            showToast(`⚡ تم عرض أول ${MAX_SAFE_CEILING} صنف لحماية سرعة جهازك. استخدم شريط البحث للوصول الفوري لأي صنف.`, 'info');
         }
     } else {
-        window.inventoryRenderLimit = (window.inventoryRenderLimit || 100) + step;
+        window.inventoryRenderLimit = Math.min(MAX_SAFE_CEILING, (window.inventoryRenderLimit || 100) + step);
     }
     renderInventoryTable(true);
 };
@@ -610,12 +606,9 @@ async function renderInventoryTable(isLoadMore = false) {
     const search = cleanAr(rawSearch);
     const catFilter = document.getElementById('invCategoryFilter')?.value || 'all';
 
-    const showLoader = (!rawSearch && !isLoadMore && typeof window.showSectionLoader === 'function' && (!tbody.children || tbody.children.length === 0));
-    if (showLoader) {
-        const allProds = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
-        const activeCount = allProds.filter(p => !p.isDeleted).length;
-        window.showSectionLoader(null, 'جاري قراءة وتجهيز الأصناف...', `جاري تحميل بيانات ${activeCount} صنف...`, activeCount);
-        await new Promise(r => setTimeout(r, 45));
+    const showLoader = false;
+    if (!rawSearch && !isLoadMore && (!tbody.children || tbody.children.length === 0) && typeof window.renderTableSkeleton === 'function') {
+        window.renderTableSkeleton(tbody, 8, 12);
     }
 
     try {
@@ -1263,12 +1256,10 @@ async function renderWarehouseReportTable(isSearchTrigger = false) {
 
     if (!head || !body) return;
 
-    const showLoader = (!isSearchTrigger && typeof window.showSectionLoader === 'function');
-    if (showLoader) {
-        const allProds = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
-        const activeCount = allProds.filter(p => !p.isDeleted).length;
-        window.showSectionLoader(null, 'جاري جرد أرصدة المخازن...', `احتساب كميات وتكاليف (${activeCount}) صنف في الفروع...`, activeCount);
-        await new Promise(r => setTimeout(r, 45));
+    const showLoader = false;
+    if (!isSearchTrigger && (!body.children || body.children.length === 0)) {
+        if (typeof window.renderTableSkeleton === 'function') window.renderTableSkeleton(body, 8, 9);
+        if (summaryContainer && typeof window.renderKpiSkeleton === 'function') window.renderKpiSkeleton(summaryContainer, 4);
     }
     try {
         const canViewProfits = (typeof hasPermission === 'function') ? hasPermission('general_profits') : true;
@@ -2878,7 +2869,7 @@ window.openProductImagePreview = function(productId, event) {
                 <button onclick="document.getElementById('bayanImgPreviewOverlay').remove()" style="background: #fee2e2; border: 1.5px solid #fca5a5; color: #dc2626; border-radius: 50%; width: 34px; height: 34px; font-weight: 900; cursor: pointer; font-size: 1.1rem; display: flex; align-items: center; justify-content: center; transition: 0.2s;" onmouseover="this.style.background='#fca5a5'" onmouseout="this.style.background='#fee2e2'">✕</button>
             </div>
             <div style="overflow: hidden; border-radius: 16px; border: 1.5px solid #e2e8f0; background: #f8fafc; display: flex; align-items: center; justify-content: center; max-height: 70vh;">
-                <img src="${p.image}" alt="${p.name || ''}" style="max-width: 75vw; max-height: 68vh; object-fit: contain; display: block; border-radius: 14px;">
+                <img src="${p.image}" alt="${p.name || ''}" loading="lazy" decoding="async" style="max-width: 75vw; max-height: 68vh; object-fit: contain; display: block; border-radius: 14px;">
             </div>
             <div style="display: flex; justify-content: space-between; width: 100%; align-items: center; font-size: 0.82rem; color: #64748b; font-weight: 800;">
                 <span>💡 اضغط في أي مكان بالخارج للإغلاق السريع</span>

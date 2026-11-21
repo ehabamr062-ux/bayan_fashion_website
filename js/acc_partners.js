@@ -2264,7 +2264,7 @@
 
             const logoHTML = shopLogo && !shopLogo.includes('undefined') 
 
-                ? `<img src="${shopLogo}" style="max-height:60px; max-width:100px;">` 
+                ? `<img src="${shopLogo}" loading="lazy" decoding="async" style="max-height:60px; max-width:100px;">` 
 
                 : '';
 

@@ -1137,21 +1137,12 @@
                     raw_json TEXT
                 );
                 CREATE INDEX IF NOT EXISTS idx_ti_invoiceId ON transaction_items(invoiceId);
+                CREATE INDEX IF NOT EXISTS idx_ti_tx_id ON transaction_items(tx_id);
                 CREATE INDEX IF NOT EXISTS idx_ti_barcode ON transaction_items(barcode);
-                CREATE INDEX IF NOT EXISTS idx_ti_date ON transaction_items(dateISO);
                 CREATE INDEX IF NOT EXISTS idx_ti_wh_barcode ON transaction_items(warehouse, barcode);
-                CREATE INDEX IF NOT EXISTS idx_ti_productName ON transaction_items(productName);
-                CREATE INDEX IF NOT EXISTS idx_items_date_prod ON transaction_items(dateISO, productName);
                 CREATE INDEX IF NOT EXISTS idx_ti_prod_wh_date ON transaction_items(productName, warehouse, dateISO);
                 CREATE INDEX IF NOT EXISTS idx_ti_wh_date ON transaction_items(warehouse, dateISO);
-                CREATE INDEX IF NOT EXISTS idx_ti_partner_date ON transaction_items(partner, dateISO);
-                CREATE INDEX IF NOT EXISTS idx_ti_type_date ON transaction_items(type, dateISO);
-                CREATE INDEX IF NOT EXISTS idx_ti_tx_id ON transaction_items(tx_id);
-                CREATE INDEX IF NOT EXISTS idx_ti_date_barcode ON transaction_items(dateISO, barcode);
                 CREATE INDEX IF NOT EXISTS idx_ti_date_type ON transaction_items(dateISO, type);
-                CREATE INDEX IF NOT EXISTS idx_ti_size_color ON transaction_items(size, color);
-                CREATE INDEX IF NOT EXISTS idx_ti_src_wh ON transaction_items(json_extract(raw_json, '$.sourceWarehouse'));
-                CREATE INDEX IF NOT EXISTS idx_ti_to_wh ON transaction_items(json_extract(raw_json, '$.toWarehouse'));
             `);
 
             // 3. جدول الحسابات (العملاء والموردين)
@@ -1221,20 +1212,33 @@
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_trash_type ON trash(type);");
             } catch (e) { }
             try {
-                this.db.run("CREATE INDEX IF NOT EXISTS idx_items_date_prod ON transaction_items(dateISO, productName);");
-            } catch (e) { }
-            try {
-                this.db.run("CREATE INDEX IF NOT EXISTS idx_ti_size_color ON transaction_items(size, color);");
-            } catch (e) { }
-            try {
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_type_status_date ON transactions(type, status, dateISO);");
             } catch (e) { }
+
+            // 🧹 ترشيد تخمة فهارس transaction_items (حذف 9 فهارس مكررة/JSON لمرة واحدة لتسريع INSERT/UPDATE بنسبة >50%)
             try {
-                this.db.run("CREATE INDEX IF NOT EXISTS idx_ti_src_wh ON transaction_items(json_extract(raw_json, '$.sourceWarehouse'));");
-            } catch (e) { }
-            try {
-                this.db.run("CREATE INDEX IF NOT EXISTS idx_ti_to_wh ON transaction_items(json_extract(raw_json, '$.toWarehouse'));");
-            } catch (e) { }
+                let tiPruned = false;
+                if (this.isNative && this.nativeDb) {
+                    const prRow = this.nativeDb.prepare("SELECT value FROM settings WHERE id = 'ti_indexes_pruned_v2'").get();
+                    if (prRow && String(prRow.value) === '1') tiPruned = true;
+                } else {
+                    const prRes = this.db.exec("SELECT value FROM settings WHERE id = 'ti_indexes_pruned_v2'");
+                    if (prRes && prRes[0] && prRes[0].values && prRes[0].values.length > 0 && String(prRes[0].values[0][0]) === '1') {
+                        tiPruned = true;
+                    }
+                }
+                if (!tiPruned) {
+                    const bloatTiIndexes = [
+                        'idx_ti_date', 'idx_ti_productName', 'idx_items_date_prod',
+                        'idx_ti_partner_date', 'idx_ti_type_date', 'idx_ti_date_barcode',
+                        'idx_ti_size_color', 'idx_ti_src_wh', 'idx_ti_to_wh'
+                    ];
+                    for (const idxName of bloatTiIndexes) {
+                        try { this.db.run(`DROP INDEX IF EXISTS ${idxName};`); } catch (_) { }
+                    }
+                    this.db.run("INSERT OR REPLACE INTO settings (id, value) VALUES ('ti_indexes_pruned_v2', '1');");
+                }
+            } catch (tiPruneErr) { }
 
             // 🛡️ عزل استعلامات الترقية الثقيلة لتعمل مرة واحدة فقط داخل معاملة Transaction
             if (!isV3Migrated) {
@@ -1428,7 +1432,7 @@
                 if (!imgDir || !this.fs) return imageData; // الحفاظ على Base64 كصمام أمان في حال عدم توفر نظام الملفات
                 try {
                     const matches = imageData.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
-                    const ext = (matches && matches[1] === 'png') ? 'png' : 'jpg';
+                    const ext = matches ? (matches[1] === 'webp' ? 'webp' : (matches[1] === 'png' ? 'png' : 'jpg')) : 'jpg';
                     const base64Str = matches ? matches[2] : (imageData.indexOf(',') !== -1 ? imageData.split(',')[1] : imageData);
                     if (!base64Str) return imageData;
 
@@ -3365,7 +3369,8 @@
                     cashier = '',
                     partner = '',
                     searchId = '',
-                    limit = 5000
+                    limit = 5000,
+                    offset = 0
                 } = filters;
 
                 let sql = "SELECT * FROM transactions WHERE (status IS NULL OR status != 'void')";
@@ -3413,8 +3418,9 @@
                 }
 
                 const lim = parseInt(limit, 10) || 5000;
-                sql += " ORDER BY dateISO DESC, id DESC LIMIT ?;";
-                params.push(lim);
+                const off = Math.max(0, parseInt(offset, 10) || 0);
+                sql += " ORDER BY dateISO DESC, id DESC LIMIT ? OFFSET ?;";
+                params.push(lim, off);
 
                 if (this.isNative && this.nativeDb) {
                     const rows = this.nativeDb.prepare(sql).all(...params);
@@ -3433,6 +3439,176 @@
             } catch (err) {
                 console.warn("[SQLite] queryFilteredTransactions error:", err.message);
                 return [];
+            }
+        }
+
+        /**
+         * ⚡ تقسيم صفحات حقيقي للفواتير المجمّعة (LIMIT + OFFSET) يدعم 120,000+ فاتورة بلا تحميل زائد
+         */
+        queryFilteredInvoicePage(filters = {}) {
+            if (!this.db) return { rows: [], totalInvoices: 0, totalPages: 1, page: 1, pageSize: 50 };
+            try {
+                const {
+                    fromDate = '',
+                    toDate = '',
+                    type = 'all',
+                    warehouse = '',
+                    cashier = '',
+                    partner = '',
+                    searchId = '',
+                    page = 1,
+                    pageSize = 50
+                } = filters;
+
+                const safePageSize = Math.max(10, Math.min(200, parseInt(pageSize, 10) || 50));
+                const safePage = Math.max(1, parseInt(page, 10) || 1);
+                const offset = (safePage - 1) * safePageSize;
+
+                let whereClause = " WHERE (status IS NULL OR status != 'void')";
+                const params = [];
+
+                if (fromDate) {
+                    whereClause += " AND dateISO >= ?";
+                    params.push(String(fromDate).trim());
+                }
+                if (toDate) {
+                    whereClause += " AND dateISO <= ?";
+                    params.push(String(toDate).trim());
+                }
+                if (type && type !== 'all') {
+                    if (type === 'بيع') {
+                        whereClause += " AND (type LIKE '%بيع%' AND type NOT LIKE '%مرتجع%')";
+                    } else if (type === 'شراء') {
+                        whereClause += " AND ((type LIKE '%شراء%' OR type LIKE '%مشتريات%') AND type NOT LIKE '%مرتجع%')";
+                    } else if (type === 'مرتجع بيع') {
+                        whereClause += " AND (type LIKE '%مرتجع%' AND type LIKE '%بيع%')";
+                    } else if (type === 'مرتجع شراء') {
+                        whereClause += " AND (type LIKE '%مرتجع%' AND (type LIKE '%شراء%' OR type LIKE '%مشتريات%'))";
+                    } else {
+                        whereClause += " AND type LIKE ?";
+                        params.push(`%${type}%`);
+                    }
+                }
+                if (warehouse && warehouse !== 'all') {
+                    whereClause += " AND (warehouse = ? OR (warehouse IS NULL AND ? = 'المخزن الرئيسي'))";
+                    params.push(warehouse, warehouse);
+                }
+                if (cashier && cashier !== 'all') {
+                    whereClause += " AND cashier = ?";
+                    params.push(cashier);
+                }
+                if (partner) {
+                    const p = String(partner).trim();
+                    whereClause += " AND (partner = ? OR partner LIKE ?)";
+                    params.push(p, `%${p}%`);
+                }
+                if (searchId) {
+                    const sId = String(searchId).trim();
+                    whereClause += " AND (invoiceId = ? OR id = ? OR originalInvoiceId = ? OR invoiceId LIKE ?)";
+                    params.push(sId, sId, sId, `%${sId}%`);
+                }
+
+                // 1. إجمالي عدد الفواتير الفريدة المطابقة
+                const keyExpr = "CASE WHEN invoiceId IS NOT NULL AND invoiceId != '' AND invoiceId != '---' THEN invoiceId || '||' || COALESCE(type, '') ELSE 'ROW||' || id END";
+                const countSql = `SELECT COUNT(DISTINCT ${keyExpr}) AS cnt FROM transactions ${whereClause};`;
+                let totalInvoices = 0;
+                if (this.isNative && this.nativeDb) {
+                    const cRow = this.nativeDb.prepare(countSql).get(...params);
+                    totalInvoices = cRow ? (parseInt(cRow.cnt, 10) || 0) : 0;
+                } else {
+                    const cStmt = this.db.prepare(countSql);
+                    cStmt.bind(params);
+                    if (cStmt.step()) {
+                        const cRow = cStmt.getAsObject();
+                        totalInvoices = parseInt(cRow.cnt, 10) || 0;
+                    }
+                    cStmt.free();
+                }
+
+                const totalPages = Math.max(1, Math.ceil(totalInvoices / safePageSize));
+                const effectivePage = Math.min(safePage, totalPages);
+                const effectiveOffset = (effectivePage - 1) * safePageSize;
+
+                if (totalInvoices === 0) {
+                    return { rows: [], totalInvoices: 0, totalPages: 1, page: 1, pageSize: safePageSize };
+                }
+
+                // 2. جلب مفاتيح الفواتير للصفحة الحالية فقط عبر LIMIT + OFFSET
+                const pageKeysSql = `
+                    SELECT ${keyExpr} AS grpKey, MAX(dateISO) AS maxDate, MAX(id) AS maxId
+                    FROM transactions
+                    ${whereClause}
+                    GROUP BY grpKey
+                    ORDER BY maxDate DESC, maxId DESC
+                    LIMIT ? OFFSET ?;
+                `;
+                let keyRows = [];
+                if (this.isNative && this.nativeDb) {
+                    keyRows = this.nativeDb.prepare(pageKeysSql).all(...params, safePageSize, effectiveOffset);
+                } else {
+                    const kStmt = this.db.prepare(pageKeysSql);
+                    kStmt.bind([...params, safePageSize, effectiveOffset]);
+                    while (kStmt.step()) keyRows.push(kStmt.getAsObject());
+                    kStmt.free();
+                }
+
+                if (!keyRows || keyRows.length === 0) {
+                    return { rows: [], totalInvoices, totalPages, page: effectivePage, pageSize: safePageSize };
+                }
+
+                const invIds = [];
+                const standaloneIds = [];
+                for (const kr of keyRows) {
+                    const gk = String(kr.grpKey || '');
+                    if (gk.startsWith('ROW||')) {
+                        standaloneIds.push(gk.slice(5));
+                    } else {
+                        const sep = gk.indexOf('||');
+                        const invPart = sep !== -1 ? gk.slice(0, sep) : gk;
+                        if (invPart) invIds.push(invPart);
+                    }
+                }
+
+                // 3. جلب كل أسطر الفواتير الواقعة في هذه الصفحة فقط
+                const conds = [];
+                const fetchParams = [];
+                if (invIds.length > 0) {
+                    conds.push(`invoiceId IN (${invIds.map(() => '?').join(',')})`);
+                    fetchParams.push(...invIds);
+                }
+                if (standaloneIds.length > 0) {
+                    conds.push(`id IN (${standaloneIds.map(() => '?').join(',')})`);
+                    fetchParams.push(...standaloneIds);
+                }
+                if (conds.length === 0) {
+                    return { rows: [], totalInvoices, totalPages, page: effectivePage, pageSize: safePageSize };
+                }
+
+                const rowsSql = `SELECT * FROM transactions WHERE (status IS NULL OR status != 'void') AND (${conds.join(' OR ')}) ORDER BY dateISO DESC, id DESC;`;
+                let rows = [];
+                if (this.isNative && this.nativeDb) {
+                    const rawRows = this.nativeDb.prepare(rowsSql).all(...fetchParams);
+                    rows = rawRows ? rawRows.map(r => this._reconstructRow(r)).filter(Boolean) : [];
+                } else {
+                    const rStmt = this.db.prepare(rowsSql);
+                    rStmt.bind(fetchParams);
+                    while (rStmt.step()) {
+                        const obj = this._reconstructRow(rStmt.getAsObject());
+                        if (obj) rows.push(obj);
+                    }
+                    rStmt.free();
+                }
+
+                return {
+                    rows,
+                    totalInvoices,
+                    totalPages,
+                    page: effectivePage,
+                    pageSize: safePageSize
+                };
+            } catch (err) {
+                console.warn("[SQLite] queryFilteredInvoicePage error:", err.message);
+                return { rows: [], totalInvoices: 0, totalPages: 1, page: 1, pageSize: 50 };
             }
         }
 

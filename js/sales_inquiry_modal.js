@@ -1150,7 +1150,7 @@
                         </div>
                         <div style="height: 190px; background: #f8fafc; border: 2px dashed #94a3b8; border-radius: 12px; display: flex; align-items: center; justify-content: center; overflow: hidden; position: relative; padding: 4px; box-sizing: border-box;">
                             ${p.image ? `
-                                <img src="${p.image}" alt="${p.name}" style="max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; border-radius: 8px;">
+                                <img src="${p.image}" alt="${p.name}" loading="lazy" decoding="async" style="max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; border-radius: 8px;">
                             ` : `
                                 <div style="display: flex; flex-direction: column; align-items: center; color: #475569;">
                                     <span style="font-size: 3.5rem;">👗</span>

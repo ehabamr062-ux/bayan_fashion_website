@@ -1181,7 +1181,7 @@ window.handleProductImage = function (event) {
         const img = new Image();
         img.onload = function () {
             try {
-                const maxDim = 400; // أبعاد قصوى ممتازة للوضوح والطباعة بحجم خفيف جداً
+                const maxDim = 800; // أبعاد قصوى عالية الوضوح مع ضغط WebP فائق الخفة
                 let w = img.width;
                 let h = img.height;
                 if (w > maxDim || h > maxDim) {
@@ -1200,8 +1200,11 @@ window.handleProductImage = function (event) {
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
                 ctx.drawImage(img, 0, 0, w, h);
-                // ضغط الصورة إلى JPEG عالي النقاء بحجم 25-45KB فقط
-                const compressedData = canvas.toDataURL('image/jpeg', 0.82);
+                // ضغط الصورة تلقائياً إلى WebP بجودة 0.78 (أخف بـ 35-50% من JPEG) مع احتياطي JPEG
+                let compressedData = canvas.toDataURL('image/webp', 0.78);
+                if (!compressedData || !compressedData.startsWith('data:image/webp')) {
+                    compressedData = canvas.toDataURL('image/jpeg', 0.78);
+                }
                 applyCompressedImageData(compressedData);
             } catch (err) {
                 applyCompressedImageData(rawData);
