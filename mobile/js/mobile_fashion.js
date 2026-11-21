@@ -229,32 +229,15 @@
         }
     }
 
-    // 🛡️ حفظ الأصناف محلياً بأمان مع حماية المتصفح من انهيار السعة (QuotaExceededError Protection)
+    // 🛡️ حفظ الأصناف في IndexedDB (MobileIDB) بسعة مفتوحة وسرعة عالية بدلاً من localStorage المحدود
     function safelyPersistProducts(productsList) {
         window.allProducts = productsList;
-        try {
-            localStorage.setItem(CONFIG.STORAGE_PREFIX + 'products', JSON.stringify(productsList));
-        } catch (storageErr) {
-            const isQuota = storageErr && (
-                storageErr.name === 'QuotaExceededError' ||
-                storageErr.name === 'NS_ERROR_DOM_QUOTA_REACHED' ||
-                storageErr.code === 22 ||
-                storageErr.code === 1014 ||
-                String(storageErr.message || '').toLowerCase().includes('quota')
-            );
-            if (isQuota) {
-                console.warn('⚠️ [StorageQuota] Products catalog exceeds localStorage quota. Retaining full catalog in window.allProducts and RAM.');
-                try {
-                    // الاحتفاظ بأول 500 صنف فقط للأوفلاين تفادياً لضياع كامل البيانات
-                    if (Array.isArray(productsList) && productsList.length > 500) {
-                        localStorage.setItem(CONFIG.STORAGE_PREFIX + 'products', JSON.stringify(productsList.slice(0, 500)));
-                    }
-                } catch (subErr) { }
-                showToast('⚡ حجم الأصناف كبير، تم حفظ الكتالوج كاملاً في الذاكرة السريعة دون استهلاك مساحة الهاتف', 'info');
-            } else {
-                console.warn('[Storage] Product save error:', storageErr);
-            }
+        const shopId = State.shopId || CONFIG.SHOP_ID || '';
+        if (typeof MobileIDB !== 'undefined' && MobileIDB && typeof MobileIDB.putMany === 'function') {
+            MobileIDB.putMany('products', productsList, shopId).catch(() => { });
         }
+        // تفريغ المفتاح الثقيل القديم من localStorage للحفاظ على سرعة المتصفح
+        try { localStorage.removeItem(CONFIG.STORAGE_PREFIX + 'products'); } catch (_) { }
     }
 
     async function checkServerInfo() {
@@ -1294,23 +1277,18 @@
         } catch (e) {
             console.warn('[SupabaseMobile] Pull data error:', e);
             updateConnectionStatus(false, navigator.onLine ? 'تعذر مزامنة السحابة (جاري المحاولة)' : 'أوفلاين (يعمل محلياً)');
-            const cachedP = localStorage.getItem(CONFIG.STORAGE_PREFIX + 'products');
-            const cachedT = localStorage.getItem(CONFIG.STORAGE_PREFIX + 'transactions');
-            const cachedC = localStorage.getItem(CONFIG.STORAGE_PREFIX + 'customers');
-            const cachedA = localStorage.getItem(CONFIG.STORAGE_PREFIX + 'accounts');
-            if (cachedP) {
-                try {
-                    State.products = JSON.parse(cachedP);
-                    window.allProducts = State.products;
-                } catch (e) { }
-            }
-            if (cachedT) { try { State.transactions = JSON.parse(cachedT); } catch (e) { } }
-            if (cachedC) { try { State.customers = JSON.parse(cachedC); } catch (e) { } }
-            if (cachedA) {
-                try { State.accounts = JSON.parse(cachedA); } catch (e) { }
-            } else if (cachedC) {
-                State.accounts = State.customers;
-            }
+            // القراءة الأساسية السريعة من IndexedDB (MobileIDB) بسعة مفتوحة
+            const activeShopId = State.shopId || CONFIG.SHOP_ID || '';
+            try {
+                const [idbP, idbT, idbA] = await Promise.all([
+                    MobileIDB.getAll('products', activeShopId),
+                    MobileIDB.getAll('transactions', activeShopId),
+                    MobileIDB.getAll('accounts', activeShopId)
+                ]);
+                if (idbP.length > 0) { State.products = idbP; window.allProducts = idbP; }
+                if (idbT.length > 0) State.transactions = idbT;
+                if (idbA.length > 0) { State.accounts = idbA; State.customers = idbA; }
+            } catch (_) { }
             renderCurrentView();
         }
     }
@@ -4190,6 +4168,7 @@
         // Construct Product Object (جديد أو تعديل صنف قائم)
         const isEditMode = Boolean(State.editingProductId);
         const newProdId = isEditMode ? String(State.editingProductId) : String(Date.now());
+        const resolvedImage = await tryUploadProductImageToStorage(State.newProductImageBase64 || '', currentShopId, newProdId);
         const newProduct = {
             id: newProdId,
             name: name,
@@ -4203,7 +4182,7 @@
             quantity: totalStock,
             warehouseStocks: { [activeWh]: totalStock },
             variants: variantsList,
-            image: State.newProductImageBase64 || '',
+            image: resolvedImage,
             shop_id: currentShopId,
             created_at: (isEditMode && State.editingProductSnapshot?.created_at) ? State.editingProductSnapshot.created_at : new Date().toISOString(),
             updated_at: new Date().toISOString()
@@ -5371,6 +5350,33 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
     // ============================================================
     // ☁️ CLOUD & LOCAL BACKUP ENGINE (v5.1.40 Full State Backup & Restore)
     // ============================================================
+    // ☁️ رفع صورة الصنف إلى مجلد الصور السحابي (Supabase Storage) إن كان متاحاً لتخفيف حجم JSON والمزامنة
+    async function tryUploadProductImageToStorage(base64DataUrl, shopId, prodId) {
+        if (!base64DataUrl || !base64DataUrl.startsWith('data:image/') || !navigator.onLine || !isValidPairedShop(shopId)) {
+            return base64DataUrl || '';
+        }
+        try {
+            const resp = await fetch(base64DataUrl);
+            const blob = await resp.blob();
+            const filePath = `${shopId}/${prodId}.jpg`;
+            const uploadUrl = `${SUPABASE_CONFIG.url}/storage/v1/object/product-images/${encodeURIComponent(shopId)}/${encodeURIComponent(prodId)}.jpg`;
+            const upRes = await fetch(uploadUrl, {
+                method: 'POST',
+                headers: {
+                    'apikey': SUPABASE_CONFIG.key,
+                    'Authorization': `Bearer ${SUPABASE_CONFIG.key}`,
+                    'Content-Type': 'image/jpeg',
+                    'x-upsert': 'true'
+                },
+                body: blob
+            });
+            if (upRes.ok) {
+                return `${SUPABASE_CONFIG.url}/storage/v1/object/public/product-images/${filePath}`;
+            }
+        } catch (_) { }
+        return base64DataUrl;
+    }
+
     function buildFullBackupObject() {
         const shopId = State.shopId || CONFIG.SHOP_ID || localStorage.getItem('bayan_mob_shop_id') || '';
         let customCats = [];
