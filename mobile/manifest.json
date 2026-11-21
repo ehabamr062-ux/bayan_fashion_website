@@ -1,0 +1,21 @@
+{
+  "name": "بيان فاشون موبايل - BAYAN POS",
+  "short_name": "بيان موبايل",
+  "description": "لوحة المتابعة الحية ومراقبة الدرج والبيع السريع - بَيَان POS فاشون",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0b0f19",
+  "theme_color": "#059669",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "../media/bayan_logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

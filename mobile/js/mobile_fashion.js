@@ -1468,8 +1468,15 @@
         let totalReturns = 0;
         let cashReturns = 0;
         let expenses = 0;
+        let totalCostOfGoods = 0;
         let invoiceCount = 0;
         let itemsCount = 0;
+
+        // فهرس سريع لتكلفة الأصناف لحساب صافي الربح بدقة
+        const prodCostMap = new Map();
+        (State.products || []).forEach(p => {
+            if (p && p.id) prodCostMap.set(String(p.id), parseFloat(p.cost || 0) || 0);
+        });
 
         const startISO = range.start;
         const endISO = range.end;
@@ -1527,6 +1534,13 @@
                     }
                     const qVal = parseFloat(t.qty || (Array.isArray(t.items) ? t.items.reduce((sum, it) => sum + (parseFloat(it.quantity || it.qty || 1) || 1), 0) : 1)) || 1;
                     itemsCount += qVal;
+                    if (isHead && Array.isArray(t.items)) {
+                        t.items.forEach(it => {
+                            const itQty = parseFloat(it.quantity || it.qty || 1) || 1;
+                            const itCost = parseFloat(it.cost) || prodCostMap.get(String(it.productId || it.id || '')) || 0;
+                            totalCostOfGoods += (itCost * itQty);
+                        });
+                    }
                 } else if (isReturnType) {
                     if (isHead) {
                         totalReturns += amt;
@@ -1560,10 +1574,13 @@
         const netCashPeriod = (cashSales - cashReturns - expenses);
         const displayedDrawerCash = netCashPeriod;
 
+        const netProfit = totalSales - totalReturns - totalCostOfGoods - expenses;
+
         return {
             netDrawerCash: displayedDrawerCash,
             netDrawerCashAllTime,
             netCashPeriod,
+            netProfit,
             totalSales,
             cashSales,
             vodafoneSales,
@@ -1813,6 +1830,12 @@
         if (elVoda) elVoda.textContent = stats.vodafoneSales.toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
         if (elCard) elCard.textContent = stats.cardSales.toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
         if (elExpense) elExpense.textContent = stats.expenses.toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
+        const elNetProfit = document.getElementById('statNetProfitAmount');
+        if (elNetProfit) {
+            const np = stats.netProfit || 0;
+            elNetProfit.textContent = np.toLocaleString('ar-EG', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ج.م';
+            elNetProfit.style.color = np >= 0 ? 'var(--emerald)' : 'var(--rose)';
+        }
 
         // تنبيه النواقص السريع في الداشبورد
         const lowStockBanner = document.getElementById('dashLowStockBanner');
@@ -3310,6 +3333,11 @@
                             <button type="button" class="btn-action-edit" style="flex: 1;" onclick="window.BayanMobile.editInvoice('${tx.invoiceId || tx.id}')">
                                 <span>✏️</span> تعديل
                             </button>
+                            ${classifyTransaction(tx).key === 'sale' ? `
+                            <button type="button" class="btn-action-edit" style="flex: 1; background: linear-gradient(135deg, #ea580c, #c2410c); box-shadow: 0 4px 12px rgba(234, 88, 12, 0.3);" onclick="window.BayanMobile.returnInvoice('${tx.invoiceId || tx.id}')">
+                                <span>↩️</span> مرتجع
+                            </button>
+                            ` : ''}
                             <button type="button" class="btn-action-delete" style="flex: 1;" onclick="window.BayanMobile.deleteInvoice('${tx.invoiceId || tx.id}')">
                                 <span>🗑️</span> حذف
                             </button>
@@ -5841,6 +5869,11 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                         <button type="button" class="btn-acc-action statement" onclick="window.BayanMobile.openAccountStatement('${a.id || safeName}')">
                             <span>🧾</span> كشف الحساب
                         </button>
+                        ${!isSupp && bal > 0 ? `
+                        <button type="button" class="btn-acc-action" style="background: rgba(16, 185, 129, 0.14); color: var(--emerald); border-color: rgba(16, 185, 129, 0.35);" onclick="window.BayanMobile.collectCustomerPayment('${a.id || safeName}')">
+                            <span>💵</span> تحصيل
+                        </button>
+                        ` : ''}
                         ${!isSupp ? `
                         <button type="button" class="btn-acc-action pos" onclick="window.BayanMobile.quickSaleForAccount('${safeName}')">
                             <span>🛒</span> بيع سريع
@@ -6197,6 +6230,318 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
     }
 
     // ============================================================
+    // 💸 QUICK EXPENSE, CUSTOMER PAYMENT COLLECTION & INVOICE RETURN
+    // ============================================================
+    function openQuickExpenseModal() {
+        const modal = document.getElementById('quickExpenseModalOverlay');
+        if (!modal) return;
+        const amtInp = document.getElementById('quickExpenseAmount');
+        const reasonInp = document.getElementById('quickExpenseReason');
+        if (amtInp) amtInp.value = '';
+        if (reasonInp) reasonInp.value = '';
+        modal.classList.add('active');
+        if (amtInp) setTimeout(() => amtInp.focus(), 200);
+    }
+
+    function closeQuickExpenseModal() {
+        const modal = document.getElementById('quickExpenseModalOverlay');
+        if (modal) modal.classList.remove('active');
+    }
+
+    async function submitQuickExpense() {
+        const amtInp = document.getElementById('quickExpenseAmount');
+        const reasonInp = document.getElementById('quickExpenseReason');
+        const amount = parseFloat(amtInp?.value || 0) || 0;
+        const reason = String(reasonInp?.value || '').trim();
+
+        if (amount <= 0) {
+            showToast('يرجى إدخال مبلغ المصروف أولاً ⚠️', 'warning');
+            if (amtInp) amtInp.focus();
+            return;
+        }
+        if (!reason) {
+            showToast('يرجى كتابة بيان / سبب المصروف ⚠️', 'warning');
+            if (reasonInp) reasonInp.focus();
+            return;
+        }
+
+        const nowIso = new Date().toISOString();
+        const expId = 'EXP-' + Date.now().toString().slice(-6);
+        const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
+        const activeWh = State.activeWarehouse || 'المخزن الرئيسي';
+
+        const expTx = {
+            id: expId,
+            invoiceId: expId,
+            type: 'سند صرف',
+            partner: reason,
+            product: reason,
+            notes: reason,
+            date: nowIso,
+            dateISO: getTodayISO(),
+            timeISO: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+            total: amount,
+            invoiceGrandTotal: amount,
+            paidAmount: amount,
+            remaining: 0,
+            method: 'كاش',
+            cashier: `تابلت (${State.terminalLetter})`,
+            warehouse: activeWh,
+            isInvoiceHead: true
+        };
+
+        State.transactions.unshift(expTx);
+        try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (_) { }
+        MobileIDB.putMany('transactions', [expTx], currentShopId).catch(() => { });
+
+        const txPayload = [{
+            id: `${currentShopId}_${expId}`,
+            invoice_id: expId,
+            date_iso: nowIso,
+            updated_at: nowIso,
+            time: expTx.timeISO,
+            type: 'سند صرف',
+            partner: reason,
+            total: amount,
+            paid_amount: amount,
+            remaining: 0,
+            method: 'كاش',
+            cashier: expTx.cashier,
+            warehouse: activeWh,
+            raw_json: { ...expTx, shop_id: currentShopId, updatedAt: nowIso }
+        }];
+
+        if (!navigator.onLine) {
+            enqueueOfflineItem({ id: expId, txPayload, createdAt: nowIso });
+        } else {
+            fetch(`${SUPABASE_CONFIG.url}/rest/v1/transactions?on_conflict=id`, {
+                method: 'POST',
+                headers: getSupabaseHeaders(),
+                body: JSON.stringify(txPayload)
+            }).catch(() => enqueueOfflineItem({ id: expId, txPayload, createdAt: nowIso }));
+        }
+
+        closeQuickExpenseModal();
+        renderDashboard();
+        showToast(`تم تسجيل مصروف (${amount} ج.م - ${reason}) والخصم من الدرج 💸✅`, 'success');
+    }
+
+    async function collectCustomerPayment(accIdentifier) {
+        const allAccs = Array.isArray(State.accounts) && State.accounts.length > 0 ? State.accounts : (State.customers || []);
+        const cleanId = String(accIdentifier || '').trim();
+        const acc = allAccs.find(a => String(a.id) === cleanId || cleanArabic(a.name) === cleanArabic(cleanId));
+        if (!acc) return;
+
+        const currentDebt = parseFloat(acc.balance) || 0;
+        const entered = await openModernPrompt(
+            `العميل: ${acc.name}\nالمديونية الحالية: ${currentDebt.toLocaleString('ar-EG')} ج.م\nأدخل المبلغ المحصّل الآن (ج.م):`,
+            String(currentDebt > 0 ? currentDebt : ''),
+            'number',
+            '💵 تحصيل دفعة (سند قبض)'
+        );
+        if (!entered) return;
+        const paid = parseFloat(entered) || 0;
+        if (paid <= 0) {
+            showToast('يرجى إدخال مبلغ صحيح أكبر من 0 ⚠️', 'warning');
+            return;
+        }
+
+        const newBalance = currentDebt - paid;
+        acc.balance = newBalance;
+        const mirrorCust = (State.customers || []).find(c => c && cleanArabic(c.name) === cleanArabic(acc.name));
+        if (mirrorCust) mirrorCust.balance = newBalance;
+
+        try {
+            localStorage.setItem(CONFIG.STORAGE_PREFIX + 'accounts', JSON.stringify(State.accounts));
+            localStorage.setItem(CONFIG.STORAGE_PREFIX + 'customers', JSON.stringify(State.customers));
+        } catch (_) { }
+
+        const nowIso = new Date().toISOString();
+        const rcptId = 'RCP-' + Date.now().toString().slice(-6);
+        const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
+        const activeWh = State.activeWarehouse || 'المخزن الرئيسي';
+
+        const rcptTx = {
+            id: rcptId,
+            invoiceId: rcptId,
+            type: 'سند قبض',
+            partner: acc.name,
+            product: `تحصيل دفعة من ${acc.name}`,
+            date: nowIso,
+            dateISO: getTodayISO(),
+            timeISO: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+            total: paid,
+            invoiceGrandTotal: paid,
+            paidAmount: paid,
+            remaining: 0,
+            method: 'كاش',
+            cashier: `تابلت (${State.terminalLetter})`,
+            warehouse: activeWh,
+            isInvoiceHead: true
+        };
+
+        State.transactions.unshift(rcptTx);
+        try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (_) { }
+        MobileIDB.putMany('transactions', [rcptTx], currentShopId).catch(() => { });
+        MobileIDB.putMany('accounts', [acc], currentShopId).catch(() => { });
+
+        const txPayload = [{
+            id: `${currentShopId}_${rcptId}`,
+            invoice_id: rcptId,
+            date_iso: nowIso,
+            updated_at: nowIso,
+            time: rcptTx.timeISO,
+            type: 'سند قبض',
+            partner: acc.name,
+            total: paid,
+            paid_amount: paid,
+            remaining: 0,
+            method: 'كاش',
+            cashier: rcptTx.cashier,
+            warehouse: activeWh,
+            raw_json: { ...rcptTx, shop_id: currentShopId, updatedAt: nowIso }
+        }];
+
+        const custPayload = [{
+            id: `CONFIG_CUSTOMERS_LIST_${currentShopId}`,
+            date: nowIso,
+            category: 'customers',
+            amount: State.accounts.length,
+            user_name: `تابلت (${State.terminalLetter})`,
+            warehouse: activeWh,
+            raw_json: { shop_id: currentShopId, customers: State.accounts, accounts: State.accounts, updatedAt: nowIso }
+        }];
+
+        if (!navigator.onLine) {
+            enqueueOfflineItem({ id: rcptId, txPayload, custPayload, createdAt: nowIso });
+        } else {
+            fetch(`${SUPABASE_CONFIG.url}/rest/v1/transactions?on_conflict=id`, { method: 'POST', headers: getSupabaseHeaders(), body: JSON.stringify(txPayload) }).catch(() => { });
+            fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?on_conflict=id`, { method: 'POST', headers: getSupabaseHeaders(), body: JSON.stringify(custPayload) }).catch(() => { });
+            fetch(`${SUPABASE_CONFIG.url}/rest/v1/accounts?on_conflict=id`, {
+                method: 'POST',
+                headers: getSupabaseHeaders(),
+                body: JSON.stringify([{ id: `${currentShopId}_ACC_${acc.id}`, shop_id: currentShopId, name: acc.name, raw_json: { ...acc, shop_id: currentShopId }, updated_at: nowIso }])
+            }).catch(() => { });
+        }
+
+        renderAccountsView();
+        renderDashboard();
+        showToast(`تم تحصيل (${paid.toLocaleString('ar-EG')} ج.م) من ${acc.name} بنجاح! 💵✅`, 'success');
+
+        const sendWa = await openModernConfirm(`تم التحصيل بنجاح! المتبقي على العميل: ${Math.max(0, newBalance).toLocaleString('ar-EG')} ج.م.\nهل تريد إرسال إيصال السداد للعميل عبر واتساب؟`, '📲 إرسال إيصال سداد');
+        if (sendWa) {
+            const shopTitle = State.settings?.shop_name || State.shopName || 'بَيَان فاشون';
+            const cleanPhone = String(acc.mobile || acc.phone || '').replace(/\D/g, '');
+            const waPhone = cleanPhone.startsWith('01') && cleanPhone.length === 11 ? '2' + cleanPhone : cleanPhone;
+            const msg = `🧾 *إيصال سداد دفعة - ${shopTitle}*%0A👤 العميل: ${acc.name}%0A💵 المبلغ المسدد: *${paid.toLocaleString('ar-EG')} ج.م*%0A📌 الرصيد المتبقي: *${Math.max(0, newBalance).toLocaleString('ar-EG')} ج.م*%0A📅 التاريخ: ${new Date().toLocaleDateString('ar-EG')}%0Aشكراً لتعاملكم معنا! ✨`;
+            window.open(waPhone ? `https://wa.me/${waPhone}?text=${msg}` : `https://wa.me/?text=${msg}`, '_blank');
+        }
+    }
+
+    async function returnInvoice(invoiceId) {
+        const tx = State.transactions.find(t => String(t.invoiceId || t.id) === String(invoiceId));
+        if (!tx) {
+            showToast('الفاتورة غير موجودة ⚠️', 'error');
+            return;
+        }
+        const ok = await openModernConfirm(`هل أنت متأكد من عمل مرتجع كامل للفاتورة #${tx.invoiceId || tx.id}؟\nسيتم إرجاع الكميات للمخزن وتسجيل حركة مرتجع مبيعات.`, '↩️ تأكيد مرتجع فاتورة');
+        if (!ok) return;
+
+        const targetWh = tx.warehouse || State.activeWarehouse || 'المخزن الرئيسي';
+        const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
+        const updatedProductsList = [];
+
+        if (Array.isArray(tx.items)) {
+            tx.items.forEach(soldItem => {
+                const prod = State.products.find(p => String(p.id) === String(soldItem.productId || soldItem.id));
+                if (prod) {
+                    const qty = parseFloat(soldItem.quantity || soldItem.qty || 1);
+                    prod.quantity = (parseFloat(prod.quantity !== undefined ? prod.quantity : (prod.stock || 0))) + qty;
+                    prod.stock = prod.quantity;
+                    if (prod.warehouseStocks && typeof prod.warehouseStocks === 'object') {
+                        prod.warehouseStocks[targetWh] = (parseFloat(prod.warehouseStocks[targetWh] || 0)) + qty;
+                    }
+                    if (Array.isArray(prod.variants)) {
+                        const v = prod.variants.find(varItem =>
+                            (!soldItem.size || String(varItem.size || '').trim().toLowerCase() === String(soldItem.size || '').trim().toLowerCase()) &&
+                            (!soldItem.color || String(varItem.color || '').trim().toLowerCase() === String(soldItem.color || '').trim().toLowerCase())
+                        );
+                        if (v) {
+                            v.stock = (parseFloat(v.stock !== undefined ? v.stock : (v.quantity || 0))) + qty;
+                            v.quantity = v.stock;
+                            if (v.warehouseStocks && typeof v.warehouseStocks === 'object') {
+                                v.warehouseStocks[targetWh] = (parseFloat(v.warehouseStocks[targetWh] || 0)) + qty;
+                            }
+                        }
+                    }
+                    if (!updatedProductsList.some(up => up.id === prod.id)) updatedProductsList.push(prod);
+                }
+            });
+        }
+
+        const nowIso = new Date().toISOString();
+        const retId = 'RET-' + Date.now().toString().slice(-6);
+        const retTotal = parseFloat(tx.invoiceGrandTotal || tx.total || 0) || 0;
+        const retPaid = parseFloat(tx.paidAmount !== undefined ? tx.paidAmount : retTotal) || 0;
+
+        const retTx = {
+            id: retId,
+            invoiceId: retId,
+            type: 'مرتجع مبيعات',
+            partner: tx.partner || 'عميل نقدي',
+            product: `مرتجع فاتورة #${tx.invoiceId || tx.id}`,
+            date: nowIso,
+            dateISO: getTodayISO(),
+            timeISO: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
+            total: retTotal,
+            invoiceGrandTotal: retTotal,
+            paidAmount: retPaid,
+            remaining: 0,
+            method: tx.method || tx.paymentMethod || 'كاش',
+            cashier: `تابلت (${State.terminalLetter})`,
+            warehouse: targetWh,
+            items: tx.items || [],
+            isInvoiceHead: true
+        };
+
+        State.transactions.unshift(retTx);
+        safelyPersistProducts(State.products);
+        try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (_) { }
+
+        const txPayload = [{
+            id: `${currentShopId}_${retId}`,
+            invoice_id: retId,
+            date_iso: nowIso,
+            updated_at: nowIso,
+            time: retTx.timeISO,
+            type: 'مرتجع مبيعات',
+            partner: retTx.partner,
+            total: retTotal,
+            paid_amount: retPaid,
+            remaining: 0,
+            method: retTx.method,
+            cashier: retTx.cashier,
+            warehouse: targetWh,
+            raw_json: { ...retTx, shop_id: currentShopId, updatedAt: nowIso }
+        }];
+        const prodBatch = updatedProductsList.map(p => buildSupabaseProductRow(p, currentShopId));
+
+        if (!navigator.onLine) {
+            enqueueOfflineItem({ id: retId, txPayload, prodBatch, createdAt: nowIso });
+        } else {
+            fetch(`${SUPABASE_CONFIG.url}/rest/v1/transactions?on_conflict=id`, { method: 'POST', headers: getSupabaseHeaders(), body: JSON.stringify(txPayload) }).catch(() => { });
+            if (prodBatch.length > 0) {
+                fetch(`${SUPABASE_CONFIG.url}/rest/v1/products?on_conflict=id`, { method: 'POST', headers: getSupabaseHeaders(), body: JSON.stringify(prodBatch) }).catch(() => { });
+            }
+        }
+
+        closeInvoiceDetailsModal();
+        renderProducts();
+        renderDashboard();
+        showToast(`تم تسجيل مرتجع الفاتورة #${tx.invoiceId || tx.id} وإرجاع المخزون بنجاح ↩️✅`, 'success');
+    }
+
+    // ============================================================
     // 🚀 INITIALIZATION
     // ============================================================
     async function init() {
@@ -6375,6 +6720,11 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         closeInvoiceSuccessModal,
         deleteInvoice,
         editInvoice,
+        returnInvoice,
+        openQuickExpenseModal,
+        closeQuickExpenseModal,
+        submitQuickExpense,
+        collectCustomerPayment,
         onCustomerInput,
         onCustomerFocus,
         selectCustomer,
