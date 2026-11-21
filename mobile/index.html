@@ -18,7 +18,7 @@
 
     <!-- خط القاهرة والأيقونات -->
     <link rel="stylesheet" href="../fonts/cairo.css">
-    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.30">
+    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.31">
     <!-- 📷 محرك قراءة QR العالمي لهواتف أندرويد وآيفون -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" defer></script>
     <style id="mobile-fashion-android-overhaul"></style>
@@ -1480,18 +1480,25 @@
 
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
                     <div class="form-group">
-                        <label class="form-label">الباركود / الكود:</label>
+                        <label class="form-label">الباركود / الكود (توليد تلقائي):</label>
                         <div style="display: flex; gap: 6px;">
-                            <input type="text" id="newProdBarcode" class="form-input" placeholder="كود الصنف..."
-                                style="flex: 1;" autocomplete="off">
-                            <button type="button" class="btn-gen-code" onclick="window.BayanMobile.generateBarcode()"
-                                title="توليد كود تلقائي">⚡</button>
+                            <input type="text" id="newProdBarcode" class="form-input" placeholder="كود تلقائي..."
+                                style="flex: 1; font-family: monospace; font-weight: 900; cursor: default;" readonly autocomplete="off">
+                            <button type="button" class="btn-gen-code" onclick="window.BayanMobile.generateBarcode(true)"
+                                title="توليد باركود جديد">⚡</button>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label class="form-label">القسم / التصنيف:</label>
-                        <input type="text" id="newProdCategory" class="form-input" placeholder="رجالي / أطفالي / عام..."
-                            value="عام" autocomplete="off">
+                        <label class="form-label" for="newProdCategory">القسم / التصنيف:</label>
+                        <div class="custom-select-wrap">
+                            <select id="newProdCategory" class="form-input"
+                                style="padding: 0 10px 0 28px; cursor: pointer; font-weight: 800; appearance: none; -webkit-appearance: none;"
+                                onchange="window.BayanMobile.onNewProdCategoryChange(this.value)">
+                                <option value="عام">عام</option>
+                                <option value="__ADD_NEW__">➕ إضافة تصنيف جديد...</option>
+                            </select>
+                            <span class="select-arrow-icon" style="left: 10px;">▼</span>
+                        </div>
                     </div>
                 </div>
 
@@ -1501,76 +1508,81 @@
                         <input type="number" id="newProdPrice" class="form-input" placeholder="0.00" min="0" step="0.5">
                     </div>
                     <div class="form-group">
-                        <label class="form-label">سعر التكلفة:</label>
-                        <input type="number" id="newProdCost" class="form-input" placeholder="0.00" min="0" step="0.5">
-                    </div>
-                    <div class="form-group">
                         <label class="form-label">سعر الجملة:</label>
                         <input type="number" id="newProdWholesale" class="form-input" placeholder="0.00" min="0"
                             step="0.5">
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">سعر التكلفة:</label>
+                        <input type="number" id="newProdCost" class="form-input" placeholder="0.00" min="0" step="0.5">
+                    </div>
                 </div>
 
-                <!-- قسم تشكيلة المقاسات والألوان (Fashion Matrix Builder) -->
+                <!-- قسم تشكيلة المقاسات والألوان (قابل للطي والفتح لتقليص طول النافذة) -->
                 <div class="variant-builder-section">
-                    <div class="vb-title">
-                        <span>🎨</span> تشكيلة المقاسات والألوان:
+                    <div class="vb-title" style="justify-content: space-between; cursor: pointer; margin-bottom: 0;"
+                        onclick="window.BayanMobile.toggleVariantBuilder()">
+                        <span style="display: flex; align-items: center; gap: 6px;"><span>🎨</span> تشكيلة المقاسات والألوان (اختياري)</span>
+                        <span id="vbToggleArrow" style="font-size: 0.78rem; color: var(--primary); transition: transform 0.2s;">▼</span>
                     </div>
 
-                    <!-- اختيار المقاسات الشائعة -->
-                    <div style="margin-bottom: 10px;">
-                        <span
-                            style="font-size: 0.72rem; color: var(--text-dim); display: block; margin-bottom: 4px;">المقاسات
-                            المطلوبة (اضغط للاختيار):</span>
-                        <div id="newProdSizesSelector" class="vb-chips-grid">
-                            <span class="vb-chip active" onclick="this.classList.toggle('active')">M</span>
-                            <span class="vb-chip active" onclick="this.classList.toggle('active')">L</span>
-                            <span class="vb-chip active" onclick="this.classList.toggle('active')">XL</span>
-                            <span class="vb-chip" onclick="this.classList.toggle('active')">2XL</span>
-                            <span class="vb-chip" onclick="this.classList.toggle('active')">3XL</span>
-                            <span class="vb-chip" onclick="this.classList.toggle('active')">S</span>
-                            <span class="vb-chip" onclick="this.classList.toggle('active')">حر</span>
-                            <span class="vb-chip vb-add-custom"
-                                onclick="window.BayanMobile.addCustomVariantChip('size', this)"
-                                style="border-style: dashed; color: var(--primary);">+ مقاس</span>
+                    <div id="variantBuilderBody" style="display: none; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border-subtle);">
+                        <!-- اختيار المقاسات الشائعة (بدون تحديد تلقائي) -->
+                        <div style="margin-bottom: 10px;">
+                            <span
+                                style="font-size: 0.72rem; color: var(--text-dim); display: block; margin-bottom: 4px;">المقاسات
+                                المطلوبة (اضغط للاختيار):</span>
+                            <div id="newProdSizesSelector" class="vb-chips-grid">
+                                <span class="vb-chip" onclick="this.classList.toggle('active')">M</span>
+                                <span class="vb-chip" onclick="this.classList.toggle('active')">L</span>
+                                <span class="vb-chip" onclick="this.classList.toggle('active')">XL</span>
+                                <span class="vb-chip" onclick="this.classList.toggle('active')">2XL</span>
+                                <span class="vb-chip" onclick="this.classList.toggle('active')">3XL</span>
+                                <span class="vb-chip" onclick="this.classList.toggle('active')">S</span>
+                                <span class="vb-chip" onclick="this.classList.toggle('active')">حر</span>
+                                <span class="vb-chip vb-add-custom"
+                                    onclick="window.BayanMobile.addCustomVariantChip('size', this)"
+                                    style="border-style: dashed; color: var(--primary);">+ مقاس</span>
+                            </div>
                         </div>
-                    </div>
 
-                    <!-- اختيار الألوان الشائعة -->
-                    <div style="margin-bottom: 12px;">
-                        <span
-                            style="font-size: 0.72rem; color: var(--text-dim); display: block; margin-bottom: 4px;">الألوان
-                            المطلوبة (اضغط للاختيار):</span>
-                        <div id="newProdColorsSelector" class="vb-chips-grid">
-                            <span class="vb-chip active" onclick="this.classList.toggle('active')">أسود</span>
-                            <span class="vb-chip active" onclick="this.classList.toggle('active')">أبيض</span>
-                            <span class="vb-chip" onclick="this.classList.toggle('active')">كحلي</span>
-                            <span class="vb-chip" onclick="this.classList.toggle('active')">رمادي</span>
-                            <span class="vb-chip" onclick="this.classList.toggle('active')">بيج</span>
-                            <span class="vb-chip" onclick="this.classList.toggle('active')">زيتي</span>
-                            <span class="vb-chip" onclick="this.classList.toggle('active')">هافان</span>
-                            <span class="vb-chip vb-add-custom"
-                                onclick="window.BayanMobile.addCustomVariantChip('color', this)"
-                                style="border-style: dashed; color: var(--primary);">+ لون</span>
+                        <!-- اختيار الألوان الشائعة (بدون تحديد تلقائي) -->
+                        <div style="margin-bottom: 12px;">
+                            <span
+                                style="font-size: 0.72rem; color: var(--text-dim); display: block; margin-bottom: 4px;">الألوان
+                                المطلوبة (اضغط للاختيار):</span>
+                            <div id="newProdColorsSelector" class="vb-chips-grid">
+                                <span class="vb-chip" onclick="this.classList.toggle('active')">أسود</span>
+                                <span class="vb-chip" onclick="this.classList.toggle('active')">أبيض</span>
+                                <span class="vb-chip" onclick="this.classList.toggle('active')">كحلي</span>
+                                <span class="vb-chip" onclick="this.classList.toggle('active')">رمادي</span>
+                                <span class="vb-chip" onclick="this.classList.toggle('active')">بيج</span>
+                                <span class="vb-chip" onclick="this.classList.toggle('active')">زيتي</span>
+                                <span class="vb-chip" onclick="this.classList.toggle('active')">هافان</span>
+                                <span class="vb-chip vb-add-custom"
+                                    onclick="window.BayanMobile.addCustomVariantChip('color', this)"
+                                    style="border-style: dashed; color: var(--primary);">+ لون</span>
+                            </div>
                         </div>
-                    </div>
 
-                    <button type="button" class="btn-generate-matrix"
-                        onclick="window.BayanMobile.generateVariantRows()">
-                        <span>⚡</span> توليد شبكة المقاسات وتوزيع الكميات
-                    </button>
+                        <button type="button" class="btn-generate-matrix"
+                            onclick="window.BayanMobile.generateVariantRows()">
+                            <span>⚡</span> توليد شبكة المقاسات وتوزيع الكميات
+                        </button>
 
-                    <!-- جدول الكميات الناتجة لكل مقاس ولون -->
-                    <div id="newProdVariantRowsContainer" class="vb-rows-container" style="display: none;">
-                        <div class="vb-rows-header">
-                            <span>المقاس</span>
-                            <span>اللون</span>
-                            <span>الكمية بالمخزن</span>
-                        </div>
-                        <div id="newProdVariantRowsList"></div>
-                        <div class="vb-total-summary">
-                            <span>إجمالي كمية الصنف بالمخزن:</span>
-                            <strong id="newProdTotalQuantityBadge">0 قطعة</strong>
+                        <!-- جدول الكميات الناتجة لكل مقاس ولون مع عمود الإجراء (حذف) -->
+                        <div id="newProdVariantRowsContainer" class="vb-rows-container" style="display: none;">
+                            <div class="vb-rows-header" style="grid-template-columns: 1fr 1fr 1fr 0.6fr;">
+                                <span>المقاس</span>
+                                <span>اللون</span>
+                                <span>الكمية</span>
+                                <span>الإجراء</span>
+                            </div>
+                            <div id="newProdVariantRowsList"></div>
+                            <div class="vb-total-summary">
+                                <span>إجمالي كمية الصنف بالمخزن:</span>
+                                <strong id="newProdTotalQuantityBadge">0 قطعة</strong>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1693,21 +1705,15 @@
                 </select>
             </div>
 
-            <!-- مربع مسح أو اختيار الصنف -->
+            <!-- مربع البحث السريع المفهرس بالباركود أو اسم الموديل -->
             <div class="stocktake-search-wrap">
                 <div class="search-input-box" style="flex: 1;">
                     <span class="search-icon">🔍</span>
-                    <input type="text" id="stocktakeSearchInput" placeholder="امسح الباركود أو اكتب اسم الموديل..."
+                    <input type="text" id="stocktakeSearchInput" placeholder="ابحث بالباركود أو اكتب اسم الموديل..."
                         autocomplete="off" oninput="window.BayanMobile.onStocktakeSearchInput(this.value)">
                     <button type="button" id="stocktakeSearchClearBtn" class="search-clear-btn" style="display: none;"
                         onclick="window.BayanMobile.clearStocktakeSearch()">✕</button>
                 </div>
-                <button type="button" class="btn-scan-camera" onclick="window.BayanMobile.triggerStocktakeCameraScan()"
-                    title="مسح بكاميرا الهاتف">
-                    📷
-                </button>
-                <input type="file" id="stocktakeCameraInput" accept="image/*" capture="environment"
-                    style="display: none;" onchange="window.BayanMobile.handleStocktakeCameraFile(event)">
             </div>
 
             <!-- قائمة الاقتراحات السريعة عند البحث بالاسم -->
@@ -1748,7 +1754,7 @@
         </div>
     </div>
 
-    <script src="js/mobile_fashion.js?v=5.1.30"></script>
+    <script src="js/mobile_fashion.js?v=5.1.31"></script>
 </body>
 
 </html>

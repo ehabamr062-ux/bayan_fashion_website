@@ -3650,32 +3650,82 @@
     // ============================================================
     // 👗 ADD PRODUCT & FASHION VARIANT MATRIX BUILDER
     // ============================================================
+    function populateNewProductCategories(selectedVal = 'عام') {
+        const catSelect = document.getElementById('newProdCategory');
+        if (!catSelect) return;
+        let customCats = [];
+        try { customCats = JSON.parse(localStorage.getItem('bayan_mob_custom_categories') || '[]'); } catch (_) { }
+        const catSet = new Set(['عام', ...customCats]);
+        (State.products || []).forEach(p => {
+            if (p && p.category && p.category.trim()) catSet.add(p.category.trim());
+        });
+        let html = Array.from(catSet).map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+        html += `<option value="__ADD_NEW__">➕ إضافة تصنيف جديد...</option>`;
+        catSelect.innerHTML = html;
+        catSelect.value = catSet.has(selectedVal) ? selectedVal : 'عام';
+    }
+
+    async function onNewProdCategoryChange(val) {
+        if (val !== '__ADD_NEW__') return;
+        const newCat = await openModernPrompt('أدخل اسم القسم / التصنيف الجديد (مثال: شنط، أحذية، مستلزمات...):', '', 'text', '📁 إضافة تصنيف جديد');
+        const cleanCat = String(newCat || '').trim();
+        if (!cleanCat) {
+            populateNewProductCategories('عام');
+            return;
+        }
+        let customCats = [];
+        try { customCats = JSON.parse(localStorage.getItem('bayan_mob_custom_categories') || '[]'); } catch (_) { }
+        if (!customCats.includes(cleanCat)) {
+            customCats.push(cleanCat);
+            try { localStorage.setItem('bayan_mob_custom_categories', JSON.stringify(customCats)); } catch (_) { }
+        }
+        populateNewProductCategories(cleanCat);
+        showToast(`تمت إضافة وحفظ تصنيف (${cleanCat}) في القائمة ✅`, 'success');
+    }
+
+    function toggleVariantBuilder(forceOpen) {
+        const body = document.getElementById('variantBuilderBody');
+        const arrow = document.getElementById('vbToggleArrow');
+        if (!body) return;
+        const isOpen = body.style.display === 'block';
+        const nextOpen = (forceOpen !== undefined) ? forceOpen : !isOpen;
+        body.style.display = nextOpen ? 'block' : 'none';
+        if (arrow) arrow.style.transform = nextOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+
     function openAddProductModal() {
         const modal = document.getElementById('addProductModalOverlay');
         if (!modal) return;
 
         // Reset inputs
         const nameInp = document.getElementById('newProdName');
-        const barcodeInp = document.getElementById('newProdBarcode');
-        const catInp = document.getElementById('newProdCategory');
         const priceInp = document.getElementById('newProdPrice');
         const costInp = document.getElementById('newProdCost');
         const wholesaleInp = document.getElementById('newProdWholesale');
 
         if (nameInp) nameInp.value = '';
-        if (catInp) catInp.value = (State.selectedCategory !== 'all' && State.selectedCategory) ? State.selectedCategory : 'عام';
         if (priceInp) priceInp.value = '';
         if (costInp) costInp.value = '';
         if (wholesaleInp) wholesaleInp.value = '';
 
+        // Populate categories dropdown
+        const defaultCat = (State.selectedCategory && State.selectedCategory !== 'all' && State.selectedCategory !== 'low-stock') ? State.selectedCategory : 'عام';
+        populateNewProductCategories(defaultCat);
+
         // Reset product image uploader
         removeProductImage();
 
-        // Auto generate barcode
-        generateBarcode();
+        // Auto generate barcode once on open
+        generateBarcode(false);
 
-        // Generate variant rows initially
-        generateVariantRows();
+        // عدم تحديد أي مقاس أو لون تلقائياً وإخفاء جدول التشكيلة وطيّ القسم
+        document.querySelectorAll('#newProdSizesSelector .vb-chip.active, #newProdColorsSelector .vb-chip.active').forEach(c => c.classList.remove('active'));
+        const rowsContainer = document.getElementById('newProdVariantRowsContainer');
+        const rowsList = document.getElementById('newProdVariantRowsList');
+        if (rowsList) rowsList.innerHTML = '';
+        if (rowsContainer) rowsContainer.style.display = 'none';
+        onVariantRowQtyChange();
+        toggleVariantBuilder(false);
 
         modal.classList.add('active');
         if (nameInp) setTimeout(() => nameInp.focus(), 250);
@@ -3759,11 +3809,16 @@
         if (preview) preview.src = '';
     }
 
-    function generateBarcode() {
+    async function generateBarcode(askConfirm = false) {
         const barcodeInp = document.getElementById('newProdBarcode');
         if (!barcodeInp) return;
+        if (askConfirm && barcodeInp.value.trim()) {
+            const ok = await openModernConfirm('هل أنت متأكد من توليد باركود جديد؟\nسيتم استبدال الباركود الحالي تلقائياً.', '⚡ توليد باركود جديد');
+            if (!ok) return;
+        }
         const rand = Math.floor(1000000000 + Math.random() * 9000000000);
         barcodeInp.value = '20' + rand;
+        if (askConfirm) showToast('تم توليد باركود جديد تلقائياً ✅', 'success');
     }
 
     async function addCustomVariantChip(type, btnEl) {
@@ -3782,25 +3837,33 @@
 
     function generateVariantRows() {
         const sizeChips = document.querySelectorAll('#newProdSizesSelector .vb-chip.active:not(.vb-add-custom)');
-        let selectedSizes = Array.from(sizeChips).map(c => c.textContent.trim()).filter(Boolean);
-        if (selectedSizes.length === 0) selectedSizes = ['عادي'];
+        const selectedSizes = Array.from(sizeChips).map(c => c.textContent.trim()).filter(Boolean);
 
         const colorChips = document.querySelectorAll('#newProdColorsSelector .vb-chip.active:not(.vb-add-custom)');
-        let selectedColors = Array.from(colorChips).map(c => c.textContent.trim()).filter(Boolean);
-        if (selectedColors.length === 0) selectedColors = ['عام'];
+        const selectedColors = Array.from(colorChips).map(c => c.textContent.trim()).filter(Boolean);
+
+        if (selectedSizes.length === 0 && selectedColors.length === 0) {
+            showToast('يرجى اختيار مقاس واحد أو لون واحد على الأقل أولاً 🎨', 'warning');
+            return;
+        }
+
+        const finalSizes = selectedSizes.length > 0 ? selectedSizes : ['عادي'];
+        const finalColors = selectedColors.length > 0 ? selectedColors : ['عام'];
 
         const container = document.getElementById('newProdVariantRowsContainer');
         const list = document.getElementById('newProdVariantRowsList');
         if (!list) return;
 
         let rowsHtml = '';
-        selectedSizes.forEach(s => {
-            selectedColors.forEach(c => {
+        finalSizes.forEach(s => {
+            finalColors.forEach(c => {
                 rowsHtml += `
-                    <div class="vb-row-item" data-size="${s}" data-color="${c}">
-                        <span style="background: var(--primary-subtle); color: var(--primary); padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; text-align: center;">${s}</span>
-                        <span style="background: var(--chip-bg); color: var(--text-main); padding: 4px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; border: 1px solid var(--border-subtle); text-align: center;">${c}</span>
-                        <input type="number" class="vb-row-input" min="0" value="1" placeholder="0" oninput="window.BayanMobile.onVariantRowQtyChange()">
+                    <div class="vb-row-item" style="grid-template-columns: 1fr 1fr 1fr 0.6fr;" data-size="${escapeHtml(s)}" data-color="${escapeHtml(c)}">
+                        <span style="background: var(--primary-subtle); color: var(--primary); padding: 4px 6px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; text-align: center;">${escapeHtml(s)}</span>
+                        <span style="background: var(--chip-bg); color: var(--text-main); padding: 4px 6px; border-radius: 6px; font-size: 0.74rem; font-weight: 800; border: 1px solid var(--border-subtle); text-align: center;">${escapeHtml(c)}</span>
+                        <input type="number" class="vb-row-input" style="width: 58px; margin: 0 auto;" min="0" value="1" placeholder="0" oninput="window.BayanMobile.onVariantRowQtyChange()">
+                        <button type="button" onclick="window.BayanMobile.removeVariantRow(this)" title="حذف هذا الصف"
+                            style="background: var(--rose-subtle); color: var(--rose); border: 1px solid rgba(225,29,72,0.3); border-radius: 8px; width: 32px; height: 32px; margin: 0 auto; cursor: pointer; font-size: 0.85rem; display: flex; align-items: center; justify-content: center;">🗑️</button>
                     </div>
                 `;
             });
@@ -3809,6 +3872,17 @@
         list.innerHTML = rowsHtml;
         if (container) container.style.display = 'block';
 
+        onVariantRowQtyChange();
+    }
+
+    function removeVariantRow(btnEl) {
+        const row = btnEl && btnEl.closest('.vb-row-item');
+        if (row) row.remove();
+        const list = document.getElementById('newProdVariantRowsList');
+        const container = document.getElementById('newProdVariantRowsContainer');
+        if (list && list.children.length === 0 && container) {
+            container.style.display = 'none';
+        }
         onVariantRowQtyChange();
     }
 
@@ -4727,8 +4801,18 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
             return;
         }
 
-        // Direct exact barcode match
-        const exactMatch = State.products.find(p => (p.barcode && p.barcode.toLowerCase() === q) || (p.code && p.code.toLowerCase() === q));
+        // فهرس بحث فائق السرعة في الذاكرة للباركود والكود (O(1) Lookup)
+        if (!State._stocktakeBarcodeIndex || State._stocktakeIndexSize !== State.products.length) {
+            State._stocktakeBarcodeIndex = new Map();
+            State.products.forEach(p => {
+                if (p.barcode) State._stocktakeBarcodeIndex.set(String(p.barcode).trim().toLowerCase(), p);
+                if (p.code) State._stocktakeBarcodeIndex.set(String(p.code).trim().toLowerCase(), p);
+            });
+            State._stocktakeIndexSize = State.products.length;
+        }
+
+        // Direct exact barcode match via O(1) index
+        const exactMatch = State._stocktakeBarcodeIndex.get(q);
         if (exactMatch) {
             playBarcodeBeepAndVibrate();
             selectProductForStocktake(exactMatch.id);
@@ -4736,17 +4820,19 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
             return;
         }
 
-        // Suggestions by name or barcode substring
+        // Suggestions by name, barcode, or code
+        const cleanQ = cleanArabic(q);
         const matches = State.products.filter(p => {
-            const name = (p.name || '').toLowerCase();
+            const name = cleanArabic(p.name || '');
             const bar = (p.barcode || '').toLowerCase();
-            return name.includes(q) || bar.includes(q);
-        }).slice(0, 6);
+            const code = (p.code || '').toLowerCase();
+            return name.includes(cleanQ) || bar.includes(q) || code.includes(q);
+        }).slice(0, 10);
 
         if (matches.length > 0 && suggList) {
             suggList.innerHTML = matches.map(m => `
                 <div class="stocktake-suggestion-item" onclick="window.BayanMobile.selectProductForStocktake('${m.id}')">
-                    <span>${m.name} (${m.barcode || 'بدون باركود'})</span>
+                    <span>${escapeHtml(m.name)} (${escapeHtml(m.barcode || 'بدون باركود')})</span>
                     <span style="color: var(--primary); font-size: 0.78rem;">رصيد: ${m.stock || 0}</span>
                 </div>
             `).join('');
@@ -6333,6 +6419,9 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         closeAddProductModal,
         generateBarcode,
         generateVariantRows,
+        removeVariantRow,
+        toggleVariantBuilder,
+        onNewProdCategoryChange,
         addCustomVariantChip,
         onVariantRowQtyChange,
         submitNewProduct,
