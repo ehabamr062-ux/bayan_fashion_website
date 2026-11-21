@@ -6348,6 +6348,15 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         modal.classList.add('active');
     }
 
+    function toggleTopProductsCard() {
+        const list = document.getElementById('dashTopProductsList');
+        const arrow = document.getElementById('dashTopProductsArrow');
+        if (!list) return;
+        const isOpen = list.style.display === 'flex';
+        list.style.display = isOpen ? 'none' : 'flex';
+        if (arrow) arrow.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+    }
+
     function shareDailySummaryWhatsApp() {
         const period = State.dashboardPeriod || 'today';
         const range = getPeriodDateRange(period);
@@ -7075,6 +7084,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         openAddAccountModal,
         openEditAccountModal,
         closeAddAccountModal,
+        toggleTopProductsCard,
         shareDailySummaryWhatsApp,
         onAccountTypeChange,
         submitNewAccount,

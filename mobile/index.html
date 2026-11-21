@@ -234,12 +234,14 @@
                 <span>📲</span> إرسال ملخص اليومية عبر واتساب
             </button>
 
-            <!-- 🏆 بطاقة أكثر 3 أصناف مبيعاً (تظهر تلقائياً عند وجود مبيعات) -->
-            <div id="dashTopProductsCard" class="settings-card" style="display: none; padding: 12px 14px; margin-bottom: 14px;">
-                <div style="font-size: 0.84rem; font-weight: 900; color: var(--text-main); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
-                    <span>🏆</span> أكثر الأصناف مبيعاً في هذه الفترة:
+            <!-- 🏆 بطاقة أكثر 3 أصناف مبيعاً (قابلة للطي والفتح لتقليص طول الشاشة الرئيسية) -->
+            <div id="dashTopProductsCard" class="settings-card" style="display: none; padding: 11px 14px; margin-bottom: 14px;">
+                <div onclick="window.BayanMobile.toggleTopProductsCard()"
+                    style="font-size: 0.84rem; font-weight: 900; color: var(--text-main); display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none;">
+                    <span style="display: flex; align-items: center; gap: 6px;"><span>🏆</span> أكثر الأصناف مبيعاً في هذه الفترة</span>
+                    <span id="dashTopProductsArrow" style="font-size: 0.72rem; color: var(--primary); transition: transform 0.2s;">▼</span>
                 </div>
-                <div id="dashTopProductsList" style="display: flex; flex-direction: column; gap: 6px;"></div>
+                <div id="dashTopProductsList" style="display: none; flex-direction: column; gap: 6px; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border-subtle);"></div>
             </div>
 
             <!-- ⚠️ تنبيه نواقص المخزن السريع -->
@@ -1822,7 +1824,7 @@
         </div>
     </div>
 
-    <script src="js/mobile_fashion.js?v=5.1.38"></script></script>
+    <script src="js/mobile_fashion.js?v=5.1.39"></script></script>
 </body>
 
 </html>
