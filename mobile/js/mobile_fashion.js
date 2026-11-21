@@ -137,6 +137,31 @@
     const openModernConfirm = (message, title = 'تأكيد الإجراء') => openModernDialog({ mode: 'confirm', title, message });
     const openModernAlert = (message, title = 'تنبيه') => openModernDialog({ mode: 'alert', title, message });
 
+    // 🛡️ تعقيم النصوص لمنع ثغرات XSS عند العرض في HTML
+    function escapeHtml(str) {
+        return String(str == null ? '' : str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    // ⚙️ قراءة تفضيلات البيع السريع والماسح
+    function getPosPrefs() {
+        try {
+            const raw = JSON.parse(localStorage.getItem('bayan_mob_pos_prefs') || '{}');
+            return {
+                haptic: raw.haptic !== false,
+                beep: raw.beep !== false,
+                hideOutOfStock: raw.hideOutOfStock === true,
+                quickAdd: raw.quickAdd !== false
+            };
+        } catch (e) {
+            return { haptic: true, beep: true, hideOutOfStock: false, quickAdd: true };
+        }
+    }
+
     // ============================================================
     // 🔔 TOAST NOTIFICATIONS
     // ============================================================
@@ -150,8 +175,14 @@
 
         const toast = document.createElement('div');
         toast.className = `mobile-toast ${type}`;
-        const icons = { success: '✅', error: '⚠️', warning: '⚡' };
-        toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span> <span>${message}</span>`;
+        const icons = { success: '✅', error: '⚠️', warning: '⚡', info: 'ℹ️' };
+        const iconSpan = document.createElement('span');
+        iconSpan.textContent = icons[type] || 'ℹ️';
+        const msgSpan = document.createElement('span');
+        msgSpan.textContent = String(message || '');
+        toast.appendChild(iconSpan);
+        toast.appendChild(document.createTextNode(' '));
+        toast.appendChild(msgSpan);
         container.appendChild(toast);
 
         setTimeout(() => {
@@ -496,7 +527,7 @@
         const topbarNameEl = document.getElementById('topbarShopName');
         const topbarSubEl = document.getElementById('topbarShopSub');
         if (topbarNameEl) {
-            topbarNameEl.innerHTML = `<span class="shop-title-text">${sName}</span> <span class="badge-tag">موبايل</span>`;
+            topbarNameEl.innerHTML = `<span class="shop-title-text">${escapeHtml(sName)}</span> <span class="badge-tag">موبايل</span>`;
         }
         if (topbarSubEl) {
             if (sPhone) {
@@ -786,10 +817,12 @@
             }
 
             // 0.2 مزامنة العملاء والموردين من جدول accounts المخصص (بجانب النسخة الاحتياطية)
+            let loadedFromAccountsTable = false;
             if (Array.isArray(accRes) && accRes.length > 0) {
                 const mappedAccs = accRes.map(r => Object.assign({ id: r.id, name: r.name || '' }, r.raw_json || {}));
                 State.accounts = mappedAccs;
                 State.customers = mappedAccs;
+                loadedFromAccountsTable = true;
                 try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'accounts', JSON.stringify(mappedAccs)); } catch (_) { }
                 MobileIDB.putMany('accounts', mappedAccs, currentShopId).catch(() => { });
             }
@@ -1004,18 +1037,20 @@
                 safelyPersistProducts(State.products);
             }
 
-            // 4. استقبال قائمة الحسابات والعملاء الخاصة بهذا المحل من السحابة
+            // 4. استقبال قائمة الحسابات والعملاء الخاصة بهذا المحل من السحابة (كاحتياط إذا لم تُحمّل من جدول accounts أو كانت أحدث)
             if (Array.isArray(cRes) && cRes.length > 0) {
                 const shopRow = cRes.find(r => r.id === `CONFIG_CUSTOMERS_LIST_${currentShopId}`);
                 if (shopRow && shopRow.raw_json) {
                     const rawObj = shopRow.raw_json;
                     const accs = Array.isArray(rawObj.accounts) ? rawObj.accounts : (Array.isArray(rawObj.customers) ? rawObj.customers : []);
-                    State.accounts = accs;
-                    State.customers = accs;
-                    try {
-                        localStorage.setItem(CONFIG.STORAGE_PREFIX + 'accounts', JSON.stringify(State.accounts));
-                        localStorage.setItem(CONFIG.STORAGE_PREFIX + 'customers', JSON.stringify(State.customers));
-                    } catch (e) { }
+                    if (!loadedFromAccountsTable || accs.length > State.accounts.length) {
+                        State.accounts = accs;
+                        State.customers = accs;
+                        try {
+                            localStorage.setItem(CONFIG.STORAGE_PREFIX + 'accounts', JSON.stringify(State.accounts));
+                            localStorage.setItem(CONFIG.STORAGE_PREFIX + 'customers', JSON.stringify(State.customers));
+                        } catch (e) { }
+                    }
                 }
             }
 
@@ -1249,12 +1284,16 @@
                         totalSales += invTot;
                         invoiceCount++;
                         const mLower = rawMethod.toLowerCase();
+                        const isCreditMethod = mLower.includes('أجل') || mLower.includes('اجل') || mLower.includes('آجل') || mLower.includes('credit');
                         if (mLower.includes('voda') || mLower.includes('فودافون')) {
-                            vodafoneSales += invTot;
+                            vodafoneSales += amt;
                         } else if (mLower.includes('فيزا') || mLower.includes('card') || mLower.includes('انستا') || mLower.includes('visa')) {
-                            cardSales += invTot;
+                            cardSales += amt;
+                        } else if (isCreditMethod) {
+                            // في الفواتير الآجلة يُحسب فقط المبلغ المدفوع فعلياً ككاش (وإلا 0)
+                            if (amt > 0) cashSales += amt;
                         } else {
-                            cashSales += invTot;
+                            cashSales += amt;
                         }
                     }
                     const qVal = parseFloat(t.qty || (Array.isArray(t.items) ? t.items.reduce((sum, it) => sum + (parseFloat(it.quantity || it.qty || 1) || 1), 0) : 1)) || 1;
@@ -1786,12 +1825,17 @@
 
         const q = State.searchQuery.trim().toLowerCase();
         const cat = State.selectedCategory;
+        const prefs = getPosPrefs();
 
         let filtered = State.products.filter(p => {
+            const pStock = parseFloat(p.quantity !== undefined ? p.quantity : (p.stock || 0));
+            // إخفاء الأصناف منتهية المخزون إذا كان التفضيل مفعلاً (ما عدا عند عرض النواقص عمداً)
+            if (prefs.hideOutOfStock && cat !== 'low-stock' && pStock <= 0) {
+                return false;
+            }
             // Category filter
             if (cat === 'low-stock') {
-                const s = parseFloat(p.quantity !== undefined ? p.quantity : (p.stock || 0));
-                if (s > 2) return false;
+                if (pStock > 2) return false;
             } else if (cat !== 'all' && (p.category || '').trim() !== cat) {
                 return false;
             }
@@ -1849,26 +1893,29 @@
                 : '';
 
             const hasThumb = Boolean(p.image);
+            const safeProdName = escapeHtml(p.name || 'صنف بدون اسم');
+            const safeProdCode = escapeHtml(p.code || p.barcode || 'بدون كود');
+            const safeProdCat = p.category ? escapeHtml(p.category) : '';
             const headHtml = hasThumb ? `
                 <div class="product-head-with-thumb">
-                    <img src="${p.image}" class="product-card-img-thumb" alt="${p.name || ''}" loading="lazy" onerror="this.style.display='none'">
+                    <img src="${escapeHtml(p.image)}" class="product-card-img-thumb" alt="${safeProdName}" loading="lazy" onerror="this.style.display='none'">
                     <div style="flex: 1; min-width: 0;">
-                        <div class="product-title">${p.name || 'صنف بدون اسم'}</div>
+                        <div class="product-title">${safeProdName}</div>
                         <div class="product-barcode-row" style="margin: 2px 0 0 0;">
-                            <span>🏷️ ${p.code || p.barcode || 'بدون كود'}</span>
-                            ${p.category ? `<span>• 📁 ${p.category}</span>` : ''}
+                            <span>🏷️ ${safeProdCode}</span>
+                            ${safeProdCat ? `<span>• 📁 ${safeProdCat}</span>` : ''}
                         </div>
                     </div>
                     <div class="product-price-badge">${price} ج.م</div>
                 </div>
             ` : `
                 <div class="product-head">
-                    <div class="product-title">${p.name || 'صنف بدون اسم'}</div>
+                    <div class="product-title">${safeProdName}</div>
                     <div class="product-price-badge">${price} ج.م</div>
                 </div>
                 <div class="product-barcode-row">
-                    <span>🏷️ ${p.code || p.barcode || 'بدون كود'}</span>
-                    ${p.category ? `<span>• 📁 ${p.category}</span>` : ''}
+                    <span>🏷️ ${safeProdCode}</span>
+                    ${safeProdCat ? `<span>• 📁 ${safeProdCat}</span>` : ''}
                 </div>
             `;
 
@@ -2827,6 +2874,10 @@
 
         closeAddToCartModal();
 
+        // حفظ السلة الحالية مؤقتاً حتى لا تضيع أصناف الكاشير عند البيع الفوري لصنف واحد
+        const savedCart = Array.isArray(State.cart) ? [...State.cart] : [];
+        const savedPayMethod = State.selectedPayMethod;
+
         // One-tap quick checkout: set cart to this single item and submit immediately
         State.cart = [{
             key: `${prod.id}_${size}_${color}`,
@@ -2841,6 +2892,14 @@
         }];
         State.selectedPayMethod = 'cash';
         await submitMobileInvoice();
+
+        // استعادة السلة السابقة إن كانت تحتوي على أصناف
+        if (savedCart.length > 0) {
+            State.cart = savedCart;
+            State.selectedPayMethod = savedPayMethod;
+            updateCartCount();
+            if (State.activeTab === 'pos') renderCartView();
+        }
     }
 
     // ============================================================
@@ -3672,11 +3731,13 @@
     // ============================================================
     function playBarcodeBeepAndVibrate() {
         try {
+            const prefs = getPosPrefs();
             // Haptic vibration
-            if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            if (prefs.haptic && typeof navigator !== 'undefined' && navigator.vibrate) {
                 navigator.vibrate(60);
             }
             // Web Audio API Synthesizer (Zero-latency 1760Hz POS beep)
+            if (!prefs.beep) return;
             const AudioCtx = window.AudioContext || window.webkitAudioContext;
             if (AudioCtx) {
                 const ctx = new AudioCtx();
@@ -4079,11 +4140,17 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
     function recalculateStockForActiveWarehouse() {
         const curWH = State.activeWarehouse || 'المخزن الرئيسي';
         State.products.forEach(p => {
-            const whStocks = (p.warehouseStocks && typeof p.warehouseStocks === 'object') ? p.warehouseStocks : {};
+            if (!p.warehouseStocks || typeof p.warehouseStocks !== 'object') {
+                p.warehouseStocks = {};
+            }
+            const whStocks = p.warehouseStocks;
+            // حفظ الرصيد الأصلي في المخزن الرئيسي قبل التبديل حتى لا يُصفّر عند العودة
+            if (Object.keys(whStocks).length === 0) {
+                const origStock = parseFloat(p.stock !== undefined ? p.stock : (p.quantity || 0)) || 0;
+                whStocks['المخزن الرئيسي'] = origStock;
+            }
             if (whStocks[curWH] !== undefined) {
                 p.stock = parseFloat(whStocks[curWH]) || 0;
-            } else if (curWH === 'المخزن الرئيسي' || Object.keys(whStocks).length === 0) {
-                p.stock = parseFloat(p.stock !== undefined ? p.stock : (p.quantity || 0)) || 0;
             } else {
                 p.stock = 0;
             }
@@ -4091,11 +4158,16 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
 
             if (Array.isArray(p.variants)) {
                 p.variants.forEach(v => {
-                    const vWhStocks = (v.warehouseStocks && typeof v.warehouseStocks === 'object') ? v.warehouseStocks : {};
+                    if (!v.warehouseStocks || typeof v.warehouseStocks !== 'object') {
+                        v.warehouseStocks = {};
+                    }
+                    const vWhStocks = v.warehouseStocks;
+                    if (Object.keys(vWhStocks).length === 0) {
+                        const origVStock = parseFloat(v.stock !== undefined ? v.stock : (v.quantity || 0)) || 0;
+                        vWhStocks['المخزن الرئيسي'] = origVStock;
+                    }
                     if (vWhStocks[curWH] !== undefined) {
                         v.stock = parseFloat(vWhStocks[curWH]) || 0;
-                    } else if (curWH === 'المخزن الرئيسي' || Object.keys(vWhStocks).length === 0) {
-                        v.stock = parseFloat(v.stock !== undefined ? v.stock : (v.quantity || 0)) || 0;
                     } else {
                         v.stock = 0;
                     }
@@ -4125,12 +4197,17 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         const whSelectEl = document.getElementById('settingWarehouseSelect');
 
         const raw = inpEl ? inpEl.value.trim() : '';
-        const cleanId = raw ? raw.replace(/\s+/g, '_') : (State.shopId || 'SHOP_DEFAULT');
+        const cleanId = raw ? raw.replace(/\s+/g, '_') : (State.shopId || '');
         const chosenWh = whSelectEl ? whSelectEl.value : (State.activeWarehouse || 'المخزن الرئيسي');
 
-        State.shopId = cleanId;
-        CONFIG.SHOP_ID = cleanId;
-        localStorage.setItem('bayan_mob_shop_id', cleanId);
+        // 🛡️ حماية أمنية: منع تغيير كود المتجر (Shop ID) بدون التحقق المزدوج برمز الـ PIN
+        if (cleanId && cleanId !== State.shopId) {
+            showToast('🔐 لتغيير كود المتجر يجب إدخال رمز الـ PIN السري للمتجر الجديد', 'warning');
+            openPinModal();
+            const directInp = document.getElementById('directShopIdInput');
+            if (directInp) directInp.value = cleanId;
+            return;
+        }
 
         State.activeWarehouse = chosenWh;
         localStorage.setItem('bayan_mob_active_warehouse', chosenWh);
@@ -4139,7 +4216,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         renderSettingsView();
         renderProducts();
         renderCartView();
-        showToast(`✅ تم حفظ الفرع (${cleanId}) والمخزن النشط: ${chosenWh} بنجاح! 📦`, 'success');
+        showToast(`✅ تم حفظ المخزن النشط: ${chosenWh} بنجاح! 📦`, 'success');
 
         await pullMasterData();
         startAutoSyncPoll();
@@ -4248,7 +4325,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
 
     function connectBluetoothPrinter() {
         if (!navigator.bluetooth) {
-            alert('خاصية Web Bluetooth غير مدعومة في متصفحك الحالي، يمكنك مشاركة الفاتورة عبر واتساب أو استخدام متصفح Chrome.');
+            openModernAlert('خاصية Web Bluetooth غير مدعومة في متصفحك الحالي، يمكنك مشاركة الفاتورة عبر واتساب أو استخدام متصفح Chrome.', '🖨️ طابعة البلوتوث');
             return;
         }
         showToast('جاري البحث عن طابعات بلوتوث قريبة... 🖨️', 'info');
@@ -4745,7 +4822,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = async function(e) {
             try {
                 const parsed = JSON.parse(e.target.result);
                 if (!parsed || (!parsed.products && !parsed.transactions && !parsed.accounts)) {
@@ -4753,7 +4830,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                     return;
                 }
 
-                const confirmRestore = confirm(`هل أنت متأكد من استعادة هذه النسخة الاحتياطية؟\nتحتوي على (${(parsed.products||[]).length}) أصناف، و(${(parsed.transactions||[]).length}) حركات.`);
+                const confirmRestore = await openModernConfirm(`هل أنت متأكد من استعادة هذه النسخة الاحتياطية؟\nتحتوي على (${(parsed.products||[]).length}) أصناف، و(${(parsed.transactions||[]).length}) حركات.`, '📥 استعادة نسخة احتياطية');
                 if (!confirmRestore) return;
 
                 if (Array.isArray(parsed.products) && parsed.products.length > 0) {
@@ -5329,17 +5406,17 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                         <div class="account-avatar ${isSupp ? 'supplier' : 'client'}">${avatarIcon}</div>
                         <div class="account-main-info">
                             <div class="account-name-row">
-                                <h4 class="account-name">${a.name}</h4>
+                                <h4 class="account-name">${escapeHtml(a.name)}</h4>
                                 ${typeBadge}
                             </div>
                             <div class="account-meta-row">
                                 ${cleanPhone ? `
-                                <a href="tel:${cleanPhone}" class="acc-phone-badge" title="اتصال مباشر بالهاتف">
+                                <a href="tel:${escapeHtml(cleanPhone)}" class="acc-phone-badge" title="اتصال مباشر بالهاتف">
                                     <span class="phone-call-icon">📞</span>
-                                    <span class="phone-num-text" dir="ltr">${cleanPhone}</span>
+                                    <span class="phone-num-text" dir="ltr">${escapeHtml(cleanPhone)}</span>
                                 </a>` : '<span class="acc-phone-dim" style="color:var(--text-dim); opacity:0.6;">بدون هاتف</span>'}
-                                ${a.code ? `<span class="acc-code">كود: ${a.code}</span>` : ''}
-                                ${a.address ? `<span class="acc-address">📍 ${a.address}</span>` : ''}
+                                ${a.code ? `<span class="acc-code">كود: ${escapeHtml(a.code)}</span>` : ''}
+                                ${a.address ? `<span class="acc-address">📍 ${escapeHtml(a.address)}</span>` : ''}
                             </div>
                         </div>
                     </div>
@@ -5773,6 +5850,17 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
 
         // Initialize Theme (Default Light)
         setTheme(getSavedTheme());
+
+        // 🔐 حارس قفل الخزينة عند بدء التشغيل: إذا كان القفل مفعّلاً نفتح على «بحث الأصناف» لمنع عرض رصيد الدرج قبل الـ PIN
+        if (localStorage.getItem('bayan_mob_treasury_pin_enabled') === 'true' && !State.treasuryUnlocked) {
+            State.activeTab = 'products';
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.tab === 'products');
+            });
+            document.querySelectorAll('.tab-view').forEach(view => {
+                view.classList.toggle('active', view.id === 'view-products');
+            });
+        }
 
         // Connect & Pull Initial Data مع حارس الإقران الصارم
         if (!isValidPairedShop(State.shopId)) {
