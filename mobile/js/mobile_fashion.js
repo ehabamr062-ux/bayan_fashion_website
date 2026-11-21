@@ -287,8 +287,124 @@
     }
 
     function closePinModal() {
+        closePairingQrScanner();
         const modal = document.getElementById('pinModalOverlay');
         if (modal) modal.classList.remove('active');
+    }
+
+    // 📷 محرك مسح QR بالكاميرا الحية داخل نافذة الإقران
+    let _pairQrStream = null;
+    let _pairQrTimer = null;
+
+    async function openPairingQrScanner() {
+        const box = document.getElementById('pairQrScannerBox');
+        const video = document.getElementById('pairQrVideo');
+        const statusEl = document.getElementById('pairQrStatusText');
+        if (box) box.style.display = 'block';
+        if (statusEl) statusEl.textContent = '⏳ جاري تشغيل الكاميرا...';
+
+        closePairingQrScanner(true);
+
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            if (statusEl) statusEl.textContent = '⚠️ الكاميرا الحية غير مدعومة هنا — استخدم «التقاط صورة بالكاميرا» أو «اختيار صورة من الاستوديو» بالأسفل';
+            return;
+        }
+
+        try {
+            _pairQrStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: { ideal: 'environment' } },
+                audio: false
+            });
+            if (video) {
+                video.srcObject = _pairQrStream;
+                await video.play().catch(() => { });
+            }
+            if (statusEl) statusEl.textContent = '🎯 وجّه الكاميرا نحو كود QR المعروض في شاشة المزامنة ببرنامج بَيَان الكبير...';
+
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            let detector = null;
+            if ('BarcodeDetector' in window) {
+                try { detector = new window.BarcodeDetector({ formats: ['qr_code'] }); } catch (_) { }
+            }
+
+            _pairQrTimer = setInterval(async () => {
+                if (!video || video.readyState < 2 || !video.videoWidth) return;
+                let decoded = '';
+                try {
+                    if (detector) {
+                        const found = await detector.detect(video);
+                        if (found && found.length > 0 && found[0].rawValue) decoded = String(found[0].rawValue).trim();
+                    }
+                    if (!decoded && typeof window.jsQR === 'function') {
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                        const res = window.jsQR(imgData.data, imgData.width, imgData.height);
+                        if (res && res.data) decoded = String(res.data).trim();
+                    }
+                } catch (_) { }
+
+                if (decoded) {
+                    const pairInfo = parsePairingQrPayload(decoded);
+                    if (pairInfo) {
+                        closePairingQrScanner();
+                        playBarcodeBeepAndVibrate();
+                        const shopInp = document.getElementById('directShopIdInput');
+                        const pinInp = document.getElementById('pinInput');
+                        if (shopInp) shopInp.value = pairInfo.shopId;
+                        if (pinInp) pinInp.value = pairInfo.pin;
+                        showToast('✅ تم التقاط كود QR بنجاح! جاري الإقران وسحب البيانات...', 'success');
+                        await verifyAndPairDevice(pairInfo.shopId, pairInfo.pin);
+                    }
+                }
+            }, 300);
+        } catch (err) {
+            console.warn('[PairingQR] Camera error:', err);
+            if (statusEl) statusEl.textContent = '⚠️ تعذر فتح الكاميرا الحية — استخدم «التقاط صورة بالكاميرا» أو «اختيار صورة من الاستوديو» بالأسفل';
+        }
+    }
+
+    function closePairingQrScanner(keepBoxOpen = false) {
+        if (_pairQrTimer) {
+            clearInterval(_pairQrTimer);
+            _pairQrTimer = null;
+        }
+        if (_pairQrStream) {
+            try { _pairQrStream.getTracks().forEach(t => t.stop()); } catch (_) { }
+            _pairQrStream = null;
+        }
+        const video = document.getElementById('pairQrVideo');
+        if (video) video.srcObject = null;
+        const box = document.getElementById('pairQrScannerBox');
+        if (box && !keepBoxOpen) box.style.display = 'none';
+    }
+
+    async function handlePairingQrFile(event) {
+        const file = event.target.files && event.target.files[0];
+        if (event.target) event.target.value = '';
+        if (!file) return;
+
+        showToast('⏳ جاري قراءة كود QR من الصورة...', 'warning');
+        const decoded = await decodeQrUniversalFromFile(file);
+        if (!decoded) {
+            showToast('⚠️ لم يتم العثور على كود QR واضح في الصورة، حاول التقاط صورة أوضح', 'error');
+            return;
+        }
+        const pairInfo = parsePairingQrPayload(decoded);
+        if (!pairInfo) {
+            showToast('⚠️ هذا الكود ليس كود إقران صالح لبرنامج بَيَان', 'error');
+            return;
+        }
+        closePairingQrScanner();
+        playBarcodeBeepAndVibrate();
+        const shopInp = document.getElementById('directShopIdInput');
+        const pinInp = document.getElementById('pinInput');
+        if (shopInp) shopInp.value = pairInfo.shopId;
+        if (pinInp) pinInp.value = pairInfo.pin;
+        showToast('✅ تم قراءة كود QR بنجاح! جاري الإقران وسحب البيانات...', 'success');
+        await verifyAndPairDevice(pairInfo.shopId, pairInfo.pin);
     }
 
     // Pair request flow
@@ -6073,6 +6189,9 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         checkConnectionStatus: checkServerInfo,
         openPinModal,
         closePinModal,
+        openPairingQrScanner,
+        closePairingQrScanner,
+        handlePairingQrFile,
         openSettingSubPage,
         closeSettingSubPage,
         renderSettingsView,

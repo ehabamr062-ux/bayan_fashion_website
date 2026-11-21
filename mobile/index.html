@@ -18,7 +18,7 @@
 
     <!-- خط القاهرة والأيقونات -->
     <link rel="stylesheet" href="../fonts/cairo.css">
-    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.27">
+    <link rel="stylesheet" href="css/mobile_fashion.css?v=5.1.28">
     <!-- 📷 محرك قراءة QR العالمي لهواتف أندرويد وآيفون -->
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js" defer></script>
     <style id="mobile-fashion-android-overhaul"></style>
@@ -1320,9 +1320,48 @@
             <h3 style="font-size: 1.2rem; font-weight: 900; color: var(--text-main); margin-bottom: 4px;">إقران الهاتف
                 بالبرنامج
                 الرئيسي</h3>
-            <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px;">
-                أدخل كود المحل ورمز PIN المعروضين الآن في شاشة إعدادات المزامنة بالكمبيوتر
+            <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 12px;">
+                أدخل كود المحل ورمز PIN المعروضين الآن في شاشة إعدادات المزامنة بالكمبيوتر، أو امسح كود QR مباشرة
             </p>
+
+            <!-- 📷 زر مسح QR بالكاميرا للإقران الفوري -->
+            <button type="button" id="btnOpenPairQrScanner" class="btn-complete-invoice"
+                style="margin-bottom: 14px; height: 46px; background: linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow: 0 6px 18px rgba(37, 99, 235, 0.32); font-size: 0.92rem;"
+                onclick="window.BayanMobile.openPairingQrScanner()">
+                <span>📷</span> مسح QR بالكاميرا (إقران فوري)
+            </button>
+
+            <!-- 🎥 حاوية الكاميرا الحية لقراءة QR الاقتران -->
+            <div id="pairQrScannerBox" style="display: none; margin-bottom: 14px; background: var(--bg-card-subtle); border: 1.5px solid var(--primary); border-radius: 16px; padding: 12px;">
+                <div style="position: relative; width: 100%; border-radius: 12px; overflow: hidden; background: #000; margin-bottom: 10px;">
+                    <video id="pairQrVideo" playsinline autoplay muted style="width: 100%; max-height: 220px; object-fit: cover; display: block;"></video>
+                    <div style="position: absolute; inset: 18% 22%; border: 2px solid #10b981; border-radius: 12px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(0,0,0,0.35);"></div>
+                </div>
+                <div id="pairQrStatusText" style="font-size: 0.76rem; color: var(--text-dim); font-weight: 800; margin-bottom: 10px;">
+                    🎯 وجّه الكاميرا نحو كود QR المعروض في شاشة المزامنة ببرنامج بَيَان الكبير...
+                </div>
+                <input type="file" id="pairQrCaptureInput" accept="image/*" capture="environment" style="display: none;"
+                    onchange="window.BayanMobile.handlePairingQrFile(event)">
+                <input type="file" id="pairQrGalleryInput" accept="image/*" style="display: none;"
+                    onchange="window.BayanMobile.handlePairingQrFile(event)">
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                    <button type="button" class="btn-complete-invoice"
+                        style="height: 40px; font-size: 0.84rem; background: linear-gradient(135deg, #059669, #10b981);"
+                        onclick="document.getElementById('pairQrCaptureInput').click()">
+                        <span>📸</span> التقاط صورة بالكاميرا (بديل فوري)
+                    </button>
+                    <button type="button" class="btn-complete-invoice"
+                        style="height: 40px; font-size: 0.84rem; background: linear-gradient(135deg, #0284c7, #0369a1);"
+                        onclick="document.getElementById('pairQrGalleryInput').click()">
+                        <span>🖼️</span> اختيار صورة من الاستوديو
+                    </button>
+                    <button type="button" class="btn-complete-invoice"
+                        style="height: 38px; font-size: 0.82rem; background: var(--chip-bg); color: var(--rose); border: 1.5px solid rgba(225, 29, 72, 0.35); box-shadow: none;"
+                        onclick="window.BayanMobile.closePairingQrScanner()">
+                        <span>✕</span> إغلاق الكاميرا
+                    </button>
+                </div>
+            </div>
 
             <div style="text-align: right; margin-bottom: 6px;">
                 <label
@@ -1688,7 +1727,7 @@
         </div>
     </div>
 
-    <script src="js/mobile_fashion.js?v=5.1.27"></script>
+    <script src="js/mobile_fashion.js?v=5.1.28"></script>
 </body>
 
 </html>
