@@ -1837,8 +1837,8 @@
                             }
                         }
 
-                        // حسم/إضافة المخزون فقط لعمليات البيع والشراء والمرتجعات (دون سندات الصرف والقبض)
-                        if (!isVoucher && Array.isArray(raw.items) && raw.items.length > 0) {
+                        // حسم/إضافة المخزون فقط لعمليات البيع والشراء والمرتجعات (دون سندات الصرف والقبض ودون skipStockUpdate)
+                        if (!isVoucher && !raw.skipStockUpdate && Array.isArray(raw.items) && raw.items.length > 0) {
                             raw.items.forEach(soldItem => {
                                 const prod = pList.find(p => String(p.id) === String(soldItem.productId || soldItem.id) || (soldItem.barcode && p.barcode === soldItem.barcode));
                                 if (prod) {
@@ -2926,6 +2926,10 @@
                             });
                             if (setRes && (setRes.ok || setRes.status === 201 || setRes.status === 204)) {
                                 dedFps.set('shop_settings', settingsFp);
+                                this._lastLocalPushAt = Date.now();
+                                if (typeof this.syncPairingPin === 'function') {
+                                    this.syncPairingPin().catch(() => { });
+                                }
                             }
                         }
                     }

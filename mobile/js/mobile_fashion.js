@@ -1283,7 +1283,7 @@
                 );
                 if (storeRow && storeRow.raw_json) {
                     const pairRaw = Object.assign({}, storeRow.raw_json);
-                    if (realShopNameLoaded && (!pairRaw.shopName || pairRaw.shopName === 'بَيَان فاشون' || pairRaw.shopName === 'بيان فاشون')) {
+                    if (realShopNameLoaded) {
                         pairRaw.shopName = State.shopName;
                     }
                     syncStoreProfile(pairRaw);
@@ -2947,6 +2947,8 @@
                 payMethodArabic = 'فودافون كاش';
             } else if (State.selectedPayMethod === 'card') {
                 payMethodArabic = 'فيزا';
+            } else if (State.selectedPayMethod && State.selectedPayMethod !== 'cash') {
+                payMethodArabic = State.selectedPayMethod;
             }
 
             // قيد أمان محاسبي صارم: منع الآجل أو السداد الجزئي (متبقي > 0) بدون عميل مسجل
@@ -3928,11 +3930,21 @@
             maxStock: 999
         }));
 
-        // ضبط وسيلة الدفع واسم العميل والمبلغ المدفوع والخصم والإضافة
-        const pm = String(tx.paymentMethod || 'كاش');
-        State.selectedPayMethod = (pm.includes('أجل') || pm.includes('آجل') || (parseFloat(tx.remaining || 0) > 0)) ? 'credit'
-            : (pm.includes('فودافون') ? 'vodafone' : (pm.includes('فيزا') ? 'card' : 'cash'));
+        // ضبط وسيلة الدفع واسم العميل والمبلغ المدفوع والخصم والإضافة (مع دعم طرق الدفع المخصصة)
+        const pm = String(tx.paymentMethod || tx.method || 'كاش').trim();
         const pmSel = document.getElementById('posPayMethodSelect');
+        const hasCustomOption = Boolean(pmSel && Array.from(pmSel.options).some(o => o.value === pm));
+        if (pm.includes('أجل') || pm.includes('آجل') || (parseFloat(tx.remaining || 0) > 0)) {
+            State.selectedPayMethod = 'credit';
+        } else if (pm.includes('فودافون')) {
+            State.selectedPayMethod = 'vodafone';
+        } else if (pm.includes('فيزا')) {
+            State.selectedPayMethod = 'card';
+        } else if (hasCustomOption && !pm.includes('كاش') && !pm.includes('نقد')) {
+            State.selectedPayMethod = pm;
+        } else {
+            State.selectedPayMethod = 'cash';
+        }
         if (pmSel) pmSel.value = State.selectedPayMethod;
         const partialWrap = document.getElementById('posPartialPayWrap');
         const paidInp = document.getElementById('posPaidAmountInput');
@@ -5683,6 +5695,28 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                     cashier: adjTx.cashier,
                     created_at: nowIso,
                     raw_json: { ...adjTx, shop_id: currentShopId, updatedAt: nowIso }
+                }])
+            }).catch(() => {});
+
+            // ترحيل حركة التسوية أيضاً لجدول transactions مع skipStockUpdate: true لظهورها في الديسكتوب دون تدبيل الرصيد
+            fetch(`${SUPABASE_CONFIG.url}/rest/v1/transactions?on_conflict=id`, {
+                method: 'POST',
+                headers: getSupabaseHeaders(),
+                body: JSON.stringify([{
+                    id: `${currentShopId}_${adjTx.invoiceId}`,
+                    invoice_id: adjTx.invoiceId,
+                    date_iso: nowIso,
+                    updated_at: nowIso,
+                    time: adjTx.timeISO,
+                    type: 'تسوية مخزنية',
+                    partner: 'جرد مخزني',
+                    total: adjTx.total,
+                    paid_amount: 0,
+                    remaining: 0,
+                    method: 'تسوية',
+                    cashier: adjTx.cashier,
+                    warehouse: wh,
+                    raw_json: { ...adjTx, shop_id: currentShopId, skipStockUpdate: true, updatedAt: nowIso }
                 }])
             }).catch(() => {});
         } else {
