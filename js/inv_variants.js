@@ -894,21 +894,21 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
 
         // حساب حجم الخط ديناميكياً بحسب عدد خانات السعر لضمان امتلاء الورقة بالكامل بأقصى عرض ووضوح (طلب العميل)
         const cleanLen = String(priceFormatted).length;
-        // أ) لوضع الطول على الكارت (0° / 180° — يملأ الضلع الطويل بالكامل بخط عريض وعملاق)
-        let longPriceFontPt = 50;
-        if (cleanLen >= 6) longPriceFontPt = 27;
-        else if (cleanLen === 5) longPriceFontPt = 33;
-        else if (cleanLen === 4) longPriceFontPt = 41;
-        else longPriceFontPt = 50;
-        if (isSmall) longPriceFontPt = Math.round(longPriceFontPt * 0.86);
+        // أ) لوضع الطول على الكارت (0° / 180° — يملأ الضلع الطويل بالكامل بخط عريض وواضح بدون أي تداخل مع حرف ج)
+        let longPriceFontPt = 42;
+        if (cleanLen >= 6) longPriceFontPt = 23;
+        else if (cleanLen === 5) longPriceFontPt = 28;
+        else if (cleanLen === 4) longPriceFontPt = 34;
+        else longPriceFontPt = 42;
+        if (isSmall) longPriceFontPt = Math.round(longPriceFontPt * 0.88);
 
-        // ب) لوضع القراءة المعدولة داخل الضلع القصير (-90° / +90° — يملأ طول وعرض التيكت بالكامل)
-        let uprightPriceFontPt = 40;
-        if (cleanLen >= 6) uprightPriceFontPt = 22;
-        else if (cleanLen === 5) uprightPriceFontPt = 27;
-        else if (cleanLen === 4) uprightPriceFontPt = 33;
-        else uprightPriceFontPt = 40;
-        if (isSmall) uprightPriceFontPt = Math.round(uprightPriceFontPt * 0.86);
+        // ب) لوضع القراءة المعدولة بالطول (-90° / +90° — يملأ الورقة بالطول مع فصل تام بين حرف ج والسعر)
+        let uprightPriceFontPt = 34;
+        if (cleanLen >= 6) uprightPriceFontPt = 19;
+        else if (cleanLen === 5) uprightPriceFontPt = 23;
+        else if (cleanLen === 4) uprightPriceFontPt = 28;
+        else uprightPriceFontPt = 34;
+        if (isSmall) uprightPriceFontPt = Math.round(uprightPriceFontPt * 0.88);
 
         for (let i = 0; i < item.copies; i++) {
             if (isVertical) {
@@ -1075,38 +1075,36 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                     align-items: center !important;
                     justify-content: center !important;
                     box-sizing: border-box;
-                    padding: 0.3mm 0.8mm;
+                    padding: 0.6mm 1.2mm;
                     text-align: center;
-                    gap: 1mm;
+                    gap: 2.4mm;
                 }
                 .price-tag-label.vertical .pt-currency-badge-vert {
-                    font-size: ${isSmall ? '24pt' : '28pt'};
+                    font-size: ${isSmall ? '20pt' : '24pt'};
                     font-weight: 900 !important;
                     color: #000000 !important;
-                    line-height: 0.85;
+                    line-height: 1;
                     font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif;
                     margin: 0;
                     padding: 0;
                     flex-shrink: 0;
-                    -webkit-text-stroke: 1.3px #000000;
+                    -webkit-text-stroke: 1.1px #000000;
                     transform: rotate(-90deg);
                     display: inline-flex;
                     align-items: center;
                     justify-content: center;
                 }
                 .price-tag-label.vertical .pt-price-num-vert {
-                    font-size: var(--pt-long-fs, 48pt);
+                    font-size: var(--pt-long-fs, 42pt);
                     font-weight: 900 !important;
                     color: #000000 !important;
-                    line-height: 0.85;
+                    line-height: 1;
                     font-family: 'Arial Black', 'Segoe UI Black', 'Cairo', Arial, sans-serif;
-                    letter-spacing: -0.5px;
+                    letter-spacing: 0px;
                     margin: 0;
                     white-space: nowrap;
-                    -webkit-text-stroke: 1.5px #000000;
+                    -webkit-text-stroke: 1.3px #000000;
                     -webkit-font-smoothing: antialiased;
-                    transform: scaleY(1.18);
-                    transform-origin: center center;
                 }
 
                 /* زاوية 180° (بطول التيكت معكوس الاتجاه) */
@@ -1114,48 +1112,58 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                     transform: translate(-50%, -50%) rotate(180deg) !important;
                 }
 
-                /* زاوية -90° (السعر عريض وعملاق يملأ الورقة بالكامل + ج كبيرة في الأعلى) */
+                /* زاوية -90° (السعر بطول الورقة بالكامل + فصل تام بين حرف ج في الأعلى والسعر أسفله) */
                 body[data-angle="-90"] .price-tag-label.vertical .pt-vertical-rotator {
                     width: ${printHeight}mm !important;
                     height: ${printWidth}mm !important;
                     flex-direction: column !important;
                     direction: rtl !important;
-                    justify-content: center !important;
-                    gap: 0.8mm;
-                    padding: 0.5mm !important;
+                    justify-content: space-between !important;
+                    gap: 0 !important;
+                    padding: 2.2mm 0.8mm 2.8mm 0.8mm !important;
                     transform: translate(-50%, -50%) rotate(-90deg) !important;
                 }
                 body[data-angle="-90"] .price-tag-label.vertical .pt-currency-badge-vert {
-                    transform: scaleX(1.25) !important;
-                    font-size: ${isSmall ? '26pt' : '30pt'};
-                    line-height: 0.82;
+                    transform: none !important;
+                    font-size: ${isSmall ? '22pt' : '26pt'};
+                    line-height: 1;
+                    padding-bottom: 1.5mm;
                 }
                 body[data-angle="-90"] .price-tag-label.vertical .pt-price-num-vert {
-                    font-size: var(--pt-upright-fs, 38pt);
-                    transform: scaleY(1.38) !important;
-                    line-height: 0.82;
+                    flex: 1;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: var(--pt-upright-fs, 34pt);
+                    transform: scaleY(1.22) !important;
+                    line-height: 1;
                 }
 
-                /* زاوية +90° (السعر عريض وعملاق يملأ الورقة بالكامل معكوس الاتجاه) */
+                /* زاوية +90° (السعر بطول الورقة بالكامل معكوس الاتجاه + فصل تام بين ج والسعر) */
                 body[data-angle="90"] .price-tag-label.vertical .pt-vertical-rotator {
                     width: ${printHeight}mm !important;
                     height: ${printWidth}mm !important;
                     flex-direction: column !important;
                     direction: rtl !important;
-                    justify-content: center !important;
-                    gap: 0.8mm;
-                    padding: 0.5mm !important;
+                    justify-content: space-between !important;
+                    gap: 0 !important;
+                    padding: 2.2mm 0.8mm 2.8mm 0.8mm !important;
                     transform: translate(-50%, -50%) rotate(90deg) !important;
                 }
                 body[data-angle="90"] .price-tag-label.vertical .pt-currency-badge-vert {
-                    transform: scaleX(1.25) !important;
-                    font-size: ${isSmall ? '26pt' : '30pt'};
-                    line-height: 0.82;
+                    transform: none !important;
+                    font-size: ${isSmall ? '22pt' : '26pt'};
+                    line-height: 1;
+                    padding-bottom: 1.5mm;
                 }
                 body[data-angle="90"] .price-tag-label.vertical .pt-price-num-vert {
-                    font-size: var(--pt-upright-fs, 38pt);
-                    transform: scaleY(1.38) !important;
-                    line-height: 0.82;
+                    flex: 1;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: var(--pt-upright-fs, 34pt);
+                    transform: scaleY(1.22) !important;
+                    line-height: 1;
                 }
 
                 @media print {
