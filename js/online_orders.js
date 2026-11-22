@@ -332,6 +332,7 @@
                             <input type="text" id="onlineStoreUrlInput" value="${storeUrl}" readonly style="width:280px; max-width:100%; padding:7px 10px; border-radius:8px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.78rem; font-family:monospace; color:#334155;" dir="ltr">
                             <button type="button" onclick="BayanOnlineOrders.copyStoreUrl()" style="background:#0284c7; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">📋 نسخ رابط المتجر</button>
                             <button type="button" onclick="BayanOnlineOrders.openStorePreview()" style="background:#0f172a; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">🌐 فتح المتجر</button>
+                            <button type="button" onclick="BayanOnlineOrders.syncAllPublishedProducts()" style="background:#059669; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">📤 مزامنة الأصناف المنشورة للمتجر</button>
                             <button type="button" onclick="BayanOnlineOrders.startListening()" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:8px 12px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">🔄 تحديث</button>
                         </div>
                     </div>
@@ -771,6 +772,159 @@
                 console.error('[OnlineOrders] Direct conversion error:', err);
                 if (typeof showToast === 'function') showToast('❌ تعذر حفظ الفاتورة: ' + err.message, 'error');
             }
+        },
+
+        // =========================================================================
+        // 🔄 مزامنة الأصناف والأرصدة الحية من بيان POS إلى المتجر الإلكتروني (Phase 3)
+        // =========================================================================
+        _stockSyncQueue: new Map(),
+        _stockSyncTimer: null,
+
+        _buildStoreProductPayload(p) {
+            if (!p || p.id == null) return null;
+            const totalStock = (window.FashionStockEngine && typeof window.FashionStockEngine.getProductStock === 'function')
+                ? window.FashionStockEngine.getProductStock(p, 'all')
+                : (parseFloat(p.stock) || 0);
+
+            const sizesSet = new Set();
+            const colorsSet = new Set();
+            const variantsStock = {};
+
+            if (Array.isArray(p.variants) && p.variants.length > 0) {
+                p.variants.forEach(v => {
+                    if (!v) return;
+                    const s = String(v.size || '').trim();
+                    const c = String(v.color || '').trim();
+                    if (s && s !== '-' && s !== 'موحد') sizesSet.add(s);
+                    if (c && c !== '-' && c !== 'قياسي') colorsSet.add(c);
+                    const vSt = (window.FashionStockEngine && typeof window.FashionStockEngine.getVariantStock === 'function')
+                        ? window.FashionStockEngine.getVariantStock(v, 'all')
+                        : (parseFloat(v.stock) || 0);
+                    const key = `${s || 'موحد'}|${c || 'قياسي'}`;
+                    variantsStock[key] = (variantsStock[key] || 0) + vSt;
+                });
+            }
+
+            const isPublished = Boolean(p.showInStore) && !p.isDeleted;
+            const payload = {
+                id: `pos_${p.id}`,
+                pos_id: String(p.id),
+                code: String(p.code || ''),
+                barcode: String(p.barcode || ''),
+                name: String(p.name || 'صنف'),
+                category: String(p.category || 'general'),
+                categoryName: String(p.category || 'تشكيلة أزياء'),
+                price: parseFloat(p.price) || 0,
+                sizes: Array.from(sizesSet),
+                colors: Array.from(colorsSet),
+                stock: totalStock,
+                stockQty: totalStock,
+                variantsStock,
+                inStock: totalStock > 0,
+                active: isPublished,
+                isFrozen: !isPublished,
+                updatedAt: new Date().toISOString()
+            };
+            if (parseFloat(p.oldPrice) > payload.price) {
+                payload.oldPrice = parseFloat(p.oldPrice);
+            }
+            return payload;
+        },
+
+        async syncProductToStore(product) {
+            if (!product || product.id == null || !navigator.onLine) return false;
+            try {
+                const db = await this._ensureFirebaseReady();
+                if (!db) return false;
+                const shopId = this.getShopId();
+                const docId = `pos_${product.id}`;
+                const payload = this._buildStoreProductPayload(product);
+                if (!payload) return false;
+                await db.collection('shops').doc(shopId).collection('products').doc(docId).set(payload, { merge: true });
+                return true;
+            } catch (_) {
+                return false;
+            }
+        },
+
+        async deactivateProductInStore(productId) {
+            if (productId == null || !navigator.onLine) return false;
+            try {
+                const db = await this._ensureFirebaseReady();
+                if (!db) return false;
+                const shopId = this.getShopId();
+                await db.collection('shops').doc(shopId).collection('products').doc(`pos_${productId}`).set({
+                    active: false,
+                    isFrozen: true,
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+                return true;
+            } catch (_) {
+                return false;
+            }
+        },
+
+        async syncAllPublishedProducts() {
+            if (!navigator.onLine) {
+                if (typeof showToast === 'function') showToast('⚠️ لا يوجد اتصال بالإنترنت حالياً للمزامنة مع المتجر.', 'warning');
+                return 0;
+            }
+            const list = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
+            const published = list.filter(p => p && !p.isDeleted && p.showInStore === true);
+            if (published.length === 0) {
+                if (typeof showToast === 'function') showToast('ℹ️ لا توجد أصناف مفعّل عليها «عرض في المتجر الإلكتروني» حالياً.', 'info');
+                return 0;
+            }
+            if (typeof showToast === 'function') showToast(`⏳ جاري مزامنة (${published.length}) صنف مع المتجر الإلكتروني...`, 'info');
+            let okCount = 0;
+            for (let i = 0; i < published.length; i++) {
+                const ok = await this.syncProductToStore(published[i]);
+                if (ok) okCount++;
+            }
+            if (typeof showToast === 'function') {
+                showToast(`✅ تمت مزامنة ${okCount} من ${published.length} صنف مع المتجر الإلكتروني بنجاح!`, 'success', 5000);
+            }
+            return okCount;
+        },
+
+        // ⚡ تحديث صامت ومؤجل (Debounced) لرصيد الأصناف المنشورة فقط بعد أي بيع/مرتجع/تسوية
+        scheduleSilentStockSync(itemsOrOne) {
+            if (!navigator.onLine || !itemsOrOne) return;
+            const arr = Array.isArray(itemsOrOne) ? itemsOrOne : [itemsOrOne];
+            let queued = false;
+            for (let i = 0; i < arr.length; i++) {
+                const p = arr[i];
+                if (p && p.id != null && p.showInStore === true) {
+                    this._stockSyncQueue.set(String(p.id), p);
+                    queued = true;
+                }
+            }
+            if (!queued) return;
+
+            if (this._stockSyncTimer) clearTimeout(this._stockSyncTimer);
+            this._stockSyncTimer = setTimeout(async () => {
+                this._stockSyncTimer = null;
+                if (!navigator.onLine || this._stockSyncQueue.size === 0) return;
+                const batch = Array.from(this._stockSyncQueue.values());
+                this._stockSyncQueue.clear();
+                try {
+                    const db = await this._ensureFirebaseReady();
+                    if (!db) return;
+                    const shopId = this.getShopId();
+                    const col = db.collection('shops').doc(shopId).collection('products');
+                    for (let i = 0; i < batch.length; i++) {
+                        const payload = this._buildStoreProductPayload(batch[i]);
+                        if (!payload) continue;
+                        await col.doc(payload.id).set({
+                            stock: payload.stock,
+                            stockQty: payload.stockQty,
+                            variantsStock: payload.variantsStock,
+                            inStock: payload.inStock,
+                            updatedAt: payload.updatedAt
+                        }, { merge: true }).catch(() => { });
+                    }
+                } catch (_) { }
+            }, 1500);
         }
     };
 

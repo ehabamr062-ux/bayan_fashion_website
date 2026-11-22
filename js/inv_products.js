@@ -478,6 +478,7 @@ async function saveNewItem(mode = 'save') {
         unit: units.length > 0 ? units[0].unitName : "قطعة",
         image: resolvedImage,
         isQuick: document.getElementById('isQuickItem') ? document.getElementById('isQuickItem').checked : false,
+        showInStore: document.getElementById('newItemShowInStore') ? document.getElementById('newItemShowInStore').checked : false,
         updatedAt: Date.now()
     };
     delete newItem._searchTokens;
@@ -503,6 +504,14 @@ async function saveNewItem(mode = 'save') {
     if (typeof updateNotifications === 'function') updateNotifications();
     if (typeof updateDatalists === 'function') updateDatalists();
     if (typeof renderProductsGrid === 'function') renderProductsGrid();
+
+    // 🌐 مزامنة الصنف مع المتجر الإلكتروني في Firestore إذا كان مفعّلاً أو تم إلغاء نشره
+    if (window.BayanOnlineOrders && typeof window.BayanOnlineOrders.syncProductToStore === 'function') {
+        const wasPublished = Boolean(existingProduct && existingProduct.showInStore);
+        if (newItem.showInStore || wasPublished) {
+            window.BayanOnlineOrders.syncProductToStore(newItem).catch(() => { });
+        }
+    }
 
     const qAddCtx = typeof currentQuickAddContext !== 'undefined' ? currentQuickAddContext : null;
     if (qAddCtx === 'sales' && typeof addToCart === 'function') addToCart(newItem.id);
@@ -549,6 +558,7 @@ async function saveNewItem(mode = 'save') {
         if (document.getElementById('newItemScalePlu')) document.getElementById('newItemScalePlu').value = "";
         if (document.getElementById('newItemCategory')) document.getElementById('newItemCategory').value = "عام";
         if (document.getElementById('newItemBrand')) document.getElementById('newItemBrand').value = "";
+        if (document.getElementById('newItemShowInStore')) document.getElementById('newItemShowInStore').checked = false;
         if (document.getElementById('newItemSupplier')) document.getElementById('newItemSupplier').value = "";
         if (document.getElementById('newItemShelf')) document.getElementById('newItemShelf').value = "";
         if (document.getElementById('newItemNotes')) document.getElementById('newItemNotes').value = "";
@@ -847,6 +857,7 @@ function fillProductModal(p) {
     if (document.getElementById('newItemScalePlu')) document.getElementById('newItemScalePlu').value = p.scalePlu || '';
     if (document.getElementById('newItemCategory')) document.getElementById('newItemCategory').value = p.category || 'عام';
     if (document.getElementById('newItemBrand')) document.getElementById('newItemBrand').value = p.brand || '';
+    if (document.getElementById('newItemShowInStore')) document.getElementById('newItemShowInStore').checked = Boolean(p.showInStore);
     if (document.getElementById('newItemSupplier')) document.getElementById('newItemSupplier').value = p.supplier || '';
     if (document.getElementById('newItemShelf')) document.getElementById('newItemShelf').value = p.shelf || '';
     if (document.getElementById('newItemStock')) {
