@@ -65,7 +65,7 @@
                 const sep = customBase.includes('?') ? '&' : '?';
                 return `${customBase.trim()}${sep}shop=${encodeURIComponent(shopId)}`;
             }
-            return `https://ehabamr062-ux.github.io/bayan_fashion_store/?shop=${encodeURIComponent(shopId)}`;
+            return `https://ehabamr062-ux.github.io/bayan-fashion-store/?shop=${encodeURIComponent(shopId)}`;
         },
 
         _esc(str) {
