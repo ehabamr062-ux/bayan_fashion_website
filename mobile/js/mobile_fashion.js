@@ -1042,6 +1042,13 @@
                     }
                 } catch (_) { }
             };
+            ws.onclose = () => {
+                if (State._realtimeHb) { clearInterval(State._realtimeHb); State._realtimeHb = null; }
+                if (navigator.onLine && isValidPairedShop(State.shopId)) {
+                    setTimeout(() => startMobileRealtimeSubscription(), 3000);
+                }
+            };
+            ws.onerror = () => { try { ws.close(); } catch (_) { } };
         } catch (_) { }
     }
 
@@ -1049,13 +1056,23 @@
         if (State.pollTimer) clearInterval(State.pollTimer);
         if (!isValidPairedShop(State.shopId)) return;
         startMobileRealtimeSubscription();
-        // مؤقت احتياطي خفيف كل 60 ثانية كشبكة أمان بجانب Realtime WebSocket
+        // مؤقت سريع كل 15 ثانية كشبكة أمان بجانب Realtime WebSocket
         State.pollTimer = setInterval(() => {
-            if (navigator.onLine && isValidPairedShop(State.shopId) && !State.isPulling) {
+            if (navigator.onLine && isValidPairedShop(State.shopId) && !State.isPulling && !document.hidden) {
                 State.isPulling = true;
                 Promise.resolve(pullMasterData(false)).finally(() => { State.isPulling = false; });
             }
-        }, 60000);
+        }, 15000);
+
+        if (!window._bayanMobVisBound) {
+            window._bayanMobVisBound = true;
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && navigator.onLine && isValidPairedShop(State.shopId) && !State.isPulling) {
+                    State.isPulling = true;
+                    Promise.resolve(pullMasterData(false)).finally(() => { State.isPulling = false; });
+                }
+            });
+        }
     }
 
     // ============================================================
