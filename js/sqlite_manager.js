@@ -1477,12 +1477,13 @@
         }
 
         /**
-         * 🔄 إعادة تجميع الكائن من أعمدة SQL مع الحقول الإضافية المفكوكة من raw_json
+         * 🔄 إعادة تجميع الكائن من أعمدة SQL مع الحقول الإضافية المفكوكة من raw_json (مع دعم تخطي الفك الفارغ أو الكسول)
          */
-        _reconstructRow(row) {
+        _reconstructRow(row, options = null) {
             if (!row || typeof row !== 'object') return null;
             let res = null;
-            if (row.raw_json) {
+            const skipRaw = Boolean(options && options.skipRawJson);
+            if (!skipRaw && row.raw_json && row.raw_json !== '{}' && row.raw_json !== 'null') {
                 try {
                     res = typeof row.raw_json === 'string' ? JSON.parse(row.raw_json) : row.raw_json;
                 } catch (e) { }
@@ -3034,6 +3035,65 @@
             } catch (err) {
                 console.warn("[SQLite] getDailyReportAggregates error:", err.message);
                 return null;
+            }
+        }
+
+        /**
+         * ⚡ ملخص تجميعي فائق السرعة داخل SQLite مباشرة (SUM / COUNT) بدون جلب صفوف أو JSON.parse
+         */
+        getFastAggregatedSummary(fromDate, toDate, warehouse = 'all', cashier = 'all') {
+            const empty = { salesTotal: 0, salesCount: 0, returnsTotal: 0, purchasesTotal: 0, receiptsTotal: 0, disbursementsTotal: 0 };
+            if (!this.db) return empty;
+            try {
+                let sql = `
+                    SELECT
+                        SUM(CASE WHEN (type LIKE 'بيع%' OR type LIKE 'فاتورة بيع%' OR type LIKE 'مبيعات%') AND type NOT LIKE 'مرتجع%' THEN COALESCE(total, 0) ELSE 0 END) AS salesTotal,
+                        COUNT(DISTINCT CASE WHEN (type LIKE 'بيع%' OR type LIKE 'فاتورة بيع%' OR type LIKE 'مبيعات%') AND type NOT LIKE 'مرتجع%' THEN invoiceId END) AS salesCount,
+                        SUM(CASE WHEN type LIKE 'مرتجع بيع%' OR type LIKE 'مرتجع مبيعات%' THEN ABS(COALESCE(total, 0)) ELSE 0 END) AS returnsTotal,
+                        SUM(CASE WHEN (type LIKE 'شراء%' OR type LIKE 'فاتورة شراء%' OR type LIKE 'مشتريات%') AND type NOT LIKE 'مرتجع%' THEN COALESCE(total, 0) ELSE 0 END) AS purchasesTotal,
+                        SUM(CASE WHEN type LIKE 'قبض%' OR type LIKE 'سند قبض%' THEN ABS(COALESCE(total, 0)) ELSE 0 END) AS receiptsTotal,
+                        SUM(CASE WHEN type LIKE 'صرف%' OR type LIKE 'سند صرف%' THEN ABS(COALESCE(total, 0)) ELSE 0 END) AS disbursementsTotal
+                    FROM transactions
+                    WHERE (status IS NULL OR status != 'void') AND dateISO >= ? AND dateISO <= ?`;
+                const params = [String(fromDate || '').trim(), String(toDate || '').trim()];
+                if (warehouse && warehouse !== 'all') {
+                    sql += " AND (warehouse = ? OR (warehouse IS NULL AND ? = 'المخزن الرئيسي'))";
+                    params.push(warehouse, warehouse);
+                }
+                if (cashier && cashier !== 'all') {
+                    sql += " AND cashier = ?";
+                    params.push(cashier);
+                }
+                if (this.isNative && this.nativeDb) {
+                    const row = this.nativeDb.prepare(sql).get(...params);
+                    return row ? {
+                        salesTotal: Number(row.salesTotal) || 0,
+                        salesCount: Number(row.salesCount) || 0,
+                        returnsTotal: Number(row.returnsTotal) || 0,
+                        purchasesTotal: Number(row.purchasesTotal) || 0,
+                        receiptsTotal: Number(row.receiptsTotal) || 0,
+                        disbursementsTotal: Number(row.disbursementsTotal) || 0
+                    } : empty;
+                }
+                const stmt = this.db.prepare(sql);
+                stmt.bind(params);
+                let out = empty;
+                if (stmt.step()) {
+                    const row = stmt.getAsObject();
+                    out = {
+                        salesTotal: Number(row.salesTotal) || 0,
+                        salesCount: Number(row.salesCount) || 0,
+                        returnsTotal: Number(row.returnsTotal) || 0,
+                        purchasesTotal: Number(row.purchasesTotal) || 0,
+                        receiptsTotal: Number(row.receiptsTotal) || 0,
+                        disbursementsTotal: Number(row.disbursementsTotal) || 0
+                    };
+                }
+                stmt.free();
+                return out;
+            } catch (err) {
+                console.warn("[SQLite] getFastAggregatedSummary error:", err.message);
+                return empty;
             }
         }
 

@@ -292,7 +292,7 @@ async function executePrinting(modeOrTargets, copies = 1) {
             try {
                 const dbProds = (typeof db.products.limit === 'function')
                     ? await db.products.limit(500).toArray()
-                    : await db.products.toArray();
+                    : (Array.isArray(window.productsDB) ? window.productsDB.slice(0, 500) : []);
                 if (Array.isArray(dbProds) && dbProds.length > 0) {
                     targets = dbProds;
                 }
@@ -784,7 +784,7 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
             try {
                 const dbProds = (typeof db.products.limit === 'function')
                     ? await db.products.limit(500).toArray()
-                    : await db.products.toArray();
+                    : (Array.isArray(window.productsDB) ? window.productsDB.slice(0, 500) : []);
                 if (Array.isArray(dbProds) && dbProds.length > 0) targets = dbProds;
             } catch (e) { }
         }

@@ -498,13 +498,17 @@
                 } catch (e) { }
             }
 
-            // 3. تخزين احتياطي محلي في localStorage
+            // 3. تخزين احتياطي محلي في localStorage مع حماية QuotaExceededError
             try {
                 const memQ = JSON.parse(localStorage.getItem('bayan_sync_queue_fallback') || '[]');
                 item.id = Date.now() + Math.floor(Math.random() * 1000);
                 memQ.push(item);
                 if (memQ.length > 500) memQ.splice(0, memQ.length - 500);
-                localStorage.setItem('bayan_sync_queue_fallback', JSON.stringify(memQ));
+                try {
+                    localStorage.setItem('bayan_sync_queue_fallback', JSON.stringify(memQ));
+                } catch (quotaErr) {
+                    localStorage.setItem('bayan_sync_queue_fallback', JSON.stringify(memQ.slice(-100)));
+                }
                 return true;
             } catch (e) { }
 
@@ -3007,11 +3011,41 @@
                             const rec = msg.payload?.data?.record || msg.payload?.data?.old_record || {};
                             const recShop = rec.shop_id || (rec.raw_json && rec.raw_json.shop_id) || '';
                             if (rec.id && !String(rec.id).includes(shopId) && recShop !== shopId) return;
+
+                            const tableName = msg.payload?.data?.table
+                                || (typeof msg.topic === 'string' ? msg.topic.split(':')[2] : '')
+                                || '';
+                            if (!this._rtDirtyTables) this._rtDirtyTables = new Set();
+                            this._rtDirtyTables.add(tableName || '__ALL__');
+
                             if (this._rtDebounce) clearTimeout(this._rtDebounce);
-                            this._rtDebounce = setTimeout(() => {
-                                if (!this._isPulling && navigator.onLine && this._isAllowed()) {
-                                    this._isPulling = true;
-                                    this.runFullSync(false).finally(() => { this._isPulling = false; });
+                            this._rtDebounce = setTimeout(async () => {
+                                const tables = Array.from(this._rtDirtyTables || []);
+                                if (this._rtDirtyTables) this._rtDirtyTables.clear();
+                                if (this._isPulling || !navigator.onLine || !this._isAllowed()) return;
+                                this._isPulling = true;
+                                try {
+                                    if (tables.length === 0 || tables.includes('__ALL__')) {
+                                        await this.runFullSync(false);
+                                    } else {
+                                        const hasAudit = tables.includes('treasury_audit');
+                                        if (tables.includes('transactions') || hasAudit) {
+                                            if (typeof this.pullRemoteTransactions === 'function') await this.pullRemoteTransactions();
+                                        }
+                                        if (tables.includes('products') || hasAudit) {
+                                            if (typeof this.syncProducts === 'function') await this.syncProducts(false);
+                                        }
+                                        if (hasAudit && typeof this.syncCustomers === 'function') {
+                                            await this.syncCustomers();
+                                        }
+                                        if (tables.some(t => t === 'accounts' || t === 'warehouses' || t === 'shop_settings')) {
+                                            if (typeof this.syncDedicatedAccountsAndWarehouses === 'function') {
+                                                await this.syncDedicatedAccountsAndWarehouses();
+                                            }
+                                        }
+                                    }
+                                } catch (_) { } finally {
+                                    this._isPulling = false;
                                 }
                             }, 600);
                         }
@@ -3072,14 +3106,21 @@
             }
         },
 
-        // 🛑 إيقاف وفصل مؤقت المزامنة السحابية بسلام عند إغلاق التطبيق
+        // 🛑 إيقاف وفصل مؤقت المزامنة السحابية والـ WebSocket بسلام عند إغلاق التطبيق
         disconnect: function () {
-            if (this.syncTimer) {
-                clearInterval(this.syncTimer);
-                this.syncTimer = null;
+            if (this.syncTimer) { clearInterval(this.syncTimer); this.syncTimer = null; }
+            if (this._realtimeHb) { clearInterval(this._realtimeHb); this._realtimeHb = null; }
+            if (this._realtimeReconnectTimer) { clearTimeout(this._realtimeReconnectTimer); this._realtimeReconnectTimer = null; }
+            if (this._rtDebounce) { clearTimeout(this._rtDebounce); this._rtDebounce = null; }
+            if (this._instantPushTimer) { clearTimeout(this._instantPushTimer); this._instantPushTimer = null; }
+            if (this._realtimeWs) {
+                const ws = this._realtimeWs;
+                this._realtimeWs = null;
+                try { ws.onclose = null; ws.onerror = null; ws.onmessage = null; ws.close(); } catch (_) { }
             }
+            if (this._rtDirtyTables) this._rtDirtyTables.clear();
             this._isSyncing = false;
-            console.log('☁️ [SupabaseSync] Disconnected successfully for shutdown.');
+            console.log('☁️ [SupabaseSync] Disconnected cleanly (Timers + WebSocket closed).');
         },
 
         // 🛡️ إعادة فحص الترخيص فوراً وتحديث الواجهة والمؤقت

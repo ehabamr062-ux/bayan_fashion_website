@@ -221,7 +221,29 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ================= وظائف مركز التقارير (Reports Logic) =================
+// 🧹 تفريغ DOM للجداول الضخمة المخفية فقط (التي يُعاد رسمها تلقائياً عند العودة) دون المساس بـ POS أو المدخلات
+function _trimHiddenHeavyTablesDOM(nextSectionType) {
+    try {
+        const heavyMap = {
+            'invoices': ['invoicesTableBody'],
+            'statement': ['statementTableBody'],
+            'warehouse-report': ['warehouseReportBody']
+        };
+        for (const sec in heavyMap) {
+            if (sec === nextSectionType) continue;
+            const ids = heavyMap[sec];
+            for (let i = 0; i < ids.length; i++) {
+                const el = document.getElementById(ids[i]);
+                if (el && el.children && el.children.length > 150) {
+                    el.innerHTML = '';
+                }
+            }
+        }
+    } catch (_) { }
+}
+
 function switchSection(sectionType, fromTab = false, tabId = null) {
+    _trimHiddenHeavyTablesDOM(sectionType);
     // إذا كان التبويب النشط حالياً هو الحاسبة والتبويب الجديد ليس الحاسبة، نخفي الحاسبة
     if (activeTabId === 'calculator' && sectionType !== 'calculator') {
         const modal = document.getElementById('royalCalculator');

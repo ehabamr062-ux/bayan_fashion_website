@@ -675,37 +675,87 @@ function logPrintOperation(logData) {
     }
 }
 
+// 🖨️ نافذة طباعة خفية واحدة مُعاد استخدامها + طابور طباعة متسلسل لمنع قفزات الرامات وتداخل الفواتير
+let hiddenPrintWin = null;
+let printQueueChain = Promise.resolve();
+
+function getOrCreateHiddenPrintWindow(winWidthPx) {
+    if (hiddenPrintWin && !hiddenPrintWin.isDestroyed()) {
+        try {
+            hiddenPrintWin.setContentSize(winWidthPx || 302, 1200);
+        } catch (_) { }
+        return hiddenPrintWin;
+    }
+    hiddenPrintWin = new BrowserWindow({
+        width: winWidthPx || 302,
+        height: 1200,
+        show: false,
+        paintWhenInitiallyHidden: true,
+        backgroundColor: '#ffffff',
+        focusable: false,
+        skipTaskbar: true,
+        frame: false,
+        webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: false,
+            webSecurity: false,
+            backgroundThrottling: false
+        }
+    });
+    hiddenPrintWin.on('closed', () => { hiddenPrintWin = null; });
+    hiddenPrintWin.webContents.on('render-process-gone', () => {
+        try { if (hiddenPrintWin && !hiddenPrintWin.isDestroyed()) hiddenPrintWin.destroy(); } catch (_) { }
+        hiddenPrintWin = null;
+    });
+    return hiddenPrintWin;
+}
+
+app.on('before-quit', () => {
+    if (hiddenPrintWin && !hiddenPrintWin.isDestroyed()) {
+        try { hiddenPrintWin.destroy(); } catch (_) { }
+    }
+    hiddenPrintWin = null;
+});
+
 ipcMain.handle('print-receipt-silent', async (event, payload) => {
-    return new Promise(async (resolve) => {
+    const runJob = () => new Promise(async (resolve) => {
         const startTime = Date.now();
         let renderEndTime = 0;
         let printWin = null;
         let resolved = false;
         let tempReceiptFile = null;
 
-        const cleanup = (res, delayDestroy = false) => {
+        const cleanup = (res, delayReset = false) => {
             if (!resolved) {
                 resolved = true;
                 clearTimeout(timeoutTimer);
-                resolve(res);
-
-                // ⏱️ مهلة 5 ثوانٍ في الخلفية قبل تدمير نافذة الطباعة لضمان اكتمال تدفق البيانات لـ Windows Spooler وفتح الدرج الكهربائي والمقص التلقائي
-                if (delayDestroy) {
-                    setTimeout(() => {
-                        if (printWin && !printWin.isDestroyed()) {
-                            try { printWin.destroy(); } catch (e) { }
-                        }
-                        if (tempReceiptFile) {
-                            try { if (fs.existsSync(tempReceiptFile)) fs.unlinkSync(tempReceiptFile); } catch (e) { }
-                        }
-                    }, 5000);
-                } else {
+                try {
                     if (printWin && !printWin.isDestroyed()) {
-                        try { printWin.destroy(); } catch (e) { }
+                        printWin.webContents.removeAllListeners('did-finish-load');
+                        printWin.webContents.removeAllListeners('did-fail-load');
                     }
+                } catch (_) { }
+
+                const resetWindowAndTemp = () => {
+                    try {
+                        if (printWin && !printWin.isDestroyed()) {
+                            printWin.loadURL('about:blank').catch(() => { });
+                        }
+                    } catch (_) { }
                     if (tempReceiptFile) {
-                        try { if (fs.existsSync(tempReceiptFile)) fs.unlinkSync(tempReceiptFile); } catch (e) { }
+                        try { if (fs.existsSync(tempReceiptFile)) fs.unlinkSync(tempReceiptFile); } catch (_) { }
                     }
+                };
+
+                if (delayReset) {
+                    setTimeout(() => {
+                        resetWindowAndTemp();
+                        resolve(res);
+                    }, 350);
+                } else {
+                    resetWindowAndTemp();
+                    resolve(res);
                 }
             }
         };
@@ -749,23 +799,9 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
                     : (pageWidth === 'A5' || pageWidth === '148mm') ? 559
                         : 302;
 
-            printWin = new BrowserWindow({
-                width: winWidthPx,
-                height: 1200,
-                show: false,
-                paintWhenInitiallyHidden: true,
-                backgroundColor: '#ffffff',
-                focusable: false,
-                skipTaskbar: true,
-                frame: false,
-                webPreferences: {
-                    nodeIntegration: false,
-                    contextIsolation: true,
-                    sandbox: false,
-                    webSecurity: false,
-                    backgroundThrottling: false
-                }
-            });
+            printWin = getOrCreateHiddenPrintWindow(winWidthPx);
+            printWin.webContents.removeAllListeners('did-fail-load');
+            printWin.webContents.removeAllListeners('did-finish-load');
 
             printWin.webContents.on('did-fail-load', (_e, code, desc) => {
                 logPrintOperation({
@@ -1012,6 +1048,9 @@ ipcMain.handle('print-receipt-silent', async (event, payload) => {
             cleanup({ success: false, error: err.message }, false);
         }
     });
+
+    printQueueChain = printQueueChain.then(runJob, runJob);
+    return printQueueChain;
 });
 
 // =========================================================================

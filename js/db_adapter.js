@@ -335,7 +335,7 @@
                     if (window.BayanSQLite && typeof window.BayanSQLite._reconstructRow === 'function') {
                         return window.BayanSQLite._reconstructRow(row);
                     }
-                    if (row.raw_json) {
+                    if (row.raw_json && row.raw_json !== '{}' && row.raw_json !== 'null') {
                         try {
                             const extra = typeof row.raw_json === 'string' ? JSON.parse(row.raw_json) : row.raw_json;
                             delete row.raw_json;
@@ -737,11 +737,8 @@
                     }
                     try {
                         const syncEngine = window.SupabaseSync || window.BayanSupabaseSync;
-                        const canPushCloud = Boolean(syncEngine && !syncEngine.isSyncing && !window._bayanRevertingInvoice && (typeof syncEngine._isAllowed !== 'function' || syncEngine._isAllowed()));
-                        if (canPushCloud && ['transactions', 'products', 'accounts', 'warehouses', 'treasuryAudit'].includes(tableName)) {
-                            if (typeof syncEngine.pushCloudDelete === 'function') {
-                                syncEngine.pushCloudDelete(tableName, id);
-                            } else if (typeof syncEngine.triggerInstantPush === 'function') {
+                        if (syncEngine && typeof syncEngine.triggerInstantPush === 'function' && !syncEngine.isSyncing) {
+                            if (['transactions', 'products', 'accounts', 'warehouses', 'treasuryAudit'].includes(tableName)) {
                                 syncEngine.triggerInstantPush(tableName);
                             }
                         }
@@ -759,11 +756,8 @@
                     }
                     try {
                         const syncEngine = window.SupabaseSync || window.BayanSupabaseSync;
-                        const canPushCloud = Boolean(syncEngine && !syncEngine.isSyncing && !window._bayanRevertingInvoice && (typeof syncEngine._isAllowed !== 'function' || syncEngine._isAllowed()));
-                        if (canPushCloud && ['transactions', 'products', 'accounts', 'warehouses', 'treasuryAudit'].includes(tableName)) {
-                            if (typeof syncEngine.pushCloudDelete === 'function') {
-                                ids.forEach(delId => syncEngine.pushCloudDelete(tableName, delId));
-                            } else if (typeof syncEngine.triggerInstantPush === 'function') {
+                        if (syncEngine && typeof syncEngine.triggerInstantPush === 'function' && !syncEngine.isSyncing) {
+                            if (['transactions', 'products', 'accounts', 'warehouses', 'treasuryAudit'].includes(tableName)) {
                                 syncEngine.triggerInstantPush(tableName);
                             }
                         }

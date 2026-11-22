@@ -253,11 +253,7 @@ async function saveAccount(isNew) {
     }
 }
 
-window.invalidateAccountBalancesCache = function () {
-    window._cachedSqliteAccountsMap = null;
-    window._cachedSqliteAccountsMapTime = 0;
-    if (window.accountBalancesCache) window.accountBalancesCache = {};
-};
+// window.invalidateAccountBalancesCache موحدة الآن في js/acc_invoices.js (مع تصفير _cachedSqliteAccountsMap و accountBalancesCache)
 
 // ================= منطق جدول الحسابات العام (Accounts Table Logic) =================
 

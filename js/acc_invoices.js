@@ -276,6 +276,8 @@ function getAccountByNameCached(targetNameClean) {
 }
 
 window.invalidateAccountBalancesCache = function (partnerName = null) {
+    window._cachedSqliteAccountsMap = null;
+    window._cachedSqliteAccountsMapTime = 0;
     if (partnerName) {
         const targetNameClean = cleanArabicCached(partnerName);
         if (window.accountBalancesCache) {
@@ -2418,23 +2420,7 @@ window.editTransaction = async function (invId, type, optTxId = '') {
     });
 };
 
-// دالة موحدة لمطابقة نوع الفاتورة والحركة بدقة لمنع تداخل البيع مع المرتجع
-window.isMatchingInvoiceType = function (txType, targetType) {
-    if (!targetType) return true;
-    if (!txType) return false;
-    const sTx = String(txType).trim();
-    const sTarget = String(targetType).trim();
-    const isTargetReturn = sTarget.includes('مرتجع');
-    const isTxReturn = sTx.includes('مرتجع');
-    if (isTargetReturn !== isTxReturn) return false;
-    if (sTarget.includes('بيع') && sTx.includes('بيع')) return true;
-    if (sTarget.includes('شراء') && sTx.includes('شراء')) return true;
-    if (sTarget.includes('تسوية') && sTx.includes('تسوية')) return true;
-    if (sTarget.includes('تحويل') && sTx.includes('تحويل')) return true;
-    if (sTarget.includes('قبض') && sTx.includes('قبض')) return true;
-    if (sTarget.includes('صرف') && sTx.includes('صرف')) return true;
-    return sTx.includes(sTarget) || sTarget.includes(sTx);
-};
+// window.isMatchingInvoiceType موحدة الآن في js/utils_helpers.js لمنع التكرار وتعارض ترتيب التحميل
 
 // دالة مساعدة لتنفيذ منطق الحذف في التعديل (تحتاج لاستدعاء من الحفظ)
 window.revertAndClearOldInvoice = async function (invId, type) {
