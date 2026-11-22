@@ -1281,48 +1281,46 @@ window.switchPricingMode = function (mode, isSyncOnly) {
             }
         }
 
-        // 2. Annual (2200 EGP)
+        // 2. Annual (2000 EGP + 150 EGP/month server)
         const oldAnnual = document.getElementById('planAnnualOldPrice');
         if (oldAnnual) {
             oldAnnual.innerText = '3600';
             oldAnnual.style.display = 'inline';
         }
-        setPrice('planAnnualPrice', '2200');
+        setPrice('planAnnualPrice', '2000');
         setText('planAnnualPeriod', '/ سنوياً');
-        setText('planAnnualSubtext', '🚀 وفر 1,400 ج.م (يعادل ~183 ج.م / شهر فقط)');
-        setHtml('planAnnualFeatBadge', '🛡️ نسخ احتياطي سحابي تلقائي + دعم VIP');
+        setText('planAnnualSubtext', '☁️ + 150 ج.م / شهرياً تجديد السيرفر السحابي');
+        setHtml('planAnnualFeatBadge', '🛡️ سيرفر سحابي بتجديد شهري (150 ج.م) + دعم VIP');
 
         const aBtn = document.getElementById('planAnnualBtn');
         if (aBtn) {
-            aBtn.setAttribute('onclick', "requestActivation('الباقة السنوية (مزامنة سحابية)', 2200)");
+            aBtn.setAttribute('onclick', "requestActivation('الباقة السنوية (مزامنة سحابية + 150 ج/شهر سيرفر)', 2000)");
             if (curPlan === 'الباقة السنوية' || curPlan === 'الباقة المتقدمة') {
                 aBtn.innerText = 'ترقية للسحابي السنوي ☁️';
                 aBtn.disabled = false;
                 aBtn.style.cursor = 'pointer';
-                aBtn.style.background = '';
             } else {
                 aBtn.innerText = 'اشترك الآن سحابي ☁️';
             }
         }
 
-        // 3. Lifetime (6000 EGP)
+        // 3. Lifetime (4500 EGP + 150 EGP/month server)
         const oldLife = document.getElementById('planLifetimeOldPrice');
-        if (oldLife) oldLife.innerText = '8000';
-        setPrice('planLifetimePrice', '6000');
+        if (oldLife) oldLife.innerText = '6000';
+        setPrice('planLifetimePrice', '4500');
         setText('planLifetimePeriod', '/ مدى الحياة');
-        setText('planLifetimeSubtext', '👑 امتلاك دائم للبرنامج + خيار المزامنة والموبايل بـ 100 ج/شهر');
-        setHtml('planLifetimeFeatBadge', '☁️ امتلاك دائم للأبد + ربط الموبايل باشتراك رمزي (100 ج/شهر)');
-        setHtml('planLifetimeGiftBox', '📱 <b>للمتابعة الكاملة وتطبيق الموبايل:</b><br>ربط تطبيق الهاتف ومزامنة الأجهزة الإضافية باشتراك شهري رمزي <b>(100 ج.م/شهرياً فقط)</b> عند الرغبة.');
+        setText('planLifetimeSubtext', '👑 امتلاك دائم للبرنامج + 150 ج.م / شهرياً تجديد السيرفر السحابي');
+        setHtml('planLifetimeFeatBadge', '☁️ امتلاك دائم للأبد + تجديد السيرفر السحابي شهرياً (150 ج.م/شهر)');
+        setHtml('planLifetimeGiftBox', '📱 <b>تجديد السيرفر السحابي شهرياً (150 ج.م/شهرياً):</b><br>البرنامج يعمل أوفلاين على جهازك دائماً حتى لو انتهى السيرفر، وعند تجديد السيرفر الشهري تعمل المزامنة وتطبيق الموبايل.');
 
         const lBtn = document.getElementById('planLifetimeBtn');
         if (lBtn) {
-            lBtn.setAttribute('onclick', "requestActivation('الباقة مدى الحياة (امتلاك دائم)', 6000)");
+            lBtn.setAttribute('onclick', "requestActivation('الباقة مدى الحياة (امتلاك دائم + 150 ج/شهر سيرفر)', 4500)");
             if (curPlan === 'الباقة مدى الحياة' || curPlan === 'الباقة الاحترافية') {
-                lBtn.innerText = 'طلب تفعيل مزامنة الموبايل (100 ج/شهر) 📱';
-                lBtn.setAttribute('onclick', "requestActivation('اشتراك المزامنة وتطبيق الموبايل', 100)");
+                lBtn.innerText = 'تجديد السيرفر السحابي (150 ج/شهر) 📱';
+                lBtn.setAttribute('onclick', "requestActivation('تجديد السيرفر السحابي وتطبيق الموبايل (شهري)', 150)");
                 lBtn.disabled = false;
                 lBtn.style.cursor = 'pointer';
-                lBtn.style.background = '';
             } else {
                 lBtn.innerText = 'اشترك الآن 👑';
             }
@@ -1387,18 +1385,18 @@ window.switchPricingMode = function (mode, isSyncOnly) {
             }
         }
 
-        // 3. Lifetime (3500 EGP)
+        // 3. Lifetime (2500 EGP)
         const oldLife = document.getElementById('planLifetimeOldPrice');
-        if (oldLife) oldLife.innerText = '5000';
-        setPrice('planLifetimePrice', '3500');
+        if (oldLife) oldLife.innerText = '3500';
+        setPrice('planLifetimePrice', '2500');
         setText('planLifetimePeriod', '/ مدى الحياة');
         setText('planLifetimeSubtext', '🔒 امتلاك دائم للأبد بدون أي تجديد إجباري');
         setHtml('planLifetimeFeatBadge', '⚡ "امتلاك دائم": اشترِ البرنامج مرة واحدة وللأبد!');
-        setHtml('planLifetimeGiftBox', '💻 <b>ترخيص محلي أصيل:</b> يعمل على جهازك للأبد أوفلاين بدون أي نت، ويمكنك إضافة المزامنة وتطبيق الهاتف في أي وقت.');
+        setHtml('planLifetimeGiftBox', '💻 <b>ترخيص محلي أصيل:</b> يعمل على جهازك للأبد أوفلاين بدون أي نت، ويمكنك إضافة المزامنة وتطبيق الهاتف في أي وقت بتجديد سيرفر شهري (150 ج.م/شهر).');
 
         const lBtn = document.getElementById('planLifetimeBtn');
         if (lBtn) {
-            lBtn.setAttribute('onclick', "requestActivation('الباقة مدى الحياة (أوفلاين دائم)', 3500)");
+            lBtn.setAttribute('onclick', "requestActivation('الباقة مدى الحياة (أوفلاين دائم)', 2500)");
             if ((curPlan === 'الباقة مدى الحياة' || curPlan === 'الباقة الاحترافية') && isPlanValid) {
                 lBtn.innerText = 'أنت مشترك بالفعل ✓';
                 lBtn.disabled = true;

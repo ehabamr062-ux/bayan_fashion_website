@@ -731,8 +731,9 @@ body.dark-mode table tbody tr:hover {
 }
 
 .cloud-mode-active #plan-الباقة\ الأساسية .sub-btn:not([disabled]) {
-    background: linear-gradient(135deg, #0284c7, #0369a1) !important;
-    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.35) !important;
+    background: linear-gradient(135deg, #059669, #047857) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(5, 150, 105, 0.35) !important;
 }
 
 .cloud-mode-active #plan-الباقة\ الأساسية:not(.active-plan):not(.plan-active-emerald)::after {
@@ -908,10 +909,12 @@ body.dark-mode .lifetime-cloud-gift-box {
 }
 
 .sub-btn {
+    background: linear-gradient(135deg, #059669, #047857) !important;
+    color: #ffffff !important;
     border-radius: 14px !important;
     font-weight: 950 !important;
     letter-spacing: -0.2px !important;
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.18) !important;
+    box-shadow: 0 4px 12px rgba(5, 150, 105, 0.25) !important;
     transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
