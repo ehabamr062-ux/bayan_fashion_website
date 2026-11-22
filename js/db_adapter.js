@@ -737,8 +737,10 @@
                     }
                     try {
                         const syncEngine = window.SupabaseSync || window.BayanSupabaseSync;
-                        if (syncEngine && typeof syncEngine.triggerInstantPush === 'function' && !syncEngine.isSyncing) {
-                            if (['transactions', 'products', 'accounts', 'warehouses', 'treasuryAudit'].includes(tableName)) {
+                        if (syncEngine && !syncEngine.isSyncing && ['transactions', 'products', 'accounts', 'warehouses', 'treasuryAudit'].includes(tableName)) {
+                            if (typeof syncEngine.pushCloudDelete === 'function') {
+                                syncEngine.pushCloudDelete(tableName, id);
+                            } else if (typeof syncEngine.triggerInstantPush === 'function') {
                                 syncEngine.triggerInstantPush(tableName);
                             }
                         }
@@ -756,8 +758,10 @@
                     }
                     try {
                         const syncEngine = window.SupabaseSync || window.BayanSupabaseSync;
-                        if (syncEngine && typeof syncEngine.triggerInstantPush === 'function' && !syncEngine.isSyncing) {
-                            if (['transactions', 'products', 'accounts', 'warehouses', 'treasuryAudit'].includes(tableName)) {
+                        if (syncEngine && !syncEngine.isSyncing && ['transactions', 'products', 'accounts', 'warehouses', 'treasuryAudit'].includes(tableName)) {
+                            if (typeof syncEngine.pushCloudDelete === 'function') {
+                                ids.forEach(delId => syncEngine.pushCloudDelete(tableName, delId));
+                            } else if (typeof syncEngine.triggerInstantPush === 'function') {
                                 syncEngine.triggerInstantPush(tableName);
                             }
                         }

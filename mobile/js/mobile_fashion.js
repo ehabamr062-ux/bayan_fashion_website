@@ -851,6 +851,40 @@
                     req.onerror = () => resolve([]);
                 } catch (_) { resolve([]); }
             });
+        },
+        replaceAll: async function (storeName, items, shopId) {
+            const db = await this.open();
+            if (!db) return false;
+            const targetShop = String(shopId || State.shopId || '');
+            const list = Array.isArray(items) ? items : [];
+            return new Promise((resolve) => {
+                try {
+                    const tx = db.transaction(storeName, 'readwrite');
+                    const store = tx.objectStore(storeName);
+                    const nowIso = new Date().toISOString();
+                    const writeItems = () => {
+                        for (let i = 0; i < list.length; i++) {
+                            const it = list[i];
+                            if (!it || it.id == null) continue;
+                            store.put(Object.assign({ shop_id: targetShop, updated_at: it.updated_at || it.updatedAt || nowIso }, it, { id: String(it.id) }));
+                        }
+                    };
+                    if (targetShop && store.indexNames.contains('idx_shop_id')) {
+                        const keyReq = store.index('idx_shop_id').getAllKeys(IDBKeyRange.only(targetShop));
+                        keyReq.onsuccess = () => {
+                            const keys = Array.isArray(keyReq.result) ? keyReq.result : [];
+                            for (let k = 0; k < keys.length; k++) store.delete(keys[k]);
+                            writeItems();
+                        };
+                        keyReq.onerror = () => { writeItems(); };
+                    } else {
+                        store.clear();
+                        writeItems();
+                    }
+                    tx.oncomplete = () => resolve(true);
+                    tx.onerror = () => resolve(false);
+                } catch (_) { resolve(false); }
+            });
         }
     };
 
@@ -995,9 +1029,14 @@
     // ⚡ اشتراك Supabase Realtime WebSocket عبر الجداول الستة لتحديث الموبايل خلال 1-2 ثانية
     function startMobileRealtimeSubscription() {
         try {
+            if (State._realtimeReconnectTimer) {
+                clearTimeout(State._realtimeReconnectTimer);
+                State._realtimeReconnectTimer = null;
+            }
             if (State._realtimeWs) {
-                try { State._realtimeWs.close(); } catch (_) { }
+                const oldWs = State._realtimeWs;
                 State._realtimeWs = null;
+                try { oldWs.onclose = null; oldWs.onerror = null; oldWs.close(); } catch (_) { }
             }
             if (State._realtimeHb) {
                 clearInterval(State._realtimeHb);
@@ -1009,23 +1048,40 @@
             const wsUrl = SUPABASE_CONFIG.url.replace(/^http/, 'ws') + `/realtime/v1/websocket?apikey=${encodeURIComponent(SUPABASE_CONFIG.key)}&vsn=1.0.0`;
             const ws = new WebSocket(wsUrl);
             State._realtimeWs = ws;
+            State._rtRef = State._rtRef || 1;
+            const scheduleReconnect = () => {
+                if (State._realtimeWs !== ws) return;
+                if (State._realtimeHb) { clearInterval(State._realtimeHb); State._realtimeHb = null; }
+                if (State._realtimeReconnectTimer) return;
+                if (!navigator.onLine || !isValidPairedShop(State.shopId)) return;
+                const attempts = (State._realtimeReconnectAttempts || 0) + 1;
+                State._realtimeReconnectAttempts = attempts;
+                const delay = Math.min(30000, 3000 * Math.pow(1.6, attempts - 1));
+                State._realtimeReconnectTimer = setTimeout(() => {
+                    State._realtimeReconnectTimer = null;
+                    startMobileRealtimeSubscription();
+                }, delay);
+            };
             ws.onopen = () => {
+                if (State._realtimeWs !== ws) return;
+                State._realtimeReconnectAttempts = 0;
                 const tables = ['products', 'transactions', 'treasury_audit', 'accounts', 'warehouses', 'shop_settings'];
                 tables.forEach(tbl => {
                     ws.send(JSON.stringify({
                         topic: `realtime:public:${tbl}`,
                         event: 'phx_join',
                         payload: { config: { postgres_changes: [{ event: '*', schema: 'public', table: tbl }] } },
-                        ref: String(Date.now())
+                        ref: String(++State._rtRef)
                     }));
                 });
                 State._realtimeHb = setInterval(() => {
-                    if (ws.readyState === WebSocket.OPEN) {
-                        ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(Date.now()) }));
+                    if (State._realtimeWs === ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(++State._rtRef) }));
                     }
                 }, 25000);
             };
             ws.onmessage = (evt) => {
+                if (State._realtimeWs !== ws) return;
                 try {
                     const msg = JSON.parse(evt.data);
                     if (msg && msg.event === 'postgres_changes') {
@@ -1042,13 +1098,8 @@
                     }
                 } catch (_) { }
             };
-            ws.onclose = () => {
-                if (State._realtimeHb) { clearInterval(State._realtimeHb); State._realtimeHb = null; }
-                if (navigator.onLine && isValidPairedShop(State.shopId)) {
-                    setTimeout(() => startMobileRealtimeSubscription(), 3000);
-                }
-            };
-            ws.onerror = () => { try { ws.close(); } catch (_) { } };
+            ws.onclose = () => { scheduleReconnect(); };
+            ws.onerror = () => { scheduleReconnect(); };
         } catch (_) { }
     }
 
@@ -1056,13 +1107,13 @@
         if (State.pollTimer) clearInterval(State.pollTimer);
         if (!isValidPairedShop(State.shopId)) return;
         startMobileRealtimeSubscription();
-        // مؤقت سريع كل 15 ثانية كشبكة أمان بجانب Realtime WebSocket
+        // مؤقت أمان احتياطي كل 60 ثانية بجانب Realtime WebSocket و visibilitychange
         State.pollTimer = setInterval(() => {
             if (navigator.onLine && isValidPairedShop(State.shopId) && !State.isPulling && !document.hidden) {
                 State.isPulling = true;
                 Promise.resolve(pullMasterData(false)).finally(() => { State.isPulling = false; });
             }
-        }, 15000);
+        }, 60000);
 
         if (!window._bayanMobVisBound) {
             window._bayanMobVisBound = true;
@@ -1110,63 +1161,106 @@
             };
 
             const prevTxIds = new Set((State.transactions || []).map(t => String(t.invoiceId || t.id || '')));
+            const isDeltaPull = (!showIndicator && Boolean(State._lastPullIso) && Array.isArray(State.products) && State.products.length > 0);
+            const deltaSinceIso = isDeltaPull
+                ? new Date(Math.max(0, new Date(State._lastPullIso).getTime() - 120000)).toISOString()
+                : '';
+            const prodDeltaQ = isDeltaPull ? `&updated_at=gt.${encodeURIComponent(deltaSinceIso)}` : '';
+            const txDeltaQ = isDeltaPull ? `&or=(updated_at.gt.${encodeURIComponent(deltaSinceIso)},created_at.gt.${encodeURIComponent(deltaSinceIso)})` : '';
+            const txBaseFilter = `or=(id.like.${encodeURIComponent(currentShopId)}_*,raw_json->>shop_id.eq.${encodeURIComponent(currentShopId)})`;
+            const txQuery = isDeltaPull
+                ? `and=(${txBaseFilter},or(updated_at.gt.${encodeURIComponent(deltaSinceIso)},created_at.gt.${encodeURIComponent(deltaSinceIso)}))`
+                : txBaseFilter;
 
             const [pRes, tRes, cRes, accRes, whRes, settingsRes] = await Promise.all([
-                safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/products?id=like.${encodeURIComponent(currentShopId)}_PROD_*&select=*`),
-                safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/transactions?or=(id.like.${encodeURIComponent(currentShopId)}_*,raw_json->>shop_id.eq.${encodeURIComponent(currentShopId)})&select=*&order=created_at.desc&limit=500`),
+                safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/products?id=like.${encodeURIComponent(currentShopId)}_PROD_*${prodDeltaQ}&select=*`),
+                safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/transactions?${txQuery}&select=*&order=created_at.desc&limit=${isDeltaPull ? 150 : 500}`),
                 safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?or=(id.like.*${encodeURIComponent(currentShopId)}*,id.like.${encodeURIComponent(currentShopId)}_*)&select=*&order=date.desc&limit=150`),
                 safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/accounts?shop_id=eq.${encodeURIComponent(currentShopId)}&select=*&limit=1000`),
                 safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/warehouses?shop_id=eq.${encodeURIComponent(currentShopId)}&select=*&limit=50`),
                 safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/shop_settings?shop_id=eq.${encodeURIComponent(currentShopId)}&select=*&limit=5`)
             ]);
+            State._lastPullIso = new Date().toISOString();
 
-            // 0.1 مزامنة طرق الدفع واسم وهوية المحل الحقيقية من shop_settings تلقائياً
+            // 0.1 مزامنة طرق الدفع واسم وهوية المحل الحقيقية من shop_settings (يدعم raw_json و raw_json.pos_settings معاً)
             let realShopNameLoaded = false;
             if (Array.isArray(settingsRes) && settingsRes.length > 0) {
                 const sRow = settingsRes[0];
                 const sRaw = sRow.raw_json || {};
-                const detectedShopName = String(sRow.shop_name || sRaw.storeName || sRaw.shopName || sRaw.shop_name || sRaw.businessName || sRaw.name || '').trim();
+                const sPos = (sRaw.pos_settings && typeof sRaw.pos_settings === 'object') ? sRaw.pos_settings : {};
+                const detectedShopName = String(
+                    sRow.shop_name || sPos.storeName || sPos.shopName || sPos.shop_name || sPos.businessName ||
+                    sRaw.storeName || sRaw.shopName || sRaw.shop_name || sRaw.businessName || sRaw.name || ''
+                ).trim();
                 if (detectedShopName && detectedShopName !== 'بَيَان فاشون' && detectedShopName !== 'بيان فاشون') {
                     realShopNameLoaded = true;
                     syncStoreProfile({
                         shopName: detectedShopName,
-                        phone: sRaw.phone || sRaw.shop_phone || '',
-                        address: sRaw.address || sRaw.shop_address || '',
-                        receiptFooter: sRaw.receiptFooter || sRaw.invoice_footer || ''
+                        phone: sPos.phone || sPos.shop_phone || sRaw.phone || sRaw.shop_phone || '',
+                        address: sPos.address || sPos.shop_address || sRaw.address || sRaw.shop_address || '',
+                        receiptFooter: sPos.receiptFooter || sPos.invoice_footer || sRaw.receiptFooter || sRaw.invoice_footer || ''
                     });
                 }
-                if (Array.isArray(sRaw.payment_methods) && sRaw.payment_methods.length > 0) {
-                    State.paymentMethods = sRaw.payment_methods;
-                    try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'payment_methods', JSON.stringify(sRaw.payment_methods)); } catch (_) { }
-                    const pmSelect = document.getElementById('posPaymentMethod') || document.getElementById('paymentMethodSelect');
+                const syncedMethods = Array.isArray(sRaw.payment_methods) ? sRaw.payment_methods : (Array.isArray(sPos.payment_methods) ? sPos.payment_methods : []);
+                if (syncedMethods.length > 0) {
+                    State.paymentMethods = syncedMethods;
+                    try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'payment_methods', JSON.stringify(syncedMethods)); } catch (_) { }
+                    const pmSelect = document.getElementById('posPayMethodSelect') || document.getElementById('posPaymentMethod') || document.getElementById('paymentMethodSelect');
                     if (pmSelect) {
-                        const curPm = pmSelect.value;
-                        const activeMethods = sRaw.payment_methods.filter(m => m && m.active !== false);
+                        const curPm = pmSelect.value || 'cash';
+                        const activeMethods = syncedMethods.filter(m => m && m.active !== false);
                         if (activeMethods.length > 0) {
-                            pmSelect.innerHTML = activeMethods.map(m => `<option value="${String(m.name || m).replace(/"/g, '&quot;')}">${m.name || m}</option>`).join('');
-                            if (curPm) pmSelect.value = curPm;
+                            const mapToBaseVal = (name) => {
+                                const n = String(name || '').toLowerCase();
+                                if (n.includes('فودافون') || n.includes('voda') || n.includes('محفظة')) return 'vodafone';
+                                if (n.includes('فيزا') || n.includes('بطاقة') || n.includes('card') || n.includes('انستا')) return 'card';
+                                if (n.includes('أجل') || n.includes('اجل') || n.includes('آجل') || n.includes('credit')) return 'credit';
+                                if (n.includes('كاش') || n.includes('نقد') || n.includes('cash')) return 'cash';
+                                return String(name || '').trim();
+                            };
+                            const seenVals = new Set();
+                            const opts = [];
+                            activeMethods.forEach(m => {
+                                const label = String(m.name || m).trim();
+                                const val = mapToBaseVal(label);
+                                if (!val || seenVals.has(val)) return;
+                                seenVals.add(val);
+                                opts.push(`<option value="${escapeHtml(val)}">${escapeHtml(label)}</option>`);
+                            });
+                            if (!seenVals.has('credit')) opts.push('<option value="credit">⏳ أجل (على الحساب)</option>');
+                            if (opts.length > 0) {
+                                pmSelect.innerHTML = opts.join('');
+                                if (Array.from(pmSelect.options).some(o => o.value === curPm)) pmSelect.value = curPm;
+                            }
                         }
                     }
                 }
             }
 
-            // 0.2 مزامنة العملاء والموردين من جدول accounts المخصص (بجانب النسخة الاحتياطية)
+            // 0.2 مزامنة العملاء والموردين من جدول accounts المخصص (مع توحيد phone || mobile)
             let loadedFromAccountsTable = false;
             if (Array.isArray(accRes) && accRes.length > 0) {
-                const mappedAccs = accRes.map(r => Object.assign({ id: r.id, name: r.name || '' }, r.raw_json || {}));
+                const mappedAccs = accRes.map(r => {
+                    const raw = r.raw_json || {};
+                    const unifiedPhone = raw.mobile || raw.phone || '';
+                    return Object.assign({ id: r.id, name: r.name || '' }, raw, { mobile: unifiedPhone, phone: unifiedPhone });
+                });
                 State.accounts = mappedAccs;
                 State.customers = mappedAccs;
                 loadedFromAccountsTable = true;
                 try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'accounts', JSON.stringify(mappedAccs)); } catch (_) { }
-                MobileIDB.putMany('accounts', mappedAccs, currentShopId).catch(() => { });
+                MobileIDB.replaceAll('accounts', mappedAccs, currentShopId).catch(() => { });
             }
 
-            // 0.3 مزامنة جدول المخازن المخصص (يدعم حتى 10 مخازن وأكثر)
+            // 0.3 مزامنة جدول المخازن المخصص (يُدمج لاحقاً مع detectedWhList ولا يُمسح)
+            const tableWhNames = [];
             if (Array.isArray(whRes) && whRes.length > 0) {
-                const whNames = whRes.map(r => String(r.name || (r.raw_json && r.raw_json.name) || '').trim()).filter(Boolean);
-                if (whNames.length > 0) {
-                    State.warehouses = Array.from(new Set(['المخزن الرئيسي', ...whNames]));
-                    MobileIDB.putMany('warehouses', whRes.map(r => Object.assign({ id: r.id, name: r.name }, r.raw_json || {})), currentShopId).catch(() => { });
+                whRes.forEach(r => {
+                    const wn = String(r.name || (r.raw_json && r.raw_json.name) || '').trim();
+                    if (wn && !tableWhNames.includes(wn)) tableWhNames.push(wn);
+                });
+                if (tableWhNames.length > 0) {
+                    MobileIDB.replaceAll('warehouses', whRes.map(r => Object.assign({ id: r.id, name: r.name }, r.raw_json || {})), currentShopId).catch(() => { });
                 }
             }
 
@@ -1226,7 +1320,21 @@
                     return rowShopId === currentShopId;
                 });
 
-                State.transactions = myTxs.map(row => mapSupabaseTxRow(row, currentShopId));
+                const mappedIncomingTxs = myTxs.map(row => mapSupabaseTxRow(row, currentShopId));
+                if (isDeltaPull && Array.isArray(State.transactions) && State.transactions.length > 0) {
+                    const txMap = new Map();
+                    State.transactions.forEach(t => {
+                        const k = stripPrefix(t.invoiceId || t.id);
+                        if (k && !cleanVoidSet.has(k)) txMap.set(k, t);
+                    });
+                    mappedIncomingTxs.forEach(t => {
+                        const k = stripPrefix(t.invoiceId || t.id);
+                        if (k && !cleanVoidSet.has(k)) txMap.set(k, t);
+                    });
+                    State.transactions = Array.from(txMap.values());
+                } else {
+                    State.transactions = mappedIncomingTxs;
+                }
                 try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (e) { }
                 MobileIDB.replaceAll('transactions', State.transactions, currentShopId).catch(() => { });
 
@@ -1274,6 +1382,12 @@
                 });
             }
 
+            // دمج المخازن المسحوبة من جدول warehouses مع detectedWhList وعدم مسحها
+            if (Array.isArray(tableWhNames) && tableWhNames.length > 0) {
+                tableWhNames.forEach(wn => {
+                    if (wn && !detectedWhList.includes(wn)) detectedWhList.push(wn);
+                });
+            }
             if (detectedWhList.length === 0) {
                 detectedWhList = ['المخزن الرئيسي'];
             } else if (!detectedWhList.includes('المخزن الرئيسي')) {
@@ -1299,7 +1413,22 @@
 
                 const curWH = State.activeWarehouse || 'المخزن الرئيسي';
 
-                State.products = myProds.map(row => {
+                const voidedProdIds = new Set();
+                if (Array.isArray(cRes) && cRes.length > 0) {
+                    cRes.forEach(r => {
+                        if (r && r.category === 'void_prod') {
+                            const rawP = r.raw_json || {};
+                            const pShop = rawP.shop_id || (r.id && r.id.startsWith(currentShopId + '_') ? currentShopId : null);
+                            if (pShop === currentShopId && rawP.productId != null) voidedProdIds.add(String(rawP.productId));
+                        }
+                    });
+                }
+
+                const mappedIncomingProds = myProds.filter(row => {
+                    const raw = row.raw_json || {};
+                    const lid = String(raw.localId || raw.id || row.id.replace(`${currentShopId}_PROD_`, ''));
+                    return !raw.is_deleted && !voidedProdIds.has(lid);
+                }).map(row => {
                     const raw = row.raw_json || {};
                     const whStocks = (raw.warehouseStocks && typeof raw.warehouseStocks === 'object') ? raw.warehouseStocks : {};
                     const localProdId = raw.localId || raw.id || row.id.replace(`${currentShopId}_PROD_`, '');
@@ -1347,7 +1476,20 @@
                         id: String(localProdId)
                     };
                 });
+                if (isDeltaPull && Array.isArray(State.products) && State.products.length > 0) {
+                    const prodMap = new Map();
+                    State.products.forEach(p => {
+                        if (p && !voidedProdIds.has(String(p.id))) prodMap.set(String(p.id), p);
+                    });
+                    mappedIncomingProds.forEach(p => {
+                        if (p && !voidedProdIds.has(String(p.id))) prodMap.set(String(p.id), p);
+                    });
+                    State.products = Array.from(prodMap.values());
+                } else {
+                    State.products = mappedIncomingProds;
+                }
                 safelyPersistProducts(State.products);
+                MobileIDB.replaceAll('products', State.products, currentShopId).catch(() => { });
             }
 
             // 4. استقبال قائمة الحسابات والعملاء الخاصة بهذا المحل من السحابة (كاحتياط إذا لم تُحمّل من جدول accounts أو كانت أحدث)
@@ -1679,9 +1821,9 @@
         if (!isValidPairedShop(currentShopId)) return;
 
         try {
-            let url = `${SUPABASE_CONFIG.url}/rest/v1/transactions?select=*&order=created_at.desc&limit=300`;
-            url += `&or=(id.like.${encodeURIComponent(currentShopId)}_*,raw_json->>shop_id.eq.${encodeURIComponent(currentShopId)})`;
-            url += `&or=(and(date_iso.gte.${startISO},date_iso.lte.${endISO}),and(created_at.gte.${startISO}T00:00:00Z,created_at.lte.${endISO}T23:59:59Z))`;
+            const shopFilter = `or(id.like.${encodeURIComponent(currentShopId)}_*,raw_json->>shop_id.eq.${encodeURIComponent(currentShopId)})`;
+            const dateFilter = `or(and(date_iso.gte.${startISO},date_iso.lte.${endISO}),and(created_at.gte.${startISO}T00:00:00Z,created_at.lte.${endISO}T23:59:59Z))`;
+            const url = `${SUPABASE_CONFIG.url}/rest/v1/transactions?select=*&order=created_at.desc&limit=300&and=(${shopFilter},${dateFilter})`;
 
             const res = await fetch(url, { headers: getSupabaseHeaders() });
             if (res.ok) {
@@ -2999,6 +3141,7 @@
             State.cartDiscount = 0;
             State.cartExtra = 0;
             State.editingInvoiceId = null;
+            State._lastEditingCloudId = (State.editingOriginalTx && State.editingOriginalTx.id) ? String(State.editingOriginalTx.id) : null;
             State.editingOriginalTx = null;
             const paidInpReset = document.getElementById('posPaidAmountInput');
             if (paidInpReset) paidInpReset.value = '';
@@ -3017,10 +3160,15 @@
             // إظهار الفاتورة والنجاح فوراً للكاشير دون أي انتظار للشبكة
             openInvoiceSuccessModal(newTx);
 
-            // 4. تجهيز حزم المزامنة السحابية وطابور الأوفلاين
+            // 4. تجهيز حزم المزامنة السحابية وطابور الأوفلاين (الحفاظ على نفس Cloud Row ID عند تعديل فاتورة ديسكتوب لمنع الازدواج)
             const nowIso = new Date().toISOString();
+            const originalCloudRowId = (isEditMode && State._lastEditingCloudId) ? State._lastEditingCloudId : null;
+            const targetCloudRowId = (originalCloudRowId && String(originalCloudRowId).startsWith(currentShopId + '_'))
+                ? String(originalCloudRowId)
+                : `${currentShopId}_${invoiceId}`;
+            State._lastEditingCloudId = null;
             const txPayload = [{
-                id: `${currentShopId}_${invoiceId}`,
+                id: targetCloudRowId,
                 invoice_id: invoiceId,
                 date_iso: nowIso,
                 updated_at: nowIso,
@@ -3680,11 +3828,16 @@
                 }
             }
 
-            // 3. تحديث المخزون المسترجع بالسحابة
+            // 3. تحديث المخزون المسترجع بالسحابة (مع علامة isStockAdjustment: true حتى يقبل الديسكتوب الرصيد المسترجع)
             if (updatedProductsList.length > 0) {
                 const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
                 if (!isValidPairedShop(currentShopId)) return;
-                const prodBatch = updatedProductsList.map(p => buildSupabaseProductRow(p, currentShopId));
+                const stockAdjIso = new Date().toISOString();
+                const prodBatch = updatedProductsList.map(p => buildSupabaseProductRow(p, currentShopId, {
+                    isStockAdjustment: true,
+                    isManualStockUpdate: true,
+                    updatedAt: stockAdjIso
+                }));
                 await fetch(`${SUPABASE_CONFIG.url}/rest/v1/products?on_conflict=id`, {
                     method: 'POST',
                     headers: getSupabaseHeaders(),
@@ -4071,9 +4224,25 @@
         MobileIDB.replaceAll('products', State.products, currentShopId).catch(() => { });
 
         if (navigator.onLine && isValidPairedShop(currentShopId)) {
+            const delNowIso = new Date().toISOString();
             fetch(`${SUPABASE_CONFIG.url}/rest/v1/products?id=eq.${encodeURIComponent(`${currentShopId}_PROD_${cleanId}`)}`, {
                 method: 'DELETE',
                 headers: getSupabaseHeaders()
+            }).catch(() => { });
+            // تسجيل Tombstone (void_prod) حتى يحذفه الديسكتوب محلياً ولا يعيد رفعه
+            fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?on_conflict=id`, {
+                method: 'POST',
+                headers: getSupabaseHeaders(),
+                body: JSON.stringify([{
+                    id: `${currentShopId}_VOIDPROD_${cleanId}`,
+                    date: delNowIso,
+                    created_at: delNowIso,
+                    category: 'void_prod',
+                    amount: 0,
+                    user_name: `تابلت (${State.terminalLetter})`,
+                    warehouse: State.activeWarehouse || 'المخزن الرئيسي',
+                    raw_json: { shop_id: currentShopId, productId: cleanId, name: prod.name || '', barcode: prod.barcode || '', deletedAt: delNowIso }
+                }])
             }).catch(() => { });
         }
 
@@ -4636,25 +4805,25 @@
         });
 
         if ((tabId === 'pos' || tabId === 'accounts') && State.token && navigator.onLine) {
-            // تحديث هادئ لقائمة الحسابات والعملاء لضمان التقاط أي حساب جديد مضاف من الكمبيوتر
+            // تحديث هادئ لقائمة الحسابات من جدول accounts (المصدر الأساسي، مع CONFIG_CUSTOMERS_LIST_ كاحتياطي فقط)
             const sId = State.shopId || CONFIG.SHOP_ID || localStorage.getItem('bayan_mob_shop_id');
             if (sId && sId !== 'SHOP_DEFAULT') {
-                fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?id=eq.CONFIG_CUSTOMERS_LIST_${encodeURIComponent(sId)}`, { headers: getSupabaseHeaders() })
-                    .then(r => r.json())
+                fetch(`${SUPABASE_CONFIG.url}/rest/v1/accounts?shop_id=eq.${encodeURIComponent(sId)}&select=*&limit=1000`, { headers: getSupabaseHeaders() })
+                    .then(r => r.ok ? r.json() : [])
                     .then(rows => {
                         if (Array.isArray(rows) && rows.length > 0) {
-                            const targetRow = rows[0];
-                            if (targetRow && targetRow.raw_json) {
-                                const rawObj = targetRow.raw_json;
-                                const accList = Array.isArray(rawObj.accounts) ? rawObj.accounts : (Array.isArray(rawObj.customers) ? rawObj.customers : []);
-                                State.accounts = accList;
-                                State.customers = accList;
-                                try {
-                                    localStorage.setItem(CONFIG.STORAGE_PREFIX + 'accounts', JSON.stringify(State.accounts));
-                                    localStorage.setItem(CONFIG.STORAGE_PREFIX + 'customers', JSON.stringify(State.customers));
-                                } catch (e) { }
-                                if (State.activeTab === 'accounts') renderAccountsView();
-                            }
+                            const accList = rows.map(r => {
+                                const raw = r.raw_json || {};
+                                const unifiedPhone = raw.mobile || raw.phone || '';
+                                return Object.assign({ id: r.id, name: r.name || '' }, raw, { mobile: unifiedPhone, phone: unifiedPhone });
+                            });
+                            State.accounts = accList;
+                            State.customers = accList;
+                            try {
+                                localStorage.setItem(CONFIG.STORAGE_PREFIX + 'accounts', JSON.stringify(State.accounts));
+                                localStorage.setItem(CONFIG.STORAGE_PREFIX + 'customers', JSON.stringify(State.customers));
+                            } catch (e) { }
+                            if (State.activeTab === 'accounts') renderAccountsView();
                         }
                     })
                     .catch(() => { });
@@ -5772,7 +5941,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                 if (Array.isArray(parsed.products) && parsed.products.length > 0) {
                     State.products = parsed.products;
                     safelyPersistProducts(State.products);
-                    MobileIDB.putMany('products', State.products, activeShopId).catch(() => { });
+                    MobileIDB.replaceAll('products', State.products, activeShopId).catch(() => { });
                 }
                 if (Array.isArray(parsed.transactions) && parsed.transactions.length > 0) {
                     State.transactions = parsed.transactions;

@@ -1092,9 +1092,19 @@
             });
 
             const toSend = [];
+            const txFps = window._bayan_synced_tx_fps || (window._bayan_synced_tx_fps = new Map());
+            const nextFpsToRecord = [];
             groupedMap.forEach((rows, localInvId) => {
                 const headRow = rows.find(r => r.isInvoiceHead) || rows[0];
                 const isVoucher = (headRow.type || '').includes('قبض') || (headRow.type || '').includes('صرف');
+
+                const calcTotalQuick = rows.reduce((sum, r) => sum + (parseFloat(r.total) || 0), 0);
+                const grandTotalQuick = (headRow.invoiceGrandTotal !== undefined && headRow.invoiceGrandTotal !== 0)
+                    ? parseFloat(headRow.invoiceGrandTotal)
+                    : (parseFloat(headRow.total) || calcTotalQuick);
+                const txFp = `${localInvId}|${headRow.type || ''}|${grandTotalQuick}|${headRow.paidAmount || 0}|${headRow.remaining || 0}|${headRow.partner || ''}|${rows.length}|${headRow.updatedAt || ''}`;
+                if (txFps.get(localInvId) === txFp) return;
+                nextFpsToRecord.push([localInvId, txFp]);
 
                 const itemsList = rows.map(r => ({
                     productId: r.productId || r.id || '',
@@ -1167,6 +1177,10 @@
 
                 if (res.ok || res.status === 201 || res.status === 200) {
                     totalSent += chunk.length;
+                    chunk.forEach(c => {
+                        const matchFp = nextFpsToRecord.find(p => p[0] === c.invoice_id);
+                        if (matchFp) txFps.set(matchFp[0], matchFp[1]);
+                    });
                 } else {
                     // في حال فشل الإرسال المباشر لأي دفعة، يتم إدراجها دفعة واحدة في طابور FIFO (بدون N+1)
                     await this.addToSyncQueueBulk('transaction', 'upsert', chunk);
@@ -1193,6 +1207,42 @@
                 : (window.productsDB || []);
 
             if (pList.length === 0) return 0;
+
+            // 🗑️ فحص سجلات حذف الأصناف القادمة من الموبايل (void_prod) قبل الرفع حتى لا يعود الصنف المحذوف للحياة
+            try {
+                const vpRes = await this._safeFetch(
+                    `${cfg.supabaseUrl}/rest/v1/treasury_audit?id=like.${encodeURIComponent(shopId)}_VOIDPROD_*&category=eq.void_prod&order=created_at.desc&limit=50`,
+                    { headers: this._getHeaders() }
+                );
+                if (vpRes && vpRes.ok) {
+                    const vpRows = await vpRes.json();
+                    if (Array.isArray(vpRows) && vpRows.length > 0) {
+                        let deletedAnyProd = false;
+                        for (const vp of vpRows) {
+                            const rawVp = vp.raw_json || {};
+                            if (rawVp.shop_id && rawVp.shop_id !== shopId) continue;
+                            const delPid = String(rawVp.productId || vp.id.replace(`${shopId}_VOIDPROD_`, '')).trim();
+                            if (!delPid) continue;
+                            for (let pi = pList.length - 1; pi >= 0; pi--) {
+                                if (pList[pi] && String(pList[pi].id) === delPid) {
+                                    pList.splice(pi, 1);
+                                    if (window.sqliteManager && window.sqliteManager.db && typeof window.sqliteManager.db.run === 'function') {
+                                        try { window.sqliteManager.db.run(`DELETE FROM products WHERE id = ?`, [delPid]); } catch (_) { }
+                                    }
+                                    deletedAnyProd = true;
+                                }
+                            }
+                        }
+                        if (deletedAnyProd) {
+                            if (window.sqliteManager && typeof window.sqliteManager.schedulePersist === 'function') {
+                                try { window.sqliteManager.schedulePersist(400); } catch (_) { }
+                            }
+                            if (typeof renderProductsTable === 'function') renderProductsTable();
+                            if (typeof updateDashboardStats === 'function') updateDashboardStats();
+                        }
+                    }
+                }
+            } catch (_) { }
 
             const prodFps = window._bayan_synced_prod_fps || (window._bayan_synced_prod_fps = new Map());
 
@@ -1914,7 +1964,25 @@
 
                                 const voidInvId = String(rawV.invoiceId || vRow.id.replace(`${shopId}_VOID_`, '').replace('VOID_', '')).trim();
                                 const cleanVoidId = cleanInvId(voidInvId);
+                                const processedVoids = window._bayan_processed_void_txs || (window._bayan_processed_void_txs = new Set());
+                                const alreadyReversed = processedVoids.has(cleanVoidId || voidInvId);
                                 let matchedAny = false;
+                                let firstMatchedTx = null;
+                                for (let li = localTx.length - 1; li >= 0; li--) {
+                                    const t = localTx[li];
+                                    if (!t) continue;
+                                    const tRawInv = String(t.invoiceId || t.id || '').trim();
+                                    if (tRawInv === voidInvId || (cleanVoidId && cleanInvId(tRawInv) === cleanVoidId)) {
+                                        if (!firstMatchedTx) firstMatchedTx = t;
+                                        matchedAny = true;
+                                    }
+                                }
+                                if (matchedAny && !alreadyReversed) {
+                                    processedVoids.add(cleanVoidId || voidInvId);
+                                    if (typeof window.revertAndClearOldInvoice === 'function' && firstMatchedTx) {
+                                        try { window.revertAndClearOldInvoice(cleanVoidId || voidInvId, firstMatchedTx.type || 'بيع 📤'); } catch (_) { }
+                                    }
+                                }
                                 for (let li = localTx.length - 1; li >= 0; li--) {
                                     const t = localTx[li];
                                     if (!t) continue;
@@ -1926,7 +1994,6 @@
                                                 window.sqliteManager.db.run(`DELETE FROM transactions WHERE invoiceId = ? OR id = ? OR invoiceId = ?`, [voidInvId, t.id || voidInvId, cleanVoidId]);
                                             } catch (e) { }
                                         }
-                                        matchedAny = true;
                                         hasVoidChanges = true;
                                     }
                                 }
@@ -2546,6 +2613,45 @@
             }
         },
 
+        // 🗑️ ترحيل الحذف المحلي (من db_adapter.js) إلى السحابة فوراً دون تعطيل SQLite
+        pushCloudDelete: function (tableName, id) {
+            if (!this._isAllowed() || !navigator.onLine || id == null) return;
+            const cfg = this.getConfig();
+            const shopId = cfg.shopId || this.getShopId();
+            if (!this.isValidShopId(shopId) || !cfg.supabaseUrl || !cfg.supabaseKey) return;
+            const cleanId = String(id).trim();
+            if (!cleanId) return;
+            const nowIso = new Date().toISOString();
+            try {
+                if (tableName === 'products') {
+                    this._safeFetch(`${cfg.supabaseUrl}/rest/v1/products?id=eq.${encodeURIComponent(`${shopId}_PROD_${cleanId}`)}`, {
+                        method: 'DELETE',
+                        headers: this._getHeaders()
+                    }).catch(() => { });
+                    this._safeFetch(`${cfg.supabaseUrl}/rest/v1/treasury_audit?on_conflict=id`, {
+                        method: 'POST',
+                        headers: this._getHeaders(),
+                        body: JSON.stringify([{
+                            id: `${shopId}_VOIDPROD_${cleanId}`,
+                            date: nowIso,
+                            created_at: nowIso,
+                            category: 'void_prod',
+                            amount: 0,
+                            user_name: 'بيان الديسكتوب',
+                            raw_json: { shop_id: shopId, productId: cleanId, deletedAt: nowIso }
+                        }])
+                    }).catch(() => { });
+                } else if (tableName === 'transactions') {
+                    this.deleteInvoiceFromCloud(cleanId).catch(() => { });
+                } else if (tableName === 'accounts') {
+                    this._safeFetch(`${cfg.supabaseUrl}/rest/v1/accounts?id=eq.${encodeURIComponent(`${shopId}_ACC_${cleanId}`)}`, {
+                        method: 'DELETE',
+                        headers: this._getHeaders()
+                    }).catch(() => { });
+                }
+            } catch (_) { }
+        },
+
         // ⚡ دفع فوري خفيف عند الحفظ بـ Debounce 300ms يدعم كافة الجداول والأقسام دون انتظار المؤقت الدوري
         triggerInstantPush: function (entityType = 'all') {
             if (!this._isAllowed() || !navigator.onLine || this.isSyncing) return;
@@ -2677,7 +2783,16 @@
                                         const locTs = new Date(existing.updatedAt || 0).getTime() || 0;
                                         if (remTs > locTs) {
                                             let changed = false;
-                                            if (raw.phone && raw.phone !== existing.phone) { existing.phone = raw.phone; changed = true; }
+                                            const unifiedRemPhone = raw.mobile || raw.phone || '';
+                                            if (unifiedRemPhone && unifiedRemPhone !== (existing.phone || existing.mobile || '')) {
+                                                existing.phone = unifiedRemPhone;
+                                                existing.mobile = unifiedRemPhone;
+                                                changed = true;
+                                            }
+                                            if (raw.balance !== undefined && Math.abs((parseFloat(existing.balance) || 0) - (parseFloat(raw.balance) || 0)) > 0.001) {
+                                                existing.balance = parseFloat(raw.balance) || 0;
+                                                changed = true;
+                                            }
                                             if (raw.notes !== undefined && raw.notes !== existing.notes) { existing.notes = raw.notes; changed = true; }
                                             if (raw.type && raw.type !== existing.type) { existing.type = raw.type; changed = true; }
                                             if (changed) {
@@ -2709,20 +2824,36 @@
                         }
                     }
 
-                    // 2. رفع (POST) القائمة المحلية المحدثة إلى السحابة
+                    // 2. رفع (POST) القائمة المحلية المحدثة إلى السحابة فقط إذا تغيرت البصمة (Fingerprint Check)
                     if (localArr.length === 0) return;
-                    const payload = localArr.slice(0, 500).map(item => ({
-                        id: `${shopId}_${prefix}_${(item && (item.id || item.name)) || item}`,
-                        shop_id: shopId,
-                        name: String((item && item.name) || item || '').trim(),
-                        updated_at: new Date().toISOString(),
-                        raw_json: (item && typeof item === 'object') ? Object.assign({}, item, { shop_id: shopId }) : { name: String(item || ''), shop_id: shopId }
-                    }));
-                    await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/${tableName}?on_conflict=id`, {
+                    const dedFps = this._lastDedicatedFps || (this._lastDedicatedFps = new Map());
+                    const sliceArr = localArr.slice(0, 500);
+                    const tableFp = sliceArr.map(item => {
+                        if (!item || typeof item !== 'object') return String(item || '');
+                        return `${item.id || ''}|${item.name || ''}|${item.balance || 0}|${item.phone || item.mobile || ''}|${item.type || ''}`;
+                    }).join('~');
+                    if (dedFps.get(tableName) === tableFp) return;
+
+                    const payload = sliceArr.map(item => {
+                        const unifiedPhone = (item && typeof item === 'object') ? (item.phone || item.mobile || '') : '';
+                        return {
+                            id: `${shopId}_${prefix}_${(item && (item.id || item.name)) || item}`,
+                            shop_id: shopId,
+                            name: String((item && item.name) || item || '').trim(),
+                            updated_at: new Date().toISOString(),
+                            raw_json: (item && typeof item === 'object')
+                                ? Object.assign({}, item, { shop_id: shopId, phone: unifiedPhone, mobile: unifiedPhone })
+                                : { name: String(item || ''), shop_id: shopId }
+                        };
+                    });
+                    const postRes = await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/${tableName}?on_conflict=id`, {
                         method: 'POST',
                         headers: Object.assign({}, this._getHeaders(), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
                         body: JSON.stringify(payload)
                     });
+                    if (postRes && (postRes.ok || postRes.status === 201 || postRes.status === 204)) {
+                        dedFps.set(tableName, tableFp);
+                    }
                 } catch (_) { }
             };
 
@@ -2744,16 +2875,34 @@
                     } else {
                         const posSettings = JSON.parse(this._readMeta('pos_settings') || '{}');
                         const paymentMethods = JSON.parse(this._readMeta('bayan_payment_methods') || '[]');
-                        await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/shop_settings?on_conflict=id`, {
-                            method: 'POST',
-                            headers: Object.assign({}, this._getHeaders(), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
-                            body: JSON.stringify([{
-                                id: `${shopId}_SETTINGS`,
-                                shop_id: shopId,
-                                updated_at: new Date().toISOString(),
-                                raw_json: { shop_id: shopId, pos_settings: posSettings, payment_methods: paymentMethods }
-                            }])
-                        });
+                        const settingsFp = JSON.stringify({ posSettings, paymentMethods });
+                        const dedFps = this._lastDedicatedFps || (this._lastDedicatedFps = new Map());
+                        if (dedFps.get('shop_settings') !== settingsFp) {
+                            const shopNameTop = String(posSettings.storeName || posSettings.shopName || posSettings.name || '').trim();
+                            const setRes = await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/shop_settings?on_conflict=id`, {
+                                method: 'POST',
+                                headers: Object.assign({}, this._getHeaders(), { 'Prefer': 'resolution=merge-duplicates,return=minimal' }),
+                                body: JSON.stringify([{
+                                    id: `${shopId}_SETTINGS`,
+                                    shop_id: shopId,
+                                    shop_name: shopNameTop || undefined,
+                                    updated_at: new Date().toISOString(),
+                                    raw_json: {
+                                        shop_id: shopId,
+                                        shop_name: shopNameTop,
+                                        storeName: shopNameTop,
+                                        phone: posSettings.phone || posSettings.shop_phone || '',
+                                        address: posSettings.address || posSettings.shop_address || '',
+                                        receiptFooter: posSettings.receiptFooter || posSettings.invoice_footer || '',
+                                        pos_settings: posSettings,
+                                        payment_methods: paymentMethods
+                                    }
+                                }])
+                            });
+                            if (setRes && (setRes.ok || setRes.status === 201 || setRes.status === 204)) {
+                                dedFps.set('shop_settings', settingsFp);
+                            }
+                        }
                     }
                 }
             } catch (_) { }
@@ -2801,11 +2950,12 @@
                 ws.onopen = () => {
                     if (this._realtimeWs !== ws) return;
                     this._realtimeReconnectAttempts = 0;
+                    this._rtRef = this._rtRef || 1;
                     const joinPayload = (topic) => JSON.stringify({
                         topic,
                         event: 'phx_join',
                         payload: { config: { postgres_changes: [{ event: '*', schema: 'public', table: topic.split(':')[2] }] } },
-                        ref: String(Date.now())
+                        ref: String(++this._rtRef)
                     });
                     ws.send(joinPayload('realtime:public:transactions'));
                     ws.send(joinPayload('realtime:public:products'));
@@ -2814,17 +2964,19 @@
                     ws.send(joinPayload('realtime:public:warehouses'));
                     ws.send(joinPayload('realtime:public:shop_settings'));
                     this._realtimeHb = setInterval(() => {
-                        if (ws.readyState === WebSocket.OPEN) {
-                            ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(Date.now()) }));
+                        if (this._realtimeWs === ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({ topic: 'phoenix', event: 'heartbeat', payload: {}, ref: String(++this._rtRef) }));
                         }
                     }, 25000);
                 };
                 ws.onmessage = (evt) => {
+                    if (this._realtimeWs !== ws) return;
                     try {
                         const msg = JSON.parse(evt.data);
                         if (msg && msg.event === 'postgres_changes') {
                             const rec = msg.payload?.data?.record || msg.payload?.data?.old_record || {};
-                            if (rec.id && !String(rec.id).startsWith(shopId)) return;
+                            const recShop = rec.shop_id || (rec.raw_json && rec.raw_json.shop_id) || '';
+                            if (rec.id && !String(rec.id).includes(shopId) && recShop !== shopId) return;
                             if (this._rtDebounce) clearTimeout(this._rtDebounce);
                             this._rtDebounce = setTimeout(() => {
                                 if (!this._isPulling && navigator.onLine && this._isAllowed()) {
@@ -2879,7 +3031,7 @@
             }
             this.startRealtimeSubscription();
             if (cfg.autoSyncEnabled && cfg.supabaseUrl && cfg.supabaseKey) {
-                const intervalMs = Math.max(15, Math.min(cfg.syncIntervalSeconds || 15, 30)) * 1000;
+                const intervalMs = Math.max(60, cfg.syncIntervalSeconds || 60) * 1000;
                 this.syncTimer = setInterval(() => {
                     if (navigator.onLine && this._isAllowed() && !this._isPulling) {
                         this._isPulling = true;
