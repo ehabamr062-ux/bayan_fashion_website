@@ -1321,20 +1321,18 @@
                 });
 
                 const mappedIncomingTxs = myTxs.map(row => mapSupabaseTxRow(row, currentShopId));
+                const txMap = new Map();
                 if (isDeltaPull && Array.isArray(State.transactions) && State.transactions.length > 0) {
-                    const txMap = new Map();
                     State.transactions.forEach(t => {
                         const k = stripPrefix(t.invoiceId || t.id);
                         if (k && !cleanVoidSet.has(k)) txMap.set(k, t);
                     });
-                    mappedIncomingTxs.forEach(t => {
-                        const k = stripPrefix(t.invoiceId || t.id);
-                        if (k && !cleanVoidSet.has(k)) txMap.set(k, t);
-                    });
-                    State.transactions = Array.from(txMap.values());
-                } else {
-                    State.transactions = mappedIncomingTxs;
                 }
+                mappedIncomingTxs.forEach(t => {
+                    const k = stripPrefix(t.invoiceId || t.id);
+                    if (k && !cleanVoidSet.has(k)) txMap.set(k, t);
+                });
+                State.transactions = Array.from(txMap.values());
                 try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (e) { }
                 MobileIDB.replaceAll('transactions', State.transactions, currentShopId).catch(() => { });
 
@@ -1688,6 +1686,10 @@
         let cardSales = 0;
         let totalReturns = 0;
         let cashReturns = 0;
+        let cashReceipts = 0;
+        let cashPurchases = 0;
+        let cashPurchaseReturns = 0;
+        let cashDisbursements = 0;
         let expenses = 0;
         let totalCostOfGoods = 0;
         let invoiceCount = 0;
@@ -1762,6 +1764,10 @@
                             totalCostOfGoods += (itCost * itQty);
                         });
                     }
+                } else if (isReceiptType) {
+                    if (!nonCash) cashReceipts += amt;
+                } else if (type.includes('مرتجع شراء') || (isReturnType && (typeLow.includes('purch') || type.includes('شراء')))) {
+                    if (isHead && !nonCash) cashPurchaseReturns += amt;
                 } else if (isReturnType) {
                     if (isHead) {
                         totalReturns += amt;
@@ -1769,6 +1775,9 @@
                     }
                 } else if (isDisburseType) {
                     expenses += amt;
+                    if (!nonCash) cashDisbursements += amt;
+                } else if (type.includes('شراء') || typeLow.includes('purch')) {
+                    if (isHead && !nonCash) cashPurchases += amt;
                 }
             }
         });
@@ -1781,6 +1790,9 @@
                 if (vDateISO && vDateISO >= startISO && vDateISO <= endISO) {
                     if (v.type === 'disburse' || v.type === 'expense' || v.voucherType === 'disburse') {
                         expenses += vAmt;
+                        cashDisbursements += vAmt;
+                    } else if (v.type === 'receipt' || v.voucherType === 'receipt') {
+                        cashReceipts += vAmt;
                     }
                 }
             });
@@ -1791,8 +1803,8 @@
             return d && d >= startISO && d <= endISO;
         });
 
-        // احتساب الكاش المعروض: صافي النقدية المتحصلة خلال الفترة المحددة فقط (اليوم بيومه)
-        const netCashPeriod = (cashSales - cashReturns - expenses);
+        // احتساب الكاش المعروض: (المبيعات الكاش + سندات القبض الكاش + مرتجع الشراء الكاش) - (مرتجع البيع الكاش + الصرف والمصروفات الكاش + المشتريات الكاش)
+        const netCashPeriod = (cashSales + cashReceipts + cashPurchaseReturns) - (cashReturns + cashDisbursements + cashPurchases);
         const displayedDrawerCash = netCashPeriod;
 
         const netProfit = totalSales - totalReturns - totalCostOfGoods - expenses;
