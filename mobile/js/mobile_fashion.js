@@ -322,11 +322,13 @@
                         if (found && found.length > 0 && found[0].rawValue) decoded = String(found[0].rawValue).trim();
                     }
                     if (!decoded && typeof window.jsQR === 'function') {
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
+                        const maxDim = 640;
+                        const scale = video.videoWidth > maxDim ? (maxDim / video.videoWidth) : 1;
+                        canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
+                        canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
                         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                         const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                        const res = window.jsQR(imgData.data, imgData.width, imgData.height);
+                        const res = window.jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: 'attemptBoth' });
                         if (res && res.data) decoded = String(res.data).trim();
                     }
                 } catch (_) { }
@@ -866,7 +868,7 @@
             if (text.startsWith('{')) {
                 const obj = JSON.parse(text);
                 const shopId = obj.shopId || obj.shop_id || obj.s || '';
-                const pin = obj.pin || obj.pairingPin || obj.p || '';
+                const pin = obj.pin || obj.pairingPin || obj.password || obj.pass || obj.p || '';
                 if (shopId && pin) return { shopId: String(shopId).trim(), pin: String(pin).trim() };
             }
         } catch (_) { }
