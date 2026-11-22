@@ -1257,7 +1257,7 @@ window.switchPricingMode = function (mode, isSyncOnly) {
 
         if (banner) banner.classList.add('is-cloud');
         if (bannerIcon) bannerIcon.innerText = '☁️';
-        if (bannerText) bannerText.innerHTML = 'أنت تتصفح حالياً: <b>باقات المزامنة السحابية وتطبيق الموبايل (أونلاين)</b> - تشمل سيرفر سحابي مخصص ومحمي، وربط تطبيق الموبايل لمتابعة المبيعات من أي مكان، والمزامنة اللحظية بين الأجهزة.';
+        if (bannerText) bannerText.innerHTML = 'أنت تتصفح حالياً: <b>باقات المزامنة السحابية + تطبيق بَيَان للموبايل (أونلاين)</b> — تشمل سيرفراً سحابياً مخصصاً وتطبيقاً متكاملاً لمتابعة مبيعاتك وطلباتك ومخازنك من هاتفك لحظياً. <b>(تجديد السيرفر السحابي 150 ج.م شهرياً في جميع باقات المزامنة)</b>.';
 
         if (subModal) subModal.classList.add('cloud-mode-active');
         if (subPlans) subPlans.classList.add('cloud-mode-active');
@@ -1265,8 +1265,8 @@ window.switchPricingMode = function (mode, isSyncOnly) {
         // 1. Monthly (300 EGP)
         setPrice('planMonthlyPrice', '300');
         setText('planMonthlyPeriod', '/ شهرياً');
-        setText('planMonthlySubtext', '☁️ شاملة المزامنة السحابية وتطبيق الهاتف');
-        setHtml('planMonthlyFeatCloud', '<span class="check-icon">✓</span> سيرفر سحابي ومزامنة مع تطبيق الموبايل 📱');
+        setText('planMonthlySubtext', '☁️ شاملة البرنامج + تطبيق الموبايل + السيرفر السحابي');
+        setHtml('planMonthlyFeatCloud', '<span class="check-icon">✓</span> مزامنة سحابية + تطبيق بَيَان لمتابعة طلباتك من الهاتف 📱');
 
         const mBtn = document.getElementById('planMonthlyBtn');
         if (mBtn) {
@@ -1289,8 +1289,8 @@ window.switchPricingMode = function (mode, isSyncOnly) {
         }
         setPrice('planAnnualPrice', '2000');
         setText('planAnnualPeriod', '/ سنوياً');
-        setText('planAnnualSubtext', '☁️ + 150 ج.م / شهرياً تجديد السيرفر السحابي');
-        setHtml('planAnnualFeatBadge', '🛡️ سيرفر سحابي بتجديد شهري (150 ج.م) + دعم VIP');
+        setText('planAnnualSubtext', '☁️ شاملة تطبيق الموبايل + 150 ج.م / شهرياً تجديد السيرفر');
+        setHtml('planAnnualFeatBadge', '📱 تطبيق بَيَان لمتابعة طلباتك من الهاتف + تجديد سيرفر 150 ج.م/شهرياً');
 
         const aBtn = document.getElementById('planAnnualBtn');
         if (aBtn) {
@@ -1309,9 +1309,9 @@ window.switchPricingMode = function (mode, isSyncOnly) {
         if (oldLife) oldLife.innerText = '6000';
         setPrice('planLifetimePrice', '4500');
         setText('planLifetimePeriod', '/ مدى الحياة');
-        setText('planLifetimeSubtext', '👑 امتلاك دائم للبرنامج + 150 ج.م / شهرياً تجديد السيرفر السحابي');
-        setHtml('planLifetimeFeatBadge', '☁️ امتلاك دائم للأبد + تجديد السيرفر السحابي شهرياً (150 ج.م/شهر)');
-        setHtml('planLifetimeGiftBox', '📱 <b>تجديد السيرفر السحابي شهرياً (150 ج.م/شهرياً):</b><br>البرنامج يعمل أوفلاين على جهازك دائماً حتى لو انتهى السيرفر، وعند تجديد السيرفر الشهري تعمل المزامنة وتطبيق الموبايل.');
+        setText('planLifetimeSubtext', '👑 امتلاك دائم + تطبيق الموبايل (+ 150 ج.م/شهرياً تجديد سيرفر)');
+        setHtml('planLifetimeFeatBadge', '📱 تطبيق بَيَان لمتابعة طلباتك من الهاتف + تجديد سيرفر 150 ج.م/شهرياً');
+        setHtml('planLifetimeGiftBox', '📱 <b>باقة الامتلاك + تطبيق بَيَان للموبايل:</b><br>تشمل تطبيق الهاتف لمتابعة مبيعاتك وطلباتك لحظياً بتجديد سيرفر شهري <b>(150 ج.م/شهرياً)</b> — والبرنامج يعمل أوفلاين على جهازك دائماً حتى لو لم يُجدد السيرفر.');
 
         const lBtn = document.getElementById('planLifetimeBtn');
         if (lBtn) {
