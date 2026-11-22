@@ -1216,9 +1216,11 @@
             }
 
             if (Array.isArray(tRes)) {
+                const stripPrefix = (v) => String(v || '').replace(new RegExp(`^${currentShopId}_(DESK_|MOB_)?`, 'i'), '').replace(/^#/, '').trim();
+                const cleanVoidSet = new Set(Array.from(voidedInvIds).map(stripPrefix));
                 let myTxs = tRes.filter(row => {
                     const rowInvId = String(row.invoice_id || row.id || '');
-                    if (voidedInvIds.has(rowInvId)) return false;
+                    if (voidedInvIds.has(rowInvId) || cleanVoidSet.has(stripPrefix(rowInvId))) return false;
                     const raw = row.raw_json || {};
                     const rowShopId = raw.shop_id || (row.id && row.id.startsWith(currentShopId + '_') ? currentShopId : null);
                     return rowShopId === currentShopId;
@@ -1226,7 +1228,7 @@
 
                 State.transactions = myTxs.map(row => mapSupabaseTxRow(row, currentShopId));
                 try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (e) { }
-                MobileIDB.putMany('transactions', State.transactions, currentShopId).catch(() => { });
+                MobileIDB.replaceAll('transactions', State.transactions, currentShopId).catch(() => { });
 
                 // 🔔 إشعار ذكي غير مزعج فقط عند وصول حركة جديدة فعلياً لم تكن مسجلة محلياً
                 if (!showIndicator && prevTxIds.size > 0) {
@@ -3367,15 +3369,36 @@
             }
 
             let itemsHtml = '';
+            const txClassInfo = classifyTransaction(tx);
+            const isVoucherTx = (txClassInfo.key === 'receipt' || txClassInfo.key === 'disburse');
+            const formatTime12hStr = (str) => String(str || '').replace(/\b([01]?\d|2[0-3]):([0-5]\d)\b/g, (_, hStr, mStr) => {
+                const h = parseInt(hStr, 10);
+                const period = h >= 12 ? 'م' : 'ص';
+                const h12 = (h % 12) || 12;
+                return `${String(h12).padStart(2, '0')}:${mStr} ${period}`;
+            });
+            const formattedRawDate = formatTime12hStr(rawDate);
             const allItems = (Array.isArray(tx.items) && tx.items.length > 0)
                 ? tx.items
                 : (Array.isArray(tx.raw_items) && tx.raw_items.length > 0 ? tx.raw_items : matchingTxs);
 
             itemsHtml = allItems.map(i => {
-                const name = i.name || i.product || 'صنف فاشون';
+                const name = i.name || i.product || (isVoucherTx ? txClassInfo.label : 'صنف فاشون');
                 const qty = parseFloat(i.quantity || i.qty || 1);
                 const price = parseFloat(i.price || (i.total ? i.total / qty : 0));
                 const lineTotal = parseFloat(i.total || (price * qty) || 0);
+                if (isVoucherTx) {
+                    const noteText = i.notes || tx.notes || txClassInfo.label;
+                    return `
+                        <div class="receipt-item-row">
+                            <div>
+                                <div class="item-title">${escapeHtml(name)}</div>
+                                <div class="item-meta">${escapeHtml(noteText)}</div>
+                            </div>
+                            <div class="item-total">${lineTotal.toLocaleString('ar-EG')} ج.م</div>
+                        </div>
+                    `;
+                }
                 const size = i.size ? `مقاس: ${i.size}` : '';
                 const color = i.color ? `لون: ${i.color}` : '';
                 const meta = [size, color].filter(Boolean).join(' • ') || 'مقاس ولون حر';
@@ -3383,7 +3406,7 @@
                 return `
                     <div class="receipt-item-row">
                         <div>
-                            <div class="item-title">${name}</div>
+                            <div class="item-title">${escapeHtml(name)}</div>
                             <div class="item-meta">الكمية: ${qty} قطعة • ${meta}</div>
                         </div>
                         <div class="item-total">${lineTotal.toLocaleString('ar-EG')} ج.م</div>
@@ -3405,7 +3428,7 @@
                         ${custBalHtml}
                         <div class="receipt-row" style="margin-top: 4px;">
                             <span class="label">التاريخ والوقت:</span>
-                            <span class="value" style="font-size: 0.8rem;">🕒 ${rawDate}</span>
+                            <span class="value" style="font-size: 0.8rem;">🕒 ${formattedRawDate}</span>
                         </div>
                         <div class="receipt-row">
                             <span class="label">طريقة السداد:</span>
@@ -3606,14 +3629,16 @@
             }).catch(() => { });
 
             // 5. تسجيل حركة الإلغاء في treasury_audit ليعلم الكمبيوتر فورياً
+            const voidNowIso = new Date().toISOString();
             const voidPayload = [{
                 id: `${currentShopId}_VOID_${invId}`,
-                date: new Date().toISOString(),
+                date: voidNowIso,
+                created_at: voidNowIso,
                 category: 'void_tx',
                 amount: parseFloat(tx.total || 0),
                 user_name: `تابلت (${State.terminalLetter})`,
                 warehouse: targetWh,
-                raw_json: { shop_id: currentShopId, invoiceId: invId, warehouse: targetWh, voidedAt: new Date().toISOString() }
+                raw_json: { shop_id: currentShopId, invoiceId: invId, warehouse: targetWh, voidedAt: voidNowIso }
             }];
             await fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?on_conflict=id`, {
                 method: 'POST',
@@ -3621,10 +3646,11 @@
                 body: JSON.stringify(voidPayload)
             }).catch(() => { });
 
-            // 6. إزالة الفاتورة من القائمة المحلية وتحديث الذاكرة
+            // 6. إزالة الفاتورة من القائمة المحلية وتحديث الذاكرة و IndexedDB
             State.transactions = State.transactions.filter(t => String(t.invoiceId || t.id) !== String(invId));
             try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'products', JSON.stringify(State.products)); } catch (e) { }
             try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (e) { }
+            MobileIDB.replaceAll('transactions', State.transactions, currentShopId).catch(() => { });
 
             if (promptUser) {
                 closeInvoiceDetailsModal();
@@ -6258,11 +6284,12 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                         <button type="button" class="btn-acc-action" onclick="window.BayanMobile.openEditAccountModal('${a.id || safeName}')">
                             <span>✏️</span> تعديل
                         </button>
-                        ${!isSupp && bal > 0 ? `
                         <button type="button" class="btn-acc-action" style="background: rgba(16, 185, 129, 0.14); color: var(--emerald); border-color: rgba(16, 185, 129, 0.35);" onclick="window.BayanMobile.collectCustomerPayment('${a.id || safeName}')">
-                            <span>💵</span> تحصيل
+                            <span>💵</span> قبض
                         </button>
-                        ` : ''}
+                        <button type="button" class="btn-acc-action" style="background: rgba(244, 63, 94, 0.14); color: var(--rose); border-color: rgba(244, 63, 94, 0.35);" onclick="window.BayanMobile.disburseAccountPayment('${a.id || safeName}')">
+                            <span>📤</span> صرف
+                        </button>
                         ${!isSupp ? `
                         <button type="button" class="btn-acc-action pos" onclick="window.BayanMobile.quickSaleForAccount('${safeName}')">
                             <span>🛒</span> بيع سريع
@@ -6805,114 +6832,229 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
     }
 
     async function collectCustomerPayment(accIdentifier) {
+        if (State._isSubmittingVoucher) return;
         const allAccs = Array.isArray(State.accounts) && State.accounts.length > 0 ? State.accounts : (State.customers || []);
         const cleanId = String(accIdentifier || '').trim();
         const acc = allAccs.find(a => String(a.id) === cleanId || cleanArabic(a.name) === cleanArabic(cleanId));
         if (!acc) return;
 
-        const currentDebt = parseFloat(acc.balance) || 0;
-        const entered = await openModernPrompt(
-            `العميل: ${acc.name}\nالمديونية الحالية: ${currentDebt.toLocaleString('ar-EG')} ج.م\nأدخل المبلغ المحصّل الآن (ج.م):`,
-            String(currentDebt > 0 ? currentDebt : ''),
-            'number',
-            '💵 تحصيل دفعة (سند قبض)'
-        );
-        if (!entered) return;
-        const paid = parseFloat(entered) || 0;
-        if (paid <= 0) {
-            showToast('يرجى إدخال مبلغ صحيح أكبر من 0 ⚠️', 'warning');
-            return;
-        }
-
-        const newBalance = currentDebt - paid;
-        acc.balance = newBalance;
-        const mirrorCust = (State.customers || []).find(c => c && cleanArabic(c.name) === cleanArabic(acc.name));
-        if (mirrorCust) mirrorCust.balance = newBalance;
-
+        State._isSubmittingVoucher = true;
         try {
-            localStorage.setItem(CONFIG.STORAGE_PREFIX + 'accounts', JSON.stringify(State.accounts));
-            localStorage.setItem(CONFIG.STORAGE_PREFIX + 'customers', JSON.stringify(State.customers));
-        } catch (_) { }
+            const currentDebt = parseFloat(acc.balance) || 0;
+            const entered = await openModernPrompt(
+                `الحساب: ${acc.name}\nالرصيد الحالي: ${currentDebt.toLocaleString('ar-EG')} ج.م\nأدخل مبلغ القبض / التحصيل (ج.م):`,
+                String(currentDebt > 0 ? currentDebt : ''),
+                'number',
+                '💵 سند قبض / تحصيل'
+            );
+            if (!entered) return;
+            const paid = parseFloat(entered) || 0;
+            if (paid <= 0) {
+                showToast('يرجى إدخال مبلغ صحيح أكبر من 0 ⚠️', 'warning');
+                return;
+            }
 
-        const nowIso = new Date().toISOString();
-        const rcptId = 'RCP-' + Date.now().toString().slice(-6);
-        const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
-        const activeWh = State.activeWarehouse || 'المخزن الرئيسي';
+            const newBalance = currentDebt - paid;
+            acc.balance = newBalance;
+            const mirrorCust = (State.customers || []).find(c => c && cleanArabic(c.name) === cleanArabic(acc.name));
+            if (mirrorCust) mirrorCust.balance = newBalance;
 
-        const rcptTx = {
-            id: rcptId,
-            invoiceId: rcptId,
-            type: 'سند قبض',
-            partner: acc.name,
-            product: `تحصيل دفعة من ${acc.name}`,
-            date: nowIso,
-            dateISO: getTodayISO(),
-            timeISO: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' }),
-            total: paid,
-            invoiceGrandTotal: paid,
-            paidAmount: paid,
-            remaining: 0,
-            method: 'كاش',
-            cashier: `تابلت (${State.terminalLetter})`,
-            warehouse: activeWh,
-            isInvoiceHead: true
-        };
+            try {
+                localStorage.setItem(CONFIG.STORAGE_PREFIX + 'accounts', JSON.stringify(State.accounts));
+                localStorage.setItem(CONFIG.STORAGE_PREFIX + 'customers', JSON.stringify(State.customers));
+            } catch (_) { }
 
-        State.transactions.unshift(rcptTx);
-        try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (_) { }
-        MobileIDB.putMany('transactions', [rcptTx], currentShopId).catch(() => { });
-        MobileIDB.putMany('accounts', [acc], currentShopId).catch(() => { });
+            const nowIso = new Date().toISOString();
+            const rcptId = 'RCP-' + Date.now().toString().slice(-6);
+            const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
+            const activeWh = State.activeWarehouse || 'المخزن الرئيسي';
 
-        const txPayload = [{
-            id: `${currentShopId}_${rcptId}`,
-            invoice_id: rcptId,
-            date_iso: nowIso,
-            updated_at: nowIso,
-            time: rcptTx.timeISO,
-            type: 'سند قبض',
-            partner: acc.name,
-            total: paid,
-            paid_amount: paid,
-            remaining: 0,
-            method: 'كاش',
-            cashier: rcptTx.cashier,
-            warehouse: activeWh,
-            raw_json: { ...rcptTx, shop_id: currentShopId, updatedAt: nowIso }
-        }];
+            const rcptTx = {
+                id: rcptId,
+                invoiceId: rcptId,
+                type: 'سند قبض',
+                partner: acc.name,
+                product: `تحصيل دفعة من ${acc.name}`,
+                date: nowIso,
+                dateISO: getTodayISO(),
+                timeISO: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: true }),
+                total: paid,
+                invoiceGrandTotal: paid,
+                paidAmount: paid,
+                remaining: 0,
+                method: 'كاش',
+                cashier: `تابلت (${State.terminalLetter})`,
+                warehouse: activeWh,
+                isInvoiceHead: true
+            };
 
-        const custPayload = [{
-            id: `CONFIG_CUSTOMERS_LIST_${currentShopId}`,
-            date: nowIso,
-            category: 'customers',
-            amount: State.accounts.length,
-            user_name: `تابلت (${State.terminalLetter})`,
-            warehouse: activeWh,
-            raw_json: { shop_id: currentShopId, customers: State.accounts, accounts: State.accounts, updatedAt: nowIso }
-        }];
+            State.transactions.unshift(rcptTx);
+            try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (_) { }
+            MobileIDB.putMany('transactions', [rcptTx], currentShopId).catch(() => { });
+            MobileIDB.putMany('accounts', [acc], currentShopId).catch(() => { });
 
-        if (!navigator.onLine) {
-            enqueueOfflineItem({ id: rcptId, txPayload, custPayload, createdAt: nowIso });
-        } else {
-            fetch(`${SUPABASE_CONFIG.url}/rest/v1/transactions?on_conflict=id`, { method: 'POST', headers: getSupabaseHeaders(), body: JSON.stringify(txPayload) }).catch(() => { });
-            fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?on_conflict=id`, { method: 'POST', headers: getSupabaseHeaders(), body: JSON.stringify(custPayload) }).catch(() => { });
-            fetch(`${SUPABASE_CONFIG.url}/rest/v1/accounts?on_conflict=id`, {
-                method: 'POST',
-                headers: getSupabaseHeaders(),
-                body: JSON.stringify([{ id: `${currentShopId}_ACC_${acc.id}`, shop_id: currentShopId, name: acc.name, raw_json: { ...acc, shop_id: currentShopId }, updated_at: nowIso }])
-            }).catch(() => { });
+            const txPayload = [{
+                id: `${currentShopId}_${rcptId}`,
+                invoice_id: rcptId,
+                date_iso: nowIso,
+                updated_at: nowIso,
+                time: rcptTx.timeISO,
+                type: 'سند قبض',
+                partner: acc.name,
+                total: paid,
+                paid_amount: paid,
+                remaining: 0,
+                method: 'كاش',
+                cashier: rcptTx.cashier,
+                warehouse: activeWh,
+                raw_json: { ...rcptTx, shop_id: currentShopId, updatedAt: nowIso }
+            }];
+
+            const custPayload = [{
+                id: `CONFIG_CUSTOMERS_LIST_${currentShopId}`,
+                date: nowIso,
+                category: 'customers',
+                amount: State.accounts.length,
+                user_name: `تابلت (${State.terminalLetter})`,
+                warehouse: activeWh,
+                raw_json: { shop_id: currentShopId, customers: State.accounts, accounts: State.accounts, updatedAt: nowIso }
+            }];
+
+            if (!navigator.onLine) {
+                enqueueOfflineItem({ id: rcptId, txPayload, custPayload, createdAt: nowIso });
+            } else {
+                fetch(`${SUPABASE_CONFIG.url}/rest/v1/transactions?on_conflict=id`, { method: 'POST', headers: getSupabaseHeaders(), body: JSON.stringify(txPayload) }).catch(() => { });
+                fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?on_conflict=id`, { method: 'POST', headers: getSupabaseHeaders(), body: JSON.stringify(custPayload) }).catch(() => { });
+                fetch(`${SUPABASE_CONFIG.url}/rest/v1/accounts?on_conflict=id`, {
+                    method: 'POST',
+                    headers: getSupabaseHeaders(),
+                    body: JSON.stringify([{ id: `${currentShopId}_ACC_${acc.id}`, shop_id: currentShopId, name: acc.name, raw_json: { ...acc, shop_id: currentShopId }, updated_at: nowIso }])
+                }).catch(() => { });
+            }
+
+            renderAccountsView();
+            renderDashboard();
+            showToast(`تم تسجيل سند قبض (${paid.toLocaleString('ar-EG')} ج.م) من ${acc.name} بنجاح! 💵✅`, 'success');
+
+            const sendWa = await openModernConfirm(`تم التحصيل بنجاح! المتبقي على العميل: ${Math.max(0, newBalance).toLocaleString('ar-EG')} ج.م.\nهل تريد إرسال إيصال السداد للعميل عبر واتساب؟`, '📲 إرسال إيصال سداد');
+            if (sendWa) {
+                const shopTitle = State.settings?.shop_name || State.shopName || 'بَيَان فاشون';
+                const cleanPhone = String(acc.mobile || acc.phone || '').replace(/\D/g, '');
+                const waPhone = cleanPhone.startsWith('01') && cleanPhone.length === 11 ? '2' + cleanPhone : cleanPhone;
+                const msg = `🧾 *إيصال سداد دفعة - ${shopTitle}*%0A👤 العميل: ${acc.name}%0A💵 المبلغ المسدد: *${paid.toLocaleString('ar-EG')} ج.م*%0A📌 الرصيد المتبقي: *${Math.max(0, newBalance).toLocaleString('ar-EG')} ج.م*%0A📅 التاريخ: ${new Date().toLocaleDateString('ar-EG')}%0Aشكراً لتعاملكم معنا! ✨`;
+                window.open(waPhone ? `https://wa.me/${waPhone}?text=${msg}` : `https://wa.me/?text=${msg}`, '_blank');
+            }
+        } finally {
+            setTimeout(() => { State._isSubmittingVoucher = false; }, 500);
         }
+    }
 
-        renderAccountsView();
-        renderDashboard();
-        showToast(`تم تحصيل (${paid.toLocaleString('ar-EG')} ج.م) من ${acc.name} بنجاح! 💵✅`, 'success');
+    async function disburseAccountPayment(accIdentifier) {
+        if (State._isSubmittingVoucher) return;
+        const allAccs = Array.isArray(State.accounts) && State.accounts.length > 0 ? State.accounts : (State.customers || []);
+        const cleanId = String(accIdentifier || '').trim();
+        const acc = allAccs.find(a => String(a.id) === cleanId || cleanArabic(a.name) === cleanArabic(cleanId));
+        if (!acc) return;
 
-        const sendWa = await openModernConfirm(`تم التحصيل بنجاح! المتبقي على العميل: ${Math.max(0, newBalance).toLocaleString('ar-EG')} ج.م.\nهل تريد إرسال إيصال السداد للعميل عبر واتساب؟`, '📲 إرسال إيصال سداد');
-        if (sendWa) {
-            const shopTitle = State.settings?.shop_name || State.shopName || 'بَيَان فاشون';
-            const cleanPhone = String(acc.mobile || acc.phone || '').replace(/\D/g, '');
-            const waPhone = cleanPhone.startsWith('01') && cleanPhone.length === 11 ? '2' + cleanPhone : cleanPhone;
-            const msg = `🧾 *إيصال سداد دفعة - ${shopTitle}*%0A👤 العميل: ${acc.name}%0A💵 المبلغ المسدد: *${paid.toLocaleString('ar-EG')} ج.م*%0A📌 الرصيد المتبقي: *${Math.max(0, newBalance).toLocaleString('ar-EG')} ج.م*%0A📅 التاريخ: ${new Date().toLocaleDateString('ar-EG')}%0Aشكراً لتعاملكم معنا! ✨`;
-            window.open(waPhone ? `https://wa.me/${waPhone}?text=${msg}` : `https://wa.me/?text=${msg}`, '_blank');
+        State._isSubmittingVoucher = true;
+        try {
+            const currentBal = parseFloat(acc.balance) || 0;
+            const entered = await openModernPrompt(
+                `الحساب: ${acc.name}\nالرصيد الحالي: ${currentBal.toLocaleString('ar-EG')} ج.م\nأدخل مبلغ الصرف / الدفع (ج.م):`,
+                String(currentBal < 0 ? Math.abs(currentBal) : ''),
+                'number',
+                '📤 سند صرف / دفع لحساب'
+            );
+            if (!entered) return;
+            const paid = parseFloat(entered) || 0;
+            if (paid <= 0) {
+                showToast('يرجى إدخال مبلغ صحيح أكبر من 0 ⚠️', 'warning');
+                return;
+            }
+
+            const newBalance = currentBal + paid;
+            acc.balance = newBalance;
+            const mirrorCust = (State.customers || []).find(c => c && cleanArabic(c.name) === cleanArabic(acc.name));
+            if (mirrorCust) mirrorCust.balance = newBalance;
+
+            try {
+                localStorage.setItem(CONFIG.STORAGE_PREFIX + 'accounts', JSON.stringify(State.accounts));
+                localStorage.setItem(CONFIG.STORAGE_PREFIX + 'customers', JSON.stringify(State.customers));
+            } catch (_) { }
+
+            const nowIso = new Date().toISOString();
+            const payId = 'PAY-' + Date.now().toString().slice(-6);
+            const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
+            const activeWh = State.activeWarehouse || 'المخزن الرئيسي';
+
+            const payTx = {
+                id: payId,
+                invoiceId: payId,
+                type: 'سند صرف',
+                partner: acc.name,
+                product: `صرف دفعة لحساب ${acc.name}`,
+                date: nowIso,
+                dateISO: getTodayISO(),
+                timeISO: new Date().toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', hour12: true }),
+                total: paid,
+                invoiceGrandTotal: paid,
+                paidAmount: paid,
+                remaining: 0,
+                method: 'كاش',
+                cashier: `تابلت (${State.terminalLetter})`,
+                warehouse: activeWh,
+                isInvoiceHead: true
+            };
+
+            State.transactions.unshift(payTx);
+            try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (_) { }
+            MobileIDB.putMany('transactions', [payTx], currentShopId).catch(() => { });
+            MobileIDB.putMany('accounts', [acc], currentShopId).catch(() => { });
+
+            const txPayload = [{
+                id: `${currentShopId}_${payId}`,
+                invoice_id: payId,
+                date_iso: nowIso,
+                updated_at: nowIso,
+                time: payTx.timeISO,
+                type: 'سند صرف',
+                partner: acc.name,
+                total: paid,
+                paid_amount: paid,
+                remaining: 0,
+                method: 'كاش',
+                cashier: payTx.cashier,
+                warehouse: activeWh,
+                raw_json: { ...payTx, shop_id: currentShopId, updatedAt: nowIso }
+            }];
+
+            const custPayload = [{
+                id: `CONFIG_CUSTOMERS_LIST_${currentShopId}`,
+                date: nowIso,
+                category: 'customers',
+                amount: State.accounts.length,
+                user_name: `تابلت (${State.terminalLetter})`,
+                warehouse: activeWh,
+                raw_json: { shop_id: currentShopId, customers: State.accounts, accounts: State.accounts, updatedAt: nowIso }
+            }];
+
+            if (!navigator.onLine) {
+                enqueueOfflineItem({ id: payId, txPayload, custPayload, createdAt: nowIso });
+            } else {
+                fetch(`${SUPABASE_CONFIG.url}/rest/v1/transactions?on_conflict=id`, { method: 'POST', headers: getSupabaseHeaders(), body: JSON.stringify(txPayload) }).catch(() => { });
+                fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?on_conflict=id`, { method: 'POST', headers: getSupabaseHeaders(), body: JSON.stringify(custPayload) }).catch(() => { });
+                fetch(`${SUPABASE_CONFIG.url}/rest/v1/accounts?on_conflict=id`, {
+                    method: 'POST',
+                    headers: getSupabaseHeaders(),
+                    body: JSON.stringify([{ id: `${currentShopId}_ACC_${acc.id}`, shop_id: currentShopId, name: acc.name, raw_json: { ...acc, shop_id: currentShopId }, updated_at: nowIso }])
+                }).catch(() => { });
+            }
+
+            renderAccountsView();
+            renderDashboard();
+            showToast(`تم تسجيل سند صرف (${paid.toLocaleString('ar-EG')} ج.م) لحساب ${acc.name} بنجاح! 📤✅`, 'success');
+        } finally {
+            setTimeout(() => { State._isSubmittingVoucher = false; }, 500);
         }
     }
 
@@ -7204,6 +7346,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         closeQuickExpenseModal,
         submitQuickExpense,
         collectCustomerPayment,
+        disburseAccountPayment,
         onCustomerInput,
         onCustomerFocus,
         selectCustomer,
