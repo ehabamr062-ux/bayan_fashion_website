@@ -862,13 +862,28 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
     const rawCurrency = (typeof getCurrencySymbol === 'function') ? getCurrencySymbol() : 'ج';
     const currencySign = (rawCurrency === 'ج.م' || rawCurrency === 'EGP' || rawCurrency === 'ج') ? 'ج' : rawCurrency;
 
-    // استرجاع آخر زاوية تدوير مفضلة للنمط الطولي (الافتراضي 0° = بطول التيكت + ج معدولة في الأعلى كما في طلب العميل)
+    // استرجاع آخر زاوية تدوير مثبتة/مفضلة للنمط الطولي من قاعدة البيانات (SQLite / settings) أولاً لضمان ثباتها للأبد
     let savedVertAngle = '0';
+    let isVertAnglePinned = false;
     try {
-        const storedAng = (typeof getStore === 'function' ? getStore('bayan_pt_vert_angle') : null)
+        let dbAng = null;
+        if (typeof db !== 'undefined' && db.settings && typeof db.settings.get === 'function') {
+            const rec = await db.settings.get('bayan_pt_vert_angle').catch(() => null);
+            if (rec && rec.value !== undefined && rec.value !== null) {
+                dbAng = String(rec.value);
+                isVertAnglePinned = true;
+            }
+        }
+        const storedAng = dbAng
+            || (typeof getStore === 'function' ? getStore('bayan_pt_vert_angle') : null)
             || (typeof localStorage !== 'undefined' ? localStorage.getItem('bayan_pt_vert_angle') : null);
         if (storedAng && ['0', '180', '-90', '90'].includes(String(storedAng))) {
             savedVertAngle = String(storedAng);
+        }
+        if (!isVertAnglePinned) {
+            const pinFlag = (typeof getStore === 'function' ? getStore('bayan_pt_vert_angle_pinned') : null)
+                || (typeof localStorage !== 'undefined' ? localStorage.getItem('bayan_pt_vert_angle_pinned') : null);
+            isVertAnglePinned = (pinFlag === 'true');
         }
     } catch (_) { }
 
@@ -877,23 +892,23 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
         const numPrice = parseFloat(item.price) || 0;
         const priceFormatted = (Math.floor(numPrice) === numPrice) ? String(numPrice) : numPrice.toFixed(2);
 
-        // حساب حجم الخط ديناميكياً بحسب عدد خانات السعر لضمان أقصى عرض ووضوح بدون أي قص
+        // حساب حجم الخط ديناميكياً بحسب عدد خانات السعر لضمان امتلاء الورقة بالكامل بأقصى عرض ووضوح (طلب العميل)
         const cleanLen = String(priceFormatted).length;
-        // أ) لوضع الطول على الكارت (0° / 180° — يملأ الضلع الطويل 50mm بالكامل بخط عريض وعملاق)
-        let longPriceFontPt = 38;
-        if (cleanLen >= 6) longPriceFontPt = 21;
-        else if (cleanLen === 5) longPriceFontPt = 25;
-        else if (cleanLen === 4) longPriceFontPt = 31;
-        else longPriceFontPt = 38;
-        if (isSmall) longPriceFontPt = Math.round(longPriceFontPt * 0.85);
+        // أ) لوضع الطول على الكارت (0° / 180° — يملأ الضلع الطويل بالكامل بخط عريض وعملاق)
+        let longPriceFontPt = 50;
+        if (cleanLen >= 6) longPriceFontPt = 27;
+        else if (cleanLen === 5) longPriceFontPt = 33;
+        else if (cleanLen === 4) longPriceFontPt = 41;
+        else longPriceFontPt = 50;
+        if (isSmall) longPriceFontPt = Math.round(longPriceFontPt * 0.86);
 
-        // ب) لوضع القراءة المعدولة داخل الضلع القصير (-90° / +90°)
-        let uprightPriceFontPt = 30;
-        if (cleanLen >= 6) uprightPriceFontPt = 17;
-        else if (cleanLen === 5) uprightPriceFontPt = 20;
-        else if (cleanLen === 4) uprightPriceFontPt = 24;
-        else uprightPriceFontPt = 30;
-        if (isSmall) uprightPriceFontPt = Math.round(uprightPriceFontPt * 0.85);
+        // ب) لوضع القراءة المعدولة داخل الضلع القصير (-90° / +90° — يملأ طول وعرض التيكت بالكامل)
+        let uprightPriceFontPt = 40;
+        if (cleanLen >= 6) uprightPriceFontPt = 22;
+        else if (cleanLen === 5) uprightPriceFontPt = 27;
+        else if (cleanLen === 4) uprightPriceFontPt = 33;
+        else uprightPriceFontPt = 40;
+        if (isSmall) uprightPriceFontPt = Math.round(uprightPriceFontPt * 0.86);
 
         for (let i = 0; i < item.copies; i++) {
             if (isVertical) {
@@ -1060,36 +1075,38 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                     align-items: center !important;
                     justify-content: center !important;
                     box-sizing: border-box;
-                    padding: 0.5mm 1.5mm;
+                    padding: 0.3mm 0.8mm;
                     text-align: center;
-                    gap: 1.8mm;
+                    gap: 1mm;
                 }
                 .price-tag-label.vertical .pt-currency-badge-vert {
-                    font-size: ${isSmall ? '20pt' : '24pt'};
+                    font-size: ${isSmall ? '24pt' : '28pt'};
                     font-weight: 900 !important;
                     color: #000000 !important;
-                    line-height: 1;
+                    line-height: 0.85;
                     font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif;
                     margin: 0;
                     padding: 0;
                     flex-shrink: 0;
-                    -webkit-text-stroke: 1.1px #000000;
+                    -webkit-text-stroke: 1.3px #000000;
                     transform: rotate(-90deg);
                     display: inline-flex;
                     align-items: center;
                     justify-content: center;
                 }
                 .price-tag-label.vertical .pt-price-num-vert {
-                    font-size: var(--pt-long-fs, 36pt);
+                    font-size: var(--pt-long-fs, 48pt);
                     font-weight: 900 !important;
                     color: #000000 !important;
-                    line-height: 0.95;
+                    line-height: 0.85;
                     font-family: 'Arial Black', 'Segoe UI Black', 'Cairo', Arial, sans-serif;
-                    letter-spacing: 0.4px;
+                    letter-spacing: -0.5px;
                     margin: 0;
                     white-space: nowrap;
-                    -webkit-text-stroke: 1.3px #000000;
+                    -webkit-text-stroke: 1.5px #000000;
                     -webkit-font-smoothing: antialiased;
+                    transform: scaleY(1.18);
+                    transform-origin: center center;
                 }
 
                 /* زاوية 180° (بطول التيكت معكوس الاتجاه) */
@@ -1097,38 +1114,48 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                     transform: translate(-50%, -50%) rotate(180deg) !important;
                 }
 
-                /* زاوية -90° (السعر نفسه معدول أفقياً داخل عرض التيكت الضيق + ج فوق) */
+                /* زاوية -90° (السعر عريض وعملاق يملأ الورقة بالكامل + ج كبيرة في الأعلى) */
                 body[data-angle="-90"] .price-tag-label.vertical .pt-vertical-rotator {
                     width: ${printHeight}mm !important;
                     height: ${printWidth}mm !important;
                     flex-direction: column !important;
                     direction: rtl !important;
-                    gap: 1.5mm;
+                    justify-content: center !important;
+                    gap: 0.8mm;
+                    padding: 0.5mm !important;
                     transform: translate(-50%, -50%) rotate(-90deg) !important;
                 }
                 body[data-angle="-90"] .price-tag-label.vertical .pt-currency-badge-vert {
-                    transform: none !important;
-                    font-size: ${isSmall ? '18pt' : '22pt'};
+                    transform: scaleX(1.25) !important;
+                    font-size: ${isSmall ? '26pt' : '30pt'};
+                    line-height: 0.82;
                 }
                 body[data-angle="-90"] .price-tag-label.vertical .pt-price-num-vert {
-                    font-size: var(--pt-upright-fs, 28pt);
+                    font-size: var(--pt-upright-fs, 38pt);
+                    transform: scaleY(1.38) !important;
+                    line-height: 0.82;
                 }
 
-                /* زاوية +90° (السعر معدول أفقياً معكوس الاتجاه) */
+                /* زاوية +90° (السعر عريض وعملاق يملأ الورقة بالكامل معكوس الاتجاه) */
                 body[data-angle="90"] .price-tag-label.vertical .pt-vertical-rotator {
                     width: ${printHeight}mm !important;
                     height: ${printWidth}mm !important;
                     flex-direction: column !important;
                     direction: rtl !important;
-                    gap: 1.5mm;
+                    justify-content: center !important;
+                    gap: 0.8mm;
+                    padding: 0.5mm !important;
                     transform: translate(-50%, -50%) rotate(90deg) !important;
                 }
                 body[data-angle="90"] .price-tag-label.vertical .pt-currency-badge-vert {
-                    transform: none !important;
-                    font-size: ${isSmall ? '18pt' : '22pt'};
+                    transform: scaleX(1.25) !important;
+                    font-size: ${isSmall ? '26pt' : '30pt'};
+                    line-height: 0.82;
                 }
                 body[data-angle="90"] .price-tag-label.vertical .pt-price-num-vert {
-                    font-size: var(--pt-upright-fs, 28pt);
+                    font-size: var(--pt-upright-fs, 38pt);
+                    transform: scaleY(1.38) !important;
+                    line-height: 0.82;
                 }
 
                 @media print {
@@ -1178,7 +1205,8 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
         <body data-angle="${isVertical ? savedVertAngle : '0'}">
             <div class="no-print" style="text-align: center; margin-bottom: 12px; padding: 10px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;">
                 <button onclick="window.print()" style="background: #059669; color: white; padding: 9px 24px; font-size: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: 900; box-shadow: 0 2px 6px rgba(5,150,105,0.3);">🖨️ بدء طباعة تيكت السعر (${isVertical ? 'طولي للشنط والأحذية' : 'أفقي عريض'})</button>
-                ${isVertical ? `<button type="button" id="btnRotatePriceTag" onclick="window.cyclePriceTagAngle()" style="background: #6366f1; color: white; padding: 9px 18px; font-size: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 900; box-shadow: 0 2px 6px rgba(99,102,241,0.3);" title="تغيير زاوية الطباعة بين 0° و 180° و -90° و 90°">🔄 تدوير الزاوية (<span id="ptAngleLabel">0° - بطول التيكت</span>)</button>` : ''}
+                ${isVertical ? `<button type="button" id="btnRotatePriceTag" onclick="window.cyclePriceTagAngle()" style="background: #6366f1; color: white; padding: 9px 18px; font-size: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 900; box-shadow: 0 2px 6px rgba(99,102,241,0.3);" title="تغيير زاوية الطباعة بين 0° و 180° و -90° و 90°">🔄 تدوير الزاوية (<span id="ptAngleLabel">0° - بطول التيكت</span>)</button>
+                <button type="button" id="btnPinPriceTagAngle" onclick="window.pinCurrentPriceTagAngle()" style="background: ${isVertAnglePinned ? '#047857' : '#d97706'}; color: white; padding: 9px 16px; font-size: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 900; box-shadow: 0 2px 6px rgba(0,0,0,0.2);" title="تثبيت هذه الزاوية وحفظها في قاعدة البيانات للأبد">${isVertAnglePinned ? '📌 الزاوية مثبتة في القاعدة ✅' : '📌 تثبيت هذه الزاوية'}</button>` : ''}
                 <button onclick="window.close()" style="background: #ef4444; color: white; padding: 9px 20px; font-size: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: 900; box-shadow: 0 2px 6px rgba(239,68,68,0.3);">❌ إغلاق</button>
             </div>
             <div class="label-container">
@@ -1193,10 +1221,23 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                         '-90': '-90° - معدول يسار',
                         '90': '90° - معدول يمين'
                     };
+                    var pinnedAngle = ${isVertAnglePinned ? JSON.stringify(savedVertAngle) : 'null'};
+                    function updatePinBtnUI(curAng) {
+                        var pBtn = document.getElementById('btnPinPriceTagAngle');
+                        if (!pBtn) return;
+                        if (pinnedAngle && pinnedAngle === curAng) {
+                            pBtn.style.background = '#047857';
+                            pBtn.textContent = '📌 الزاوية مثبتة في القاعدة ✅';
+                        } else {
+                            pBtn.style.background = '#d97706';
+                            pBtn.textContent = '📌 تثبيت هذه الزاوية';
+                        }
+                    }
                     function updateAngleUI(ang) {
                         document.body.setAttribute('data-angle', ang);
                         var lbl = document.getElementById('ptAngleLabel');
                         if (lbl) lbl.textContent = labels[ang] || (ang + '°');
+                        updatePinBtnUI(ang);
                     }
                     window.cyclePriceTagAngle = function() {
                         var cur = document.body.getAttribute('data-angle') || '0';
@@ -1209,6 +1250,27 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                                 window.opener.setStore('bayan_pt_vert_angle', next);
                             }
                         } catch(e) {}
+                    };
+                    window.pinCurrentPriceTagAngle = function() {
+                        var cur = document.body.getAttribute('data-angle') || '0';
+                        pinnedAngle = cur;
+                        try {
+                            localStorage.setItem('bayan_pt_vert_angle', cur);
+                            localStorage.setItem('bayan_pt_vert_angle_pinned', 'true');
+                        } catch(e) {}
+                        try {
+                            if (window.opener && typeof window.opener.setStore === 'function') {
+                                window.opener.setStore('bayan_pt_vert_angle', cur);
+                                window.opener.setStore('bayan_pt_vert_angle_pinned', 'true');
+                            }
+                            if (window.opener && window.opener.db && window.opener.db.settings && typeof window.opener.db.settings.put === 'function') {
+                                window.opener.db.settings.put({ id: 'bayan_pt_vert_angle', value: cur });
+                            }
+                            if (window.opener && typeof window.opener.showToast === 'function') {
+                                window.opener.showToast('📌 تم تثبيت زاوية تيكت السعر (' + (labels[cur] || cur) + ') وحفظها في قاعدة البيانات بنجاح ✅', 'success');
+                            }
+                        } catch(e) {}
+                        updatePinBtnUI(cur);
                     };
                     updateAngleUI(document.body.getAttribute('data-angle') || '0');
                 })();
