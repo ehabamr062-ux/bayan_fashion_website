@@ -55,6 +55,81 @@
 
 <body>
 
+    <!-- 🔐 شاشة تسجيل الدخول والإقران بملء الشاشة (تظهر عند عدم الاقتران أو بعد تسجيل الخروج) -->
+    <div id="mobileAuthGate"
+        style="display: none; position: fixed; inset: 0; z-index: 9500; background: var(--bg-body); background-image: var(--bg-body-gradient); overflow-y: auto; padding: 24px 18px; align-items: center; justify-content: center;">
+        <div
+            style="width: 100%; max-width: 380px; margin: auto; background: var(--bg-card); border: 1.5px solid var(--border-subtle); border-radius: 26px; padding: 28px 20px 24px; text-align: center; box-shadow: var(--shadow-lg);">
+            <div
+                style="width: 66px; height: 66px; margin: 0 auto 14px; border-radius: 18px; overflow: hidden; border: 1.5px solid rgba(212, 175, 55, 0.45); box-shadow: 0 8px 24px rgba(0,0,0,0.28);">
+                <img src="../media/bayan_logo.png" alt="بيان فاشون"
+                    style="width: 100%; height: 100%; object-fit: cover; display: block;">
+            </div>
+
+            <h2 style="font-size: 1.35rem; font-weight: 900; color: var(--text-main); margin-bottom: 6px;">بيان فاشون لايت</h2>
+            <p style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.55; margin-bottom: 18px;">
+                اربط هاتفك ببيانات محلك عبر مسح كود QR أو إدخال كود المحل (Shop ID) وكلمة المرور لمتابعة المبيعات والخزينة لحظياً
+            </p>
+
+            <!-- صف زري مسح QR بالكاميرا + صورة من المعرض -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px;">
+                <button type="button" onclick="window.BayanMobile.openPairingQrScanner('gate')"
+                    style="height: 54px; border-radius: 14px; background: rgba(14, 165, 233, 0.12); border: 1.5px solid rgba(14, 165, 233, 0.45); color: #38bdf8; font-family: inherit; font-size: 0.8rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 8px;">
+                    <span>📷</span> <span>مسح كود QR بالكاميرا</span>
+                </button>
+                <button type="button" onclick="document.getElementById('pairQrGalleryInput').click()"
+                    style="height: 54px; border-radius: 14px; background: rgba(139, 92, 246, 0.12); border: 1.5px solid rgba(139, 92, 246, 0.45); color: #a78bfa; font-family: inherit; font-size: 0.8rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; padding: 0 8px;">
+                    <span>🖼️</span> <span>صورة من المعرض</span>
+                </button>
+            </div>
+
+            <!-- 🎥 حاوية الكاميرا الحية داخل شاشة الدخول -->
+            <div id="gateQrScannerBox" style="display: none; margin-bottom: 14px; background: var(--bg-card-subtle); border: 1.5px solid var(--primary); border-radius: 16px; padding: 10px;">
+                <div style="position: relative; width: 100%; border-radius: 12px; overflow: hidden; background: #000; margin-bottom: 8px;">
+                    <video id="gateQrVideo" playsinline autoplay muted style="width: 100%; max-height: 210px; object-fit: cover; display: block;"></video>
+                    <div style="position: absolute; inset: 16% 20%; border: 2px solid #10b981; border-radius: 12px; pointer-events: none; box-shadow: 0 0 0 9999px rgba(0,0,0,0.35);"></div>
+                </div>
+                <div id="gateQrStatusText" style="font-size: 0.74rem; color: var(--text-dim); font-weight: 800; margin-bottom: 8px;">
+                    🎯 وجّه الكاميرا نحو كود QR في شاشة المزامنة ببرنامج بَيَان الكبير...
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <button type="button" class="btn-complete-invoice" style="height: 38px; font-size: 0.8rem; background: linear-gradient(135deg, #059669, #10b981);"
+                        onclick="document.getElementById('pairQrCaptureInput').click()">
+                        <span>📸</span> التقاط صورة بالكاميرا (بديل فوري)
+                    </button>
+                    <button type="button" class="btn-complete-invoice" style="height: 36px; font-size: 0.78rem; background: var(--chip-bg); color: var(--rose); border: 1px solid rgba(225,29,72,0.35); box-shadow: none;"
+                        onclick="window.BayanMobile.closePairingQrScanner()">
+                        <span>✕</span> إغلاق الكاميرا
+                    </button>
+                </div>
+            </div>
+
+            <!-- فاصل الإدخال اليدوي -->
+            <div style="display: flex; align-items: center; gap: 10px; margin: 14px 0 12px; color: var(--text-dim); font-size: 0.75rem; font-weight: 700;">
+                <span style="flex: 1; height: 1px; background: var(--border-subtle);"></span>
+                <span>أو إدخال البيانات يدوياً</span>
+                <span style="flex: 1; height: 1px; background: var(--border-subtle);"></span>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px;">
+                <input type="text" id="gateShopIdInput" placeholder="كود المحل (SHOP_XXXXXXXX)" autocomplete="off"
+                    style="width: 100%; height: 48px; text-align: center; font-size: 0.95rem; font-weight: 900; font-family: monospace; background: var(--input-bg); border: 1.5px solid var(--border-strong); border-radius: 14px; color: var(--text-main); outline: none; padding: 0 12px;">
+                <input type="text" id="gatePinInput" maxlength="20" placeholder="كلمة المرور / رمز PIN" autocomplete="off"
+                    style="width: 100%; height: 48px; text-align: center; font-size: 1.1rem; font-weight: 900; letter-spacing: 4px; background: var(--input-bg); border: 1.5px solid var(--border-strong); border-radius: 14px; color: var(--text-main); outline: none; padding: 0 12px;">
+            </div>
+
+            <button type="button" class="btn-complete-invoice"
+                style="height: 50px; background: linear-gradient(135deg, #2563eb, #1d4ed8); box-shadow: 0 8px 22px rgba(37, 99, 235, 0.35); font-size: 0.96rem;"
+                onclick="window.BayanMobile.submitGateLogin()">
+                <span>🚪</span> تسجيل الدخول والمزامنة
+            </button>
+
+            <p style="font-size: 0.72rem; color: var(--text-dim); margin-top: 14px; line-height: 1.5;">
+                * كود المحل (Shop ID) وكلمة المرور موجودان في شاشة إعدادات المزامنة ببرنامج بَيَان الكبير على الكمبيوتر.
+            </p>
+        </div>
+    </div>
+
     <!-- 🔝 الشريط العلوي للموبايل -->
     <header class="mobile-topbar">
         <div class="brand-section">
@@ -714,8 +789,14 @@
                                 <span>💾</span> حفظ إعدادات الفرع والمخزن
                             </button>
 
-                            <button type="button" class="btn-re-pair" onclick="window.BayanMobile.openPinModal()">
+                            <button type="button" class="btn-re-pair" style="margin-bottom: 10px;" onclick="window.BayanMobile.openPinModal()">
                                 <span>🔐</span> ربط التابلت بفرع آخر عبر رمز PIN السريع
+                            </button>
+
+                            <button type="button" class="btn-complete-invoice"
+                                style="height: 44px; font-size: 0.88rem; background: var(--rose-subtle); color: var(--rose); border: 1.5px solid rgba(225, 29, 72, 0.35); box-shadow: none;"
+                                onclick="window.BayanMobile.logoutDevice()">
+                                <span>🚪</span> تسجيل الخروج وفصل الجهاز
                             </button>
                         </div>
                     </div>
@@ -1824,7 +1905,7 @@
         </div>
     </div>
 
-    <script src="js/mobile_fashion.js?v=5.1.42"></script></script>
+    <script src="js/mobile_fashion.js?v=5.1.43"></script></script>
 </body>
 
 </html>

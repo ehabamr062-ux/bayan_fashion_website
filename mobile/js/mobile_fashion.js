@@ -277,14 +277,70 @@
         if (modal) modal.classList.remove('active');
     }
 
-    // 📷 محرك مسح QR بالكاميرا الحية داخل نافذة الإقران
+    // 📷 محرك مسح QR بالكاميرا الحية (يعمل في شاشة الدخول ونافذة الإقران)
     let _pairQrStream = null;
     let _pairQrTimer = null;
 
-    async function openPairingQrScanner() {
-        const box = document.getElementById('pairQrScannerBox');
-        const video = document.getElementById('pairQrVideo');
-        const statusEl = document.getElementById('pairQrStatusText');
+    function showAuthGate() {
+        const gate = document.getElementById('mobileAuthGate');
+        if (gate) gate.style.display = 'flex';
+        const shopInp = document.getElementById('gateShopIdInput');
+        const pinInp = document.getElementById('gatePinInput');
+        if (shopInp) shopInp.value = '';
+        if (pinInp) pinInp.value = '';
+    }
+
+    function hideAuthGate() {
+        closePairingQrScanner();
+        const gate = document.getElementById('mobileAuthGate');
+        if (gate) gate.style.display = 'none';
+    }
+
+    async function submitGateLogin() {
+        const shopId = (document.getElementById('gateShopIdInput')?.value || '').trim();
+        const pin = (document.getElementById('gatePinInput')?.value || '').trim();
+        return verifyAndPairDevice(shopId, pin);
+    }
+
+    async function logoutDevice() {
+        const ok = await openModernConfirm('هل أنت متأكد من تسجيل الخروج وفصل هذا الهاتف عن المحل الحالي؟', '🚪 تسجيل الخروج');
+        if (!ok) return;
+
+        if (State.pollTimer) { clearInterval(State.pollTimer); State.pollTimer = null; }
+        if (State._realtimeWs) { try { State._realtimeWs.close(); } catch (_) { } State._realtimeWs = null; }
+        if (State._realtimeHb) { clearInterval(State._realtimeHb); State._realtimeHb = null; }
+
+        State.shopId = '';
+        CONFIG.SHOP_ID = '';
+        State.token = '';
+        State.products = [];
+        State.transactions = [];
+        State.accounts = [];
+        State.customers = [];
+        State.cart = [];
+        State.treasuryUnlocked = false;
+
+        try {
+            localStorage.removeItem('bayan_mob_shop_id');
+            localStorage.removeItem(CONFIG.STORAGE_PREFIX + 'token');
+            localStorage.removeItem(CONFIG.STORAGE_PREFIX + 'transactions');
+            localStorage.removeItem(CONFIG.STORAGE_PREFIX + 'accounts');
+            localStorage.removeItem(CONFIG.STORAGE_PREFIX + 'customers');
+            localStorage.removeItem(CONFIG.STORAGE_PREFIX + 'products');
+        } catch (_) { }
+
+        updateConnectionStatus(false, 'غير مقترن');
+        updateCartCount();
+        closeSettingSubPage(false);
+        showAuthGate();
+        showToast('تم تسجيل الخروج وفصل الجهاز بنجاح 🚪', 'info');
+    }
+
+    async function openPairingQrScanner(target = 'modal') {
+        const isGate = (target === 'gate');
+        const box = document.getElementById(isGate ? 'gateQrScannerBox' : 'pairQrScannerBox');
+        const video = document.getElementById(isGate ? 'gateQrVideo' : 'pairQrVideo');
+        const statusEl = document.getElementById(isGate ? 'gateQrStatusText' : 'pairQrStatusText');
         if (box) box.style.display = 'block';
         if (statusEl) statusEl.textContent = '⏳ جاري تشغيل الكاميرا...';
 
@@ -364,8 +420,12 @@
         }
         const video = document.getElementById('pairQrVideo');
         if (video) video.srcObject = null;
+        const gateVideo = document.getElementById('gateQrVideo');
+        if (gateVideo) gateVideo.srcObject = null;
         const box = document.getElementById('pairQrScannerBox');
         if (box && !keepBoxOpen) box.style.display = 'none';
+        const gateBox = document.getElementById('gateQrScannerBox');
+        if (gateBox && !keepBoxOpen) gateBox.style.display = 'none';
     }
 
     async function handlePairingQrFile(event) {
@@ -528,6 +588,7 @@
 
             syncStoreProfile(raw);
             closePinModal();
+            hideAuthGate();
             showToast(`تم إقران الهاتف بنجاح مع (${matchedShopName}) 🚀`, 'success');
             fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?on_conflict=id`, {
                 method: 'POST',
@@ -7027,8 +7088,9 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         if (!isValidPairedShop(State.shopId)) {
             updateConnectionStatus(false, 'في انتظار الاقتران بكود المحل 🟡');
             applyStoreProfileToUI();
-            openPinModal();
+            showAuthGate();
         } else {
+            hideAuthGate();
             // تحميل فوري من IndexedDB قبل انتظار الشبكة لسرعة إقلاع لحظية
             try {
                 const [idbProds, idbTxs, idbAccs] = await Promise.all([
@@ -7130,6 +7192,8 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         checkConnectionStatus: checkServerInfo,
         openPinModal,
         closePinModal,
+        submitGateLogin,
+        logoutDevice,
         openPairingQrScanner,
         closePairingQrScanner,
         handlePairingQrFile,
