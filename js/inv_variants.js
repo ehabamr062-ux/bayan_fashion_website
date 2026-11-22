@@ -1741,23 +1741,23 @@ function renderSmartMatrixView() {
     let grandTotalStock = 0;
 
     let tableHtml = `
-        <table class="bayan-table" style="margin: 0; width: 100%; font-size: 0.88rem; text-align: center; border-collapse: collapse;">
-            <thead style="position: sticky; top: 0; background: linear-gradient(135deg, #1e1b4b 0%, #1e293b 100%); color: white; z-index: 5;">
+        <table class="bayan-table" style="margin: 0; width: 100%; font-size: 0.88rem; text-align: center; border-collapse: collapse; border: 1.5px solid #cbd5e1;">
+            <thead style="position: sticky; top: 0; background: #f1f5f9; color: #0f172a; z-index: 5;">
                 <tr>
-                    <th style="padding: 12px 16px; min-width: 155px; background: #1e1b4b; color: #f8fafc; font-weight: 900; border-left: 1px solid rgba(255,255,255,0.14); text-align: right; white-space: nowrap;">
-                        <span style="font-size: 0.9rem;">🎨 اللون \\ 📏 المقاس</span>
+                    <th style="padding: 12px 16px; min-width: 155px; background: #e2e8f0 !important; color: #0f172a !important; font-weight: 900; border-left: 1.5px solid #94a3b8 !important; border-bottom: 2px solid #94a3b8 !important; text-align: right; white-space: nowrap;">
+                        <span style="font-size: 0.92rem; color: #0f172a;">🎨 اللون \\ 📏 المقاس</span>
                     </th>
                     ${sizes.map(s => `
-                        <th style="padding: 10px 8px; min-width: 105px; background: transparent; color: white; border-left: 1px solid rgba(255,255,255,0.12); text-align: center;" title="عمود المقاس: ${escAttr(s)}">
-                            <div style="display: inline-flex; align-items: center; justify-content: center; min-width: 56px; padding: 4px 14px; background: rgba(255,255,255,0.14); color: #ffffff; border: 1.5px solid rgba(255,255,255,0.28); border-radius: 8px; font-size: 0.98rem; font-weight: 900;">
+                        <th style="padding: 10px 8px; min-width: 105px; background: #f1f5f9 !important; color: #0f172a !important; border-left: 1.5px solid #cbd5e1 !important; border-bottom: 2px solid #94a3b8 !important; text-align: center;" title="عمود المقاس: ${escAttr(s)}">
+                            <div style="display: inline-flex; align-items: center; justify-content: center; min-width: 60px; padding: 5px 14px; background: linear-gradient(135deg, #065f46, #047857) !important; color: #ffffff !important; border: 1.5px solid #047857 !important; border-radius: 8px; font-size: 0.98rem; font-weight: 900; box-shadow: 0 2px 5px rgba(6, 95, 70, 0.2);">
                                 ${escAttr(s)}
                             </div>
                         </th>
                     `).join('')}
-                    <th style="padding: 10px 14px; width: 120px; min-width: 120px; background: #1e1b4b; color: #93c5fd; border-left: 1px solid rgba(255,255,255,0.14); text-align: center; font-weight: 900; white-space: nowrap;">
+                    <th style="padding: 10px 14px; width: 120px; min-width: 120px; background: #e2e8f0 !important; color: #0f172a !important; border-left: 1.5px solid #94a3b8 !important; border-bottom: 2px solid #94a3b8 !important; text-align: center; font-weight: 900; white-space: nowrap;">
                         <span>📊 الإجمالي</span>
                     </th>
-                    <th style="padding: 10px 10px; width: 88px; min-width: 88px; background: #1e1b4b; color: #fca5a5; text-align: center; font-weight: 900;">
+                    <th style="padding: 10px 10px; width: 88px; min-width: 88px; background: #e2e8f0 !important; color: #b91c1c !important; border-bottom: 2px solid #94a3b8 !important; text-align: center; font-weight: 900;">
                         <span>إجراء</span>
                     </th>
                 </tr>
@@ -1790,7 +1790,7 @@ function renderSmartMatrixView() {
                 const inputBg = stockVal > 0 ? '#f5f3ff' : '#ffffff';
                 const textCol = stockVal > 0 ? '#3730a3' : '#64748b';
                 cellsHtml += `
-                    <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; background: ${colBg}; text-align: center; vertical-align: middle;">
+                    <td style="padding: 10px 8px; border-bottom: 1.5px solid #cbd5e1 !important; border-left: 1.5px solid #cbd5e1 !important; background: ${colBg}; text-align: center; vertical-align: middle;">
                         <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
                             <input type="number" value="${stockVal}" min="0" data-row-indices="${item.rowIndices ? item.rowIndices.join(',') : item.rowIndex}" data-orig-stock="${origVal}" data-size="${escAttr(sz)}" data-color="${escAttr(col)}"
                                 ${isLocked ? 'readonly' : ''}
@@ -1803,7 +1803,7 @@ function renderSmartMatrixView() {
                 `;
             } else {
                 cellsHtml += `
-                    <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; background: #f8fafc; text-align: center; vertical-align: middle;">
+                    <td style="padding: 10px 8px; border-bottom: 1.5px solid #cbd5e1 !important; border-left: 1.5px solid #cbd5e1 !important; background: #f8fafc; text-align: center; vertical-align: middle;">
                         <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
                             <button type="button" onclick="createVariantAndRenderMatrix('${escJsArg(sz)}', '${escJsArg(col)}')"
                                 style="border: 1.5px dashed #cbd5e1; background: #ffffff; color: #64748b; font-weight: 800; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 0.78rem; transition: 0.15s;"
@@ -1818,17 +1818,17 @@ function renderSmartMatrixView() {
 
         tableHtml += `
             <tr style="transition: background 0.15s;">
-                <td style="padding: 10px 16px; font-weight: 900; color: #1e293b; text-align: right; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; white-space: nowrap;">
+                <td style="padding: 10px 16px; font-weight: 900; color: #1e293b; text-align: right; background: #f8fafc; border-bottom: 1.5px solid #cbd5e1 !important; border-left: 1.5px solid #94a3b8 !important; white-space: nowrap;">
                     <div style="display: flex; align-items: center; gap: 8px;">
                         ${colorDotHtml}
                         <span style="font-size: 0.94rem; font-weight: 900; color: #0f172a;">${escAttr(col)}</span>
                     </div>
                 </td>
                 ${cellsHtml}
-                <td style="padding: 10px 12px; font-weight: 900; font-size: 1rem; color: #1d4ed8; background: #f8fafc; border-bottom: 1px solid #e2e8f0; border-left: 1px solid #e2e8f0; text-align: center;">
+                <td style="padding: 10px 12px; font-weight: 900; font-size: 1rem; color: #1d4ed8; background: #f8fafc; border-bottom: 1.5px solid #cbd5e1 !important; border-left: 1.5px solid #cbd5e1 !important; text-align: center;">
                     <span style="background: #eff6ff; color: #1d4ed8; padding: 4px 14px; border-radius: 8px; border: 1px solid #bfdbfe; display: inline-block; min-width: 44px;">${rowSum}</span>
                 </td>
-                <td style="padding: 8px; border-bottom: 1px solid #e2e8f0; background: #ffffff; text-align: center; white-space: nowrap;">
+                <td style="padding: 8px; border-bottom: 1.5px solid #cbd5e1 !important; background: #ffffff; text-align: center; white-space: nowrap;">
                     <div style="display: inline-flex; align-items: center; gap: 4px;">
                         <button type="button" onclick="restoreColorRowInMatrix('${escJsArg(col)}')"
                             style="background: #f0fdf4; color: #166534; border: 1px solid #86efac; border-radius: 8px; width: 30px; height: 30px; cursor: pointer; font-weight: 900; display: inline-flex; align-items: center; justify-content: center;" title="استعادة أرصدة هذا اللون للأصل">🔄</button>
