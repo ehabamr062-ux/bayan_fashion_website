@@ -1263,7 +1263,7 @@
                 const lastProdTsRaw = Number(this._readMeta('bayan_sb_last_prod_sync_time') || 0);
                 const useDeltaProd = (!forceAll && lastProdTsRaw > 0 && pList.length > 0);
                 const deltaFilter = useDeltaProd
-                    ? `&updated_at=gt.${encodeURIComponent(new Date(Math.max(0, lastProdTsRaw - 10000)).toISOString())}`
+                    ? `&updated_at=gt.${encodeURIComponent(new Date(Math.max(0, lastProdTsRaw - 300000)).toISOString())}`
                     : '';
                 const prodUrl = `${cfg.supabaseUrl}/rest/v1/products?id=like.${encodeURIComponent(shopId + '_PROD_%')}${deltaFilter}&select=*&order=id.asc`;
                 for (let page = 0; page < 50; page++) {
@@ -1318,6 +1318,7 @@
                         if (!localProd) {
                             const numId = Number(rawLocalId) || (Date.now() + Math.floor(Math.random() * 1000));
                             const mappedProd = {
+                                ...rj,
                                 id: numId,
                                 name: remProd.name || rj.name || 'صنف جديد',
                                 barcode: remProd.barcode || rj.barcode || String(numId),
@@ -1327,8 +1328,7 @@
                                 price: parseFloat(remProd.price || rj.price || 0),
                                 wholesale: parseFloat(remProd.wholesale || rj.wholesale || 0),
                                 stock: parseFloat(remProd.stock || rj.stock || 0),
-                                variants: Array.isArray(rj.variants) ? rj.variants : [],
-                                ...rj
+                                variants: Array.isArray(rj.variants) ? rj.variants : []
                             };
                             pList.unshift(mappedProd);
                             pById.set(String(mappedProd.id), mappedProd);
@@ -1479,7 +1479,7 @@
                 const lastTxTsRaw = Number(this._readMeta('bayan_sb_last_tx_sync_time') || 0);
                 const useDeltaTx = (lastTxTsRaw > 0);
                 const sinceIso = useDeltaTx
-                    ? new Date(Math.max(0, lastTxTsRaw - 10000)).toISOString()
+                    ? new Date(Math.max(0, lastTxTsRaw - 300000)).toISOString()
                     : '';
                 const txDeltaFilter = useDeltaTx
                     ? `&or=(created_at.gt.${encodeURIComponent(sinceIso)},updated_at.gt.${encodeURIComponent(sinceIso)})`

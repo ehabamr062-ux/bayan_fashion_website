@@ -2031,8 +2031,25 @@
             return idB - idA;
         }).slice(0, 40);
 
-        listEl.innerHTML = sorted.map(tx => {
+        const bulkBarHtml = `
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px; padding:6px 10px; border-radius:10px; background:var(--surface-2, rgba(148,163,184,0.1));">
+                ${State.txSelectMode ? `
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <button type="button" onclick="window.BayanMobile.bulkDeleteSelectedInvoices()" style="padding:6px 12px; border:none; border-radius:8px; background:#e11d48; color:#fff; font-weight:800; font-size:0.78rem; cursor:pointer;">🗑️ حذف المحدد (${State.selectedTxIds ? State.selectedTxIds.size : 0})</button>
+                        <button type="button" onclick="window.BayanMobile.selectAllVisibleTxs()" style="padding:6px 10px; border:1px solid var(--border-strong); border-radius:8px; background:transparent; color:var(--text-main); font-weight:700; font-size:0.75rem; cursor:pointer;">☑️ تحديد الكل</button>
+                        <button type="button" onclick="window.BayanMobile.toggleTxSelectMode(false)" style="padding:6px 10px; border:none; border-radius:8px; background:rgba(148,163,184,0.2); color:var(--text-main); font-weight:700; font-size:0.75rem; cursor:pointer;">إلغاء</button>
+                    </div>
+                ` : `
+                    <span style="font-size:0.78rem; font-weight:800; color:var(--text-dim);">📋 آخر الحركات (${sorted.length})</span>
+                    <button type="button" onclick="window.BayanMobile.toggleTxSelectMode(true)" style="padding:5px 10px; border:1px solid rgba(244,63,94,0.35); border-radius:8px; background:rgba(244,63,94,0.08); color:#e11d48; font-weight:800; font-size:0.75rem; cursor:pointer;">☑️ تحديد للحذف</button>
+                `}
+            </div>
+        `;
+
+        listEl.innerHTML = bulkBarHtml + sorted.map(tx => {
             const classification = classifyTransaction(tx);
+            const txKey = String(tx.invoiceId || tx.id || '');
+            const isSelected = Boolean(State.selectedTxIds && State.selectedTxIds.has(txKey));
             const dateStr = tx.dateISO || (tx.date ? String(tx.date).split('،')[0] : '');
             const timeStr = tx.timeISO || (tx.date ? String(tx.date).split('،')[1] || tx.date : '--:--');
             const displayDateTime = (period === 'today') ? timeStr : `${dateStr} ${timeStr}`;
@@ -2043,15 +2060,19 @@
             const itemsSummary = tx.product || (Array.isArray(tx.items) ? tx.items.map(i => i.name).slice(0, 2).join('، ') : (tx.description || tx.notes || classification.label));
             const sign = classification.isNegative ? '-' : '+';
             const priceColor = classification.isNegative ? '#f43f5e' : (classification.key === 'sale' ? 'var(--emerald)' : classification.color);
+            const cardClick = State.txSelectMode
+                ? `window.BayanMobile.toggleSelectTx('${txKey.replace(/'/g, "\\'")}')`
+                : `window.BayanMobile.openInvoiceDetails('${txKey.replace(/'/g, "\\'")}')`;
 
             return `
-                <div class="activity-card ${classification.badgeClass}" onclick="window.BayanMobile.openInvoiceDetails('${tx.invoiceId || tx.id}')">
+                <div class="activity-card ${classification.badgeClass}" style="${isSelected ? 'outline:2px solid #e11d48; background:rgba(244,63,94,0.06);' : ''}" onclick="${cardClick}">
                     <div class="activity-meta">
+                        ${State.txSelectMode ? `<input type="checkbox" ${isSelected ? 'checked' : ''} style="width:18px; height:18px; accent-color:#e11d48; margin-left:6px; pointer-events:none;" />` : ''}
                         <div class="activity-badge ${classification.badgeClass}">
                             ${classification.icon}
                         </div>
                         <div class="activity-details">
-                            <h4>#${tx.invoiceId || tx.id || '---'} <span style="font-size:0.75rem; color:var(--text-dim); font-weight:700;">(${classification.label})</span></h4>
+                            <h4>#${txKey || '---'} <span style="font-size:0.75rem; color:var(--text-dim); font-weight:700;">(${classification.label})</span></h4>
                             <p>${itemsSummary} • ${displayDateTime}</p>
                         </div>
                     </div>
@@ -3504,12 +3525,64 @@
         if (modal) modal.classList.remove('active');
     }
 
+    // ☑️ دوال التحديد المتعدد والحذف الجماعي للحركات والفواتير
+    function toggleTxSelectMode(enable) {
+        State.txSelectMode = Boolean(enable);
+        if (!State.selectedTxIds) State.selectedTxIds = new Set();
+        if (!State.txSelectMode) State.selectedTxIds.clear();
+        renderDashboard();
+    }
+
+    function toggleSelectTx(txKey) {
+        if (!State.selectedTxIds) State.selectedTxIds = new Set();
+        const k = String(txKey || '');
+        if (!k) return;
+        if (State.selectedTxIds.has(k)) State.selectedTxIds.delete(k);
+        else State.selectedTxIds.add(k);
+        renderDashboard();
+    }
+
+    function selectAllVisibleTxs() {
+        if (!State.selectedTxIds) State.selectedTxIds = new Set();
+        const list = Array.isArray(State.transactions) ? State.transactions.slice(0, 40) : [];
+        list.forEach(t => {
+            const k = String(t.invoiceId || t.id || '');
+            if (k) State.selectedTxIds.add(k);
+        });
+        renderDashboard();
+    }
+
+    async function bulkDeleteSelectedInvoices() {
+        const ids = State.selectedTxIds ? Array.from(State.selectedTxIds) : [];
+        if (ids.length === 0) {
+            showToast('يرجى تحديد فاتورة واحدة على الأقل للحذف ⚠️', 'warning');
+            return;
+        }
+        const ok = await openModernConfirm(`هل أنت متأكد من حذف (${ids.length}) حركة/فاتورة نهائياً من الموبايل والكمبيوتر؟`, '🗑️ حذف جماعي');
+        if (!ok) return;
+
+        showToast(`جاري حذف (${ids.length}) حركة... ⏳`, 'warning');
+        for (const id of ids) {
+            await deleteInvoice(id, false);
+        }
+        State.selectedTxIds.clear();
+        State.txSelectMode = false;
+        renderDashboard();
+        renderProducts();
+        renderCartView();
+        showToast(`✅ تم حذف (${ids.length}) حركة/فاتورة بنجاح!`, 'success');
+    }
+
     // 🗑️ حذف / إلغاء فاتورة مع استرجاع كميات المخزن
     async function deleteInvoice(invoiceId, promptUser = true) {
-        const tx = State.transactions.find(t => String(t.invoiceId || t.id) === String(invoiceId));
+        const cleanTarget = String(invoiceId || '').trim();
+        const tx = State.transactions.find(t => String(t.invoiceId || '') === cleanTarget || String(t.id || '') === cleanTarget);
         if (!tx) {
-            showToast('الفاتورة غير موجودة', 'error');
-            return false;
+            // حتى لو كانت فاتورة وهمية أو معلقة، نحاول إزالتها وتنظيف الكاش
+            State.transactions = State.transactions.filter(t => String(t.invoiceId || t.id || '') !== cleanTarget);
+            try { localStorage.setItem(CONFIG.STORAGE_PREFIX + 'transactions', JSON.stringify(State.transactions)); } catch (e) { }
+            if (promptUser) { renderDashboard(); showToast('تم تنظيف الحركة من القائمة ✅', 'info'); }
+            return true;
         }
 
         if (promptUser) {
@@ -3616,10 +3689,16 @@
                 }).catch(() => { });
             }
 
-            // 4. حذف الفاتورة من السحابة بالمعرفات المعزولة بالمتجر
+            // 4. حذف الفاتورة من السحابة بالمعرفات المعزولة بالمتجر (يشمل tx.id الأصلي و DESK_ و MOB_)
             const invId = tx.invoiceId || tx.id;
             const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
-            await fetch(`${SUPABASE_CONFIG.url}/rest/v1/transactions?id=in.(${encodeURIComponent(currentShopId + '_' + invId)},${encodeURIComponent(currentShopId + '_DESK_' + invId)})`, {
+            const candidateIds = Array.from(new Set([
+                String(tx.id || ''),
+                `${currentShopId}_${invId}`,
+                `${currentShopId}_DESK_${invId}`,
+                `${currentShopId}_MOB_${invId}`
+            ].filter(Boolean))).map(v => encodeURIComponent(v)).join(',');
+            await fetch(`${SUPABASE_CONFIG.url}/rest/v1/transactions?id=in.(${candidateIds})`, {
                 method: 'DELETE',
                 headers: getSupabaseHeaders()
             }).catch(() => { });
@@ -7340,6 +7419,10 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         shareInvoiceWhatsApp,
         closeInvoiceSuccessModal,
         deleteInvoice,
+        toggleTxSelectMode,
+        toggleSelectTx,
+        selectAllVisibleTxs,
+        bulkDeleteSelectedInvoices,
         editInvoice,
         returnInvoice,
         openQuickExpenseModal,
