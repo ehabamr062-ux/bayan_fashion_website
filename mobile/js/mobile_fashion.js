@@ -2307,6 +2307,9 @@
                             <span>${stockText}</span>
                         </div>
                         <div style="display: flex; align-items: center; gap: 6px;">
+                            <button type="button" class="btn-add-cart-quick" style="background: rgba(244, 63, 94, 0.12); color: #e11d48; border: 1.5px solid rgba(244, 63, 94, 0.3); box-shadow: none; padding: 8px 10px;" title="حذف الصنف" onclick="event.stopPropagation(); window.BayanMobile.deleteProduct('${p.id}')">
+                                <span>🗑️</span>
+                            </button>
                             <button type="button" class="btn-add-cart-quick" style="background: var(--chip-bg); color: var(--text-main); border: 1.5px solid var(--border-subtle); box-shadow: none; padding: 8px 12px;" onclick="event.stopPropagation(); window.BayanMobile.openEditProductModal('${p.id}')">
                                 <span>✏️</span> تعديل
                             </button>
@@ -4050,6 +4053,34 @@
             }
         }
         onVariantRowQtyChange();
+    }
+
+    async function deleteProduct(productId) {
+        const cleanId = String(productId || '').trim();
+        const prod = (State.products || []).find(p => String(p.id) === cleanId);
+        if (!prod) {
+            showToast('الصنف غير موجود ⚠️', 'warning');
+            return false;
+        }
+        const ok = await openModernConfirm(`هل أنت متأكد من حذف الصنف "${prod.name}" نهائياً من الموبايل والسحابة؟`, '🗑️ حذف صنف');
+        if (!ok) return false;
+
+        const currentShopId = State.shopId || CONFIG.SHOP_ID || '';
+        State.products = State.products.filter(p => String(p.id) !== cleanId);
+        safelyPersistProducts(State.products);
+        MobileIDB.replaceAll('products', State.products, currentShopId).catch(() => { });
+
+        if (navigator.onLine && isValidPairedShop(currentShopId)) {
+            fetch(`${SUPABASE_CONFIG.url}/rest/v1/products?id=eq.${encodeURIComponent(`${currentShopId}_PROD_${cleanId}`)}`, {
+                method: 'DELETE',
+                headers: getSupabaseHeaders()
+            }).catch(() => { });
+        }
+
+        updateCategoriesList();
+        renderProducts();
+        showToast(`✅ تم حذف الصنف (${prod.name}) بنجاح!`, 'success');
+        return true;
     }
 
     function openEditProductModal(productId) {
@@ -7469,6 +7500,7 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
         testPrintReceipt,
         openAddProductModal,
         openEditProductModal,
+        deleteProduct,
         restoreEditingProductOriginal,
         deleteEditingProduct,
         closeAddProductModal,

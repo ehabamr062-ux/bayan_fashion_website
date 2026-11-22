@@ -1044,10 +1044,10 @@
 
             const lastSyncTs = parseInt(localStorage.getItem('bayan_sb_last_tx_time') || '0', 10);
 
-            // رفع الفواتير والحركات المعدلة/الجديدة (مع ضمان شمول آخر 60 حركة دائماً لمنع فوات فواتير التسوية ذات dateISO بدون وقت)
+            // رفع الفواتير والحركات المعدلة/الجديدة (مع ضمان شمول أول 60 وآخر 60 حركة لتغطية push و unshift وفواتير التسوية)
             let targetTx = allTx;
             if (lastSyncTs > 0) {
-                const recentSet = new Set(allTx.slice(-60));
+                const recentSet = new Set([...allTx.slice(0, 60), ...allTx.slice(-60)]);
                 targetTx = allTx.filter(t => {
                     if (!t) return false;
                     if (recentSet.has(t)) return true;
@@ -1129,6 +1129,7 @@
                     id: `${shopId}_DESK_${localInvId}`,
                     invoice_id: localInvId,
                     date_iso: headRow.dateISO || headRow.date || new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
                     time: headRow.time || headRow.timeISO || '',
                     type: headRow.type || 'مبيعات',
                     partner: headRow.partner || 'عميل نقدي',
@@ -1510,7 +1511,7 @@
                 if (fetchedOk) {
                     this._writeMeta('bayan_sb_last_tx_sync_time', String(Date.now()));
                 }
-                if (!Array.isArray(remoteList) || remoteList.length === 0) return 0;
+                if (!Array.isArray(remoteList)) remoteList = [];
 
                 const localTx = (typeof transactions !== 'undefined' && Array.isArray(transactions))
                     ? transactions
