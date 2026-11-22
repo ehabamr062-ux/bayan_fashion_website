@@ -2175,8 +2175,15 @@ function renderCart() {
 
         const pInfo = productsDB.find(p => p.id === item.id || p.name === item.name);
 
-        if (pInfo && pInfo.stock <= 0) {
-            tr.classList.add('out-of-stock-row');
+        if (pInfo) {
+            let effStock = parseFloat(pInfo.stock) || 0;
+            if (Array.isArray(pInfo.variants) && pInfo.variants.length > 0) {
+                const vSum = pInfo.variants.reduce((sum, v) => sum + Math.max(0, parseFloat(v && v.stock) || 0), 0);
+                if (vSum > 0) effStock = Math.max(effStock, vSum);
+            }
+            if (effStock <= 0) {
+                tr.classList.add('out-of-stock-row');
+            }
         }
 
         const { sizeElement, colorElement } = renderVariantSelectElements(item, index, 'sales');

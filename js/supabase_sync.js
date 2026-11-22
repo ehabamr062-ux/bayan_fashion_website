@@ -1409,16 +1409,21 @@
 
                             const remUpdatedAt = remProd.updated_at ? new Date(remProd.updated_at).getTime() : 0;
                             const localUpdatedAt = localProd.updatedAt ? new Date(localProd.updatedAt).getTime() : 0;
+                            const isRemoteStrictlyNewer = remUpdatedAt > (localUpdatedAt + 120000);
                             const isExplicitStockAdjustment = Boolean(
-                                rj.isStockAdjustment ||
-                                rj.isInventoryAudit ||
-                                (remUpdatedAt > (localUpdatedAt + 60000) && rj.isManualStockUpdate)
+                                isRemoteStrictlyNewer && (
+                                    rj.isStockAdjustment ||
+                                    rj.isInventoryAudit ||
+                                    rj.isManualStockUpdate
+                                )
                             );
 
                             if (isExplicitStockAdjustment && Math.abs((parseFloat(localProd.stock) || 0) - remStock) > 0.001) {
-                                localProd.stock = remStock;
+                                localProd.stock = Math.max(0, remStock);
                                 if (rj && Array.isArray(rj.variants) && rj.variants.length > 0) {
                                     localProd.variants = rj.variants;
+                                    const vSum = rj.variants.reduce((s, v) => s + Math.max(0, parseFloat(v && v.stock) || 0), 0);
+                                    if (vSum > 0 && localProd.stock <= 0) localProd.stock = vSum;
                                 }
                                 if (rj && rj.warehouseStocks && typeof rj.warehouseStocks === 'object') {
                                     localProd.warehouseStocks = rj.warehouseStocks;

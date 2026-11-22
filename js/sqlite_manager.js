@@ -1512,6 +1512,13 @@
             if (res.isInvoiceHead !== undefined && res.isInvoiceHead !== null) {
                 res.isInvoiceHead = (res.isInvoiceHead === 1 || res.isInvoiceHead === true || res.isInvoiceHead === 'true');
             }
+            // 🛡️ تصحيح تلقائي فوري: منع ظهور رصيد عام سالب (-2 مثلاً) لأي صنف لديه أرصدة مقاسات/ألوان موجبة
+            if (Array.isArray(res.variants) && res.variants.length > 0 && res.stock !== undefined) {
+                const vSum = res.variants.reduce((acc, v) => acc + Math.max(0, parseFloat(v && v.stock) || 0), 0);
+                if ((parseFloat(res.stock) || 0) <= 0 && vSum > 0) {
+                    res.stock = vSum;
+                }
+            }
             return res;
         }
 
