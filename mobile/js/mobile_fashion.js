@@ -637,7 +637,11 @@
     // ============================================================
     function syncStoreProfile(data) {
         if (!data || typeof data !== 'object') return;
-        const shopName = data.shopName || data.shop_name || data.name || State.shopName || 'بَيَان فاشون';
+        const incomingName = String(data.storeName || data.shopName || data.shop_name || data.businessName || data.name || '').trim();
+        const existingRealName = String(State.shopName || localStorage.getItem('bayan_mob_shop_name') || '').trim();
+        const isIncomingDefault = (!incomingName || incomingName === 'بَيَان فاشون' || incomingName === 'بيان فاشون');
+        const isExistingReal = Boolean(existingRealName && existingRealName !== 'بَيَان فاشون' && existingRealName !== 'بيان فاشون');
+        const shopName = (isIncomingDefault && isExistingReal) ? existingRealName : (incomingName || existingRealName || 'بَيَان فاشون');
         const phone = data.phone || data.shopPhone || data.shop_phone || data.tel || '';
         const address = data.address || data.shopAddress || data.shop_address || '';
         const footer = data.receiptFooter || data.invoiceFooter || data.invoice_footer || data.footer || '';
