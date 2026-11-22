@@ -448,9 +448,13 @@
         playBarcodeBeepAndVibrate();
         const shopInp = document.getElementById('directShopIdInput');
         const pinInp = document.getElementById('pinInput');
+        const gateShopInp = document.getElementById('gateShopIdInput');
+        const gatePinInp = document.getElementById('gatePinInput');
         if (shopInp) shopInp.value = pairInfo.shopId;
         if (pinInp) pinInp.value = pairInfo.pin;
-        showToast('✅ تم قراءة كود QR بنجاح! جاري الإقران وسحب البيانات...', 'success');
+        if (gateShopInp) gateShopInp.value = pairInfo.shopId;
+        if (gatePinInp) gatePinInp.value = pairInfo.pin;
+        showToast('✅ تم قراءة كود QR من المعرض بنجاح! جاري الإقران وسحب البيانات...', 'success');
         await verifyAndPairDevice(pairInfo.shopId, pairInfo.pin);
     }
 
@@ -977,7 +981,7 @@
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const decoded = window.jsQR(imgData.data, imgData.width, imgData.height);
+                const decoded = window.jsQR(imgData.data, imgData.width, imgData.height, { inversionAttempts: 'attemptBoth' });
                 if (decoded && decoded.data) return String(decoded.data).trim();
             } catch (_) { }
         }

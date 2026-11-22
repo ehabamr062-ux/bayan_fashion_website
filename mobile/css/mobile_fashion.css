@@ -2885,7 +2885,7 @@ body {
     top: 70px;
     left: 20px;
     right: 20px;
-    z-index: 300;
+    z-index: 99999;
     pointer-events: none;
     display: flex;
     flex-direction: column;
