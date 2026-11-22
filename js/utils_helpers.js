@@ -752,13 +752,31 @@ function searchProductsRanked(query, options = {}) {
     const limit = (options.limit && typeof options.limit === 'number' && options.limit > 0) ? options.limit : 30;
     const isSingleChar = normQuery.length === 1;
 
+    // 🛡️ مرجع وحيد للحقيقة: ربط أي نتيجة راجعة من الفهرس أو SQLite بالكائن الحي المحدّث داخل productsDB
+    const liveList = (typeof productsDB !== 'undefined' && Array.isArray(productsDB) && productsDB.length > 0)
+        ? productsDB
+        : (Array.isArray(window.productsDB) ? window.productsDB : []);
+    let liveByIdMap = null;
+    const resolveLiveProduct = (p) => {
+        if (!p || p.id == null || liveList.length === 0) return p;
+        if (!liveByIdMap) {
+            liveByIdMap = new Map();
+            for (let k = 0; k < liveList.length; k++) {
+                const lp = liveList[k];
+                if (lp && lp.id != null) liveByIdMap.set(String(lp.id), lp);
+            }
+        }
+        return liveByIdMap.get(String(p.id)) || p;
+    };
+
     // ⚡ 1. التحقق الفوري المباشر عبر خريطة الفهرس (O(1) Map - 0ms) للأكواد والباركود
     if (options.exactOnly === true || options.limit === 1) {
         if (_barcodeToProductMap.size === 0) {
             rebuildProductFastIndex();
         }
-        const exactProduct = _barcodeToProductMap.get(normQuery) || _barcodeToProductMap.get(lowerQuery) ||
+        const exactRaw = _barcodeToProductMap.get(normQuery) || _barcodeToProductMap.get(lowerQuery) ||
             _codeToProductMap.get(normQuery) || _codeToProductMap.get(lowerQuery);
+        const exactProduct = resolveLiveProduct(exactRaw);
         if (exactProduct && (options.filterDeleted === false || !exactProduct.isDeleted)) {
             return [exactProduct];
         }
@@ -768,7 +786,7 @@ function searchProductsRanked(query, options = {}) {
             try {
                 const dbRow = window.BayanSQLite.nativeDb.prepare("SELECT * FROM products WHERE barcode = ? OR code = ? OR json_extract(raw_json, '$.code') = ? OR id = ? LIMIT 1;").get(rawQuery, rawQuery, rawQuery, rawQuery);
                 if (dbRow) {
-                    const directP = window.BayanSQLite._reconstructRow(dbRow);
+                    const directP = resolveLiveProduct(window.BayanSQLite._reconstructRow(dbRow));
                     if (directP && (options.filterDeleted === false || !directP.isDeleted)) {
                         return [directP];
                     }
@@ -820,7 +838,9 @@ function searchProductsRanked(query, options = {}) {
     // ترتيب تنازلي قطعي حسب درجات التطابق (الأعلى نقاطاً والأدق يظهر أولاً دائماً)
     scored.sort((a, b) => b.score - a.score);
 
-    const finalResults = (limit === Infinity) ? scored.map(entry => entry.item) : scored.slice(0, limit).map(entry => entry.item);
+    const finalResults = ((limit === Infinity) ? scored.map(entry => entry.item) : scored.slice(0, limit).map(entry => entry.item))
+        .map(resolveLiveProduct)
+        .filter(p => p && (options.filterDeleted === false || !p.isDeleted));
     return finalResults;
 }
 window.searchProductsRanked = searchProductsRanked;
