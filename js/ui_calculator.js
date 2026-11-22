@@ -33,6 +33,12 @@
 
         modal.classList.toggle('visible');
         if (modal.classList.contains('visible')) {
+            // تحرير التركيز من أي حقل إدخال نشط بالخلفية (مثل مربع البحث) لمنع الكتابة المزدوجة
+            try {
+                if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                    document.activeElement.blur();
+                }
+            } catch (_) { }
             bubble.classList.remove('visible');
             calcClear();
             renderCalcHistory();
@@ -69,6 +75,11 @@
     function restoreCalculator() {
         const modal = document.getElementById('royalCalculator');
         const bubble = document.getElementById('calcBubble');
+        try {
+            if (document.activeElement && typeof document.activeElement.blur === 'function') {
+                document.activeElement.blur();
+            }
+        } catch (_) { }
         bubble.classList.remove('visible');
         modal.classList.add('visible');
         makeDraggable(modal, document.getElementById('calcHeader'));
@@ -263,19 +274,37 @@
         });
     }
 
-    // دعم لوحة المفاتيح للآلة الحاسبة
+    // دعم لوحة المفاتيح للآلة الحاسبة (في مرحلة capture لمنع تسرب أي ضغطة إلى مربع البحث أو أي حقل بالخلفية)
     window.addEventListener('keydown', (e) => {
         const modal = document.getElementById('royalCalculator');
         if (!modal || !modal.classList.contains('visible')) return;
+        if (e.ctrlKey || e.altKey || e.metaKey) return;
 
-        if (e.key >= '0' && e.key <= '9') calcAppend(e.key);
-        if (e.key === '+') calcAppend('+');
-        if (e.key === '-') calcAppend('-');
-        if (e.key === '*') calcAppend('*');
-        if (e.key === '/') { e.preventDefault(); calcAppend('/'); }
-        if (e.key === '.') calcAppend('.');
-        if (e.key === '%') calcAppend('%');
-        if (e.key === 'Enter' || e.key === '=') { e.preventDefault(); calcResult(); }
-        if (e.key === 'Backspace') calcDelete();
-        if (e.key === 'Escape') toggleCalculator();
-    });
+        const stopEvent = () => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (typeof e.stopImmediatePropagation === 'function') {
+                e.stopImmediatePropagation();
+            }
+        };
+
+        if (e.key >= '0' && e.key <= '9') {
+            stopEvent();
+            calcAppend(e.key);
+        } else if (e.key === '+' || e.key === '-' || e.key === '*' || e.key === '/' || e.key === '.' || e.key === '%') {
+            stopEvent();
+            calcAppend(e.key);
+        } else if (e.key === 'Enter' || e.key === '=') {
+            stopEvent();
+            calcResult();
+        } else if (e.key === 'Backspace') {
+            stopEvent();
+            calcDelete();
+        } else if (e.key === 'Delete') {
+            stopEvent();
+            calcClear();
+        } else if (e.key === 'Escape') {
+            stopEvent();
+            toggleCalculator();
+        }
+    }, true);
