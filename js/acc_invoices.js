@@ -1133,10 +1133,50 @@ async function renderInvoicesTable(isLoadMore = false) {
                 if (t && t.type && t.type.includes('تحويل') && t.transferStatus === 'rejected') return 0;
                 return t && t.remaining !== undefined ? (parseFloat(t.remaining) || 0) : 0;
             };
-            const getDateSortKey = (t) => {
-                const d = (t && (t.dateISO || (t.date ? String(t.date).split(' ')[0] : ''))) || '';
-                const tm = (t && (t.timeISO || t.time || '')) || '';
-                return `${d} ${tm}`.trim();
+            const getInvoiceSortTimestamp = (t) => {
+                if (!t) return 0;
+                const toEnDigits = (str) => String(str || '').replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[۰-۹]/g, d => '۰۱۲۳۴۵۶۷۸۹'.indexOf(d));
+                const rawDateStr = toEnDigits(t.date || '');
+                let y = 0, mo = 0, d = 0;
+
+                // 1. استخراج التاريخ (YYYY-MM-DD) من dateISO أو من date
+                const isoStr = toEnDigits(t.dateISO || '').trim();
+                let mIso = isoStr.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+                if (mIso) {
+                    y = parseInt(mIso[1], 10); mo = parseInt(mIso[2], 10); d = parseInt(mIso[3], 10);
+                } else {
+                    const mYmd = rawDateStr.match(/(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+                    const mDmy = rawDateStr.match(/(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+                    if (mYmd) {
+                        y = parseInt(mYmd[1], 10); mo = parseInt(mYmd[2], 10); d = parseInt(mYmd[3], 10);
+                    } else if (mDmy) {
+                        d = parseInt(mDmy[1], 10); mo = parseInt(mDmy[2], 10); y = parseInt(mDmy[3], 10);
+                    }
+                }
+
+                // 2. استخراج الوقت بدقة الثواني وتحويله لنظام 24 ساعة (من date أولاً ثم timeISO ثم time)
+                let hh = 0, mm = 0, ss = 0;
+                const timeSources = [rawDateStr, toEnDigits(t.timeISO || ''), toEnDigits(t.time || '')];
+                for (let i = 0; i < timeSources.length; i++) {
+                    const src = timeSources[i];
+                    if (!src) continue;
+                    const tm = src.match(/(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(ص|م|AM|PM|am|pm)?/);
+                    if (tm) {
+                        hh = parseInt(tm[1], 10) || 0;
+                        mm = parseInt(tm[2], 10) || 0;
+                        ss = parseInt(tm[3], 10) || 0;
+                        const period = (tm[4] || '').toLowerCase();
+                        if ((period === 'م' || period === 'pm') && hh < 12) hh += 12;
+                        if ((period === 'ص' || period === 'am') && hh === 12) hh = 0;
+                        break;
+                    }
+                }
+
+                if (y > 0 && mo > 0 && d > 0) {
+                    return new Date(y, mo - 1, d, hh, mm, ss).getTime();
+                }
+                const parsed = Date.parse(rawDateStr);
+                return isNaN(parsed) ? 0 : parsed;
             };
 
             finalData.sort((a, b) => {
@@ -1145,7 +1185,8 @@ async function renderInvoicesTable(isLoadMore = false) {
                     cmp = extractInvNum(a && a.invoiceId) - extractInvNum(b && b.invoiceId);
                     if (cmp === 0) cmp = String((a && a.invoiceId) || '').localeCompare(String((b && b.invoiceId) || ''));
                 } else if (invSortSt.key === 'date') {
-                    cmp = getDateSortKey(a).localeCompare(getDateSortKey(b));
+                    cmp = getInvoiceSortTimestamp(a) - getInvoiceSortTimestamp(b);
+                    if (cmp === 0) cmp = (Number(a && a.id) || 0) - (Number(b && b.id) || 0);
                 } else if (invSortSt.key === 'type') {
                     cmp = String((a && a.type) || '').localeCompare(String((b && b.type) || ''), 'ar');
                 } else if (invSortSt.key === 'profit') {
@@ -1158,7 +1199,9 @@ async function renderInvoicesTable(isLoadMore = false) {
                     cmp = (parseFloat(a && (a.total || a.price) || 0) || 0) - (parseFloat(b && (b.total || b.price) || 0) || 0);
                 }
                 if (cmp !== 0) return cmp * mult;
-                return getDateSortKey(b).localeCompare(getDateSortKey(a));
+                const tsDiff = getInvoiceSortTimestamp(b) - getInvoiceSortTimestamp(a);
+                if (tsDiff !== 0) return tsDiff;
+                return (Number(b && b.id) || 0) - (Number(a && a.id) || 0);
             });
         }
 
