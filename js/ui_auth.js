@@ -190,8 +190,9 @@ function updateLoginUsersList() {
 
     if (!uSelect) return;
     const prevSelectedUser = uSelect.value;
+    const _esc = (v) => (typeof escapeHtml === 'function') ? escapeHtml(v) : (window.escapeHtml ? window.escapeHtml(v) : String(v ?? ''));
     uSelect.innerHTML = '<option value="" disabled selected>-- اختر مستخدم --</option>' +
-        currentUsers.map(u => '<option value="' + u.name + '">' + u.name + ' (' + (u.role === 'admin' ? 'مدير' : 'كاشير') + ')</option>').join('');
+        currentUsers.map(u => '<option value="' + _esc(u.name) + '">' + _esc(u.name) + ' (' + (u.role === 'admin' ? 'مدير' : 'كاشير') + ')</option>').join('');
     if (prevSelectedUser && currentUsers.some(x => x.name === prevSelectedUser)) {
         uSelect.value = prevSelectedUser;
     }

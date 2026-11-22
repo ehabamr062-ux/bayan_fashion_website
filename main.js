@@ -202,8 +202,8 @@ function createWindow() {
             return;
         }
 
-        // 🛠️ فتح وإغلاق أدوات المطورين والكونسول (DevTools & Console) حصرياً عبر Ctrl+Shift+I أو Ctrl+Shift+J لتشخيص أي أخطاء
-        if (input.control && input.shift && (key === 'i' || key === 'j')) {
+        // 🛠️ فتح وإغلاق أدوات المطورين والكونسول (DevTools & Console) في وضع التطوير فقط وممنوع تماماً في الإنتاج
+        if (!app.isPackaged && input.control && input.shift && (key === 'i' || key === 'j')) {
             event.preventDefault();
             win.webContents.toggleDevTools();
             return;

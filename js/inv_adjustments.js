@@ -428,6 +428,9 @@ function handleAdjSearch(query) {
             const sizesHtml = sizesList.length > 0
                 ? `<span style="background: #ecfdf5; color: #047857; padding: 2px 6px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; border: 1px solid #a7f3d0;">📏 مقاسات: ${sizesList.slice(0, 5).join(', ')}${sizesList.length > 5 ? '...' : ''}</span>`
                 : '';
+            const safeName = (typeof escapeHtml === 'function') ? escapeHtml(p.name) : (window.escapeHtml ? window.escapeHtml(p.name) : p.name);
+            const safeCode = (typeof escapeHtml === 'function') ? escapeHtml(p.code || p.id) : (window.escapeHtml ? window.escapeHtml(p.code || p.id) : (p.code || p.id));
+            const safeBarcode = (typeof escapeHtml === 'function') ? escapeHtml(p.barcode || '---') : (window.escapeHtml ? window.escapeHtml(p.barcode || '---') : (p.barcode || '---'));
             return `
                             <div class="pos-search-row adj-search-row" onclick="
                                 document.getElementById('adjSearchResults').style.display='none';
@@ -442,9 +445,9 @@ function handleAdjSearch(query) {
                                 }" 
                                 style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: all 0.15s ease; border-radius: 10px; gap: 8px;">
                                 <div style="flex: 1.5; min-width: 180px;">
-                                    <div style="font-weight: 900; font-size: 0.98rem; color: #1e293b;">${p.name}</div>
+                                    <div style="font-weight: 900; font-size: 0.98rem; color: #1e293b;">${safeName}</div>
                                     <div style="font-size: 0.75rem; color: #64748b; margin-top: 2px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px;">
-                                        <span>🏷️ كود: <b style="color:#047857;">${p.code || p.id}</b> | باركود: <b>${p.barcode || '---'}</b></span>
+                                        <span>🏷️ كود: <b style="color:#047857;">${safeCode}</b> | باركود: <b>${safeBarcode}</b></span>
                                         ${sizesHtml}
                                     </div>
                                 </div>
@@ -470,7 +473,8 @@ function handleAdjSearch(query) {
         const div = document.createElement('div');
         div.className = 'result-item';
         div.style.cssText = 'color:var(--main-green); font-weight:bold; justify-content:center; border: 1.5px dashed var(--main-green); background: rgba(16,185,129,0.05); cursor: pointer; padding: 12px;';
-        div.innerHTML = `<span>➕ إضافة تفصيلية لصنف جديد: (${query})</span>`;
+        const safeQuery = (typeof escapeHtml === 'function') ? escapeHtml(query) : (window.escapeHtml ? window.escapeHtml(query) : query);
+        div.innerHTML = `<span>➕ إضافة تفصيلية لصنف جديد: (${safeQuery})</span>`;
         div.onclick = () => {
             resultsDiv.style.display = 'none';
             quickAddProduct(query, 'adj');

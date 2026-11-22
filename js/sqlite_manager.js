@@ -1103,6 +1103,8 @@
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_inv_head_date ON transactions(dateISO DESC, id DESC) WHERE isInvoiceHead = 1;");
                 // ⚡ فهرس مركب للنوع والتاريخ (التحويلات والتقارير)
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_type_date_desc ON transactions(type, dateISO DESC);");
+                // ⚡ فهرس مركب لكشف الحساب لرؤوس الفواتير
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_partner_head_date ON transactions(partner, isInvoiceHead, dateISO DESC);");
                 // ⚡ فهرس مركب لإدارة الأسعار والمخازن
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_products_cat_price ON products(category, price);");
             } catch (e) { }
@@ -1225,6 +1227,7 @@
                 CREATE INDEX IF NOT EXISTS idx_ti_wh_date ON transaction_items(warehouse, dateISO);
                 CREATE INDEX IF NOT EXISTS idx_ti_date_type ON transaction_items(dateISO, type);
                 CREATE INDEX IF NOT EXISTS idx_ti_date_wh_prod ON transaction_items(dateISO, warehouse, productName, type, qty);
+                CREATE INDEX IF NOT EXISTS idx_ti_partner_date ON transaction_items(partner, dateISO DESC);
             `);
 
             // 3. جدول الحسابات (العملاء والموردين)
@@ -1243,6 +1246,7 @@
                 CREATE INDEX IF NOT EXISTS idx_acc_code ON accounts(code);
                 CREATE INDEX IF NOT EXISTS idx_acc_type ON accounts(type);
                 CREATE INDEX IF NOT EXISTS idx_acc_mobile ON accounts(mobile);
+                CREATE INDEX IF NOT EXISTS idx_acc_balance ON accounts(balance);
             `);
 
             // 4. جدول الإعدادات العامة
@@ -6884,6 +6888,9 @@
                 this._saveTimer = null;
             }
             if (this.isNative && this.nativeDb) {
+                try {
+                    this.nativeDb.pragma('optimize');
+                } catch (e) { }
                 try {
                     this.nativeDb.pragma('wal_checkpoint(TRUNCATE)');
                 } catch (e) { }
