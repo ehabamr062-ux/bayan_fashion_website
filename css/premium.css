@@ -761,13 +761,13 @@ body.dark-mode table tbody tr:hover {
 
 .cloud-mode-active #plan-الباقة\ المتقدمة::after {
     background: linear-gradient(135deg, #0284c7, #0369a1) !important;
-    content: "🔥 الأكثر توفيراً والأفضل قيمة (2,200 ج.م)" !important;
+    content: "🔥 الأكثر توفيراً والأفضل قيمة (2,000 ج.م + 150 ج/شهر)" !important;
     box-shadow: 0 4px 14px rgba(2, 132, 199, 0.45) !important;
 }
 
 .cloud-mode-active #plan-الباقة\ الاحترافية::after {
     background: linear-gradient(135deg, #b45309, #d97706) !important;
-    content: "👑 امتلاك دائم للأبد (6,000 ج.م)" !important;
+    content: "👑 امتلاك دائم للأبد (4,500 ج.م + 150 ج/شهر)" !important;
     box-shadow: 0 4px 14px rgba(217, 119, 6, 0.45) !important;
 }
 
