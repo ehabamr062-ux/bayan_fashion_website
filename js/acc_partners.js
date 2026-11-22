@@ -499,6 +499,31 @@ window.resetAccountsFiltersAndSearch = function () {
     renderAccountsTable();
 };
 
+window.accountsSortState = window.accountsSortState || { key: null, dir: null };
+
+window.toggleAccountsSort = function (key) {
+    if (!key) return;
+    if (!window.accountsSortState) window.accountsSortState = { key: null, dir: null };
+    if (window.accountsSortState.key === key) {
+        window.accountsSortState.dir = (window.accountsSortState.dir === 'desc') ? 'asc' : 'desc';
+    } else {
+        window.accountsSortState.key = key;
+        window.accountsSortState.dir = 'desc';
+    }
+    renderAccountsTable();
+};
+
+function _getAccSortIcon(key) {
+    const st = window.accountsSortState || {};
+    if (st.key === key) {
+        if (st.dir === 'desc') {
+            return ' <span style="color:#fbbf24; font-weight:900; font-size:0.85em;" title="مرتب من الأكبر للأصغر">▲</span>';
+        }
+        return ' <span style="color:#38bdf8; font-weight:900; font-size:0.85em;" title="مرتب من الأصغر للأكبر">▼</span>';
+    }
+    return ' <span style="opacity:0.55; font-size:0.85em;" title="اضغط للفرز">⇅</span>';
+}
+
 async function renderAccountsTable(isLoadMore = false) {
     const tbody = document.getElementById('accountsTableBody');
     if (!tbody) return;
@@ -530,15 +555,15 @@ async function renderAccountsTable(isLoadMore = false) {
 
         const thMap = {
             0: `<th class="col-acc-0" style="width: 35px; text-align: center; padding: 8px 4px;">م</th>`,
-            1: `<th class="col-acc-code" style="width: 80px; text-align: center; padding: 8px 4px;">كود الحساب</th>`,
-            2: `<th class="col-acc-1" style="min-width: 130px; text-align: right; padding: 8px 10px;">اسم الحساب</th>`,
+            1: `<th class="col-acc-code" onclick="toggleAccountsSort('code')" style="width: 80px; text-align: center; padding: 8px 4px; cursor: pointer; user-select: none;">كود الحساب${_getAccSortIcon('code')}</th>`,
+            2: `<th class="col-acc-1" onclick="toggleAccountsSort('name')" style="min-width: 130px; text-align: right; padding: 8px 10px; cursor: pointer; user-select: none;">اسم الحساب${_getAccSortIcon('name')}</th>`,
             3: `<th class="col-acc-2" style="width: 80px; text-align: center; padding: 8px 4px;">طبيعة الحساب</th>`,
             4: `<th class="col-acc-3" style="width: 75px; text-align: center; padding: 8px 4px;">التصنيف</th>`,
-            5: `<th class="col-acc-4" style="width: 85px; text-align: center; padding: 8px 4px;">مدين (عليه)</th>`,
-            6: `<th class="col-acc-5" style="width: 85px; text-align: center; padding: 8px 4px;">دائن (له)</th>`,
-            7: `<th class="col-acc-6" style="width: 85px; text-align: center; padding: 8px 4px;">إجمالي البيع</th>`,
-            8: `<th class="col-acc-7" style="width: 90px; text-align: center; padding: 8px 4px;">آخر تاريخ قبض</th>`,
-            9: `<th class="col-acc-8" style="width: 90px; text-align: center; padding: 8px 4px;">آخر حركة</th>`,
+            5: `<th class="col-acc-4" onclick="toggleAccountsSort('debit')" style="width: 85px; text-align: center; padding: 8px 4px; cursor: pointer; user-select: none;">مدين (عليه)${_getAccSortIcon('debit')}</th>`,
+            6: `<th class="col-acc-5" onclick="toggleAccountsSort('credit')" style="width: 85px; text-align: center; padding: 8px 4px; cursor: pointer; user-select: none;">دائن (له)${_getAccSortIcon('credit')}</th>`,
+            7: `<th class="col-acc-6" onclick="toggleAccountsSort('sales')" style="width: 85px; text-align: center; padding: 8px 4px; cursor: pointer; user-select: none;">إجمالي البيع${_getAccSortIcon('sales')}</th>`,
+            8: `<th class="col-acc-7" onclick="toggleAccountsSort('lastReceiptDate')" style="width: 90px; text-align: center; padding: 8px 4px; cursor: pointer; user-select: none;">آخر تاريخ قبض${_getAccSortIcon('lastReceiptDate')}</th>`,
+            9: `<th class="col-acc-8" onclick="toggleAccountsSort('lastTransDate')" style="width: 90px; text-align: center; padding: 8px 4px; cursor: pointer; user-select: none;">آخر حركة${_getAccSortIcon('lastTransDate')}</th>`,
             10: `<th class="col-acc-9" style="width: 60px; min-width: 60px; text-align: center; white-space: nowrap; padding: 8px 4px; background: #9d174d;">تحديد</th>`
         };
 
@@ -787,6 +812,44 @@ async function renderAccountsTable(isLoadMore = false) {
                 `;
             tbody.appendChild(emptyTr);
             return;
+        }
+
+        // ⇅ تطبيق الفرز التفاعلي الذكي على كامل مصفوفة الحسابات المفلترة قبل حد العرض (Pagination)
+        const sortSt = window.accountsSortState;
+        if (sortSt && sortSt.key && (sortSt.dir === 'desc' || sortSt.dir === 'asc')) {
+            const mult = sortSt.dir === 'desc' ? -1 : 1;
+            matchedAccounts.sort((a, b) => {
+                let cmp = 0;
+                if (sortSt.key === 'debit') {
+                    cmp = (Number(a.displayDebit) || 0) - (Number(b.displayDebit) || 0);
+                } else if (sortSt.key === 'credit') {
+                    cmp = (Number(a.displayCredit) || 0) - (Number(b.displayCredit) || 0);
+                } else if (sortSt.key === 'sales') {
+                    cmp = (Number(a.totalSales) || 0) - (Number(b.totalSales) || 0);
+                } else if (sortSt.key === 'code') {
+                    const ca = String((a.acc && a.acc.code) || '');
+                    const cb = String((b.acc && b.acc.code) || '');
+                    const na = Number(ca);
+                    const nb = Number(cb);
+                    if (ca !== '' && cb !== '' && !isNaN(na) && !isNaN(nb)) {
+                        cmp = na - nb;
+                    } else {
+                        cmp = ca.localeCompare(cb, 'ar');
+                    }
+                } else if (sortSt.key === 'name') {
+                    cmp = String((a.acc && a.acc.name) || '').localeCompare(String((b.acc && b.acc.name) || ''), 'ar');
+                } else if (sortSt.key === 'lastTransDate') {
+                    const da = (a.lastTransDate && a.lastTransDate !== '-') ? String(a.lastTransDate) : '';
+                    const db = (b.lastTransDate && b.lastTransDate !== '-') ? String(b.lastTransDate) : '';
+                    cmp = da.localeCompare(db);
+                } else if (sortSt.key === 'lastReceiptDate') {
+                    const da = (a.lastReceiptDate && a.lastReceiptDate !== '-') ? String(a.lastReceiptDate) : '';
+                    const db = (b.lastReceiptDate && b.lastReceiptDate !== '-') ? String(b.lastReceiptDate) : '';
+                    cmp = da.localeCompare(db);
+                }
+                if (cmp !== 0) return cmp * mult;
+                return String((a.acc && a.acc.name) || '').localeCompare(String((b.acc && b.acc.name) || ''), 'ar');
+            });
         }
 
         const renderLimit = window.accountsRenderLimit || 50;
