@@ -1990,7 +1990,14 @@
             try {
                 const pairingPin = customPin || this.getPairingPin();
                 const sObj = (typeof settings !== 'undefined' && settings) ? settings : {};
-                const shopName = cfg.shopName || sObj.shop_name || sObj.shopName || 'بَيَان فاشون';
+                let posSet = {};
+                try { posSet = JSON.parse((typeof getStore === 'function' ? getStore('pos_settings') : localStorage.getItem('pos_settings')) || '{}') || {}; } catch (_) { }
+                const realShopCandidates = [
+                    posSet.storeName, posSet.shopName, posSet.shop_name, posSet.businessName, posSet.name,
+                    sObj.storeName, sObj.shop_name, sObj.shopName, sObj.businessName,
+                    cfg.shopName
+                ].map(v => String(v || '').trim()).filter(v => v && v !== 'بَيَان فاشون' && v !== 'بيان فاشون');
+                const shopName = realShopCandidates[0] || cfg.shopName || sObj.shop_name || sObj.shopName || 'بَيَان فاشون';
                 const rawLogo = sObj.shop_logo || sObj.shopLogo || sObj.logo || localStorage.getItem('bayan_shop_logo') || '';
                 const safeLogo = (typeof rawLogo === 'string' && rawLogo.length <= 80000) ? rawLogo : '';
                 let customPayMethods = [];

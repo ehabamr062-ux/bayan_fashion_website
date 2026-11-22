@@ -1100,11 +1100,13 @@
             ]);
 
             // 0.1 مزامنة طرق الدفع واسم وهوية المحل الحقيقية من shop_settings تلقائياً
+            let realShopNameLoaded = false;
             if (Array.isArray(settingsRes) && settingsRes.length > 0) {
                 const sRow = settingsRes[0];
                 const sRaw = sRow.raw_json || {};
-                const detectedShopName = sRow.shop_name || sRaw.shopName || sRaw.shop_name || sRaw.storeName || sRaw.name || '';
-                if (detectedShopName && detectedShopName !== 'بَيَان فاشون') {
+                const detectedShopName = String(sRow.shop_name || sRaw.storeName || sRaw.shopName || sRaw.shop_name || sRaw.businessName || sRaw.name || '').trim();
+                if (detectedShopName && detectedShopName !== 'بَيَان فاشون' && detectedShopName !== 'بيان فاشون') {
+                    realShopNameLoaded = true;
                     syncStoreProfile({
                         shopName: detectedShopName,
                         phone: sRaw.phone || sRaw.shop_phone || '',
@@ -1165,7 +1167,11 @@
                     ))
                 );
                 if (storeRow && storeRow.raw_json) {
-                    syncStoreProfile(storeRow.raw_json);
+                    const pairRaw = Object.assign({}, storeRow.raw_json);
+                    if (realShopNameLoaded && (!pairRaw.shopName || pairRaw.shopName === 'بَيَان فاشون' || pairRaw.shopName === 'بيان فاشون')) {
+                        pairRaw.shopName = State.shopName;
+                    }
+                    syncStoreProfile(pairRaw);
                 }
             }
 
