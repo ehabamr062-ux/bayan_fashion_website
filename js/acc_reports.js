@@ -6645,9 +6645,16 @@
                 if (returnAmountEl) returnAmountEl.innerText = totalReturnsAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             }
 
-            // Chart 1: Sales Trend
-            const trendLabels = Object.keys(trendData).sort();
-            const trendValues = trendLabels.map(l => Math.round(trendData[l] * 100) / 100);
+            // Chart 1: Sales Trend (استخدام التجميع اليومي المباشر من SQLite إن توفر لكامل الفترة)
+            let trendLabels = [];
+            let trendValues = [];
+            if (sqlSummary && Array.isArray(sqlSummary.dailyTrend) && sqlSummary.dailyTrend.length > 0) {
+                trendLabels = sqlSummary.dailyTrend.map(r => r.d || 'غير مؤرخ');
+                trendValues = sqlSummary.dailyTrend.map(r => Math.round((parseFloat(r.netDay) || 0) * 100) / 100);
+            } else {
+                trendLabels = Object.keys(trendData).sort();
+                trendValues = trendLabels.map(l => Math.round(trendData[l] * 100) / 100);
+            }
             const trendCtx = document.getElementById('salesTrendChart');
 
             if (trendCtx) {
@@ -6702,11 +6709,18 @@
                 });
             }
 
-            // Chart 2: Top Selling Products (أعلى الأصناف مبيعاً بألوان زاهية ومتنوعة تمنع سيطرة لون واحد)
-            let productSalesArray = Object.keys(catData).map(name => ({
-                name: name,
-                total: catData[name]
-            })).filter(p => p.total > 0).sort((a, b) => b.total - a.total);
+            // Chart 2: Top Selling Products (استخدام التجميع المباشر من SQLite إن توفر لكامل الفترة)
+            let productSalesArray = [];
+            if (sqlSummary && Array.isArray(sqlSummary.topProducts) && sqlSummary.topProducts.length > 0) {
+                productSalesArray = sqlSummary.topProducts
+                    .map(p => ({ name: p.name || 'صنف حر', total: parseFloat(p.total) || 0 }))
+                    .filter(p => p.total > 0);
+            } else {
+                productSalesArray = Object.keys(catData).map(name => ({
+                    name: name,
+                    total: catData[name]
+                })).filter(p => p.total > 0).sort((a, b) => b.total - a.total);
+            }
 
             // نأخذ أعلى 6 أصناف متصدرة لعرض نسبهم بوضوح وتنوع لوني كامل
             const topProducts = productSalesArray.slice(0, 6);

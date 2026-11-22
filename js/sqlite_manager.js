@@ -3311,6 +3311,55 @@
                     console.warn("[SQLite] topCustomer query error:", e.message);
                 }
 
+                // 4. استعلام اتجاه صافي المبيعات اليومية (Daily Trend) مباشرة من SQLite لكامل الفترة
+                let dailyTrend = [];
+                try {
+                    const trendSql = `
+                        SELECT COALESCE(NULLIF(TRIM(dateISO), ''), 'غير مؤرخ') AS d,
+                               COALESCE(SUM(CASE WHEN type LIKE '%مرتجع%' THEN -total ELSE total END), 0) AS netDay
+                        FROM transactions
+                        ${whereClause}
+                        GROUP BY d
+                        ORDER BY d ASC;
+                    `;
+                    if (this.isNative && this.nativeDb) {
+                        dailyTrend = this.nativeDb.prepare(trendSql).all(...params) || [];
+                    } else {
+                        const stmt = this.db.prepare(trendSql);
+                        stmt.bind(params);
+                        while (stmt.step()) dailyTrend.push(stmt.getAsObject());
+                        stmt.free();
+                    }
+                } catch (e) {
+                    console.warn("[SQLite] dailyTrend query error:", e.message);
+                }
+
+                // 5. استعلام أعلى الأصناف مبيعاً (Top 10 Products) مباشرة من SQLite لكامل الفترة
+                let topProducts = [];
+                try {
+                    const topProdSql = `
+                        SELECT COALESCE(NULLIF(TRIM(json_extract(raw_json, '$.product')), ''), 'صنف حر') AS name,
+                               COALESCE(SUM(total), 0) AS total
+                        FROM transactions
+                        ${whereClause}
+                          AND type NOT LIKE '%مرتجع%'
+                        GROUP BY name
+                        HAVING total > 0
+                        ORDER BY total DESC
+                        LIMIT 10;
+                    `;
+                    if (this.isNative && this.nativeDb) {
+                        topProducts = this.nativeDb.prepare(topProdSql).all(...params) || [];
+                    } else {
+                        const stmt = this.db.prepare(topProdSql);
+                        stmt.bind(params);
+                        while (stmt.step()) topProducts.push(stmt.getAsObject());
+                        stmt.free();
+                    }
+                } catch (e) {
+                    console.warn("[SQLite] topProducts query error:", e.message);
+                }
+
                 return {
                     netSales: parseFloat(row.netSales) || 0,
                     netProfit: parseFloat(row.netProfit) || 0,
@@ -3322,7 +3371,9 @@
                     peakHour,
                     peakHourSales,
                     topCustomer,
-                    topCustomerSales
+                    topCustomerSales,
+                    dailyTrend,
+                    topProducts
                 };
             } catch (err) {
                 console.error("[SQLite] getSalesAnalyticsSummary error:", err.message);
@@ -3350,11 +3401,11 @@
                     fDate = d90.toLocaleDateString('en-CA');
                     tDate = new Date().toLocaleDateString('en-CA');
                 }
-                const lim = (limit !== undefined && limit !== null && parseInt(limit, 10) > 0) ? parseInt(limit, 10) : 2000;
+                const lim = (limit !== undefined && limit !== null && parseInt(limit, 10) > 0) ? parseInt(limit, 10) : 15000;
                 const { partner = 'all', method = 'all', searchQuery = '', offset = 0 } = options || {};
                 const off = Math.max(0, parseInt(offset, 10) || 0);
 
-                let sql = "SELECT * FROM transactions WHERE (status IS NULL OR status != 'void') AND ((type >= 'بيع' AND type < 'بيد') OR (type >= 'فاتورة بيع' AND type < 'فاتورة بيد') OR (type >= 'مرتجع بيع' AND type < 'مرتجع بيد'))";
+                let sql = "SELECT * FROM transactions WHERE (status IS NULL OR status != 'void') AND (type LIKE 'بيع%' OR type LIKE 'فاتورة بيع%' OR type LIKE 'مرتجع بيع%' OR type LIKE '%مبيعات%')";
                 const params = [];
 
                 if (fDate) {
@@ -3382,9 +3433,9 @@
                     params.push(String(method).trim());
                 }
                 if (searchQuery) {
-                    const qClean = String(searchQuery).trim();
-                    sql += " AND (invoiceId = ? OR partner = ? OR id IN (SELECT tx_id FROM transaction_items WHERE barcode = ? OR productName = ?))";
-                    params.push(qClean, qClean, qClean, qClean);
+                    const qLike = '%' + String(searchQuery).trim() + '%';
+                    sql += " AND (invoiceId LIKE ? OR partner LIKE ? OR raw_json LIKE ? OR id IN (SELECT tx_id FROM transaction_items WHERE barcode LIKE ? OR productName LIKE ?))";
+                    params.push(qLike, qLike, qLike, qLike, qLike);
                 }
 
                 sql += " ORDER BY dateISO DESC, id DESC LIMIT ? OFFSET ?;";
