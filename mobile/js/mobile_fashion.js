@@ -914,7 +914,8 @@
             cashier: row.cashier || raw.cashier || 'المدير',
             items: Array.isArray(raw.items) ? raw.items : [],
             isInvoiceHead: (raw.isInvoiceHead !== undefined ? Boolean(raw.isInvoiceHead) : true),
-            ...raw
+            ...raw,
+            cloudRowId: String(row.id || '')
         };
     }
 
@@ -1166,11 +1167,10 @@
                 ? new Date(Math.max(0, new Date(State._lastPullIso).getTime() - 120000)).toISOString()
                 : '';
             const prodDeltaQ = isDeltaPull ? `&updated_at=gt.${encodeURIComponent(deltaSinceIso)}` : '';
-            const txDeltaQ = isDeltaPull ? `&or=(updated_at.gt.${encodeURIComponent(deltaSinceIso)},created_at.gt.${encodeURIComponent(deltaSinceIso)})` : '';
-            const txBaseFilter = `or=(id.like.${encodeURIComponent(currentShopId)}_*,raw_json->>shop_id.eq.${encodeURIComponent(currentShopId)})`;
+            const txBaseFilterInner = `or(id.like.${encodeURIComponent(currentShopId)}_*,raw_json->>shop_id.eq.${encodeURIComponent(currentShopId)})`;
             const txQuery = isDeltaPull
-                ? `and=(${txBaseFilter},or(updated_at.gt.${encodeURIComponent(deltaSinceIso)},created_at.gt.${encodeURIComponent(deltaSinceIso)}))`
-                : txBaseFilter;
+                ? `and=(${txBaseFilterInner},or(updated_at.gt.${encodeURIComponent(deltaSinceIso)},created_at.gt.${encodeURIComponent(deltaSinceIso)}))`
+                : `or=(id.like.${encodeURIComponent(currentShopId)}_*,raw_json->>shop_id.eq.${encodeURIComponent(currentShopId)})`;
 
             const [pRes, tRes, cRes, accRes, whRes, settingsRes] = await Promise.all([
                 safeFetchJson(`${SUPABASE_CONFIG.url}/rest/v1/products?id=like.${encodeURIComponent(currentShopId)}_PROD_*${prodDeltaQ}&select=*`),
@@ -3141,7 +3141,9 @@
             State.cartDiscount = 0;
             State.cartExtra = 0;
             State.editingInvoiceId = null;
-            State._lastEditingCloudId = (State.editingOriginalTx && State.editingOriginalTx.id) ? String(State.editingOriginalTx.id) : null;
+            State._lastEditingCloudId = (State.editingOriginalTx && (State.editingOriginalTx.cloudRowId || State.editingOriginalTx.id))
+                ? String(State.editingOriginalTx.cloudRowId || State.editingOriginalTx.id)
+                : null;
             State.editingOriginalTx = null;
             const paidInpReset = document.getElementById('posPaidAmountInput');
             if (paidInpReset) paidInpReset.value = '';
@@ -3162,7 +3164,7 @@
 
             // 4. تجهيز حزم المزامنة السحابية وطابور الأوفلاين (الحفاظ على نفس Cloud Row ID عند تعديل فاتورة ديسكتوب لمنع الازدواج)
             const nowIso = new Date().toISOString();
-            const originalCloudRowId = (isEditMode && State._lastEditingCloudId) ? State._lastEditingCloudId : null;
+            const originalCloudRowId = (isEditing && State._lastEditingCloudId) ? State._lastEditingCloudId : null;
             const targetCloudRowId = (originalCloudRowId && String(originalCloudRowId).startsWith(currentShopId + '_'))
                 ? String(originalCloudRowId)
                 : `${currentShopId}_${invoiceId}`;
@@ -4291,11 +4293,27 @@
 
         State.products = State.products.filter(p => String(p.id) !== targetId);
         safelyPersistProducts(State.products);
+        MobileIDB.replaceAll('products', State.products, currentShopId).catch(() => { });
 
         if (navigator.onLine && isValidPairedShop(currentShopId)) {
+            const delNowIso = new Date().toISOString();
             fetch(`${SUPABASE_CONFIG.url}/rest/v1/products?id=eq.${encodeURIComponent(currentShopId + '_PROD_' + targetId)}`, {
                 method: 'DELETE',
                 headers: getSupabaseHeaders()
+            }).catch(() => { });
+            fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?on_conflict=id`, {
+                method: 'POST',
+                headers: getSupabaseHeaders(),
+                body: JSON.stringify([{
+                    id: `${currentShopId}_VOIDPROD_${targetId}`,
+                    date: delNowIso,
+                    created_at: delNowIso,
+                    category: 'void_prod',
+                    amount: 0,
+                    user_name: `تابلت (${State.terminalLetter})`,
+                    warehouse: State.activeWarehouse || 'المخزن الرئيسي',
+                    raw_json: { shop_id: currentShopId, productId: targetId, name: prodName, barcode: prod ? (prod.barcode || '') : '', deletedAt: delNowIso }
+                }])
             }).catch(() => { });
         }
 

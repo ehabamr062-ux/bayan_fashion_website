@@ -1496,7 +1496,11 @@
 
             if (audits.length === 0) return 0;
 
-            const toSend = audits.slice(-25).map(a => {
+            const recentAudits = audits.slice(-25);
+            const auditFp = recentAudits.map(a => `${a.id || ''}|${a.date || ''}|${a.category || ''}|${a.amount || 0}`).join('~');
+            if (this._lastAuditFp === auditFp) return 0;
+
+            const toSend = recentAudits.map(a => {
                 const rawAuditId = String(a.id || `${a.date}_${a.category}_${a.amount}_${Math.random()}`);
                 return {
                     id: `${shopId}_AUDIT_${rawAuditId}`,
@@ -1515,7 +1519,12 @@
                 body: JSON.stringify(toSend)
             });
 
-            return (res.ok || res.status === 201 || res.status === 200) ? toSend.length : 0;
+            if (res.ok || res.status === 201 || res.status === 200) {
+                this._lastAuditFp = auditFp;
+                this._lastLocalPushAt = Date.now();
+                return toSend.length;
+            }
+            return 0;
         },
 
         // 📥 4. سحب ومزامنة الحركات السحابية ثنائية الاتجاه لكافة أجهزة المتجر (_MOB_ و _DESK_)
@@ -1835,7 +1844,7 @@
                                 if (prod) {
                                     const qty = parseFloat(soldItem.quantity || soldItem.qty || 1);
                                     const isAdjustment = actualType.includes('تسوية') || actualType.includes('جرد');
-                                    const isAddition = actualType.includes('شراء') || actualType.includes('مرتجع بيع');
+                                    const isAddition = actualType.includes('شراء') || actualType.includes('مرتجع بيع') || actualType.includes('مرتجع مبيعات');
                                     // في التسويات المخزنية تكون الكمية مسجلة بالفعل بالفارق (+ للزيادة، - للعجز)
                                     const factor = isAdjustment ? 1 : (isAddition ? 1 : -1);
                                     const delta = factor * qty;
@@ -2325,6 +2334,9 @@
                 ? getCustomVoucherCategories('disburse')
                 : JSON.parse(localStorage.getItem('bayan_custom_voucher_categories_disburse') || '[]');
 
+            const custFp = JSON.stringify({ allMappedAccounts, customRecCats, customDisbCats });
+            if (this._lastCustomersFp === custFp) return 0;
+
             const payload = [
                 {
                     id: `CONFIG_CUSTOMERS_LIST_${shopId}`,
@@ -2350,7 +2362,12 @@
                 body: JSON.stringify(payload)
             });
 
-            return (res.ok || res.status === 201 || res.status === 200) ? allMappedAccounts.length : 0;
+            if (res.ok || res.status === 201 || res.status === 200) {
+                this._lastCustomersFp = custFp;
+                this._lastLocalPushAt = Date.now();
+                return allMappedAccounts.length;
+            }
+            return 0;
         },
 
         // 🏬 5.2 مزامنة قائمة المخازن المعتمدة مع السحابة
@@ -2380,6 +2397,9 @@
                 address: w.address || ''
             }));
 
+            const whFp = JSON.stringify(mappedWhs);
+            if (this._lastWarehousesFp === whFp) return 0;
+
             const payload = [
                 {
                     id: `CONFIG_WAREHOUSES_LIST_${shopId}`,
@@ -2397,12 +2417,17 @@
             ];
 
             try {
-                await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/treasury_audit?on_conflict=id`, {
+                const res = await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/treasury_audit?on_conflict=id`, {
                     method: 'POST',
                     headers: this._getHeaders(),
                     body: JSON.stringify(payload)
                 });
-                return mappedWhs.length;
+                if (res && (res.ok || res.status === 201 || res.status === 200)) {
+                    this._lastWarehousesFp = whFp;
+                    this._lastLocalPushAt = Date.now();
+                    return mappedWhs.length;
+                }
+                return 0;
             } catch (e) {
                 return 0;
             }
@@ -2613,9 +2638,9 @@
             }
         },
 
-        // 🗑️ ترحيل الحذف المحلي (من db_adapter.js) إلى السحابة فوراً دون تعطيل SQLite
+        // 🗑️ ترحيل الحذف المحلي (من db_adapter.js) إلى السحابة فوراً دون تعطيل SQLite (محظور في الباقة الأوفلاين أو أثناء التعديل)
         pushCloudDelete: function (tableName, id) {
-            if (!this._isAllowed() || !navigator.onLine || id == null) return;
+            if (!this._isAllowed() || !navigator.onLine || this.isSyncing || window._bayanRevertingInvoice || id == null) return;
             const cfg = this.getConfig();
             const shopId = cfg.shopId || this.getShopId();
             if (!this.isValidShopId(shopId) || !cfg.supabaseUrl || !cfg.supabaseKey) return;
@@ -2974,6 +2999,7 @@
                     try {
                         const msg = JSON.parse(evt.data);
                         if (msg && msg.event === 'postgres_changes') {
+                            if (this.isSyncing || (Date.now() - (this._lastLocalPushAt || 0) < 2000)) return;
                             const rec = msg.payload?.data?.record || msg.payload?.data?.old_record || {};
                             const recShop = rec.shop_id || (rec.raw_json && rec.raw_json.shop_id) || '';
                             if (rec.id && !String(rec.id).includes(shopId) && recShop !== shopId) return;

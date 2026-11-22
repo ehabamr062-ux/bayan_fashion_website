@@ -737,7 +737,8 @@
                     }
                     try {
                         const syncEngine = window.SupabaseSync || window.BayanSupabaseSync;
-                        if (syncEngine && !syncEngine.isSyncing && ['transactions', 'products', 'accounts', 'warehouses', 'treasuryAudit'].includes(tableName)) {
+                        const canPushCloud = Boolean(syncEngine && !syncEngine.isSyncing && !window._bayanRevertingInvoice && (typeof syncEngine._isAllowed !== 'function' || syncEngine._isAllowed()));
+                        if (canPushCloud && ['transactions', 'products', 'accounts', 'warehouses', 'treasuryAudit'].includes(tableName)) {
                             if (typeof syncEngine.pushCloudDelete === 'function') {
                                 syncEngine.pushCloudDelete(tableName, id);
                             } else if (typeof syncEngine.triggerInstantPush === 'function') {
@@ -758,7 +759,8 @@
                     }
                     try {
                         const syncEngine = window.SupabaseSync || window.BayanSupabaseSync;
-                        if (syncEngine && !syncEngine.isSyncing && ['transactions', 'products', 'accounts', 'warehouses', 'treasuryAudit'].includes(tableName)) {
+                        const canPushCloud = Boolean(syncEngine && !syncEngine.isSyncing && !window._bayanRevertingInvoice && (typeof syncEngine._isAllowed !== 'function' || syncEngine._isAllowed()));
+                        if (canPushCloud && ['transactions', 'products', 'accounts', 'warehouses', 'treasuryAudit'].includes(tableName)) {
                             if (typeof syncEngine.pushCloudDelete === 'function') {
                                 ids.forEach(delId => syncEngine.pushCloudDelete(tableName, delId));
                             } else if (typeof syncEngine.triggerInstantPush === 'function') {
