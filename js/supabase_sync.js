@@ -1044,12 +1044,14 @@
 
             const lastSyncTs = parseInt(localStorage.getItem('bayan_sb_last_tx_time') || '0', 10);
 
-            // رفع الفواتير والحركات المعدلة/الجديدة
+            // رفع الفواتير والحركات المعدلة/الجديدة (مع ضمان شمول آخر 60 حركة دائماً لمنع فوات فواتير التسوية ذات dateISO بدون وقت)
             let targetTx = allTx;
             if (lastSyncTs > 0) {
+                const recentSet = new Set(allTx.slice(-60));
                 targetTx = allTx.filter(t => {
                     if (!t) return false;
-                    const tTime = t.updatedAt || t.timestamp || (t.dateISO ? new Date(t.dateISO).getTime() : 0);
+                    if (recentSet.has(t)) return true;
+                    const tTime = Number(t.updatedAt || t.timestamp || 0) || (t.updatedAt ? new Date(t.updatedAt).getTime() : 0) || (t.dateISO ? new Date(t.dateISO).getTime() : 0);
                     return !tTime || tTime >= (lastSyncTs - 60000); // بهامش أمان دقيقة
                 });
                 if (targetTx.length === 0) {
@@ -2623,23 +2625,97 @@
 
             const trySyncTable = async (tableName, localArr, prefix) => {
                 if (this._missingRemoteTables && this._missingRemoteTables.has(tableName)) return;
-                if (!Array.isArray(localArr) || localArr.length === 0) return;
+                if (!Array.isArray(localArr)) return;
                 try {
-                    const probe = await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/${tableName}?select=id&limit=1`, {
+                    // 1. سحب ثنائي الاتجاه (GET) أولاً لاستلام الحسابات/المخازن المضافة أو المعدلة من الموبايل
+                    const pullRes = await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/${tableName}?shop_id=eq.${encodeURIComponent(shopId)}&select=*&limit=1000`, {
                         method: 'GET',
                         headers: this._getHeaders()
                     });
-                    if (!probe || probe.status === 404 || probe.status === 400) {
+                    if (!pullRes || pullRes.status === 404 || pullRes.status === 400) {
                         if (!this._missingRemoteTables) this._missingRemoteTables = new Set();
                         this._missingRemoteTables.add(tableName);
                         return;
                     }
+                    if (pullRes.ok) {
+                        const remoteItems = await pullRes.json();
+                        if (Array.isArray(remoteItems) && remoteItems.length > 0) {
+                            let hasLocalMerge = false;
+                            if (tableName === 'accounts') {
+                                const byId = new Map();
+                                const byName = new Map();
+                                localArr.forEach(a => {
+                                    if (!a) return;
+                                    if (a.id != null) byId.set(String(a.id), a);
+                                    if (a.name) byName.set(String(a.name).trim().toLowerCase(), a);
+                                });
+                                remoteItems.forEach(r => {
+                                    const raw = (r && r.raw_json && typeof r.raw_json === 'object') ? r.raw_json : {};
+                                    const cleanName = String(raw.name || r.name || '').trim();
+                                    if (!cleanName) return;
+                                    const cleanId = raw.id != null ? raw.id : String(r.id || '').replace(`${shopId}_${prefix}_`, '');
+                                    const existing = byId.get(String(cleanId)) || byName.get(cleanName.toLowerCase());
+                                    if (!existing) {
+                                        const newObj = Object.assign({
+                                            id: cleanId || ('ACC-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6)),
+                                            name: cleanName,
+                                            type: raw.type || 'customer',
+                                            phone: raw.phone || '',
+                                            balance: parseFloat(raw.balance || 0) || 0,
+                                            notes: raw.notes || ''
+                                        }, raw);
+                                        localArr.push(newObj);
+                                        byId.set(String(newObj.id), newObj);
+                                        byName.set(cleanName.toLowerCase(), newObj);
+                                        if (window.sqliteManager && typeof window.sqliteManager.put === 'function') {
+                                            try { window.sqliteManager.put('accounts', newObj); } catch (_) { }
+                                        }
+                                        hasLocalMerge = true;
+                                    } else {
+                                        const remTs = new Date(r.updated_at || raw.updatedAt || 0).getTime() || 0;
+                                        const locTs = new Date(existing.updatedAt || 0).getTime() || 0;
+                                        if (remTs > locTs) {
+                                            let changed = false;
+                                            if (raw.phone && raw.phone !== existing.phone) { existing.phone = raw.phone; changed = true; }
+                                            if (raw.notes !== undefined && raw.notes !== existing.notes) { existing.notes = raw.notes; changed = true; }
+                                            if (raw.type && raw.type !== existing.type) { existing.type = raw.type; changed = true; }
+                                            if (changed) {
+                                                existing.updatedAt = r.updated_at || new Date().toISOString();
+                                                if (window.sqliteManager && typeof window.sqliteManager.put === 'function') {
+                                                    try { window.sqliteManager.put('accounts', existing); } catch (_) { }
+                                                }
+                                                hasLocalMerge = true;
+                                            }
+                                        }
+                                    }
+                                });
+                                if (hasLocalMerge) {
+                                    if (typeof renderAccountsTable === 'function') renderAccountsTable();
+                                    if (typeof updateDashboardStats === 'function') updateDashboardStats();
+                                }
+                            } else if (tableName === 'warehouses') {
+                                const existingNames = new Set(localArr.map(w => String(typeof w === 'string' ? w : (w && w.name || '')).trim().toLowerCase()));
+                                remoteItems.forEach(r => {
+                                    const raw = (r && r.raw_json && typeof r.raw_json === 'object') ? r.raw_json : {};
+                                    const whName = String(raw.name || r.name || '').trim();
+                                    if (whName && !existingNames.has(whName.toLowerCase())) {
+                                        localArr.push(typeof localArr[0] === 'string' ? whName : Object.assign({ id: raw.id || ('WH-' + Date.now()), name: whName }, raw));
+                                        existingNames.add(whName.toLowerCase());
+                                        hasLocalMerge = true;
+                                    }
+                                });
+                            }
+                        }
+                    }
+
+                    // 2. رفع (POST) القائمة المحلية المحدثة إلى السحابة
+                    if (localArr.length === 0) return;
                     const payload = localArr.slice(0, 500).map(item => ({
-                        id: `${shopId}_${prefix}_${item.id || item.name}`,
+                        id: `${shopId}_${prefix}_${(item && (item.id || item.name)) || item}`,
                         shop_id: shopId,
-                        name: String(item.name || '').trim(),
+                        name: String((item && item.name) || item || '').trim(),
                         updated_at: new Date().toISOString(),
-                        raw_json: Object.assign({}, item, { shop_id: shopId })
+                        raw_json: (item && typeof item === 'object') ? Object.assign({}, item, { shop_id: shopId }) : { name: String(item || ''), shop_id: shopId }
                     }));
                     await this._safeFetch(`${cfg.supabaseUrl}/rest/v1/${tableName}?on_conflict=id`, {
                         method: 'POST',
@@ -2789,7 +2865,7 @@
             } catch (e) { console.warn('[SupabaseSync] Realtime notice:', e); }
         },
 
-        // ⏱️ إدارة المؤقت التلقائي للمزامنة (شبكة أمان كل 60 ثانية مع الاعتماد الأساسي على Realtime والدفع الفوري)
+        // ⏱️ إدارة المؤقت التلقائي للمزامنة (شبكة أمان سريعة كل 15 ثانية بجانب Realtime والدفع الفوري)
         restartSyncTimer: function () {
             if (this.syncTimer) clearInterval(this.syncTimer);
             if (!this._isAllowed()) {
@@ -2802,7 +2878,7 @@
             }
             this.startRealtimeSubscription();
             if (cfg.autoSyncEnabled && cfg.supabaseUrl && cfg.supabaseKey) {
-                const intervalMs = Math.max(60, cfg.syncIntervalSeconds || 60) * 1000;
+                const intervalMs = Math.max(15, Math.min(cfg.syncIntervalSeconds || 15, 30)) * 1000;
                 this.syncTimer = setInterval(() => {
                     if (navigator.onLine && this._isAllowed() && !this._isPulling) {
                         this._isPulling = true;

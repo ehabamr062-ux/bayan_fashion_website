@@ -1565,7 +1565,7 @@
             const nonCash = isNonCash(rawMethod);
             const type = String(t.type || '');
             const typeLow = type.toLowerCase();
-            const isSaleType = (type.includes('بيع') || typeLow.includes('sale') || typeLow.includes('pos') || typeLow.includes('invoice')) && !type.includes('مرتجع') && !typeLow.includes('return');
+            const isSaleType = (type.includes('بيع') || typeLow.includes('sale') || typeLow.includes('pos') || typeLow.includes('invoice')) && !type.includes('مرتجع') && !typeLow.includes('return') && !type.includes('تسوي') && !type.includes('جرد') && !type.includes('تحويل');
             const isReturnType = (type.includes('مرتجع') || typeLow.includes('return'));
             const isDisburseType = (type.includes('صرف') || type.includes('مصروف') || typeLow.includes('expense') || typeLow.includes('disburse'));
             const isReceiptType = (type.includes('قبض') || typeLow.includes('receipt'));
