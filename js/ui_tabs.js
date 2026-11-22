@@ -393,7 +393,7 @@ function switchSection(sectionType, fromTab = false, tabId = null) {
             'sales-return', 'purchase-return', 'inventory',
             'accounts', 'daily-report', 'history', 'invoices',
             'analysis', 'item-history', 'adjustment', 'reports-hub', 'warehouse-report', 'product-inquiry', 'statement', 'treasury-audit', 'barcode-print',
-            'price-adjustment', 'stock-transfer'
+            'price-adjustment', 'stock-transfer', 'online-orders'
         ];
 
         // التحقق من صلاحية كل قسم بشكل مستقل ودقيق
@@ -459,7 +459,8 @@ function switchSection(sectionType, fromTab = false, tabId = null) {
                     'statement': 'كشف حساب', 'treasury-audit': '💰 مراجعة الخزينة',
                     'barcode-print': '🏷️ طباعة الباركود',
                     'price-adjustment': '🏷️ إدارة الأسعار',
-                    'stock-transfer': '🚚 تحويل مخزون'
+                    'stock-transfer': '🚚 تحويل مخزون',
+                    'online-orders': '🛒 طلبات الأونلاين'
                 };
 
                 targetTab = {
@@ -603,6 +604,9 @@ function switchSection(sectionType, fromTab = false, tabId = null) {
     const sectionEl = document.getElementById(targetTab.type + '-section');
     if (sectionEl) {
         sectionEl.classList.remove('hidden');
+        if (targetTab.type === 'online-orders' && typeof window.renderOnlineOrdersSection === 'function') {
+            window.renderOnlineOrdersSection();
+        }
     } else if (targetTab.type === 'dashboard') {
         const dashEl = document.getElementById('dashboard-section');
         if (dashEl) dashEl.classList.remove('hidden');
