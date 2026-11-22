@@ -4396,11 +4396,11 @@
             <div id="invoicesSummaryBanner"
                 style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 12px;">
                 <div class="summary-card-mini"
-                    style="background: linear-gradient(135deg, #1e293b, #0f172a); color: white; padding: 10px 14px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(15, 23, 42, 0.2); border: 1px solid rgba(255,255,255,0.08); transition: transform 0.2s;"
+                    style="background: linear-gradient(135deg, #f97316, #ea580c); color: #ffffff; padding: 10px 14px; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(249, 115, 22, 0.28); border: 1px solid rgba(255,255,255,0.14); transition: transform 0.2s;"
                     onmouseover="this.style.transform='translateY(-2px)'"
                     onmouseout="this.style.transform='translateY(0)'">
                     <span
-                        style="font-size: 0.74rem; opacity: 0.85; font-weight: 800; display: flex; align-items: center; gap: 4px;">📑
+                        style="font-size: 0.74rem; opacity: 0.95; font-weight: 800; display: flex; align-items: center; gap: 4px;">📑
                         عدد العمليات</span>
                     <span id="invSumCount" style="font-size: 1.25rem; font-weight: 900; margin-top: 3px;">0</span>
                 </div>
@@ -4449,17 +4449,17 @@
                         style="position: sticky; top: 0; z-index: 10; background: linear-gradient(135deg, #0f172a, #1e293b); color: white;">
                         <tr>
                             <th class="col-inv-0" style="width: 40px;">اختيار</th>
-                            <th class="col-inv-1" style="min-width: 90px;">رقم الفاتورة</th>
+                            <th class="col-inv-1" onclick="toggleInvoicesSort('invoiceId')" style="min-width: 90px; cursor: pointer; user-select: none;">رقم الفاتورة <span class="inv-sort-icon" data-sort-key="invoiceId" style="opacity:0.55; font-size:0.85em;">⇅</span></th>
                             <th class="col-inv-15" style="min-width: 90px; color: #38bdf8;">رقم الإيصال</th>
-                            <th class="col-inv-2" style="min-width: 100px;">التاريخ</th>
-                            <th class="col-inv-3" style="min-width: 105px; text-align: center;">النوع</th>
+                            <th class="col-inv-2" onclick="toggleInvoicesSort('date')" style="min-width: 100px; cursor: pointer; user-select: none;">التاريخ <span class="inv-sort-icon" data-sort-key="date" style="opacity:0.55; font-size:0.85em;">⇅</span></th>
+                            <th class="col-inv-3" onclick="toggleInvoicesSort('type')" style="min-width: 105px; text-align: center; cursor: pointer; user-select: none;">النوع <span class="inv-sort-icon" data-sort-key="type" style="opacity:0.55; font-size:0.85em;">⇅</span></th>
                             <th class="col-inv-4" style="min-width: 200px;">البيان / الأصناف</th>
-                            <th class="col-inv-5" style="min-width: 80px;">الربح</th>
+                            <th class="col-inv-5" onclick="toggleInvoicesSort('profit')" style="min-width: 80px; cursor: pointer; user-select: none;">الربح <span class="inv-sort-icon" data-sort-key="profit" style="opacity:0.55; font-size:0.85em;">⇅</span></th>
                             <th class="col-inv-6" style="min-width: 100px;">المخزن/الفرع</th>
                             <th class="col-inv-14" style="min-width: 110px;">الجهاز / الكاشير</th>
-                            <th class="col-inv-7" style="min-width: 90px;">الإجمالي</th>
-                            <th class="col-inv-8" style="min-width: 80px;">المدفوع</th>
-                            <th class="col-inv-9" style="min-width: 80px;">المتبقي</th>
+                            <th class="col-inv-8" onclick="toggleInvoicesSort('paid')" style="min-width: 80px; cursor: pointer; user-select: none;">المدفوع <span class="inv-sort-icon" data-sort-key="paid" style="opacity:0.55; font-size:0.85em;">⇅</span></th>
+                            <th class="col-inv-9" onclick="toggleInvoicesSort('remaining')" style="min-width: 80px; cursor: pointer; user-select: none;">المتبقي <span class="inv-sort-icon" data-sort-key="remaining" style="opacity:0.55; font-size:0.85em;">⇅</span></th>
+                            <th class="col-inv-7" onclick="toggleInvoicesSort('total')" style="min-width: 90px; cursor: pointer; user-select: none;">الإجمالي <span class="inv-sort-icon" data-sort-key="total" style="opacity:0.55; font-size:0.85em;">⇅</span></th>
                             <th class="col-inv-10" style="min-width: 120px;">العميل / الحساب</th>
                             <th class="col-inv-11" style="min-width: 90px;">المستخدم</th>
                             <th class="col-inv-12" style="min-width: 120px;">تاريخ التعديل</th>
@@ -18282,14 +18282,6 @@
                         style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:#f8fafc; border-radius:12px; cursor:pointer; border:1px solid #e2e8f0; transition: 0.2s;"
                         onmouseover="this.style.borderColor='var(--main-blue)'"
                         onmouseout="this.style.borderColor='#e2e8f0'">
-                        <span style="font-weight:bold; font-size:0.85rem; color:#334155;">الإجمالي</span>
-                        <input type="checkbox" checked onchange="toggleInvoicesColumn(7, this.checked)"
-                            style="width:18px; height:18px; accent-color:var(--main-blue); cursor:pointer;">
-                    </label>
-                    <label
-                        style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:#f8fafc; border-radius:12px; cursor:pointer; border:1px solid #e2e8f0; transition: 0.2s;"
-                        onmouseover="this.style.borderColor='var(--main-blue)'"
-                        onmouseout="this.style.borderColor='#e2e8f0'">
                         <span style="font-weight:bold; font-size:0.85rem; color:#334155;">المدفوع</span>
                         <input type="checkbox" checked onchange="toggleInvoicesColumn(8, this.checked)"
                             style="width:18px; height:18px; accent-color:var(--main-blue); cursor:pointer;">
@@ -18300,6 +18292,14 @@
                         onmouseout="this.style.borderColor='#e2e8f0'">
                         <span style="font-weight:bold; font-size:0.85rem; color:#334155;">المتبقي</span>
                         <input type="checkbox" checked onchange="toggleInvoicesColumn(9, this.checked)"
+                            style="width:18px; height:18px; accent-color:var(--main-blue); cursor:pointer;">
+                    </label>
+                    <label
+                        style="display:flex; align-items:center; justify-content:space-between; padding:12px; background:#f8fafc; border-radius:12px; cursor:pointer; border:1px solid #e2e8f0; transition: 0.2s;"
+                        onmouseover="this.style.borderColor='var(--main-blue)'"
+                        onmouseout="this.style.borderColor='#e2e8f0'">
+                        <span style="font-weight:bold; font-size:0.85rem; color:#334155;">الإجمالي</span>
+                        <input type="checkbox" checked onchange="toggleInvoicesColumn(7, this.checked)"
                             style="width:18px; height:18px; accent-color:var(--main-blue); cursor:pointer;">
                     </label>
                     <label

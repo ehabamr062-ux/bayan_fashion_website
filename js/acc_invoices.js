@@ -738,6 +738,48 @@ window.loadMoreInvoices = function (step) {
     window.goToInvoicesPage((window.invoicesCurrentPage || 1) + 1);
 };
 
+window.invoicesSortState = window.invoicesSortState || { key: null, dir: null };
+
+window.toggleInvoicesSort = function (colKey) {
+    if (!colKey) return;
+    if (!window.invoicesSortState) window.invoicesSortState = { key: null, dir: null };
+    if (window.invoicesSortState.key === colKey) {
+        window.invoicesSortState.dir = (window.invoicesSortState.dir === 'desc') ? 'asc' : 'desc';
+    } else {
+        window.invoicesSortState.key = colKey;
+        window.invoicesSortState.dir = 'desc';
+    }
+    renderInvoicesTable();
+};
+
+function _updateInvoicesSortIcons() {
+    const st = window.invoicesSortState || {};
+    document.querySelectorAll('#invoicesTableHead .inv-sort-icon').forEach(el => {
+        const key = el.getAttribute('data-sort-key');
+        if (st.key === key) {
+            if (st.dir === 'desc') {
+                el.textContent = '▲';
+                el.style.color = '#fbbf24';
+                el.style.opacity = '1';
+                el.style.fontWeight = '900';
+                el.title = 'مرتب من الأكبر/الأحدث للأصغر/الأقدم';
+            } else {
+                el.textContent = '▼';
+                el.style.color = '#38bdf8';
+                el.style.opacity = '1';
+                el.style.fontWeight = '900';
+                el.title = 'مرتب من الأصغر/الأقدم للأكبر/الأحدث';
+            }
+        } else {
+            el.textContent = '⇅';
+            el.style.color = '';
+            el.style.opacity = '0.55';
+            el.style.fontWeight = '';
+            el.title = 'اضغط للفرز';
+        }
+    });
+}
+
 async function renderInvoicesTable(isLoadMore = false) {
     // إلغاء أي مؤقت بحث مؤجل لضمان التنفيذ المباشر فوراً عند الاستدعاء الصريح
     if (_invoicesSearchDebounceTimer) {
@@ -776,13 +818,15 @@ async function renderInvoicesTable(isLoadMore = false) {
 
         const activeUserEarly = (typeof currentUser !== 'undefined' && currentUser) ? currentUser : window.currentUser;
         const isScopedNonAdmin = Boolean(activeUserEarly && activeUserEarly.role !== 'admin');
+        const hasActiveInvSort = Boolean(window.invoicesSortState && window.invoicesSortState.key);
         const canUseSqlPagination = Boolean(
             window.BayanSQLite &&
             typeof window.BayanSQLite.queryFilteredInvoicePage === 'function' &&
             window.BayanSQLite.db &&
             !searchProduct &&
             searchMethod === 'all' &&
-            !isScopedNonAdmin
+            !isScopedNonAdmin &&
+            !hasActiveInvSort
         );
 
         let sqlPageMeta = null;
@@ -1063,6 +1107,61 @@ async function renderInvoicesTable(isLoadMore = false) {
 
         finalData.reverse(); // عرض الأحدث أولاً
 
+        // ⇅ تطبيق الفرز التفاعلي الذكي على كامل القائمة المفلترة قبل حد العرض (Pagination)
+        _updateInvoicesSortIcons();
+        const invSortSt = window.invoicesSortState;
+        if (invSortSt && invSortSt.key && (invSortSt.dir === 'desc' || invSortSt.dir === 'asc')) {
+            const mult = invSortSt.dir === 'desc' ? -1 : 1;
+            const extractInvNum = (val) => {
+                const s = String(val || '').trim();
+                const m = s.match(/(\d+)(?!.*\d)/);
+                return m ? parseInt(m[1], 10) : 0;
+            };
+            const getEffProfit = (t) => {
+                const rawP = parseFloat(t && t.profit) || 0;
+                if (t && t.type && t.type.includes('مرتجع بيع')) return rawP > 0 ? -rawP : rawP;
+                if (t && t.type && t.type.includes('مرتجع شراء')) return 0;
+                return rawP;
+            };
+            const getEffPaid = (t) => {
+                if (t && t.type && t.type.includes('تحويل')) {
+                    return t.transferStatus === 'rejected' ? 0 : (parseFloat(t.total || t.price || 0) || 0);
+                }
+                return t && t.paid !== undefined ? (parseFloat(t.paid) || 0) : (parseFloat(t && (t.total || t.price) || 0) || 0);
+            };
+            const getEffRem = (t) => {
+                if (t && t.type && t.type.includes('تحويل') && t.transferStatus === 'rejected') return 0;
+                return t && t.remaining !== undefined ? (parseFloat(t.remaining) || 0) : 0;
+            };
+            const getDateSortKey = (t) => {
+                const d = (t && (t.dateISO || (t.date ? String(t.date).split(' ')[0] : ''))) || '';
+                const tm = (t && (t.timeISO || t.time || '')) || '';
+                return `${d} ${tm}`.trim();
+            };
+
+            finalData.sort((a, b) => {
+                let cmp = 0;
+                if (invSortSt.key === 'invoiceId') {
+                    cmp = extractInvNum(a && a.invoiceId) - extractInvNum(b && b.invoiceId);
+                    if (cmp === 0) cmp = String((a && a.invoiceId) || '').localeCompare(String((b && b.invoiceId) || ''));
+                } else if (invSortSt.key === 'date') {
+                    cmp = getDateSortKey(a).localeCompare(getDateSortKey(b));
+                } else if (invSortSt.key === 'type') {
+                    cmp = String((a && a.type) || '').localeCompare(String((b && b.type) || ''), 'ar');
+                } else if (invSortSt.key === 'profit') {
+                    cmp = getEffProfit(a) - getEffProfit(b);
+                } else if (invSortSt.key === 'paid') {
+                    cmp = getEffPaid(a) - getEffPaid(b);
+                } else if (invSortSt.key === 'remaining') {
+                    cmp = getEffRem(a) - getEffRem(b);
+                } else if (invSortSt.key === 'total') {
+                    cmp = (parseFloat(a && (a.total || a.price) || 0) || 0) - (parseFloat(b && (b.total || b.price) || 0) || 0);
+                }
+                if (cmp !== 0) return cmp * mult;
+                return getDateSortKey(b).localeCompare(getDateSortKey(a));
+            });
+        }
+
         // 🆕 حساب الإجماليات للشريط الملخص
 
         let sumTotal = 0, sumPaid = 0, sumDebt = 0, sumProfit = 0;
@@ -1291,9 +1390,9 @@ async function renderInvoicesTable(isLoadMore = false) {
                         <td class="col-inv-14" style="text-align:center; ${isV(14) ? '' : 'display:none;'}">
                             ${getTerminalBadgeHtml(t)}
                         </td>
-                        <td class="col-inv-7" style="font-weight:bold; color:${isRejectedTransfer ? '#94a3b8' : 'var(--main-blue)'}; ${isV(7) ? '' : 'display:none;'}">${displayTotalHtml}</td>
                         <td class="col-inv-8" style="color:${isRejectedTransfer ? '#94a3b8' : 'blue'}; font-weight:bold; ${isV(8) ? '' : 'display:none;'}">${paid}</td>
                         <td class="col-inv-9" style="color:${isRejectedTransfer ? '#94a3b8' : 'red'}; font-weight:bold; ${isV(9) ? '' : 'display:none;'}">${remaining}</td>
+                        <td class="col-inv-7" style="font-weight:bold; color:${isRejectedTransfer ? '#94a3b8' : 'var(--main-blue)'}; ${isV(7) ? '' : 'display:none;'}">${displayTotalHtml}</td>
                         <td class="col-inv-10" style="${isV(10) ? '' : 'display:none;'}">${esc(t.partner || '-')}</td>
                         <td class="col-inv-11" style="font-size:0.8rem; ${isV(11) ? '' : 'display:none;'}">${esc(t.user || t.cashier || t.userName || t.user_name || t.createdBy || '-')}</td>
                         <td class="col-inv-12" style="font-size:0.8rem; color: #888; ${isV(12) ? '' : 'display:none;'}">${esc(t.editDate || '-')}</td>
