@@ -1247,7 +1247,6 @@
                         await new Promise(r => setTimeout(r, 60));
                     }
                 }
-                this._writeMeta('bayan_sb_last_prod_sync_time', String(Date.now()));
             }
 
             // 📥 استيراد وتحديث الأصناف بالمزامنة التفاضلية (Delta Sync: updated_at > lastProductsSync - 10s)
@@ -1257,6 +1256,7 @@
 
             try {
                 const remoteRows = [];
+                let fetchedProdOk = false;
                 const PAGE_SIZE = 1000;
                 const lastProdTsRaw = Number(this._readMeta('bayan_sb_last_prod_sync_time') || 0);
                 const useDeltaProd = (!forceAll && lastProdTsRaw > 0 && pList.length > 0);
@@ -1272,13 +1272,17 @@
                         'Range-Unit': 'items'
                     });
                     const remoteRes = await this._safeFetch(prodUrl, { headers: pageHeaders });
-                    if (remoteRes.status === 416 || !remoteRes.ok) break;
+                    if (remoteRes.status === 416) { fetchedProdOk = true; break; }
+                    if (!remoteRes.ok) break;
+                    fetchedProdOk = true;
                     const batchRows = await remoteRes.json();
                     if (!Array.isArray(batchRows) || batchRows.length === 0) break;
                     remoteRows.push(...batchRows);
                     if (batchRows.length < PAGE_SIZE) break;
                 }
-                this._writeMeta('bayan_sb_last_prod_sync_time', String(Date.now()));
+                if (fetchedProdOk) {
+                    this._writeMeta('bayan_sb_last_prod_sync_time', String(Date.now()));
+                }
 
                 if (remoteRows.length > 0) {
                     // فهارس بحث فورية O(1) لمنع البحث الخطي O(R × P)
@@ -1472,10 +1476,13 @@
                 // ⚡ مزامنة تفاضلية للحركات (Delta Sync) مع تقسيم صفحات Range (500 سجل/دفعة) للجهاز الجديد
                 const lastTxTsRaw = Number(this._readMeta('bayan_sb_last_tx_sync_time') || 0);
                 const useDeltaTx = (lastTxTsRaw > 0);
-                const txDeltaFilter = useDeltaTx
-                    ? `&created_at=gt.${encodeURIComponent(new Date(Math.max(0, lastTxTsRaw - 10000)).toISOString())}`
+                const sinceIso = useDeltaTx
+                    ? new Date(Math.max(0, lastTxTsRaw - 10000)).toISOString()
                     : '';
-                const txUrl = `${cfg.supabaseUrl}/rest/v1/transactions?id=like.${encodeURIComponent(shopId)}_*${txDeltaFilter}&order=created_at.desc`;
+                const txDeltaFilter = useDeltaTx
+                    ? `&or=(created_at.gt.${encodeURIComponent(sinceIso)},updated_at.gt.${encodeURIComponent(sinceIso)})`
+                    : '';
+                const txUrl = `${cfg.supabaseUrl}/rest/v1/transactions?id=like.${encodeURIComponent(shopId)}_*${txDeltaFilter}&order=updated_at.desc,created_at.desc`;
                 const TX_PAGE_SIZE = 500;
                 const maxPages = useDeltaTx ? 4 : 20;
                 let remoteList = [];
@@ -1902,15 +1909,26 @@
                                 const rowShopId = rawV.shop_id || (vRow.id && vRow.id.startsWith(shopId + '_') ? shopId : null);
                                 if (rowShopId !== shopId) continue;
 
-                                const voidInvId = String(rawV.invoiceId || vRow.id.replace(`${shopId}_VOID_`, '').replace('VOID_', ''));
-                                const localIdx = localTx.findIndex(t => String(t.invoiceId || t.id || '') === voidInvId);
-                                if (localIdx !== -1) {
-                                    const txToVoid = localTx[localIdx];
-                                    localTx.splice(localIdx, 1);
-                                    if (window.sqliteManager && typeof window.sqliteManager.run === 'function') {
-                                        try { window.sqliteManager.run(`DELETE FROM transactions WHERE invoiceId = ? OR id = ?`, [voidInvId, txToVoid.id]); } catch (e) { }
+                                const voidInvId = String(rawV.invoiceId || vRow.id.replace(`${shopId}_VOID_`, '').replace('VOID_', '')).trim();
+                                const cleanVoidId = cleanInvId(voidInvId);
+                                let matchedAny = false;
+                                for (let li = localTx.length - 1; li >= 0; li--) {
+                                    const t = localTx[li];
+                                    if (!t) continue;
+                                    const tRawInv = String(t.invoiceId || t.id || '').trim();
+                                    if (tRawInv === voidInvId || (cleanVoidId && cleanInvId(tRawInv) === cleanVoidId)) {
+                                        localTx.splice(li, 1);
+                                        if (window.sqliteManager && window.sqliteManager.db && typeof window.sqliteManager.db.run === 'function') {
+                                            try {
+                                                window.sqliteManager.db.run(`DELETE FROM transactions WHERE invoiceId = ? OR id = ? OR invoiceId = ?`, [voidInvId, t.id || voidInvId, cleanVoidId]);
+                                            } catch (e) { }
+                                        }
+                                        matchedAny = true;
+                                        hasVoidChanges = true;
                                     }
-                                    hasVoidChanges = true;
+                                }
+                                if (matchedAny && window.sqliteManager && typeof window.sqliteManager.schedulePersist === 'function') {
+                                    try { window.sqliteManager.schedulePersist(400); } catch (e) { }
                                 }
                             }
                             if (hasVoidChanges) {
@@ -2665,12 +2683,17 @@
             return 1;
         },
 
-        // ⚡ اشتراك لحظي عبر WebSocket (Supabase Realtime) لتحديث الأجهزة خلال 1-2 ثانية
+        // ⚡ اشتراك لحظي عبر WebSocket (Supabase Realtime) لتحديث الأجهزة خلال 1-2 ثانية مع إعادة اتصال تلقائي
         startRealtimeSubscription: function () {
             try {
+                if (this._realtimeReconnectTimer) {
+                    clearTimeout(this._realtimeReconnectTimer);
+                    this._realtimeReconnectTimer = null;
+                }
                 if (this._realtimeWs) {
-                    try { this._realtimeWs.close(); } catch (_) { }
+                    const oldWs = this._realtimeWs;
                     this._realtimeWs = null;
+                    try { oldWs.onclose = null; oldWs.onerror = null; oldWs.close(); } catch (_) { }
                 }
                 if (this._realtimeHb) {
                     clearInterval(this._realtimeHb);
@@ -2684,7 +2707,23 @@
                 const wsUrl = cfg.supabaseUrl.replace(/^http/, 'ws') + `/realtime/v1/websocket?apikey=${encodeURIComponent(cfg.supabaseKey)}&vsn=1.0.0`;
                 const ws = new WebSocket(wsUrl);
                 this._realtimeWs = ws;
+                const scheduleReconnect = () => {
+                    if (this._realtimeWs !== ws) return;
+                    if (this._realtimeHb) { clearInterval(this._realtimeHb); this._realtimeHb = null; }
+                    if (this._realtimeReconnectTimer) return;
+                    const attempts = (this._realtimeReconnectAttempts || 0) + 1;
+                    this._realtimeReconnectAttempts = attempts;
+                    const delay = Math.min(30000, 3000 * Math.pow(1.6, attempts - 1));
+                    this._realtimeReconnectTimer = setTimeout(() => {
+                        this._realtimeReconnectTimer = null;
+                        if (typeof navigator === 'undefined' || navigator.onLine !== false) {
+                            this.startRealtimeSubscription();
+                        }
+                    }, delay);
+                };
                 ws.onopen = () => {
+                    if (this._realtimeWs !== ws) return;
+                    this._realtimeReconnectAttempts = 0;
                     const joinPayload = (topic) => JSON.stringify({
                         topic,
                         event: 'phx_join',
@@ -2719,6 +2758,34 @@
                         }
                     } catch (_) { }
                 };
+                ws.onerror = () => { scheduleReconnect(); };
+                ws.onclose = () => { scheduleReconnect(); };
+
+                if (!this._realtimeLifecycleBound && typeof window !== 'undefined') {
+                    this._realtimeLifecycleBound = true;
+                    window.addEventListener('online', () => {
+                        this._realtimeReconnectAttempts = 0;
+                        this.startRealtimeSubscription();
+                        if (!this._isPulling && this._isAllowed()) {
+                            this._isPulling = true;
+                            this.runFullSync(false).finally(() => { this._isPulling = false; });
+                        }
+                    });
+                    if (typeof document !== 'undefined') {
+                        document.addEventListener('visibilitychange', () => {
+                            if (document.visibilityState === 'visible' && navigator.onLine && this._isAllowed()) {
+                                if (!this._realtimeWs || this._realtimeWs.readyState !== WebSocket.OPEN) {
+                                    this._realtimeReconnectAttempts = 0;
+                                    this.startRealtimeSubscription();
+                                }
+                                if (!this._isPulling) {
+                                    this._isPulling = true;
+                                    this.runFullSync(false).finally(() => { this._isPulling = false; });
+                                }
+                            }
+                        });
+                    }
+                }
             } catch (e) { console.warn('[SupabaseSync] Realtime notice:', e); }
         },
 

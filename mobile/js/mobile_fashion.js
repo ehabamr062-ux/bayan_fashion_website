@@ -5349,23 +5349,16 @@ ${footer || 'شكراً لتعاملكم الراقي معنا! ✨'}`;
                 body: JSON.stringify([sbRow])
             }).catch(() => {});
 
-            fetch(`${SUPABASE_CONFIG.url}/rest/v1/transactions?on_conflict=id`, {
+            fetch(`${SUPABASE_CONFIG.url}/rest/v1/treasury_audit?on_conflict=id`, {
                 method: 'POST',
                 headers: getSupabaseHeaders(),
                 body: JSON.stringify([{
-                    id: `${currentShopId}_${adjTx.invoiceId}`,
-                    invoice_id: adjTx.invoiceId,
-                    date_iso: nowIso,
-                    updated_at: nowIso,
-                    time: adjTx.timeISO,
-                    type: 'تسوية مخزنية',
-                    partner: 'جرد مخزني',
-                    total: adjTx.total,
-                    paid_amount: 0,
-                    remaining: 0,
-                    method: 'تسوية',
+                    id: `${currentShopId}_STOCKADJ_${adjTx.invoiceId}`,
+                    category: 'stock_adjustment',
+                    amount: adjTx.total,
+                    description: `تسوية مخزنية: ${p.name} (${wh}) من ${initial} إلى ${counted} (الفرق ${diff})`,
                     cashier: adjTx.cashier,
-                    warehouse: wh,
+                    created_at: nowIso,
                     raw_json: { ...adjTx, shop_id: currentShopId, updatedAt: nowIso }
                 }])
             }).catch(() => {});
