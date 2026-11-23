@@ -3,7 +3,7 @@
 //  النسخة المطورة للعمل أوفلاين 100%
 // ============================================================
 
-const CACHE_NAME = 'bayan-pos-v5.1.6';
+const CACHE_NAME = 'bayan-pos-v5.1.6-r2';
 const STATIC_CACHE = 'bayan-static-v5.1.6';
 const DYNAMIC_CACHE = 'bayan-dynamic-v5.1.6';
 
