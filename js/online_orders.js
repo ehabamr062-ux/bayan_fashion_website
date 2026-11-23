@@ -255,6 +255,15 @@
                             if (typeof showToast === 'function') {
                                 showToast(`🛒 وصل ${newlyArrived} طلب أونلاين جديد من المتجر الإلكتروني!`, 'success', 6000);
                             }
+                            const latest = list[0] || {};
+                            this.reportOnlineStoreActivity('new_order', {
+                                newlyArrived,
+                                lastOrderNo: latest.seqId || latest.orderNumber || latest.id || '-',
+                                lastOrderCustomer: latest.customerName || '-',
+                                lastOrderTotal: parseFloat(latest.grandTotal) || 0
+                            });
+                        } else if (list.length > 0 || localStorage.getItem('bayan_store_trial_start') || localStorage.getItem('bayan_store_vip_unlocked') === '1') {
+                            this.checkDailyTelemetryHeartbeat();
                         }
 
                         const sec = document.getElementById('online-orders-section');
@@ -328,6 +337,254 @@
             };
         },
 
+        getUsageStats() {
+            const DAYS_MAX = 7;
+            const ORDERS_MAX = 10;
+            let isVip = false;
+            let vipCode = '';
+            let trialStartTs = 0;
+            try {
+                isVip = localStorage.getItem('bayan_store_vip_unlocked') === '1'
+                    || (typeof getStore === 'function' && getStore('bayan_store_vip_unlocked') === '1');
+                vipCode = localStorage.getItem('bayan_store_vip_code')
+                    || (typeof getStore === 'function' ? (getStore('bayan_store_vip_code') || '') : '');
+                trialStartTs = Number(localStorage.getItem('bayan_store_trial_start') || 0);
+            } catch (_) { }
+
+            const hasStarted = isVip || trialStartTs > 0 || this.orders.length > 0;
+            const daysUsedExact = trialStartTs > 0 ? Math.max(0, (Date.now() - trialStartTs) / (1000 * 60 * 60 * 24)) : 0;
+            const daysUsed = trialStartTs > 0 ? Math.floor(daysUsedExact) : 0;
+            const daysRemaining = isVip ? null : (trialStartTs > 0 ? Math.max(0, Math.ceil(DAYS_MAX - daysUsedExact)) : DAYS_MAX);
+
+            const ordersUsed = Array.isArray(this.orders) ? this.orders.length : 0;
+            const ordersRemaining = isVip ? null : Math.max(0, ORDERS_MAX - ordersUsed);
+
+            let confirmedOrders = 0;
+            let totalSales = 0;
+            if (Array.isArray(this.orders)) {
+                this.orders.forEach(o => {
+                    if (!o) return;
+                    const st = o.status || 'new';
+                    if (st === 'confirmed' || st === 'delivered' || o.posInvoiceNo) confirmedOrders++;
+                    if (st !== 'cancelled') totalSales += (parseFloat(o.grandTotal) || 0);
+                });
+            }
+
+            const prodList = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
+            let totalProductsCount = 0;
+            let publishedProductsCount = 0;
+            for (let i = 0; i < prodList.length; i++) {
+                const p = prodList[i];
+                if (p && !p.isDeleted) {
+                    totalProductsCount++;
+                    if (p.showInStore === true) publishedProductsCount++;
+                }
+            }
+
+            const isUnlocked = isVip || (!trialStartTs) || (daysUsedExact <= DAYS_MAX && ordersUsed < ORDERS_MAX);
+            const statusLabel = isVip
+                ? '👑 باقة VIP مفعّلة بالكامل'
+                : (!hasStarted
+                    ? '⚪ لم تبدأ بعد'
+                    : (isUnlocked ? '🎁 فترة تجريبية نشطة' : '🔒 انتهت الفترة التجريبية'));
+
+            return {
+                hasStarted,
+                isVip,
+                vipCode: vipCode || '',
+                isUnlocked,
+                statusLabel,
+                trialStartTs,
+                trialStartDateStr: trialStartTs ? new Date(trialStartTs).toLocaleDateString('ar-EG') : 'لم تبدأ',
+                daysMax: DAYS_MAX,
+                daysUsed,
+                daysRemaining,
+                ordersMax: ORDERS_MAX,
+                ordersUsed,
+                ordersRemaining,
+                confirmedOrders,
+                totalSales: Number(totalSales.toFixed(2)),
+                publishedProductsCount,
+                totalProductsCount
+            };
+        },
+
+        async collectMerchantProfile() {
+            const readField = (id, storeKey) => {
+                try {
+                    const el = document.getElementById(id);
+                    if (el && el.value && String(el.value).trim()) return String(el.value).trim();
+                } catch (_) { }
+                try {
+                    if (typeof getStore === 'function') {
+                        const v = getStore(storeKey || id);
+                        if (v && String(v).trim()) return String(v).trim();
+                    }
+                } catch (_) { }
+                return '';
+            };
+
+            let machineId = 'UNKNOWN-HWID';
+            try {
+                if (typeof getUniqueHWID === 'function') machineId = await getUniqueHWID();
+                else if (typeof getMachineId === 'function') machineId = getMachineId();
+                else {
+                    const el = document.getElementById('displayMachineId');
+                    if (el && el.innerText) machineId = el.innerText.trim();
+                }
+            } catch (_) { }
+
+            const shopName = readField('shopName', 'shopName') || 'غير مسمى';
+            const shopAddress = readField('shopAddress', 'shopAddress') || 'غير محدد';
+            const phones = [
+                readField('shopPhone1', 'shopPhone1'),
+                readField('shopPhone2', 'shopPhone2'),
+                readField('shopPhone3', 'shopPhone3'),
+                readField('shopPhone4', 'shopPhone4')
+            ].filter((v, idx, arr) => v && arr.indexOf(v) === idx);
+
+            const userName = (typeof currentUser !== 'undefined' && currentUser && currentUser.name) ? String(currentUser.name).trim() : 'المدير';
+            const userRole = (typeof currentUser !== 'undefined' && currentUser && currentUser.role) ? String(currentUser.role).trim() : '';
+
+            let plan = 'النسخة المجانية';
+            try {
+                if (typeof window.getBayanPlan === 'function') plan = window.getBayanPlan();
+            } catch (_) { }
+
+            let installDate = '---';
+            try {
+                const rawInst = typeof getStore === 'function' ? getStore('bayan_install_date') : '';
+                if (rawInst) installDate = new Date(rawInst).toLocaleDateString('ar-EG');
+            } catch (_) { }
+
+            return {
+                shopName,
+                shopAddress,
+                phones: phones.length ? phones.join(' / ') : 'غير مسجل',
+                userName,
+                userRole,
+                shopId: this.getShopId(),
+                storeUrl: this.getStoreUrl(),
+                machineId,
+                plan,
+                appVersion: window.APP_VERSION || window.appVersion || '5.1.6',
+                installDate
+            };
+        },
+
+        async reportOnlineStoreActivity(eventType = 'update', extra = {}) {
+            try {
+                if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
+                if (typeof window !== 'undefined' && window.__BAYAN_TEST_MODE__) return false;
+
+                const stats = this.getUsageStats();
+                const profile = await this.collectMerchantProfile();
+
+                // 1. حفظ ملخص المحل في Firestore كسجل دائم لمتابعة كل المحلات المشغّلة للخاصية
+                try {
+                    const db = await this._ensureFirebaseReady();
+                    if (db && profile.shopId) {
+                        db.collection('shops').doc(profile.shopId).collection('meta').doc('telemetry').set({
+                            shopId: profile.shopId,
+                            shopName: profile.shopName,
+                            shopAddress: profile.shopAddress,
+                            phones: profile.phones,
+                            userName: profile.userName,
+                            machineId: profile.machineId,
+                            plan: profile.plan,
+                            appVersion: profile.appVersion,
+                            storeUrl: profile.storeUrl,
+                            ...stats,
+                            lastEvent: eventType,
+                            lastActiveISO: new Date().toISOString()
+                        }, { merge: true }).catch(() => { });
+                    }
+                } catch (_) { }
+
+                // 2. إرسال التقرير التفصيلي لبوت تليجرام المطور عبر TelegramDevNotify
+                if (!window.TelegramDevNotify || typeof window.TelegramDevNotify.send !== 'function') return false;
+
+                const eventTitles = {
+                    first_use: '🆕 <b>محل جديد بدأ استخدام خاصية طلبات الأونلاين!</b>',
+                    vip_activated: '👑 <b>تم تفعيل باقة المتجر الأونلاين (VIP)!</b>',
+                    trial_expired: '🔒 <b>انتهت الفترة التجريبية للأونلاين — جاهز للاشتراك!</b>',
+                    new_order: '🛒 <b>وصل طلب أونلاين جديد لأحد المحلات!</b>',
+                    order_converted: '🧾 <b>تم تحويل طلب أونلاين إلى فاتورة POS!</b>',
+                    products_synced: '🚀 <b>محل نشر/زامن أصناف على المتجر الإلكتروني!</b>',
+                    daily_heartbeat: '📊 <b>متابعة يومية — حالة استخدام طلبات الأونلاين</b>'
+                };
+                const header = eventTitles[eventType] || '📡 <b>تحديث نشاط طلبات الأونلاين</b>';
+
+                const daysLine = stats.isVip
+                    ? 'غير محدود (مفعّل VIP مدى الحياة)'
+                    : `استخدم <b>${stats.daysUsed}</b> من <b>${stats.daysMax}</b> يوم — المتبقي: <b>${stats.daysRemaining} يوم</b> (بدأ: ${this._esc(stats.trialStartDateStr)})`;
+                const ordersLine = stats.isVip
+                    ? `<b>${stats.ordersUsed}</b> طلب (غير محدود • المحوّل لفاتورة: ${stats.confirmedOrders})`
+                    : `استخدم <b>${stats.ordersUsed}</b> من <b>${stats.ordersMax}</b> طلب — المتبقي: <b>${stats.ordersRemaining} طلب</b> (المحوّل لفاتورة: ${stats.confirmedOrders})`;
+
+                let extraBlock = '';
+                if (eventType === 'vip_activated' && extra.code) {
+                    extraBlock = `\n🔑 <b>كود التفعيل:</b> <code>${this._esc(extra.code)}</code>`;
+                } else if (eventType === 'new_order') {
+                    extraBlock = `\n📦 <b>آخر طلب:</b> #${this._esc(extra.lastOrderNo || '-')} | العميل: ${this._esc(extra.lastOrderCustomer || '-')} | القيمة: <b>${(parseFloat(extra.lastOrderTotal) || 0).toFixed(2)} ج.م</b>`;
+                } else if (eventType === 'order_converted') {
+                    extraBlock = `\n🧾 <b>رقم الطلب:</b> #${this._esc(extra.orderNo || '-')} ⬅️ <b>فاتورة POS:</b> #${this._esc(extra.posInvoiceNo || '-')}`;
+                } else if (eventType === 'products_synced') {
+                    extraBlock = `\n📤 <b>الأصناف المزامنة الآن:</b> <b>${extra.syncedCount || 0}</b> صنف`;
+                }
+
+                const msg = `${header}\n` +
+                    `━━━━━━━━━━━━━━\n` +
+                    `🏢 <b>المحل:</b> ${this._esc(profile.shopName)}\n` +
+                    `👤 <b>المستخدم:</b> ${this._esc(profile.userName)}${profile.userRole ? ' (' + this._esc(profile.userRole) + ')' : ''}\n` +
+                    `📱 <b>التليفون:</b> <code>${this._esc(profile.phones)}</code>\n` +
+                    `📍 <b>العنوان:</b> ${this._esc(profile.shopAddress)}\n` +
+                    `🆔 <b>كود المتجر:</b> <code>${this._esc(profile.shopId)}</code>\n` +
+                    `💻 <b>معرّف الجهاز:</b> <code>${this._esc(profile.machineId)}</code>\n` +
+                    `📦 <b>الباقة والإصدار:</b> ${this._esc(profile.plan)} | v${this._esc(profile.appVersion)}\n` +
+                    `🌐 <b>رابط المتجر:</b> ${this._esc(profile.storeUrl)}\n` +
+                    `━━━━━━━━━━━━━━\n` +
+                    `📌 <b>حالة الأونلاين:</b> ${stats.statusLabel}` +
+                    (stats.vipCode ? ` (<code>${this._esc(stats.vipCode)}</code>)` : '') + `\n` +
+                    `📅 <b>الأيام:</b> ${daysLine}\n` +
+                    `🛒 <b>الطلبات:</b> ${ordersLine}\n` +
+                    `💰 <b>إجمالي مبيعات الأونلاين:</b> <b>${stats.totalSales.toFixed(2)} ج.م</b>\n` +
+                    `🛍️ <b>الأصناف المنشورة:</b> <b>${stats.publishedProductsCount}</b> من إجمالي ${stats.totalProductsCount} صنف` +
+                    `${extraBlock}\n` +
+                    `🕒 <b>الوقت:</b> ${new Date().toLocaleString('ar-EG')}`;
+
+                const throttleMap = {
+                    first_use: 0,
+                    vip_activated: 0,
+                    trial_expired: 12 * 60 * 60 * 1000,
+                    new_order: 5000,
+                    order_converted: 15000,
+                    products_synced: 15 * 60 * 1000,
+                    daily_heartbeat: 23 * 60 * 60 * 1000
+                };
+                const minInterval = throttleMap[eventType] != null ? throttleMap[eventType] : 60000;
+
+                return await window.TelegramDevNotify.send(msg, {
+                    type: `online_store_${eventType}`,
+                    minInterval
+                });
+            } catch (_) {
+                return false;
+            }
+        },
+
+        checkDailyTelemetryHeartbeat() {
+            try {
+                if (!navigator.onLine) return;
+                const last = Number(localStorage.getItem('bayan_oo_tg_last_daily') || 0);
+                const now = Date.now();
+                if (now - last >= 24 * 60 * 60 * 1000) {
+                    localStorage.setItem('bayan_oo_tg_last_daily', String(now));
+                    this.reportOnlineStoreActivity('daily_heartbeat');
+                }
+            } catch (_) { }
+        },
+
         isStoreUnlocked() {
             try {
                 if (localStorage.getItem('bayan_store_vip_unlocked') === '1') return true;
@@ -366,9 +623,14 @@
                 const clean = String(inp?.value || '').trim().toUpperCase();
                 if (clean === 'BAYAN-VIP-2026' || clean.startsWith('BAYAN-PRO-')) {
                     localStorage.setItem('bayan_store_vip_unlocked', '1');
-                    if (typeof setStore === 'function') setStore('bayan_store_vip_unlocked', '1');
+                    localStorage.setItem('bayan_store_vip_code', clean);
+                    if (typeof setStore === 'function') {
+                        setStore('bayan_store_vip_unlocked', '1');
+                        setStore('bayan_store_vip_code', clean);
+                    }
                     modal.remove();
                     if (typeof showToast === 'function') showToast('🎉 تم تفعيل باقة المتجر الإلكتروني الدائمة بنجاح!', 'success');
+                    this.reportOnlineStoreActivity('vip_activated', { code: clean });
                     const sec = document.getElementById('online-orders-section');
                     if (sec) { sec.dataset.initialized = ''; this.renderSectionShell(); this.renderTable(); }
                 } else {
@@ -389,6 +651,13 @@
             sec.dataset.initialized = '1';
 
             if (!this.isStoreUnlocked()) {
+                try {
+                    const lastExp = Number(localStorage.getItem('bayan_oo_tg_last_expired') || 0);
+                    if (Date.now() - lastExp >= 12 * 60 * 60 * 1000) {
+                        localStorage.setItem('bayan_oo_tg_last_expired', String(Date.now()));
+                        this.reportOnlineStoreActivity('trial_expired');
+                    }
+                } catch (_) { }
                 sec.innerHTML = `
                     <div class="products-panel" style="width:100%; min-height:70vh; background:#f8fafc; border-radius:16px; border:1.5px solid #e2e8f0; padding:32px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:14px;">
                         <div style="font-size:3rem;">🔒</div>
@@ -399,8 +668,17 @@
                 return;
             }
 
+            try {
+                if (!localStorage.getItem('bayan_oo_tg_first_use')) {
+                    localStorage.setItem('bayan_oo_tg_first_use', String(Date.now()));
+                    this.reportOnlineStoreActivity('first_use');
+                }
+            } catch (_) { }
+
             const storeUrl = this._esc(this.getStoreUrl());
             const shopId = this._esc(this.getShopId());
+            const usageStats = this.getUsageStats();
+            const trialPillText = `🎁 تجريبي (متبقي ${usageStats.daysRemaining} يوم / ${usageStats.ordersRemaining} طلب) • 🔑 تفعيل الباقة`;
 
             sec.innerHTML = `
                 <div class="products-panel" style="width:100%; min-height:85vh; background:#f8fafc; border-radius:16px; border:1.5px solid #e2e8f0; padding:16px; display:flex; flex-direction:column; gap:14px;">
@@ -411,9 +689,9 @@
                             <span style="background:linear-gradient(135deg,#f97316,#ea580c); color:white; padding:3px 10px; border-radius:999px; font-size:0.74rem; font-weight:900;">NEW • جديد</span>
                             <span id="onlineOrdersStatusPill"></span>
                             <span style="background:#f1f5f9; color:#334155; padding:4px 10px; border-radius:8px; font-size:0.78rem; font-weight:800; font-family:monospace;">كود المحل: ${shopId}</span>
-                            ${localStorage.getItem('bayan_store_vip_unlocked') === '1'
-                                ? '<span style="background:#dcfce7; color:#166534; border:1px solid #86efac; padding:3px 10px; border-radius:999px; font-size:0.76rem; font-weight:900;">👑 باقة المتجر مفعّلة بالكامل</span>'
-                                : '<button type="button" onclick="BayanOnlineOrders.activateStoreVip()" style="background:#fef3c7; color:#92400e; border:1px solid #f59e0b; padding:3px 10px; border-radius:999px; font-size:0.76rem; font-weight:900; cursor:pointer; font-family:Cairo,sans-serif;" title="اضغط لإدخال كود التفعيل الدائم">🎁 فترة تجريبية مجانية (7 أيام / 10 طلبات) • 🔑 تفعيل الباقة</button>'}
+                            ${usageStats.isVip
+                    ? '<span style="background:#dcfce7; color:#166534; border:1px solid #86efac; padding:3px 10px; border-radius:999px; font-size:0.76rem; font-weight:900;">👑 باقة المتجر مفعّلة بالكامل</span>'
+                    : `<button type="button" onclick="BayanOnlineOrders.activateStoreVip()" style="background:#fef3c7; color:#92400e; border:1px solid #f59e0b; padding:3px 10px; border-radius:999px; font-size:0.76rem; font-weight:900; cursor:pointer; font-family:Cairo,sans-serif;" title="اضغط لإدخال كود التفعيل الدائم">${trialPillText}</button>`}
                         </div>
                         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                             <input type="text" id="onlineStoreUrlInput" value="${storeUrl}" readonly style="width:280px; max-width:100%; padding:7px 10px; border-radius:8px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.78rem; font-family:monospace; color:#334155;" dir="ltr">
@@ -882,8 +1160,12 @@
                 });
 
                 if (typeof showToast === 'function') {
-                    showToast(`✅ تم تحويل الطلب #${order.id} وحفظه كفاتورة بيع رقم #${invId} بنجاح!`, 'success', 6000);
+                    showToast(`✅ تم تحويل الطلب #${order.seqId || order.id} وحفظه كفاتورة بيع رقم #${invId} بنجاح!`, 'success', 6000);
                 }
+                this.reportOnlineStoreActivity('order_converted', {
+                    orderNo: order.seqId || order.orderNumber || order.id,
+                    posInvoiceNo: String(invId)
+                });
             } catch (err) {
                 console.error('[OnlineOrders] Direct conversion error:', err);
                 if (typeof showToast === 'function') showToast('❌ تعذر حفظ الفاتورة: ' + err.message, 'error');
@@ -1023,6 +1305,9 @@
             }
             if (typeof showToast === 'function') {
                 showToast(`✅ تمت مزامنة ${okCount} من ${published.length} صنف مع المتجر الإلكتروني بنجاح!`, 'success', 5000);
+            }
+            if (okCount > 0) {
+                this.reportOnlineStoreActivity('products_synced', { syncedCount: okCount });
             }
             return okCount;
         },

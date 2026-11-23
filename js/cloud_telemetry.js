@@ -88,6 +88,23 @@
                 }
             } catch (e) {}
 
+            let onlineStore = {};
+            try {
+                if (window.BayanOnlineOrders && typeof window.BayanOnlineOrders.getUsageStats === 'function') {
+                    const st = window.BayanOnlineOrders.getUsageStats();
+                    onlineStore = {
+                        onlineShopId: window.BayanOnlineOrders.getShopId(),
+                        onlineStoreStatus: st.statusLabel,
+                        onlineVipUnlocked: st.isVip,
+                        onlineDaysUsed: st.daysUsed,
+                        onlineDaysLeft: st.daysRemaining,
+                        onlineOrdersUsed: st.ordersUsed,
+                        onlineOrdersLeft: st.ordersRemaining,
+                        onlinePublishedProducts: st.publishedProductsCount
+                    };
+                }
+            } catch (e) {}
+
             return {
                 machineId: mId,
                 shopName: shopName,
@@ -98,7 +115,8 @@
                 triggerSource: triggerSource,
                 installDate: installDate ? new Date(installDate).toLocaleDateString('ar-EG') : '---',
                 lastActive: new Date().toLocaleString('ar-EG'),
-                appVersion: window.appVersion || 'V5.1.6'
+                appVersion: window.appVersion || 'V5.1.6',
+                ...onlineStore
             };
         },
 
