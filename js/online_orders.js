@@ -342,16 +342,44 @@
         },
 
         activateStoreVip() {
-            const code = prompt('أدخل كود تفعيل باقة المتجر الإلكتروني:');
-            if (!code) return;
-            const clean = code.trim().toUpperCase();
-            if (clean === 'BAYAN-VIP-2026' || clean.startsWith('BAYAN-PRO-')) {
-                localStorage.setItem('bayan_store_vip_unlocked', '1');
-                if (typeof showToast === 'function') showToast('🎉 تم تفعيل باقة المتجر الإلكتروني بنجاح!', 'success');
-                const sec = document.getElementById('online-orders-section');
-                if (sec) { sec.dataset.initialized = ''; this.renderSectionShell(); }
-            } else {
-                alert('❌ كود التفعيل غير صحيح!');
+            const old = document.getElementById('bayanStoreVipModal');
+            if (old) old.remove();
+            const modal = document.createElement('div');
+            modal.id = 'bayanStoreVipModal';
+            modal.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,0.78); z-index:9999999; display:flex; align-items:center; justify-content:center; padding:16px; direction:rtl; font-family:Cairo,sans-serif;';
+            modal.innerHTML = `
+                <div style="background:#fff; border-radius:18px; width:430px; max-width:94vw; padding:24px; box-shadow:0 25px 60px rgba(0,0,0,0.4); text-align:center;">
+                    <div style="font-size:2.4rem; margin-bottom:6px;">🔑</div>
+                    <h3 style="margin:0 0 6px; font-size:1.2rem; font-weight:900; color:#0f172a;">تفعيل باقة المتجر الإلكتروني الدائمة</h3>
+                    <p style="margin:0 0 14px; font-size:0.84rem; color:#475569; font-weight:700; line-height:1.6;">أدخل كود التفعيل الخاص بك لفتح قسم «طلبات الأونلاين» والمزامنة السحابية مدى الحياة بدون قيود:</p>
+                    <input type="text" id="bayanStoreVipCodeInput" placeholder="أدخل كود التفعيل..." dir="ltr" style="width:100%; padding:11px 14px; border:2px solid #cbd5e1; border-radius:12px; font-size:1rem; font-weight:900; text-align:center; text-transform:uppercase; outline:none; box-sizing:border-box; margin-bottom:10px; font-family:monospace;">
+                    <div id="bayanStoreVipErr" style="display:none; color:#dc2626; font-size:0.82rem; font-weight:800; margin-bottom:10px;">❌ كود التفعيل غير صحيح! يرجى التأكد والمحاولة مرة أخرى.</div>
+                    <div style="display:flex; gap:10px; margin-top:6px;">
+                        <button type="button" id="bayanStoreVipConfirmBtn" style="flex:1.4; background:#16a34a; color:#fff; border:none; padding:11px 16px; border-radius:12px; font-weight:900; font-size:0.95rem; cursor:pointer; font-family:Cairo,sans-serif;">✅ تفعيل الباقة الآن</button>
+                        <button type="button" onclick="document.getElementById('bayanStoreVipModal').remove()" style="flex:1; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:11px 14px; border-radius:12px; font-weight:800; font-size:0.9rem; cursor:pointer; font-family:Cairo,sans-serif;">إلغاء</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(modal);
+            const inp = document.getElementById('bayanStoreVipCodeInput');
+            const err = document.getElementById('bayanStoreVipErr');
+            const doActivate = () => {
+                const clean = String(inp?.value || '').trim().toUpperCase();
+                if (clean === 'BAYAN-VIP-2026' || clean.startsWith('BAYAN-PRO-')) {
+                    localStorage.setItem('bayan_store_vip_unlocked', '1');
+                    if (typeof setStore === 'function') setStore('bayan_store_vip_unlocked', '1');
+                    modal.remove();
+                    if (typeof showToast === 'function') showToast('🎉 تم تفعيل باقة المتجر الإلكتروني الدائمة بنجاح!', 'success');
+                    const sec = document.getElementById('online-orders-section');
+                    if (sec) { sec.dataset.initialized = ''; this.renderSectionShell(); this.renderTable(); }
+                } else {
+                    if (err) err.style.display = 'block';
+                    if (inp) inp.focus();
+                }
+            };
+            document.getElementById('bayanStoreVipConfirmBtn').onclick = doActivate;
+            if (inp) {
+                inp.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') doActivate(); });
+                setTimeout(() => inp.focus(), 50);
             }
         },
 

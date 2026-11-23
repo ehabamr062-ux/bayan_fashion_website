@@ -1121,25 +1121,25 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                     transform: translate(-50%, -50%) rotate(180deg) !important;
                 }
 
-                /* زاوية -90° (السعر بطول الورقة بالكامل + فصل تام بين حرف ج في الأعلى والسعر أسفله) */
+                /* زاوية -90° (السعر بطول الورقة بالكامل: جـ فوق السعر قريبة منه، و L.E تحت السعر) */
                 body[data-angle="-90"] .price-tag-label.vertical .pt-vertical-rotator {
                     width: ${printHeight}mm !important;
                     height: ${printWidth}mm !important;
                     flex-direction: column !important;
                     direction: rtl !important;
-                    justify-content: space-between !important;
-                    gap: 0 !important;
-                    padding: 2.2mm 0.8mm 2.8mm 0.8mm !important;
+                    justify-content: center !important;
+                    gap: 1.8mm !important;
+                    padding: 2mm 0.8mm !important;
                     transform: translate(-50%, -50%) rotate(-90deg) !important;
                 }
                 body[data-angle="-90"] .price-tag-label.vertical .pt-currency-badge-vert {
                     transform: none !important;
-                    font-size: ${isSmall ? '22pt' : '26pt'};
+                    font-size: ${isSmall ? '21pt' : '25pt'};
                     line-height: 1;
-                    padding-bottom: 1.5mm;
+                    padding: 0;
+                    margin-top: 1.5mm;
                 }
                 body[data-angle="-90"] .price-tag-label.vertical .pt-price-num-vert {
-                    flex: 1;
                     display: flex;
                     align-items: center;
                     justify-content: center;
@@ -1148,31 +1148,45 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                     line-height: 1;
                 }
 
-                /* زاوية +90° (السعر بطول الورقة بالكامل معكوس الاتجاه + فصل تام بين ج والسعر) */
+                /* زاوية +90° (نفس التنسيق معكوس الاتجاه) */
                 body[data-angle="90"] .price-tag-label.vertical .pt-vertical-rotator {
                     width: ${printHeight}mm !important;
                     height: ${printWidth}mm !important;
                     flex-direction: column !important;
                     direction: rtl !important;
-                    justify-content: space-between !important;
-                    gap: 0 !important;
-                    padding: 2.2mm 0.8mm 2.8mm 0.8mm !important;
+                    justify-content: center !important;
+                    gap: 1.8mm !important;
+                    padding: 2mm 0.8mm !important;
                     transform: translate(-50%, -50%) rotate(90deg) !important;
                 }
                 body[data-angle="90"] .price-tag-label.vertical .pt-currency-badge-vert {
                     transform: none !important;
-                    font-size: ${isSmall ? '22pt' : '26pt'};
+                    font-size: ${isSmall ? '21pt' : '25pt'};
                     line-height: 1;
-                    padding-bottom: 1.5mm;
+                    padding: 0;
+                    margin-top: 1.5mm;
                 }
                 body[data-angle="90"] .price-tag-label.vertical .pt-price-num-vert {
-                    flex: 1;
                     display: flex;
                     align-items: center;
                     justify-content: center;
                     font-size: var(--pt-upright-fs, 34pt);
                     transform: scaleY(1.22) !important;
                     line-height: 1;
+                }
+
+                /* عند اختيار العملة الإنجليزية L.E تكون دائماً تحت السعر */
+                body[data-currency="LE"][data-angle="-90"] .price-tag-label.vertical .pt-vertical-rotator,
+                body[data-currency="LE"][data-angle="90"] .price-tag-label.vertical .pt-vertical-rotator {
+                    flex-direction: column-reverse !important;
+                }
+                body[data-currency="LE"][data-angle="-90"] .price-tag-label.vertical .pt-currency-badge-vert,
+                body[data-currency="LE"][data-angle="90"] .price-tag-label.vertical .pt-currency-badge-vert {
+                    margin-top: 1.5mm !important;
+                    font-size: ${isSmall ? '16pt' : '20pt'} !important;
+                }
+                body[data-currency="LE"] .price-tag-label.vertical .pt-currency-badge-vert {
+                    order: 2;
                 }
 
                 @media print {
@@ -1219,7 +1233,7 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                 }
             </style>
         </head>
-        <body data-angle="${isVertical ? savedVertAngle : '0'}">
+        <body data-angle="${isVertical ? savedVertAngle : '0'}" data-currency="${currencySign === 'L.E' ? 'LE' : 'EG'}">
             <div class="no-print" style="text-align: center; margin-bottom: 12px; padding: 10px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;">
                 <button onclick="window.print()" style="background: #059669; color: white; padding: 9px 24px; font-size: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: 900; box-shadow: 0 2px 6px rgba(5,150,105,0.3);">🖨️ بدء طباعة تيكت السعر (${isVertical ? 'طولي للشنط والأحذية' : 'أفقي عريض'})</button>
                 ${isVertical ? `<button type="button" id="btnToggleVertCurrency" onclick="window.togglePriceTagVertCurrency()" style="background: #0284c7; color: white; padding: 9px 18px; font-size: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 900; box-shadow: 0 2px 6px rgba(2,132,199,0.3);" title="التبديل بين رمز (جـ) بالعربي و (L.E) بالإنجليزي">💱 العملة: (<span id="ptVertCurrencyLabel">${currencySign}</span>) — اضغط للتبديل بين جـ و L.E</button>
@@ -1263,6 +1277,7 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                         var cur = (lbl ? lbl.textContent.trim() : 'جـ');
                         var next = (cur === 'L.E') ? 'جـ' : 'L.E';
                         if (lbl) lbl.textContent = next;
+                        document.body.setAttribute('data-currency', next === 'L.E' ? 'LE' : 'EG');
                         for (var i = 0; i < badges.length; i++) {
                             badges[i].textContent = next;
                         }
