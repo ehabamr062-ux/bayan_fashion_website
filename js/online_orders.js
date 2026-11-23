@@ -239,6 +239,12 @@
                             return tb - ta;
                         });
 
+                        const totalOrdersCount = list.length;
+                        list.forEach((o, idx) => {
+                            const seq = totalOrdersCount - idx;
+                            o.seqId = o.orderNumber || (/^\d+$/.test(String(o.id || '')) ? o.id : seq);
+                        });
+
                         this.orders = list;
                         this._initialLoaded = true;
                         this._saveCachedOrders();
@@ -519,7 +525,7 @@
 
                 return `
                     <tr>
-                        <td style="text-align:center; font-weight:900; color:#0284c7;">#${this._esc(o.id || '-')}</td>
+                        <td style="text-align:center; font-weight:900; color:#0284c7;">#${this._esc(o.seqId || o.orderNumber || o.id || '-')}</td>
                         <td style="text-align:center; font-size:0.82rem; color:#475569;">${this._esc(dtStr)}</td>
                         <td style="text-align:right;">
                             <div style="font-weight:900; color:#0f172a;">${this._esc(o.customerName || '-')}</div>
@@ -598,7 +604,7 @@
                 <div style="background:white; border-radius:18px; width:780px; max-width:96vw; max-height:90vh; overflow:auto; padding:22px; box-shadow:0 25px 60px rgba(0,0,0,0.4);">
                     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid #e2e8f0; padding-bottom:12px; margin-bottom:14px;">
                         <div style="display:flex; align-items:center; gap:10px;">
-                            <h3 style="margin:0; font-size:1.2rem; font-weight:900; color:#0f172a;">📦 تفاصيل طلب أونلاين #${this._esc(order.id)}</h3>
+                            <h3 style="margin:0; font-size:1.2rem; font-weight:900; color:#0f172a;">📦 تفاصيل طلب أونلاين #${this._esc(order.seqId || order.orderNumber || order.id)}</h3>
                             <span style="background:${stMeta.bg}; color:${stMeta.color}; border:1px solid ${stMeta.border}; padding:3px 10px; border-radius:999px; font-size:0.78rem; font-weight:900;">${stMeta.icon} ${stMeta.label}</span>
                         </div>
                         <button type="button" onclick="document.getElementById('onlineOrderDetailsModal').remove()" style="background:#f1f5f9; border:none; width:34px; height:34px; border-radius:10px; font-weight:900; cursor:pointer;">✕</button>
