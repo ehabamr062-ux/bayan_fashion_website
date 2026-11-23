@@ -580,6 +580,16 @@
                 `;
             }).join('');
 
+            const rawSub = parseFloat(order.subtotal) || items.reduce((s, it) => s + ((parseFloat(it.price) || 0) * (parseFloat(it.qty) || 1)), 0);
+            const rawDisc = parseFloat(order.discountAmount) || 0;
+            const rawShip = parseFloat(order.deliveryFee ?? order.shippingFee) || 0;
+            const rawGrand = parseFloat(order.grandTotal) || Math.max(0, rawSub - rawDisc + rawShip);
+            const cTypeLabel = order.couponCode
+                ? (order.couponType === 'percent' ? `نسبة ${order.couponValue || ''}%` : 'خصم نقدي ثابت')
+                : (rawDisc > 0 ? 'خصم عرض كميات' : '');
+            const couponSummaryText = (order.couponCode || rawDisc > 0)
+                ? `<span style="color:#dc2626; font-weight:900;">${this._esc(order.couponCode || 'عرض خاص')} (${this._esc(cTypeLabel)}) — خصم ${rawDisc.toFixed(2)} ج.م</span>`
+                : 'لا يوجد';
             const keyEsc = this._esc(order.firestoreId || order.id);
             const modal = document.createElement('div');
             modal.id = 'onlineOrderDetailsModal';
@@ -599,8 +609,8 @@
                         <div><b>📱 الموبايل:</b> ${this._esc(order.phone1 || '-')} ${order.phone2 ? ' / ' + this._esc(order.phone2) : ''}</div>
                         <div><b>📍 المحافظة:</b> ${this._esc(order.city || '-')}</div>
                         <div><b>🏠 العنوان:</b> ${this._esc(order.address || '-')}</div>
-                        <div><b>🎟️ الكوبون:</b> ${order.couponCode ? `${this._esc(order.couponCode)} (-${(parseFloat(order.discountAmount) || 0).toFixed(2)} ج.م)` : 'لا يوجد'}</div>
-                        <div><b>🚚 مصاريف الشحن:</b> ${(parseFloat(order.deliveryFee) || 0).toFixed(2)} ج.م</div>
+                        <div><b>🎟️ الكوبون ونوع الخصم:</b> ${couponSummaryText}</div>
+                        <div><b>🚚 مصاريف الشحن:</b> ${rawShip.toFixed(2)} ج.م</div>
                         ${order.notes ? `<div style="grid-column:1/-1; color:#92400e; background:#fffbeb; padding:8px 10px; border-radius:8px; border:1px solid #fde68a;"><b>📝 ملاحظات العميل:</b> ${this._esc(order.notes)}</div>` : ''}
                     </div>
 
@@ -619,9 +629,24 @@
                         <tbody>${itemRowsHtml}</tbody>
                     </table>
 
-                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; background:#ecfdf5; border:1.5px solid #a7f3d0; padding:12px 16px; border-radius:12px; margin-bottom:16px;">
-                        <span style="font-weight:900; color:#065f46;">💵 الإجمالي النهائي (شامل الشحن):</span>
-                        <span style="font-size:1.3rem; font-weight:950; color:#047857;">${(parseFloat(order.grandTotal) || 0).toFixed(2)} ج.م</span>
+                    <div style="background:#ecfdf5; border:1.5px solid #a7f3d0; padding:14px 16px; border-radius:12px; margin-bottom:16px; display:flex; flex-direction:column; gap:6px;">
+                        <div style="display:flex; justify-content:space-between; font-size:0.88rem; color:#334155; font-weight:800;">
+                            <span>إجمالي الأصناف (قبل الخصم):</span>
+                            <span>${rawSub.toFixed(2)} ج.م</span>
+                        </div>
+                        ${rawDisc > 0 ? `
+                        <div style="display:flex; justify-content:space-between; font-size:0.88rem; color:#dc2626; font-weight:900;">
+                            <span>➖ خصم الكوبون (${this._esc(order.couponCode || 'عرض')} - ${this._esc(cTypeLabel)}):</span>
+                            <span>- ${rawDisc.toFixed(2)} ج.م</span>
+                        </div>` : ''}
+                        <div style="display:flex; justify-content:space-between; font-size:0.88rem; color:#334155; font-weight:800;">
+                            <span>➕ مصاريف الشحن:</span>
+                            <span>${rawShip.toFixed(2)} ج.م</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; border-top:1.5px dashed #6ee7b7; padding-top:8px; margin-top:2px;">
+                            <span style="font-weight:900; color:#065f46;">💵 الإجمالي النهائي بعد الخصم والشحن (${rawSub.toFixed(0)}${rawDisc > 0 ? ' - ' + rawDisc.toFixed(0) : ''}${rawShip > 0 ? ' + ' + rawShip.toFixed(0) : ''}):</span>
+                            <span style="font-size:1.35rem; font-weight:950; color:#047857;">${rawGrand.toFixed(2)} ج.م</span>
+                        </div>
                     </div>
 
                     ${isConverted ? `
