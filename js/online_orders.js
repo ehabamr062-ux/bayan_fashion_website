@@ -811,6 +811,81 @@
             }
         },
 
+        getShopLogoSrc() {
+            try {
+                const hdr = document.getElementById('headerLogo');
+                if (hdr && hdr.src && (hdr.src.startsWith('data:image') || (hdr.style.display !== 'none' && !hdr.src.endsWith('/')))) {
+                    return hdr.src;
+                }
+                if (typeof getStore === 'function') {
+                    const s = getStore('shopLogo') || getStore('bayan_shop_logo');
+                    if (s && String(s).trim()) return String(s).trim();
+                }
+                const ls = localStorage.getItem('shopLogo') || localStorage.getItem('bayan_shop_logo');
+                if (ls && String(ls).trim()) return String(ls).trim();
+                const prev = document.getElementById('settingsLogoPreview');
+                if (prev && prev.style && prev.style.backgroundImage && prev.style.backgroundImage.includes('url(')) {
+                    const m = prev.style.backgroundImage.match(/url\(["']?([^"')]+)["']?\)/);
+                    if (m && m[1]) return m[1];
+                }
+            } catch (_) { }
+            return '';
+        },
+
+        _buildMerchantProfileCardHtml(usageStats, shopId) {
+            const isPro = Boolean(usageStats && usageStats.isVip);
+            const logoSrc = this.getShopLogoSrc();
+            let shopName = 'متجر بَيَان';
+            try {
+                const el = document.getElementById('shopName');
+                if (el && el.value && el.value.trim()) shopName = el.value.trim();
+                else if (typeof getStore === 'function' && getStore('shopName')) shopName = String(getStore('shopName')).trim();
+            } catch (_) { }
+
+            const ringStyle = isPro
+                ? 'padding:3px; background:linear-gradient(135deg,#3b82f6 0%,#60a5fa 35%,#c4b5fd 65%,#2563eb 100%); box-shadow:0 0 14px rgba(59,130,246,0.55);'
+                : 'padding:2.5px; background:#475569; box-shadow:none;';
+
+            const avatarInner = logoSrc
+                ? `<img id="onlineOrdersProfileAvatarImg" src="${this._esc(logoSrc)}" alt="Logo" style="width:100%; height:100%; object-fit:cover; border-radius:50%; display:block; background:#1e293b;">`
+                : `<div id="onlineOrdersProfileAvatarImg" style="width:100%; height:100%; border-radius:50%; background:linear-gradient(135deg,#1e293b,#334155); display:flex; align-items:center; justify-content:center; font-size:1.45rem;">🏪</div>`;
+
+            const tierPill = isPro
+                ? `<span style="display:inline-flex; align-items:center; justify-content:center; padding:2px 13px; border-radius:999px; font-size:0.74rem; font-weight:900; letter-spacing:0.4px; color:#ffffff; background:radial-gradient(ellipse at 50% 100%, #60a5fa 0%, #1d4ed8 58%, #0f172a 100%); border:1px solid rgba(96,165,250,0.8); box-shadow:0 2px 10px rgba(59,130,246,0.5); font-family:system-ui,Cairo,sans-serif;">Pro</span>`
+                : `<span style="display:inline-flex; align-items:center; justify-content:center; padding:2px 12px; border-radius:999px; font-size:0.73rem; font-weight:800; color:#cbd5e1; background:#334155; border:1px solid #475569;">عادي</span>`;
+
+            const clickAttr = isPro
+                ? 'title="حساب Pro مفعّل بالكامل"'
+                : 'onclick="BayanOnlineOrders.activateStoreVip()" title="اضغط للترقية إلى حساب Pro" style="cursor:pointer;"';
+
+            return `
+                <div id="onlineOrdersMerchantProfileCard" ${isPro ? 'title="حساب Pro مفعّل بالكامل"' : 'onclick="BayanOnlineOrders.activateStoreVip()" title="اضغط للترقية إلى حساب Pro"'} style="display:flex; align-items:center; gap:12px; background:#0f172a; color:#f8fafc; padding:10px 16px; border-radius:20px; border:1.5px solid ${isPro ? 'rgba(59,130,246,0.45)' : '#334155'}; box-shadow:${isPro ? '0 8px 22px rgba(15,23,42,0.22), 0 0 12px rgba(59,130,246,0.18)' : '0 4px 12px rgba(15,23,42,0.14)'}; min-width:215px; flex-shrink:0; ${isPro ? '' : 'cursor:pointer;'}">
+                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex:1; min-width:0;">
+                        <div style="font-size:0.95rem; font-weight:900; color:#ffffff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:165px;">${this._esc(shopName)}</div>
+                        <div style="font-size:0.72rem; color:#94a3b8; font-family:monospace; direction:ltr;">${this._esc(shopId)}</div>
+                        <div style="margin-top:2px;">${tierPill}</div>
+                    </div>
+                    <div style="width:54px; height:54px; border-radius:50%; ${ringStyle} flex-shrink:0; box-sizing:border-box;">
+                        <div style="width:100%; height:100%; border-radius:50%; overflow:hidden; background:#0f172a; border:2px solid #0f172a; box-sizing:border-box;">
+                            ${avatarInner}
+                        </div>
+                    </div>
+                </div>
+            `;
+        },
+
+        refreshProfileBadge() {
+            const card = document.getElementById('onlineOrdersMerchantProfileCard');
+            if (!card || !card.parentElement) return;
+            const usageStats = this.getUsageStats();
+            const shopId = this.getShopId();
+            const tmp = document.createElement('div');
+            tmp.innerHTML = this._buildMerchantProfileCardHtml(usageStats, shopId).trim();
+            if (tmp.firstElementChild) {
+                card.replaceWith(tmp.firstElementChild);
+            }
+        },
+
         renderSectionShell() {
             const sec = document.getElementById('online-orders-section');
             if (!sec || sec.dataset.initialized === '1') return;
@@ -845,29 +920,33 @@
             const shopId = this._esc(this.getShopId());
             const usageStats = this.getUsageStats();
             const trialPillText = `🎁 تجريبي (متبقي ${usageStats.daysRemaining} يوم / ${usageStats.ordersRemaining} طلب) • 🔑 تفعيل الباقة`;
+            const profileCardHtml = this._buildMerchantProfileCardHtml(usageStats, this.getShopId());
 
             sec.innerHTML = `
                 <div class="products-panel" style="width:100%; min-height:85vh; background:#f8fafc; border-radius:16px; border:1.5px solid #e2e8f0; padding:16px; display:flex; flex-direction:column; gap:14px;">
-                    <!-- الشريط العلوي ورابط المتجر -->
-                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; background:white; padding:14px 18px; border-radius:14px; border:1.5px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
-                        <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-                            <h2 style="margin:0; font-size:1.2rem; font-weight:900; color:#0f172a;">🛒 طلبات المتجر الإلكتروني (الأونلاين)</h2>
-                            <span style="background:linear-gradient(135deg,#f97316,#ea580c); color:white; padding:3px 10px; border-radius:999px; font-size:0.74rem; font-weight:900;">NEW • جديد</span>
-                            <span id="onlineOrdersStatusPill"></span>
-                            <span style="background:#f1f5f9; color:#334155; padding:4px 10px; border-radius:8px; font-size:0.78rem; font-weight:800; font-family:monospace;">كود المحل: ${shopId}</span>
-                            ${usageStats.isVip
+                    <!-- الشريط العلوي ورابط المتجر وبطاقة هوية المحل Pro / عادي -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; background:white; padding:14px 18px; border-radius:14px; border:1.5px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+                        <div style="display:flex; flex-direction:column; gap:10px; flex:1; min-width:300px;">
+                            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                <h2 style="margin:0; font-size:1.2rem; font-weight:900; color:#0f172a;">🛒 طلبات المتجر الإلكتروني (الأونلاين)</h2>
+                                <span style="background:linear-gradient(135deg,#f97316,#ea580c); color:white; padding:3px 10px; border-radius:999px; font-size:0.74rem; font-weight:900;">NEW • جديد</span>
+                                <span id="onlineOrdersStatusPill"></span>
+                                <span style="background:#f1f5f9; color:#334155; padding:4px 10px; border-radius:8px; font-size:0.78rem; font-weight:800; font-family:monospace;">كود المحل: ${shopId}</span>
+                                ${usageStats.isVip
                     ? '<span style="background:#dcfce7; color:#166534; border:1px solid #86efac; padding:3px 10px; border-radius:999px; font-size:0.76rem; font-weight:900;">👑 باقة المتجر مفعّلة بالكامل</span>'
                     : `<button type="button" onclick="BayanOnlineOrders.activateStoreVip()" style="background:#fef3c7; color:#92400e; border:1px solid #f59e0b; padding:3px 10px; border-radius:999px; font-size:0.76rem; font-weight:900; cursor:pointer; font-family:Cairo,sans-serif;" title="اضغط لإدخال كود التفعيل الدائم">${trialPillText}</button>`}
+                            </div>
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                                <input type="text" id="onlineStoreUrlInput" value="${storeUrl}" readonly style="width:270px; max-width:100%; padding:7px 10px; border-radius:8px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.78rem; font-family:monospace; color:#334155;" dir="ltr">
+                                <button type="button" onclick="BayanOnlineOrders.copyStoreUrl()" style="background:#0284c7; color:white; border:none; padding:8px 13px; border-radius:8px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif;">📋 نسخ رابط المتجر</button>
+                                <button type="button" onclick="BayanOnlineOrders.openStorePreview()" style="background:#0f172a; color:white; border:none; padding:8px 13px; border-radius:8px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif;">🌐 فتح المتجر</button>
+                                <button type="button" onclick="BayanOnlineOrders.openAdminPanel()" style="background:#7c3aed; color:white; border:none; padding:8px 13px; border-radius:8px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif;">⚙️ لوحة تحكم المتجر</button>
+                                <button type="button" onclick="BayanOnlineOrders.publishAllProductsToStore()" style="background:#ea580c; color:white; border:none; padding:8px 13px; border-radius:8px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif;">🚀 نشر كل الأصناف</button>
+                                <button type="button" onclick="BayanOnlineOrders.syncAllPublishedProducts()" style="background:#059669; color:white; border:none; padding:8px 13px; border-radius:8px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif;">📤 مزامنة المنشور</button>
+                                <button type="button" onclick="BayanOnlineOrders.startListening()" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:8px 11px; border-radius:8px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif;">🔄 تحديث</button>
+                            </div>
                         </div>
-                        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                            <input type="text" id="onlineStoreUrlInput" value="${storeUrl}" readonly style="width:280px; max-width:100%; padding:7px 10px; border-radius:8px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.78rem; font-family:monospace; color:#334155;" dir="ltr">
-                            <button type="button" onclick="BayanOnlineOrders.copyStoreUrl()" style="background:#0284c7; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">📋 نسخ رابط المتجر</button>
-                            <button type="button" onclick="BayanOnlineOrders.openStorePreview()" style="background:#0f172a; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">🌐 فتح المتجر</button>
-                            <button type="button" onclick="BayanOnlineOrders.openAdminPanel()" style="background:#7c3aed; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">⚙️ لوحة تحكم المتجر</button>
-                            <button type="button" onclick="BayanOnlineOrders.publishAllProductsToStore()" style="background:#ea580c; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">🚀 نشر كل الأصناف</button>
-                            <button type="button" onclick="BayanOnlineOrders.syncAllPublishedProducts()" style="background:#059669; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">📤 مزامنة المنشور</button>
-                            <button type="button" onclick="BayanOnlineOrders.startListening()" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:8px 12px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">🔄 تحديث</button>
-                        </div>
+                        ${profileCardHtml}
                     </div>
 
                     <!-- كروت الملخص -->

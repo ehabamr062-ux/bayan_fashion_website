@@ -628,6 +628,9 @@ function updateLogoDisplays(src) {
             settingsPreview.innerHTML = '<span style="font-size: 3rem; opacity: 0.25;">🏢</span>';
         }
     }
+    if (window.BayanOnlineOrders && typeof window.BayanOnlineOrders.refreshProfileBadge === 'function') {
+        try { window.BayanOnlineOrders.refreshProfileBadge(); } catch (_) { }
+    }
 }
 
 window.removeBusinessLogo = function () {
