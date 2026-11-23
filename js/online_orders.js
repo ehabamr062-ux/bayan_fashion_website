@@ -194,6 +194,7 @@
         },
 
         async startListening() {
+            this._ensureMachineId().catch(() => { });
             this._loadCachedOrders();
             this._updateBadges();
 
@@ -344,10 +345,10 @@
             let vipCode = '';
             let trialStartTs = 0;
             try {
-                isVip = localStorage.getItem('bayan_store_vip_unlocked') === '1'
-                    || (typeof getStore === 'function' && getStore('bayan_store_vip_unlocked') === '1');
                 vipCode = localStorage.getItem('bayan_store_vip_code')
                     || (typeof getStore === 'function' ? (getStore('bayan_store_vip_code') || '') : '');
+                const cachedHw = this._getSyncMachineId();
+                isVip = Boolean(vipCode && cachedHw && this.verifyOnlineVipCode(vipCode, this.getShopId(), cachedHw));
                 trialStartTs = Number(localStorage.getItem('bayan_store_trial_start') || 0);
             } catch (_) { }
 
@@ -585,9 +586,146 @@
             } catch (_) { }
         },
 
+        // =========================================================================
+        // 🔐 نظام التشفير والتحقق الصارم لكود باقة الأونلاين (HWID + ShopID + XZCV)
+        // =========================================================================
+        _cachedMachineId: '',
+
+        _sha256HexSync(str) {
+            const utf8 = unescape(encodeURIComponent(String(str || '')));
+            const bytes = [];
+            for (let i = 0; i < utf8.length; i++) bytes.push(utf8.charCodeAt(i));
+            const bitLen = bytes.length * 8;
+            bytes.push(0x80);
+            while ((bytes.length % 64) !== 56) bytes.push(0);
+            for (let i = 7; i >= 0; i--) bytes.push((bitLen / Math.pow(2, i * 8)) & 0xff);
+
+            const K = [
+                0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+                0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+                0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+                0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+                0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+                0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+                0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+                0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+            ];
+            let H = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+            const rotr = (n, x) => (x >>> n) | (x << (32 - n));
+            const W = new Array(64);
+
+            for (let i = 0; i < bytes.length; i += 64) {
+                for (let t = 0; t < 16; t++) {
+                    W[t] = (bytes[i + t * 4] << 24) | (bytes[i + t * 4 + 1] << 16) | (bytes[i + t * 4 + 2] << 8) | bytes[i + t * 4 + 3];
+                }
+                for (let t = 16; t < 64; t++) {
+                    const s0 = rotr(7, W[t - 15]) ^ rotr(18, W[t - 15]) ^ (W[t - 15] >>> 3);
+                    const s1 = rotr(17, W[t - 2]) ^ rotr(19, W[t - 2]) ^ (W[t - 2] >>> 10);
+                    W[t] = (W[t - 16] + s0 + W[t - 7] + s1) | 0;
+                }
+                let [a, b, c, d, e, f, g, h] = H;
+                for (let t = 0; t < 64; t++) {
+                    const S1 = rotr(6, e) ^ rotr(11, e) ^ rotr(25, e);
+                    const ch = (e & f) ^ ((~e) & g);
+                    const temp1 = (h + S1 + ch + K[t] + W[t]) | 0;
+                    const S0 = rotr(2, a) ^ rotr(13, a) ^ rotr(22, a);
+                    const maj = (a & b) ^ (a & c) ^ (b & c);
+                    const temp2 = (S0 + maj) | 0;
+                    h = g; g = f; f = e; e = (d + temp1) | 0;
+                    d = c; c = b; b = a; a = (temp1 + temp2) | 0;
+                }
+                H = [(H[0] + a) | 0, (H[1] + b) | 0, (H[2] + c) | 0, (H[3] + d) | 0, (H[4] + e) | 0, (H[5] + f) | 0, (H[6] + g) | 0, (H[7] + h) | 0];
+            }
+            return H.map(v => (v >>> 0).toString(16).padStart(8, '0')).join('');
+        },
+
+        _getSyncMachineId() {
+            if (this._cachedMachineId) return this._cachedMachineId;
+            try {
+                if (typeof getMachineId === 'function') {
+                    const m = String(getMachineId() || '').trim();
+                    if (m) return m;
+                }
+            } catch (_) { }
+            try {
+                const cached = localStorage.getItem('bayan_online_cached_hwid');
+                if (cached && cached.trim()) return cached.trim();
+            } catch (_) { }
+            try {
+                const el = document.getElementById('displayMachineId');
+                if (el && el.innerText && el.innerText.trim()) return el.innerText.trim();
+            } catch (_) { }
+            return '';
+        },
+
+        async _ensureMachineId() {
+            try {
+                let mId = '';
+                if (typeof getUniqueHWID === 'function') mId = String(await getUniqueHWID() || '').trim();
+                else if (typeof getMachineId === 'function') mId = String(getMachineId() || '').trim();
+                else {
+                    const el = document.getElementById('displayMachineId');
+                    if (el && el.innerText) mId = el.innerText.trim();
+                }
+                if (mId) {
+                    this._cachedMachineId = mId;
+                    try { localStorage.setItem('bayan_online_cached_hwid', mId); } catch (_) { }
+                    return mId;
+                }
+            } catch (_) { }
+            return this._getSyncMachineId();
+        },
+
+        computeExpectedOnlineVipCode(shopId, machineId) {
+            const SECRET = 'XZCV';
+            const sClean = String(shopId || '').trim().toUpperCase();
+            const mClean = String(machineId || '').trim().toUpperCase();
+            if (!sClean || !mClean) return '';
+
+            const mParts = mClean.split(/[-_\s]+/).filter(Boolean);
+            const sParts = sClean.split(/[-_\s]+/).filter(Boolean);
+            const maxParts = Math.max(mParts.length, sParts.length);
+            const partMixArr = [];
+            for (let i = 0; i < maxParts; i++) {
+                if (mParts[i]) partMixArr.push(mParts[i]);
+                partMixArr.push(SECRET);
+                if (sParts[maxParts - 1 - i]) partMixArr.push(sParts[maxParts - 1 - i]);
+            }
+            const sRev = sClean.split('').reverse().join('');
+            const maxChars = Math.max(mClean.length, sRev.length);
+            let charMix = '';
+            for (let i = 0; i < maxChars; i++) {
+                if (i < mClean.length) charMix += mClean[i];
+                if (i < sRev.length) charMix += sRev[i];
+                charMix += SECRET[i % SECRET.length];
+            }
+
+            const raw1 = `BAYAN|PRO|${SECRET}|${partMixArr.join('#')}|${charMix}|${SECRET}|${mClean}|${sClean}`;
+            const h1 = this._sha256HexSync(raw1);
+            const h2 = this._sha256HexSync(`${SECRET}:${h1}:${sClean}:${mClean}:${SECRET}`);
+            const token20 = h2.slice(0, 20).toUpperCase();
+            return `BAYAN-PRO-${token20.slice(0, 5)}-${token20.slice(5, 10)}-${token20.slice(10, 15)}-${token20.slice(15, 20)}`;
+        },
+
+        verifyOnlineVipCode(inputCode, shopId, machineId) {
+            const raw = String(inputCode || '').trim().toUpperCase();
+            if (!raw) return false;
+            const normIn = raw.replace(/[^A-Z0-9]/g, '');
+            if (!normIn.startsWith('BAYANPRO') || normIn.length !== 28) return false;
+            const expected = this.computeExpectedOnlineVipCode(shopId, machineId);
+            if (!expected) return false;
+            const normExp = expected.replace(/[^A-Z0-9]/g, '');
+            return normIn === normExp;
+        },
+
         isStoreUnlocked() {
             try {
-                if (localStorage.getItem('bayan_store_vip_unlocked') === '1') return true;
+                const savedCode = localStorage.getItem('bayan_store_vip_code')
+                    || (typeof getStore === 'function' ? (getStore('bayan_store_vip_code') || '') : '');
+                const cachedHw = this._getSyncMachineId();
+                if (savedCode && cachedHw && this.verifyOnlineVipCode(savedCode, this.getShopId(), cachedHw)) {
+                    return true;
+                }
                 const startTs = Number(localStorage.getItem('bayan_store_trial_start') || 0);
                 if (!startTs) {
                     localStorage.setItem('bayan_store_trial_start', String(Date.now()));
@@ -598,39 +736,67 @@
             } catch (_) { return true; }
         },
 
-        activateStoreVip() {
+        async activateStoreVip() {
             const old = document.getElementById('bayanStoreVipModal');
             if (old) old.remove();
+            const shopId = this.getShopId();
+            const machineId = await this._ensureMachineId();
+
             const modal = document.createElement('div');
             modal.id = 'bayanStoreVipModal';
             modal.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,0.78); z-index:9999999; display:flex; align-items:center; justify-content:center; padding:16px; direction:rtl; font-family:Cairo,sans-serif;';
             modal.innerHTML = `
-                <div style="background:#fff; border-radius:18px; width:430px; max-width:94vw; padding:24px; box-shadow:0 25px 60px rgba(0,0,0,0.4); text-align:center;">
-                    <div style="font-size:2.4rem; margin-bottom:6px;">🔑</div>
-                    <h3 style="margin:0 0 6px; font-size:1.2rem; font-weight:900; color:#0f172a;">تفعيل باقة المتجر الإلكتروني الدائمة</h3>
-                    <p style="margin:0 0 14px; font-size:0.84rem; color:#475569; font-weight:700; line-height:1.6;">أدخل كود التفعيل الخاص بك لفتح قسم «طلبات الأونلاين» والمزامنة السحابية مدى الحياة بدون قيود:</p>
-                    <input type="text" id="bayanStoreVipCodeInput" placeholder="أدخل كود التفعيل..." dir="ltr" style="width:100%; padding:11px 14px; border:2px solid #cbd5e1; border-radius:12px; font-size:1rem; font-weight:900; text-align:center; text-transform:uppercase; outline:none; box-sizing:border-box; margin-bottom:10px; font-family:monospace;">
-                    <div id="bayanStoreVipErr" style="display:none; color:#dc2626; font-size:0.82rem; font-weight:800; margin-bottom:10px;">❌ كود التفعيل غير صحيح! يرجى التأكد والمحاولة مرة أخرى.</div>
+                <div style="background:#fff; border-radius:18px; width:470px; max-width:95vw; padding:24px; box-shadow:0 25px 60px rgba(0,0,0,0.4); text-align:center;">
+                    <div style="font-size:2.3rem; margin-bottom:4px;">🔐</div>
+                    <h3 style="margin:0 0 6px; font-size:1.18rem; font-weight:900; color:#0f172a;">تفعيل باقة المتجر الإلكتروني الدائمة</h3>
+                    <p style="margin:0 0 12px; font-size:0.83rem; color:#475569; font-weight:700; line-height:1.6;">أرسل بيانات المتجر والجهاز التالية للإدارة لاستلام كود التفعيل المشفّر الخاص بجهازك فقط:</p>
+                    <div style="background:#f8fafc; border:1.5px solid #e2e8f0; border-radius:12px; padding:10px 12px; margin-bottom:12px; text-align:right; font-size:0.82rem;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <span style="color:#64748b; font-weight:800;">🏪 كود المتجر:</span>
+                            <code style="background:#e2e8f0; color:#0f172a; padding:2px 8px; border-radius:6px; font-weight:900; direction:ltr;">${this._esc(shopId)}</code>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <span style="color:#64748b; font-weight:800;">💻 معرّف الجهاز:</span>
+                            <code style="background:#e2e8f0; color:#0f172a; padding:2px 8px; border-radius:6px; font-weight:900; direction:ltr;">${this._esc(machineId || '---')}</code>
+                        </div>
+                        <button type="button" id="bayanStoreCopyIdsBtn" style="width:100%; background:#0284c7; color:#fff; border:none; padding:7px 12px; border-radius:8px; font-weight:800; font-size:0.8rem; cursor:pointer; font-family:Cairo,sans-serif;">📋 نسخ بيانات المتجر والجهاز لإرسالها للإدارة</button>
+                    </div>
+                    <input type="text" id="bayanStoreVipCodeInput" placeholder="BAYAN-PRO-XXXXX-XXXXX-XXXXX-XXXXX" dir="ltr" style="width:100%; padding:11px 12px; border:2px solid #cbd5e1; border-radius:12px; font-size:0.9rem; font-weight:900; text-align:center; text-transform:uppercase; outline:none; box-sizing:border-box; margin-bottom:10px; font-family:monospace;">
+                    <div id="bayanStoreVipErr" style="display:none; color:#dc2626; font-size:0.82rem; font-weight:800; margin-bottom:10px;">❌ كود التفعيل غير صحيح أو لا يطابق هذا الجهاز والمتجر!</div>
                     <div style="display:flex; gap:10px; margin-top:6px;">
                         <button type="button" id="bayanStoreVipConfirmBtn" style="flex:1.4; background:#16a34a; color:#fff; border:none; padding:11px 16px; border-radius:12px; font-weight:900; font-size:0.95rem; cursor:pointer; font-family:Cairo,sans-serif;">✅ تفعيل الباقة الآن</button>
                         <button type="button" onclick="document.getElementById('bayanStoreVipModal').remove()" style="flex:1; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:11px 14px; border-radius:12px; font-weight:800; font-size:0.9rem; cursor:pointer; font-family:Cairo,sans-serif;">إلغاء</button>
                     </div>
                 </div>`;
             document.body.appendChild(modal);
+
+            const copyBtn = document.getElementById('bayanStoreCopyIdsBtn');
+            if (copyBtn) {
+                copyBtn.onclick = () => {
+                    const txt = `كود المتجر (Shop ID): ${shopId}\nمعرّف الجهاز (HWID): ${machineId}`;
+                    if (navigator.clipboard && navigator.clipboard.writeText) {
+                        navigator.clipboard.writeText(txt).then(() => {
+                            if (typeof showToast === 'function') showToast('📋 تم نسخ كود المتجر ومعرّف الجهاز بنجاح!', 'success');
+                        }).catch(() => { });
+                    }
+                };
+            }
+
             const inp = document.getElementById('bayanStoreVipCodeInput');
             const err = document.getElementById('bayanStoreVipErr');
             const doActivate = () => {
                 const clean = String(inp?.value || '').trim().toUpperCase();
-                if (clean === 'BAYAN-VIP-2026' || clean.startsWith('BAYAN-PRO-')) {
+                if (this.verifyOnlineVipCode(clean, shopId, machineId)) {
+                    const canonicalCode = this.computeExpectedOnlineVipCode(shopId, machineId);
                     localStorage.setItem('bayan_store_vip_unlocked', '1');
-                    localStorage.setItem('bayan_store_vip_code', clean);
+                    localStorage.setItem('bayan_store_vip_code', canonicalCode);
                     if (typeof setStore === 'function') {
                         setStore('bayan_store_vip_unlocked', '1');
-                        setStore('bayan_store_vip_code', clean);
+                        setStore('bayan_store_vip_code', canonicalCode);
                     }
                     modal.remove();
                     if (typeof showToast === 'function') showToast('🎉 تم تفعيل باقة المتجر الإلكتروني الدائمة بنجاح!', 'success');
-                    this.reportOnlineStoreActivity('vip_activated', { code: clean });
+                    this.reportOnlineStoreActivity('vip_activated', { code: canonicalCode });
                     const sec = document.getElementById('online-orders-section');
                     if (sec) { sec.dataset.initialized = ''; this.renderSectionShell(); this.renderTable(); }
                 } else {
