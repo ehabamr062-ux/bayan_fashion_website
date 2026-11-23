@@ -948,6 +948,7 @@
                 CREATE INDEX IF NOT EXISTS idx_prod_barcode ON products(barcode);
                 CREATE INDEX IF NOT EXISTS idx_prod_name ON products(name);
                 CREATE INDEX IF NOT EXISTS idx_prod_category ON products(category);
+                CREATE INDEX IF NOT EXISTS idx_prod_stock ON products(stock);
                 CREATE INDEX IF NOT EXISTS idx_prod_raw_code ON products(json_extract(raw_json, '$.code'));
                 CREATE INDEX IF NOT EXISTS idx_prod_raw_model ON products(json_extract(raw_json, '$.model'));
             `);
@@ -1224,6 +1225,7 @@
                 CREATE INDEX IF NOT EXISTS idx_ti_barcode_date ON transaction_items(barcode, dateISO DESC, time DESC);
                 CREATE INDEX IF NOT EXISTS idx_ti_wh_barcode ON transaction_items(warehouse, barcode);
                 CREATE INDEX IF NOT EXISTS idx_ti_prod_wh_date ON transaction_items(productName, warehouse, dateISO);
+                CREATE INDEX IF NOT EXISTS idx_ti_prod_date ON transaction_items(productName, dateISO DESC);
                 CREATE INDEX IF NOT EXISTS idx_ti_wh_date ON transaction_items(warehouse, dateISO);
                 CREATE INDEX IF NOT EXISTS idx_ti_date_type ON transaction_items(dateISO, type);
                 CREATE INDEX IF NOT EXISTS idx_ti_date_wh_prod ON transaction_items(dateISO, warehouse, productName, type, qty);
