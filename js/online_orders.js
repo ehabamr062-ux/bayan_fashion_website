@@ -843,30 +843,26 @@
             } catch (_) { }
 
             const ringStyle = isPro
-                ? 'padding:3px; background:linear-gradient(135deg,#3b82f6 0%,#60a5fa 35%,#c4b5fd 65%,#2563eb 100%); box-shadow:0 0 14px rgba(59,130,246,0.55);'
-                : 'padding:2.5px; background:#475569; box-shadow:none;';
+                ? 'padding:3px; background:linear-gradient(135deg,#3b82f6 0%,#60a5fa 35%,#c4b5fd 65%,#2563eb 100%); box-shadow:0 0 16px rgba(59,130,246,0.75);'
+                : 'padding:2.5px; background:#94a3b8; box-shadow:none;';
 
             const avatarInner = logoSrc
-                ? `<img id="onlineOrdersProfileAvatarImg" src="${this._esc(logoSrc)}" alt="Logo" style="width:100%; height:100%; object-fit:cover; border-radius:50%; display:block; background:#1e293b;">`
-                : `<div id="onlineOrdersProfileAvatarImg" style="width:100%; height:100%; border-radius:50%; background:linear-gradient(135deg,#1e293b,#334155); display:flex; align-items:center; justify-content:center; font-size:1.45rem;">🏪</div>`;
+                ? `<img id="onlineOrdersProfileAvatarImg" src="${this._esc(logoSrc)}" alt="Logo" style="width:100%; height:100%; object-fit:cover; border-radius:50%; display:block; background:#ffffff;">`
+                : `<div id="onlineOrdersProfileAvatarImg" style="width:100%; height:100%; border-radius:50%; background:linear-gradient(135deg,#064e3b,#047857); display:flex; align-items:center; justify-content:center; font-size:1.45rem;">🏪</div>`;
 
             const tierPill = isPro
-                ? `<span style="display:inline-flex; align-items:center; justify-content:center; padding:2px 13px; border-radius:999px; font-size:0.74rem; font-weight:900; letter-spacing:0.4px; color:#ffffff; background:radial-gradient(ellipse at 50% 100%, #60a5fa 0%, #1d4ed8 58%, #0f172a 100%); border:1px solid rgba(96,165,250,0.8); box-shadow:0 2px 10px rgba(59,130,246,0.5); font-family:system-ui,Cairo,sans-serif;">Pro</span>`
-                : `<span style="display:inline-flex; align-items:center; justify-content:center; padding:2px 12px; border-radius:999px; font-size:0.73rem; font-weight:800; color:#cbd5e1; background:#334155; border:1px solid #475569;">عادي</span>`;
-
-            const clickAttr = isPro
-                ? 'title="حساب Pro مفعّل بالكامل"'
-                : 'onclick="BayanOnlineOrders.activateStoreVip()" title="اضغط للترقية إلى حساب Pro" style="cursor:pointer;"';
+                ? `<span style="display:inline-flex; align-items:center; justify-content:center; padding:2px 14px; border-radius:999px; font-size:0.76rem; font-weight:900; letter-spacing:0.4px; color:#ffffff; background:radial-gradient(ellipse at 50% 100%, #60a5fa 0%, #1d4ed8 58%, #1e3a8a 100%); border:1px solid rgba(147,197,253,0.85); box-shadow:0 2px 10px rgba(59,130,246,0.55); font-family:system-ui,Cairo,sans-serif;">Pro</span>`
+                : `<span style="display:inline-flex; align-items:center; justify-content:center; padding:2px 12px; border-radius:999px; font-size:0.73rem; font-weight:800; letter-spacing:0.3px; color:#f1f5f9; background:rgba(100,116,139,0.85); border:1px solid rgba(203,213,225,0.65); font-family:system-ui,Cairo,sans-serif;" dir="ltr">Free Plan</span>`;
 
             return `
-                <div id="onlineOrdersMerchantProfileCard" ${isPro ? 'title="حساب Pro مفعّل بالكامل"' : 'onclick="BayanOnlineOrders.activateStoreVip()" title="اضغط للترقية إلى حساب Pro"'} style="display:flex; align-items:center; gap:12px; background:#0f172a; color:#f8fafc; padding:10px 16px; border-radius:20px; border:1.5px solid ${isPro ? 'rgba(59,130,246,0.45)' : '#334155'}; box-shadow:${isPro ? '0 8px 22px rgba(15,23,42,0.22), 0 0 12px rgba(59,130,246,0.18)' : '0 4px 12px rgba(15,23,42,0.14)'}; min-width:215px; flex-shrink:0; ${isPro ? '' : 'cursor:pointer;'}">
+                <div id="onlineOrdersMerchantProfileCard" ${isPro ? 'title="حساب Pro مفعّل بالكامل"' : 'onclick="BayanOnlineOrders.activateStoreVip()" title="اضغط للترقية إلى حساب Pro"'} style="display:flex; align-items:center; gap:12px; background:linear-gradient(135deg,#065f46 0%,#047857 55%,#059669 100%); color:#ffffff; padding:10px 16px; border-radius:20px; border:1.5px solid ${isPro ? 'rgba(96,165,250,0.75)' : 'rgba(167,243,208,0.4)'}; box-shadow:${isPro ? '0 8px 22px rgba(4,120,87,0.32), 0 0 14px rgba(59,130,246,0.35)' : '0 6px 16px rgba(4,120,87,0.24)'}; min-width:220px; flex-shrink:0; ${isPro ? '' : 'cursor:pointer;'}">
                     <div style="display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex:1; min-width:0;">
-                        <div style="font-size:0.95rem; font-weight:900; color:#ffffff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:165px;">${this._esc(shopName)}</div>
-                        <div style="font-size:0.72rem; color:#94a3b8; font-family:monospace; direction:ltr;">${this._esc(shopId)}</div>
+                        <div style="font-size:0.96rem; font-weight:900; color:#ffffff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:165px;">${this._esc(shopName)}</div>
+                        <div style="font-size:0.72rem; color:#d1fae5; font-family:monospace; direction:ltr; opacity:0.9;">${this._esc(shopId)}</div>
                         <div style="margin-top:2px;">${tierPill}</div>
                     </div>
                     <div style="width:54px; height:54px; border-radius:50%; ${ringStyle} flex-shrink:0; box-sizing:border-box;">
-                        <div style="width:100%; height:100%; border-radius:50%; overflow:hidden; background:#0f172a; border:2px solid #0f172a; box-sizing:border-box;">
+                        <div style="width:100%; height:100%; border-radius:50%; overflow:hidden; background:#ffffff; border:2px solid #065f46; box-sizing:border-box;">
                             ${avatarInner}
                         </div>
                     </div>
