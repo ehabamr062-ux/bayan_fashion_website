@@ -309,12 +309,13 @@
             if (Array.isArray(product.variants) && product.variants.length > 0 && window.FashionStockEngine) {
                 variant = window.FashionStockEngine.findVariant(product, { size: item.size || '', color: item.color || '', barcode: item.barcode || '' });
                 availableStock = variant
-                    ? window.FashionStockEngine.getVariantStock(variant, activeWH)
-                    : window.FashionStockEngine.getProductStock(product, activeWH);
+                    ? (window.FashionStockEngine.getVariantStock(variant, activeWH) || window.FashionStockEngine.getVariantStock(variant, 'all'))
+                    : (window.FashionStockEngine.getProductStock(product, activeWH) || window.FashionStockEngine.getProductStock(product, 'all'));
             } else if (window.FashionStockEngine) {
-                availableStock = window.FashionStockEngine.getProductStock(product, activeWH);
-            } else {
-                availableStock = parseFloat(product.stock) || 0;
+                availableStock = window.FashionStockEngine.getProductStock(product, activeWH) || window.FashionStockEngine.getProductStock(product, 'all');
+            }
+            if (!availableStock) {
+                availableStock = parseFloat(product.stock ?? product.qty) || 0;
             }
 
             const reqQty = parseFloat(item.qty) || 1;
@@ -832,7 +833,9 @@
                     await window.db.transactions.bulkPut(txRows);
                 }
                 if (window.db && window.db.products && modifiedProducts.size > 0) {
-                    await window.db.products.bulkPut(Array.from(modifiedProducts.values()));
+                    const updatedProds = Array.from(modifiedProducts.values());
+                    await window.db.products.bulkPut(updatedProds);
+                    this.scheduleSilentStockSync(updatedProds);
                 }
                 txRows.forEach(r => {
                     if (typeof window.safelyMergeTransactionIntoMemory === 'function') {
