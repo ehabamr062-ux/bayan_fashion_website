@@ -732,7 +732,7 @@ window.printInventoryBarcode = printInventoryBarcode;
  * 🏷️ طباعة تيكت السعر المصغر للأزياء والملابس (اسم المحل + رمز ج + السعر بخط عريض وواضح)
  * مخصص للملصقات والتيكت المصغر بناءً على طلب العميل
  */
-async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 'horizontal') {
+async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 'horizontal', currencyOverride = '') {
     let targets = [];
     if (Array.isArray(modeOrTargets)) {
         targets = modeOrTargets;
@@ -859,8 +859,17 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
     const printWidth = labelWidth;
     const printHeight = labelHeight;
 
-    const rawCurrency = (typeof getCurrencySymbol === 'function') ? getCurrencySymbol() : 'ج';
-    const currencySign = (rawCurrency === 'ج.م' || rawCurrency === 'EGP' || rawCurrency === 'ج') ? 'ج' : rawCurrency;
+    const savedVertCurrency = currencyOverride
+        || (typeof getStore === 'function' ? getStore('bayan_pt_vert_currency') : null)
+        || (typeof localStorage !== 'undefined' ? localStorage.getItem('bayan_pt_vert_currency') : null)
+        || 'جـ';
+    if (currencyOverride) {
+        try {
+            if (typeof setStore === 'function') setStore('bayan_pt_vert_currency', currencyOverride);
+            if (typeof localStorage !== 'undefined') localStorage.setItem('bayan_pt_vert_currency', currencyOverride);
+        } catch (_) { }
+    }
+    const currencySign = (savedVertCurrency === 'L.E') ? 'L.E' : 'جـ';
 
     // استرجاع آخر زاوية تدوير مثبتة/مفضلة للنمط الطولي من قاعدة البيانات (SQLite / settings) أولاً لضمان ثباتها للأبد
     let savedVertAngle = '0';
@@ -1213,7 +1222,8 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
         <body data-angle="${isVertical ? savedVertAngle : '0'}">
             <div class="no-print" style="text-align: center; margin-bottom: 12px; padding: 10px; background: #f8fafc; border-bottom: 2px solid #e2e8f0; font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif; display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap;">
                 <button onclick="window.print()" style="background: #059669; color: white; padding: 9px 24px; font-size: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: 900; box-shadow: 0 2px 6px rgba(5,150,105,0.3);">🖨️ بدء طباعة تيكت السعر (${isVertical ? 'طولي للشنط والأحذية' : 'أفقي عريض'})</button>
-                ${isVertical ? `<button type="button" id="btnRotatePriceTag" onclick="window.cyclePriceTagAngle()" style="background: #6366f1; color: white; padding: 9px 18px; font-size: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 900; box-shadow: 0 2px 6px rgba(99,102,241,0.3);" title="تغيير زاوية الطباعة بين 0° و 180° و -90° و 90°">🔄 تدوير الزاوية (<span id="ptAngleLabel">0° - بطول التيكت</span>)</button>
+                ${isVertical ? `<button type="button" id="btnToggleVertCurrency" onclick="window.togglePriceTagVertCurrency()" style="background: #0284c7; color: white; padding: 9px 18px; font-size: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 900; box-shadow: 0 2px 6px rgba(2,132,199,0.3);" title="التبديل بين رمز (جـ) بالعربي و (L.E) بالإنجليزي">💱 العملة: (<span id="ptVertCurrencyLabel">${currencySign}</span>) — اضغط للتبديل بين جـ و L.E</button>
+                <button type="button" id="btnRotatePriceTag" onclick="window.cyclePriceTagAngle()" style="background: #6366f1; color: white; padding: 9px 18px; font-size: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 900; box-shadow: 0 2px 6px rgba(99,102,241,0.3);" title="تغيير زاوية الطباعة بين 0° و 180° و -90° و 90°">🔄 تدوير الزاوية (<span id="ptAngleLabel">0° - بطول التيكت</span>)</button>
                 <button type="button" id="btnPinPriceTagAngle" onclick="window.pinCurrentPriceTagAngle()" style="background: ${isVertAnglePinned ? '#047857' : '#d97706'}; color: white; padding: 9px 16px; font-size: 14px; border: none; border-radius: 8px; cursor: pointer; font-weight: 900; box-shadow: 0 2px 6px rgba(0,0,0,0.2);" title="تثبيت هذه الزاوية وحفظها في قاعدة البيانات للأبد">${isVertAnglePinned ? '📌 الزاوية مثبتة في القاعدة ✅' : '📌 تثبيت هذه الزاوية'}</button>` : ''}
                 <button onclick="window.close()" style="background: #ef4444; color: white; padding: 9px 20px; font-size: 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: 900; box-shadow: 0 2px 6px rgba(239,68,68,0.3);">❌ إغلاق</button>
             </div>
@@ -1247,6 +1257,22 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                         if (lbl) lbl.textContent = labels[ang] || (ang + '°');
                         updatePinBtnUI(ang);
                     }
+                    window.togglePriceTagVertCurrency = function() {
+                        var badges = document.querySelectorAll('.pt-currency-badge-vert');
+                        var lbl = document.getElementById('ptVertCurrencyLabel');
+                        var cur = (lbl ? lbl.textContent.trim() : 'جـ');
+                        var next = (cur === 'L.E') ? 'جـ' : 'L.E';
+                        if (lbl) lbl.textContent = next;
+                        for (var i = 0; i < badges.length; i++) {
+                            badges[i].textContent = next;
+                        }
+                        try { localStorage.setItem('bayan_pt_vert_currency', next); } catch(e) {}
+                        try {
+                            if (window.opener && typeof window.opener.setStore === 'function') {
+                                window.opener.setStore('bayan_pt_vert_currency', next);
+                            }
+                        } catch(e) {}
+                    };
                     window.cyclePriceTagAngle = function() {
                         var cur = document.body.getAttribute('data-angle') || '0';
                         var idx = angles.indexOf(cur);

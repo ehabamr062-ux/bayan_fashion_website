@@ -15916,8 +15916,8 @@
                 <span style="color: #0284c7; font-size: 1.3rem; font-weight: 900;">‹</span>
             </div>
 
-            <!-- الخيار الثاني: تيكت رأسي (طولي / واقف) -->
-            <div onclick="window.confirmBpPrint('price_only_vertical')"
+            <!-- الخيار الثاني: تيكت رأسي (طولي / واقف) مع خيارين للعملة: جـ أو L.E -->
+            <div onclick="window.confirmBpPrint('price_only_vertical', 'جـ')"
                 style="cursor: pointer; padding: 14px 16px; border-radius: 16px; border: 2px solid #8b5cf6; background: linear-gradient(135deg, #faf5ff, #ffffff); margin-bottom: 18px; text-align: right; transition: all 0.2s ease; display: flex; align-items: center; gap: 14px; box-shadow: 0 3px 10px rgba(139, 92, 246, 0.08);"
                 onmouseover="this.style.transform='translateY(-2px)'; this.style.borderColor='#7c3aed'; this.style.boxShadow='0 6px 16px rgba(139, 92, 246, 0.2)';"
                 onmouseout="this.style.transform='translateY(0)'; this.style.borderColor='#8b5cf6'; this.style.boxShadow='0 3px 10px rgba(139, 92, 246, 0.08)';">
@@ -15926,7 +15926,11 @@
                     ↕️</div>
                 <div style="flex: 1;">
                     <div style="font-weight: 900; font-size: 0.98rem; color: #5b21b6; margin-bottom: 3px;">تيكت الشنط والأحذية (الطولي العريض للّصق بالطول)</div>
-                    <div style="font-size: 0.8rem; color: #475569; font-weight: 700; line-height: 1.4;">بدون اسم المحل — يطبع حرف (ج) عريض ومعدول فوق + السعر بخط عملاق وعريض بطول الاستيكر ليلصق بالطول على تيكت الشنطة، مع زر تدوير 4 زوايا.</div>
+                    <div style="font-size: 0.8rem; color: #475569; font-weight: 700; line-height: 1.4; margin-bottom: 8px;">بدون اسم المحل — يطبع رمز العملة عريض ومعدول فوق + السعر بخط عملاق وعريض بطول الاستيكر. اختر رمز العملة:</div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" onclick="event.stopPropagation(); window.confirmBpPrint('price_only_vertical', 'جـ')" style="flex: 1; padding: 7px 12px; border-radius: 10px; border: 1.5px solid #7c3aed; background: #7c3aed; color: #ffffff; font-weight: 900; font-size: 0.85rem; cursor: pointer; font-family: 'Cairo', sans-serif;">🏷️ بالعربي ( جـ )</button>
+                        <button type="button" onclick="event.stopPropagation(); window.confirmBpPrint('price_only_vertical', 'L.E')" style="flex: 1; padding: 7px 12px; border-radius: 10px; border: 1.5px solid #0284c7; background: #e0f2fe; color: #0369a1; font-weight: 900; font-size: 0.85rem; cursor: pointer; font-family: 'Cairo', sans-serif;">🏷️ بالإنجليزي ( L.E )</button>
+                    </div>
                 </div>
                 <span style="color: #8b5cf6; font-size: 1.3rem; font-weight: 900;">‹</span>
             </div>
