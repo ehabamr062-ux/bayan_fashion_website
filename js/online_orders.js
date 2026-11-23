@@ -380,8 +380,12 @@
                     <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; background:white; padding:14px 18px; border-radius:14px; border:1.5px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
                         <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                             <h2 style="margin:0; font-size:1.2rem; font-weight:900; color:#0f172a;">🛒 طلبات المتجر الإلكتروني (الأونلاين)</h2>
+                            <span style="background:linear-gradient(135deg,#f97316,#ea580c); color:white; padding:3px 10px; border-radius:999px; font-size:0.74rem; font-weight:900;">NEW • جديد</span>
                             <span id="onlineOrdersStatusPill"></span>
                             <span style="background:#f1f5f9; color:#334155; padding:4px 10px; border-radius:8px; font-size:0.78rem; font-weight:800; font-family:monospace;">كود المحل: ${shopId}</span>
+                            ${localStorage.getItem('bayan_store_vip_unlocked') === '1'
+                                ? '<span style="background:#dcfce7; color:#166534; border:1px solid #86efac; padding:3px 10px; border-radius:999px; font-size:0.76rem; font-weight:900;">👑 باقة المتجر مفعّلة بالكامل</span>'
+                                : '<button type="button" onclick="BayanOnlineOrders.activateStoreVip()" style="background:#fef3c7; color:#92400e; border:1px solid #f59e0b; padding:3px 10px; border-radius:999px; font-size:0.76rem; font-weight:900; cursor:pointer; font-family:Cairo,sans-serif;" title="اضغط لإدخال كود التفعيل الدائم">🎁 فترة تجريبية مجانية (7 أيام / 10 طلبات) • 🔑 تفعيل الباقة</button>'}
                         </div>
                         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                             <input type="text" id="onlineStoreUrlInput" value="${storeUrl}" readonly style="width:280px; max-width:100%; padding:7px 10px; border-radius:8px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.78rem; font-family:monospace; color:#334155;" dir="ltr">
