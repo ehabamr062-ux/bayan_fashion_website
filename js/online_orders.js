@@ -321,10 +321,48 @@
             };
         },
 
+        isStoreUnlocked() {
+            try {
+                if (localStorage.getItem('bayan_store_vip_unlocked') === '1') return true;
+                const startTs = Number(localStorage.getItem('bayan_store_trial_start') || 0);
+                if (!startTs) {
+                    localStorage.setItem('bayan_store_trial_start', String(Date.now()));
+                    return true;
+                }
+                const daysUsed = (Date.now() - startTs) / (1000 * 60 * 60 * 24);
+                return daysUsed <= 7 && this.orders.length < 10;
+            } catch (_) { return true; }
+        },
+
+        activateStoreVip() {
+            const code = prompt('أدخل كود تفعيل باقة المتجر الإلكتروني:');
+            if (!code) return;
+            const clean = code.trim().toUpperCase();
+            if (clean === 'BAYAN-VIP-2026' || clean.startsWith('BAYAN-PRO-')) {
+                localStorage.setItem('bayan_store_vip_unlocked', '1');
+                if (typeof showToast === 'function') showToast('🎉 تم تفعيل باقة المتجر الإلكتروني بنجاح!', 'success');
+                const sec = document.getElementById('online-orders-section');
+                if (sec) { sec.dataset.initialized = ''; this.renderSectionShell(); }
+            } else {
+                alert('❌ كود التفعيل غير صحيح!');
+            }
+        },
+
         renderSectionShell() {
             const sec = document.getElementById('online-orders-section');
             if (!sec || sec.dataset.initialized === '1') return;
             sec.dataset.initialized = '1';
+
+            if (!this.isStoreUnlocked()) {
+                sec.innerHTML = `
+                    <div class="products-panel" style="width:100%; min-height:70vh; background:#f8fafc; border-radius:16px; border:1.5px solid #e2e8f0; padding:32px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; gap:14px;">
+                        <div style="font-size:3rem;">🔒</div>
+                        <h2 style="margin:0; font-size:1.4rem; font-weight:900; color:#0f172a;">انتهت الفترة التجريبية لباقة المتجر الإلكتروني</h2>
+                        <p style="margin:0; color:#475569; max-width:460px; font-weight:700; line-height:1.7;">للاستمرار في استقبال طلبات الأونلاين ومزامنة الأصناف مع متجرك الإلكتروني، يرجى إدخال كود التفعيل الخاص بك.</p>
+                        <button type="button" onclick="BayanOnlineOrders.activateStoreVip()" style="background:#059669; color:white; border:none; padding:12px 26px; border-radius:12px; font-weight:900; font-size:1rem; cursor:pointer; font-family:'Cairo',sans-serif;">🔑 إدخال كود التفعيل الآن</button>
+                    </div>`;
+                return;
+            }
 
             const storeUrl = this._esc(this.getStoreUrl());
             const shopId = this._esc(this.getShopId());
