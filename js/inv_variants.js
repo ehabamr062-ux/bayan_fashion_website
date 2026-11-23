@@ -1176,17 +1176,13 @@ async function executePriceTagPrinting(modeOrTargets, copies = 1, orientation = 
                 }
 
                 /* عند اختيار العملة الإنجليزية L.E تكون دائماً تحت السعر */
-                body[data-currency="LE"][data-angle="-90"] .price-tag-label.vertical .pt-vertical-rotator,
-                body[data-currency="LE"][data-angle="90"] .price-tag-label.vertical .pt-vertical-rotator {
-                    flex-direction: column-reverse !important;
+                body[data-currency="LE"] .price-tag-label.vertical .pt-currency-badge-vert {
+                    order: 2 !important;
                 }
                 body[data-currency="LE"][data-angle="-90"] .price-tag-label.vertical .pt-currency-badge-vert,
                 body[data-currency="LE"][data-angle="90"] .price-tag-label.vertical .pt-currency-badge-vert {
                     margin-top: 1.5mm !important;
                     font-size: ${isSmall ? '16pt' : '20pt'} !important;
-                }
-                body[data-currency="LE"] .price-tag-label.vertical .pt-currency-badge-vert {
-                    order: 2;
                 }
 
                 @media print {
