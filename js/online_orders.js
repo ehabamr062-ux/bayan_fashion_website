@@ -68,6 +68,16 @@
             return `https://ehabamr062-ux.github.io/bayan-fashion-store/?shop=${encodeURIComponent(shopId)}`;
         },
 
+        getAdminUrl() {
+            const shopId = this.getShopId();
+            return `https://ehabamr062-ux.github.io/bayan-fashion-store/admin.html?shop=${encodeURIComponent(shopId)}`;
+        },
+
+        openAdminPanel() {
+            const url = this.getAdminUrl();
+            try { window.open(url, '_blank', 'noopener'); } catch (_) { }
+        },
+
         _esc(str) {
             if (typeof escapeHtml === 'function') return escapeHtml(str);
             return String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
@@ -332,7 +342,9 @@
                             <input type="text" id="onlineStoreUrlInput" value="${storeUrl}" readonly style="width:280px; max-width:100%; padding:7px 10px; border-radius:8px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.78rem; font-family:monospace; color:#334155;" dir="ltr">
                             <button type="button" onclick="BayanOnlineOrders.copyStoreUrl()" style="background:#0284c7; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">📋 نسخ رابط المتجر</button>
                             <button type="button" onclick="BayanOnlineOrders.openStorePreview()" style="background:#0f172a; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">🌐 فتح المتجر</button>
-                            <button type="button" onclick="BayanOnlineOrders.syncAllPublishedProducts()" style="background:#059669; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">📤 مزامنة الأصناف المنشورة للمتجر</button>
+                            <button type="button" onclick="BayanOnlineOrders.openAdminPanel()" style="background:#7c3aed; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">⚙️ لوحة تحكم المتجر</button>
+                            <button type="button" onclick="BayanOnlineOrders.publishAllProductsToStore()" style="background:#ea580c; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">🚀 نشر كل الأصناف</button>
+                            <button type="button" onclick="BayanOnlineOrders.syncAllPublishedProducts()" style="background:#059669; color:white; border:none; padding:8px 14px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">📤 مزامنة المنشور</button>
                             <button type="button" onclick="BayanOnlineOrders.startListening()" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:8px 12px; border-radius:8px; font-weight:800; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">🔄 تحديث</button>
                         </div>
                     </div>
@@ -862,6 +874,30 @@
             } catch (_) {
                 return false;
             }
+        },
+
+        async publishAllProductsToStore() {
+            const list = (typeof productsDB !== 'undefined' && Array.isArray(productsDB)) ? productsDB : (window.productsDB || []);
+            const activeList = list.filter(p => p && !p.isDeleted);
+            if (!activeList.length) {
+                if (typeof showToast === 'function') showToast('ℹ️ لا توجد أصناف في البضاعة للنشر.', 'info');
+                return 0;
+            }
+            const okConfirm = typeof confirm === 'function'
+                ? confirm(`سيتم تفعيل «عرض في المتجر الإلكتروني» على جميع الأصناف (${activeList.length} صنف) ومزامنتها للسحابة.\n\nيمكنك بعدها إزالة العلامة عن أي صنف لا تريد عرضه.\nهل تريد المتابعة؟`)
+                : true;
+            if (!okConfirm) return 0;
+
+            for (let i = 0; i < activeList.length; i++) {
+                activeList[i].showInStore = true;
+            }
+            try {
+                if (typeof saveAll === 'function') await saveAll();
+            } catch (_) { }
+            if (typeof renderProducts === 'function') {
+                try { renderProducts(); } catch (_) { }
+            }
+            return await this.syncAllPublishedProducts();
         },
 
         async syncAllPublishedProducts() {
