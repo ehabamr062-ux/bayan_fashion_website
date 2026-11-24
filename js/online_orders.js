@@ -1470,6 +1470,77 @@
             return payload;
         },
 
+        async _resolveProductImageForStore(rawImage) {
+            try {
+                if (!rawImage || typeof rawImage !== 'string') return '';
+                const src = rawImage.trim();
+                if (!src) return '';
+                if (/^https?:\/\//i.test(src)) return src;
+
+                // إذا كانت الصورة ملفاً محلياً في Electron (file:// أو مسار ويندوز)، نقرأها كـ Data URL أولاً
+                let loadableSrc = src;
+                if (!src.startsWith('data:image')) {
+                    if (typeof window !== 'undefined' && typeof window.require === 'function') {
+                        try {
+                            const fs = window.require('fs');
+                            let filePath = src;
+                            if (filePath.startsWith('file:///')) {
+                                filePath = decodeURIComponent(filePath.replace(/^file:\/\/\//i, '')).replace(/\//g, '\\');
+                            } else if (filePath.startsWith('file://')) {
+                                filePath = decodeURIComponent(filePath.replace(/^file:\/\//i, ''));
+                            }
+                            if (fs.existsSync(filePath)) {
+                                const buf = fs.readFileSync(filePath);
+                                const ext = (filePath.split('.').pop() || 'jpeg').toLowerCase();
+                                const mime = ext === 'png' ? 'image/png' : (ext === 'webp' ? 'image/webp' : 'image/jpeg');
+                                loadableSrc = `data:${mime};base64,${buf.toString('base64')}`;
+                            }
+                        } catch (_) { }
+                    }
+                }
+
+                // ضغط الصورة عبر Canvas بحد أقصى 720px وجودة 0.78 لتكون خفيفة وسريعة على المتجر وضمن حدود Firestore
+                const compressed = await new Promise((resolve) => {
+                    const img = new Image();
+                    img.crossOrigin = 'anonymous';
+                    img.onload = () => {
+                        try {
+                            const MAX_DIM = 720;
+                            let w = img.naturalWidth || img.width || 600;
+                            let h = img.naturalHeight || img.height || 600;
+                            if (w > MAX_DIM || h > MAX_DIM) {
+                                const ratio = Math.min(MAX_DIM / w, MAX_DIM / h);
+                                w = Math.max(1, Math.round(w * ratio));
+                                h = Math.max(1, Math.round(h * ratio));
+                            }
+                            const canvas = document.createElement('canvas');
+                            canvas.width = w;
+                            canvas.height = h;
+                            const ctx = canvas.getContext('2d');
+                            ctx.fillStyle = '#ffffff';
+                            ctx.fillRect(0, 0, w, h);
+                            ctx.drawImage(img, 0, 0, w, h);
+                            let out = canvas.toDataURL('image/webp', 0.78);
+                            if (!out || !out.startsWith('data:image/webp')) {
+                                out = canvas.toDataURL('image/jpeg', 0.78);
+                            }
+                            if (out.length > 350000) {
+                                out = canvas.toDataURL('image/jpeg', 0.62);
+                            }
+                            resolve(out.length <= 450000 ? out : '');
+                        } catch (_) {
+                            resolve(loadableSrc.startsWith('data:image') && loadableSrc.length <= 450000 ? loadableSrc : '');
+                        }
+                    };
+                    img.onerror = () => resolve(loadableSrc.startsWith('data:image') && loadableSrc.length <= 450000 ? loadableSrc : '');
+                    img.src = loadableSrc;
+                });
+                return compressed || '';
+            } catch (_) {
+                return '';
+            }
+        },
+
         async syncProductToStore(product) {
             if (!product || product.id == null || !navigator.onLine) return false;
             try {
@@ -1479,6 +1550,17 @@
                 const docId = `pos_${product.id}`;
                 const payload = this._buildStoreProductPayload(product);
                 if (!payload) return false;
+
+                // 📸 مزامنة صورة الموديل من البضاعة (مضغوطة وجاهزة للعرض على المتجر ولوحة التحكم)
+                const rawImg = product.image || product.img || '';
+                if (rawImg) {
+                    const storeImg = await this._resolveProductImageForStore(rawImg);
+                    if (storeImg) {
+                        payload.image = storeImg;
+                        payload.images = [storeImg];
+                    }
+                }
+
                 await db.collection('shops').doc(shopId).collection('products').doc(docId).set(payload, { merge: true });
                 return true;
             } catch (_) {
