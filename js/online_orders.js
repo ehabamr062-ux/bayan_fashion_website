@@ -939,6 +939,7 @@
                                 <button type="button" onclick="BayanOnlineOrders.openAdminPanel()" style="background:#7c3aed; color:white; border:none; padding:8px 13px; border-radius:8px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif;">⚙️ لوحة تحكم المتجر</button>
                                 <button type="button" onclick="BayanOnlineOrders.publishAllProductsToStore()" style="background:#ea580c; color:white; border:none; padding:8px 13px; border-radius:8px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif;">🚀 نشر كل الأصناف</button>
                                 <button type="button" onclick="BayanOnlineOrders.syncAllPublishedProducts()" style="background:#059669; color:white; border:none; padding:8px 13px; border-radius:8px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif;">📤 مزامنة المنشور</button>
+                                <button type="button" onclick="BayanOnlineOrders.clearCloudStoreData()" style="background:#dc2626; color:white; border:none; padding:8px 12px; border-radius:8px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif;" title="حذف البيانات المرفوعة على المتجر الإلكتروني السحابي فقط بدون لمس بيانات بَيَان المحلية">🗑️ تفريغ السحابة</button>
                                 <button type="button" onclick="BayanOnlineOrders.startListening()" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:8px 11px; border-radius:8px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif;">🔄 تحديث</button>
                             </div>
                         </div>
@@ -1429,21 +1430,27 @@
             const colorsSet = new Set();
             const variantsStock = {};
 
+            let variantsTotalSum = 0;
+            let hasVariants = false;
             if (Array.isArray(p.variants) && p.variants.length > 0) {
+                hasVariants = true;
                 p.variants.forEach(v => {
                     if (!v) return;
                     const s = String(v.size || '').trim();
                     const c = String(v.color || '').trim();
                     if (s && s !== '-' && s !== 'موحد') sizesSet.add(s);
                     if (c && c !== '-' && c !== 'قياسي') colorsSet.add(c);
-                    const vSt = (window.FashionStockEngine && typeof window.FashionStockEngine.getVariantStock === 'function')
+                    const vSt = Math.max(0, (window.FashionStockEngine && typeof window.FashionStockEngine.getVariantStock === 'function')
                         ? window.FashionStockEngine.getVariantStock(v, 'all')
-                        : (parseFloat(v.stock) || 0);
+                        : (parseFloat(v.stock) || 0));
                     const key = `${s || 'موحد'}|${c || 'قياسي'}`;
                     variantsStock[key] = (variantsStock[key] || 0) + vSt;
+                    variantsTotalSum += vSt;
                 });
             }
 
+            // ضمان تطابق الرصيد الإجمالي 100% مع مجموع أرصدة المقاسات والألوان الفعلي
+            const exactStock = hasVariants ? variantsTotalSum : Math.max(0, totalStock);
             const isPublished = Boolean(p.showInStore) && !p.isDeleted;
             const payload = {
                 id: `pos_${p.id}`,
@@ -1456,10 +1463,10 @@
                 price: parseFloat(p.price) || 0,
                 sizes: Array.from(sizesSet),
                 colors: Array.from(colorsSet),
-                stock: totalStock,
-                stockQty: totalStock,
+                stock: exactStock,
+                stockQty: exactStock,
                 variantsStock,
-                inStock: totalStock > 0,
+                inStock: exactStock > 0,
                 active: isPublished,
                 isFrozen: !isPublished,
                 updatedAt: new Date().toISOString()
@@ -1600,6 +1607,77 @@
             } catch (_) {
                 return false;
             }
+        },
+
+        async clearCloudStoreData() {
+            if (!navigator.onLine) {
+                if (typeof showToast === 'function') showToast('⚠️ لا يوجد اتصال بالإنترنت حالياً لتفريغ السحابة.', 'warning');
+                return;
+            }
+            const old = document.getElementById('bayanClearCloudModal');
+            if (old) old.remove();
+            const shopId = this.getShopId();
+            const modal = document.createElement('div');
+            modal.id = 'bayanClearCloudModal';
+            modal.style.cssText = 'position:fixed; inset:0; background:rgba(15,23,42,0.78); z-index:9999999; display:flex; align-items:center; justify-content:center; padding:16px; direction:rtl; font-family:Cairo,sans-serif;';
+            modal.innerHTML = `
+                <div style="background:#fff; border-radius:18px; width:460px; max-width:95vw; padding:24px; box-shadow:0 25px 60px rgba(0,0,0,0.4); text-align:center;">
+                    <div style="font-size:2.4rem; margin-bottom:6px;">🗑️☁️</div>
+                    <h3 style="margin:0 0 8px; font-size:1.18rem; font-weight:900; color:#991b1b;">تفريغ بيانات المتجر الإلكتروني السحابي</h3>
+                    <p style="margin:0 0 14px; font-size:0.84rem; color:#475569; font-weight:700; line-height:1.7;">
+                        سيتم حذف البيانات المرفوعة على السحابة لمتجرك (<code>${this._esc(shopId)}</code>) فقط.<br>
+                        <strong style="color:#059669;">✅ قاعدة بياناتك المحلية في بَيَان POS وبضاعتك وفواتيرك لن تُمس نهائياً!</strong>
+                    </p>
+                    <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:14px;">
+                        <button type="button" id="btnClearCloudProductsOnly" style="background:#ea580c; color:#fff; border:none; padding:11px 16px; border-radius:12px; font-weight:900; font-size:0.9rem; cursor:pointer; font-family:Cairo,sans-serif;">📦 تفريغ المنتجات فقط من المتجر ولوحة التحكم</button>
+                        <button type="button" id="btnClearCloudAll" style="background:#dc2626; color:#fff; border:none; padding:11px 16px; border-radius:12px; font-weight:900; font-size:0.9rem; cursor:pointer; font-family:Cairo,sans-serif;">🔥 تفريغ السحابة بالكامل (المنتجات + الطلبات)</button>
+                        <button type="button" onclick="document.getElementById('bayanClearCloudModal').remove()" style="background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; padding:10px 14px; border-radius:12px; font-weight:800; font-size:0.88rem; cursor:pointer; font-family:Cairo,sans-serif;">إلغاء</button>
+                    </div>
+                    <div id="clearCloudProgressMsg" style="display:none; font-size:0.84rem; font-weight:800; color:#0284c7;">⏳ جاري التفريغ من السحابة...</div>
+                </div>`;
+            document.body.appendChild(modal);
+
+            const runClear = async (includeOrders) => {
+                const msgEl = document.getElementById('clearCloudProgressMsg');
+                if (msgEl) { msgEl.style.display = 'block'; msgEl.textContent = '⏳ جاري الاتصال بالسحابة وتفريغ البيانات...'; }
+                try {
+                    const db = await this._ensureFirebaseReady();
+                    if (!db) throw new Error('تعذر الاتصال بـ Firebase');
+                    const shopRef = db.collection('shops').doc(shopId);
+                    const deleteCollection = async (colName) => {
+                        let deleted = 0;
+                        const snap = await shopRef.collection(colName).get();
+                        const docs = snap.docs || [];
+                        for (let i = 0; i < docs.length; i += 400) {
+                            const batch = db.batch();
+                            docs.slice(i, i + 400).forEach(d => batch.delete(d.ref));
+                            await batch.commit();
+                            deleted += Math.min(400, docs.length - i);
+                        }
+                        return deleted;
+                    };
+
+                    const delProds = await deleteCollection('products');
+                    let delOrders = 0;
+                    if (includeOrders) {
+                        delOrders = await deleteCollection('orders');
+                        this.orders = [];
+                        this._knownIds.clear();
+                        this._saveCachedOrders();
+                        this._updateBadges();
+                        this.renderTable();
+                    }
+                    modal.remove();
+                    if (typeof showToast === 'function') {
+                        showToast(`✅ تم تفريغ السحابة بنجاح (حذف ${delProds} منتج${includeOrders ? ` و ${delOrders} طلب` : ''}) بدون لمس بيانات بَيَان المحلية!`, 'success', 6000);
+                    }
+                } catch (err) {
+                    if (msgEl) { msgEl.style.color = '#dc2626'; msgEl.textContent = '❌ حدث خطأ أثناء التفريغ: ' + (err.message || err); }
+                }
+            };
+
+            document.getElementById('btnClearCloudProductsOnly').onclick = () => runClear(false);
+            document.getElementById('btnClearCloudAll').onclick = () => runClear(true);
         },
 
         async publishAllProductsToStore() {
