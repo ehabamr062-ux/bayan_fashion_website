@@ -1436,10 +1436,12 @@
                 hasVariants = true;
                 p.variants.forEach(v => {
                     if (!v) return;
-                    const s = String(v.size || '').trim();
-                    const c = String(v.color || '').trim();
-                    if (s && s !== '-' && s !== 'موحد') sizesSet.add(s);
-                    if (c && c !== '-' && c !== 'قياسي') colorsSet.add(c);
+                    const rawS = String(v.size || '').trim();
+                    const rawC = String(v.color || '').trim();
+                    const s = (rawS && rawS !== '-') ? rawS : '';
+                    const c = (rawC && rawC !== '-') ? rawC : '';
+                    if (s && s !== 'موحد') sizesSet.add(s);
+                    if (c && c !== 'قياسي') colorsSet.add(c);
                     const vSt = Math.max(0, (window.FashionStockEngine && typeof window.FashionStockEngine.getVariantStock === 'function')
                         ? window.FashionStockEngine.getVariantStock(v, 'all')
                         : (parseFloat(v.stock) || 0));
@@ -1585,7 +1587,10 @@
                     }
                 }
 
-                await db.collection('shops').doc(shopId).collection('products').doc(docId).set(payload, { merge: true });
+                const prodDocRef = db.collection('shops').doc(shopId).collection('products').doc(docId);
+                await prodDocRef.set(payload, { merge: true });
+                // استبدال خريطة variantsStock بالكامل لمنع بقاء مقاسات قديمة محذوفة من POS
+                await prodDocRef.update({ variantsStock: payload.variantsStock }).catch(() => { });
                 return true;
             } catch (_) {
                 return false;

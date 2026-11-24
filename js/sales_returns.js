@@ -765,7 +765,7 @@ async function saveSalesReturn(force = false, accountChecked = false) {
 
         const taxAmount = (taxType === 'perc') ? (subTotal * taxVal / 100) : taxVal;
 
-        const finalTotal = subTotal - discAmount + taxAmount;
+        const finalTotal = Math.max(0, subTotal - discAmount + taxAmount);
 
         const ratio = subTotal > 0 ? (finalTotal / subTotal) : 1;
 
@@ -1524,7 +1524,7 @@ async function savePurchaseReturn(force = false, accountChecked = false) {
 
         const taxAmount = (taxType === 'perc') ? (subTotal * taxVal / 100) : taxVal;
 
-        const finalTotal = subTotal - discAmount + taxAmount;
+        const finalTotal = Math.max(0, subTotal - discAmount + taxAmount);
 
         const ratio = subTotal > 0 ? (finalTotal / subTotal) : 1;
 

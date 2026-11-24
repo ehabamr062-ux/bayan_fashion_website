@@ -730,11 +730,6 @@
                         }
                     } catch (_) { }
                     try {
-                        if (tableName === 'products' && item && item.showInStore === true && window.BayanOnlineOrders && typeof window.BayanOnlineOrders.scheduleSilentStockSync === 'function') {
-                            window.BayanOnlineOrders.scheduleSilentStockSync(item);
-                        }
-                    } catch (_) { }
-                    try {
                         if (tableName === 'products' && Array.isArray(items) && window.BayanOnlineOrders && typeof window.BayanOnlineOrders.scheduleSilentStockSync === 'function') {
                             window.BayanOnlineOrders.scheduleSilentStockSync(items);
                         }
@@ -759,8 +754,8 @@
                         }
                     } catch (_) { }
                     try {
-                        if (tableName === 'products' && item && item.showInStore === true && window.BayanOnlineOrders && typeof window.BayanOnlineOrders.scheduleSilentStockSync === 'function') {
-                            window.BayanOnlineOrders.scheduleSilentStockSync(item);
+                        if (tableName === 'products' && id != null && window.BayanOnlineOrders && typeof window.BayanOnlineOrders.deactivateProductInStore === 'function') {
+                            window.BayanOnlineOrders.deactivateProductInStore(id);
                         }
                     } catch (_) { }
                     return res;
