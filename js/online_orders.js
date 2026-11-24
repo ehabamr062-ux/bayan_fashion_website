@@ -1477,13 +1477,30 @@
                 if (!src) return '';
                 if (/^https?:\/\//i.test(src)) return src;
 
-                // إذا كانت الصورة ملفاً محلياً في Electron (file:// أو مسار ويندوز)، نقرأها كـ Data URL أولاً
+                // إذا كانت الصورة بصيغة local_img: الخاصة بـ BayanSQLite أو ملفاً محلياً في Electron، نحولها أولاً إلى Data URL
                 let loadableSrc = src;
-                if (!src.startsWith('data:image')) {
+                if (src.startsWith('local_img:')) {
+                    const fileName = src.slice('local_img:'.length).split('?')[0].trim();
+                    if (window.BayanSQLite && typeof window.BayanSQLite._resolveProductImage === 'function') {
+                        const resolved = window.BayanSQLite._resolveProductImage(src);
+                        if (resolved) loadableSrc = resolved;
+                    }
+                    if (loadableSrc === src && typeof window !== 'undefined' && typeof window.require === 'function') {
+                        try {
+                            const pathMod = window.require('path');
+                            const osMod = window.require('os');
+                            const imgDir = (window.BayanSQLite && typeof window.BayanSQLite._getProductImageDir === 'function')
+                                ? window.BayanSQLite._getProductImageDir()
+                                : pathMod.join(osMod.homedir(), '.bayan_pos', 'product_images');
+                            loadableSrc = pathMod.join(imgDir, fileName);
+                        } catch (_) { }
+                    }
+                }
+                if (!loadableSrc.startsWith('data:image')) {
                     if (typeof window !== 'undefined' && typeof window.require === 'function') {
                         try {
                             const fs = window.require('fs');
-                            let filePath = src;
+                            let filePath = loadableSrc.split('?')[0];
                             if (filePath.startsWith('file:///')) {
                                 filePath = decodeURIComponent(filePath.replace(/^file:\/\/\//i, '')).replace(/\//g, '\\');
                             } else if (filePath.startsWith('file://')) {
