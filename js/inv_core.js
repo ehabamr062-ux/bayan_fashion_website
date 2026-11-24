@@ -370,7 +370,7 @@ const FashionStockEngine = {
         if (!product.warehouseStocks) product.warehouseStocks = {};
         const currentWhStock = this.getProductStock(product, targetWH);
         product.warehouseStocks[targetWH] = currentWhStock + qtyDelta;
-        product.stock = (parseFloat(product.stock) || 0) + qtyDelta;
+        this.syncProductTotals(product);
 
         if (qtyDelta > 0 && costPrice !== null && parseFloat(costPrice) > 0) {
             const buyCost = parseFloat(costPrice);
