@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
 const zlib = require('zlib');
+const os = require('os');
 
 let betterSqlite3 = null;
 try {
@@ -341,8 +342,6 @@ function createWindow() {
 
     return win;
 }
-
-const os = require('os');
 
 if (gotTheLock) {
     app.whenReady().then(() => {

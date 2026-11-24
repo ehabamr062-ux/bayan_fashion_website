@@ -161,7 +161,7 @@ self.addEventListener('fetch', (event) => {
                     if (url.pathname.includes('/mobile/')) {
                         return caches.match('./mobile/index.html');
                     }
-                    return caches.match('./index.html') || caches.match('./');
+                    return caches.match('./index.html').then(r => r || caches.match('./'));
                 });
             })
         );
@@ -187,7 +187,7 @@ self.addEventListener('fetch', (event) => {
                 return networkResponse;
             }).catch(() => {
                 if (request.destination === 'document' || request.mode === 'navigate') {
-                    return caches.match('./index.html') || caches.match('./');
+                    return caches.match('./index.html').then(r => r || caches.match('./'));
                 }
 
                 if (request.destination === 'image') {

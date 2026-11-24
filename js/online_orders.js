@@ -102,6 +102,7 @@
                     osc.start(now + idx * 0.14);
                     osc.stop(now + idx * 0.14 + 0.24);
                 });
+                setTimeout(() => { try { ctx.close(); } catch (_) { } }, 600);
             } catch (_) { }
         },
 
@@ -1310,13 +1311,17 @@
         },
 
         // 2️⃣ تأكيد وحفظ كفاتورة بيع مباشرة في SQLite وخصم من FashionStockEngine
+        _convertingOrders: new Set(),
         async convertOrderDirectToInvoice(orderKey) {
-            const order = this.orders.find(o => String(o.firestoreId || o.id) === String(orderKey));
+            const lockKey = String(orderKey || '');
+            if (!lockKey || this._convertingOrders.has(lockKey)) return;
+            const order = this.orders.find(o => String(o.firestoreId || o.id) === lockKey);
             if (!order) return;
             if (order.posInvoiceNo || order.status === 'confirmed') {
                 if (typeof showToast === 'function') showToast('⚠️ هذا الطلب محوّل مسبقاً إلى فاتورة بيع!', 'warning');
                 return;
             }
+            this._convertingOrders.add(lockKey);
 
             const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
             const cashierName = (typeof currentUser !== 'undefined' && currentUser && currentUser.name) ? currentUser.name : 'المدير';
@@ -1411,6 +1416,8 @@
             } catch (err) {
                 console.error('[OnlineOrders] Direct conversion error:', err);
                 if (typeof showToast === 'function') showToast('❌ تعذر حفظ الفاتورة: ' + err.message, 'error');
+            } finally {
+                this._convertingOrders.delete(lockKey);
             }
         },
 
@@ -1615,6 +1622,10 @@
         },
 
         async clearCloudStoreData() {
+            if (typeof currentUser === 'undefined' || !currentUser || currentUser.role !== 'admin') {
+                if (typeof showToast === 'function') showToast('🔒 هذه العملية متاحة للمدير العام فقط.', 'error');
+                return;
+            }
             if (!navigator.onLine) {
                 if (typeof showToast === 'function') showToast('⚠️ لا يوجد اتصال بالإنترنت حالياً لتفريغ السحابة.', 'warning');
                 return;

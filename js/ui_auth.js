@@ -378,9 +378,10 @@ function initLogin() {
     modal.classList.remove('hidden');
     modal.style.display = 'flex';
 
-    // إضافة مستمع لزر الإنتر في كافة خانات الدخول لسرعة العمل
+    // إضافة مستمع لزر الإنتر في كافة خانات الدخول لسرعة العمل (مرة واحدة فقط لمنع التكرار)
     [uSelect, wSelect, document.getElementById('loginPinInput')].forEach(el => {
-        if (el) {
+        if (el && !el.dataset.bayanEnterBound) {
+            el.dataset.bayanEnterBound = '1';
             el.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') {
                     e.preventDefault();

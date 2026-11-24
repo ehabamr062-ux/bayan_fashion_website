@@ -2261,8 +2261,8 @@ window.getCloudSyncStatus = function () {
         return { allowed: false, reason: 'clock_tampered', label: '🔒 تم التلاعب بتوقيت الجهاز' };
     }
 
-    // السماح في بيئة التطوير أو الترخيص الصريح
-    const isDev = (typeof process !== 'undefined' && process.env && process.env.NODE_ENV !== 'production') || !window.electronAPI;
+    // السماح في بيئة التطوير المحلية فقط أو الترخيص الصريح
+    const isDev = (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'development');
     const isExplicitCloudLicensed = (typeof getStore === 'function') && (getStore('bayan_cloud_sync_licensed') === 'true');
     if (isExplicitCloudLicensed || isDev) {
         return { allowed: true, reason: 'active', label: '🟢 سحابي نشط (وضع التطوير/مرخص)' };
