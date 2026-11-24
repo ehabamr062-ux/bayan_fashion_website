@@ -1683,6 +1683,8 @@
                         await col.doc(payload.id).set({
                             stock: payload.stock,
                             stockQty: payload.stockQty,
+                            sizes: payload.sizes,
+                            colors: payload.colors,
                             variantsStock: payload.variantsStock,
                             inStock: payload.inStock,
                             updatedAt: payload.updatedAt
