@@ -1846,7 +1846,12 @@ function initTabSortable() {
 }
 
 function showQuickNav() {
-    document.getElementById('quickNavModal').classList.remove('hidden');
+    const m = document.getElementById('quickNavModal');
+    if (!m) return;
+    m.classList.remove('hidden');
+    m.style.display = 'flex';
+    m.style.visibility = 'visible';
+    m.style.opacity = '1';
 }
 
 function openNewInvoiceTab(sectionType = 'sales') {
