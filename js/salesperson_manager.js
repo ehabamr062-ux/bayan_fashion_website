@@ -71,25 +71,70 @@
         return [...new Set([...saved, ...fromEmployees])];
     };
 
-    // تحديث القائمة المنسدلة في شاشة البيع (POS)
+    // تحديث القائمة المنسدلة (تفتح لأعلى Drop-Up) في شاشة البيع (POS)
     window.refreshPosSalespersonDropdown = function (selectedValue) {
-        const sel = document.getElementById('posSalesperson');
-        if (!sel) return;
-        const currentVal = selectedValue !== undefined ? selectedValue : sel.value;
-        const list = window.getAllSalespeople();
+        const inp = document.getElementById('posSalesperson');
+        const lbl = document.getElementById('posSalespersonLabel');
+        const menu = document.getElementById('posSalespersonDropUpMenu');
+        if (!inp) return;
 
-        let html = '<option value="">-- بدون سيلز --</option>';
-        list.forEach(name => {
-            const safe = name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-            html += `<option value="${safe}">🏷️ ${safe}</option>`;
-        });
-        if (currentVal && !list.includes(currentVal)) {
-            const safeCur = currentVal.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-            html += `<option value="${safeCur}">🏷️ ${safeCur}</option>`;
+        const currentVal = selectedValue !== undefined ? String(selectedValue || '').trim() : String(inp.value || '').trim();
+        inp.value = currentVal;
+
+        if (lbl) {
+            lbl.textContent = currentVal ? `🏷️ ${currentVal}` : '🏷️ السيلز: بدون';
         }
-        sel.innerHTML = html;
-        sel.value = currentVal || '';
+
+        if (menu) {
+            const list = window.getAllSalespeople();
+            if (currentVal && !list.includes(currentVal)) list.unshift(currentVal);
+
+            const items = [
+                { val: '', label: '⚪ بدون سيلز' },
+                ...list.map(n => ({ val: n, label: `🏷️ ${n}` }))
+            ];
+
+            menu.innerHTML = items.map(it => {
+                const isSel = it.val === currentVal;
+                const safeVal = it.val.replace(/&/g, '&amp;').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                const safeLbl = it.label.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                return `
+                    <button type="button" onclick="window.selectPosSalesperson('${safeVal}')"
+                        style="width:100%; text-align:right; padding:8px 10px; border:none; border-radius:8px; margin-bottom:2px; cursor:pointer; font-family:inherit; font-size:0.84rem; font-weight:${isSel ? '900' : '800'}; background:${isSel ? '#d1fae5' : 'transparent'}; color:${isSel ? '#065f46' : '#0f172a'}; display:flex; align-items:center; justify-content:space-between;"
+                        onmouseover="if(!${isSel})this.style.background='#f1f5f9'" onmouseout="if(!${isSel})this.style.background='transparent'">
+                        <span>${safeLbl}</span>
+                        ${isSel ? '<span style="color:#059669;">✓</span>' : ''}
+                    </button>`;
+            }).join('');
+        }
     };
+
+    window.selectPosSalesperson = function (val) {
+        window.refreshPosSalespersonDropdown(val);
+        const menu = document.getElementById('posSalespersonDropUpMenu');
+        if (menu) menu.style.display = 'none';
+    };
+
+    window.togglePosSalespersonDropUp = function (e) {
+        if (e) e.stopPropagation();
+        const menu = document.getElementById('posSalespersonDropUpMenu');
+        if (!menu) return;
+        const isOpen = menu.style.display === 'block';
+        if (!isOpen) {
+            window.refreshPosSalespersonDropdown();
+            menu.style.display = 'block';
+        } else {
+            menu.style.display = 'none';
+        }
+    };
+
+    document.addEventListener('click', (e) => {
+        const wrap = document.getElementById('posSalespersonDropUpWrap');
+        const menu = document.getElementById('posSalespersonDropUpMenu');
+        if (menu && menu.style.display === 'block' && wrap && !wrap.contains(e.target)) {
+            menu.style.display = 'none';
+        }
+    });
 
     // نافذة سريعة لإدارة أسماء السيلز (إضافة / حذف في ثانية واحدة)
     window.openSalespersonQuickManageModal = function () {

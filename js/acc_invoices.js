@@ -2100,9 +2100,16 @@ window.editTransaction = async function (invId, type, optTxId = '') {
                         };
                     });
 
-                    // تثبيت اسم العميل والتاريخ والوقت
+                    // تثبيت اسم العميل والتاريخ والوقت واسم السيلز الأصلي للفاتورة
                     const custInp = document.getElementById('customerName');
                     if (custInp) custInp.value = partnerName;
+                    const savedSalesperson = (invoiceItems.find(it => it && it.salesperson && String(it.salesperson).trim()) || {}).salesperson || (t && t.salesperson) || '';
+                    if (typeof window.refreshPosSalespersonDropdown === 'function') {
+                        window.refreshPosSalespersonDropdown(savedSalesperson);
+                    } else {
+                        const spEl = document.getElementById('posSalesperson');
+                        if (spEl) spEl.value = savedSalesperson;
+                    }
                     setEditDateTimeInput('salesDate', 'salesTime');
                     if (document.getElementById('salesBadgeID')) document.getElementById('salesBadgeID').innerText = invId;
 
