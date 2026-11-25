@@ -547,10 +547,24 @@
         computeAndRender();
     };
 
-    // تهيئة تلقائية عند تحميل الصفحة
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => window.refreshPosSalespersonDropdown());
-    } else {
-        setTimeout(() => window.refreshPosSalespersonDropdown(), 100);
+    // إظهار أزرار إدارة وتقرير السيلز في شاشة البيع تلقائياً لحساب المدير فقط وإخفاؤها عن الكاشير
+    window.syncSalespersonAdminButtonsVisibility = function () {
+        const show = isCurrentUserAdmin();
+        document.querySelectorAll('.sp-admin-only-btn').forEach(btn => {
+            btn.style.display = show ? 'inline-flex' : 'none';
+        });
+    };
+
+    // تهيئة تلقائية عند تحميل الصفحة وعند تغيير المستخدم
+    function initSpUI() {
+        window.refreshPosSalespersonDropdown();
+        window.syncSalespersonAdminButtonsVisibility();
     }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initSpUI);
+    } else {
+        setTimeout(initSpUI, 100);
+    }
+    // فحص دوري خفيف عند تبديل الحسابات (دخول مدير / كاشير)
+    setInterval(() => window.syncSalespersonAdminButtonsVisibility(), 1500);
 })();

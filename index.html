@@ -1071,10 +1071,18 @@
                                 <button type="button" id="posSalespersonTriggerBtn"
                                     onclick="if(typeof togglePosSalespersonDropUp==='function') togglePosSalespersonDropUp(event)"
                                     title="اختر موظف السيلز لهذه الفاتورة (تفتح القائمة لأعلى)"
-                                    style="height: 30px; min-width: 155px; max-width: 210px; padding: 0 10px; background: #ecfdf5; border: 1.5px solid #34d399; border-radius: 8px; color: #065f46; font-weight: 900; font-size: 0.8rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: space-between; gap: 6px; font-family: inherit;">
+                                    style="height: 30px; min-width: 148px; max-width: 195px; padding: 0 10px; background: #ecfdf5; border: 1.5px solid #34d399; border-radius: 8px; color: #065f46; font-weight: 900; font-size: 0.8rem; cursor: pointer; display: inline-flex; align-items: center; justify-content: space-between; gap: 6px; font-family: inherit;">
                                     <span id="posSalespersonLabel" style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">🏷️ السيلز: بدون</span>
                                     <span style="font-size: 0.65rem; opacity: 0.8;">▲</span>
                                 </button>
+                                <button type="button" class="sp-admin-only-btn"
+                                    onclick="if(typeof openSalespersonQuickManageModal==='function') openSalespersonQuickManageModal();"
+                                    title="إضافة وتعديل وحذف أسماء السيلز (للمدير فقط)"
+                                    style="display: none; height: 30px; width: 28px; background: #059669; color: #ffffff; border: none; border-radius: 8px; font-weight: 900; font-size: 0.95rem; cursor: pointer; align-items: center; justify-content: center;">+</button>
+                                <button type="button" class="sp-admin-only-btn"
+                                    onclick="if(typeof openSalespersonReportModal==='function') openSalespersonReportModal();"
+                                    title="تقرير مبيعات وعمولات السيلز (للمدير فقط)"
+                                    style="display: none; height: 30px; padding: 0 8px; background: #fef3c7; color: #92400e; border: 1.5px solid #fcd34d; border-radius: 8px; font-weight: 900; font-size: 0.76rem; cursor: pointer; align-items: center; gap: 4px; font-family: inherit;">📊 التقرير</button>
                                 <div id="posSalespersonDropUpMenu"
                                     style="display: none; position: absolute; bottom: calc(100% + 6px); right: 0; min-width: 210px; max-height: 240px; overflow-y: auto; background: #ffffff; border: 1.5px solid #34d399; border-radius: 12px; box-shadow: 0 -10px 28px rgba(0,0,0,0.18); z-index: 99999; padding: 6px; direction: rtl;">
                                 </div>
