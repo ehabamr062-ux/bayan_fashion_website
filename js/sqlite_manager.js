@@ -951,6 +951,7 @@
                 CREATE INDEX IF NOT EXISTS idx_prod_stock ON products(stock);
                 CREATE INDEX IF NOT EXISTS idx_prod_raw_code ON products(json_extract(raw_json, '$.code'));
                 CREATE INDEX IF NOT EXISTS idx_prod_raw_model ON products(json_extract(raw_json, '$.model'));
+                CREATE INDEX IF NOT EXISTS idx_prod_store ON products(json_extract(raw_json, '$.showInStore'));
             `);
 
             // 🛡️ ترقية مخطط جدول الأصناف تلقائياً وفحص عمود code
@@ -1108,6 +1109,8 @@
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_partner_head_date ON transactions(partner, isInvoiceHead, dateISO DESC);");
                 // ⚡ فهرس مركب لإدارة الأسعار والمخازن
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_products_cat_price ON products(category, price);");
+                // ⚡ فهرس مركب لتسريع تعديل وحذف الفواتير حسب رقم الفاتورة ونوعها
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_inv_type ON transactions(invoiceId, type);");
             } catch (e) { }
 
             // ⚡ تفعيل جدول البحث النصي الكامل FTS5 للأصناف (products_fts) مع Triggers المزامنة التلقائية
