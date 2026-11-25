@@ -12,6 +12,23 @@
     if (typeof window === 'undefined') return;
 
     const STORAGE_KEY = 'bayan_salespeople_list';
+    const COMM_STORAGE_KEY = 'bayan_salespeople_comm_pct';
+
+    function getSavedCommPct() {
+        try {
+            const raw = typeof getStore === 'function' ? getStore(COMM_STORAGE_KEY) : localStorage.getItem(COMM_STORAGE_KEY);
+            const v = parseFloat(raw);
+            return Number.isFinite(v) && v >= 0 ? v : 0;
+        } catch (e) { return 0; }
+    }
+
+    function saveCommPct(val) {
+        const clean = Number.isFinite(val) && val >= 0 ? val : 0;
+        try {
+            if (typeof setStore === 'function') setStore(COMM_STORAGE_KEY, String(clean));
+            else localStorage.setItem(COMM_STORAGE_KEY, String(clean));
+        } catch (e) { }
+    }
 
     function safeGetList() {
         try {
@@ -186,6 +203,8 @@
                         <input type="date" id="spRepFrom" value="${firstOfMonth}" style="height:36px; padding:0 10px; border:1.5px solid #34d399; border-radius:10px; font-weight:800; font-family:inherit;">
                         <label style="font-weight:800; font-size:0.82rem; color:#065f46;">إلى:</label>
                         <input type="date" id="spRepTo" value="${today}" style="height:36px; padding:0 10px; border:1.5px solid #34d399; border-radius:10px; font-weight:800; font-family:inherit;">
+                        <label style="font-weight:800; font-size:0.82rem; color:#065f46; margin-right:4px;">العمولة %:</label>
+                        <input type="number" id="spRepCommPct" min="0" max="100" step="0.5" value="${getSavedCommPct()}" style="width:72px; height:36px; padding:0 8px; border:1.5px solid #f59e0b; border-radius:10px; font-weight:900; font-family:inherit; text-align:center; color:#b45309; background:#fffbeb;">
                         <button type="button" id="spRepApplyBtn" style="background:#059669; color:#fff; border:none; border-radius:10px; height:36px; padding:0 16px; font-weight:900; cursor:pointer; font-family:inherit; font-size:0.84rem;">🔍 عرض</button>
                     </div>
                     <div style="display:flex; gap:6px; flex-wrap:wrap;">
@@ -203,6 +222,8 @@
         function computeAndRender() {
             const fromVal = overlay.querySelector('#spRepFrom').value || '';
             const toVal = overlay.querySelector('#spRepTo').value || '';
+            const commPct = Math.max(0, parseFloat(overlay.querySelector('#spRepCommPct')?.value) || 0);
+            saveCommPct(commPct);
             const txs = Array.isArray(window.transactions) ? window.transactions : [];
 
             // تجميع حسب الفاتورة أولاً لمنع تكرار الإجمالي عند تعدد الأصناف في نفس الفاتورة
@@ -221,6 +242,9 @@
 
                 if (!invoicesMap.has(invKey)) {
                     invoicesMap.set(invKey, {
+                        invoiceId: t.invoiceId || '-',
+                        date: dISO || (t.date || '-'),
+                        partner: t.partner || 'عميل نقدي',
                         salesperson: spName,
                         total: lineTotal,
                         qty: lineQty
@@ -235,44 +259,55 @@
                 }
             });
 
-            // تجميع حسب السيلز
+            // تجميع حسب السيلز مع الاحتفاظ بقائمة فواتير كل سيلز
             const spStats = new Map();
             let grandTotal = 0;
             let grandInvoices = 0;
+            let grandCommission = 0;
 
             invoicesMap.forEach(inv => {
                 grandTotal += inv.total;
                 grandInvoices += 1;
                 if (!spStats.has(inv.salesperson)) {
-                    spStats.set(inv.salesperson, { name: inv.salesperson, invoices: 0, qty: 0, total: 0 });
+                    spStats.set(inv.salesperson, { name: inv.salesperson, invoices: 0, qty: 0, total: 0, list: [] });
                 }
                 const st = spStats.get(inv.salesperson);
                 st.invoices += 1;
                 st.qty += inv.qty;
                 st.total += inv.total;
+                st.list.push(inv);
             });
 
             const rows = Array.from(spStats.values()).sort((a, b) => b.total - a.total);
+            rows.forEach(r => {
+                const isUnassigned = r.name === 'غير محدد (بدون سيلز)';
+                r.commission = isUnassigned ? 0 : (r.total * commPct) / 100;
+                grandCommission += r.commission;
+            });
             const topSp = rows.find(r => r.name !== 'غير محدد (بدون سيلز)') || rows[0];
 
             const summaryHtml = `
-                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:12px; margin-bottom:18px;">
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:12px; margin-bottom:18px;">
                     <div style="background:#ecfdf5; border:1.5px solid #a7f3d0; border-radius:16px; padding:14px 16px;">
-                        <div style="font-size:0.78rem; color:#065f46; font-weight:800;">💰 إجمالي مبيعات الفترة</div>
-                        <div style="font-size:1.35rem; font-weight:900; color:#047857; margin-top:4px;">${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</div>
+                        <div style="font-size:0.76rem; color:#065f46; font-weight:800;">💰 إجمالي مبيعات الفترة</div>
+                        <div style="font-size:1.25rem; font-weight:900; color:#047857; margin-top:4px;">${grandTotal.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</div>
                     </div>
                     <div style="background:#eff6ff; border:1.5px solid #bfdbfe; border-radius:16px; padding:14px 16px;">
-                        <div style="font-size:0.78rem; color:#1e40af; font-weight:800;">🧾 إجمالي عدد الفواتير</div>
-                        <div style="font-size:1.35rem; font-weight:900; color:#1d4ed8; margin-top:4px;">${grandInvoices} فاتورة</div>
+                        <div style="font-size:0.76rem; color:#1e40af; font-weight:800;">🧾 إجمالي الفواتير</div>
+                        <div style="font-size:1.25rem; font-weight:900; color:#1d4ed8; margin-top:4px;">${grandInvoices} فاتورة</div>
+                    </div>
+                    <div style="background:#fffbeb; border:1.5px solid #fde68a; border-radius:16px; padding:14px 16px;">
+                        <div style="font-size:0.76rem; color:#92400e; font-weight:800;">💸 إجمالي العمولات (${commPct}%)</div>
+                        <div style="font-size:1.25rem; font-weight:900; color:#b45309; margin-top:4px;">${grandCommission.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</div>
                     </div>
                     <div style="background:#fefce8; border:1.5px solid #fde047; border-radius:16px; padding:14px 16px;">
-                        <div style="font-size:0.78rem; color:#854d0e; font-weight:800;">🏆 الأعلى مبيعاً</div>
-                        <div style="font-size:1.05rem; font-weight:900; color:#a16207; margin-top:6px;">${topSp ? `${topSp.name} (${topSp.total.toLocaleString('en-US', { maximumFractionDigits: 0 })} ج.م)` : 'لا توجد بيانات'}</div>
+                        <div style="font-size:0.76rem; color:#854d0e; font-weight:800;">🏆 الأعلى مبيعاً</div>
+                        <div style="font-size:0.98rem; font-weight:900; color:#a16207; margin-top:6px;">${topSp ? `${topSp.name} (${topSp.total.toLocaleString('en-US', { maximumFractionDigits: 0 })} ج.م)` : 'لا توجد بيانات'}</div>
                     </div>
                 </div>`;
 
             const tableRows = rows.length === 0
-                ? '<tr><td colspan="6" style="text-align:center; padding:32px; color:#64748b; font-weight:800;">لا توجد مبيعات مسجلة في هذه الفترة</td></tr>'
+                ? '<tr><td colspan="7" style="text-align:center; padding:32px; color:#64748b; font-weight:800;">لا توجد مبيعات مسجلة في هذه الفترة</td></tr>'
                 : rows.map((r, i) => {
                     const pct = grandTotal > 0 ? ((r.total / grandTotal) * 100).toFixed(1) : '0.0';
                     const safeName = r.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -280,10 +315,16 @@
                     return `
                         <tr style="border-bottom:1px solid #e2e8f0; background:${i % 2 === 0 ? '#ffffff' : '#f8fafc'};">
                             <td style="padding:12px; font-weight:900; color:#475569; text-align:center;">${i + 1}</td>
-                            <td style="padding:12px; font-weight:900; color:${isUnassigned ? '#64748b' : '#0f172a'};">${isUnassigned ? '⚪' : '🏷️'} ${safeName}</td>
+                            <td style="padding:12px; font-weight:900;">
+                                <button type="button" class="sp-open-details-btn" data-sp-idx="${i}" title="اضغط لعرض فواتير هذا السيلز بالتفصيل"
+                                    style="background:none; border:none; padding:0; cursor:pointer; font-family:inherit; font-weight:900; font-size:0.9rem; color:${isUnassigned ? '#64748b' : '#065f46'}; text-decoration:underline; text-underline-offset:3px;">
+                                    ${isUnassigned ? '⚪' : '🏷️'} ${safeName}
+                                </button>
+                            </td>
                             <td style="padding:12px; font-weight:800; text-align:center; color:#1e40af;">${r.invoices}</td>
                             <td style="padding:12px; font-weight:800; text-align:center; color:#0f172a;">${r.qty}</td>
                             <td style="padding:12px; font-weight:900; text-align:center; color:#047857;">${r.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</td>
+                            <td style="padding:12px; font-weight:900; text-align:center; color:#b45309;">${r.commission.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</td>
                             <td style="padding:12px; text-align:center;">
                                 <span style="background:#dcfce7; color:#166534; padding:3px 10px; border-radius:999px; font-weight:900; font-size:0.78rem;">${pct}%</span>
                             </td>
@@ -292,25 +333,82 @@
 
             overlay.querySelector('#spRepBody').innerHTML = `
                 ${summaryHtml}
+                <div style="font-size:0.78rem; color:#475569; font-weight:700; margin-bottom:8px;">💡 اضغط على اسم أي سيلز في الجدول لعرض كشف فواتيره بالتفصيل:</div>
                 <div style="border:1.5px solid #e2e8f0; border-radius:16px; overflow:hidden;">
-                    <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+                    <table style="width:100%; border-collapse:collapse; font-size:0.88rem;">
                         <thead>
                             <tr style="background:#064e3b; color:#ffffff;">
-                                <th style="padding:12px; text-align:center; width:50px;">#</th>
+                                <th style="padding:12px; text-align:center; width:46px;">#</th>
                                 <th style="padding:12px; text-align:right;">اسم السيلز (البائع)</th>
-                                <th style="padding:12px; text-align:center;">عدد الفواتير</th>
-                                <th style="padding:12px; text-align:center;">عدد القطع</th>
+                                <th style="padding:12px; text-align:center;">الفواتير</th>
+                                <th style="padding:12px; text-align:center;">القطع</th>
                                 <th style="padding:12px; text-align:center;">إجمالي المبيعات</th>
+                                <th style="padding:12px; text-align:center;">العمولة (${commPct}%)</th>
                                 <th style="padding:12px; text-align:center;">النسبة</th>
                             </tr>
                         </thead>
                         <tbody>${tableRows}</tbody>
                     </table>
                 </div>`;
+
+            // ربط الضغط على اسم السيلز لفتح كشف فواتيره بالتفصيل
+            overlay.querySelectorAll('.sp-open-details-btn').forEach(btn => {
+                btn.onclick = () => {
+                    const row = rows[parseInt(btn.getAttribute('data-sp-idx'), 10)];
+                    if (!row) return;
+                    openSalespersonInvoicesDetailModal(row, commPct);
+                };
+            });
+        }
+
+        function openSalespersonInvoicesDetailModal(spRow, commPct) {
+            const oldDet = document.getElementById('bayanSpInvoicesDetailOverlay');
+            if (oldDet) oldDet.remove();
+            const safeName = spRow.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const det = document.createElement('div');
+            det.id = 'bayanSpInvoicesDetailOverlay';
+            det.style.cssText = 'position:fixed; inset:0; background:rgba(2,18,14,0.8); backdrop-filter:blur(5px); z-index:9999999; display:flex; align-items:center; justify-content:center; padding:16px; direction:rtl; font-family:Cairo,sans-serif;';
+            const invRows = spRow.list.map((inv, idx) => `
+                <tr style="border-bottom:1px solid #e2e8f0; background:${idx % 2 === 0 ? '#fff' : '#f8fafc'};">
+                    <td style="padding:10px; text-align:center; font-weight:800;">#${inv.invoiceId}</td>
+                    <td style="padding:10px; text-align:center; font-weight:700; color:#475569;">${inv.date}</td>
+                    <td style="padding:10px; font-weight:800; color:#0f172a;">${String(inv.partner).replace(/</g, '&lt;')}</td>
+                    <td style="padding:10px; text-align:center; font-weight:800;">${inv.qty}</td>
+                    <td style="padding:10px; text-align:center; font-weight:900; color:#047857;">${inv.total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ج.م</td>
+                </tr>`).join('');
+
+            det.innerHTML = `
+                <div style="background:#fff; width:680px; max-width:95vw; max-height:85vh; border-radius:20px; overflow:hidden; display:flex; flex-direction:column; box-shadow:0 24px 60px rgba(0,0,0,0.45); border:1.5px solid #a7f3d0;">
+                    <div style="background:linear-gradient(135deg,#064e3b,#047857); padding:15px 20px; color:#fff; display:flex; align-items:center; justify-content:space-between;">
+                        <div>
+                            <div style="font-weight:900; font-size:1.05rem;">🧾 كشف فواتير السيلز: ${safeName}</div>
+                            <div style="font-size:0.78rem; color:#a7f3d0; font-weight:700;">${spRow.invoices} فاتورة • إجمالي ${spRow.total.toLocaleString('en-US', { minimumFractionDigits: 2 })} ج.م • عمولة (${commPct}%): ${spRow.commission.toLocaleString('en-US', { minimumFractionDigits: 2 })} ج.م</div>
+                        </div>
+                        <button type="button" id="closeSpDetBtn" style="background:rgba(255,255,255,0.18); color:#fff; border:none; width:32px; height:32px; border-radius:10px; font-weight:900; cursor:pointer;">✕</button>
+                    </div>
+                    <div style="padding:16px 20px; overflow-y:auto; flex:1;">
+                        <table style="width:100%; border-collapse:collapse; font-size:0.86rem;">
+                            <thead>
+                                <tr style="background:#f1f5f9; color:#0f172a;">
+                                    <th style="padding:10px; text-align:center;">رقم الفاتورة</th>
+                                    <th style="padding:10px; text-align:center;">التاريخ</th>
+                                    <th style="padding:10px; text-align:right;">العميل</th>
+                                    <th style="padding:10px; text-align:center;">القطع</th>
+                                    <th style="padding:10px; text-align:center;">الإجمالي</th>
+                                </tr>
+                            </thead>
+                            <tbody>${invRows}</tbody>
+                        </table>
+                    </div>
+                </div>`;
+            det.querySelector('#closeSpDetBtn').onclick = () => det.remove();
+            det.addEventListener('click', (e) => { if (e.target === det) det.remove(); });
+            document.body.appendChild(det);
         }
 
         overlay.querySelector('#spRepCloseBtn').onclick = () => overlay.remove();
         overlay.querySelector('#spRepApplyBtn').onclick = computeAndRender;
+        overlay.querySelector('#spRepCommPct').oninput = computeAndRender;
         overlay.querySelector('#spRepManageBtn').onclick = () => window.openSalespersonQuickManageModal();
         overlay.querySelector('#spRepPrintBtn').onclick = () => {
             const fromVal = overlay.querySelector('#spRepFrom').value || 'الكل';
