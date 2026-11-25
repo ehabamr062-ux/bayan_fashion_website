@@ -872,6 +872,24 @@
                         <div id="customerSearchResults" class="search-results" style="top: 66px;"></div>
                     </div>
 
+                    <!-- 4.5 البائع / السيلز (اختياري - بدون حساب دخول) -->
+                    <div class="header-column" style="width: 145px; position: relative; margin: 0;">
+                        <div class="header-label-badge"
+                            style="background: #ecfdf5; color: #065f46; font-weight: 900; border: 1.5px solid #a7f3d0; border-radius: 6px; font-size: 0.72rem; padding: 2px 6px; display:flex; align-items:center; justify-content:space-between;">
+                            <span>🏷️ السيلز</span>
+                            <span onclick="if(typeof openSalespersonQuickManageModal==='function') openSalespersonQuickManageModal();"
+                                title="إضافة أو إدارة أسماء السيلز"
+                                style="cursor:pointer; background:#059669; color:#fff; border-radius:4px; padding:0 5px; font-size:0.72rem; line-height:1.3;">+</span>
+                        </div>
+                        <select id="posSalesperson" class="header-input-unified"
+                            title="اختر موظف المبيعات (السيلز) لهذه الفاتورة (اختياري)"
+                            style="width: 100%; height: 40px; padding: 0 8px; font-size: 0.84rem; background: #ffffff; border: 1.5px solid #a7f3d0; border-radius: 8px; color: #0f172a; font-weight: 800; cursor: pointer; transition: 0.2s;"
+                            onfocus="this.style.borderColor='#059669';"
+                            onblur="this.style.borderColor='#a7f3d0';">
+                            <option value="">-- بدون سيلز --</option>
+                        </select>
+                    </div>
+
                     <!-- 5. البحث عن صنف -->
                     <div class="header-column" style="flex: 1; min-width: 140px; position: relative;">
                         <div class="header-label-badge"
@@ -4612,6 +4630,31 @@
                     <div style="display: flex; align-items: center; justify-content: flex-end; margin-top: 16px;">
                         <span
                             style="font-size: 0.78rem; font-weight: 800; color: #ea580c; background: #ffedd5; padding: 4px 12px; border-radius: 20px;">عرض
+                            التقرير ⬅️</span>
+                    </div>
+                </div>
+
+                <!-- 5. تقرير مبيعات السيلز (البائعين) -->
+                <div class="nav-card"
+                    style="background: #ffffff; border-radius: 18px; padding: 24px; border: 1.5px solid #a7f3d0; box-shadow: 0 6px 20px rgba(5, 150, 105, 0.08); cursor: pointer; display: flex; flex-direction: column; justify-content: space-between; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1); min-height: 200px; position: relative; overflow: hidden;"
+                    onclick="if(typeof openSalespersonReportModal==='function') openSalespersonReportModal();"
+                    onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='0 14px 30px rgba(5, 150, 105, 0.18)'; this.style.borderColor='#059669';"
+                    onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 6px 20px rgba(5, 150, 105, 0.08)'; this.style.borderColor='#a7f3d0';">
+                    <div
+                        style="position: absolute; top: 0; right: 0; width: 100%; height: 4px; background: linear-gradient(90deg, #10b981, #047857);">
+                    </div>
+                    <div>
+                        <div
+                            style="width: 52px; height: 52px; border-radius: 14px; background: #d1fae5; color: #047857; display: flex; align-items: center; justify-content: center; font-size: 1.8rem; margin-bottom: 14px; border: 1px solid #6ee7b7;">
+                            🏷️</div>
+                        <div style="font-size: 1.15rem; font-weight: 900; color: #0f172a; margin-bottom: 6px;">تقرير
+                            مبيعات السيلز (البائعين)</div>
+                        <p style="font-size: 0.82rem; color: #64748b; font-weight: 600; margin: 0; line-height: 1.5;">
+                            إجمالي مبيعات وعدد فواتير كل موظف سيلز لحساب التارجت والعمولات الشهرية</p>
+                    </div>
+                    <div style="display: flex; align-items: center; justify-content: flex-end; margin-top: 16px;">
+                        <span
+                            style="font-size: 0.78rem; font-weight: 800; color: #047857; background: #d1fae5; padding: 4px 12px; border-radius: 20px;">عرض
                             التقرير ⬅️</span>
                     </div>
                 </div>
@@ -19898,6 +19941,7 @@
 
         </div>
     </div>
+    <script src="js/salesperson_manager.js?v=5.1.7"></script>
 </body>
 
 </html>

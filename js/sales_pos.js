@@ -448,31 +448,31 @@ async function handleSearch(query) {
                 </div>
                 <div style="max-height: 380px; overflow-y: auto; padding: 6px; scrollbar-gutter: stable;">
                     ${displayFiltered.map(rawP => {
-                        const p = rawP;
-                        const priceVal = parseFloat(p.price) || 0;
-                        const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
-                        let stockVal = 0;
-                        if (typeof window.FashionStockEngine !== 'undefined' && typeof window.FashionStockEngine.getProductStock === 'function') {
-                            stockVal = window.FashionStockEngine.getProductStock(p, activeWH);
-                        } else if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
-                            stockVal = parseFloat(p.warehouseStocks[activeWH]) || 0;
-                        } else if (typeof getLiveProductWhStock === 'function') {
-                            stockVal = getLiveProductWhStock(p, activeWH);
-                        } else if (typeof getWarehouseStock === 'function') {
-                            stockVal = getWarehouseStock(p.name, activeWH);
-                        } else {
-                            stockVal = parseFloat(p.stock) || 0;
-                        }
-                        const safeName = (window.escapeHtml ? window.escapeHtml(p.name) : p.name);
-                        const safeCode = (window.escapeHtml ? window.escapeHtml(p.code || p.id) : (p.code || p.id));
-                        const safeBarcode = (window.escapeHtml ? window.escapeHtml(p.barcode || '---') : (p.barcode || '---'));
-                        const sizesList = (p.variants && Array.isArray(p.variants)) 
-                            ? [...new Set(p.variants.map(v => String(v.size || '').trim()).filter(s => s && s !== '-' && s !== 'موحد' && s !== 'قياسي'))] 
-                            : [];
-                        const sizesHtml = sizesList.length > 0 
-                            ? `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; border: 1px solid #bae6fd;">📏 مقاسات: ${sizesList.slice(0, 5).join(', ')}${sizesList.length > 5 ? '...' : ''}</span>`
-                            : '';
-                        return `
+            const p = rawP;
+            const priceVal = parseFloat(p.price) || 0;
+            const activeWH = ((typeof currentUser !== 'undefined' && currentUser && currentUser.warehouseName) ? currentUser.warehouseName : 'المخزن الرئيسي').trim();
+            let stockVal = 0;
+            if (typeof window.FashionStockEngine !== 'undefined' && typeof window.FashionStockEngine.getProductStock === 'function') {
+                stockVal = window.FashionStockEngine.getProductStock(p, activeWH);
+            } else if (p.warehouseStocks && typeof p.warehouseStocks === 'object' && p.warehouseStocks[activeWH] !== undefined) {
+                stockVal = parseFloat(p.warehouseStocks[activeWH]) || 0;
+            } else if (typeof getLiveProductWhStock === 'function') {
+                stockVal = getLiveProductWhStock(p, activeWH);
+            } else if (typeof getWarehouseStock === 'function') {
+                stockVal = getWarehouseStock(p.name, activeWH);
+            } else {
+                stockVal = parseFloat(p.stock) || 0;
+            }
+            const safeName = (window.escapeHtml ? window.escapeHtml(p.name) : p.name);
+            const safeCode = (window.escapeHtml ? window.escapeHtml(p.code || p.id) : (p.code || p.id));
+            const safeBarcode = (window.escapeHtml ? window.escapeHtml(p.barcode || '---') : (p.barcode || '---'));
+            const sizesList = (p.variants && Array.isArray(p.variants))
+                ? [...new Set(p.variants.map(v => String(v.size || '').trim()).filter(s => s && s !== '-' && s !== 'موحد' && s !== 'قياسي'))]
+                : [];
+            const sizesHtml = sizesList.length > 0
+                ? `<span style="background: #e0f2fe; color: #0369a1; padding: 2px 6px; border-radius: 6px; font-size: 0.72rem; font-weight: 800; border: 1px solid #bae6fd;">📏 مقاسات: ${sizesList.slice(0, 5).join(', ')}${sizesList.length > 5 ? '...' : ''}</span>`
+                : '';
+            return `
                             <div class="pos-search-row" onclick="if(event){event.preventDefault(); event.stopPropagation();} selectProductToHeader(${p.id});" style="display: flex; flex-wrap: nowrap; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid #f1f5f9; cursor: pointer; transition: 0.15s; border-radius: 10px; gap: 10px;">
                                 <div style="flex: 1; min-width: 0; text-align: right;">
                                     <div style="font-weight: 900; font-size: 0.98rem; color: #1e293b; white-space: normal; word-break: break-word;">${safeName}</div>
@@ -493,7 +493,7 @@ async function handleSearch(query) {
                                 </div>
                             </div>
                         `;
-                    }).join('')}
+        }).join('')}
                 </div>
             </div>
         `;
@@ -878,7 +878,7 @@ async function handleSearchEnter(query, event, forceAdd = false) {
             const matches = (typeof window.searchProductsRanked === 'function')
                 ? window.searchProductsRanked(cleanQuery, { limit: 10 })
                 : productsDB.filter(p => (p.name && p.name.toLowerCase().includes(cleanQuery.toLowerCase())));
-            
+
             if (matches.length === 1) {
                 pInDB = matches[0];
             } else if (matches.length > 1) {
@@ -1089,8 +1089,8 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
     // ميزة إدخال الكمية والسعر من الهيدر أو من باركود الميزان مباشرة
     const hQtyInput = document.getElementById('headerQty');
     const hPriceInput = document.getElementById('headerPrice');
-    const hQty = (customQty !== null && customQty !== undefined && customQty > 0) 
-        ? customQty 
+    const hQty = (customQty !== null && customQty !== undefined && customQty > 0)
+        ? customQty
         : (hQtyInput ? (parseFloat(hQtyInput.value) || 1) : 1);
     const hPrice = (customPrice !== null && customPrice !== undefined)
         ? customPrice
@@ -1130,8 +1130,8 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
         const matchedOriginals = editingOriginalItems.filter(orig => {
             const origName = orig.product || orig.name || '';
             const origId = (orig.productId != null && orig.productId !== '') ? orig.productId : orig.id;
-            const isProdMatch = (origName && (origName === product.name || origName === product.id)) || 
-                                (origId != null && (String(origId) === String(product.id) || String(origId) === String(product.name)));
+            const isProdMatch = (origName && (origName === product.name || origName === product.id)) ||
+                (origId != null && (String(origId) === String(product.id) || String(origId) === String(product.name)));
             if (!isProdMatch) return false;
 
             const oSize = cleanAttrPre(orig.selectedSize || orig.size);
@@ -1224,7 +1224,7 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
         existingItem.qty = parseFloat((existingItem.qty + hQty).toFixed(3));
         if (typeof markPosInvoiceModified === 'function') markPosInvoiceModified();
         const isPriceLocked = (typeof currentUser !== 'undefined' && currentUser && currentUser.lockPriceEdit);
-        const canEditPrice = !isPriceLocked && ((typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin') 
+        const canEditPrice = !isPriceLocked && ((typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin')
             || (typeof hasPermission === 'function' && hasPermission('docs_price_edit')));
         if (hPrice !== null && canEditPrice) {
             let itemCost = 0;
@@ -1305,7 +1305,7 @@ function completeAddToCart(product, selectedUnit, selectedVariant = null, custom
         const itemDiscount = parseFloat(product.discount) || 0;
 
         const isPriceLocked = (typeof currentUser !== 'undefined' && currentUser && currentUser.lockPriceEdit);
-        const canEditPrice = !isPriceLocked && ((typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin') 
+        const canEditPrice = !isPriceLocked && ((typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin')
             || (typeof hasPermission === 'function' && hasPermission('docs_price_edit')));
 
         // تحديد ما إذا كان السعر في الهيدر هو مجرد تعبئة تلقائية أم تعديل يدوي
@@ -1723,8 +1723,8 @@ function updateQty(index, newQty) {
             const sSize = item.selectedSize || item.size || '';
             const sColor = item.selectedColor || item.color || '';
             if (sSize || sColor) {
-                effVariant = product.variants.find(v => 
-                    (!sSize || v.size === sSize) && 
+                effVariant = product.variants.find(v =>
+                    (!sSize || v.size === sSize) &&
                     (!sColor || v.color === sColor)
                 );
             }
@@ -1744,7 +1744,7 @@ function updateQty(index, newQty) {
                 const origName = orig.product || orig.name || '';
                 const origId = (orig.productId != null && orig.productId !== '') ? orig.productId : orig.id;
                 const isProdMatch = (origName && (origName === item.name || (product && origName === product.name))) ||
-                                    (origId != null && (String(origId) === String(item.id) || (product && String(origId) === String(product.id))));
+                    (origId != null && (String(origId) === String(item.id) || (product && String(origId) === String(product.id))));
                 if (!isProdMatch) return false;
 
                 const oSize = cleanAttr(orig.selectedSize || orig.size);
@@ -1785,10 +1785,10 @@ function updateQty(index, newQty) {
 
 function updateCartPrice(index, newPrice) {
     if (isEditMode && !checkPermission('docs_edit')) return renderCart();
-    
+
     // 1. فحص صلاحية تعديل السعر للمستخدم
     const isPriceLocked = (typeof currentUser !== 'undefined' && currentUser && currentUser.lockPriceEdit);
-    const canEditPrice = !isPriceLocked && ((typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin') 
+    const canEditPrice = !isPriceLocked && ((typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin')
         || (typeof hasPermission === 'function' && hasPermission('docs_price_edit')));
     if (!canEditPrice) {
         if (typeof showToast === 'function') showToast(isPriceLocked ? "🔒 تعديل سعر البيع مقفل ومحمي لهذا الحساب!" : "🔒 تعديل سعر البيع غير مصرح به لهذا الحساب!", "warning");
@@ -1808,15 +1808,15 @@ function updateCartPrice(index, newPrice) {
     const product = productsDB.find(p => p.id === item.id || p.name === item.name);
     if (product) {
         const factor = (parseFloat(item.unitFactor) > 0) ? parseFloat(item.unitFactor) : 1;
-        
+
         // حساب سعر التكلفة الفعلي للصنف أو التشكيلة
         let baseCost = 0;
         const sSize = String(item.selectedSize || item.size || '').trim();
         const sColor = String(item.selectedColor || item.color || '').trim();
-        
+
         if (product.variants && Array.isArray(product.variants) && (sSize || sColor)) {
-            const effVar = product.variants.find(v => 
-                (!sSize || String(v.size || '').trim() === sSize) && 
+            const effVar = product.variants.find(v =>
+                (!sSize || String(v.size || '').trim() === sSize) &&
                 (!sColor || String(v.color || '').trim() === sColor)
             );
             if (effVar && (effVar.cost || effVar.avgBuyPrice || effVar.buyPrice)) {
@@ -1970,7 +1970,7 @@ function resetBill() {
         }
         if (!applied) {
             // اختيار بند الكاش المتاح بالقائمة بدقة واحترافية لمنع فراغ المربع نهائياً
-            const defaultCashOpt = Array.from(methodSelect.options).find(o => 
+            const defaultCashOpt = Array.from(methodSelect.options).find(o =>
                 o.value === 'كاش (نقدي)' || o.value.includes('كاش') || o.value.includes('نقدي')
             ) || methodSelect.options[0];
             if (defaultCashOpt) {
@@ -1995,7 +1995,7 @@ function resetBill() {
 }
 
 // 📌 إدارة وتثبيت طريقة الدفع المفضلة للفواتير القادمة
-window.togglePinPaymentMethod = function(e) {
+window.togglePinPaymentMethod = function (e) {
     if (e) e.stopPropagation();
     const methodSelect = document.getElementById('sales-sectionPaymentMethodSelect') || document.getElementById('salesPaymentMethodSelect');
     if (!methodSelect) return;
@@ -2017,7 +2017,7 @@ window.togglePinPaymentMethod = function(e) {
     window.checkPaymentPinState();
 };
 
-window.checkPaymentPinState = function() {
+window.checkPaymentPinState = function () {
     const pinBtn = document.getElementById('pinPaymentMethodBtn');
     const methodSelect = document.getElementById('sales-sectionPaymentMethodSelect') || document.getElementById('salesPaymentMethodSelect');
     if (!pinBtn || !methodSelect) return;
@@ -2039,16 +2039,16 @@ window.checkPaymentPinState = function() {
 };
 
 // ================= 📌 إدارة وتثبيت مستوى سعر البيع الدائم (Pinned Price Level) =================
-window.isPriceLevelPinned = function() {
+window.isPriceLevelPinned = function () {
     const pinned = getStore('pos_price_level_pinned');
     return pinned === 'true' || pinned === true;
 };
 
-window.getPinnedPriceLevel = function() {
+window.getPinnedPriceLevel = function () {
     return getStore('pos_pinned_price_level') || 'retail';
 };
 
-window.loadPinnedPriceLevel = function() {
+window.loadPinnedPriceLevel = function () {
     const priceLevelSelect = document.getElementById('salesPriceLevel');
     const pinBtn = document.getElementById('pinPriceLevelBtn');
     const pinIcon = document.getElementById('pinPriceLevelIcon');
@@ -2078,7 +2078,7 @@ window.loadPinnedPriceLevel = function() {
     }
 };
 
-window.togglePinPriceLevel = async function(e) {
+window.togglePinPriceLevel = async function (e) {
     if (e) e.stopPropagation();
     const priceLevelSelect = document.getElementById('salesPriceLevel');
     if (!priceLevelSelect) return;
@@ -2094,7 +2094,7 @@ window.togglePinPriceLevel = async function(e) {
             if (typeof db !== 'undefined' && db.settings) {
                 await db.settings.put({ id: 'pinned_price_level', value: currentLevel, isPinned: true });
             }
-        } catch(err) {}
+        } catch (err) { }
         window.loadPinnedPriceLevel();
         if (typeof showToast === 'function') {
             showToast(`📌 تم تثبيت وضع (${currentLevel === 'wholesale' ? 'جملة تجار 📦' : 'القطاعي 🛒'}) كافتراضي دائم للبرنامج!`, 'success');
@@ -2106,7 +2106,7 @@ window.togglePinPriceLevel = async function(e) {
             if (typeof db !== 'undefined' && db.settings) {
                 await db.settings.put({ id: 'pinned_price_level', value: currentLevel, isPinned: false });
             }
-        } catch(err) {}
+        } catch (err) { }
         window.loadPinnedPriceLevel();
         if (typeof showToast === 'function') {
             showToast('📍 تم إلغاء تثبيت مستوى السعر', 'info');
@@ -2114,7 +2114,7 @@ window.togglePinPriceLevel = async function(e) {
     }
 };
 
-window.onSalesPriceLevelChange = function() {
+window.onSalesPriceLevelChange = function () {
     const priceLevelSelect = document.getElementById('salesPriceLevel');
     if (!priceLevelSelect) return;
 
@@ -2125,7 +2125,7 @@ window.onSalesPriceLevelChange = function() {
             if (typeof db !== 'undefined' && db.settings) {
                 db.settings.put({ id: 'pinned_price_level', value: newLevel, isPinned: true });
             }
-        } catch(err) {}
+        } catch (err) { }
         window.loadPinnedPriceLevel();
     }
     updateCartPriceLevel();
@@ -2188,18 +2188,18 @@ function renderCart() {
 
         const { sizeElement, colorElement } = renderVariantSelectElements(item, index, 'sales');
 
-        const discountTag = (parseFloat(item.discount) > 0) 
+        const discountTag = (parseFloat(item.discount) > 0)
             ? `<div style="font-size:0.72rem; color:#dc2626; font-weight:800; display:flex; align-items:center; justify-content:center; gap:3px; margin-top:2px;" title="خصم ${item.discount}%">
                  <span style="text-decoration:line-through; opacity:0.65;">${(parseFloat(item.originalPrice) || (item.price / (1 - (parseFloat(item.discount) || 0) / 100))).toFixed(2)}</span>
                  <span style="background:#fee2e2; color:#b91c1c; padding:1px 4px; border-radius:4px;">-${item.discount}%</span>
-               </div>` 
+               </div>`
             : '';
 
         const isPriceLocked = (typeof currentUser !== 'undefined' && currentUser && currentUser.lockPriceEdit);
-        const canEditPrice = !isPriceLocked && ((typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin') 
+        const canEditPrice = !isPriceLocked && ((typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin')
             || (typeof hasPermission === 'function' && hasPermission('docs_price_edit')));
 
-        const priceFieldHtml = canEditPrice 
+        const priceFieldHtml = canEditPrice
             ? `<input type="number" class="price-input" value="${(parseFloat(item.price) || 0).toFixed(2)}" min="0" step="0.01"
                       onchange="updateCartPrice(${index}, this.value)" onclick="this.select()" title="تعديل السعر"
                       style="width: 100px; max-width: 100%; height: 34px; font-size: 0.95rem; font-weight: 900; text-align: center; border-radius: 8px; border: 2px solid #3b82f6; background: #eff6ff; color: #1e40af; box-sizing: border-box; padding: 2px 4px;">`
@@ -2282,7 +2282,7 @@ function renderCart() {
  * استعلام سريع ومباشر لصنف في سلة المبيعات
  * يفتح نافذة الاستعلام مفلترة فوراً على نفس الموديل والمقاس واللون المحدد
  */
-window.openInquiryForCartItem = function(index) {
+window.openInquiryForCartItem = function (index) {
     if (typeof cart === 'undefined' || !cart[index]) return;
     const item = cart[index];
     const targetProduct = (typeof productsDB !== 'undefined' && Array.isArray(productsDB))
@@ -2329,11 +2329,11 @@ function updateCartPriceLevel() {
         // 1. البحث عن التشكيلة المطابقة (المقاس واللون) أولاً
         let matchedVariant = item.selectedVariant || null;
         if (!matchedVariant && product.variants && Array.isArray(product.variants)) {
-            matchedVariant = product.variants.find(v => 
-                (String(v.size || '').trim() === sSize) && 
+            matchedVariant = product.variants.find(v =>
+                (String(v.size || '').trim() === sSize) &&
                 (String(v.color || '').trim() === sColor)
-            ) || product.variants.find(v => 
-                (!sSize || String(v.size || '').trim() === sSize) && 
+            ) || product.variants.find(v =>
+                (!sSize || String(v.size || '').trim() === sSize) &&
                 (!sColor || String(v.color || '').trim() === sColor)
             );
         }
@@ -2414,7 +2414,7 @@ function calculateTotals(subTotalParam) {
     // 🛡️ فحص صلاحيات الخصم وأقصى نسبة مصرحة للموظف والمدير
     const isAdmin = typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin';
     const canDiscount = isAdmin || (typeof hasPermission === 'function' && hasPermission('docs_discount'));
-    
+
     let maxDiscountPerc = 100;
     if (typeof currentUser !== 'undefined' && currentUser && currentUser.maxDiscountPercent !== undefined && currentUser.maxDiscountPercent !== null && currentUser.maxDiscountPercent !== '') {
         maxDiscountPerc = parseFloat(currentUser.maxDiscountPercent);
@@ -2425,7 +2425,7 @@ function calculateTotals(subTotalParam) {
 
     const discInputEl = document.getElementById('discountInput');
     const discTypeEl = document.getElementById('discountType');
-    
+
     if (discInputEl) {
         if (!canDiscount || maxDiscountPerc <= 0) {
             discInputEl.value = 0;
@@ -2472,7 +2472,7 @@ function calculateTotals(subTotalParam) {
     }
 
     let discountAmount = (discountType === 'perc') ? (subTotal * discountVal / 100) : discountVal;
-    
+
     if (subTotal <= 0) {
         discountAmount = 0;
     } else if (discountAmount > subTotal) {
@@ -2611,8 +2611,8 @@ function calculateTotals(subTotalParam) {
     // تحديث شارة الربح المباشرة (مع مراعاة تكلفة المقاسات والوحدات الفرعية بدقة)
     const totalCost = cart.reduce((sum, item) => {
         let itemCost = 0;
-        let effCost = (item.selectedVariant && item.selectedVariant.cost) 
-            ? (parseFloat(item.selectedVariant.cost) || 0) 
+        let effCost = (item.selectedVariant && item.selectedVariant.cost)
+            ? (parseFloat(item.selectedVariant.cost) || 0)
             : (parseFloat(item.cost) || 0);
 
         if (item.selectedUnit && typeof item.selectedUnit === 'object') {
@@ -2803,7 +2803,7 @@ async function saveBill(force = false, accountChecked = false, event = null) {
 
         // --- 0.1 فحص الأمان الصارم: منع التلاعب بأسعار الأصناف في السلة (Cart Price Tampering Protection) ---
         const isPriceLocked = (typeof currentUser !== 'undefined' && currentUser && currentUser.lockPriceEdit);
-        const canEditPrice = !isPriceLocked && ((typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin') 
+        const canEditPrice = !isPriceLocked && ((typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin')
             || (typeof hasPermission === 'function' && hasPermission('docs_price_edit')));
 
         if (!canEditPrice) {
@@ -2818,8 +2818,8 @@ async function saveBill(force = false, accountChecked = false, event = null) {
                     const sColor = String(item.selectedColor || item.color || '').trim();
                     let effVariant = item.selectedVariant;
                     if (!effVariant && p.variants && Array.isArray(p.variants) && (sSize || sColor)) {
-                        effVariant = p.variants.find(v => 
-                            (!sSize || String(v.size || '').trim() === sSize) && 
+                        effVariant = p.variants.find(v =>
+                            (!sSize || String(v.size || '').trim() === sSize) &&
                             (!sColor || String(v.color || '').trim() === sColor)
                         );
                     }
@@ -2898,8 +2898,8 @@ async function saveBill(force = false, accountChecked = false, event = null) {
                 const sSize = String(item.selectedSize || item.size || '').trim();
                 const sColor = String(item.selectedColor || item.color || '').trim();
                 if (p.variants && Array.isArray(p.variants) && (sSize || sColor)) {
-                    const effVar = p.variants.find(v => 
-                        (!sSize || String(v.size || '').trim() === sSize) && 
+                    const effVar = p.variants.find(v =>
+                        (!sSize || String(v.size || '').trim() === sSize) &&
                         (!sColor || String(v.color || '').trim() === sColor)
                     );
                     if (effVar && (effVar.cost || effVar.avgBuyPrice || effVar.buyPrice)) {
@@ -2951,8 +2951,8 @@ async function saveBill(force = false, accountChecked = false, event = null) {
                     currentUser.warehouseName = activeWH;
                 } else {
                     // موظف مصرح له بتبديل المخزن
-                    activeWH = (currentUser.warehouseName && currentUser.warehouseName.trim()) 
-                        ? currentUser.warehouseName.trim() 
+                    activeWH = (currentUser.warehouseName && currentUser.warehouseName.trim())
+                        ? currentUser.warehouseName.trim()
                         : (currentUser.assignedWarehouse ? currentUser.assignedWarehouse.trim() : 'المخزن الرئيسي');
                 }
             }
@@ -2993,8 +2993,8 @@ async function saveBill(force = false, accountChecked = false, event = null) {
 
             let effVariant = null;
             if (p.variants && Array.isArray(p.variants) && (sSize || sColor)) {
-                effVariant = p.variants.find(v => 
-                    (!sSize || String(v.size || '').trim() === sSize) && 
+                effVariant = p.variants.find(v =>
+                    (!sSize || String(v.size || '').trim() === sSize) &&
                     (!sColor || String(v.color || '').trim() === sColor)
                 );
             }
@@ -3014,7 +3014,7 @@ async function saveBill(force = false, accountChecked = false, event = null) {
                     const origName = orig.product || orig.name || '';
                     const origId = (orig.productId != null && orig.productId !== '') ? orig.productId : orig.id;
                     const isProdMatch = (origName && (origName === p.name || origName === p.id)) ||
-                                        (origId != null && (String(origId) === String(p.id) || String(origId) === String(p.name)));
+                        (origId != null && (String(origId) === String(p.id) || String(origId) === String(p.name)));
                     if (!isProdMatch) return false;
 
                     const oSize = cleanAttr(orig.selectedSize || orig.size);
@@ -3281,7 +3281,7 @@ async function saveBill(force = false, accountChecked = false, event = null) {
 
         const dt = (typeof window.getEffectiveTransactionDateTime === 'function')
             ? window.getEffectiveTransactionDateTime('salesDate', 'salesTime', origDt, isEditMode)
-            : ((function() {
+            : ((function () {
                 const dateInputEl = document.getElementById('salesDate');
                 const inputDateVal = dateInputEl?.value;
                 const wasTouched = Boolean(dateInputEl && (dateInputEl.getAttribute('data-touched') === 'true' || dateInputEl.dataset?.touched === 'true'));
@@ -3362,11 +3362,11 @@ async function saveBill(force = false, accountChecked = false, event = null) {
                         effVariant = null;
                     }
                     if (!effVariant && product.variants && Array.isArray(product.variants) && (sSize || sColor)) {
-                        effVariant = product.variants.find(v => 
-                            (String(v.size || '').trim() === sSize) && 
+                        effVariant = product.variants.find(v =>
+                            (String(v.size || '').trim() === sSize) &&
                             (String(v.color || '').trim() === sColor)
-                        ) || product.variants.find(v => 
-                            (!sSize || String(v.size || '').trim() === sSize) && 
+                        ) || product.variants.find(v =>
+                            (!sSize || String(v.size || '').trim() === sSize) &&
                             (!sColor || String(v.color || '').trim() === sColor)
                         );
                     }
@@ -3411,8 +3411,8 @@ async function saveBill(force = false, accountChecked = false, event = null) {
                 if (matchedV && matchedV.cost) effCost = parseFloat(matchedV.cost) || 0;
             }
             if (!effCost) {
-                effCost = (cartItem.cost !== undefined && cartItem.cost !== null && !isNaN(parseFloat(cartItem.cost))) 
-                    ? parseFloat(cartItem.cost) 
+                effCost = (cartItem.cost !== undefined && cartItem.cost !== null && !isNaN(parseFloat(cartItem.cost)))
+                    ? parseFloat(cartItem.cost)
                     : (product ? (parseFloat(product.avgBuyPrice) || parseFloat(product.cost) || 0) : 0);
             }
 
@@ -3466,6 +3466,7 @@ async function saveBill(force = false, accountChecked = false, event = null) {
                 total: itemNetTotal.toFixed(2),
                 profit: profit.toFixed(2),
                 partner: document.getElementById('customerName')?.value?.trim() || 'عميل نقدي',
+                salesperson: document.getElementById('posSalesperson')?.value?.trim() || '',
                 user: (isEditMode && window.editingOriginalUser) ? window.editingOriginalUser : (currentUser ? currentUser.name : '-'),
                 notes: document.getElementById('salesNotes') ? document.getElementById('salesNotes').value.trim() : '',
                 paidAmount: (idx === 0) ? tendered : 0,
@@ -3534,7 +3535,7 @@ async function saveBill(force = false, accountChecked = false, event = null) {
         if (typeof invalidateStockCache === 'function') invalidateStockCache();
         if (typeof window.invalidateStockCache === 'function') window.invalidateStockCache();
         if (typeof window.rebuildProductFastIndex === 'function') {
-            setTimeout(() => { try { window.rebuildProductFastIndex(); } catch (_) {} }, 0);
+            setTimeout(() => { try { window.rebuildProductFastIndex(); } catch (_) { } }, 0);
         }
 
         if (!isEditMode && typeof window.registerTrialInvoiceCreation === 'function') {
@@ -3606,6 +3607,7 @@ async function saveBill(force = false, accountChecked = false, event = null) {
                 date: dt.iso || dt.full.split(' ')[0],
                 time: dt.time || '',
                 cashier: currentUser ? currentUser.name : 'كاشير',
+                salesperson: document.getElementById('posSalesperson')?.value?.trim() || '',
                 customer: customer,
                 items: JSON.parse(JSON.stringify(cart)),
                 subTotal: subTotal,
@@ -4100,10 +4102,10 @@ async function showCurrentBillProfit() {
         }
 
         // تحديد التكلفة الأساسية للقطعة (تكلفة المقاس المحدد أو تكلفة الصنف العامة أو المسجلة بالسلة)
-        let baseCost = variantCost > 0 
-            ? variantCost 
+        let baseCost = variantCost > 0
+            ? variantCost
             : (latestProduct ? (parseFloat(latestProduct.avgBuyPrice) || parseFloat(latestProduct.cost) || 0) : (parseFloat(item.cost) || 0));
-        
+
         if (!baseCost && item.cost) {
             baseCost = parseFloat(item.cost) || 0;
         }
@@ -4609,10 +4611,10 @@ async function loadInvoiceToSalesPOS(targetInvoiceId) {
 
     const recordedGrandTotal = parseFloat(
         head.invoiceGrandTotal != null ? head.invoiceGrandTotal :
-        (head.finalTotal != null ? head.finalTotal :
-        (head.grandTotal != null ? head.grandTotal :
-        (head.total != null ? head.total :
-        ((head.paidAmount !== undefined ? parseFloat(head.paidAmount) : 0) + (head.remaining !== undefined ? parseFloat(head.remaining) : 0)))))
+            (head.finalTotal != null ? head.finalTotal :
+                (head.grandTotal != null ? head.grandTotal :
+                    (head.total != null ? head.total :
+                        ((head.paidAmount !== undefined ? parseFloat(head.paidAmount) : 0) + (head.remaining !== undefined ? parseFloat(head.remaining) : 0)))))
     ) || 0;
 
     const sumLinesDiscount = rows.reduce((s, r) => s + (parseFloat(r.discount) || 0), 0);
@@ -4633,7 +4635,7 @@ async function loadInvoiceToSalesPOS(targetInvoiceId) {
         detectedDisc = parseFloat(head.discountVal);
         detectedDiscType = head.invoiceDiscountType || head.discountType || 'val';
     }
-    
+
     // أولوية 2: فحص أي سطر في الفاتورة يحمل invoiceDiscount
     if (!detectedDisc) {
         const rowWithInvDisc = rows.find(r => r.invoiceDiscount != null && parseFloat(r.invoiceDiscount) > 0);
@@ -4757,7 +4759,7 @@ async function loadInvoiceToSalesPOS(targetInvoiceId) {
             }
             // 2. ثانياً: عبر الباركود التام أو كود الصنف أو باركود التشكيلة
             if (!p && itBarcode) {
-                p = productsDB.find(x => 
+                p = productsDB.find(x =>
                     String(x.barcode || '').trim() === itBarcode ||
                     String(x.code || '').trim() === itBarcode ||
                     (x.variants && Array.isArray(x.variants) && x.variants.some(v => String(v.barcode || '').trim() === itBarcode))
@@ -4776,7 +4778,7 @@ async function loadInvoiceToSalesPOS(targetInvoiceId) {
                 matchedVariant = p.variants.find(v => String(v.barcode || '').trim() === itBarcode) || null;
             }
             if (!matchedVariant && (itSize || itColor)) {
-                matchedVariant = p.variants.find(v => 
+                matchedVariant = p.variants.find(v =>
                     (!itSize || String(v.size || '').trim() === itSize) &&
                     (!itColor || String(v.color || '').trim() === itColor)
                 ) || null;
@@ -4884,7 +4886,7 @@ async function loadInvoiceToSalesPOS(targetInvoiceId) {
     renderCart();
 
     // فحص صلاحية تعديل فواتير البيع (docs_edit)
-    const canEditInvoice = (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin') 
+    const canEditInvoice = (typeof currentUser !== 'undefined' && currentUser && currentUser.role === 'admin')
         || (typeof hasPermission === 'function' ? hasPermission('docs_edit') : false);
 
     if (!canEditInvoice) {
@@ -5419,7 +5421,7 @@ function applyPosNavVisibility() {
             canNavigate = true;
         } else {
             const u = (typeof users !== 'undefined' && Array.isArray(users))
-                ? users.find(x => 
+                ? users.find(x =>
                     (currentUser.id != null && x.id != null && String(x.id) === String(currentUser.id)) ||
                     (x.pin != null && currentUser.pin != null && String(x.pin).trim() === String(currentUser.pin).trim()) ||
                     (currentUser.name && x.name && x.name.trim() === currentUser.name.trim())
