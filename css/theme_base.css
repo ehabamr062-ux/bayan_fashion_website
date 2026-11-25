@@ -3358,22 +3358,22 @@ body.is-logged-out .main-container {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    background: rgba(11, 17, 32, 0.92);
+    background: linear-gradient(135deg, #064e3b 0%, #065f46 50%, #047857 100%);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     padding: 5px 10px;
     border-radius: 40px;
-    border: 1.2px solid rgba(255, 255, 255, 0.12);
-    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    border: 1.2px solid rgba(52, 211, 153, 0.4);
+    box-shadow: 0 12px 30px rgba(4, 120, 87, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.1);
     direction: rtl;
     flex-wrap: nowrap;
     transition: all 0.3s ease;
 }
 
 body.dark-mode .floating-controls-box {
-    background: rgba(7, 11, 22, 0.95);
-    border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
+    background: linear-gradient(135deg, #022c22 0%, #064e3b 55%, #065f46 100%);
+    border-color: rgba(16, 185, 129, 0.35);
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
 }
 
 /* 1. زر خروج (أحمر نبيذي زجاجي راقي) */
@@ -3404,8 +3404,8 @@ body.dark-mode .floating-controls-box {
 
 /* 2. كبسولة المظهر (شمس | قمر) */
 .floating-controls-box .dock-theme-capsule {
-    background: rgba(15, 23, 42, 0.65);
-    border: 1.2px solid rgba(255, 255, 255, 0.14);
+    background: rgba(2, 44, 34, 0.42);
+    border: 1.2px solid rgba(255, 255, 255, 0.18);
     border-radius: 20px;
     padding: 4px 10px;
     display: inline-flex;
@@ -3417,8 +3417,8 @@ body.dark-mode .floating-controls-box {
 }
 
 .floating-controls-box .dock-theme-capsule:hover {
-    background: rgba(30, 41, 59, 0.8);
-    border-color: rgba(251, 191, 36, 0.4);
+    background: rgba(2, 44, 34, 0.65);
+    border-color: rgba(251, 191, 36, 0.5);
 }
 
 .floating-controls-box .dock-sun-icon {
@@ -3472,8 +3472,8 @@ body.dark-mode .floating-controls-box .dock-theme-capsule .active-bar {
     width: 34px !important;
     height: 34px !important;
     border-radius: 50% !important;
-    background: rgba(30, 41, 59, 0.75) !important;
-    border: 1.2px solid rgba(59, 130, 246, 0.35) !important;
+    background: rgba(2, 44, 34, 0.45) !important;
+    border: 1.2px solid rgba(52, 211, 153, 0.4) !important;
     display: inline-flex !important;
     align-items: center !important;
     justify-content: center !important;
@@ -3484,7 +3484,7 @@ body.dark-mode .floating-controls-box .dock-theme-capsule .active-bar {
 }
 
 .floating-controls-box .notification-bell:hover {
-    background: rgba(51, 65, 85, 0.9) !important;
+    background: rgba(2, 44, 34, 0.72) !important;
     border-color: rgba(251, 191, 36, 0.6) !important;
     transform: scale(1.06);
 }
@@ -3509,7 +3509,7 @@ body.dark-mode .floating-controls-box .dock-theme-capsule .active-bar {
     justify-content: center !important;
     font-size: 0.65rem !important;
     font-weight: 900 !important;
-    border: 1.5px solid #0f172a !important;
+    border: 1.5px solid #064e3b !important;
     box-shadow: 0 2px 6px rgba(239, 68, 68, 0.6) !important;
     line-height: 1 !important;
     z-index: 10 !important;
@@ -3517,8 +3517,8 @@ body.dark-mode .floating-controls-box .dock-theme-capsule .active-bar {
 
 /* 4. كبسولة المستخدم */
 .floating-controls-box #currentUserDisplay {
-    background: rgba(30, 58, 138, 0.28) !important;
-    border: 1.2px solid rgba(59, 130, 246, 0.4) !important;
+    background: rgba(2, 44, 34, 0.38) !important;
+    border: 1.2px solid rgba(52, 211, 153, 0.42) !important;
     border-radius: 20px !important;
     padding: 4px 12px !important;
     display: inline-flex !important;
@@ -3532,8 +3532,8 @@ body.dark-mode .floating-controls-box .dock-theme-capsule .active-bar {
 }
 
 .floating-controls-box #currentUserDisplay:hover {
-    background: rgba(30, 58, 138, 0.45) !important;
-    border-color: #38bdf8 !important;
+    background: rgba(2, 44, 34, 0.58) !important;
+    border-color: #34d399 !important;
 }
 
 .floating-controls-box #currentUserDisplay #userNameText {
@@ -3548,8 +3548,8 @@ body.dark-mode .floating-controls-box .dock-theme-capsule .active-bar {
 
 /* 5. كبسولة المستودع */
 .floating-controls-box #headerWarehouseWrapper {
-    background: rgba(30, 58, 138, 0.38) !important;
-    border: 1.2px solid rgba(59, 130, 246, 0.48) !important;
+    background: rgba(2, 44, 34, 0.45) !important;
+    border: 1.2px solid rgba(52, 211, 153, 0.48) !important;
     border-radius: 20px !important;
     padding: 3px 10px 3px 8px !important;
     display: inline-flex !important;
@@ -3560,8 +3560,8 @@ body.dark-mode .floating-controls-box .dock-theme-capsule .active-bar {
 }
 
 .floating-controls-box #headerWarehouseWrapper:hover {
-    background: rgba(30, 58, 138, 0.55) !important;
-    border-color: #38bdf8 !important;
+    background: rgba(2, 44, 34, 0.65) !important;
+    border-color: #34d399 !important;
 }
 
 .floating-controls-box .warehouse-home-icon-box {
@@ -3597,7 +3597,7 @@ body.dark-mode .floating-controls-box .dock-theme-capsule .active-bar {
 }
 
 .floating-controls-box #headerActiveWarehouseSelect option {
-    background: #0f172a !important;
+    background: #064e3b !important;
     color: #ffffff !important;
 }
 
@@ -3689,7 +3689,7 @@ body.dark-mode .floating-controls-box .dock-theme-capsule .active-bar {
     width: 34px !important;
     height: 34px !important;
     border-radius: 50% !important;
-    background: rgba(30, 41, 59, 0.75) !important;
+    background: rgba(2, 44, 34, 0.45) !important;
     border: 1.2px solid rgba(245, 158, 11, 0.45) !important;
     display: inline-flex !important;
     align-items: center !important;
@@ -3702,7 +3702,7 @@ body.dark-mode .floating-controls-box .dock-theme-capsule .active-bar {
 }
 
 .floating-controls-box #wallpaperTrigger:hover {
-    background: rgba(51, 65, 85, 0.95) !important;
+    background: rgba(2, 44, 34, 0.72) !important;
     border-color: #fbbf24 !important;
     transform: scale(1.08) rotate(15deg) !important;
     box-shadow: 0 0 14px rgba(245, 158, 11, 0.45) !important;
