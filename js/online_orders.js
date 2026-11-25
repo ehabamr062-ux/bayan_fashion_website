@@ -469,7 +469,7 @@
                 storeUrl: this.getStoreUrl(),
                 machineId,
                 plan,
-                appVersion: window.APP_VERSION || window.appVersion || '5.1.6',
+                appVersion: window.APP_VERSION || window.appVersion || '5.1.7',
                 installDate
             };
         },

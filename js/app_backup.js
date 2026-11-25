@@ -1445,7 +1445,7 @@ window.compileBayanBackupPayload = async function() {
     const subTrialConsumed = isPlanPaid ? 'true' : (getStore('bayan_trial_consumed') || localStorage.getItem('bayan_trial_consumed') || '');
 
     const data = {
-        version: window.appVersion || "5.1.6",
+        version: window.appVersion || "5.1.7",
         backupDate: new Date().toISOString(),
         hwid: activeHwid,
         deviceMachineId: activeHwid,
