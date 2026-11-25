@@ -229,6 +229,8 @@
 
                 editingInvoiceType = null;
                 window.editingInvoiceType = null;
+                editingOriginalItems = [];
+                window.editingOriginalItems = [];
 
                 const isPrintChecked = document.getElementById('receiptPrintCheck')?.checked || false;
                 const isCloseChecked = closeAfterExplicit || document.getElementById('receiptCloseCheck')?.checked || false;
@@ -551,6 +553,8 @@
 
                 editingInvoiceType = null;
                 window.editingInvoiceType = null;
+                editingOriginalItems = [];
+                window.editingOriginalItems = [];
 
                 const isPrintChecked = document.getElementById('disbursePrintCheck')?.checked || false;
                 const isCloseChecked = closeAfterExplicit || document.getElementById('disburseCloseCheck')?.checked || false;

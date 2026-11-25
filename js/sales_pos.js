@@ -3465,7 +3465,7 @@ async function saveBill(force = false, accountChecked = false, event = null) {
                 addition: (itemNetTotal > cartItem.qty * cartItem.price) ? (itemNetTotal - (cartItem.qty * cartItem.price)).toFixed(2) : '0.00',
                 total: itemNetTotal.toFixed(2),
                 profit: profit.toFixed(2),
-                partner: document.getElementById('customerName')?.value?.trim() || (isEditMode && window.editingOriginalPartner ? window.editingOriginalPartner : 'عميل نقدي'),
+                partner: document.getElementById('customerName')?.value?.trim() || 'عميل نقدي',
                 user: (isEditMode && window.editingOriginalUser) ? window.editingOriginalUser : (currentUser ? currentUser.name : '-'),
                 notes: document.getElementById('salesNotes') ? document.getElementById('salesNotes').value.trim() : '',
                 paidAmount: (idx === 0) ? tendered : 0,
@@ -3497,6 +3497,21 @@ async function saveBill(force = false, accountChecked = false, event = null) {
         if (typeof window.FashionStockEngine !== 'undefined' && typeof window.FashionStockEngine.syncProductTotals === 'function') {
             affectedProducts.forEach(prod => {
                 window.FashionStockEngine.syncProductTotals(prod, activeWH);
+            });
+        }
+
+        // 🛡️ تضمين أي أصناف حُذفت أو استُبدلت من الفاتورة القديمة أثناء التعديل لضمان حفظ عكس مخزونها في SQLite
+        if (isEditMode && Array.isArray(window.editingOriginalItems) && Array.isArray(productsDB)) {
+            window.editingOriginalItems.forEach(oldIt => {
+                if (!oldIt) return;
+                const oldProd = productsDB.find(p =>
+                    (oldIt.productId != null && String(p.id) === String(oldIt.productId)) ||
+                    (oldIt.barcode && p.barcode && String(p.barcode) === String(oldIt.barcode)) ||
+                    (oldIt.product && p.name === oldIt.product)
+                );
+                if (oldProd && !affectedProducts.includes(oldProd)) {
+                    affectedProducts.push(oldProd);
+                }
             });
         }
 

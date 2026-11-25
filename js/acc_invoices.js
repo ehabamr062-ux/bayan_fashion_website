@@ -2845,7 +2845,7 @@ window.revertAndClearOldInvoice = async function (invId, type) {
         if (window.BayanSQLite && window.BayanSQLite.db) {
             try {
                 if (cleanType) {
-                    window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE invoiceId = ? AND (type = ? OR type LIKE ?);", [String(invId), cleanType, `%${cleanType}%`]);
+                    window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE invoiceId = ? AND type = ?;", [String(invId), cleanType]);
                 } else {
                     window.BayanSQLite.db.run("DELETE FROM transaction_items WHERE invoiceId = ?;", [String(invId)]);
                 }

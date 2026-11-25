@@ -2163,6 +2163,21 @@ async function savePurchase(force = false, accountChecked = false) {
 
         if (document.getElementById('purchaseTax')) document.getElementById('purchaseTax').value = 0;
 
+        // 🛡️ تضمين أي أصناف حُذفت أو استُبدلت من فاتورة الشراء القديمة أثناء التعديل لضمان حفظ عكس مخزونها في SQLite
+        if (isEditMode && Array.isArray(window.editingOriginalItems) && Array.isArray(productsDB)) {
+            window.editingOriginalItems.forEach(oldIt => {
+                if (!oldIt) return;
+                const oldProd = productsDB.find(p =>
+                    (oldIt.productId != null && String(p.id) === String(oldIt.productId)) ||
+                    (oldIt.barcode && p.barcode && String(p.barcode) === String(oldIt.barcode)) ||
+                    (oldIt.product && p.name === oldIt.product)
+                );
+                if (oldProd && !affectedProducts.includes(oldProd)) {
+                    affectedProducts.push(oldProd);
+                }
+            });
+        }
+
         // ⚡ حفظ المعاملة والأصناف المتأثرة فورياً وبدون إعادة كتابة الجداول (جديد وتعديل)
         if (typeof window.saveTransactionChanges === 'function') {
             await window.saveTransactionChanges({
@@ -2266,6 +2281,8 @@ function resetPurchase() {
 
     editingInvoiceType = null;
     window.editingInvoiceType = null;
+    editingOriginalItems = [];
+    window.editingOriginalItems = [];
 
     const mainSaveBtn = document.querySelector('#purchase-section .btn-save');
 
