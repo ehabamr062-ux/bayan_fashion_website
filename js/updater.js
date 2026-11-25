@@ -44,12 +44,15 @@
             #bayan-update-overlay {
                 position: fixed !important;
                 inset: 0 !important;
-                background: rgba(8, 8, 18, 0.95) !important;
+                background: rgba(2, 18, 14, 0.86) !important;
+                backdrop-filter: blur(8px) !important;
+                -webkit-backdrop-filter: blur(8px) !important;
                 z-index: 999999999 !important;
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
-                animation: updaterFadeIn 0.35s ease;
+                padding: 16px !important;
+                animation: updaterFadeIn 0.3s ease;
                 font-family: 'Cairo', 'Segoe UI', sans-serif;
             }
             @keyframes updaterFadeIn {
@@ -57,26 +60,28 @@
                 to   { opacity: 1; }
             }
             #bayan-update-modal {
-                background: #140b27 !important;
-                background: linear-gradient(150deg, #1e113a 0%, #130a24 50%, #0f172a 100%) !important;
-                border: 2px solid rgba(212, 175, 55, 0.6) !important;
-                border-radius: 28px;
-                padding: 35px 38px;
-                width: 550px;
+                background: linear-gradient(155deg, #064e3b 0%, #022c22 55%, #0b192c 100%) !important;
+                border: 1.5px solid rgba(52, 211, 153, 0.45) !important;
+                border-radius: 26px;
+                padding: 28px 30px;
+                width: 560px;
                 max-width: 95vw;
-                box-shadow: 0 30px 70px rgba(0,0,0,0.9), 0 0 40px rgba(147, 51, 234, 0.4), 0 0 25px rgba(212, 175, 55, 0.3);
+                max-height: 92vh;
+                overflow-y: auto;
+                box-shadow: 0 28px 65px rgba(0, 0, 0, 0.75), 0 0 35px rgba(16, 185, 129, 0.22);
                 direction: rtl;
-                animation: updaterSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+                animation: updaterSlideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1);
                 position: relative !important;
                 z-index: 1000000000 !important;
-                overflow: hidden;
             }
+            #bayan-update-modal::-webkit-scrollbar { width: 5px; }
+            #bayan-update-modal::-webkit-scrollbar-thumb { background: rgba(52, 211, 153, 0.35); border-radius: 6px; }
             #bayan-update-modal::before {
                 content: '';
                 position: absolute;
                 top: 0; left: 0; right: 0;
                 height: 4px;
-                background: linear-gradient(90deg, #10b981, #d4af37, #8b5cf6, #10b981);
+                background: linear-gradient(90deg, #10b981, #34d399, #fbbf24, #10b981);
                 background-size: 200% 100%;
                 animation: shimmerBar 2.5s linear infinite;
             }
@@ -85,98 +90,163 @@
                 100% { background-position: -200% 0; }
             }
             @keyframes updaterSlideUp {
-                from { opacity: 0; transform: translateY(30px) scale(0.95); }
+                from { opacity: 0; transform: translateY(24px) scale(0.96); }
                 to   { opacity: 1; transform: translateY(0) scale(1); }
             }
-            .upd-header { display: flex; align-items: center; gap: 16px; margin-bottom: 22px; }
+            .upd-header { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
             .upd-icon { 
-                width: 58px; 
-                height: 58px; 
-                background: linear-gradient(135deg, #10b981, #059669); 
-                border-radius: 18px; 
+                width: 52px; 
+                height: 52px; 
+                background: linear-gradient(135deg, #10b981, #047857); 
+                border-radius: 16px; 
                 display: flex; 
                 align-items: center; 
                 justify-content: center; 
-                font-size: 28px; 
-                box-shadow: 0 8px 24px rgba(16, 185, 129, 0.4), 0 0 15px rgba(16, 185, 129, 0.3); 
-                border: 1.5px solid rgba(255, 255, 255, 0.3);
+                font-size: 25px; 
+                box-shadow: 0 8px 22px rgba(16, 185, 129, 0.4); 
+                border: 1.5px solid rgba(255, 255, 255, 0.28);
                 flex-shrink: 0; 
             }
             .upd-title h3 { 
-                margin: 0 0 4px; 
-                font-size: 1.35rem; 
+                margin: 0 0 3px; 
+                font-size: 1.28rem; 
                 font-weight: 900; 
                 color: #ffffff; 
-                letter-spacing: 0.5px;
-                text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+                letter-spacing: 0.3px;
             }
             .upd-title p { 
                 margin: 0; 
-                font-size: 0.86rem; 
-                color: #cbd5e1; 
-                font-weight: 800; 
+                font-size: 0.82rem; 
+                color: #a7f3d0; 
+                font-weight: 700; 
             }
             .upd-ver-row { 
                 display: flex; 
                 align-items: center; 
                 justify-content: space-between;
-                gap: 14px; 
-                margin-bottom: 22px; 
-                background: rgba(255, 255, 255, 0.05); 
-                border: 1.5px solid rgba(212, 175, 55, 0.3); 
-                border-radius: 18px; 
-                padding: 16px 22px; 
-                box-shadow: inset 0 2px 10px rgba(0,0,0,0.25), 0 4px 15px rgba(0,0,0,0.15);
+                gap: 12px; 
+                margin-bottom: 16px; 
+                background: rgba(2, 44, 34, 0.58); 
+                border: 1.2px solid rgba(52, 211, 153, 0.35); 
+                border-radius: 16px; 
+                padding: 12px 18px; 
+                box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
             }
             .upd-ver { flex: 1; text-align: center; }
-            .upd-ver .lbl { font-size: 0.8rem; color: #94a3b8; margin-bottom: 5px; font-weight: 800; }
+            .upd-ver .lbl { font-size: 0.76rem; color: #a7f3d0; margin-bottom: 3px; font-weight: 700; opacity: 0.85; }
             .upd-ver .val { 
-                font-size: 1.3rem; 
+                font-size: 1.22rem; 
                 font-weight: 900; 
                 font-family: 'Cairo', monospace; 
-                letter-spacing: 1px;
+                letter-spacing: 0.8px;
             }
-            .upd-ver.cur .val { color: #cbd5e1; text-shadow: 0 0 8px rgba(255,255,255,0.2); }
+            .upd-ver.cur .val { color: #cbd5e1; }
             .upd-ver.nw  .val { 
                 color: #34d399; 
-                text-shadow: 0 0 12px rgba(52, 211, 153, 0.5); 
+                text-shadow: 0 0 12px rgba(52, 211, 153, 0.55); 
             }
             .upd-arrow { 
-                font-size: 1.8rem; 
+                font-size: 1.55rem; 
                 font-weight: 900;
-                color: #d4af37; 
-                text-shadow: 0 0 10px rgba(212, 175, 55, 0.6);
+                color: #fbbf24; 
+                text-shadow: 0 0 10px rgba(251, 191, 36, 0.55);
                 flex-shrink: 0; 
                 animation: arrowGlow 1.5s infinite alternate ease-in-out;
             }
             @keyframes arrowGlow {
                 from { transform: scale(1); opacity: 0.85; }
-                to { transform: scale(1.15); opacity: 1; }
+                to { transform: scale(1.14); opacity: 1; }
+            }
+            .upd-gallery {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+                gap: 10px;
+                margin-bottom: 16px;
+                background: rgba(2, 44, 34, 0.45);
+                border: 1.2px solid rgba(52, 211, 153, 0.28);
+                border-radius: 16px;
+                padding: 10px;
+            }
+            .upd-gallery-item {
+                position: relative;
+                border-radius: 12px;
+                overflow: hidden;
+                background: rgba(0, 0, 0, 0.25);
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                cursor: zoom-in;
+                transition: transform 0.2s ease, border-color 0.2s ease;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .upd-gallery-item:hover {
+                transform: translateY(-2px);
+                border-color: #34d399;
+            }
+            .upd-gallery-item img {
+                width: 100%;
+                max-height: 155px;
+                object-fit: cover;
+                display: block;
+            }
+            .upd-gallery.single-img .upd-gallery-item img {
+                max-height: 175px;
+                object-fit: contain;
+            }
+            .upd-gallery-badge {
+                position: absolute;
+                bottom: 6px;
+                left: 6px;
+                background: rgba(2, 44, 34, 0.82);
+                color: #a7f3d0;
+                font-size: 0.68rem;
+                font-weight: 800;
+                padding: 2px 8px;
+                border-radius: 999px;
+                border: 1px solid rgba(52, 211, 153, 0.35);
+                pointer-events: none;
+            }
+            #bayan-upd-lightbox {
+                position: fixed !important;
+                inset: 0 !important;
+                background: rgba(0, 0, 0, 0.9) !important;
+                z-index: 1000000005 !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                padding: 24px !important;
+                cursor: zoom-out;
+                animation: updaterFadeIn 0.2s ease;
+            }
+            #bayan-upd-lightbox img {
+                max-width: 92vw;
+                max-height: 88vh;
+                border-radius: 16px;
+                border: 2px solid rgba(52, 211, 153, 0.5);
+                box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85);
             }
             .upd-notes { 
-                background: rgba(15, 23, 42, 0.6); 
-                border: 1.5px solid rgba(255, 255, 255, 0.1); 
+                background: rgba(2, 26, 20, 0.55); 
+                border: 1.2px solid rgba(52, 211, 153, 0.22); 
                 border-radius: 16px; 
-                padding: 16px 20px; 
-                margin-bottom: 22px; 
-                max-height: 240px; 
+                padding: 14px 18px; 
+                margin-bottom: 18px; 
+                max-height: 210px; 
                 overflow-y: auto; 
-                box-shadow: inset 0 2px 8px rgba(0,0,0,0.3);
+                box-shadow: inset 0 2px 8px rgba(0,0,0,0.22);
             }
             .upd-notes::-webkit-scrollbar { width: 5px; } 
-            .upd-notes::-webkit-scrollbar-thumb { background: #64748b; border-radius: 6px; }
+            .upd-notes::-webkit-scrollbar-thumb { background: rgba(52, 211, 153, 0.4); border-radius: 6px; }
             .upd-notes h4 { 
-                margin: 0 0 10px; 
+                margin: 0 0 8px; 
                 font-size: 0.86rem; 
                 font-weight: 900; 
-                color: #38bdf8; 
-                text-transform: uppercase; 
+                color: #34d399; 
                 display: flex;
                 align-items: center;
                 gap: 6px;
             }
-            .upd-notes-body { font-size: 0.9rem; color: #e2e8f0; line-height: 1.75; font-weight: 700; }
-            .upd-notes-body img { max-width: 100%; border-radius: 10px; margin: 8px 0; border: 1px solid rgba(255,255,255,0.15); box-shadow: 0 4px 12px rgba(0,0,0,0.35); }
+            .upd-notes-body { font-size: 0.88rem; color: #ecfdf5; line-height: 1.75; font-weight: 700; }
             .upd-prog { margin-bottom: 20px; display: none; }
             .upd-prog.vis { display: block; }
             .upd-prog-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
@@ -269,46 +339,67 @@
         return window.appVersion || '5.1.7';
     }
 
-    function fmtNotes(notes) {
-        if (!notes) return 'تحسينات جديدة وإصلاحات مستقرة في هذا الإصدار.';
-        
-        let text = String(notes);
+    function parseReleaseContent(notes) {
+        if (!notes) {
+            return { images: [], html: 'تحسينات جديدة وإصلاحات مستقرة في هذا الإصدار.' };
+        }
 
-        // 🖼️ 1. التقاط وسوم الصور المكتوبة بـ HTML مثل <img ... src="..." ...> وتحويلها لرمز آمن
+        let text = String(notes);
+        const images = [];
+
+        // 🖼️ 1. استخراج صور HTML (<img src="...">) لوضعها في المعرض العلوي أولاً
         text = text.replace(/<img\s+[^>]*?src=["'](https?:\/\/[^"'>\s]+)["'][^>]*?>/gi, (match, src) => {
-            return `__IMG_TAG_SAFE__(${src})__`;
+            if (!images.some(img => img.url === src)) {
+                images.push({ url: src, alt: 'معاينة التحديث' });
+            }
+            return '';
         });
 
-        // 🔒 2. تطهير الرموز الخاصة بـ HTML لمنع أي كود خبيث
+        // 🖼️ 2. استخراج صور الماركداون ![alt](url) لوضعها في المعرض العلوي أولاً
+        text = text.replace(/!\[(.*?)\]\((https?:\/\/[^\s\)]+)\)/g, (match, alt, url) => {
+            if (!images.some(img => img.url === url)) {
+                images.push({ url: url, alt: alt || 'معاينة التحديث' });
+            }
+            return '';
+        });
+
+        // 🔒 3. تطهير الرموز الخاصة بـ HTML لمنع أي كود خبيث
         text = text
+            .trim()
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#039;');
 
-        // 🖼️ 3. تحويل صور الماركداون ![alt](url) إلى عناصر صور حقيقية
-        text = text.replace(/!\[(.*?)\]\((https?:\/\/[^\s\)]+)\)/g, (match, alt, url) => {
-            return `<div style="margin: 10px 0; text-align: center;"><img src="${url}" alt="${alt || 'صورة التحديث'}" style="max-width: 100%; max-height: 240px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: inline-block;" loading="lazy"></div>`;
-        });
-
-        // 🖼️ 4. استرجاع وعرض صور HTML الأصلية التي تم التقاطها في الخطوة الأولى
-        text = text.replace(/__IMG_TAG_SAFE__\((https?:\/\/[^"'>\s]+)\)__/g, (match, url) => {
-            return `<div style="margin: 10px 0; text-align: center;"><img src="${url}" alt="صورة التحديث" style="max-width: 100%; max-height: 240px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2); box-shadow: 0 4px 12px rgba(0,0,0,0.3); display: inline-block;" loading="lazy"></div>`;
-        });
-
-        // 🔗 5. دعم الروابط [title](url)
+        // 🔗 4. دعم الروابط [title](url)
         text = text.replace(/\[(.*?)\]\((https?:\/\/[^\s\)]+)\)/g, (match, title, url) => {
-            return `<a href="#" onclick="if(window.require){try{window.require('electron').shell.openExternal('${url}');}catch(e){window.open('${url}','_blank');}}else{window.open('${url}','_blank');}return false;" style="color:#38bdf8; font-weight:800; text-decoration:underline;">${title || url}</a>`;
+            return `<a href="#" onclick="if(window.require){try{window.require('electron').shell.openExternal('${url}');}catch(e){window.open('${url}','_blank');}}else{window.open('${url}','_blank');}return false;" style="color:#34d399; font-weight:800; text-decoration:underline;">${title || url}</a>`;
         });
 
-        // 📝 6. تنسيق النصوص والعناوين والنقاط
-        return text
+        // 📝 5. تنسيق النصوص والعناوين والنقاط وتنظيف الأسطر الفارغة الزائدة
+        const html = text
+            .replace(/\n{3,}/g, '\n\n')
             .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-            .replace(/^#{1,3}\s+(.+)$/gm, '<div style="color:#10b981; font-weight:900; margin-top:8px; font-size:0.95rem;">$1</div>')
+            .replace(/^#{1,3}\s+(.+)$/gm, '<div style="color:#34d399; font-weight:900; margin-top:8px; font-size:0.94rem;">$1</div>')
             .replace(/^[-*]\s+(.+)$/gm, '• $1')
             .replace(/\r?\n/g, '<br>');
+
+        return {
+            images,
+            html: html || 'تحسينات جديدة وإصلاحات مستقرة في هذا الإصدار.'
+        };
     }
+
+    window.__bayanOpenUpdLightbox = function (imgUrl) {
+        const oldLb = document.getElementById('bayan-upd-lightbox');
+        if (oldLb) oldLb.remove();
+        const lb = document.createElement('div');
+        lb.id = 'bayan-upd-lightbox';
+        lb.innerHTML = `<img src="${imgUrl}" alt="معاينة التحديث">`;
+        lb.addEventListener('click', () => lb.remove());
+        document.body.appendChild(lb);
+    };
 
     // =========================================================================
     // فتح واجهة التحديث المودرن (Modal Window)
@@ -316,6 +407,18 @@
     function openModal() {
         const old = document.getElementById('bayan-update-overlay');
         if (old) old.remove();
+
+        const parsed = parseReleaseContent(state.releaseNotes);
+        const galleryHtml = parsed.images.length > 0
+            ? `<div class="upd-gallery ${parsed.images.length === 1 ? 'single-img' : ''}">
+                ${parsed.images.map(img => `
+                    <div class="upd-gallery-item" onclick="window.__bayanOpenUpdLightbox('${img.url.replace(/'/g, "\\'")}')" title="اضغط لتكبير الصورة">
+                        <img src="${img.url}" alt="${img.alt.replace(/"/g, '&quot;')}" loading="lazy">
+                        <span class="upd-gallery-badge">🔍 تكبير</span>
+                    </div>
+                `).join('')}
+               </div>`
+            : '';
 
         const div = document.createElement('div');
         div.id = 'bayan-update-overlay';
@@ -339,9 +442,10 @@
                         <div class="val">v${state.newVersion}</div>
                     </div>
                 </div>
+                ${galleryHtml}
                 <div class="upd-notes">
                     <h4>📋 ملخص التحسينات في الإصدار الجديد</h4>
-                    <div class="upd-notes-body">${fmtNotes(state.releaseNotes)}</div>
+                    <div class="upd-notes-body">${parsed.html}</div>
                 </div>
                 <div class="upd-prog" id="upd-prog">
                     <div class="upd-prog-top">
@@ -471,9 +575,9 @@
     window.__bayanUpdDownload = async function () {
         if (state.isDownloading) return;
 
-        const btnNow   = document.getElementById('upd-btn-now');
+        const btnNow = document.getElementById('upd-btn-now');
         const btnLater = document.getElementById('upd-btn-later');
-        const prog     = document.getElementById('upd-prog');
+        const prog = document.getElementById('upd-prog');
 
         // 🛡️ درع الأمان الإجباري: التحقق من إنشاء النسخ المزدوجة أولاً قبل التحديث
         const backupOk = await executeDualPreUpdateBackupShield(btnNow);
@@ -484,13 +588,13 @@
         state.isDownloading = true;
         console.log('[Updater] Download started by user interaction.');
 
-        if (btnNow)   { btnNow.disabled = true; btnNow.textContent = '⏳ جاري بدء التحميل بالخلفية...'; }
+        if (btnNow) { btnNow.disabled = true; btnNow.textContent = '⏳ جاري بدء التحميل بالخلفية...'; }
         if (btnLater) {
             btnLater.disabled = false;
             btnLater.textContent = 'إلغاء';
             btnLater.onclick = window.__bayanUpdLater;
         }
-        if (prog)     prog.classList.add('vis');
+        if (prog) prog.classList.add('vis');
 
         // مؤقت أمان لمدة 10 ثوانٍ للتحقق من بدء التحميل فعلياً
         if (downloadStartTimeout) clearTimeout(downloadStartTimeout);
@@ -529,7 +633,7 @@
         // 2. الوضع الثاني: التشغيل المباشر داخل المتصفح (Fallback for Browser Mode)
         console.log('[Updater] Web Browser environment detected (No Electron IPC). Triggering direct download.');
         if (downloadStartTimeout) clearTimeout(downloadStartTimeout);
-        
+
         const downloadTarget = state.downloadUrl || GITHUB_RELEASES_PAGE;
         if (typeof showToast === 'function') {
             showToast("🚀 جاري بدء تنزيل أحدث ملف مثبت من GitHub Releases...");
@@ -580,8 +684,8 @@
                 await window.executeAutoBackupToFile(true, false);
                 console.log('✅ Pre-update mandatory backup successfully created!');
             }
-        } catch(e) { 
-            console.warn('[Updater] Pre-update backup notice:', e); 
+        } catch (e) {
+            console.warn('[Updater] Pre-update backup notice:', e);
         }
 
         if (ipcRenderer) {
@@ -612,7 +716,7 @@
     // =========================================================================
     window.checkGitHubReleases = async function (isManual = false) {
         state.currentVersion = getCurrentAppVersion();
-        
+
         // التحقق الفوري من حالة الاتصال بالإنترنت
         if (typeof navigator !== 'undefined' && navigator.onLine === false) {
             if (isManual) {
@@ -634,7 +738,7 @@
         try {
             const storedVal = typeof getStore === 'function' ? getStore('pos_auto_updates_disabled') : null;
             if (storedVal !== null && storedVal !== undefined) isAutoUpdateFrozen = (storedVal === 'true' || storedVal === true);
-        } catch(e) {}
+        } catch (e) { }
 
         if (!isAutoUpdateFrozen) {
             try {
@@ -773,7 +877,7 @@
                 }
                 try {
                     window.dispatchEvent(new CustomEvent('bayan-update-available', { detail: { version: cleanTag } }));
-                } catch(e) {}
+                } catch (e) { }
                 return { hasUpdate: true, version: cleanTag };
             } else {
                 console.log(`[Updater] App is up to date: v${state.currentVersion}`);
@@ -823,7 +927,7 @@
         ipcRenderer.on('trigger-auto-backup-before-update', async () => {
             console.log("[Updater] Automatic pre-update backup triggered...");
             if (typeof createAutomaticBackup === 'function') {
-                try { await createAutomaticBackup(false); } catch(e) { console.warn("[Updater] Auto backup notice:", e); }
+                try { await createAutomaticBackup(false); } catch (e) { console.warn("[Updater] Auto backup notice:", e); }
             }
         });
 
@@ -834,10 +938,10 @@
         ipcRenderer.on('update-available', (_e, info) => {
             console.log('[Updater] Event: update-available', info);
             state.currentVersion = info.currentVersion || getCurrentAppVersion();
-            state.newVersion     = info.newVersion || '';
-            state.releaseNotes   = info.releaseNotes || '';
-            state.isDownloaded   = false;
-            state.isDownloading  = false;
+            state.newVersion = info.newVersion || '';
+            state.releaseNotes = info.releaseNotes || '';
+            state.isDownloaded = false;
+            state.isDownloading = false;
             openModal();
             if (typeof window.notifyLoginBackupForUpdate === 'function') {
                 window.notifyLoginBackupForUpdate(state.newVersion);
@@ -847,7 +951,7 @@
             }
             try {
                 window.dispatchEvent(new CustomEvent('bayan-update-available', { detail: { version: state.newVersion } }));
-            } catch(e) {}
+            } catch (e) { }
         });
 
         ipcRenderer.on('update-not-available', () => {
@@ -899,7 +1003,7 @@
             const mbTrans = ((prog.transferred || 0) / (1024 * 1024)).toFixed(1);
             const mbTotal = ((prog.total || 0) / (1024 * 1024)).toFixed(1);
             const mbSpeed = ((prog.bytesPerSecond || 0) / (1024 * 1024)).toFixed(2);
-            
+
             const remainingBytes = (prog.total || 0) - (prog.transferred || 0);
             let etaText = '';
             if (remainingBytes > 0 && prog.bytesPerSecond > 0) {
@@ -921,19 +1025,19 @@
             if (downloadStartTimeout) clearTimeout(downloadStartTimeout);
             console.log('[Updater] Event: update-downloaded successfully', info);
 
-            state.isDownloaded  = true;
+            state.isDownloaded = true;
             state.isDownloading = false;
             document.title = 'Bayan POS';
 
-            const fill  = document.getElementById('upd-fill');
+            const fill = document.getElementById('upd-fill');
             const pctEl = document.getElementById('upd-pct');
-            const lbl   = document.getElementById('upd-lbl');
-            const acts  = document.getElementById('upd-actions');
+            const lbl = document.getElementById('upd-lbl');
+            const acts = document.getElementById('upd-actions');
             const speedEl = document.getElementById('upd-speed');
 
-            if (fill)  fill.style.width = '100%';
+            if (fill) fill.style.width = '100%';
             if (pctEl) pctEl.textContent = '100%';
-            if (lbl)   { lbl.textContent = '🎉 تم تنزيل التحديث بنجاح ومحفوظ بأمان!'; lbl.style.color = '#34d399'; }
+            if (lbl) { lbl.textContent = '🎉 تم تنزيل التحديث بنجاح ومحفوظ بأمان!'; lbl.style.color = '#34d399'; }
             if (speedEl) speedEl.textContent = 'التحديث جاهز للتثبيت فوراً دون فقدان أي بيانات.';
 
             if (acts) {
@@ -973,7 +1077,7 @@
             ? getStore('bayan_cloud_announcements_history')
             : localStorage.getItem('bayan_cloud_announcements_history');
     } catch (_) {
-        try { storedAnn = localStorage.getItem('bayan_cloud_announcements_history'); } catch (__) {}
+        try { storedAnn = localStorage.getItem('bayan_cloud_announcements_history'); } catch (__) { }
     }
     if (storedAnn) {
         try {
@@ -1000,7 +1104,7 @@
                         const t = await res.text();
                         if (t && t.trim()) currentText = t;
                     }
-                } catch(e) {}
+                } catch (e) { }
 
                 // تجاوز كاش Fastly CDN اللحظي لجلب أحدث تعديل فورياً عبر GitHub Contents API
                 if (!currentText || !currentText.trim()) {
@@ -1019,7 +1123,7 @@
                                 if (decoded && decoded.trim()) currentText = decoded;
                             }
                         }
-                    } catch(apiErr) {}
+                    } catch (apiErr) { }
                 }
 
                 if (currentText && currentText.trim()) {
@@ -1032,7 +1136,7 @@
                             rawText = currentText;
                             if (hasActive) break;
                         }
-                    } catch(pe) {
+                    } catch (pe) {
                         data = [{
                             title: '📢 تنبيه من إدارة نظام بيان POS',
                             message: currentText.trim(),
@@ -1059,7 +1163,7 @@
                             }
                         }
                     }
-                } catch(locErr) {}
+                } catch (locErr) { }
             }
 
             if (!data || data.length === 0) return;
@@ -1132,7 +1236,7 @@
             if (typeof setStore === 'function') {
                 setStore('bayan_cloud_announcements_history', historyStr);
             } else {
-                try { localStorage.setItem('bayan_cloud_announcements_history', historyStr); } catch (_) {}
+                try { localStorage.setItem('bayan_cloud_announcements_history', historyStr); } catch (_) { }
             }
 
             if (typeof updateNotifications === 'function') {
@@ -1159,7 +1263,7 @@
             try {
                 if (typeof setStore === 'function') setStore(seenKey, '1');
                 localStorage.setItem(seenKey, '1');
-            } catch(e) {}
+            } catch (e) { }
         }
 
         const overlay = document.createElement('div');
@@ -1218,7 +1322,7 @@
             overlay.remove();
             if (escSeenKey) {
                 if (typeof setStore === 'function') setStore(escSeenKey, '1');
-                else try { localStorage.setItem(escSeenKey, '1'); } catch (_) {}
+                else try { localStorage.setItem(escSeenKey, '1'); } catch (_) { }
             }
             if (typeof updateNotifications === 'function') updateNotifications();
         };
@@ -1237,7 +1341,7 @@
                             dismiss();
                             return;
                         }
-                    } catch (e) {}
+                    } catch (e) { }
                 }
                 window.open(validLink, '_blank', 'noopener,noreferrer');
                 dismiss();
@@ -1305,21 +1409,21 @@
 
     window.updateAutoUpdatesPolicyDOM = updateAutoUpdatesPolicyDOM;
 
-    window.__isAutoUpdatesFrozenNow = function() {
+    window.__isAutoUpdatesFrozenNow = function () {
         if (typeof window.__isAutoUpdatesFrozen === 'boolean') {
             return window.__isAutoUpdatesFrozen;
         }
         try {
             const ls = typeof getStore === 'function' ? getStore('pos_auto_updates_disabled') : null;
             if (ls !== null && ls !== undefined) return (ls === 'true' || ls === true);
-        } catch(e) {}
+        } catch (e) { }
         if (window.AppStore && window.AppStore.pos_auto_updates_disabled !== undefined) {
             return (window.AppStore.pos_auto_updates_disabled === 'true' || window.AppStore.pos_auto_updates_disabled === true);
         }
         return false;
     };
 
-    window.toggleAutoUpdatesPolicy = async function(isEnabled) {
+    window.toggleAutoUpdatesPolicy = async function (isEnabled) {
         const disabled = !isEnabled;
         const curVer = window.appVersion || '5.1.7';
         window.__isAutoUpdatesFrozen = disabled;
@@ -1380,7 +1484,7 @@
         }
     };
 
-    window.initAutoUpdatesPolicyUI = async function() {
+    window.initAutoUpdatesPolicyUI = async function () {
         let isAutoUpdateFrozen = false;
 
         // فحص سريع من قاعدة بيانات SQLite عبر getStore للاستجابة اللحظية
@@ -1389,7 +1493,7 @@
             if (storedVal !== null && storedVal !== undefined) {
                 isAutoUpdateFrozen = (storedVal === 'true' || storedVal === true);
             }
-        } catch (e) {}
+        } catch (e) { }
 
         // فحص من Electron Disk Policy إذا توفر IPC
         if (ipcRenderer) {
@@ -1398,7 +1502,7 @@
                 if (epRes && typeof epRes.frozen === 'boolean') {
                     isAutoUpdateFrozen = epRes.frozen;
                 }
-            } catch (e) {}
+            } catch (e) { }
         }
 
         // فحص من SQLite كمرجع دائم
