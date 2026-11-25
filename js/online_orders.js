@@ -922,26 +922,36 @@
             sec.innerHTML = `
                 <div class="products-panel" style="width:100%; min-height:85vh; background:#f8fafc; border-radius:16px; border:1.5px solid #e2e8f0; padding:16px; display:flex; flex-direction:column; gap:14px;">
                     <!-- الشريط العلوي ورابط المتجر وبطاقة هوية المحل Pro / عادي -->
-                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; background:white; padding:14px 18px; border-radius:14px; border:1.5px solid #e2e8f0; box-shadow:0 2px 8px rgba(0,0,0,0.03);">
-                        <div style="display:flex; flex-direction:column; gap:10px; flex:1; min-width:300px;">
-                            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                                <h2 style="margin:0; font-size:1.2rem; font-weight:900; color:#0f172a;">🛒 طلبات المتجر الإلكتروني (الأونلاين)</h2>
-                                <span style="background:linear-gradient(135deg,#f97316,#ea580c); color:white; padding:3px 10px; border-radius:999px; font-size:0.74rem; font-weight:900;">NEW • جديد</span>
+                    <div style="display:flex; justify-content:space-between; align-items:stretch; flex-wrap:wrap; gap:16px; background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%); padding:18px 20px; border-radius:18px; border:1.5px solid #e2e8f0; box-shadow:0 8px 24px rgba(15,23,42,0.06);">
+                        <div style="display:flex; flex-direction:column; gap:12px; flex:1; min-width:320px;">
+                            <!-- الصف 1: العنوان والشارات -->
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding-bottom:10px; border-bottom:1px dashed #e2e8f0;">
+                                <h2 style="margin:0; font-size:1.22rem; font-weight:900; color:#0f172a; display:flex; align-items:center; gap:8px;">
+                                    <span style="width:36px;height:36px;border-radius:11px;background:linear-gradient(135deg,#059669,#047857);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:1.05rem;box-shadow:0 4px 10px rgba(5,150,105,0.25);">🛒</span>
+                                    <span>طلبات المتجر الإلكتروني</span>
+                                </h2>
+                                <span style="background:linear-gradient(135deg,#f97316,#ea580c); color:white; padding:4px 11px; border-radius:999px; font-size:0.72rem; font-weight:900; box-shadow:0 2px 6px rgba(234,88,12,0.28);">✨ NEW</span>
                                 <span id="onlineOrdersStatusPill"></span>
-                                <span style="background:#f1f5f9; color:#334155; padding:4px 10px; border-radius:8px; font-size:0.78rem; font-weight:800; font-family:monospace;">كود المحل: ${shopId}</span>
+                                <span style="background:#f1f5f9; color:#0f172a; border:1px solid #cbd5e1; padding:4px 11px; border-radius:9px; font-size:0.78rem; font-weight:900; font-family:monospace;">🏷️ ${shopId}</span>
                                 ${usageStats.isVip
-                    ? '<span style="background:#dcfce7; color:#166534; border:1px solid #86efac; padding:3px 10px; border-radius:999px; font-size:0.76rem; font-weight:900;">👑 باقة المتجر مفعّلة بالكامل</span>'
-                    : `<button type="button" onclick="BayanOnlineOrders.activateStoreVip()" style="background:#fef3c7; color:#92400e; border:1px solid #f59e0b; padding:3px 10px; border-radius:999px; font-size:0.76rem; font-weight:900; cursor:pointer; font-family:Cairo,sans-serif;" title="اضغط لإدخال كود التفعيل الدائم">${trialPillText}</button>`}
+                    ? '<span style="background:linear-gradient(135deg,#dcfce7,#bbf7d0); color:#166534; border:1px solid #86efac; padding:4px 12px; border-radius:999px; font-size:0.76rem; font-weight:900;">👑 باقة Pro مفعّلة</span>'
+                    : `<button type="button" onclick="BayanOnlineOrders.activateStoreVip()" style="background:linear-gradient(135deg,#fef3c7,#fde68a); color:#92400e; border:1px solid #f59e0b; padding:4px 12px; border-radius:999px; font-size:0.76rem; font-weight:900; cursor:pointer; font-family:Cairo,sans-serif; box-shadow:0 2px 6px rgba(245,158,11,0.2);" title="اضغط لإدخال كود التفعيل الدائم">${trialPillText}</button>`}
                             </div>
+
+                            <!-- الصف 2: شريط الرابط والوصول السريع -->
+                            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; background:#f1f5f9; padding:8px 10px; border-radius:12px; border:1px solid #e2e8f0;">
+                                <input type="text" id="onlineStoreUrlInput" value="${storeUrl}" readonly style="flex:1; min-width:220px; padding:8px 12px; border-radius:9px; border:1px solid #cbd5e1; background:#ffffff; font-size:0.79rem; font-family:monospace; color:#0f172a; font-weight:700;" dir="ltr">
+                                <button type="button" onclick="BayanOnlineOrders.copyStoreUrl()" style="background:linear-gradient(135deg,#0284c7,#0369a1); color:white; border:none; padding:8px 14px; border-radius:9px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif; box-shadow:0 3px 8px rgba(2,132,199,0.25);">📋 نسخ الرابط</button>
+                                <button type="button" onclick="BayanOnlineOrders.openStorePreview()" style="background:linear-gradient(135deg,#0f172a,#1e293b); color:white; border:none; padding:8px 14px; border-radius:9px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif; box-shadow:0 3px 8px rgba(15,23,42,0.22);">🌐 فتح المتجر</button>
+                                <button type="button" onclick="BayanOnlineOrders.openAdminPanel()" style="background:linear-gradient(135deg,#7c3aed,#6d28d9); color:white; border:none; padding:8px 14px; border-radius:9px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif; box-shadow:0 3px 8px rgba(124,58,237,0.25);">⚙️ لوحة التحكم</button>
+                            </div>
+
+                            <!-- الصف 3: أدوات المزامنة والإدارة -->
                             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                                <input type="text" id="onlineStoreUrlInput" value="${storeUrl}" readonly style="width:270px; max-width:100%; padding:7px 10px; border-radius:8px; border:1px solid #cbd5e1; background:#f8fafc; font-size:0.78rem; font-family:monospace; color:#334155;" dir="ltr">
-                                <button type="button" onclick="BayanOnlineOrders.copyStoreUrl()" style="background:#0284c7; color:white; border:none; padding:8px 13px; border-radius:8px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif;">📋 نسخ رابط المتجر</button>
-                                <button type="button" onclick="BayanOnlineOrders.openStorePreview()" style="background:#0f172a; color:white; border:none; padding:8px 13px; border-radius:8px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif;">🌐 فتح المتجر</button>
-                                <button type="button" onclick="BayanOnlineOrders.openAdminPanel()" style="background:#7c3aed; color:white; border:none; padding:8px 13px; border-radius:8px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif;">⚙️ لوحة تحكم المتجر</button>
-                                <button type="button" onclick="BayanOnlineOrders.publishAllProductsToStore()" style="background:#ea580c; color:white; border:none; padding:8px 13px; border-radius:8px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif;">🚀 نشر كل الأصناف</button>
-                                <button type="button" onclick="BayanOnlineOrders.syncAllPublishedProducts()" style="background:#059669; color:white; border:none; padding:8px 13px; border-radius:8px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif;">📤 مزامنة المنشور</button>
-                                <button type="button" onclick="BayanOnlineOrders.clearCloudStoreData()" style="background:#dc2626; color:white; border:none; padding:8px 12px; border-radius:8px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif;" title="حذف البيانات المرفوعة على المتجر الإلكتروني السحابي فقط بدون لمس بيانات بَيَان المحلية">🗑️ تفريغ السحابة</button>
-                                <button type="button" onclick="BayanOnlineOrders.startListening()" style="background:#f1f5f9; color:#334155; border:1px solid #cbd5e1; padding:8px 11px; border-radius:8px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif;">🔄 تحديث</button>
+                                <button type="button" onclick="BayanOnlineOrders.publishAllProductsToStore()" style="background:linear-gradient(135deg,#f97316,#ea580c); color:white; border:none; padding:8px 14px; border-radius:10px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif; box-shadow:0 3px 8px rgba(234,88,12,0.22);">🚀 نشر كل الأصناف</button>
+                                <button type="button" onclick="BayanOnlineOrders.syncAllPublishedProducts()" style="background:linear-gradient(135deg,#059669,#047857); color:white; border:none; padding:8px 14px; border-radius:10px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif; box-shadow:0 3px 8px rgba(5,150,105,0.22);">📤 مزامنة المنشور</button>
+                                <button type="button" onclick="BayanOnlineOrders.startListening()" style="background:#ffffff; color:#334155; border:1.5px solid #cbd5e1; padding:7px 13px; border-radius:10px; font-weight:800; font-size:0.81rem; cursor:pointer; font-family:'Cairo',sans-serif;">🔄 تحديث</button>
+                                <button type="button" onclick="BayanOnlineOrders.clearCloudStoreData()" style="margin-right:auto; background:#fef2f2; color:#dc2626; border:1.5px solid #fecaca; padding:7px 13px; border-radius:10px; font-weight:800; font-size:0.8rem; cursor:pointer; font-family:'Cairo',sans-serif;" title="حذف البيانات المرفوعة على المتجر الإلكتروني السحابي فقط بدون لمس بيانات بَيَان المحلية">🗑️ تفريغ السحابة</button>
                             </div>
                         </div>
                         ${profileCardHtml}
