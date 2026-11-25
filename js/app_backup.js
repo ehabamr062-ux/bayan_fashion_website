@@ -39,9 +39,16 @@ function restoreData(input, isEmergencyBypass = false) {
         } catch(e) {}
 
         const filePath = file.path;
+        if (!ipc) {
+            const msg = "⚠️ هذا الملف هو نسخة قاعدة بيانات ديسكتوب مضغوطة (.bak/.db) خاصة بنسخة الكمبيوتر (Electron).\n\n📱 للاسترداد على التابلت أو المتصفح (PWA): يرجى تصدير نسخة بصيغة JSON من الكمبيوتر أو استخدام المزامنة السحابية.";
+            if (typeof showCustomAlert === 'function') showCustomAlert(msg, 'warning');
+            else alert(msg);
+            if (input) input.value = '';
+            return;
+        }
         if (ipc) {
             const confirmMsg = "⚠️ هل أنت متأكد من استعادة ملف قاعدة البيانات SQLite هذا؟ سيتم استبدال البيانات الحالية بالكامل وإعادة تشغيل البرنامج.";
-            const proceed = (typeof showCustomAlert === 'function') ? true : confirm(confirmMsg);
+            const proceed = confirm(confirmMsg);
             if (proceed) {
                 const doRestore = async () => {
                     // 🔒 إغلاق اتصال SQLite الحالي وتحرير أقفال الملفات قبل الاستبدال المباشر
@@ -516,6 +523,22 @@ window.restoreDataFromContent = async function (jsonContent, fileName = '', isEm
                         window.BayanSQLite.bulkPut('accounts', cleanAccounts);
                         if (cleanTrash.length > 0) {
                             window.BayanSQLite.bulkPut('trash', cleanTrash);
+                        }
+                        if (Array.isArray(data.users) && data.users.length > 0) {
+                            window.BayanSQLite.clear('users');
+                            window.BayanSQLite.bulkPut('users', data.users);
+                        }
+                        if (Array.isArray(data.warehouses) && data.warehouses.length > 0) {
+                            window.BayanSQLite.clear('warehouses');
+                            window.BayanSQLite.bulkPut('warehouses', data.warehouses);
+                        }
+                        if (Array.isArray(data.treasuryAudit) && data.treasuryAudit.length > 0) {
+                            window.BayanSQLite.clear('treasuryAudit');
+                            window.BayanSQLite.bulkPut('treasuryAudit', data.treasuryAudit);
+                        }
+                        if (Array.isArray(data.auditLogs) && data.auditLogs.length > 0) {
+                            window.BayanSQLite.clear('auditLogs');
+                            window.BayanSQLite.bulkPut('auditLogs', data.auditLogs);
                         }
 
                         if (typeof window.BayanSQLite.flush === 'function') {

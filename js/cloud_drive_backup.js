@@ -610,7 +610,7 @@
                 const datePart = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
                 const timePart = `${pad(now.getHours())}-${pad(now.getMinutes())}`;
                 const fileName = `bayan_backup_${datePart}_${timePart}.json`;
-                const jsonString = JSON.stringify(payload, null, 2);
+                const jsonString = JSON.stringify(payload);
                 const fileSizeBytes = new Blob([jsonString]).size;
                 const fileSizeFormatted = (fileSizeBytes / (1024 * 1024)).toFixed(2) + ' MB';
 

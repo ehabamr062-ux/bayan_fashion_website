@@ -268,12 +268,12 @@ function createWindow() {
             return;
         }
 
-        // صمام أمان زمني في حال تعليق الريندرر (4 ثوانٍ كحد أقصى لإتمام عمليات الكتابة وحماية الهاردات البطيئة)
+        // صمام أمان زمني (45 ثانية لإتاحة وقت كافٍ لنسخ وضغط قواعد البيانات الضخمة 180MB+ بدون تلف)
         if (global.quitTimeout) clearTimeout(global.quitTimeout);
         global.quitTimeout = setTimeout(() => {
             isQuitting = true;
             app.exit(0);
-        }, 4000);
+        }, 45000);
     });
 
     win.on('closed', () => {
@@ -1500,53 +1500,75 @@ ipcMain.handle('restore-sqlite-direct-backup', async (_e, src) => {
         await safeUnlink(walPath);
         await safeUnlink(shmPath);
 
-        if (isBuffer && buf) {
-            const isGzip = buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b;
-            if (isGzip) {
-                const decompressed = await new Promise((resolve, reject) => {
-                    zlib.gunzip(buf, (err, result) => {
-                        if (err) reject(err);
-                        else resolve(result);
+        const sqliteTempRestorePath = sqliteOriginalPath + '.restore_tmp_' + Date.now();
+        try {
+            if (isBuffer && buf) {
+                const isGzip = buf.length >= 2 && buf[0] === 0x1f && buf[1] === 0x8b;
+                if (isGzip) {
+                    const decompressed = await new Promise((resolve, reject) => {
+                        zlib.gunzip(buf, (err, result) => {
+                            if (err) reject(err);
+                            else resolve(result);
+                        });
                     });
-                });
-                await fs.promises.writeFile(sqliteOriginalPath, decompressed);
-                console.log("⚡ [Direct SQLite Restore] تم فك ضغط واستعادة قاعدة البيانات بنجاح من الذاكرة (Buffer)");
-            } else {
-                await fs.promises.writeFile(sqliteOriginalPath, buf);
-                console.log("⚡ [Direct SQLite Restore] تم استعادة ملف قاعدة البيانات غير المضغوط بنجاح من الذاكرة (Buffer)");
-            }
-        } else if (srcFilePath) {
-            let isGzip = false;
-            let fd = null;
-            try {
-                fd = await fs.promises.open(srcFilePath, 'r');
-                const headerBuf = Buffer.alloc(2);
-                const { bytesRead } = await fd.read(headerBuf, 0, 2, 0);
-                if (bytesRead >= 2 && headerBuf[0] === 0x1f && headerBuf[1] === 0x8b) {
-                    isGzip = true;
+                    await fs.promises.writeFile(sqliteTempRestorePath, decompressed);
+                } else {
+                    await fs.promises.writeFile(sqliteTempRestorePath, buf);
                 }
-            } catch (headErr) {
-                console.warn("[restore-sqlite-direct-backup] Header check warning:", headErr.message);
-            } finally {
-                if (fd) await fd.close();
+            } else if (srcFilePath) {
+                let isGzip = false;
+                let fd = null;
+                try {
+                    fd = await fs.promises.open(srcFilePath, 'r');
+                    const headerBuf = Buffer.alloc(2);
+                    const { bytesRead } = await fd.read(headerBuf, 0, 2, 0);
+                    if (bytesRead >= 2 && headerBuf[0] === 0x1f && headerBuf[1] === 0x8b) {
+                        isGzip = true;
+                    }
+                } catch (headErr) {
+                    console.warn("[restore-sqlite-direct-backup] Header check warning:", headErr.message);
+                } finally {
+                    if (fd) await fd.close();
+                }
+
+                if (isGzip) {
+                    await new Promise((resolve, reject) => {
+                        const readStream = fs.createReadStream(srcFilePath);
+                        const writeStream = fs.createWriteStream(sqliteTempRestorePath);
+                        const gunzip = zlib.createGunzip();
+                        readStream.on('error', reject);
+                        gunzip.on('error', reject);
+                        writeStream.on('error', reject);
+                        writeStream.on('finish', resolve);
+                        readStream.pipe(gunzip).pipe(writeStream);
+                    });
+                } else {
+                    await fs.promises.copyFile(srcFilePath, sqliteTempRestorePath);
+                }
             }
 
-            if (isGzip) {
-                await new Promise((resolve, reject) => {
-                    const readStream = fs.createReadStream(srcFilePath);
-                    const writeStream = fs.createWriteStream(sqliteOriginalPath);
-                    const gunzip = zlib.createGunzip();
-                    readStream.on('error', reject);
-                    gunzip.on('error', reject);
-                    writeStream.on('error', reject);
-                    writeStream.on('finish', resolve);
-                    readStream.pipe(gunzip).pipe(writeStream);
-                });
-                console.log("⚡ [Direct SQLite Restore] تم فك ضغط واستعادة قاعدة البيانات بنجاح عبر Stream من:", srcFilePath);
-            } else {
-                await fs.promises.copyFile(srcFilePath, sqliteOriginalPath);
-                console.log("⚡ [Direct SQLite Restore] تم استعادة ملف قاعدة البيانات غير المضغوط بنجاح من:", srcFilePath);
+            // 🛡️ التحقق الصارم من سلامة ترويسة SQLite format 3 قبل استبدال القاعدة الأصلية
+            let checkFd = null;
+            let validMagic = false;
+            try {
+                checkFd = await fs.promises.open(sqliteTempRestorePath, 'r');
+                const magicBuf = Buffer.alloc(16);
+                const { bytesRead } = await checkFd.read(magicBuf, 0, 16, 0);
+                validMagic = bytesRead >= 16 && magicBuf.toString('utf8', 0, 15) === 'SQLite format 3';
+            } finally {
+                if (checkFd) await checkFd.close();
             }
+            if (!validMagic) {
+                await safeUnlink(sqliteTempRestorePath);
+                throw new Error('الملف المختار ليس قاعدة بيانات SQLite سليمة (تم إلغاء الاستعادة وحماية بياناتك الحالية).');
+            }
+
+            // استبدال ذري آمن بعد التأكد 100% من سلامة الملف
+            await fs.promises.rename(sqliteTempRestorePath, sqliteOriginalPath);
+            console.log("⚡ [Direct SQLite Restore] تم التحقق واستعادة قاعدة البيانات ذرّياً بنجاح!");
+        } catch (restoreStepErr) {
+            await safeUnlink(sqliteTempRestorePath);
+            throw restoreStepErr;
         }
 
         return { success: true };
