@@ -938,29 +938,29 @@ window.showNotificationsModal = function (activeTab = null) {
                     const dateFormatted = item.receivedAt ? new Date(item.receivedAt).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' }) : '';
                     const isAcknowledged = ackCloudSet.has(String(item.id));
                     return `
-                                            <div style="background: linear-gradient(135deg, #1e113a, #0f172a); border: 2px solid ${isAcknowledged ? 'rgba(255, 255, 255, 0.15)' : 'rgba(212, 175, 55, 0.7)'}; border-radius: 20px; padding: 22px 25px; color: white; box-shadow: 0 10px 25px rgba(0,0,0,0.25); position:relative;">
-                                                <div style="position:absolute; top:18px; left:20px; display:flex; gap:8px; align-items:center;">
-                                                    <span style="background: rgba(255,255,255,0.15); color: #fde047; font-size: 0.75rem; font-weight: 900; padding: 3px 10px; border-radius: 20px; border: 1px solid rgba(253, 224, 71, 0.4);">
-                                                        #${annNumber}
+                                            <div style="background: linear-gradient(135deg, #1e113a, #0f172a); border: 2px solid ${isAcknowledged ? 'rgba(255, 255, 255, 0.15)' : 'rgba(212, 175, 55, 0.7)'}; border-radius: 20px; padding: 20px 22px; color: white; box-shadow: 0 10px 25px rgba(0,0,0,0.25);">
+                                                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px;">
+                                                    <span style="background: rgba(255,255,255,0.12); color: #fde047; font-size: 0.74rem; font-weight: 900; padding: 3px 10px; border-radius: 20px; border: 1px solid rgba(253, 224, 71, 0.35);">
+                                                        إشعار #${idx + 1}
                                                     </span>
                                                     ${isAcknowledged ? `
-                                                        <span style="background:rgba(16,185,129,0.25); color:#a7f3d0; font-size:0.75rem; font-weight:900; padding:3px 10px; border-radius:20px; border:1px solid rgba(16,185,129,0.4);">
+                                                        <span style="background:rgba(16,185,129,0.22); color:#a7f3d0; font-size:0.74rem; font-weight:900; padding:4px 11px; border-radius:20px; border:1px solid rgba(16,185,129,0.4);">
                                                             تم الاستلام والمطالعة ✔️
                                                         </span>
                                                     ` : `
-                                                        <span style="background:#ef4444; color:#fff; font-size:0.75rem; font-weight:900; padding:3px 10px; border-radius:20px; box-shadow: 0 2px 6px rgba(239,68,68,0.4);">
+                                                        <span style="background:#ef4444; color:#fff; font-size:0.74rem; font-weight:900; padding:4px 11px; border-radius:20px; box-shadow: 0 2px 6px rgba(239,68,68,0.4);">
                                                             رسالة جديدة غير مقروءة 🔔
                                                         </span>
                                                     `}
                                                 </div>
-                                                
-                                                <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px;">
-                                                    <div style="width: 46px; height: 46px; background: linear-gradient(135deg, #d4af37, #b45309); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 12px rgba(212, 175, 55, 0.35);">
+
+                                                <div style="display: flex; align-items: flex-start; gap: 14px; margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px;">
+                                                    <div style="width: 44px; height: 44px; flex-shrink: 0; background: linear-gradient(135deg, #d4af37, #b45309); border-radius: 13px; display: flex; align-items: center; justify-content: center; font-size: 22px; box-shadow: 0 4px 12px rgba(212, 175, 55, 0.35);">
                                                         ${item.icon || '📢'}
                                                     </div>
-                                                    <div>
-                                                        <h4 style="margin: 0; font-size: 1.18rem; font-weight: 900; color: #fde047;">${escapeStr(item.title || 'إشعار سحابي')}</h4>
-                                                        <p style="margin: 3px 0 0; font-size: 0.78rem; color: #94a3b8; font-weight: bold;">
+                                                    <div style="min-width: 0; flex: 1;">
+                                                        <h4 style="margin: 0; font-size: 1.12rem; font-weight: 900; color: #fde047; line-height: 1.5; word-break: break-word;">${escapeStr(item.title || 'إشعار سحابي')}</h4>
+                                                        <p style="margin: 4px 0 0; font-size: 0.78rem; color: #94a3b8; font-weight: bold;">
                                                             رسالة مباشرة من فريق التطوير ${dateFormatted ? `• 📅 ${dateFormatted}` : ''}
                                                         </p>
                                                     </div>
