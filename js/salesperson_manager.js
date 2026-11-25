@@ -136,8 +136,24 @@
         }
     });
 
-    // نافذة سريعة لإدارة أسماء السيلز (إضافة / حذف في ثانية واحدة)
+    function isCurrentUserAdmin() {
+        try {
+            const u = window.currentUser || (typeof currentUser !== 'undefined' ? currentUser : null);
+            if (!u) return false;
+            const r = String(u.role || '').toLowerCase().trim();
+            return r === 'admin' || r === 'manager' || r === 'مدير' || r === 'مدير النظام' || u.isAdmin === true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // نافذة إدارة أسماء السيلز (إضافة / تعديل / حذف — للمدير فقط)
     window.openSalespersonQuickManageModal = function () {
+        if (!isCurrentUserAdmin()) {
+            if (typeof showToast === 'function') showToast('🔒 إدارة أسماء السيلز متاحة لمدير النظام فقط من الإعدادات ← المستخدمين', 'warning');
+            else alert('🔒 إدارة أسماء السيلز متاحة لمدير النظام فقط.');
+            return;
+        }
         const old = document.getElementById('bayanSalespersonManageOverlay');
         if (old) old.remove();
 
@@ -145,25 +161,38 @@
         overlay.id = 'bayanSalespersonManageOverlay';
         overlay.style.cssText = 'position:fixed; inset:0; background:rgba(2,18,14,0.72); backdrop-filter:blur(6px); z-index:9999999; display:flex; align-items:center; justify-content:center; padding:16px; direction:rtl; font-family:Cairo,sans-serif;';
 
+        let editingIdx = -1;
+
         function renderInner() {
             const saved = safeGetList();
             const listHtml = saved.length === 0
                 ? '<div style="text-align:center; padding:22px; color:#64748b; font-weight:700; font-size:0.88rem;">لا توجد أسماء سيلز مضافة بعد — أضف أول اسم بالأعلى 👆</div>'
                 : saved.map((name, i) => {
-                    const safe = name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const safe = name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    if (editingIdx === i) {
+                        return `
+                            <div style="display:flex; align-items:center; gap:6px; padding:8px 10px; background:#ecfdf5; border:1.5px solid #10b981; border-radius:12px; margin-bottom:8px;">
+                                <input type="text" id="editSpInput_${i}" value="${safe}" style="flex:1; height:34px; padding:0 10px; border:1.5px solid #059669; border-radius:8px; font-weight:800; font-family:inherit; font-size:0.88rem; outline:none;">
+                                <button type="button" data-save-edit="${i}" style="background:#059669; color:#fff; border:none; border-radius:8px; padding:6px 12px; font-weight:900; font-size:0.78rem; cursor:pointer; font-family:inherit;">حفظ</button>
+                                <button type="button" data-cancel-edit="1" style="background:#e2e8f0; color:#334155; border:none; border-radius:8px; padding:6px 10px; font-weight:800; font-size:0.78rem; cursor:pointer; font-family:inherit;">إلغاء</button>
+                            </div>`;
+                    }
                     return `
                         <div style="display:flex; align-items:center; justify-content:space-between; padding:10px 14px; background:#f8fafc; border:1px solid #e2e8f0; border-radius:12px; margin-bottom:8px;">
                             <span style="font-weight:800; color:#0f172a; font-size:0.92rem;">🏷️ ${safe}</span>
-                            <button type="button" data-del-idx="${i}" style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca; border-radius:8px; padding:4px 10px; font-weight:800; font-size:0.78rem; cursor:pointer; font-family:inherit;">حذف</button>
+                            <div style="display:flex; gap:6px;">
+                                <button type="button" data-edit-idx="${i}" style="background:#eff6ff; color:#1d4ed8; border:1px solid #bfdbfe; border-radius:8px; padding:4px 10px; font-weight:800; font-size:0.78rem; cursor:pointer; font-family:inherit;">✏️ تعديل</button>
+                                <button type="button" data-del-idx="${i}" style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca; border-radius:8px; padding:4px 10px; font-weight:800; font-size:0.78rem; cursor:pointer; font-family:inherit;">حذف</button>
+                            </div>
                         </div>`;
                 }).join('');
 
             overlay.innerHTML = `
-                <div style="background:#ffffff; width:430px; max-width:95vw; border-radius:22px; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,0.38); border:1.5px solid #a7f3d0;">
+                <div style="background:#ffffff; width:450px; max-width:95vw; border-radius:22px; overflow:hidden; box-shadow:0 24px 60px rgba(0,0,0,0.38); border:1.5px solid #a7f3d0;">
                     <div style="background:linear-gradient(135deg,#064e3b,#047857); padding:16px 20px; display:flex; align-items:center; justify-content:space-between; color:#ffffff;">
                         <div>
-                            <div style="font-weight:900; font-size:1.05rem;">🏷️ إدارة أسماء السيلز (البائعين)</div>
-                            <div style="font-size:0.75rem; color:#a7f3d0; font-weight:700;">بدون حسابات دخول أو كلمات مرور</div>
+                            <div style="font-weight:900; font-size:1.05rem;">🏷️ إدارة أسماء السيلز (للمدير فقط)</div>
+                            <div style="font-size:0.75rem; color:#a7f3d0; font-weight:700;">إضافة وتعديل وحذف البائعين بدون حسابات دخول</div>
                         </div>
                         <button type="button" id="closeSpManageBtn" style="background:rgba(255,255,255,0.16); color:#fff; border:none; width:32px; height:32px; border-radius:10px; font-weight:900; cursor:pointer; font-size:1rem;">✕</button>
                     </div>
@@ -172,7 +201,7 @@
                             <input type="text" id="newSalespersonNameInput" placeholder="اكتب اسم السيلز (مثلاً: أحمد / سارة)..." style="flex:1; height:40px; padding:0 12px; border:1.5px solid #10b981; border-radius:10px; font-weight:800; font-family:inherit; font-size:0.9rem; outline:none;">
                             <button type="button" id="addSpSubmitBtn" style="background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:none; border-radius:10px; padding:0 16px; font-weight:900; cursor:pointer; font-family:inherit; font-size:0.88rem;">+ إضافة</button>
                         </div>
-                        <div style="max-height:240px; overflow-y:auto;">${listHtml}</div>
+                        <div style="max-height:260px; overflow-y:auto;">${listHtml}</div>
                     </div>
                 </div>`;
 
@@ -183,15 +212,45 @@
             const doAdd = () => {
                 const val = (inp.value || '').trim();
                 if (!val) return;
-                const next = safeSaveList([...safeGetList(), val]);
+                safeSaveList([...safeGetList(), val]);
                 window.refreshPosSalespersonDropdown(val);
+                editingIdx = -1;
                 renderInner();
                 if (typeof showToast === 'function') showToast(`✅ تم إضافة السيلز "${val}" بنجاح`, 'success');
             };
 
             addBtn.onclick = doAdd;
             inp.onkeydown = (e) => { if (e.key === 'Enter') { e.preventDefault(); doAdd(); } };
-            setTimeout(() => inp.focus(), 50);
+
+            overlay.querySelectorAll('[data-edit-idx]').forEach(btn => {
+                btn.onclick = () => {
+                    editingIdx = parseInt(btn.getAttribute('data-edit-idx'), 10);
+                    renderInner();
+                    const edInp = overlay.querySelector(`#editSpInput_${editingIdx}`);
+                    if (edInp) { edInp.focus(); edInp.select(); }
+                };
+            });
+
+            overlay.querySelectorAll('[data-cancel-edit]').forEach(btn => {
+                btn.onclick = () => { editingIdx = -1; renderInner(); };
+            });
+
+            overlay.querySelectorAll('[data-save-edit]').forEach(btn => {
+                btn.onclick = () => {
+                    const idx = parseInt(btn.getAttribute('data-save-edit'), 10);
+                    const edInp = overlay.querySelector(`#editSpInput_${idx}`);
+                    const newVal = (edInp && edInp.value || '').trim();
+                    if (!newVal) return;
+                    const cur = safeGetList();
+                    const oldVal = cur[idx];
+                    cur[idx] = newVal;
+                    safeSaveList(cur);
+                    editingIdx = -1;
+                    window.refreshPosSalespersonDropdown();
+                    renderInner();
+                    if (typeof showToast === 'function') showToast(`✏️ تم تعديل الاسم من "${oldVal}" إلى "${newVal}"`, 'success');
+                };
+            });
 
             overlay.querySelectorAll('[data-del-idx]').forEach(btn => {
                 btn.onclick = () => {
@@ -199,6 +258,7 @@
                     const cur = safeGetList();
                     const removed = cur.splice(idx, 1)[0];
                     safeSaveList(cur);
+                    editingIdx = -1;
                     window.refreshPosSalespersonDropdown('');
                     renderInner();
                     if (typeof showToast === 'function') showToast(`🗑️ تم حذف "${removed}" من قائمة السيلز`, 'info');
