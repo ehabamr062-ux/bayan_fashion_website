@@ -1729,7 +1729,7 @@ async function printInvoiceById(invoiceIdOrTx, type = '', optTxId = '') {
         // استخراج الرصيد السابق للعميل / المورد
         const partnerName = tx.customer || tx.partner || tx.supplier || tx.account || (isPurchase ? 'مورد نقدي' : 'عميل نقدي');
         let prevBal = parseFloat(tx.prevBalance != null ? tx.prevBalance : 0) || 0;
-        if (prevBal === 0 && partnerName && !window.isGenericCashPartner(partnerName)) {
+        if (prevBal === 0 && partnerName && !(typeof window.isGenericCashPartner === 'function' && window.isGenericCashPartner(partnerName))) {
             if (typeof getHistoricalPartnerBalance === 'function') {
                 prevBal = getHistoricalPartnerBalance(partnerName, invoiceId || tx.id);
             } else if (typeof getAccountBalance === 'function') {

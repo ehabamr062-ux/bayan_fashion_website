@@ -993,7 +993,7 @@ async function saveAdjustment() {
         }
         if (itemsToProcess && itemsToProcess.length > 0) {
             window.adjCart = itemsToProcess;
-            if (typeof renderAdjustmentCart === 'function') renderAdjustmentCart();
+            if (typeof renderAdjTable === 'function') renderAdjTable();
         }
         if (typeof showCustomAlert === 'function') {
             showCustomAlert({

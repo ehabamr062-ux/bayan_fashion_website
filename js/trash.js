@@ -530,15 +530,20 @@ const trashManager = {
                 }
 
                 if (Array.isArray(savedStock) && savedStock.length > 0 && typeof productsDB !== 'undefined') {
+                    const updatedWhProducts = [];
                     savedStock.forEach(st => {
                         const p = productsDB.find(prod => prod.id === st.productId || prod.barcode === st.barcode);
                         if (p) {
                             if (!p.warehouseStocks) p.warehouseStocks = {};
                             p.warehouseStocks[savedWH.name] = st.quantity;
+                            if (window.FashionStockEngine && typeof window.FashionStockEngine.syncProductTotals === 'function') {
+                                window.FashionStockEngine.syncProductTotals(p);
+                            }
+                            updatedWhProducts.push(p);
                         }
                     });
-                    if (typeof db !== 'undefined' && db.products) {
-                        await db.products.bulkPut(productsDB);
+                    if (typeof db !== 'undefined' && db.products && updatedWhProducts.length > 0) {
+                        await db.products.bulkPut(updatedWhProducts);
                     }
                 }
 
