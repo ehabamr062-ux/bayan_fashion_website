@@ -746,21 +746,39 @@ window.showNotificationsModal = function (activeTab = null) {
             }).join('')}
 
                                             <!-- العملاء المتأخرين عن السداد -->
-                                            ${activeDelayed.map(a => {
-                const debit = parseFloat(a.debit) || 0;
-                const credit = parseFloat(a.credit) || 0;
-                const balance = debit - credit;
-                const lastTrans = (typeof transactions !== 'undefined' && Array.isArray(transactions))
-                    ? transactions.filter(t => t.partnerId === a.id || t.account === a.name || t.partner === a.name).sort((x, y) => new Date(y.date || y.timestamp) - new Date(x.date || x.timestamp))[0]
-                    : null;
-                let delayNote = "متأخر عن السداد (لا توجد دفعات مسجلة)";
-                if (lastTrans) {
-                    const lastDate = new Date(lastTrans.date || lastTrans.timestamp);
-                    const diffDays = Math.ceil((today - lastDate) / (1000 * 60 * 60 * 24));
-                    delayNote = `متأخر منذ ${diffDays} يوم (آخر حركة: ${lastTrans.date || ''})`;
+                                            ${(() => {
+                // ⚡ بناء خريطة آخر حركة لكل عميل بلفة واحدة O(T) بدلاً من O(A*T log T) لمنع أي ثقل مع 50,000+ فاتورة
+                const lastTxMap = new Map();
+                if (activeDelayed.length > 0 && typeof transactions !== 'undefined' && Array.isArray(transactions)) {
+                    for (let i = 0; i < transactions.length; i++) {
+                        const t = transactions[i];
+                        if (!t) continue;
+                        const ts = t.dateISO || t.date || t.timestamp || '';
+                        const keys = [];
+                        if (t.partnerId != null && t.partnerId !== '') keys.push('id:' + t.partnerId);
+                        if (t.partner) keys.push('n:' + t.partner);
+                        if (t.account && t.account !== t.partner) keys.push('n:' + t.account);
+                        for (let k = 0; k < keys.length; k++) {
+                            const prev = lastTxMap.get(keys[k]);
+                            if (!prev || String(ts) > String(prev.dateISO || prev.date || prev.timestamp || '')) {
+                                lastTxMap.set(keys[k], t);
+                            }
+                        }
+                    }
                 }
-                const detailsText = `المبلغ: ${balance.toLocaleString('en-US', { minimumFractionDigits: 2 })} ج.م (${delayNote})`;
-                return `
+                return activeDelayed.map(a => {
+                    const debit = parseFloat(a.debit) || 0;
+                    const credit = parseFloat(a.credit) || 0;
+                    const balance = debit - credit;
+                    const lastTrans = lastTxMap.get('id:' + a.id) || lastTxMap.get('n:' + a.name) || null;
+                    let delayNote = "متأخر عن السداد (لا توجد دفعات مسجلة)";
+                    if (lastTrans) {
+                        const lastDate = new Date(lastTrans.date || lastTrans.timestamp);
+                        const diffDays = Math.ceil((today - lastDate) / (1000 * 60 * 60 * 24));
+                        delayNote = `متأخر منذ ${diffDays} يوم (آخر حركة: ${lastTrans.date || ''})`;
+                    }
+                    const detailsText = `المبلغ: ${balance.toLocaleString('en-US', { minimumFractionDigits: 2 })} ج.م (${delayNote})`;
+                    return `
                                                 <tr style="border-bottom: 1px solid #f1f5f9; transition: 0.15s;" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
                                                     <td style="padding: 12px 16px;">
                                                         <div style="display:flex; align-items:center; gap:10px;">
@@ -790,7 +808,8 @@ window.showNotificationsModal = function (activeTab = null) {
                                                         </div>
                                                     </td>
                                                 </tr>`;
-            }).join('')}
+                }).join('');
+            })()}
                                         </tbody>
                                     </table>
                                 </div>
