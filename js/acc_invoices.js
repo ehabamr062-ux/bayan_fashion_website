@@ -1810,10 +1810,42 @@ window.editTransaction = async function (invId, type, optTxId = '') {
 
     // البحث عن الفاتورة باستخدام الرقم والنوع لضمان الدقة المطلقة وعدم تداخل البيع مع المرتجع
     const typeClean = String(type || '').trim();
+    const invIdStr = String(invId ?? '').trim();
     let t = (optTxId ? transactions.find(tx => String(tx.id) === String(optTxId)) : null) ||
-        transactions.find(tx => (String(tx.invoiceId) === String(invId) || String(tx.id) === String(invId)) && (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(tx.type, typeClean) : true));
+        transactions.find(tx => (String(tx.invoiceId) === invIdStr || String(tx.id) === invIdStr) && (typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(tx.type, typeClean) : true));
     if (!t) {
-        t = transactions.find(tx => (String(tx.invoiceId) === String(invId) || String(tx.id) === String(invId)));
+        t = transactions.find(tx => (String(tx.invoiceId) === invIdStr || String(tx.id) === invIdStr));
+    }
+
+    // 🔍 إذا لم تكن الفاتورة محمّلة في ذاكرة الجلسة (مثلاً سند قبض/صرف أو فاتورة أقدم من نافذة الذاكرة)، نجلبها مباشرة من SQLite / DB
+    if (!t && typeof db !== 'undefined' && db.transactions) {
+        try {
+            let dbMatches = [];
+            if (optTxId) {
+                const byOpt = await db.transactions.get(isNaN(Number(optTxId)) ? optTxId : Number(optTxId));
+                if (byOpt) dbMatches.push(byOpt);
+            }
+            if (!dbMatches.length && invIdStr) {
+                const byInvStr = await db.transactions.where('invoiceId').equals(invIdStr).toArray().catch(() => []);
+                const byInvNum = !isNaN(Number(invIdStr)) ? await db.transactions.where('invoiceId').equals(Number(invIdStr)).toArray().catch(() => []) : [];
+                dbMatches = [...byInvStr, ...byInvNum];
+                if (!dbMatches.length) {
+                    const byId = await db.transactions.get(isNaN(Number(invIdStr)) ? invIdStr : Number(invIdStr)).catch(() => null);
+                    if (byId) dbMatches.push(byId);
+                }
+            }
+            if (dbMatches.length > 0) {
+                t = dbMatches.find(tx => typeof window.isMatchingInvoiceType === 'function' ? window.isMatchingInvoiceType(tx.type, typeClean) : true) || dbMatches[0];
+                // إضافتها للذاكرة حتى تعمل جميع دوال التعديل والطباعة عليها بسلاسة
+                dbMatches.forEach(row => {
+                    if (row && !transactions.some(existing => String(existing.id) === String(row.id))) {
+                        transactions.push(row);
+                    }
+                });
+            }
+        } catch (dbLookupErr) {
+            console.warn('[editTransaction] DB fallback lookup warning:', dbLookupErr);
+        }
     }
 
     if (!t) {
