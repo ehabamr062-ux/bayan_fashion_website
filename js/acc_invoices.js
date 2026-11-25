@@ -101,11 +101,20 @@ function getTerminalBadgeHtml(t) {
 }
 
 // ❓ نافذة الاستعلام التوضيحية لجهاز إصدار الفاتورة
-window.showTerminalInfoModal = function (invoiceId) {
-    if (!window.transactions) return;
+window.showTerminalInfoModal = async function (invoiceId) {
+    if (!window.transactions) window.transactions = [];
     const esc = (typeof escapeHtml === 'function') ? escapeHtml : (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
-    const tx = transactions.find(t => String(t.invoiceId || t.id) === String(invoiceId) && t.isInvoiceHead)
-        || transactions.find(t => String(t.invoiceId || t.id) === String(invoiceId));
+    const invIdStr = String(invoiceId ?? '').trim();
+    let tx = transactions.find(t => String(t.invoiceId || t.id) === invIdStr && t.isInvoiceHead)
+        || transactions.find(t => String(t.invoiceId || t.id) === invIdStr);
+    if (!tx && typeof db !== 'undefined' && db.transactions && invIdStr) {
+        try {
+            const byStr = await db.transactions.where('invoiceId').equals(invIdStr).toArray().catch(() => []);
+            const byNum = !isNaN(Number(invIdStr)) ? await db.transactions.where('invoiceId').equals(Number(invIdStr)).toArray().catch(() => []) : [];
+            const all = [...byStr, ...byNum];
+            tx = all.find(t => t && t.isInvoiceHead) || all[0] || await db.transactions.get(isNaN(Number(invIdStr)) ? invIdStr : Number(invIdStr)).catch(() => null);
+        } catch (_) { }
+    }
     if (!tx) {
         if (typeof showToast === 'function') showToast('لم يتم العثور على بيانات الفاتورة', 'warning');
         return;

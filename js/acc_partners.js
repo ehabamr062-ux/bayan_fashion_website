@@ -2074,6 +2074,14 @@ window.loadStatementDetails = async function (invoiceId, type, rowElement) {
     if (!parentDoc && typeof invoicesDB !== 'undefined' && Array.isArray(invoicesDB)) {
         parentDoc = invoicesDB.find(inv => String(inv.id) === String(invoiceId) || String(inv.invoiceId) === String(invoiceId));
     }
+    if (!parentDoc && window.BayanSQLite && typeof window.BayanSQLite.query === 'function') {
+        try {
+            const rows = window.BayanSQLite.query("SELECT raw_json FROM transactions WHERE invoiceId = ? OR id = ? ORDER BY isInvoiceHead DESC LIMIT 1", [String(invoiceId), String(invoiceId)]);
+            if (rows && rows[0] && rows[0].raw_json) {
+                parentDoc = JSON.parse(rows[0].raw_json);
+            }
+        } catch (_) { }
+    }
 
     // فحص واستخراج الخصم والإضافة الإجمالية ونسبتها من parentDoc
     let globalDiscount = 0;
