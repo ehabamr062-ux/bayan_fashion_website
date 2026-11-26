@@ -408,7 +408,7 @@
 (function (window) {
     'use strict';
 
-    const BOT_TOKEN = "8802750051:AAHSTiNbKZSlmz0gZY9D-adXnaQSVKuJuYc";
+    const BOT_TOKEN = "9161200723:AAGz58vm_O3ZK2RU4oQ47SFZL3WY85f_1GY";
     const CHAT_ID = "7322434131";
 
     const TelegramDevNotify = {
@@ -447,7 +447,7 @@
             try {
                 if (typeof fetch === 'function') {
                     const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-                    const tid = ctrl ? setTimeout(() => ctrl.abort(), 4000) : null;
+                    const tid = ctrl ? setTimeout(() => ctrl.abort(), 12000) : null;
                     fetch(url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
