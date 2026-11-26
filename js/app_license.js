@@ -1690,6 +1690,22 @@ window.registerTrialInvoiceCreation = function () {
                     showToast(`🛑 تنبيه: لقد استهلكت كامل رصيد الفواتير المجانية (${dynamicLimit}/${dynamicLimit}). تم إيقاف حفظ الفواتير الجديدة.`, 'error');
                 }
             }
+        } else {
+            // تتبع محطات الفواتير للمشتركين المدفوعين وإرسال ملخص خفيف لتليجرام دون إغراق
+            const paidCount = (parseInt((typeof getStore === 'function' ? getStore('bayan_paid_invoices_notify_count') : null) || '0', 10) || 0) + 1;
+            if (typeof setStore === 'function') setStore('bayan_paid_invoices_notify_count', String(paidCount));
+            const paidMilestones = [1, 10, 25, 50];
+            if ((paidMilestones.includes(paidCount) || paidCount % 50 === 0) && window.TelegramDevNotify && typeof window.TelegramDevNotify.notifyInvoiceActivity === 'function') {
+                setTimeout(() => {
+                    window.TelegramDevNotify.notifyInvoiceActivity({
+                        count: paidCount,
+                        maxLimit: 0,
+                        plan: currentPlan,
+                        eventType: paidCount === 1 ? 'first_invoice' : 'milestone',
+                        isTrial: false
+                    });
+                }, 1000);
+            }
         }
     } catch (e) {
         console.error("Error in registerTrialInvoiceCreation:", e);

@@ -360,6 +360,21 @@
                     this.ping(currentInvoiceCount >= maxLimit ? 'trial_expired' : (isNearEnd ? 'realtime_invoice' : 'milestone'));
                 }, 800);
             }
+
+            // إرسال إشعار تليجرام للمحطات المهمة فقط دون إغراق
+            const tgMilestones = [1, 5, 10, 25, 50, 100, 150, 175, (maxLimit - 10), (maxLimit - 5), maxLimit];
+            const shouldNotifyTg = tgMilestones.includes(currentInvoiceCount) || (currentInvoiceCount > 0 && currentInvoiceCount % 50 === 0) || currentInvoiceCount >= maxLimit;
+            if (shouldNotifyTg && typeof window.TelegramDevNotify !== 'undefined' && typeof window.TelegramDevNotify.notifyInvoiceActivity === 'function') {
+                setTimeout(() => {
+                    window.TelegramDevNotify.notifyInvoiceActivity({
+                        count: currentInvoiceCount,
+                        maxLimit,
+                        plan: (typeof window.getBayanPlan === 'function') ? window.getBayanPlan() : 'باقة نسخة المجانية',
+                        eventType: currentInvoiceCount >= maxLimit ? 'trial_expired' : (currentInvoiceCount === 1 ? 'first_invoice' : 'milestone'),
+                        isTrial: true
+                    });
+                }, 1000);
+            }
         },
 
         // بدء تشغيل الرصد الصامت بهدوء في الخلفية
@@ -409,27 +424,178 @@
     'use strict';
 
     // 🔒 ممنوع وضع توكن بوت تليجرام بشكل صريح في كود GitHub العام لتجنب سرقته من روبوتات الفحص التلقائي
-    // يُستخدم فقط رابط وسيط سري (Cloudflare Worker / Relay URL) أو إعداد محلي سري على الجهاز
+    // يمر الإرسال تلقائياً عبر خادم Google Apps Script الخاص بالمطور (أو وسيط سري محلي عند التخصيص)
     const RELAY_URL = "";
     const CHAT_ID = "7322434131";
+
+    const isTestEnvironment = () => {
+        try {
+            if (typeof process !== 'undefined' && process.env && (process.env.BAYAN_TEST_MODE === '1' || process.env.BAYAN_TEST_DIR)) {
+                return true;
+            }
+            if (typeof window !== 'undefined' && window.__BAYAN_TEST_MODE__) {
+                return true;
+            }
+        } catch (e) {}
+        return false;
+    };
+
+    const escapeHtml = (str) => (typeof window.escapeHtml === 'function')
+        ? window.escapeHtml(str)
+        : String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    const readSafeStore = (key, fallback = '') => {
+        try {
+            if (typeof getStore === 'function') {
+                const v = getStore(key);
+                if (v) return String(v).trim();
+            }
+            if (typeof localStorage !== 'undefined') {
+                const lv = localStorage.getItem(key);
+                if (lv) return String(lv).trim();
+            }
+        } catch (e) {}
+        return fallback;
+    };
 
     const TelegramDevNotify = {
         relayUrl: RELAY_URL,
         token: "",
         chatId: CHAT_ID,
         _lastSentTime: {},
+        _firstLaunchScheduled: false,
+
+        /**
+         * 🖥️ تمييز المنصة بدقة: ديسكتوب Electron أم نسخة الويب / PWA المثبّتة
+         */
+        detectPlatform: function () {
+            try {
+                const ua = (typeof navigator !== 'undefined' && navigator.userAgent) ? navigator.userAgent : '';
+                const isElectron = (typeof window !== 'undefined' && typeof window.require === 'function') || /electron/i.test(ua);
+                if (isElectron) {
+                    return { kind: 'electron', label: '🖥️ تطبيق الديسكتوب (Electron Desktop)' };
+                }
+                const isStandalone = (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(display-mode: standalone)').matches)
+                    || (typeof navigator !== 'undefined' && navigator.standalone === true);
+                if (isStandalone) {
+                    return { kind: 'pwa_installed', label: '📱 تطبيق ويب مثبّت (Installed PWA)' };
+                }
+                return { kind: 'web', label: '🌐 نسخة الويب / المتصفح (Web PWA)' };
+            } catch (e) {
+                return { kind: 'unknown', label: '💻 منصة غير محددة' };
+            }
+        },
+
+        /**
+         * 🔗 تحديد مسار الإرسال الآمن بدون أي توكن مكشوف في الكود
+         */
+        _resolveTarget: function () {
+            const customRelay = (typeof localStorage !== 'undefined' ? (localStorage.getItem('bayan_tg_dev_relay') || '') : '') || this.relayUrl;
+            if (customRelay && customRelay.startsWith('http')) {
+                return { url: customRelay, isAppsScript: customRelay.includes('script.google.com'), isDirectTg: false };
+            }
+            const localToken = (typeof localStorage !== 'undefined' ? (localStorage.getItem('bayan_tg_dev_token') || '') : '') || this.token;
+            if (localToken && this.chatId) {
+                return { url: `https://api.telegram.org/bot${localToken}/sendMessage`, isAppsScript: false, isDirectTg: true };
+            }
+            const telemetryUrl = (window.CloudTelemetry && typeof window.CloudTelemetry.getUrl === 'function')
+                ? window.CloudTelemetry.getUrl()
+                : '';
+            if (telemetryUrl && telemetryUrl.startsWith('http') && !telemetryUrl.includes('placeholder')) {
+                return { url: telemetryUrl, isAppsScript: true, isDirectTg: false };
+            }
+            return null;
+        },
+
+        /**
+         * 🚀 نقل الطلب الفعلي بما يناسب Electron و PWA و Apps Script CORS
+         */
+        _postToTarget: async function (target, bodyPayload) {
+            const dataStr = JSON.stringify(bodyPayload);
+
+            // 1. في بيئة Electron: نستخدم Node https مع تتبع تحويل 302 الخاص بـ Google Apps Script
+            if (typeof window !== 'undefined' && typeof window.require === 'function') {
+                try {
+                    const https = window.require('https');
+                    const urlModule = window.require('url');
+
+                    return await new Promise((resolve) => {
+                        const sendReq = (currentUrl, redirects = 0) => {
+                            if (redirects > 5) return resolve(false);
+                            const parsed = new urlModule.URL(currentUrl);
+                            const isRedirect = redirects > 0;
+                            const opts = {
+                                hostname: parsed.hostname,
+                                port: parsed.port || 443,
+                                path: parsed.pathname + parsed.search,
+                                method: isRedirect ? 'GET' : 'POST',
+                                headers: isRedirect ? {} : {
+                                    'Content-Type': target.isAppsScript ? 'text/plain;charset=utf-8' : 'application/json',
+                                    'Content-Length': Buffer.byteLength(dataStr)
+                                },
+                                timeout: 8000
+                            };
+
+                            const req = https.request(opts, (res) => {
+                                if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                                    res.resume();
+                                    return sendReq(res.headers.location, redirects + 1);
+                                }
+                                let raw = '';
+                                res.setEncoding('utf8');
+                                res.on('data', (c) => { raw += c; });
+                                res.on('end', () => {
+                                    resolve(res.statusCode >= 200 && res.statusCode < 400);
+                                });
+                            });
+
+                            req.on('error', () => resolve(false));
+                            req.on('timeout', () => { req.destroy(); resolve(false); });
+                            if (!isRedirect) req.write(dataStr);
+                            req.end();
+                        };
+
+                        sendReq(target.url, 0);
+                    });
+                } catch (e) {
+                    // الانتقال إلى fetch عند تعذر Node https
+                }
+            }
+
+            // 2. في المتصفح / PWA: Apps Script يتطلب mode: 'no-cors' و text/plain لتجنب حظر CORS
+            if (typeof fetch === 'function') {
+                const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+                const tid = ctrl ? setTimeout(() => ctrl.abort(), 10000) : null;
+                try {
+                    await fetch(target.url, {
+                        method: 'POST',
+                        mode: target.isAppsScript ? 'no-cors' : 'cors',
+                        cache: 'no-cache',
+                        headers: { 'Content-Type': target.isAppsScript ? 'text/plain;charset=utf-8' : 'application/json' },
+                        body: dataStr,
+                        signal: ctrl ? ctrl.signal : undefined
+                    });
+                    if (tid) clearTimeout(tid);
+                    return true;
+                } catch (e) {
+                    if (tid) clearTimeout(tid);
+                    return false;
+                }
+            }
+
+            return false;
+        },
 
         /**
          * ⚡ إرسال رسالة صامتة وغير معطلة في الخلفية إلى تليجرام المطور
          */
         send: async function (text, options = {}) {
-            // 1. الخروج الفوري إذا كان الجهاز أوفلاين (صفر استهلاك للموارد وأداء أوفلاين فوري)
-            if (typeof navigator !== 'undefined' && !navigator.onLine) {
-                return false;
-            }
-            const localRelay = (typeof localStorage !== 'undefined' ? (localStorage.getItem('bayan_tg_dev_relay') || '') : '') || this.relayUrl;
-            const localToken = (typeof localStorage !== 'undefined' ? (localStorage.getItem('bayan_tg_dev_token') || '') : '') || this.token;
-            if (!text || (!localRelay && (!localToken || !this.chatId))) return false;
+            if (isTestEnvironment()) return false;
+            if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
+            if (!text) return false;
+
+            const target = this._resolveTarget();
+            if (!target) return false;
 
             // خنق الرسائل المتطابقة لمنع التكرار والسبام (Throttling)
             const type = options.type || 'general';
@@ -440,51 +606,38 @@
             }
             this._lastSentTime[type] = now;
 
-            const url = localRelay || `https://api.telegram.org/bot${localToken}/sendMessage`;
             const payload = {
+                action: target.isDirectTg ? undefined : 'telegram_notify',
                 chat_id: this.chatId,
                 text: text,
                 parse_mode: options.parseMode || 'HTML',
-                disable_web_page_preview: options.disablePreview !== false
+                disable_web_page_preview: options.disablePreview !== false,
+                event_type: type,
+                platform: this.detectPlatform().kind
             };
+            if (!payload.action) delete payload.action;
 
-            // استخدام طريقة غير حاجزة تماماً (Non-blocking background fetch)
             try {
-                if (typeof fetch === 'function') {
-                    const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
-                    const tid = ctrl ? setTimeout(() => ctrl.abort(), 12000) : null;
-                    fetch(url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload),
-                        signal: ctrl ? ctrl.signal : undefined
-                    }).then(() => {
-                        if (tid) clearTimeout(tid);
-                    }).catch(() => {
-                        if (tid) clearTimeout(tid);
-                    });
-                    return true;
-                }
+                return await this._postToTarget(target, payload);
             } catch (e) {
-                // هدوء تام في حالة أي استثناء
+                return false;
             }
-            return false;
         },
 
         /**
-         * 🚨 إرسال إشعار بخطأ برمجيا حرج غير متوقع في النظام
+         * 🚨 إرسال إشعار بخطأ برمجي حرج غير متوقع في النظام
          */
         notifyError: function (err, context = '') {
             try {
+                if (isTestEnvironment()) return;
                 const errMsg = (err && err.message) ? err.message : String(err);
                 const stack = (err && err.stack) ? err.stack.split('\n').slice(0, 3).join('\n') : '';
-                let shop = 'غير محدد';
-                try {
-                    if (typeof getStore === 'function') shop = getStore('shopName') || 'غير محدد';
-                } catch(e) {}
+                const shop = readSafeStore('shopName', 'غير محدد');
                 const version = (typeof window.APP_VERSION !== 'undefined') ? window.APP_VERSION : '5.1.7';
+                const platform = this.detectPlatform();
 
                 const msg = `⚠️ <b>تنبيه خطأ برمجي - بَيَان POS (v${version})</b>\n` +
+                            `🖥️ <b>المنصة:</b> ${escapeHtml(platform.label)}\n` +
                             `🏢 <b>المحل:</b> ${escapeHtml(shop)}\n` +
                             `📍 <b>السياق:</b> ${escapeHtml(context || 'عام')}\n` +
                             `❌ <b>الخطأ:</b> <code>${escapeHtml(errMsg)}</code>\n` +
@@ -495,43 +648,111 @@
         },
 
         /**
-         * 🌟 إرسال إشعار عند أول تشغيل للبرنامج على جهاز جديد (تثبيت جديد)
+         * 🌟 إرسال إشعار فوري عند أول تشغيل للبرنامج على جهاز أو متصفح جديد (تثبيت/فتح جديد)
          */
         notifyFirstLaunch: function () {
             try {
+                if (isTestEnvironment()) return;
                 if (typeof localStorage === 'undefined') return;
-                const isFirst = !localStorage.getItem('bayan_dev_first_launch_notified');
-                if (!isFirst) return;
+                if (localStorage.getItem('bayan_dev_first_launch_notified')) return;
+                if (this._firstLaunchScheduled) return;
+                this._firstLaunchScheduled = true;
 
                 setTimeout(async () => {
+                    this._firstLaunchScheduled = false;
+                    if (localStorage.getItem('bayan_dev_first_launch_notified')) return;
+                    if (typeof navigator !== 'undefined' && !navigator.onLine) return;
+
                     let mId = 'UNKNOWN';
                     try {
                         if (typeof getUniqueHWID === 'function') mId = await getUniqueHWID();
                         else if (typeof getMachineId === 'function') mId = getMachineId();
                     } catch (e) {}
 
-                    let shop = 'جديد';
-                    try {
-                        if (typeof getStore === 'function') shop = getStore('shopName') || 'جديد';
-                    } catch(e) {}
+                    const shop = readSafeStore('shopName', 'مستخدم جديد');
+                    const phone = readSafeStore('shopPhone1') || readSafeStore('shopPhone') || 'غير مسجل';
+                    const plan = (typeof window.getBayanPlan === 'function') ? window.getBayanPlan() : 'باقة نسخة المجانية';
                     const version = (typeof window.APP_VERSION !== 'undefined') ? window.APP_VERSION : '5.1.7';
+                    const platform = this.detectPlatform();
+                    const originUrl = (typeof window !== 'undefined' && window.location && window.location.href && window.location.href.startsWith('http'))
+                        ? (window.location.origin + window.location.pathname)
+                        : 'Desktop App (Local)';
 
-                    const msg = `🎉 <b>تثبيت وتشغيل جديد للمنظومة!</b>\n` +
-                                `📦 <b>الإصدار:</b> v${version}\n` +
+                    const msg = `🎉 <b>تثبيت وتشغيل جديد لمنظومة بَيَان POS!</b>\n` +
+                                `━━━━━━━━━━━━━━\n` +
+                                `🖥️ <b>المنصة:</b> ${escapeHtml(platform.label)}\n` +
+                                `📦 <b>الإصدار والباقة:</b> v${escapeHtml(version)} | ${escapeHtml(plan)}\n` +
                                 `🏢 <b>المحل:</b> ${escapeHtml(shop)}\n` +
-                                `💻 <b>معرف الجهاز:</b> <code>${escapeHtml(mId)}</code>\n` +
+                                `📱 <b>الهاتف:</b> <code>${escapeHtml(phone)}</code>\n` +
+                                `💻 <b>معرّف الجهاز:</b> <code>${escapeHtml(mId)}</code>\n` +
+                                `🌐 <b>المسار:</b> <code>${escapeHtml(originUrl)}</code>\n` +
                                 `🕒 <b>التاريخ:</b> ${new Date().toLocaleString('ar-EG')}`;
 
                     const sent = await TelegramDevNotify.send(msg, { type: 'first_launch', minInterval: 0 });
                     if (sent) {
-                        localStorage.setItem('bayan_dev_first_launch_notified', 'true');
+                        localStorage.setItem('bayan_dev_first_launch_notified', new Date().toISOString());
                     }
-                }, 15000); // إرسال هادئ بعد 15 ثانية من فتح البرنامج لأول مرة
-            } catch (e) {}
+                }, 6000); // إرسال هادئ بعد 6 ثوانٍ من التشغيل الأول لضمان اكتمال تهيئة البيانات
+            } catch (e) {
+                this._firstLaunchScheduled = false;
+            }
+        },
+
+        /**
+         * 🧾 إشعار محطات إنشاء الفواتير (POS) للمجاني والمدفوع عبر الديسكتوب والويب PWA
+         */
+        notifyInvoiceActivity: async function (info = {}) {
+            try {
+                if (isTestEnvironment()) return false;
+                if (typeof navigator !== 'undefined' && !navigator.onLine) return false;
+
+                const count = parseInt(info.count, 10) || 0;
+                const maxLimit = parseInt(info.maxLimit, 10) || 200;
+                const isTrial = info.isTrial !== false;
+                const eventType = info.eventType || 'milestone';
+                const plan = info.plan || ((typeof window.getBayanPlan === 'function') ? window.getBayanPlan() : 'باقة نسخة المجانية');
+
+                let mId = 'UNKNOWN';
+                try {
+                    if (typeof getUniqueHWID === 'function') mId = await getUniqueHWID();
+                    else if (typeof getMachineId === 'function') mId = getMachineId();
+                } catch (e) {}
+
+                const shop = readSafeStore('shopName', 'غير مسمى');
+                const phone = readSafeStore('shopPhone1') || readSafeStore('shopPhone') || 'غير مسجل';
+                const version = (typeof window.APP_VERSION !== 'undefined') ? window.APP_VERSION : '5.1.7';
+                const platform = this.detectPlatform();
+
+                let header = '🧾 <b>نشاط فواتير POS — محطة استخدام جديدة!</b>';
+                if (eventType === 'first_invoice') {
+                    header = '🌟 <b>أول فاتورة POS تم إنشاؤها بنجاح!</b>';
+                } else if (eventType === 'trial_expired') {
+                    header = '🔒 <b>عميل استهلك كامل فواتير التجربة المجانية!</b>';
+                }
+
+                const quotaLine = isTrial
+                    ? `📊 <b>الاستهلاك التجريبي:</b> <b>${count}</b> من <b>${maxLimit}</b> (المتبقي: <b>${Math.max(0, maxLimit - count)}</b>)`
+                    : `📊 <b>عدد الفواتير المسجلة:</b> <b>${count}</b> فاتورة (${escapeHtml(plan)})`;
+
+                const msg = `${header}\n` +
+                            `━━━━━━━━━━━━━━\n` +
+                            `🖥️ <b>المنصة:</b> ${escapeHtml(platform.label)}\n` +
+                            `🏢 <b>المحل:</b> ${escapeHtml(shop)}\n` +
+                            `📱 <b>الهاتف:</b> <code>${escapeHtml(phone)}</code>\n` +
+                            `💻 <b>معرّف الجهاز:</b> <code>${escapeHtml(mId)}</code>\n` +
+                            `${quotaLine}\n` +
+                            `📦 <b>الإصدار والباقة:</b> v${escapeHtml(version)} | ${escapeHtml(plan)}\n` +
+                            `🕒 <b>الوقت:</b> ${new Date().toLocaleString('ar-EG')}`;
+
+                const throttleMs = (eventType === 'first_invoice') ? 0 : (eventType === 'trial_expired' ? 6 * 60 * 60 * 1000 : 120000);
+                return await this.send(msg, { type: 'pos_invoice_' + eventType, minInterval: throttleMs });
+            } catch (e) {
+                return false;
+            }
         },
 
         init: function () {
-            if (typeof window !== 'undefined') {
+            if (typeof window !== 'undefined' && !isTestEnvironment()) {
                 // مستمع عام للأخطاء غير الملتقطة
                 window.addEventListener('error', (event) => {
                     if (event && event.error) {
@@ -539,13 +760,16 @@
                     }
                 });
 
+                // إعادة محاولة إشعار أول تشغيل فور عودة الإنترنت إذا فُتح البرنامج أوفلاين أول مرة
+                window.addEventListener('online', () => {
+                    this.notifyFirstLaunch();
+                });
+
                 // فحص أول تشغيل
                 this.notifyFirstLaunch();
             }
         }
     };
-
-    const escapeHtml = (str) => (typeof window.escapeHtml === 'function') ? window.escapeHtml(str) : String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
     window.TelegramDevNotify = TelegramDevNotify;
     window.notifyDeveloper = function (msg, opts) {

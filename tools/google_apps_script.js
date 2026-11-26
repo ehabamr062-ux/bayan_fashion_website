@@ -170,10 +170,6 @@ function parseAdminCommand(cmd) {
 // الدالة الرئيسية لاستقبال التقارير وتحديث السطر المناسب
 function doPost(e) {
   try {
-    var ss = SpreadsheetApp.getActiveSpreadsheet();
-    var sheet = ss.getActiveSheet();
-    setupSheetHeaders(sheet);
-
     var data = {};
     if (e && e.postData && e.postData.contents) {
       try {
@@ -184,6 +180,35 @@ function doPost(e) {
     } else if (e && e.parameter) {
       data = e.parameter;
     }
+
+    // 0. وسيط إشعارات تليجرام الآمن للمطور (يقرأ التوكن من Script Properties فقط دون كشفه على GitHub)
+    if (data && data.action === 'telegram_notify') {
+      var props = PropertiesService.getScriptProperties();
+      var tgToken = props.getProperty('TG_BOT_TOKEN') || '';
+      var tgChatId = String(data.chat_id || props.getProperty('TG_CHAT_ID') || '7322434131');
+      if (!tgToken || !data.text) {
+        return ContentService.createTextOutput(JSON.stringify({ status: 'skipped', reason: 'missing_token_or_text' }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      var tgPayload = {
+        chat_id: tgChatId,
+        text: String(data.text),
+        parse_mode: data.parse_mode || 'HTML',
+        disable_web_page_preview: data.disable_web_page_preview !== false
+      };
+      var tgRes = UrlFetchApp.fetch('https://api.telegram.org/bot' + tgToken + '/sendMessage', {
+        method: 'post',
+        contentType: 'application/json',
+        payload: JSON.stringify(tgPayload),
+        muteHttpExceptions: true
+      });
+      return ContentService.createTextOutput(tgRes.getContentText())
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    var sheet = ss.getActiveSheet();
+    setupSheetHeaders(sheet);
 
     var machineId = data.machineId || "UNKNOWN-HWID";
     var shopName = data.shopName || "غير محدد";

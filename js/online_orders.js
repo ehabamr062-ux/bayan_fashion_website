@@ -459,6 +459,17 @@
                 if (rawInst) installDate = new Date(rawInst).toLocaleDateString('ar-EG');
             } catch (_) { }
 
+            let platform = 'غير محدد';
+            try {
+                if (window.TelegramDevNotify && typeof window.TelegramDevNotify.detectPlatform === 'function') {
+                    platform = window.TelegramDevNotify.detectPlatform().label;
+                } else {
+                    platform = (typeof window.require === 'function' || /electron/i.test(navigator.userAgent || ''))
+                        ? '🖥️ تطبيق الديسكتوب (Electron)'
+                        : '🌐 نسخة الويب / المتصفح (Web PWA)';
+                }
+            } catch (_) { }
+
             return {
                 shopName,
                 shopAddress,
@@ -469,6 +480,7 @@
                 storeUrl: this.getStoreUrl(),
                 machineId,
                 plan,
+                platform,
                 appVersion: window.APP_VERSION || window.appVersion || '5.1.7',
                 installDate
             };
@@ -494,6 +506,7 @@
                             userName: profile.userName,
                             machineId: profile.machineId,
                             plan: profile.plan,
+                            platform: profile.platform,
                             appVersion: profile.appVersion,
                             storeUrl: profile.storeUrl,
                             ...stats,
@@ -543,6 +556,7 @@
                     `📍 <b>العنوان:</b> ${this._esc(profile.shopAddress)}\n` +
                     `🆔 <b>كود المتجر:</b> <code>${this._esc(profile.shopId)}</code>\n` +
                     `💻 <b>معرّف الجهاز:</b> <code>${this._esc(profile.machineId)}</code>\n` +
+                    `🖥️ <b>المنصة:</b> ${this._esc(profile.platform)}\n` +
                     `📦 <b>الباقة والإصدار:</b> ${this._esc(profile.plan)} | v${this._esc(profile.appVersion)}\n` +
                     `🌐 <b>رابط المتجر:</b> ${this._esc(profile.storeUrl)}\n` +
                     `━━━━━━━━━━━━━━\n` +
