@@ -408,11 +408,14 @@
 (function (window) {
     'use strict';
 
-    const BOT_TOKEN = "9161200723:AAGz58vm_O3ZK2RU4oQ47SFZL3WY85f_1GY";
+    // 🔒 ممنوع وضع توكن بوت تليجرام بشكل صريح في كود GitHub العام لتجنب سرقته من روبوتات الفحص التلقائي
+    // يُستخدم فقط رابط وسيط سري (Cloudflare Worker / Relay URL) أو إعداد محلي سري على الجهاز
+    const RELAY_URL = "";
     const CHAT_ID = "7322434131";
 
     const TelegramDevNotify = {
-        token: BOT_TOKEN,
+        relayUrl: RELAY_URL,
+        token: "",
         chatId: CHAT_ID,
         _lastSentTime: {},
 
@@ -424,7 +427,9 @@
             if (typeof navigator !== 'undefined' && !navigator.onLine) {
                 return false;
             }
-            if (!text || !this.token || !this.chatId) return false;
+            const localRelay = (typeof localStorage !== 'undefined' ? (localStorage.getItem('bayan_tg_dev_relay') || '') : '') || this.relayUrl;
+            const localToken = (typeof localStorage !== 'undefined' ? (localStorage.getItem('bayan_tg_dev_token') || '') : '') || this.token;
+            if (!text || (!localRelay && (!localToken || !this.chatId))) return false;
 
             // خنق الرسائل المتطابقة لمنع التكرار والسبام (Throttling)
             const type = options.type || 'general';
@@ -435,7 +440,7 @@
             }
             this._lastSentTime[type] = now;
 
-            const url = `https://api.telegram.org/bot${this.token}/sendMessage`;
+            const url = localRelay || `https://api.telegram.org/bot${localToken}/sendMessage`;
             const payload = {
                 chat_id: this.chatId,
                 text: text,
