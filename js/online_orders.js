@@ -1086,6 +1086,7 @@
                 const itemsCount = Array.isArray(o.items) ? o.items.reduce((s, it) => s + (parseFloat(it.qty) || 1), 0) : 0;
                 const dtStr = o.date ? new Date(o.date).toLocaleString('ar-EG', { dateStyle: 'short', timeStyle: 'short' }) : '-';
                 const isConverted = Boolean(o.posInvoiceNo || stKey === 'confirmed');
+                const bd = this._getOrderMoneyBreakdown(o);
 
                 return `
                     <tr>
@@ -1096,7 +1097,10 @@
                             <div style="font-size:0.78rem; color:#64748b;">📱 ${this._esc(o.phone1 || '-')} • 📍 ${this._esc(o.city || '-')}</div>
                         </td>
                         <td style="text-align:center; font-weight:900;">${itemsCount}</td>
-                        <td style="text-align:center; font-weight:900; color:#059669;">${(parseFloat(o.grandTotal) || 0).toFixed(2)} ج.م</td>
+                        <td style="text-align:center; font-weight:900; color:#059669;">
+                            <div>${bd.codDue.toFixed(2)} ج.م</div>
+                            ${bd.isPrepaid ? `<div style="font-size:0.7rem; color:#b45309; background:#fef3c7; border:1px solid #fde68a; border-radius:6px; padding:1px 6px; display:inline-block; margin-top:2px;">💳 شحن مقدم -${bd.prepaidShip.toFixed(0)} ج.م</div>` : ''}
+                        </td>
                         <td style="text-align:center;">
                             <span style="background:${meta.bg}; color:${meta.color}; border:1px solid ${meta.border}; padding:3px 10px; border-radius:999px; font-size:0.78rem; font-weight:900;">
                                 ${meta.icon} ${meta.label}
@@ -1114,6 +1118,28 @@
                     </tr>
                 `;
             }).join('');
+        },
+
+        _getOrderMoneyBreakdown(order) {
+            const items = Array.isArray(order && order.items) ? order.items : [];
+            const rawSub = parseFloat(order && order.subtotal) || items.reduce((s, it) => s + ((parseFloat(it.price) || 0) * (parseFloat(it.qty) || 1)), 0);
+            const rawDisc = parseFloat(order && order.discountAmount) || 0;
+            const rawShip = parseFloat(order && (order.deliveryFee ?? order.shippingFee)) || 0;
+            const netProducts = Math.max(0, rawSub - rawDisc);
+            const totalWithShip = Math.max(0, netProducts + rawShip);
+            const rawGrand = (order && order.grandTotal !== undefined && order.grandTotal !== null && order.grandTotal !== '')
+                ? (parseFloat(order.grandTotal) || 0)
+                : totalWithShip;
+            const explicitPrepaid = Boolean(order && (order.isPrepaidShipping || (parseFloat(order.prepaidShipping) || 0) > 0));
+            const inferredPrepaid = rawShip > 0 && Math.abs(rawGrand - netProducts) < 0.01 && totalWithShip > rawGrand + 0.01;
+            const isPrepaid = explicitPrepaid || inferredPrepaid;
+            const prepaidShip = isPrepaid
+                ? ((order && parseFloat(order.prepaidShipping) > 0) ? parseFloat(order.prepaidShipping) : rawShip)
+                : 0;
+            const codDue = isPrepaid
+                ? ((order && order.codDueAmount !== undefined && order.codDueAmount !== null && order.codDueAmount !== '') ? Math.max(0, parseFloat(order.codDueAmount) || 0) : Math.max(0, totalWithShip - prepaidShip))
+                : rawGrand;
+            return { rawSub, rawDisc, rawShip, netProducts, totalWithShip, rawGrand, isPrepaid, prepaidShip, codDue };
         },
 
         openOrderDetails(orderKey) {
@@ -1150,10 +1176,12 @@
                 `;
             }).join('');
 
-            const rawSub = parseFloat(order.subtotal) || items.reduce((s, it) => s + ((parseFloat(it.price) || 0) * (parseFloat(it.qty) || 1)), 0);
-            const rawDisc = parseFloat(order.discountAmount) || 0;
-            const rawShip = parseFloat(order.deliveryFee ?? order.shippingFee) || 0;
-            const rawGrand = parseFloat(order.grandTotal) || Math.max(0, rawSub - rawDisc + rawShip);
+            const bd = this._getOrderMoneyBreakdown(order);
+            const rawSub = bd.rawSub;
+            const rawDisc = bd.rawDisc;
+            const rawShip = bd.rawShip;
+            const totalWithShip = bd.totalWithShip;
+            const codDue = bd.codDue;
             const cTypeLabel = order.couponCode
                 ? (order.couponType === 'percent' ? `نسبة ${order.couponValue || ''}%` : 'خصم نقدي ثابت')
                 : (rawDisc > 0 ? 'خصم عرض كميات' : '');
@@ -1213,10 +1241,25 @@
                             <span>➕ مصاريف الشحن:</span>
                             <span>${rawShip.toFixed(2)} ج.م</span>
                         </div>
+                        ${bd.isPrepaid ? `
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; border-top:1px dashed #a7f3d0; padding-top:7px; margin-top:2px; font-size:0.9rem; font-weight:900; color:#0f172a;">
+                            <span>🧾 إجمالي الفاتورة شامل الشحن (${rawSub.toFixed(0)}${rawDisc > 0 ? ' - ' + rawDisc.toFixed(0) : ''}${rawShip > 0 ? ' + ' + rawShip.toFixed(0) : ''}):</span>
+                            <span>${totalWithShip.toFixed(2)} ج.م</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; background:#fffbeb; border:1px solid #fde68a; border-radius:8px; padding:6px 10px; font-size:0.88rem; font-weight:900; color:#b45309;">
+                            <span>💳 مدفوع مصاريف الشحن مقدماً (يُخصم من الاستلام):</span>
+                            <span>- ${bd.prepaidShip.toFixed(2)} ج.م</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; border-top:1.5px dashed #6ee7b7; padding-top:8px; margin-top:2px;">
+                            <span style="font-weight:900; color:#065f46;">💵 المطلوب تحصيله عند الاستلام (COD):</span>
+                            <span style="font-size:1.35rem; font-weight:950; color:#047857;">${codDue.toFixed(2)} ج.م</span>
+                        </div>
+                        ` : `
                         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; border-top:1.5px dashed #6ee7b7; padding-top:8px; margin-top:2px;">
                             <span style="font-weight:900; color:#065f46;">💵 الإجمالي النهائي بعد الخصم والشحن (${rawSub.toFixed(0)}${rawDisc > 0 ? ' - ' + rawDisc.toFixed(0) : ''}${rawShip > 0 ? ' + ' + rawShip.toFixed(0) : ''}):</span>
-                            <span style="font-size:1.35rem; font-weight:950; color:#047857;">${rawGrand.toFixed(2)} ج.م</span>
+                            <span style="font-size:1.35rem; font-weight:950; color:#047857;">${codDue.toFixed(2)} ج.م</span>
                         </div>
+                        `}
                     </div>
 
                     ${isConverted ? `
@@ -1310,8 +1353,9 @@
 
                 const custInp = document.getElementById('customerName');
                 if (custInp) custInp.value = order.customerName || 'عميل أونلاين';
+                const bdNotes = this._getOrderMoneyBreakdown(order);
                 const notesInp = document.getElementById('salesNotes');
-                if (notesInp) notesInp.value = `طلب أونلاين #${order.id} | ${order.city || ''} - ${order.address || ''} | ${order.phone1 || ''}`;
+                if (notesInp) notesInp.value = `طلب أونلاين #${order.id} | ${order.city || ''} - ${order.address || ''} | ${order.phone1 || ''}${bdNotes.isPrepaid ? ` | شحن مدفوع مقدماً (-${bdNotes.prepaidShip.toFixed(0)} ج.م) والمطلوب عند الاستلام ${bdNotes.codDue.toFixed(0)} ج.م` : ''}`;
 
                 window._pendingOnlineOrderForPos = { firestoreId: order.firestoreId || order.id, id: order.id };
                 if (typeof renderCart === 'function') renderCart();
@@ -1391,7 +1435,7 @@
                     user: cashierName,
                     isInvoiceHead: idx === 0 ? 1 : 0,
                     invoiceGrandTotal: parseFloat(order.grandTotal) || lineTotal,
-                    notes: `طلب أونلاين #${order.id} | ${order.city || ''} - ${order.address || ''}`
+                    notes: `طلب أونلاين #${order.id} | ${order.city || ''} - ${order.address || ''}${this._getOrderMoneyBreakdown(order).isPrepaid ? ` | شحن مدفوع مقدماً (-${this._getOrderMoneyBreakdown(order).prepaidShip.toFixed(0)} ج.م)` : ''}`
                 });
             });
 
