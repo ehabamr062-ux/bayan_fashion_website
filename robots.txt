@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Allow: /index.html
+Allow: /media/
+Disallow: /dist/
+Disallow: /tools/
+Disallow: /node_modules/
+
+Sitemap: https://ehabamr062-ux.github.io/bayan_fashion_website/sitemap.xml
