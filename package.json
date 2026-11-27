@@ -79,6 +79,7 @@
       "!.cursorrules",
       "!media/bayan_ad_masterpiece.jpg",
       "!media/ad_*.jpg",
+      "!media/ads*/**",
       "!dist/**",
       "!lib/dexie.js",
       "!send_tg_report.js",
