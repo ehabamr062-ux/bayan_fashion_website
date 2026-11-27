@@ -8,7 +8,7 @@
     try {
         // تحميل وتطبيق الخلفية فوراً في أول جزء من الثانية
         if (typeof loadWallpaper === 'function') {
-            loadWallpaper().catch(() => {});
+            loadWallpaper().catch(() => { });
         }
 
         // ⚡ قراءة الكاش السريع للمستخدمين فوراً في أول جزء من الملي ثانية لمنع أي ارتعاش أو وميض (بدون حفظ أي PIN)
@@ -27,12 +27,12 @@
                         return u;
                     });
                     if (cleaned) {
-                        try { localStorage.setItem('bayan_cached_users', JSON.stringify(cachedU)); } catch(ce) {}
+                        try { localStorage.setItem('bayan_cached_users', JSON.stringify(cachedU)); } catch (ce) { }
                     }
                     window.users = cachedU;
                     if (typeof users !== 'undefined') users = cachedU;
                 }
-            } catch(e) {}
+            } catch (e) { }
         }
 
         // 🚀 إظهار شاشة الدخول فوراً وبأقصى سرعة (Instant Paint)
@@ -56,7 +56,7 @@
                     // 🔒 أمان صارم: تخزين بيانات العرض فقط واستبعاد الـ PIN تماماً من localStorage
                     const safeCache = uData.map(u => ({ id: u.id, name: u.name, role: u.role, assignedWarehouse: u.assignedWarehouse }));
                     localStorage.setItem('bayan_cached_users', JSON.stringify(safeCache));
-                } catch(e) {}
+                } catch (e) { }
             }
             if (wData && wData.length > 0) {
                 window.warehouses = wData;
@@ -74,7 +74,7 @@
         if (window.currentUser && typeof window.startDataLoader === 'function') {
             window.startDataLoader();
         }
-    } catch(e) {
+    } catch (e) {
         console.warn("Instant login display notice:", e);
         if (typeof initLogin === 'function' && !window.currentUser) {
             initLogin();
@@ -90,10 +90,10 @@
 window._isDataLoaderRunning = false;
 window._dataLoaderPromise = null;
 
-window.startDataLoader = function() {
+window.startDataLoader = function () {
     if (window._dataLoaderPromise) return window._dataLoaderPromise;
     window._isDataLoaderRunning = true;
-    
+
     window._dataLoaderPromise = (async () => {
         try {
             console.log("🔄 [Bayan Engine] بدء تحميل ومزامنة بيانات المنظومة في الخلفية...");
@@ -119,7 +119,7 @@ window.startDataLoader = function() {
                         }
                     }
                 }
-            } catch(e) { console.warn("Admin auto-heal notice:", e); }
+            } catch (e) { console.warn("Admin auto-heal notice:", e); }
 
             // 0.1 تحميل الإعدادات والشعار بعد اكتمال جلب البيانات من SQLite
             if (typeof loadSettings === 'function') loadSettings();
@@ -170,7 +170,7 @@ window.startDataLoader = function() {
             // 4. صمام الأمان الفولاذي: إنشاء نسخة احتياطية تلقائية وفورية في الخلفية عند الترقية لإصدار جديد
             try {
                 const lastVer = getStore('bayan_last_run_version');
-                const curVer = window.appVersion || '5.1.7';
+                const curVer = window.appVersion || '5.1.8';
                 if (lastVer && lastVer !== curVer) {
                     console.log(`🛡️ [Safety Shield] Version upgrade detected (${lastVer} ➔ ${curVer}). Creating automatic background backup...`);
                     if (typeof window.executeAutoBackupToFile === 'function') {
@@ -188,7 +188,7 @@ window.startDataLoader = function() {
             }
 
             console.log("🚀 نظام بَيَان المتكامل جاهز للعمل بنجاح!");
-        } catch(err) {
+        } catch (err) {
             console.warn("loadData error:", err);
         } finally {
             window._isDataLoaderRunning = false;

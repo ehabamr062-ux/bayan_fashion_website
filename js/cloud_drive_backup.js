@@ -142,7 +142,7 @@
                             await this.applyAccessToken(payload.token, 3600);
                             this.closeAuthModal();
                         }
-                    } catch (err) {}
+                    } catch (err) { }
                 }
             });
 
@@ -158,7 +158,7 @@
                             }
                         });
                     }
-                } catch (e) {}
+                } catch (e) { }
             }
         },
 
@@ -410,22 +410,22 @@
                                             } catch (err) {
                                                 res.writeHead(500); res.end('Error parsing token');
                                             }
-                                            try { tempServer.close(); } catch(e){}
+                                            try { tempServer.close(); } catch (e) { }
                                         });
                                     });
-                                    tokenReq.on('error', () => { try { tempServer.close(); } catch(e){} });
+                                    tokenReq.on('error', () => { try { tempServer.close(); } catch (e) { } });
                                     tokenReq.write(postData);
                                     tokenReq.end();
                                     return;
                                 }
                             }
-                        } catch (e) {}
+                        } catch (e) { }
                         res.writeHead(404); res.end();
                     });
-                    tempServer.on('error', () => {}); // تجاوز أي تعارض مؤقت في البورت تلقائياً
+                    tempServer.on('error', () => { }); // تجاوز أي تعارض مؤقت في البورت تلقائياً
                     tempServer.listen(4545, '127.0.0.1');
-                    setTimeout(() => { try { tempServer.close(); } catch(e){} }, 180000);
-                } catch (e) {}
+                    setTimeout(() => { try { tempServer.close(); } catch (e) { } }, 180000);
+                } catch (e) { }
             }
 
             // 2. مراقبة نقطة فحص التفويض عبر السيرفر كل 1200ms
@@ -447,7 +447,7 @@
                             BayanGoogleDrive.closeAuthModal();
                         }
                     }
-                } catch (e) {}
+                } catch (e) { }
             }, 1200);
             setTimeout(() => {
                 if (BayanGoogleDrive._oauthPollTimer) {
@@ -465,7 +465,7 @@
                         this.showNotification("🌐 تم فتح صفحة تسجيل الدخول في متصفحك. يرجى إتمام السماح بالربط.", "info");
                         return;
                     }
-                } catch (e) {}
+                } catch (e) { }
             }
 
             // في بيئة الويب نفتح نافذة Popup قياسية
@@ -545,7 +545,7 @@
                 set('gdrive_webhook_url', '');
                 set('gdrive_user_email', '');
                 set('gdrive_access_token', '');
-            } catch (e) {}
+            } catch (e) { }
             this.saveState();
             this.updateUI();
             this.showNotification("🔌 تم إلغاء ربط حساب Google Drive بنجاح", "info");
@@ -595,7 +595,7 @@
                 } else if (typeof window.executeAutoBackupToFile === 'function') {
                     // Fallback
                     payload = {
-                        version: window.appVersion || "5.1.7",
+                        version: window.appVersion || "5.1.8",
                         backupDate: new Date().toISOString(),
                         products: window.productsDB || [],
                         transactions: window.transactions || [],
@@ -619,7 +619,7 @@
                 // 2. المحاولة عبر Webhook / Google Apps Script (إذا كان محدداً)
                 if (this.state.webhookUrl) {
                     uploadSuccess = await this._uploadViaWebhook(this.state.webhookUrl, fileName, jsonString, fileSizeFormatted);
-                } 
+                }
                 // 3. المحاولة عبر Google Drive REST API v3 المباشر
                 else if (this.state.accessToken) {
                     uploadSuccess = await this._uploadViaDriveAPI(fileName, jsonString);
@@ -636,7 +636,7 @@
                     try {
                         if (typeof removeStore === 'function') removeStore('bayan_pending_cloud_backup');
                         localStorage.removeItem('bayan_pending_cloud_backup');
-                    } catch (e) {}
+                    } catch (e) { }
 
                     this.showNotification(`✅ تم رفع النسخة بنجاح على Google Drive: ${fileName}`, "success");
                     return true;
@@ -654,7 +654,7 @@
                 try {
                     const set = (typeof setStore === 'function') ? setStore : ((k, v) => localStorage.setItem(k, v));
                     set('bayan_pending_cloud_backup', String(Date.now()));
-                } catch (e) {}
+                } catch (e) { }
 
                 if (triggerType === 'manual') {
                     this.showNotification("❌ تعذر إتمام الرفع السحابي: " + (err.message || 'خطأ في الاتصال'), "error");
@@ -789,7 +789,7 @@
                                                     }
                                                     return resolve(true);
                                                 }
-                                            } catch (e) {}
+                                            } catch (e) { }
                                             if (getRes.statusCode >= 200 && getRes.statusCode < 300) {
                                                 resolve(true);
                                             } else {
@@ -812,7 +812,7 @@
                                             }
                                             return resolve(true);
                                         }
-                                    } catch (e) {}
+                                    } catch (e) { }
                                     if (res.statusCode >= 200 && res.statusCode < 300) {
                                         resolve(true);
                                     } else {
@@ -890,7 +890,7 @@
                         this.uploadBackup('auto_resume');
                     }, 30000);
                 }
-            } catch (e) {}
+            } catch (e) { }
         },
 
         /**

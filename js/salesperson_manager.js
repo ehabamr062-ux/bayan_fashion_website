@@ -329,7 +329,41 @@
             const toVal = overlay.querySelector('#spRepTo').value || '';
             const commPct = Math.max(0, parseFloat(overlay.querySelector('#spRepCommPct')?.value) || 0);
             saveCommPct(commPct);
-            const txs = Array.isArray(window.transactions) ? window.transactions : [];
+            let txs = Array.isArray(window.transactions) ? window.transactions : [];
+            if (window.BayanSQLite && window.BayanSQLite.db) {
+                try {
+                    const clauses = ["type LIKE '%بيع%'", "type NOT LIKE '%مرتجع%'"];
+                    const params = [];
+                    if (fromVal) { clauses.push("dateISO >= ?"); params.push(fromVal); }
+                    if (toVal) { clauses.push("dateISO <= ?"); params.push(toVal); }
+                    const stmt = window.BayanSQLite.db.prepare(
+                        `SELECT id, invoiceId, dateISO, type, partner, salesperson, total, isInvoiceHead, raw_json FROM transactions WHERE ${clauses.join(' AND ')};`
+                    );
+                    stmt.bind(params);
+                    const sqlRows = [];
+                    while (stmt.step()) {
+                        const row = stmt.getAsObject();
+                        let extra = {};
+                        try { if (row.raw_json) extra = JSON.parse(row.raw_json); } catch (_) { }
+                        sqlRows.push({
+                            ...extra,
+                            id: row.id,
+                            invoiceId: row.invoiceId || extra.invoiceId,
+                            dateISO: row.dateISO || extra.dateISO,
+                            type: row.type || extra.type,
+                            partner: row.partner || extra.partner,
+                            salesperson: row.salesperson || extra.salesperson || extra.salesPerson || '',
+                            total: row.total != null ? row.total : extra.total,
+                            isInvoiceHead: row.isInvoiceHead === 1 || extra.isInvoiceHead === true
+                        });
+                    }
+                    stmt.free();
+                    if (sqlRows.length > 0 || txs.length === 0) {
+                        const hasHeads = sqlRows.some(r => r.isInvoiceHead);
+                        txs = hasHeads ? sqlRows.filter(r => r.isInvoiceHead) : sqlRows;
+                    }
+                } catch (_) { }
+            }
 
             // تجميع حسب الفاتورة أولاً لمنع تكرار الإجمالي عند تعدد الأصناف في نفس الفاتورة
             const invoicesMap = new Map();
@@ -407,7 +441,7 @@
                     </div>
                     <div style="background:#fefce8; border:1.5px solid #fde047; border-radius:16px; padding:14px 16px;">
                         <div style="font-size:0.76rem; color:#854d0e; font-weight:800;">🏆 الأعلى مبيعاً</div>
-                        <div style="font-size:0.98rem; font-weight:900; color:#a16207; margin-top:6px;">${topSp ? `${topSp.name} (${topSp.total.toLocaleString('en-US', { maximumFractionDigits: 0 })} ج.م)` : 'لا توجد بيانات'}</div>
+                        <div style="font-size:0.98rem; font-weight:900; color:#a16207; margin-top:6px;">${topSp ? `${topSp.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')} (${topSp.total.toLocaleString('en-US', { maximumFractionDigits: 0 })} ج.م)` : 'لا توجد بيانات'}</div>
                     </div>
                 </div>`;
 

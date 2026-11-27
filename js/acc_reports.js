@@ -2,6 +2,15 @@
 //  تقرير الحركة اليومية وتحليل الأرباح والديون (Daily & Analysis Reports)
 // ============================================================
 
+        function _escRep(val) {
+            return String(val == null ? '' : val)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
         function populateDailyReportUserSelect() {
             const selectEl = document.getElementById('dailyReportUserSelect');
             if (!selectEl) return;
@@ -22,7 +31,7 @@
             }
 
             if (isLockedUser) {
-                const myName = (curUser && curUser.name) ? curUser.name : 'الكاشير الحالي';
+                const myName = _escRep((curUser && curUser.name) ? curUser.name : 'الكاشير الحالي');
                 selectEl.innerHTML = `<option value="${myName}" selected>🔒 ورديتك الحالية: ${myName}</option>`;
                 selectEl.disabled = true;
                 selectEl.style.backgroundColor = '#f1f5f9';
@@ -68,10 +77,11 @@
                 if (shouldHideAdmin && isAdm) {
                     return; // إخفاء حسابات الإدارة من قائمة الاختيار للموظف
                 }
+                const safeUName = _escRep(uName);
                 if (isAdm) {
-                    opts += `<option value="${uName}">⭐ المدير: ${uName}</option>`;
+                    opts += `<option value="${safeUName}">⭐ المدير: ${safeUName}</option>`;
                 } else {
-                    opts += `<option value="${uName}">👤 كاشير: ${uName}</option>`;
+                    opts += `<option value="${safeUName}">👤 كاشير: ${safeUName}</option>`;
                 }
             });
 
@@ -2826,13 +2836,13 @@
                                         ? `<span style="background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; border-radius: 6px; padding: 2px 6px; font-size: 0.76rem; font-weight: 800;">💵 ${item.method}</span>`
                                         : `<span style="background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; border-radius: 6px; padding: 2px 6px; font-size: 0.76rem; font-weight: 800;">📱 ${item.method}</span>`;
                                     return `
-                                    <tr class="disb-data-row" data-reason="${(item.reason || '').toLowerCase()}" data-search="${((item.reason || '') + ' ' + (item.payee || '') + ' ' + (item.notes || '') + ' ' + (item.amount || '') + ' ' + (item.user || '')).toLowerCase()}" style="border-bottom: 1px solid #f1f5f9; ${idx % 2 === 1 ? 'background: #fafafa;' : ''}">
+                                    <tr class="disb-data-row" data-reason="${_escRep((item.reason || '').toLowerCase())}" data-search="${_escRep(((item.reason || '') + ' ' + (item.payee || '') + ' ' + (item.notes || '') + ' ' + (item.amount || '') + ' ' + (item.user || '')).toLowerCase())}" style="border-bottom: 1px solid #f1f5f9; ${idx % 2 === 1 ? 'background: #fafafa;' : ''}">
                                         <td style="padding: 8px 6px; border-left: 1px solid #f1f5f9; text-align: center; color: #64748b; font-weight: 700;">${idx + 1}</td>
                                         <td style="padding: 8px; border-left: 1px solid #f1f5f9; font-weight: 800; color: #0f172a;">
-                                            ${item.reason || 'مصروف عام'}
+                                            ${_escRep(item.reason || 'مصروف عام')}
                                         </td>
                                         <td style="padding: 8px; border-left: 1px solid #f1f5f9; font-weight: 600; color: #334155;">
-                                            ${item.payee && item.payee !== 'جهة غير محددة' ? item.payee : '<span style="color:#94a3b8;">-</span>'}
+                                            ${item.payee && item.payee !== 'جهة غير محددة' ? _escRep(item.payee) : '<span style="color:#94a3b8;">-</span>'}
                                         </td>
                                         <td style="padding: 8px; border-left: 1px solid #f1f5f9; text-align: center;">
                                             ${methodBadge}
@@ -2841,10 +2851,10 @@
                                             ${parseFloat(item.amount).toFixed(2)}
                                         </td>
                                         <td style="padding: 8px; border-left: 1px solid #f1f5f9; text-align: center; font-size: 0.8rem; color: #475569;">
-                                            ${item.user || '-'}
+                                            ${_escRep(item.user || '-')}
                                         </td>
                                         <td style="padding: 8px; font-size: 0.8rem; color: #64748b;">
-                                            ${item.notes || '<span style="color:#cbd5e1;">-</span>'}
+                                            ${item.notes ? _escRep(item.notes) : '<span style="color:#cbd5e1;">-</span>'}
                                         </td>
                                     </tr>`;
                                 }).join('')}
@@ -2926,12 +2936,12 @@
                 let printRows = list.map((item, idx) => `
                     <tr style="border-bottom: 1px solid #000; ${idx % 2 === 1 ? 'background: #f9f9f9;' : ''}">
                         <td style="padding: 6px; border-left: 1px solid #000; text-align: center;">${idx + 1}</td>
-                        <td style="padding: 6px; border-left: 1px solid #000; font-weight: bold; text-align: right;">${item.reason || 'مصروف عام'}</td>
-                        <td style="padding: 6px; border-left: 1px solid #000; text-align: right;">${item.payee || '-'}</td>
-                        <td style="padding: 6px; border-left: 1px solid #000; text-align: center;">${item.method || 'كاش'}</td>
+                        <td style="padding: 6px; border-left: 1px solid #000; font-weight: bold; text-align: right;">${_escRep(item.reason || 'مصروف عام')}</td>
+                        <td style="padding: 6px; border-left: 1px solid #000; text-align: right;">${_escRep(item.payee || '-')}</td>
+                        <td style="padding: 6px; border-left: 1px solid #000; text-align: center;">${_escRep(item.method || 'كاش')}</td>
                         <td style="padding: 6px; border-left: 1px solid #000; text-align: center; font-weight: 900;">${parseFloat(item.amount).toFixed(2)}</td>
-                        <td style="padding: 6px; border-left: 1px solid #000; text-align: center;">${item.user || '-'}</td>
-                        <td style="padding: 6px; text-align: right; font-size: 11px;">${item.notes || '-'}</td>
+                        <td style="padding: 6px; border-left: 1px solid #000; text-align: center;">${_escRep(item.user || '-')}</td>
+                        <td style="padding: 6px; text-align: right; font-size: 11px;">${_escRep(item.notes || '-')}</td>
                     </tr>
                 `).join('');
 
@@ -4296,7 +4306,7 @@
                     <!-- حقل ملاحظات إضافية -->
                     <div style="margin-bottom:14px;">
                         <label style="display:block; font-size:0.84rem; font-weight:800; color:#475569; margin-bottom:4px;">📝 ملاحظات التقفيل (اختياري):</label>
-                        <input type="text" id="bayanCloseModalNotes" value="${state.notes || ''}" placeholder="أي ملاحظات تخص الوردية أو العجز أو الزيادة..." style="width:100%; height:38px; border:1.5px solid #cbd5e1; border-radius:8px; padding:0 10px; font-size:0.88rem; outline:none; box-sizing:border-box; font-family:inherit;">
+                        <input type="text" id="bayanCloseModalNotes" value="${_escRep(state.notes || '')}" placeholder="أي ملاحظات تخص الوردية أو العجز أو الزيادة..." style="width:100%; height:38px; border:1.5px solid #cbd5e1; border-radius:8px; padding:0 10px; font-size:0.88rem; outline:none; box-sizing:border-box; font-family:inherit;">
                     </div>
 
                     <!-- خيار الطباعة الفورية -->
@@ -4942,7 +4952,7 @@
                 <!-- ملاحظات التقفيل إن وجدت -->
                 ${rec.notes ? `
                 <div style="margin-top: 8px; border: 1.5px dashed #000; padding: 6px; font-size: 12px; font-weight: 800;">
-                    <b>📝 ملاحظات التقفيل:</b> ${rec.notes}
+                    <b>📝 ملاحظات التقفيل:</b> ${_escRep(rec.notes)}
                 </div>` : ''}
 
                 <div class="double-line"></div>
@@ -4951,13 +4961,13 @@
                 <div style="display: flex; justify-content: space-between; margin-top: 15px; font-size: 11px; font-weight: 800; text-align: center; gap: 6px;">
                     <div style="flex: 1; border: 1.5px solid #000000; border-radius: 4px; padding: 5px 2px; background: #ffffff;">
                         <div style="font-size: 11px; font-weight: 900; border-bottom: 1px dashed #000000; padding-bottom: 3px; margin-bottom: 3px;">توقيع الكاشير المسلّم</div>
-                        <div style="font-size: 13px; font-weight: 900; color: #000000; margin: 3px 0;">✍️ ${cashierName}</div>
+                        <div style="font-size: 13px; font-weight: 900; color: #000000; margin: 3px 0;">✍️ ${_escRep(cashierName)}</div>
                         <div style="font-size: 10.5px; font-weight: 900; color: #000000 !important;">.........................</div>
                         <div style="font-size: 10.5px; font-weight: 900; color: #000000 !important; margin-top: 2px;">(تسليم الدرج والعهدة)</div>
                     </div>
                     <div style="flex: 1; border: 1.5px solid #000000; border-radius: 4px; padding: 5px 2px; background: #ffffff;">
                         <div style="font-size: 11px; font-weight: 900; border-bottom: 1px dashed #000000; padding-bottom: 3px; margin-bottom: 3px;">توقيع المدير المستلم</div>
-                        <div style="font-size: 13px; font-weight: 900; color: #000000; margin: 3px 0;">✍️ ${managerName}</div>
+                        <div style="font-size: 13px; font-weight: 900; color: #000000; margin: 3px 0;">✍️ ${_escRep(managerName)}</div>
                         <div style="font-size: 10.5px; font-weight: 900; color: #000000 !important;">.........................</div>
                         <div style="font-size: 10.5px; font-weight: 900; color: #000000 !important; margin-top: 2px;">(اعتماد واستلام الخزينة)</div>
                     </div>

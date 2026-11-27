@@ -307,7 +307,7 @@
     // حالة نظام التحديث
     // =========================================================================
     const state = {
-        currentVersion: window.appVersion || '5.1.7',
+        currentVersion: window.appVersion || '5.1.8',
         latestVersion: null,
         releaseNotes: '',
         downloadUrl: '',
@@ -336,7 +336,7 @@
     }
 
     function getCurrentAppVersion() {
-        return window.appVersion || '5.1.7';
+        return window.appVersion || '5.1.8';
     }
 
     function parseReleaseContent(notes) {
@@ -1355,7 +1355,7 @@
     // 🔒 إدارة وتجميد سياسة التحديثات التلقائية عبر SQLite و Electron Disk
     // =========================================================================
     function updateAutoUpdatesPolicyDOM(isEnabled) {
-        const curVer = window.appVersion || '5.1.7';
+        const curVer = window.appVersion || '5.1.8';
         const badge = document.getElementById('updatePolicyBadge');
         const text = document.getElementById('toggleAutoUpdatesText');
         const toggle = document.getElementById('toggleAutoUpdatesSwitch');
@@ -1425,7 +1425,7 @@
 
     window.toggleAutoUpdatesPolicy = async function (isEnabled) {
         const disabled = !isEnabled;
-        const curVer = window.appVersion || '5.1.7';
+        const curVer = window.appVersion || '5.1.8';
         window.__isAutoUpdatesFrozen = disabled;
 
         // 💾 1. التخزين اللحظي في AppStore و SQLite

@@ -226,6 +226,7 @@
 
                         snapshot.forEach(doc => {
                             const data = doc.data() || {};
+                            if (data.isDeleted === true) return;
                             const orderObj = { firestoreId: doc.id, ...data };
                             list.push(orderObj);
                             const key = String(doc.id);
@@ -481,7 +482,7 @@
                 machineId,
                 plan,
                 platform,
-                appVersion: window.APP_VERSION || window.appVersion || '5.1.7',
+                appVersion: window.APP_VERSION || window.appVersion || '5.1.8',
                 installDate
             };
         },
@@ -870,13 +871,13 @@
                 : `<span style="display:inline-flex; align-items:center; justify-content:center; padding:2px 12px; border-radius:999px; font-size:0.73rem; font-weight:800; letter-spacing:0.3px; color:#f1f5f9; background:rgba(100,116,139,0.85); border:1px solid rgba(203,213,225,0.65); font-family:system-ui,Cairo,sans-serif;" dir="ltr">Free Plan</span>`;
 
             return `
-                <div id="onlineOrdersMerchantProfileCard" ${isPro ? 'title="حساب Pro مفعّل بالكامل"' : 'onclick="BayanOnlineOrders.activateStoreVip()" title="اضغط للترقية إلى حساب Pro"'} style="display:flex; align-items:center; gap:12px; background:linear-gradient(135deg,#065f46 0%,#047857 55%,#059669 100%); color:#ffffff; padding:10px 16px; border-radius:20px; border:1.5px solid ${isPro ? 'rgba(96,165,250,0.75)' : 'rgba(167,243,208,0.4)'}; box-shadow:${isPro ? '0 8px 22px rgba(4,120,87,0.32), 0 0 14px rgba(59,130,246,0.35)' : '0 6px 16px rgba(4,120,87,0.24)'}; min-width:220px; flex-shrink:0; ${isPro ? '' : 'cursor:pointer;'}">
-                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex:1; min-width:0;">
-                        <div style="font-size:0.96rem; font-weight:900; color:#ffffff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:165px;">${this._esc(shopName)}</div>
-                        <div style="font-size:0.72rem; color:#d1fae5; font-family:monospace; direction:ltr; opacity:0.9;">${this._esc(shopId)}</div>
-                        <div style="margin-top:2px;">${tierPill}</div>
+                <div id="onlineOrdersMerchantProfileCard" ${isPro ? 'title="حساب Pro مفعّل بالكامل"' : 'onclick="BayanOnlineOrders.activateStoreVip()" title="اضغط للترقية إلى حساب Pro"'} style="display:flex; align-items:center; gap:10px; align-self:center; background:linear-gradient(135deg,#065f46 0%,#047857 55%,#059669 100%); color:#ffffff; padding:8px 14px; border-radius:14px; border:1.5px solid ${isPro ? 'rgba(96,165,250,0.75)' : 'rgba(167,243,208,0.4)'}; box-shadow:${isPro ? '0 4px 14px rgba(4,120,87,0.28), 0 0 10px rgba(59,130,246,0.28)' : '0 4px 12px rgba(4,120,87,0.2)'}; min-width:185px; flex-shrink:0; ${isPro ? '' : 'cursor:pointer;'}">
+                    <div style="display:flex; flex-direction:column; align-items:flex-end; gap:2px; flex:1; min-width:0;">
+                        <div style="font-size:0.9rem; font-weight:900; color:#ffffff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:150px;">${this._esc(shopName)}</div>
+                        <div style="font-size:0.7rem; color:#d1fae5; font-family:monospace; direction:ltr; opacity:0.9;">${this._esc(shopId)}</div>
+                        <div style="margin-top:1px;">${tierPill}</div>
                     </div>
-                    <div style="width:54px; height:54px; border-radius:50%; ${ringStyle} flex-shrink:0; box-sizing:border-box;">
+                    <div style="width:44px; height:44px; border-radius:50%; ${ringStyle} flex-shrink:0; box-sizing:border-box;">
                         <div style="width:100%; height:100%; border-radius:50%; overflow:hidden; background:#ffffff; border:2px solid #065f46; box-sizing:border-box;">
                             ${avatarInner}
                         </div>
@@ -936,7 +937,7 @@
             sec.innerHTML = `
                 <div class="products-panel" style="width:100%; min-height:85vh; background:#f8fafc; border-radius:16px; border:1.5px solid #e2e8f0; padding:16px; display:flex; flex-direction:column; gap:14px;">
                     <!-- الشريط العلوي ورابط المتجر وبطاقة هوية المحل Pro / عادي -->
-                    <div style="display:flex; justify-content:space-between; align-items:stretch; flex-wrap:wrap; gap:16px; background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%); padding:18px 20px; border-radius:18px; border:1.5px solid #e2e8f0; box-shadow:0 8px 24px rgba(15,23,42,0.06);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:14px; background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%); padding:14px 18px; border-radius:16px; border:1.5px solid #e2e8f0; box-shadow:0 8px 24px rgba(15,23,42,0.06);">
                         <div style="display:flex; flex-direction:column; gap:12px; flex:1; min-width:320px;">
                             <!-- الصف 1: العنوان والشارات -->
                             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding-bottom:10px; border-bottom:1px dashed #e2e8f0;">
@@ -1002,13 +1003,18 @@
                             <option value="confirmed">✅ تم التحويل لفاتورة</option>
                             <option value="cancelled">❌ ملغي</option>
                         </select>
+                        <button type="button" onclick="BayanOnlineOrders.selectCancelledOrders()" style="background:#fff1f2; color:#be123c; border:1.5px solid #fecdd3; padding:8px 12px; border-radius:10px; font-weight:800; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">🔴 تحديد الملغي</button>
+                        <button type="button" id="ooBulkDeleteBtn" onclick="BayanOnlineOrders.deleteSelectedOrders()" style="display:none; background:#dc2626; color:#ffffff; border:none; padding:8px 14px; border-radius:10px; font-weight:900; font-size:0.82rem; cursor:pointer; font-family:'Cairo',sans-serif;">🗑️ حذف المحدد (0)</button>
                     </div>
 
                     <!-- جدول الطلبات -->
                     <div class="table-container" style="flex:1; overflow:auto; background:white; border-radius:12px; border:1.5px solid #e2e8f0;">
-                        <table class="invoice-table" style="width:100%; min-width:900px;">
+                        <table class="invoice-table" style="width:100%; min-width:940px;">
                             <thead style="background:linear-gradient(135deg,#0f172a,#1e293b); color:white; position:sticky; top:0; z-index:5;">
                                 <tr>
+                                    <th style="padding:10px; width:40px; text-align:center;">
+                                        <input type="checkbox" id="ooSelectAllChk" onchange="BayanOnlineOrders.toggleSelectAll(this.checked)" title="تحديد الكل" style="width:16px; height:16px; cursor:pointer;">
+                                    </th>
                                     <th style="padding:10px;">رقم الطلب</th>
                                     <th style="padding:10px;">التاريخ والوقت</th>
                                     <th style="padding:10px;">بيانات العميل</th>
@@ -1089,12 +1095,15 @@
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding:40px; color:#64748b; font-weight:800;">📭 لا توجد طلبات أونلاين مطابقة حالياً</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" style="text-align:center; padding:40px; color:#64748b; font-weight:800;">📭 لا توجد طلبات أونلاين مطابقة حالياً</td></tr>';
+                this._syncSelectionUi(filtered);
                 return;
             }
 
+            const selSet = this._selectedKeys || (this._selectedKeys = new Set());
             tbody.innerHTML = filtered.map(o => {
                 const key = this._esc(o.firestoreId || o.id);
+                const isChecked = selSet.has(String(o.firestoreId || o.id));
                 const stKey = o.status || 'new';
                 const meta = STATUS_META[stKey] || STATUS_META.new;
                 const itemsCount = Array.isArray(o.items) ? o.items.reduce((s, it) => s + (parseFloat(it.qty) || 1), 0) : 0;
@@ -1103,7 +1112,10 @@
                 const bd = this._getOrderMoneyBreakdown(o);
 
                 return `
-                    <tr>
+                    <tr style="${isChecked ? 'background:#fef2f2;' : ''}">
+                        <td style="text-align:center;">
+                            <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="BayanOnlineOrders.toggleOrderSelect('${key}', this.checked)" style="width:16px; height:16px; cursor:pointer;">
+                        </td>
                         <td style="text-align:center; font-weight:900; color:#0284c7;">#${this._esc(o.seqId || o.orderNumber || o.id || '-')}</td>
                         <td style="text-align:center; font-size:0.82rem; color:#475569;">${this._esc(dtStr)}</td>
                         <td style="text-align:right;">
@@ -1127,11 +1139,95 @@
                                 ${!isConverted && stKey !== 'cancelled' ? `
                                     <button type="button" onclick="BayanOnlineOrders.openOrderDetails('${key}', true)" style="background:#059669; color:white; border:none; padding:5px 10px; border-radius:7px; font-size:0.78rem; font-weight:800; cursor:pointer; font-family:'Cairo',sans-serif;">🧾 تحويل لفاتورة</button>
                                 ` : ''}
+                                <button type="button" onclick="BayanOnlineOrders.deleteOrdersByKeys(['${key}'])" style="background:#fee2e2; color:#dc2626; border:1px solid #fecaca; padding:5px 9px; border-radius:7px; font-size:0.76rem; font-weight:800; cursor:pointer; font-family:'Cairo',sans-serif;" title="حذف الطلب نهائياً من الشاشة والسحابة">🗑️</button>
                             </div>
                         </td>
                     </tr>
                 `;
             }).join('');
+            this._syncSelectionUi(filtered);
+        },
+
+        _syncSelectionUi(filteredList) {
+            const selSet = this._selectedKeys || (this._selectedKeys = new Set());
+            const bulkBtn = document.getElementById('ooBulkDeleteBtn');
+            if (bulkBtn) {
+                bulkBtn.style.display = selSet.size > 0 ? 'inline-flex' : 'none';
+                bulkBtn.textContent = `🗑️ حذف المحدد (${selSet.size})`;
+            }
+            const allChk = document.getElementById('ooSelectAllChk');
+            if (allChk) {
+                const list = Array.isArray(filteredList) ? filteredList : [];
+                allChk.checked = list.length > 0 && list.every(o => selSet.has(String(o.firestoreId || o.id)));
+            }
+        },
+
+        toggleOrderSelect(key, checked) {
+            const selSet = this._selectedKeys || (this._selectedKeys = new Set());
+            if (checked) selSet.add(String(key));
+            else selSet.delete(String(key));
+            this.renderTable();
+        },
+
+        toggleSelectAll(checked) {
+            const selSet = this._selectedKeys || (this._selectedKeys = new Set());
+            this.orders.forEach(o => {
+                const k = String(o.firestoreId || o.id);
+                if (checked) selSet.add(k);
+                else selSet.delete(k);
+            });
+            this.renderTable();
+        },
+
+        selectCancelledOrders() {
+            const selSet = this._selectedKeys || (this._selectedKeys = new Set());
+            const cancelled = this.orders.filter(o => o.status === 'cancelled');
+            if (!cancelled.length) {
+                if (typeof showToast === 'function') showToast('لا توجد طلبات ملغية حالياً', 'info');
+                return;
+            }
+            cancelled.forEach(o => selSet.add(String(o.firestoreId || o.id)));
+            this.renderTable();
+            if (typeof showToast === 'function') showToast(`تم تحديد ${cancelled.length} طلب ملغي`, 'success');
+        },
+
+        deleteSelectedOrders() {
+            const selSet = this._selectedKeys || (this._selectedKeys = new Set());
+            const keys = Array.from(selSet);
+            if (!keys.length) return;
+            this.deleteOrdersByKeys(keys);
+        },
+
+        async deleteOrdersByKeys(keys) {
+            if (!Array.isArray(keys) || !keys.length) return;
+            if (!confirm(`هل تريد حذف ${keys.length} طلب من طلبات الأونلاين والسحابة؟`)) return;
+            const keySet = new Set(keys.map(String));
+            const selSet = this._selectedKeys || (this._selectedKeys = new Set());
+            keys.forEach(k => selSet.delete(String(k)));
+            this.orders = this.orders.filter(o => !keySet.has(String(o.firestoreId || o.id)));
+            this._saveCachedOrders();
+            this._updateBadges();
+            this.renderTable();
+
+            try {
+                const db = this.getDb();
+                const shopId = this.getShopId();
+                if (db && shopId) {
+                    const colRef = db.collection('shops').doc(shopId).collection('orders');
+                    const nowIso = new Date().toISOString();
+                    for (let i = 0; i < keys.length; i += 450) {
+                        const batch = db.batch();
+                        keys.slice(i, i + 450).forEach(id => {
+                            batch.update(colRef.doc(String(id)), { isDeleted: true, deletedAt: nowIso });
+                        });
+                        await batch.commit();
+                    }
+                }
+                if (typeof showToast === 'function') showToast(`✅ تم حذف ${keys.length} طلب بنجاح!`, 'success');
+            } catch (e) {
+                console.warn('Online order delete error:', e);
+                if (typeof showToast === 'function') showToast('⚠️ تم الحذف محلياً، تعذر التحديث السحابي لبعض الطلبات.', 'warning');
+            }
         },
 
         _getOrderMoneyBreakdown(order) {

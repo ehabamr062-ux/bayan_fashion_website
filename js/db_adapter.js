@@ -14,8 +14,9 @@
 
     // 📋 خريطة الأعمدة الحقيقية المعرفة في قاعدة بيانات SQLite للاستفادة القصوى من الفهارس
     const TABLE_COLUMNS = {
-        products: new Set(['id', 'name', 'barcode', 'code', 'category', 'unit', 'cost', 'price', 'wholesale', 'stock']),
-        transactions: new Set(['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'warehouse', 'status', 'isInvoiceHead']),
+        products: new Set(['id', 'name', 'barcode', 'code', 'category', 'unit', 'cost', 'price', 'wholesale', 'stock', 'supplier', 'season', 'brand', 'updatedAt']),
+        product_variants: new Set(['id', 'product_id', 'warehouse', 'size', 'color', 'sub_barcode', 'qty', 'price']),
+        transactions: new Set(['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'partnerId', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'salesperson', 'warehouse', 'status', 'terminal', 'isInvoiceHead']),
         transaction_items: new Set(['id', 'tx_id', 'invoiceId', 'dateISO', 'time', 'type', 'partner', 'barcode', 'productName', 'size', 'color', 'qty', 'price', 'cost', 'discount', 'addition', 'total', 'profit', 'warehouse']),
         accounts: new Set(['id', 'name', 'code', 'type', 'mobile', 'balance', 'address']),
         warehouses: new Set(['id', 'name', 'address']),
@@ -850,7 +851,7 @@
         async exportFullDatabaseJSON() {
             await this._ensureReady();
             const exportData = {
-                version: window.appVersion || '5.1.7',
+                version: window.appVersion || '5.1.8',
                 engine: 'SQLite',
                 exportedAt: new Date().toISOString(),
                 tables: {}

@@ -977,6 +977,33 @@
                 try {
                     this.db.run("CREATE INDEX IF NOT EXISTS idx_prod_code ON products(code);");
                 } catch (idxErr) { }
+
+                // 🛡️ ترقية أعمدة المورد والموسم والماركة وتاريخ التحديث + فهارسها + جدول المتغيرات المفهرس (product_variants)
+                ['supplier TEXT', 'season TEXT', 'brand TEXT', 'updatedAt TEXT'].forEach(colDef => {
+                    try { this.db.run(`ALTER TABLE products ADD COLUMN ${colDef};`); } catch (_) { }
+                });
+                try {
+                    this.db.run(`
+                        CREATE INDEX IF NOT EXISTS idx_prod_supplier ON products(supplier);
+                        CREATE INDEX IF NOT EXISTS idx_prod_season ON products(season);
+                        CREATE INDEX IF NOT EXISTS idx_prod_brand ON products(brand);
+                        CREATE INDEX IF NOT EXISTS idx_prod_updatedAt ON products(updatedAt);
+                        CREATE TABLE IF NOT EXISTS product_variants (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            product_id INTEGER NOT NULL,
+                            warehouse TEXT DEFAULT '',
+                            size TEXT DEFAULT '',
+                            color TEXT DEFAULT '',
+                            sub_barcode TEXT DEFAULT '',
+                            qty REAL DEFAULT 0,
+                            price REAL DEFAULT 0
+                        );
+                        CREATE INDEX IF NOT EXISTS idx_pv_prod_id ON product_variants(product_id);
+                        CREATE INDEX IF NOT EXISTS idx_pv_sub_barcode ON product_variants(sub_barcode);
+                        CREATE INDEX IF NOT EXISTS idx_pv_wh_size_color ON product_variants(warehouse, size, color);
+                        CREATE INDEX IF NOT EXISTS idx_pv_size_color ON product_variants(size, color);
+                    `);
+                } catch (_) { }
             } catch (colMigErr) {
                 console.warn("[SQLite] products code migration notice:", colMigErr.message);
             }
@@ -992,40 +1019,31 @@
                         time TEXT,
                         type TEXT,
                         partner TEXT,
+                        partnerId INTEGER,
                         total REAL DEFAULT 0,
                         paidAmount REAL DEFAULT 0,
                         remaining REAL DEFAULT 0,
                         method TEXT,
                         cashier TEXT,
+                        salesperson TEXT,
                         warehouse TEXT,
                         status TEXT,
+                        terminal TEXT,
                         isInvoiceHead INTEGER DEFAULT NULL,
                         raw_json TEXT
                     );
-                    -- الفهارس المركبة الذكية الحاكمة لجدول transactions
-                    CREATE INDEX IF NOT EXISTS idx_tx_invoiceId ON transactions(invoiceId);
-                    CREATE INDEX IF NOT EXISTS idx_tx_date_type_status ON transactions(dateISO, type, status);
-                    CREATE INDEX IF NOT EXISTS idx_tx_type_status_date ON transactions(type, status, dateISO);
-                    CREATE INDEX IF NOT EXISTS idx_tx_partner_date ON transactions(partner, dateISO);
-                    CREATE INDEX IF NOT EXISTS idx_tx_wh_date ON transactions(warehouse, dateISO);
-                    CREATE INDEX IF NOT EXISTS idx_tx_date_cashier ON transactions(dateISO, cashier);
-                    CREATE INDEX IF NOT EXISTS idx_tx_isHead ON transactions(isInvoiceHead);
-                    CREATE INDEX IF NOT EXISTS idx_tx_orig_inv ON transactions(originalInvoiceId);
                 `);
             } catch (txErr) {
                 console.warn("[SQLite] transactions table schema notice:", txErr.message);
             }
 
-            // 🛡️ ترقية الأعمدة المضافة مسبقاً لجدول الحركات لمنع أي خطأ أثناء الفحص أو الهجرة
+            // 🛡️ ترقية الأعمدة المضافة لجدول الحركات لمنع أي خطأ أثناء الفحص أو الهجرة
             try { this.db.run("ALTER TABLE transactions ADD COLUMN originalInvoiceId TEXT;"); } catch (e) { }
             try { this.db.run("ALTER TABLE transactions ADD COLUMN status TEXT;"); } catch (e) { }
             try { this.db.run("ALTER TABLE transactions ADD COLUMN terminal TEXT;"); } catch (e) { }
             try { this.db.run("ALTER TABLE transactions ADD COLUMN isInvoiceHead INTEGER DEFAULT NULL;"); } catch (e) { }
-
-            // 🛡️ إنشاء فهارس isInvoiceHead
-            try {
-                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_isHead ON transactions(isInvoiceHead);");
-            } catch (headMigErr) { }
+            try { this.db.run("ALTER TABLE transactions ADD COLUMN salesperson TEXT;"); } catch (e) { }
+            try { this.db.run("ALTER TABLE transactions ADD COLUMN partnerId INTEGER;"); } catch (e) { }
 
             // 🛡️ فحص وترقية جدول transactions ليكون id TEXT PRIMARY KEY في قواعد البيانات القائمة
             try {
@@ -1111,6 +1129,10 @@
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_products_cat_price ON products(category, price);");
                 // ⚡ فهرس مركب لتسريع تعديل وحذف الفواتير حسب رقم الفاتورة ونوعها
                 this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_inv_type ON transactions(invoiceId, type);");
+                // ⚡ فهارس عمولات السيلز وكشف الحساب بالأرصدة والحالات
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_salesperson_date ON transactions(salesperson, dateISO, status);");
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_partner_status_date ON transactions(partner, status, dateISO);");
+                this.db.run("CREATE INDEX IF NOT EXISTS idx_tx_partnerId_date ON transactions(partnerId, dateISO);");
             } catch (e) { }
 
             // ⚡ تفعيل جدول البحث النصي الكامل FTS5 للأصناف (products_fts) مع Triggers المزامنة التلقائية
@@ -1185,6 +1207,57 @@
             } catch (ftsErr) {
                 this.hasFts5 = false;
             }
+
+            // ⚡ هجرة تلقائية لمرة واحدة (v5.1.8) لملء الأعمدة الجديدة وجدول product_variants لقواعد البيانات الحالية
+            try {
+                let backfillDone = false;
+                if (this.isNative && this.nativeDb) {
+                    const bRow = this.nativeDb.prepare("SELECT value FROM settings WHERE id = 'schema_v518_backfill_done'").get();
+                    if (bRow && String(bRow.value) === '1') backfillDone = true;
+                } else {
+                    const bRes = this.db.exec("SELECT value FROM settings WHERE id = 'schema_v518_backfill_done'");
+                    if (bRes && bRes[0] && bRes[0].values && bRes[0].values.length > 0 && String(bRes[0].values[0][0]) === '1') {
+                        backfillDone = true;
+                    }
+                }
+                if (!backfillDone) {
+                    this.runInTransaction(() => {
+                        try {
+                            this.db.run(`
+                                UPDATE products SET
+                                    supplier = COALESCE(NULLIF(supplier, ''), json_extract(raw_json, '$.supplier'), ''),
+                                    season = COALESCE(NULLIF(season, ''), json_extract(raw_json, '$.season'), ''),
+                                    brand = COALESCE(NULLIF(brand, ''), json_extract(raw_json, '$.brand'), ''),
+                                    updatedAt = COALESCE(NULLIF(updatedAt, ''), json_extract(raw_json, '$.updatedAt'), '')
+                                WHERE raw_json IS NOT NULL AND raw_json != '';
+                            `);
+                        } catch (_) { }
+                        try {
+                            this.db.run(`
+                                UPDATE transactions SET
+                                    salesperson = COALESCE(NULLIF(salesperson, ''), json_extract(raw_json, '$.salesperson'), json_extract(raw_json, '$.salesPerson'), ''),
+                                    partnerId = COALESCE(partnerId, CAST(json_extract(raw_json, '$.partnerId') AS INTEGER))
+                                WHERE raw_json IS NOT NULL AND raw_json != '';
+                            `);
+                        } catch (_) { }
+                        try {
+                            const pStmt = this.db.prepare("SELECT id, warehouse, price, raw_json FROM products WHERE raw_json LIKE '%\"variants\"%';");
+                            const prodsWithVars = [];
+                            while (pStmt.step()) prodsWithVars.push(pStmt.getAsObject());
+                            pStmt.free();
+                            for (const pr of prodsWithVars) {
+                                try {
+                                    const extra = JSON.parse(pr.raw_json || '{}');
+                                    if (Array.isArray(extra.variants) && extra.variants.length > 0) {
+                                        this._syncProductVariants({ id: pr.id, warehouse: pr.warehouse || extra.warehouse || '', price: pr.price, variants: extra.variants });
+                                    }
+                                } catch (_) { }
+                            }
+                        } catch (_) { }
+                        this.db.run("INSERT OR REPLACE INTO settings (id, value) VALUES ('schema_v518_backfill_done', '1');");
+                    });
+                }
+            } catch (_) { }
             try {
                 this.db.run("ALTER TABLE accounts ADD COLUMN debit REAL DEFAULT 0;");
             } catch (e) { }
@@ -1233,6 +1306,8 @@
                 CREATE INDEX IF NOT EXISTS idx_ti_date_type ON transaction_items(dateISO, type);
                 CREATE INDEX IF NOT EXISTS idx_ti_date_wh_prod ON transaction_items(dateISO, warehouse, productName, type, qty);
                 CREATE INDEX IF NOT EXISTS idx_ti_partner_date ON transaction_items(partner, dateISO DESC);
+                CREATE INDEX IF NOT EXISTS idx_ti_barcode_size_color_date ON transaction_items(barcode, size, color, dateISO);
+                CREATE INDEX IF NOT EXISTS idx_ti_size_color ON transaction_items(size, color);
             `);
 
             // 3. جدول الحسابات (العملاء والموردين)
@@ -1518,6 +1593,16 @@
             if (res.image && typeof res.image === 'string') {
                 res.image = this._resolveProductImage(res.image);
             }
+            if (Array.isArray(res.images)) {
+                res.images = res.images.map(img => (typeof img === 'string' ? this._resolveProductImage(img) : img));
+            }
+            if (res.colorImages && typeof res.colorImages === 'object') {
+                const resolvedColors = {};
+                for (const [cKey, cVal] of Object.entries(res.colorImages)) {
+                    resolvedColors[cKey] = typeof cVal === 'string' ? this._resolveProductImage(cVal) : cVal;
+                }
+                res.colorImages = resolvedColors;
+            }
             if (res.isInvoiceHead !== undefined && res.isInvoiceHead !== null) {
                 res.isInvoiceHead = (res.isInvoiceHead === 1 || res.isInvoiceHead === true || res.isInvoiceHead === 'true');
             }
@@ -1552,7 +1637,7 @@
         /**
          * 📸 حفظ وتفريغ صورة الصنف من Base64 إلى ملف JPEG/PNG مستقل على القرص
          */
-        _saveProductImage(productId, imageData) {
+        _saveProductImage(productId, imageData, suffix = '') {
             if (!imageData || typeof imageData !== 'string') return null;
             if (this._resolvedImageCache) this._resolvedImageCache.clear();
             if (imageData.startsWith('local_img:')) return imageData;
@@ -1570,7 +1655,8 @@
                     if (!base64Str) return imageData;
 
                     const cleanId = String(productId).replace(/[^a-zA-Z0-9_-]/g, '_');
-                    const fileName = `prod_${cleanId}.${ext}`;
+                    const cleanSuffix = suffix ? ('_' + String(suffix).replace(/[^a-zA-Z0-9_\u0600-\u06FF-]/g, '_').slice(0, 28)) : '';
+                    const fileName = `prod_${cleanId}${cleanSuffix}.${ext}`;
                     const targetPath = this.path.join(imgDir, fileName);
 
                     const buffer = Buffer.from(base64Str, 'base64');
@@ -1582,6 +1668,65 @@
                 }
             }
             return imageData;
+        }
+
+        _offloadAllProductMedia(item, mutateInMemory = false) {
+            if (!item || typeof item !== 'object') return item;
+            const copy = { ...item };
+            if (item.image && typeof item.image === 'string') {
+                const ref = this._saveProductImage(item.id, item.image, '');
+                copy.image = ref;
+                if (mutateInMemory) item.image = this._resolveProductImage(ref);
+            } else if (item.image === null || item.image === '') {
+                this._deleteProductImage(item.id);
+                copy.image = null;
+            }
+            if (Array.isArray(item.images)) {
+                const storedImgs = item.images.map((img, i) => (typeof img === 'string' && img) ? this._saveProductImage(item.id, img, `g${i}`) : img);
+                copy.images = storedImgs;
+                if (mutateInMemory) item.images = storedImgs.map(r => (typeof r === 'string' ? this._resolveProductImage(r) : r));
+            }
+            if (item.colorImages && typeof item.colorImages === 'object') {
+                const storedColors = {};
+                const memColors = {};
+                let cIdx = 0;
+                for (const [col, val] of Object.entries(item.colorImages)) {
+                    cIdx++;
+                    if (typeof val === 'string' && val) {
+                        const ref = this._saveProductImage(item.id, val, `c${cIdx}`);
+                        storedColors[col] = ref;
+                        memColors[col] = this._resolveProductImage(ref);
+                    } else {
+                        storedColors[col] = val;
+                        memColors[col] = val;
+                    }
+                }
+                copy.colorImages = storedColors;
+                if (mutateInMemory) item.colorImages = memColors;
+            }
+            return copy;
+        }
+
+        _syncProductVariants(item) {
+            if (!this.db || !item || item.id == null) return;
+            try {
+                this.db.run("DELETE FROM product_variants WHERE product_id = ?;", [item.id]);
+                if (!Array.isArray(item.variants) || item.variants.length === 0) return;
+                const stmt = this.db.prepare("INSERT INTO product_variants (product_id, warehouse, size, color, sub_barcode, qty, price) VALUES (?, ?, ?, ?, ?, ?, ?);");
+                for (const v of item.variants) {
+                    if (!v) continue;
+                    stmt.run(this._safeBind([
+                        item.id,
+                        String(v.warehouse || item.warehouse || ''),
+                        String(v.size || ''),
+                        String(v.color || ''),
+                        String(v.barcode || v.subBarcode || v.code || ''),
+                        parseFloat(v.stock != null ? v.stock : v.qty) || 0,
+                        parseFloat(v.price != null ? v.price : item.price) || 0
+                    ]));
+                }
+                stmt.free();
+            } catch (_) { }
         }
 
         /**
@@ -1648,22 +1793,25 @@
             if (!imgDir || !this.fs) return;
             try {
                 const cleanId = String(productId).replace(/[^a-zA-Z0-9_-]/g, '_');
-                const jpgPath = this.path.join(imgDir, `prod_${cleanId}.jpg`);
-                const pngPath = this.path.join(imgDir, `prod_${cleanId}.png`);
-                if (this.fs.existsSync(jpgPath)) this.fs.unlinkSync(jpgPath);
-                if (this.fs.existsSync(pngPath)) this.fs.unlinkSync(pngPath);
+                const prefix = `prod_${cleanId}`;
+                const files = this.fs.readdirSync(imgDir);
+                for (const f of files) {
+                    if (f === `${prefix}.jpg` || f === `${prefix}.png` || f === `${prefix}.webp` || f.startsWith(`${prefix}_`)) {
+                        try { this.fs.unlinkSync(this.path.join(imgDir, f)); } catch (_) { }
+                    }
+                }
             } catch (e) {
                 console.warn('[SQLite] Error deleting product image:', e.message);
             }
         }
 
         /**
-         * 🔄 ترحيل هادئ في الخلفية لأي صور قديمة مخزنة بصيغة Base64 إلى القرص
+         * 🔄 ترحيل هادئ في الخلفية لأي صور قديمة مخزنة بصيغة Base64 (رئيسية + معرض + ألوان) إلى القرص
          */
         _migrateLegacyBase64Images() {
             if (!this.db || !this.fs) return;
             try {
-                if (typeof localStorage !== 'undefined' && localStorage.getItem('bayan_legacy_img_migrated_v2') === 'done') {
+                if (typeof localStorage !== 'undefined' && localStorage.getItem('bayan_legacy_img_migrated_v3') === 'done') {
                     return;
                 }
                 const stmt = this.db.prepare("SELECT id, raw_json FROM products WHERE raw_json LIKE '%data:image%' OR raw_json LIKE '%file://%';");
@@ -1674,34 +1822,29 @@
                 stmt.free();
 
                 if (prodsToMigrate.length === 0) {
-                    if (typeof localStorage !== 'undefined') localStorage.setItem('bayan_legacy_img_migrated_v2', 'done');
+                    if (typeof localStorage !== 'undefined') localStorage.setItem('bayan_legacy_img_migrated_v3', 'done');
                     return;
                 }
-                console.log(`📸 [SQLite Image Offloader] جاري ترحيل وتفريغ ${prodsToMigrate.length} صورة من الداتابيز إلى القرص...`);
+                console.log(`📸 [SQLite Image Offloader] جاري ترحيل وتفريغ ${prodsToMigrate.length} صنف بالصور الفرعية والألوان من الداتابيز إلى القرص...`);
                 let count = 0;
                 this.runInTransaction(() => {
                     const upStmt = this.db.prepare("UPDATE products SET raw_json = ? WHERE id = ?;");
                     for (const row of prodsToMigrate) {
                         try {
                             const extra = typeof row.raw_json === 'string' ? JSON.parse(row.raw_json) : row.raw_json;
-                            if (extra && extra.image && typeof extra.image === 'string') {
-                                if (extra.image.startsWith('data:image')) {
-                                    extra.image = this._saveProductImage(row.id, extra.image);
-                                    upStmt.run(this._safeBind([JSON.stringify(extra), row.id]));
-                                    count++;
-                                } else if (extra.image.startsWith('file://')) {
-                                    const fName = extra.image.split('?')[0].split(/[/\\]/).pop();
-                                    extra.image = 'local_img:' + fName;
-                                    upStmt.run(this._safeBind([JSON.stringify(extra), row.id]));
-                                    count++;
-                                }
+                            if (extra && typeof extra === 'object') {
+                                const offloaded = this._offloadAllProductMedia({ ...extra, id: row.id }, false);
+                                delete offloaded.id;
+                                upStmt.run(this._safeBind([JSON.stringify(offloaded), row.id]));
+                                count++;
                             }
                         } catch (e) { }
                     }
                     upStmt.free();
                 });
+                if (typeof localStorage !== 'undefined') localStorage.setItem('bayan_legacy_img_migrated_v3', 'done');
                 if (count > 0) {
-                    console.log(`✅ [SQLite Image Offloader] تم ترحيل ${count} صورة بنجاح إلى مجلد product_images وتخفيف قاعدة البيانات.`);
+                    console.log(`✅ [SQLite Image Offloader] تم ترحيل صور ${count} صنف بنجاح إلى مجلد product_images وتخفيف قاعدة البيانات.`);
                     this.schedulePersist(500);
                 }
             } catch (err) {
@@ -2065,26 +2208,12 @@
                 }
 
                 if (tableName === 'products') {
-                    // 📸 تفريغ الصورة من الداتابيز وحفظها كملف مستقل على القرص
-                    const itemToStore = { ...item };
-                    if (item.image) {
-                        if (typeof item.image === 'string' && item.image.startsWith('data:image')) {
-                            const localRef = this._saveProductImage(item.id, item.image);
-                            itemToStore.image = localRef;
-                            // تحديث العنصر في الذاكرة بالرابط المحلي السريع file:/// بدلاً من Base64 الضخم
-                            item.image = this._resolveProductImage(localRef);
-                        } else if (typeof item.image === 'string' && item.image.startsWith('file://')) {
-                            const fName = item.image.split('?')[0].split(/[/\\]/).pop();
-                            itemToStore.image = 'local_img:' + fName;
-                        }
-                    } else if (item.image === null || item.image === '') {
-                        this._deleteProductImage(item.id);
-                        itemToStore.image = null;
-                    }
+                    // 📸 تفريغ كافة صور الصنف (الرئيسية والمعرض والألوان) وحفظها كملفات مستقلة على القرص
+                    const itemToStore = this._offloadAllProductMedia(item, true);
 
                     // تجريد الحقول المخزنة كأعمدة أساسية لتوفير الحجم
-                    const rawJson = this._extractExtraFields(itemToStore, ['id', 'name', 'barcode', 'code', 'category', 'unit', 'cost', 'price', 'wholesale', 'stock']);
-                    const stmt = this.db.prepare(`INSERT OR REPLACE INTO products (id, name, barcode, code, category, unit, cost, price, wholesale, stock, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
+                    const rawJson = this._extractExtraFields(itemToStore, ['id', 'name', 'barcode', 'code', 'category', 'unit', 'cost', 'price', 'wholesale', 'stock', 'supplier', 'season', 'brand', 'updatedAt']);
+                    const stmt = this.db.prepare(`INSERT OR REPLACE INTO products (id, name, barcode, code, category, unit, cost, price, wholesale, stock, supplier, season, brand, updatedAt, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
                     stmt.run(this._safeBind([
                         item.id,
                         item.name || '',
@@ -2096,9 +2225,14 @@
                         parseFloat(item.price) || 0,
                         parseFloat(item.wholesale) || 0,
                         parseFloat(item.stock) || 0,
+                        String(item.supplier || ''),
+                        String(item.season || ''),
+                        String(item.brand || ''),
+                        String(item.updatedAt || new Date().toISOString()),
                         rawJson
                     ]));
                     stmt.free();
+                    this._syncProductVariants(item);
                 } else if (tableName === 'transactions') {
                     // 🔒 تغليف إدخال رأس الفاتورة وبنودها داخل Transaction ذرية موحدة لمنع الفواتير اليتيمة
                     this.runInTransaction(() => {
@@ -2133,14 +2267,18 @@
                         const cleanWarehouse = String(item.warehouse || '');
                         const cleanHead = (item.isInvoiceHead === true || item.isInvoiceHead === 1 || item.isInvoiceHead === 'true') ? 1 : 0;
 
-                        let rawJson = this._extractExtraFields(item, ['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'user', 'warehouse', 'isInvoiceHead']);
+                        const cleanPartnerId = (item.partnerId != null && item.partnerId !== '' && !isNaN(Number(item.partnerId))) ? Number(item.partnerId) : null;
+                        const cleanSalesperson = String(item.salesperson || item.salesPerson || item.seller || '');
+                        const cleanStatus = String(item.status || '');
+
+                        let rawJson = this._extractExtraFields(item, ['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'partnerId', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'user', 'salesperson', 'warehouse', 'status', 'isInvoiceHead']);
                         if (typeof rawJson === 'object' && rawJson !== null) {
                             try { rawJson = JSON.stringify(rawJson); } catch (e) { rawJson = '{}'; }
                         } else if (typeof rawJson !== 'string') {
                             rawJson = String(rawJson || '{}');
                         }
 
-                        const stmt = this.db.prepare(`INSERT OR REPLACE INTO transactions (id, invoiceId, originalInvoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, isInvoiceHead, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
+                        const stmt = this.db.prepare(`INSERT OR REPLACE INTO transactions (id, invoiceId, originalInvoiceId, dateISO, time, type, partner, partnerId, total, paidAmount, remaining, method, cashier, salesperson, warehouse, status, isInvoiceHead, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
                         stmt.run(this._safeBind([
                             cleanId,
                             cleanInvoiceId,
@@ -2149,12 +2287,15 @@
                             cleanTime,
                             cleanType,
                             cleanPartner,
+                            cleanPartnerId,
                             cleanTotal,
                             cleanPaid,
                             cleanRemaining,
                             cleanMethod,
                             cleanCashier,
+                            cleanSalesperson,
                             cleanWarehouse,
+                            cleanStatus,
                             cleanHead,
                             rawJson
                         ]));
@@ -2265,20 +2406,11 @@
                     let insTiStmt = null;
                     try {
                         if (tableName === 'products') {
-                            mainStmt = this.db.prepare(`INSERT OR REPLACE INTO products (id, name, barcode, code, category, unit, cost, price, wholesale, stock, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
+                            mainStmt = this.db.prepare(`INSERT OR REPLACE INTO products (id, name, barcode, code, category, unit, cost, price, wholesale, stock, supplier, season, brand, updatedAt, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
                             for (const item of items) {
                                 if (!item) continue;
-                                let itemToStore = item;
-                                if (item.image && typeof item.image === 'string') {
-                                    if (item.image.startsWith('data:image')) {
-                                        const diskPath = this._saveProductImage(item.id, item.image);
-                                        itemToStore = { ...item, image: diskPath };
-                                    } else if (item.image.startsWith('file://')) {
-                                        const fName = item.image.split('?')[0].split(/[/\\]/).pop();
-                                        itemToStore = { ...item, image: 'local_img:' + fName };
-                                    }
-                                }
-                                const rawJson = this._extractExtraFields(itemToStore, ['id', 'name', 'barcode', 'code', 'category', 'unit', 'cost', 'price', 'wholesale', 'stock']);
+                                const itemToStore = this._offloadAllProductMedia(item, false);
+                                const rawJson = this._extractExtraFields(itemToStore, ['id', 'name', 'barcode', 'code', 'category', 'unit', 'cost', 'price', 'wholesale', 'stock', 'supplier', 'season', 'brand', 'updatedAt']);
                                 mainStmt.run(this._safeBind([
                                     item.id,
                                     item.name || '',
@@ -2290,11 +2422,16 @@
                                     parseFloat(item.price) || 0,
                                     parseFloat(item.wholesale) || 0,
                                     parseFloat(item.stock) || 0,
+                                    String(item.supplier || ''),
+                                    String(item.season || ''),
+                                    String(item.brand || ''),
+                                    String(item.updatedAt || new Date().toISOString()),
                                     rawJson
                                 ]));
+                                this._syncProductVariants(item);
                             }
                         } else if (tableName === 'transactions') {
-                            mainStmt = this.db.prepare(`INSERT OR REPLACE INTO transactions (id, invoiceId, originalInvoiceId, dateISO, time, type, partner, total, paidAmount, remaining, method, cashier, warehouse, isInvoiceHead, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
+                            mainStmt = this.db.prepare(`INSERT OR REPLACE INTO transactions (id, invoiceId, originalInvoiceId, dateISO, time, type, partner, partnerId, total, paidAmount, remaining, method, cashier, salesperson, warehouse, status, isInvoiceHead, raw_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`);
                             delTiStmt = this.db.prepare("DELETE FROM transaction_items WHERE tx_id = ?;");
                             insTiStmt = this.db.prepare(`
                                 INSERT INTO transaction_items 
@@ -2373,7 +2510,11 @@
                                 const cleanWarehouse = String(item.warehouse || '');
                                 const cleanHead = (item.isInvoiceHead === true || item.isInvoiceHead === 1 || item.isInvoiceHead === 'true') ? 1 : 0;
 
-                                let rawJson = this._extractExtraFields(item, ['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'user', 'warehouse', 'isInvoiceHead']);
+                                const cleanPartnerId = (item.partnerId != null && item.partnerId !== '' && !isNaN(Number(item.partnerId))) ? Number(item.partnerId) : null;
+                                const cleanSalesperson = String(item.salesperson || item.salesPerson || item.seller || '');
+                                const cleanStatus = String(item.status || '');
+
+                                let rawJson = this._extractExtraFields(item, ['id', 'invoiceId', 'originalInvoiceId', 'dateISO', 'time', 'type', 'partner', 'partnerId', 'total', 'paidAmount', 'remaining', 'method', 'cashier', 'user', 'salesperson', 'warehouse', 'status', 'isInvoiceHead']);
                                 if (typeof rawJson === 'object' && rawJson !== null) {
                                     try { rawJson = JSON.stringify(rawJson); } catch (e) { rawJson = '{}'; }
                                 } else if (typeof rawJson !== 'string') {
@@ -2388,12 +2529,15 @@
                                     cleanTime,
                                     cleanType,
                                     cleanPartner,
+                                    cleanPartnerId,
                                     cleanTotal,
                                     cleanPaid,
                                     cleanRemaining,
                                     cleanMethod,
                                     cleanCashier,
+                                    cleanSalesperson,
                                     cleanWarehouse,
+                                    cleanStatus,
                                     cleanHead,
                                     rawJson
                                 ]));

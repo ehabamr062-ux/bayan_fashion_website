@@ -115,7 +115,7 @@
                 triggerSource: triggerSource,
                 installDate: installDate ? new Date(installDate).toLocaleDateString('ar-EG') : '---',
                 lastActive: new Date().toLocaleString('ar-EG'),
-                appVersion: window.appVersion || 'V5.1.7',
+                appVersion: window.appVersion || 'V5.1.8',
                 ...onlineStore
             };
         },
@@ -633,7 +633,7 @@
                 const errMsg = (err && err.message) ? err.message : String(err);
                 const stack = (err && err.stack) ? err.stack.split('\n').slice(0, 3).join('\n') : '';
                 const shop = readSafeStore('shopName', 'غير محدد');
-                const version = (typeof window.APP_VERSION !== 'undefined') ? window.APP_VERSION : '5.1.7';
+                const version = (typeof window.APP_VERSION !== 'undefined') ? window.APP_VERSION : '5.1.8';
                 const platform = this.detectPlatform();
 
                 const msg = `⚠️ <b>تنبيه خطأ برمجي - بَيَان POS (v${version})</b>\n` +
@@ -672,7 +672,7 @@
                     const shop = readSafeStore('shopName', 'مستخدم جديد');
                     const phone = readSafeStore('shopPhone1') || readSafeStore('shopPhone') || 'غير مسجل';
                     const plan = (typeof window.getBayanPlan === 'function') ? window.getBayanPlan() : 'باقة نسخة المجانية';
-                    const version = (typeof window.APP_VERSION !== 'undefined') ? window.APP_VERSION : '5.1.7';
+                    const version = (typeof window.APP_VERSION !== 'undefined') ? window.APP_VERSION : '5.1.8';
                     const platform = this.detectPlatform();
                     const originUrl = (typeof window !== 'undefined' && window.location && window.location.href && window.location.href.startsWith('http'))
                         ? (window.location.origin + window.location.pathname)
@@ -720,7 +720,7 @@
 
                 const shop = readSafeStore('shopName', 'غير مسمى');
                 const phone = readSafeStore('shopPhone1') || readSafeStore('shopPhone') || 'غير مسجل';
-                const version = (typeof window.APP_VERSION !== 'undefined') ? window.APP_VERSION : '5.1.7';
+                const version = (typeof window.APP_VERSION !== 'undefined') ? window.APP_VERSION : '5.1.8';
                 const platform = this.detectPlatform();
 
                 let header = '🧾 <b>نشاط فواتير POS — محطة استخدام جديدة!</b>';

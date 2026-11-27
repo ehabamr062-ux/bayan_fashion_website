@@ -105,7 +105,7 @@ function createWindow() {
             spellcheck: false, // تعطيل التدقيق الإملائي لتوفير الرامات والمعالج
             backgroundThrottling: false, // ضمان استمرار عمل دورات المزامنة السحابية ومؤقتات الشبكة بسلاسة تامة دون انقطاع عند تصغير البرنامج
             webSecurity: false, // إلغاء حظر CORS وقيود البروتوكولات على الملفات المحلية (file:///)
-            allowRunningInsecureContent: true
+            allowRunningInsecureContent: false
         },
         icon: path.join(__dirname, 'media', 'logo.ico')
     });
@@ -1954,7 +1954,7 @@ ipcMain.handle('quit-and-install-update', async () => {
 
 try { ipcMain.removeHandler('get-app-version'); } catch (e) { }
 ipcMain.handle('get-app-version', () => {
-    return app.getVersion() || '5.1.7';
+    return app.getVersion() || '5.1.8';
 });
 
 // =========================================================================
